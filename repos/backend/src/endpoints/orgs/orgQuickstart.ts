@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 import {
   agents,
   secrets,
@@ -23,7 +24,6 @@ import {
   encodeEncrypted,
   ProviderTemplates,
 } from '@tdsk/domain'
-import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 
 /**
  * POST /:orgId/quickstart - Create Provider + Secret + Project + Agent + Endpoint
@@ -34,6 +34,7 @@ import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 export const orgQuickstart: TEndpointConfig = {
   path: `/:orgId/quickstart`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const orgId = req.params.orgId
@@ -84,9 +85,6 @@ export const orgQuickstart: TEndpointConfig = {
     const modelEntry = ModelRegistry.getModel(providerBrand, resolvedModel)
     const resolvedMaxTokens = maxTokens || modelEntry?.maxTokens || 100000
 
-    // --- Permission check ---
-    await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
-
     // --- Create endpoint path slug ---
     const slug = agentName
       .toLowerCase()
@@ -100,7 +98,7 @@ export const orgQuickstart: TEndpointConfig = {
     try {
       const result = await db.transaction(async (tx) => {
         // 1. Provider (org-scoped)
-        const [provider] = await tx
+        const providerRows = await tx
           .insert(providers)
           .values({
             orgId,
@@ -112,6 +110,7 @@ export const orgQuickstart: TEndpointConfig = {
             },
           })
           .returning()
+        const provider = providerRows[0]
 
         // 2. Encrypt API key using org ID (scope owner for org-scoped secrets)
         const derivedKey = await deriveKey(orgId)
@@ -124,7 +123,7 @@ export const orgQuickstart: TEndpointConfig = {
         const hashKey = createHashKey(secretName)
 
         // 3. Secret (dual ownership: org-scoped for Secrets page visibility + provider-linked)
-        const [secret] = await tx
+        const secretRows = await tx
           .insert(secrets)
           .values({
             name: secretName,
@@ -134,9 +133,10 @@ export const orgQuickstart: TEndpointConfig = {
             providerId: provider.id,
           })
           .returning()
+        const secret = secretRows[0]
 
         // 4. Project (org-scoped)
-        const [project] = await tx
+        const projectRows = await tx
           .insert(projects)
           .values({
             name: projectName,
@@ -144,9 +144,10 @@ export const orgQuickstart: TEndpointConfig = {
             meta: {},
           })
           .returning()
+        const project = projectRows[0]
 
         // 5. Agent (org-scoped)
-        const [agent] = await tx
+        const agentRows = await tx
           .insert(agents)
           .values({
             name: agentName,
@@ -157,6 +158,7 @@ export const orgQuickstart: TEndpointConfig = {
             ...(systemPrompt && { systemPrompt }),
           })
           .returning()
+        const agent = agentRows[0]
 
         // 6. Agent-Provider junction (priority 0 = primary)
         await tx.insert(agentProviders).values({
@@ -172,7 +174,7 @@ export const orgQuickstart: TEndpointConfig = {
         })
 
         // 8. Endpoint (project-scoped, type=agent)
-        const [endpoint] = await tx
+        const endpointRows = await tx
           .insert(endpoints)
           .values({
             type: `agent`,
@@ -183,6 +185,7 @@ export const orgQuickstart: TEndpointConfig = {
             options: { agentId: agent.id },
           })
           .returning()
+        const endpoint = endpointRows[0]
 
         return {
           agent,

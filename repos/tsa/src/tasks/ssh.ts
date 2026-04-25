@@ -9,6 +9,10 @@ import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
+import {
+  clearSyncCleanup,
+  registerSyncCleanup,
+} from '@TSA/utils/tasks/syncCleanupRegistry'
 
 /**
  * Join an existing shared session via shell WebSocket.
@@ -195,6 +199,7 @@ export const ssh: TTask = {
     const syncCtx = createSyncContext()
     try {
       await autoStartSync(syncCtx, config?.sync, client, orgId, sandboxId)
+      if (syncCtx.started) registerSyncCleanup(sandboxId, syncCtx.manager)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       await stopSync(syncCtx, sandboxId)
@@ -207,6 +212,7 @@ export const ssh: TTask = {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1
     } finally {
+      clearSyncCleanup()
       await stopSync(syncCtx, sandboxId)
     }
   }),

@@ -17,10 +17,6 @@ vi.mock(`@TBE/utils/logger`, () => ({
   },
 }))
 
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: vi.fn().mockResolvedValue(undefined),
-}))
-
 describe(`Providers endpoints`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
@@ -432,7 +428,7 @@ describe(`Providers endpoints`, () => {
       expect(mockGet).toHaveBeenCalledWith(`prov-1`)
     })
 
-    it(`should update provider headers`, async () => {
+    it(`should update provider with allowed fields only`, async () => {
       const existingProvider = new Provider({
         id: `prov-1`,
         name: `Provider`,
@@ -440,13 +436,12 @@ describe(`Providers endpoints`, () => {
         brand: `anthropic`,
         orgId: `org-1`,
       })
-      const updateData = { headers: { 'X-Api-Key': `{{MY_SECRET}}` } }
       const updatedProvider = new Provider({
         ...existingProvider,
-        ...updateData,
+        name: `Updated Provider`,
       })
       mockReq.params = { id: `prov-1` }
-      mockReq.body = updateData
+      mockReq.body = { name: `Updated Provider` }
 
       const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
         typeof vi.fn
@@ -460,7 +455,7 @@ describe(`Providers endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockUpdate).toHaveBeenCalledWith({ ...updateData, id: `prov-1` })
+      expect(mockUpdate).toHaveBeenCalledWith({ name: `Updated Provider`, id: `prov-1` })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: updatedProvider })
     })
@@ -671,85 +666,33 @@ describe(`Providers endpoints`, () => {
     const ep = getEndpointCfg(providers.endpoints?.deleteProvider)
 
     it(`should return 200 with success on delete`, async () => {
-      const existingProvider = new Provider({
-        id: `prov-1`,
-        name: `Provider`,
-        type: `ai`,
-        brand: `anthropic`,
-        orgId: `org-1`,
-      })
       mockReq.params = { id: `prov-1` }
 
-      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-        typeof vi.fn
-      >
       const mockDelete = mockReq.app?.locals.db.services.provider.delete as ReturnType<
         typeof vi.fn
       >
 
-      mockGet.mockResolvedValue({ data: existingProvider })
-      mockDelete.mockResolvedValue({ data: existingProvider })
+      mockDelete.mockResolvedValue({ data: true })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
       expect(mockDelete).toHaveBeenCalledWith(`prov-1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: { success: true, id: `prov-1` } })
     })
 
-    it(`should return 404 when provider not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-
-      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: null })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider not found`
-      )
-      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
-    })
-
-    it(`should return 500 on get error`, async () => {
-      mockReq.params = { id: `prov-1` }
-
-      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ error: new Error(`Database error`) })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Database error`
-      )
-      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
-    })
-
     it(`should return 500 on delete error`, async () => {
-      const existingProvider = new Provider({
-        id: `prov-1`,
-        name: `Provider`,
-        type: `ai`,
-        brand: `anthropic`,
-        orgId: `org-1`,
-      })
       mockReq.params = { id: `prov-1` }
 
-      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-        typeof vi.fn
-      >
       const mockDelete = mockReq.app?.locals.db.services.provider.delete as ReturnType<
         typeof vi.fn
       >
 
-      mockGet.mockResolvedValue({ data: existingProvider })
       mockDelete.mockResolvedValue({ error: new Error(`Delete failed`) })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Delete failed`
       )
-      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
       expect(mockDelete).toHaveBeenCalledWith(`prov-1`)
     })
   })

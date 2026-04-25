@@ -16,11 +16,6 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
-const mockCheckPermission = vi.fn().mockResolvedValue(undefined)
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: (...args: any[]) => mockCheckPermission(...args),
-}))
-
 const mockRunHeadless = vi.fn().mockResolvedValue({ threadId: `thread-1` })
 vi.mock(`@TBE/services/endpoints/agentEndpoint`, () => ({
   AgentEndpoint: vi.fn().mockImplementation(() => ({
@@ -164,7 +159,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
       on: mockOn as any,
     }
 
-    mockCheckPermission.mockResolvedValue(undefined)
     mockExtractPrompt.mockReturnValue(`Hello`)
     mockBuildOverrides.mockReturnValue({})
     mockConvertOAIMessages.mockReturnValue([])
@@ -226,35 +220,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
       `Authentication required`
     )
-  })
-
-  it(`should return 403 when permission check fails`, async () => {
-    const ep = getEndpointCfg(oaiChatCompletions as any)
-    const { Exception } = await import(`@tdsk/domain`)
-    const permError = new Exception(
-      403,
-      `Permission denied: cannot read agent`,
-      `FORBIDDEN`
-    )
-    mockCheckPermission.mockRejectedValueOnce(permError)
-    mockFormatOAIError.mockReturnValue({
-      status: 403,
-      body: {
-        error: {
-          message: `Permission denied: cannot read agent`,
-          type: `authentication_error`,
-          param: null,
-          code: null,
-        },
-      },
-    })
-
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(mockFormatOAIError).toHaveBeenCalledWith(permError)
-    expect(mockStatus).toHaveBeenCalledWith(403)
-    expect(mockJson).toHaveBeenCalled()
-    expect(mockRunHeadless).not.toHaveBeenCalled()
   })
 
   // ── 3-5. Validation ─────────────────────────────────────────────

@@ -7,472 +7,183 @@ tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
 
 ## Overview
 
-The CLI repo (`@tdsk/cli`) is a comprehensive developer CLI tool for managing the Threaded Stack monorepo. It provides unified commands for:
-- **Docker operations**: Building, pulling, pushing, running, and executing containerized applications
-- **Kubernetes management**: Secrets, namespaces, ingress configuration, pod inspection
-- **DevSpace orchestration**: Development environment management
-- **Web UI management**: Starting and managing the admin UI
+The CLI repo (`@tdsk/cli`) is a developer CLI for managing the Threaded Stack monorepo.
 
-The CLI uses a hierarchical task system built on `@keg-hub/args-parse` with support for nested commands, aliases, and options.
+- **Docker**: Build, pull, push, run, exec containerized applications (supports sandbox image type variants)
+- **Kubernetes**: Secrets (6 presets: tdsk, docker, database, payments, email, egress), namespaces, ingress, pod inspection
+- **DevSpace**: Development environment start, clean, log, enter, render, attach, use
+- **Web UI**: Start admin UI in dev mode
+- **Hierarchical tasks**: Built on `@keg-hub/args-parse` with nested commands (3 levels deep), aliases, and options
 
 ## Directory Structure
 
 ```
 repos/cli/
-├── configs/               # Build and tool configurations
-│   ├── cli.config.ts     # Main CLI configuration with paths and six contexts
-│   ├── aliases.ts        # Path aliases (@TSCL/*)
-│   ├── tsup.config.ts    # Build configuration
-│   └── vitest.config.ts  # Test configuration
-├── scripts/              # Helper scripts
-│   ├── loadEnvs.ts       # Environment loading utilities
-│   └── addToProcess.ts   # Process environment helpers
+├── configs/              # cli.config.ts (six contexts), aliases.ts (@TSCL/*), tsup, vitest
+├── scripts/              # loadEnvs.ts, addToProcess.ts
 ├── src/
 │   ├── index.ts          # Entry point (exports cli.ts)
-│   ├── cli.ts            # Main CLI runner with argsParse integration
-│   ├── constants/        # Constants and filters (EnvFilter)
-│   ├── types/            # TypeScript definitions
-│   ├── tasks/            # Command definitions (hierarchical structure)
+│   ├── cli.ts            # Main CLI runner — argsParse integration
+│   ├── constants/        # EnvFilter for child process env vars
+│   ├── types/            # TTask, TTaskAction, TCliCfg, ECtxMap
+│   ├── tasks/            # Command definitions
 │   │   ├── index.ts      # Task registry
-│   │   ├── docker/       # Docker commands
-│   │   ├── kube/         # Kubernetes commands
-│   │   │   └── secret/   # Preset secret commands (tdsk, docker, database, payments, email, egress)
-│   │   ├── devspace/     # DevSpace commands
-│   │   └── web/          # Web UI commands
-│   └── utils/            # Utility functions
-│       ├── config/       # Config utilities (getCtx)
-│       ├── devspace/     # DevSpace helpers
-│       ├── docker/       # Docker helpers
-│       ├── kube/         # Kubernetes utilities (kubectl wrapper)
+│   │   ├── docker/       # build, run, exec, pull, push, login
+│   │   ├── kube/         # set, pod, secret, remove, ingress, namespace
+│   │   │   └── secret/   # Presets: tdsk, docker, database, payments, email, egress
+│   │   ├── devspace/     # start, clean, log, enter, render, attach, use
+│   │   └── web/          # start
+│   └── utils/
+│       ├── config/       # getCtx — context resolution with alias + sandbox type support
+│       ├── devspace/     # DevSpace CLI helpers
+│       ├── docker/       # Docker CLI helpers
+│       ├── kube/         # kubectl wrapper (create, delete, apply, describe, getPod, getPods, ensureContext)
 │       ├── pnpm/         # PNPM command execution
-│       ├── proc/         # Process management (spawn, exec)
+│       ├── proc/         # Process management (spawn with lifecycle hooks)
 │       ├── tasks/        # Task utilities (find, error, options)
 │       └── helpers/      # General helpers
-└── dist/                 # Built output
 ```
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/cli.ts` | Main CLI entry point - parses args, loads config, executes tasks |
-| `src/tasks/index.ts` | Task registry that exports all command groups |
-| `configs/cli.config.ts` | Configuration with paths, six contexts (app, proxy, backend, admin, caddy, sandbox), and environment variables |
-| `src/types/tasks.types.ts` | Core type definitions for task system (TTask, TTasks, TTaskAction) |
-| `src/types/config.types.ts` | Configuration types and ECtxMap enum (context name aliases) |
-| `src/utils/tasks/find.ts` | Task resolution algorithm for nested commands and aliases |
-| `src/utils/proc/spawn.ts` | Child process spawning utility with enhanced error handling |
-| `src/utils/config/getCtx.ts` | Context resolver using ECtxMap for context name aliasing; supports sandbox image type variants |
-| `src/utils/kube/kubectl.ts` | Kubectl wrapper with methods: create, delete, apply, describe, getPod, getPods, ensureContext, etc. |
-| `src/tasks/kube/secret/egress.ts` | Egress CA secret preset - self-signed cert generation and K8s secret creation |
 
 ## Architecture
 
-### CLI Execution Flow
+**Execution flow**: `process.argv` → `find(tasks, args)` (resolve by name/alias, traverse nested tasks) → `argsParse()` → `loadCfg(env)` → `task.action({ task, tasks, params, config, options })`
 
-1. **Entry Point** (`src/cli.ts`):
-   ```typescript
-   process.argv → find(tasks, args) → argsParse() → loadCfg(env) → task.action()
-   ```
+**Config loading**: `--env` option (default: `local`) → `cli.config.ts` imports `@tdsk/domain/loadEnvs` → provides `config.contexts` with repo metadata (paths, images, tags, ports).
 
-2. **Task Resolution**:
-   - Parse command-line arguments: `['docker', 'build', '--context', 'proxy']`
-   - Find task by name or alias: `docker` → `docker.ts`
-   - Traverse nested tasks: `build` → `docker/build.ts`
-   - Parse remaining args as options: `['--context', 'proxy']`
+**Task structure**: `{ name, alias?, action?, tasks? (nested), options? }` — supports up to 3 levels of nesting.
 
-3. **Configuration Loading**:
-   - Environment determined by `--env` option (default: `local`)
-   - Loads `cli.config.ts` which imports `@tdsk/domain/loadEnvs`
-   - Provides `config.contexts` with repo metadata (paths, images, tags)
+**Key files**:
 
-4. **Action Execution**:
-   - Task action receives: `{ task, tasks, params, config, options }`
-   - Executes via utility functions: `spawn()`, `kubectl()`, `devspace()`, etc.
+| File | Purpose |
+|------|---------|
+| `src/cli.ts` | Main CLI entry — parses args, loads config, executes tasks |
+| `src/tasks/index.ts` | Task registry exporting all command groups |
+| `configs/cli.config.ts` | Config with paths, six contexts, and env vars |
+| `src/types/tasks.types.ts` | Core types: TTask, TTasks, TTaskAction, TTaskOptions |
+| `src/types/config.types.ts` | Config types and ECtxMap enum |
+| `src/utils/config/getCtx.ts` | Context resolver with alias and sandbox type variant support |
+| `src/utils/kube/kubectl.ts` | Kubectl wrapper: create, delete, apply, describe, getPod, getPods, ensureContext |
+| `src/tasks/kube/secret/egress.ts` | Egress CA secret — self-signed cert generation + K8s secret creation |
 
-### Task System Structure
+## Context System
 
-**Task Definition** (`TTask`):
-```typescript
-{
-  name: string              // Primary command name
-  alias?: string[]          // Alternative names
-  action?: TTaskAction      // Execution function
-  tasks?: TTasks            // Nested sub-commands
-  options?: TTaskOptions    // Command-line options
-}
-```
+Six contexts map to repos/services. `getCtx()` resolves a context name (with alias support) to its config object containing image, tag, dockerfile, location, ports, and mounts.
 
-**Task Hierarchy** (3 levels deep):
-```
-docker (group)                  aliases: doc, dc
-  ├── build, run, exec, pull, push, login
+| Alias | Context | Dockerfile | Notes |
+|-------|---------|------------|-------|
+| — | `app` | `Dockerfile.app` | Root monorepo image |
+| `px` | `proxy` | `Dockerfile.proxy` | Auth gateway |
+| `be` | `backend` | `Dockerfile.backend` | Core API |
+| `ad` | `admin` | `Dockerfile.admin` | SPA dashboard |
+| `cd` | `caddy` | `Dockerfile.caddy` | TLS/LB |
+| `sb` | `sandbox` | `Dockerfile.sandbox` | Dynamic pods (no K8s deployment) |
 
-kube (group)                    aliases: kubectl, kb, kcl
-  ├── secret (group)
-  │   ├── tdsk, docker, database, payments, email, egress
-  ├── pod, namespace, ingress, set, remove
+**ECtxMap aliases**: `be` → backend, `px` → proxy, `ad` → admin, `cd` → caddy, `sb` → sandbox.
 
-devspace (group)                aliases: dev, ds
-  ├── start, clean, log, enter, render, attach, use
+**Sandbox image variants**: When `--context sandbox` and `--type` is specified (not "base"), `getCtx()` replaces the `-base` suffix in the image name with `-<type>` (e.g., `--type claude` produces `image-claude`).
 
-web (group)                     aliases: ui
-  └── start
-```
+**Context config fields**: image, tag, from (base image), dtag (dev tag), deployment (K8s deployment name, empty for sandbox), dockerfile, location (repo path), tags, mounts, ports.
 
-## Available Commands
-
-### Web UI Management (`web`)
-
-**`web start`** - Start the admin UI in dev mode
-```bash
-pnpm tdsk web start                    # Start admin UI (default)
-pnpm tdsk ui start                     # Via 'ui' alias
-```
-- Options: `--context` (default: `admin`)
-- Runs: `pnpm start` in `repos/admin/` directory
-
-### Docker Commands (`docker`)
-
-**`docker build`** - Build Docker image
-```bash
-pnpm tdsk docker build --context proxy --tag v1.2.3
-pnpm tdsk docker build --context sandbox --type claude   # Sandbox variant
-pnpm tdsk docker build --context sandbox --type codex    # Sandbox variant
-pnpm tdsk docker build --context sandbox --type opencode # Sandbox variant
-pnpm tdsk docker build --context sandbox                 # Base sandbox image (default)
-```
-- Options: `--context`, `--tag`, `--image`, `--from`, `--push`, `--type`, `--cache`, `--arm`, `--platforms`, `--login`
-- The `--type` option selects sandbox image variants (only applies to `--context sandbox`). Replaces `-base` suffix in the image name with the specified type (e.g., `image-base` becomes `image-claude`).
-
-**`docker run`** - Run Docker container
-- Options: `--context`, `--port`, `--detach`, `--env-file`
-
-**`docker exec`** - Execute command in running container
-```bash
-pnpm tdsk docker exec --context proxy --cmd "/bin/sh"
-```
-
-**`docker pull`** / **`docker push`** - Pull/push Docker images
-```bash
-pnpm tdsk docker pull --context proxy
-pnpm tdsk docker push --context proxy --tag v1.0.0
-```
-
-**`docker login`** - Authenticate with Docker registry
-
-### Kubernetes Commands (`kube`)
-
-**`kube secret`** - Manage Kubernetes secrets
-```bash
-# From key-value
-pnpm tdsk kube secret --name my-secret --keyvalue key1:value1
-
-# From file
-pnpm tdsk kube secret --name db-creds --file ./secrets/database.json
-
-# Multiple secrets
-pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
-
-# Preset configurations
-pnpm tdsk kube secret docker --env prod --namespace production
-pnpm tdsk kube secret database
-pnpm tdsk kube secret tdsk
-pnpm tdsk kube secret payments
-pnpm tdsk kube secret email
-pnpm tdsk kube secret egress              # Generate self-signed CA + create K8s secret
-pnpm tdsk kube secret egress-ca           # Via alias
-pnpm tdsk kube secret eca                 # Via alias
-pnpm tdsk kube secret egress --cert ./ca.crt --key ./ca.key  # Use existing cert
-```
-- Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`, `--type`, `--context`, `--log`
-- Creates temporary files for secret values, then cleans up
-
-**`kube secret egress`** - Egress proxy CA certificate secret
-- Aliases: `egress-ca`, `eca`
-- Generates a self-signed CA certificate (~10 years valid) using OpenSSL if no existing cert is found
-- Cert/key resolution fallback chain:
-  1. CLI args (`--cert` / `--key`)
-  2. Environment variables (`TDSK_EGRESS_CA_CERT` / `TDSK_EGRESS_CA_KEY`)
-  3. `~/.config/tdsk/domain/egress.cert` and `egress.key` (loads existing or generates new)
-- Creates a K8s secret named per `TDSK_KUBE_SCRT_EGRESS_CA` env var (default: `tdsk-egress-ca`) with `tls.crt` and `tls.key` keys
-- Options: `--cert` (path to CA cert), `--key` (path to CA key), `--log`
-
-**`kube pod`** - Describe a Kubernetes pod by context or name
-```bash
-pnpm tdsk kube pod --context proxy
-pnpm tdsk kube pod --name my-pod-abc123 --output json
-```
-- Aliases: `pods`, `po`, `describe`
-- Options: `--context` (searches pod labels), `--name` (direct pod name), `--namespace`, `--output` (json/yaml/wide), `--log`
-- Uses `kubectl.getPod()` to resolve pod from context label, then calls `kubectl.describePod()`
-
-**`kube namespace`** - Manage namespaces
-
-**`kube ingress`** - Configure ingress resources
-
-**`kube set`** / **`kube remove`** - Apply/delete Kubernetes configurations
-
-### DevSpace Commands (`devspace`)
-
-**`devspace start`** - Start DevSpace development environment
-```bash
-pnpm tdsk devspace start --build --debug
-pnpm tdsk dev start --clean
-```
-- Options: `--build`, `--debug`, `--purge`, `--deploy`
-
-**`devspace enter`** - Enter running container shell
-```bash
-pnpm tdsk devspace enter --selector name=proxy
-```
-
-**`devspace attach`** - Attach to container process
-
-**`devspace log`** - Stream container logs
-```bash
-pnpm tdsk devspace log --follow --selector name=api
-```
-
-**`devspace clean`** - Clean DevSpace cache and artifacts
-
-**`devspace use`** - Configure DevSpace context and namespace
-```bash
-pnpm tdsk devspace use --namespace dev --context minikube
-```
-
-**`devspace render`** - Render DevSpace manifests without deploying
-```bash
-pnpm tdsk devspace render          # Dry-run Helm templates
-```
-
-## Command Summary Table
+## Command Summary
 
 | Task Group | Commands | Aliases | Key Options |
 |---|---|---|---|
 | **web** | start | ui | --context (default: admin) |
+| **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port, --type, --push, --cache, --arm, --platforms, --login |
 | **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
-| **kube secret** | tdsk, docker, database, payments, email, egress | (see individual) | --cert, --key, --log (egress-specific) |
-| **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port, --type |
-| **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector |
+| **kube secret** | tdsk, docker, database, payments, email, egress | egress-ca, eca | --cert, --key, --log, --name, --file, --keyvalue, --secrets |
+| **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector, --purge, --deploy |
 
-## Context Resolution
+### Key Commands
 
-```typescript
-// User specifies: --context proxy
-getCtx({ params: { context: 'proxy' }, config })
-  → ECtxMap['proxy'] → 'proxy'
-  → config.contexts['proxy']
-  → Returns:
-    {
-      image: TDSK_PX_IMAGE,
-      tag: TDSK_PX_IMAGE_TAG,
-      from: TDSK_PX_IMAGE_FROM,
-      dtag: TDSK_PX_DEV_IMAGE_TAG,
-      deployment: TDSK_PX_DEPLOYMENT,
-      dockerfile: 'Dockerfile.proxy',
-      location: '/path/to/repos/proxy',
-      tags: [],
-      mounts: {},
-      ports: { [TDSK_PX_PORT]: TDSK_PX_PORT }
-    }
+```bash
+# Docker
+pnpm tdsk docker build --context proxy --tag v1.2.3
+pnpm tdsk docker build --context sandbox --type claude    # Sandbox variant
+pnpm tdsk docker build --context sandbox --type codex     # Sandbox variant
+pnpm tdsk docker exec --context proxy --cmd "/bin/sh"
+pnpm tdsk docker pull --context proxy
+pnpm tdsk docker push --context proxy --tag v1.0.0
 
-// Context aliases via ECtxMap:
-//   be → backend, px → proxy, ad → admin, cd → caddy, sb → sandbox
+# Kubernetes secrets
+pnpm tdsk kube secret database
+pnpm tdsk kube secret tdsk
+pnpm tdsk kube secret payments
+pnpm tdsk kube secret email
+pnpm tdsk kube secret docker --env prod --namespace production
+pnpm tdsk kube secret egress                              # Generate self-signed CA + K8s secret
+pnpm tdsk kube secret egress --cert ./ca.crt --key ./ca.key  # Use existing cert
+pnpm tdsk kube secret --name my-secret --keyvalue key1:value1
 
-// Sandbox image type variants:
-// When context is 'sandbox' and --type is specified (not 'base'),
-// getCtx() replaces the '-base' suffix in the image name with '-<type>'
-// e.g. --context sandbox --type claude → image: 'image-claude'
+# Kubernetes pod inspection
+pnpm tdsk kube pod --context proxy
+pnpm tdsk kube pod --name my-pod-abc123 --output json
+
+# DevSpace
+pnpm tdsk dev start --clean
+pnpm tdsk dev start --build --debug
+pnpm tdsk dev log --follow --context backend
+pnpm tdsk dev enter --context backend --cmd "/bin/sh"
+pnpm tdsk dev render                                      # Dry-run Helm templates
+pnpm tdsk dev clean --images --cache
+pnpm tdsk dev use --namespace dev --context minikube
+
+# Web UI
+pnpm tdsk web start                                       # Start admin UI dev server
 ```
 
-### Configuration Contexts
+### Egress CA Secret Details
 
-Six contexts for repos/services (app, proxy, backend, admin, caddy, sandbox):
-```typescript
-config.contexts = {
-  app: {
-    image: TDSK_IMAGE,
-    tag: TDSK_IMAGE_TAG,
-    from: TDSK_IMAGE_FROM,
-    dtag: TDSK_DEV_IMAGE_TAG,
-    deployment: TDSK_APP_DEPLOYMENT,
-    dockerfile: 'Dockerfile.app',
-    location: root,
-    tags: [],
-    mounts: { [root]: '/tdsk' },
-    ports: { ... }
-  },
-  proxy: { ... },
-  backend: { ... },
-  admin: { ... },
-  caddy: { ... },
-  sandbox: {
-    image: TDSK_SB_IMAGE,
-    tag: TDSK_SB_IMAGE_TAG,
-    from: TDSK_SB_IMAGE_FROM,       // defaults to 'ubuntu:24.04'
-    dtag: TDSK_SB_DEV_IMAGE_TAG,
-    deployment: '',                  // no K8s deployment (pods are dynamic)
-    dockerfile: 'Dockerfile.sandbox',
-    location: deploy,
-    tags: [],
-    mounts: {},
-    ports: {}
-  }
-}
-```
+Generates a self-signed CA certificate (~10 years valid) via OpenSSL. Cert/key resolution fallback chain:
+1. CLI args (`--cert`/`--key`)
+2. Env vars (`TDSK_EGRESS_CA_CERT`/`TDSK_EGRESS_CA_KEY`)
+3. `~/.config/tdsk/domain/egress.cert` and `egress.key` (generates new if absent)
 
-### ECtxMap Enum
+Creates a K8s secret named per `TDSK_KUBE_SCRT_EGRESS_CA` env var (default: `tdsk-egress-ca`) with `tls.crt` and `tls.key` keys.
 
-```typescript
-enum ECtxMap {
-  backend = 'backend',
-  be = 'backend',
-  cd = 'caddy',
-  caddy = 'caddy',
-  admin = 'admin',
-  ad = 'admin',
-  px = 'proxy',
-  proxy = 'proxy',
-  sandbox = 'sandbox',
-  sb = 'sandbox',
-}
-```
+### Pod Inspection
 
-### Environment Filtering
+`kube pod --context <name>` resolves pod from context label via `kubectl.getPod()`, then calls `kubectl.describePod()`. Aliases: `pods`, `po`, `describe`. Supports `--output json/yaml/wide`.
 
-EnvFilter controls which environment variables are passed to child processes:
-```typescript
-EnvFilter = {
-  starts: ['npm_', 'HOME', 'KEG_', 'FIREBASE', 'FIRE_BASE', 'GOOGLE', 'AZURE', 'AWS'],
-  ends: ['_PATH', '_PORT'],
-  contains: [],
-  exclude: [],
-  add: [],
-}
-```
+## Key Utilities
 
-## Process Management
+| Utility | Location | Purpose |
+|---------|----------|---------|
+| `getCtx()` | `utils/config/getCtx.ts` | Context resolution with alias + sandbox type variants; validates context exists and directory is on disk |
+| `kubectl` | `utils/kube/kubectl.ts` | Kubectl wrapper: create, delete, apply, describe, getPod, getPods, ensureContext |
+| `spawn()` | `utils/proc/spawn.ts` | Child process spawning with lifecycle hooks (close, exit, error, stdout, stderr) |
+| `find()` | `utils/tasks/find.ts` | Task resolution for nested commands and aliases |
+| `pnpm.run()` | `utils/pnpm/` | Execute workspace commands via PNPM |
 
-Enhanced spawn wrapper with lifecycle hooks:
-```typescript
-await spawn({
-  cmd: 'kubectl',
-  args: ['create', 'secret', 'generic', 'my-secret'],
-  log: true,           // Log command execution
-  output: true,        // Capture stdout/stderr
-  detached: false,     // Keep process attached
-  envs: { FOO: 'bar' }, // Additional env vars
-  stdio: 'inherit',   // stdio mode (inherit, pipe, ignore)
-  close: (code) => {}, // Close callback
-  exit: (code, pid) => {}, // Exit callback
-  error: (err) => {},  // Error handler
-  stdout: (data) => {}, // stdout data handler
-  stderr: (data) => {}, // stderr data handler
-})
-```
+## Environment Management
 
-### Temporary File Management
-
-For Kubernetes secrets, temporary files are created and cleaned up:
-```typescript
-const saveTempSecret = (value: string) => {
-  const tempFileLoc = path.join(os.tmpdir(), `${uuid()}.txt`)
-  writeFileSync(tempFileLoc, value)
-  return tempFileLoc
-}
-// ... use in kubectl command
-// ... cleanup: rmSync(tempFileLoc)
-```
+- **EnvFilter**: Controls which env vars pass to child processes. Filters by prefix (npm_, HOME, KEG_, FIREBASE, GOOGLE, AZURE, AWS), suffix (_PATH, _PORT), and exclusion lists.
+- **NODE_ENV**: Set via `--env` option (default: `local`)
+- **Image tags**: Environment-specific via env vars (TDSK_PX_IMAGE_TAG, TDSK_BE_IMAGE_TAG, TDSK_AD_IMAGE_TAG, TDSK_CADDY_IMAGE_TAG, TDSK_SB_IMAGE_TAG)
 
 ## Integration Points
 
-### Workspace Dependencies
-- **`@tdsk/domain`** - `loadEnvs()` for environment configuration from `deploy/values.*.yml`
-- **`@tdsk/logger`** - `Logger.info()`, `Logger.pair()`, `Logger.stdout()`, `Logger.stderr()`, `Logger.colors`
-
-### External Tools Integration
-- **Docker**: Wraps `docker` CLI for image building, pushing, pulling, and container management
-- **Kubernetes**: Wraps `kubectl` CLI for cluster operations
-- **DevSpace**: Wraps `devspace` CLI for development workflows
-- **PNPM**: Executes workspace commands via `pnpm.run()`
-- **OpenSSL**: Used by the egress secret preset to generate self-signed CA certificates
-
-### Environment Management
-- **NODE_ENV**: Set via `--env` option (default: `local`)
-- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, TDSK_BE_IMAGE_TAG, TDSK_AD_IMAGE_TAG, TDSK_CADDY_IMAGE_TAG, TDSK_SB_IMAGE_TAG)
-
-## Type System
-
-### Core Task Types
-
-**TTask** - Task definition
-```typescript
-{
-  name: string           // Command name
-  alias?: string[]       // Alternative names
-  action?: TTaskAction   // Execution function
-  tasks?: TTasks         // Nested commands
-  options?: TTaskOptions // CLI options
-}
-```
-
-**TTaskAction** - Task execution function
-```typescript
-<P extends TTaskPMap>(args: TTaskActionArgs<P>) => any
-```
-
-**TTaskActionArgs** - Arguments passed to action
-```typescript
-{
-  params: TTaskParams    // Parsed CLI options
-  task: TTask            // Current task definition
-  tasks: TTasks          // All tasks (for delegation)
-  config: TCliCfg        // Loaded configuration
-  options?: string[]     // Unparsed option strings
-}
-```
-
-**TTaskOptions** - Option definitions
-```typescript
-Record<string, {
-  alias?: string[]       // Alternative option names
-  type?: 'string' | 'number' | 'boolean' | 'array' | 'object'
-  default?: any          // Default value
-  required?: boolean     // Is option required
-  example?: string       // Usage example
-  description?: string   // Help text
-  env?: string           // Environment variable binding
-  allowed?: string[]     // Allowed values
-}>
-```
+- **`@tdsk/domain`**: `loadEnvs()` for environment config from `deploy/values.*.yml`
+- **`@tdsk/logger`**: `Logger.info()`, `Logger.pair()`, `Logger.stdout()`, `Logger.stderr()`, `Logger.colors`
+- **External tools**: Docker CLI, kubectl, DevSpace CLI, PNPM, OpenSSL (egress CA generation)
 
 ## Using the CLI
 
 ```bash
-# Via PNPM workspace (from monorepo root)
-pnpm tdsk <command> <subcommand> <options>
-
-# Direct execution (from cli directory)
-node dist/index.js <command>
-
-# Dev mode (from cli directory)
-pnpm cli <command>
+pnpm tdsk <command> <subcommand> <options>   # Via PNPM workspace (monorepo root)
+pnpm cli <command>                            # Dev mode (from repos/cli/)
+node dist/index.js <command>                  # Direct execution (from repos/cli/)
 ```
-
-## Test Coverage
-
-The CLI repo currently has minimal test coverage:
-- **1 test file**: `src/utils/config/getCtx.test.ts`
-- **1 placeholder test**: `expect(true).toBe(true)`
-
-This is a known gap. The CLI relies heavily on integration testing via manual command execution rather than unit tests.
 
 ## Error Handling
 
-1. **Task Not Found**: `taskError()` throws when command doesn't exist
-2. **Missing Options**: Validation for required options
-3. **Process Failures**: Spawn wrapper captures exit codes and stderr
-4. **Config Errors**: Try-catch around config loading
-5. **Cleanup**: Temporary files removed even on error (Kubernetes secrets)
-6. **Context Validation**: `getCtx()` verifies context exists in config and directory exists on disk
+- **Task not found**: `taskError()` throws when command doesn't exist
+- **Missing options**: Validation for required options
+- **Process failures**: spawn() captures exit codes and stderr
+- **Config errors**: Try-catch around config loading
+- **Cleanup**: K8s secret temp files removed even on error
+- **Context validation**: `getCtx()` verifies context exists in config and directory exists on disk
+
+## Test Coverage
+
+Minimal: 1 test file (`src/utils/config/getCtx.test.ts`) with a placeholder test. CLI relies on manual integration testing.

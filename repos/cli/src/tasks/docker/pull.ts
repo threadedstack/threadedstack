@@ -23,7 +23,7 @@ export const pull: TTask = {
   name: `pull`,
   alias: [`pl`],
   action: pullImg,
-  example: `pnpm tdsk dev img pull <options>`,
+  example: `tdsk dev img pull <options>`,
   description: `Calls the image pull command`,
   options: {
     context: {

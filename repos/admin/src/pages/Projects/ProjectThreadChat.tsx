@@ -1,20 +1,12 @@
 import type { SubmitEvent, KeyboardEvent } from 'react'
 
-import { MessageBubble } from '@tdsk/components'
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
+import { TextInput, MessageBubble } from '@tdsk/components'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { useActiveOrgId, useActiveAgent, useActiveThread } from '@TAF/state/selectors'
-import {
-  Box,
-  Alert,
-  Paper,
-  Button,
-  TextField,
-  Typography,
-  IconButton,
-} from '@mui/material'
+import { Box, Alert, Paper, Button, Typography, IconButton } from '@mui/material'
 import {
   Stop as StopIcon,
   Send as SendIcon,
@@ -217,14 +209,13 @@ export const ProjectThreadChat = () => {
           borderColor: 'divider',
         }}
       >
-        <TextField
+        <TextInput
           fullWidth
+          textarea
           autoFocus
-          multiline
           maxRows={4}
-          size='small'
           value={input}
-          variant='outlined'
+          id='thread-chat-input'
           onKeyDown={onKeyDown}
           disabled={isStreaming}
           placeholder='Type a message...'

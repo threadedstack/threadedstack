@@ -3,9 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /:orgId/agents/:agentId/threads/:id - Get a thread by ID
@@ -18,6 +17,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const getThread: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.thread)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id, agentId } = req.params
@@ -31,10 +31,6 @@ export const getThread: TEndpointConfig = {
 
     // Validate thread belongs to this agent
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
-
-    await checkPermission(req, EPermAction.read, EPermResource.thread, {
-      orgId: thread.orgId,
-    })
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
 

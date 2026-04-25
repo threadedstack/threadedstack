@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
-
 import { EThemeType } from '@TTH/types'
 import { Page } from '@TTH/pages/Page/Page'
+import { useCallback, useState } from 'react'
 import { storage } from '@TTH/services/storage'
+import { useThemeType } from '@TTH/state/selectors'
 import { SettingsStorageKey } from '@TTH/constants/storage'
-import { useThemeToggle } from '@TTH/hooks/theme/useThemeToggle'
+import { toggleTheme } from '@TTH/actions/theme/toggleTheme'
+import { TerminalSettingsCard } from '@TTH/components/Terminal/TerminalSettingsCard'
 import {
   Box,
   Card,
@@ -41,16 +42,16 @@ const saveSettings = (data: TSettingsData) => {
 export type TSettings = {}
 
 export const Settings = (props: TSettings) => {
-  const { themeType, onThemeToggle } = useThemeToggle()
+  const [themeType] = useThemeType()
   const [settings, setSettings] = useState<TSettingsData>(loadSettings)
-
-  useEffect(() => {
-    saveSettings(settings)
-  }, [settings])
 
   const onSettingChange = useCallback(
     <K extends keyof TSettingsData>(key: K, value: TSettingsData[K]) => {
-      setSettings((prev) => ({ ...prev, [key]: value }))
+      setSettings((prev) => {
+        const next = { ...prev, [key]: value }
+        saveSettings(next)
+        return next
+      })
     },
     []
   )
@@ -74,8 +75,8 @@ export const Settings = (props: TSettings) => {
             label='Dark Mode'
             control={
               <Switch
+                onChange={() => toggleTheme()}
                 checked={themeType === EThemeType.dark}
-                onChange={() => onThemeToggle()}
               />
             }
           />
@@ -88,6 +89,8 @@ export const Settings = (props: TSettings) => {
           </Typography>
         </CardContent>
       </Card>
+
+      <TerminalSettingsCard />
 
       <Card sx={{ mb: 3 }}>
         <CardContent>

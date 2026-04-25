@@ -3,20 +3,19 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 export const updateSkill: TEndpointConfig = {
   path: `/:skillId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.skill)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, skillId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!skillId) throw new Exception(400, `skillId is required`)
-
-    await checkPermission(req, EPermAction.update, EPermResource.skill, { orgId })
 
     // Verify skill exists and belongs to org
     const { data: existing, error: getErr } = await db.services.skill.get(skillId)

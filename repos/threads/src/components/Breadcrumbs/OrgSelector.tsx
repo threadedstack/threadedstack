@@ -1,14 +1,14 @@
 import type { MouseEvent } from 'react'
 
 import { useState } from 'react'
-import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 import { selectOrg } from '@TTH/actions/orgs'
 import { useOrgs, useOrgId, useActiveOrg } from '@TTH/state/selectors'
+import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 
 export const OrgSelector = () => {
-  const orgs = useOrgs()
-  const orgId = useOrgId()
-  const activeOrg = useActiveOrg()
+  const [orgs] = useOrgs()
+  const [orgId] = useOrgId()
+  const [activeOrg] = useActiveOrg()
   const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 

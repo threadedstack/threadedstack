@@ -33,7 +33,7 @@ export class Auth {
     password: string,
     name?: string
   ): Promise<TAuthResp> => {
-    const displayName = name || email.split('@')[0]
+    const displayName = name || email.split(`@`)[0]
     const { error } = await this.client.signUp.email({
       email,
       password,

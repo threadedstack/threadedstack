@@ -2,9 +2,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * DELETE /users/:id - Delete a user (remove from org)
@@ -15,6 +15,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const deleteUser: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.user)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, auth } = req.app.locals

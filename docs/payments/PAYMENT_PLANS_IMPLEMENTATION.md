@@ -267,9 +267,9 @@ Successfully integrated Polar.sh payment plans with the Threaded Stack platform,
 Required environment variables (in `deploy/values.*.yml`):
 
 ```yaml
-TDSK_PAY_TYPE: "polar"
-TDSK_PAY_ACCESS_TOKEN: "polar_live_xxxxx"  # Polar API token
-TDSK_PAY_WEBHOOK_SECRET: "whsec_xxxxx"     # Polar webhook secret
+TDSK_PAY_TYPE: "stripe"
+TDSK_PAY_ACCESS_TOKEN: "stripe-token"  # Stripe API token
+TDSK_PAY_WEBHOOK_SECRET: "stripe-wh-secret"     # Stripe webhook secret
 TDSK_PAY_PLANS: "free=prod_xxxxx,basic=prod_yyyyy,developer=prod_zzzzz,pro=prod_aaaaa"
 ```
 

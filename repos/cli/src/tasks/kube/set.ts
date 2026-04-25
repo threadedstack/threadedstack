@@ -1,5 +1,6 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
+import { getKubeMeta } from '@TSCL/utils/kube/getKubeMeta'
 
 /**
  * Sets the active kubernetes context
@@ -10,23 +11,28 @@ import { kubectl } from '@TSCL/utils/kube/kubectl'
 const setAction: TTaskAction = async (args) => {
   const { params } = args
   const { context } = params
-  !context && console.error(`Context is required`)
+  const meta = getKubeMeta({ ...args, params: { ...params, kubeContext: context } })
 
-  await kubectl.useContext(args, context)
+  !meta.context && console.error(`Kubernetes context is required`)
+
+  await kubectl.setContext(args, [meta.context, `--namespace`, meta.namespace])
 }
 
 export const set: TTask = {
   name: `set`,
   alias: [`use`],
   action: setAction,
-  example: `pnpm tdsk kube set <options>`,
+  example: `tdsk kube set <options>`,
   description: `Sets the active kubernetes context`,
   options: {
     context: {
-      required: true,
       alias: [`ctx`, `name`],
       example: `--context my-context`,
       description: `Context name to set as active`,
+    },
+    namespace: {
+      alias: [`ns`],
+      description: `Kubernetes namespace`,
     },
     log: {
       type: `boolean`,

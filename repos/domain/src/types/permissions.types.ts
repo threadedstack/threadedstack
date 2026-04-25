@@ -27,9 +27,7 @@ export enum EPermAction {
   update = `update`, // Modify existing resources
   delete = `delete`, // Delete resources
   manage = `manage`, // Manage members, settings, advanced operations
-
-  // TODO: Need to add a new action for execute against a resource (i.e. exec in Sandbox)
-  //exec = `exec` // Execute an action using the resource
+  exec = `exec`, // Execute an action using the resource (sandbox exec, agent run, function invoke)
 }
 
 /**
@@ -60,25 +58,6 @@ export enum EPermResource {
 
 export type TPermAction = `${EPermAction}`
 export type TPermResource = `${EPermResource}`
-export type TPermScope = `${EPermScope}`
-
-/**
- * Scope where permission applies
- */
-export enum EPermScope {
-  global = `global`, // Platform-wide (super admin only)
-  org = `org`, // Organization level
-  project = `project`, // Project level
-}
-
-/**
- * Permission definition - represents a single permission
- */
-export type TPermission = {
-  action: EPermAction
-  resource: EPermResource
-  scope: EPermScope
-}
 
 /**
  * Role with context - used for permission checks
@@ -112,4 +91,14 @@ export type TRoleUser = {
   first?: string
   last?: string
   image?: string
+}
+
+/**
+ * Context for permission checks.
+ * Used by authorize middleware and checkPermission utility.
+ */
+export type TPermissionContext = {
+  orgId?: string
+  projectId?: string
+  resourceId?: string
 }

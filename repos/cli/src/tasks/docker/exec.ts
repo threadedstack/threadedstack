@@ -20,7 +20,7 @@ export const exec: TTask = {
   name: `exec`,
   alias: [`ex`],
   action: execImg,
-  example: `pnpm tdsk docker exec <options>`,
+  example: `tdsk docker exec <options>`,
   description: `Execute a command on a running Docker container`,
   options: {
     context: {

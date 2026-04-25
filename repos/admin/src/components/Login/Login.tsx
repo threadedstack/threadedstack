@@ -34,14 +34,14 @@ export type TLoginBtnProps = {
 }
 
 export type TLogin = TLoginBtnProps & {
-  providers: Array<string>
-  showEmailForm?: boolean
   emailError?: string
   emailSuccess?: string
   emailLoading?: boolean
+  showEmailForm?: boolean
+  providers: Array<string>
+  onForgotPassword?: (email: string) => Promise<void>
   onEmailSignIn?: (email: string, password: string) => Promise<void>
   onEmailSignUp?: (email: string, password: string) => Promise<void>
-  onForgotPassword?: (email: string) => Promise<void>
 }
 
 const LoginBtns: Record<string, TLoginBtn> = {
@@ -55,13 +55,13 @@ export const Login = (props: TLogin) => {
     error,
     onLogin,
     providers,
-    authenticating,
-    showEmailForm,
     emailError,
     emailSuccess,
     emailLoading,
     onEmailSignIn,
     onEmailSignUp,
+    showEmailForm,
+    authenticating,
     onForgotPassword,
   } = props
 
@@ -116,11 +116,11 @@ export const Login = (props: TLogin) => {
                 </Divider>
               )}
               <EmailLoginForm
+                error={emailError}
+                success={emailSuccess}
                 onSignIn={onEmailSignIn}
                 onSignUp={onEmailSignUp}
                 onForgotPassword={onForgotPassword}
-                error={emailError}
-                success={emailSuccess}
                 loading={emailLoading || Boolean(authenticating)}
               />
             </BtnSection>

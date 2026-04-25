@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Agent Layout extended tabs integration tests.
@@ -59,6 +60,13 @@ function collectConsoleErrors(page: import('@playwright/test').Page) {
 }
 
 test.describe('Agent Layout Extended Tabs', () => {
+  const hasSkills = isFeatureEnabled('skills')
+  const hasSchedules = isFeatureEnabled('schedules')
+
+  test.beforeEach(({}, testInfo) => {
+    test.skip(!hasSkills || !hasSchedules, 'skills and/or schedules feature flags are disabled')
+  })
+
   test('agent layout renders all 4 tabs', async ({
     authenticatedPage: page,
     ctx,

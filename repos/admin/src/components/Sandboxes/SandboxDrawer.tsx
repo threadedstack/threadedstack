@@ -11,9 +11,11 @@ import type {
   TSandboxRuntimeId,
 } from '@tdsk/domain'
 
+import { isFeatureEnabled } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
+import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 import { SBImagePresets } from '@TAF/constants/providers'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
@@ -25,7 +27,13 @@ import { GuiConfigForm } from '@TAF/components/GuiConfig/GuiConfigForm'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
-import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import {
+  Drawer,
+  TextInput,
+  SelectInput,
+  SwitchInput,
+  DrawerActions,
+} from '@tdsk/components'
 import {
   useProjects,
   useProviders,
@@ -48,12 +56,8 @@ import {
   Chip,
   Alert,
   Button,
-  Switch,
   Accordion,
-  TextField,
   Typography,
-  Autocomplete,
-  FormControlLabel,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
@@ -533,44 +537,32 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
 
           {/* Project linking — org context only */}
           {!isProjectContext && (
-            <Autocomplete
+            <SelectInput
               multiple
+              label='Projects'
+              disabled={loading}
               id='sandbox-projects'
               value={selectedProjectIds}
-              options={orgProjects.map((p) => p.id)}
-              getOptionLabel={(id) => orgProjects.find((p) => p.id === id)?.name || id}
-              onChange={(_, updates) => setSelectedProjectIds(updates)}
-              disabled={loading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label='Projects'
-                  placeholder='Select projects...'
-                  size='small'
-                />
-              )}
+              selected={selectedProjectIds}
+              placeholder='Select projects...'
+              items={orgProjects.map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(e) => setSelectedProjectIds(ensureArr(e.target.value))}
             />
           )}
 
           {/* Base sandbox selector — project context, create mode only */}
           {isProjectContext && !isEditMode && projectSandboxList.length > 0 && (
-            <Autocomplete
+            <SelectInput
               id='sandbox-base'
-              value={baseSandboxId}
-              options={projectSandboxList.map((s) => s.id)}
-              getOptionLabel={(id) =>
-                projectSandboxList.find((s) => s.id === id)?.name || id
-              }
-              onChange={(_, id) => onSelectBaseSandbox(id)}
               disabled={loading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label='Base Sandbox'
-                  placeholder='Start from an existing sandbox...'
-                  size='small'
-                />
-              )}
+              label='Base Sandbox'
+              value={baseSandboxId || ''}
+              items={projectSandboxList.map((s) => ({
+                value: s.id,
+                label: s.name || s.id,
+              }))}
+              onChange={(e) => onSelectBaseSandbox(e.target.value || null)}
+              placeholder='Start from an existing sandbox...'
             />
           )}
 
@@ -690,15 +682,12 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
           />
 
           {/* SSH Enabled */}
-          <FormControlLabel
-            control={
-              <Switch
-                disabled={loading}
-                checked={sshEnabled}
-                onChange={(e) => setSshEnabled(e.target.checked)}
-              />
-            }
+          <SwitchInput
             label='SSH Enabled'
+            disabled={loading}
+            checked={sshEnabled}
+            id='sandbox-ssh-enabled'
+            onChange={(e, checked) => setSshEnabled(checked)}
           />
 
           {/* Container */}
@@ -988,43 +977,42 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
           </Accordion>
 
           {/* Generative UI */}
-          <Accordion defaultExpanded={false}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                fontWeight={500}
-                variant='subtitle1'
-              >
-                Generative UI
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      disabled={loading}
-                      checked={guiOverride}
-                      onChange={(e) => {
-                        setGuiOverride(e.target.checked)
-                        if (!e.target.checked) setSandboxGuiConfig(undefined)
-                      }}
-                    />
-                  }
-                  label='Use custom config (override org default)'
-                />
-                <GuiConfigForm
-                  config={sandboxGuiConfig}
-                  orgProviders={orgProviders.map((p) => ({
-                    id: p.id,
-                    name: p.name || p.id,
-                    brand: p.brand,
-                  }))}
-                  disabled={loading || !guiOverride}
-                  onChange={setSandboxGuiConfig}
-                />
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+          {isFeatureEnabled('terminalGui') && (
+            <Accordion defaultExpanded={false}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  fontWeight={500}
+                  variant='subtitle1'
+                >
+                  Generative UI
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <SwitchInput
+                    disabled={loading}
+                    checked={guiOverride}
+                    id='sandbox-gui-override'
+                    label='Use custom config (override org default)'
+                    onChange={(e, checked) => {
+                      setGuiOverride(checked)
+                      if (!checked) setSandboxGuiConfig(undefined)
+                    }}
+                  />
+                  <GuiConfigForm
+                    config={sandboxGuiConfig}
+                    onChange={setSandboxGuiConfig}
+                    disabled={loading || !guiOverride}
+                    orgProviders={orgProviders.map((p) => ({
+                      id: p.id,
+                      brand: p.brand,
+                      name: p.name || p.id,
+                    }))}
+                  />
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
 
           {/* Environment Variables */}
           <Accordion>

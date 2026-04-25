@@ -1,0 +1,572 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+    inputs:
+      build_caddy:
+        description: 'Build Caddy image'
+        type: boolean
+        default: false
+      build_proxy:
+        description: 'Build Proxy image'
+        type: boolean
+        default: false
+      build_backend:
+        description: 'Build Backend image'
+        type: boolean
+        default: false
+      build_sandbox:
+        description: 'Build Sandbox image'
+        type: boolean
+        default: false
+      deploy_only:
+        description: 'Skip builds and tests, just redeploy current images'
+        type: boolean
+        default: false
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  CIVO_CLUSTER: threadedstack
+  CIVO_REGION: NYC1
+  K8S_NAMESPACE: tdsk-production
+  REGISTRY: ghcr.io/threadedstack
+  # Pin CLI versions — verify at: github.com/civo/cli/releases, github.com/loft-sh/devspace/releases
+  CIVO_CLI_VERSION: "1.5.1"
+  DEVSPACE_VERSION: "6.3.20"
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      contexts: ${{ steps.set-matrix.outputs.contexts }}
+      deploy_only: ${{ steps.set-matrix.outputs.deploy_only }}
+      should_deploy: ${{ steps.set-matrix.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files and map to image contexts
+        id: set-matrix
+        run: |
+          # Manual dispatch — read inputs directly
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CONTEXTS="[]"
+
+            if [ "${{ inputs.deploy_only }}" = "true" ]; then
+              echo "contexts=[]" >> "$GITHUB_OUTPUT"
+              echo "deploy_only=true" >> "$GITHUB_OUTPUT"
+              echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if [ "${{ inputs.build_caddy }}" = "true" ]; then
+              CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["caddy"]')
+            fi
+            if [ "${{ inputs.build_proxy }}" = "true" ]; then
+              CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["proxy"]')
+            fi
+            if [ "${{ inputs.build_backend }}" = "true" ]; then
+              CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["backend"]')
+            fi
+            if [ "${{ inputs.build_sandbox }}" = "true" ]; then
+              CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["sandbox"]')
+            fi
+
+            echo "contexts=$(echo "$CONTEXTS" | jq -c .)" >> "$GITHUB_OUTPUT"
+            echo "deploy_only=false" >> "$GITHUB_OUTPUT"
+            if [ "$CONTEXTS" = "[]" ]; then
+              echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          # Push trigger — detect changes via git diff
+          CHANGED=$(git diff --name-only "${{ github.event.before }}" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          CONTEXTS="[]"
+          DEPLOY_CONFIG_ONLY=false
+
+          # Shared deps (domain, database, logger) trigger both proxy + backend
+          if echo "$CHANGED" | grep -qE '^repos/(domain|database|logger)/'; then
+            CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["proxy", "backend"] | unique')
+          fi
+
+          # Proxy
+          if echo "$CHANGED" | grep -qE '^(repos/proxy/|deploy/Dockerfile\.proxy)'; then
+            CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["proxy"] | unique')
+          fi
+
+          # Backend (includes agent + sandbox repos which are bundled into backend image)
+          if echo "$CHANGED" | grep -qE '^(repos/(backend|agent|sandbox)/|deploy/Dockerfile\.backend)'; then
+            CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["backend"] | unique')
+          fi
+
+          # Caddy
+          if echo "$CHANGED" | grep -qE '^deploy/(Caddyfile|Dockerfile\.caddy)'; then
+            CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["caddy"] | unique')
+          fi
+
+          # Sandbox image
+          if echo "$CHANGED" | grep -qE '^deploy/Dockerfile\.sandbox'; then
+            CONTEXTS=$(echo "$CONTEXTS" | jq '. + ["sandbox"] | unique')
+          fi
+
+          # Root-level shared files affect all images
+          if echo "$CHANGED" | grep -qE '^(pnpm-lock\.yaml|package\.json|tsconfig\.json|\.npmrc)$'; then
+            CONTEXTS='["caddy","proxy","backend","sandbox"]'
+          fi
+
+          # Deploy config only (templates, devspace, values) — no image builds needed
+          if [ "$CONTEXTS" = "[]" ]; then
+            if echo "$CHANGED" | grep -qE '^deploy/(templates/|devspace\.yaml|values)'; then
+              DEPLOY_CONFIG_ONLY=true
+            fi
+          fi
+
+          SHOULD_DEPLOY=false
+          if [ "$CONTEXTS" != "[]" ] || [ "$DEPLOY_CONFIG_ONLY" = "true" ]; then
+            SHOULD_DEPLOY=true
+          fi
+
+          echo "contexts=$(echo "$CONTEXTS" | jq -c .)" >> "$GITHUB_OUTPUT"
+          echo "deploy_only=$DEPLOY_CONFIG_ONLY" >> "$GITHUB_OUTPUT"
+          echo "should_deploy=$SHOULD_DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "Detected contexts: $CONTEXTS"
+          echo "Deploy only: $DEPLOY_CONFIG_ONLY"
+          echo "Should deploy: $SHOULD_DEPLOY"
+
+  test:
+    name: Test & Type Check
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_deploy == 'true' && needs.detect-changes.outputs.deploy_only != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Run type checks
+        run: pnpm types
+
+  build-images:
+    name: Build ${{ matrix.context }}
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test]
+    if: |
+      needs.detect-changes.outputs.deploy_only != 'true' &&
+      needs.detect-changes.outputs.contexts != '[]'
+    strategy:
+      fail-fast: true
+      matrix:
+        context: ${{ fromJson(needs.detect-changes.outputs.contexts) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ env.REGISTRY }}/tdsk-${{ matrix.context }}"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "tag_sha=sha-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag_sha }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.context }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.context }}
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test, build-images]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.should_deploy == 'true' &&
+      needs.detect-changes.result == 'success' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.build-images.result == 'success' || needs.build-images.result == 'skipped')
+    outputs:
+      previous_images: ${{ steps.record-previous.outputs.previous_images }}
+      deployed_sha: ${{ steps.sha.outputs.short_sha }}
+    env:
+      NODE_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute SHA tag
+        id: sha
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Install Civo CLI
+        run: |
+          curl -fsSL "https://github.com/civo/cli/releases/download/v${{ env.CIVO_CLI_VERSION }}/civo-${{ env.CIVO_CLI_VERSION }}-linux-amd64.tar.gz" -o civo.tar.gz
+          tar xzf civo.tar.gz
+          sudo mv civo /usr/local/bin/civo
+          civo version
+          civo apikey save deploy-key "${{ secrets.TDSK_CIVO_TOKEN }}"
+          civo region use "${{ env.CIVO_REGION }}"
+
+      - name: Fetch kubeconfig
+        run: |
+          civo kubernetes config "${{ env.CIVO_CLUSTER }}" --save --merge
+          kubectl config use-context "${{ env.CIVO_CLUSTER }}"
+          echo "Verifying cluster access..."
+          kubectl get ns "${{ env.K8S_NAMESPACE }}"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install DevSpace
+        run: |
+          curl -fsSL "https://github.com/loft-sh/devspace/releases/download/v${{ env.DEVSPACE_VERSION }}/devspace-linux-amd64" -o devspace
+          chmod +x devspace
+          sudo mv devspace /usr/local/bin/devspace
+          devspace --version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          check() { [ -z "$2" ] && MISSING="$MISSING $1"; }
+          check "TDSK_CIVO_TOKEN" "${{ secrets.TDSK_CIVO_TOKEN }}"
+          check "TDSK_MASTER_KEY" "${{ secrets.TDSK_MASTER_KEY }}"
+          check "TDSK_DB_URL" "${{ secrets.TDSK_DB_URL }}"
+          check "TDSK_DB_USER" "${{ secrets.TDSK_DB_USER }}"
+          check "TDSK_DB_PASS" "${{ secrets.TDSK_DB_PASS }}"
+          check "TDSK_DB_AUTH_URL" "${{ secrets.TDSK_DB_AUTH_URL }}"
+          check "TDSK_DB_JWT_SCRT" "${{ secrets.TDSK_DB_JWT_SCRT }}"
+          check "TDSK_DB_SRV_ROLE" "${{ secrets.TDSK_DB_SRV_ROLE }}"
+          check "TDSK_DB_PUBLIC_KEY" "${{ secrets.TDSK_DB_PUBLIC_KEY }}"
+          check "TDSK_DB_PROJECT_ID" "${{ secrets.TDSK_DB_PROJECT_ID }}"
+          check "TDSK_PAY_ACCESS_TOKEN" "${{ secrets.TDSK_PAY_ACCESS_TOKEN }}"
+          check "TDSK_PAY_WEBHOOK_SECRET" "${{ secrets.TDSK_PAY_WEBHOOK_SECRET }}"
+          check "TDSK_EMAIL_API_KEY" "${{ secrets.TDSK_EMAIL_API_KEY }}"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing GitHub secrets:$MISSING"
+            echo "Add them at: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "All required secrets configured."
+
+      - name: Assemble secrets YAML
+        env:
+          TDSK_MASTER_KEY: ${{ secrets.TDSK_MASTER_KEY }}
+          TDSK_DB_URL: ${{ secrets.TDSK_DB_URL }}
+          TDSK_DB_USER: ${{ secrets.TDSK_DB_USER }}
+          TDSK_DB_PASS: ${{ secrets.TDSK_DB_PASS }}
+          TDSK_DB_AUTH_URL: ${{ secrets.TDSK_DB_AUTH_URL }}
+          TDSK_DB_JWT_SCRT: ${{ secrets.TDSK_DB_JWT_SCRT }}
+          TDSK_DB_SRV_ROLE: ${{ secrets.TDSK_DB_SRV_ROLE }}
+          TDSK_DB_PUBLIC_KEY: ${{ secrets.TDSK_DB_PUBLIC_KEY }}
+          TDSK_DB_PROJECT_ID: ${{ secrets.TDSK_DB_PROJECT_ID }}
+          TDSK_PAY_ACCESS_TOKEN: ${{ secrets.TDSK_PAY_ACCESS_TOKEN }}
+          TDSK_PAY_WEBHOOK_SECRET: ${{ secrets.TDSK_PAY_WEBHOOK_SECRET }}
+          TDSK_EMAIL_API_KEY: ${{ secrets.TDSK_EMAIL_API_KEY }}
+          TDSK_EGRESS_CA_CERT: ${{ secrets.TDSK_EGRESS_CA_CERT }}
+          TDSK_EGRESS_CA_KEY: ${{ secrets.TDSK_EGRESS_CA_KEY }}
+          DEPLOY_SHA: ${{ steps.sha.outputs.short_sha }}
+        run: |
+          mkdir -p ~/.config/tdsk
+          cat > ~/.config/tdsk/values.yaml << ENDOFYAML
+          env:
+            TDSK_MASTER_KEY: "$TDSK_MASTER_KEY"
+            TDSK_DB_URL: "$TDSK_DB_URL"
+            TDSK_DB_USER: "$TDSK_DB_USER"
+            TDSK_DB_PASS: "$TDSK_DB_PASS"
+            TDSK_DB_AUTH_URL: "$TDSK_DB_AUTH_URL"
+            TDSK_DB_JWT_SCRT: "$TDSK_DB_JWT_SCRT"
+            TDSK_DB_SRV_ROLE: "$TDSK_DB_SRV_ROLE"
+            TDSK_DB_PUBLIC_KEY: "$TDSK_DB_PUBLIC_KEY"
+            TDSK_DB_PROJECT_ID: "$TDSK_DB_PROJECT_ID"
+            TDSK_PAY_ACCESS_TOKEN: "$TDSK_PAY_ACCESS_TOKEN"
+            TDSK_PAY_WEBHOOK_SECRET: "$TDSK_PAY_WEBHOOK_SECRET"
+            TDSK_EMAIL_API_KEY: "$TDSK_EMAIL_API_KEY"
+            TDSK_EGRESS_CA_CERT: "$TDSK_EGRESS_CA_CERT"
+            TDSK_EGRESS_CA_KEY: "$TDSK_EGRESS_CA_KEY"
+            TDSK_IMAGE_TAG: "sha-$DEPLOY_SHA"
+            TDSK_PX_IMAGE_TAG: "sha-$DEPLOY_SHA"
+            TDSK_BE_IMAGE_TAG: "sha-$DEPLOY_SHA"
+            TDSK_CADDY_IMAGE_TAG: "sha-$DEPLOY_SHA"
+            TDSK_SB_IMAGE_TAG: "sha-$DEPLOY_SHA"
+          ENDOFYAML
+          # Strip leading whitespace inherited from YAML indentation
+          sed -i 's/^          //' ~/.config/tdsk/values.yaml
+
+      - name: Run non-destructive database migrations
+        timeout-minutes: 2
+        run: |
+          echo "Running database schema push (non-destructive only)..."
+          echo "If this step times out, it means Drizzle detected destructive changes"
+          echo "that require interactive confirmation. Run the migration manually:"
+          echo "  tdsk db push --env production"
+          cd repos/cli && pnpm cli db push --env production
+        continue-on-error: false
+
+      - name: Record previous image tags
+        id: record-previous
+        run: |
+          PREV_IMAGES="{}"
+          for ctx in caddy proxy backend; do
+            DEPLOYMENT="tdsk-${ctx}"
+            if ! IMG=$(kubectl get deployment "$DEPLOYMENT" -n "${{ env.K8S_NAMESPACE }}" \
+              -o jsonpath='{.spec.template.spec.containers[0].image}'); then
+              echo "::warning::Failed to get current image for $DEPLOYMENT — rollback will skip this service"
+              IMG="unknown"
+            fi
+            PREV_IMAGES=$(echo "$PREV_IMAGES" | jq --arg k "$ctx" --arg v "$IMG" '. + {($k): $v}')
+          done
+          echo "previous_images=$(echo "$PREV_IMAGES" | jq -c .)" >> "$GITHUB_OUTPUT"
+          echo "Previous images: $PREV_IMAGES"
+
+      - name: Deploy via tdsk
+        run: |
+          echo "Deploying with image tag: sha-${{ steps.sha.outputs.short_sha }}"
+          cd repos/cli && pnpm cli deploy apply --env production
+
+      - name: Restart rebuilt pods
+        run: |
+          CONTEXTS='${{ needs.detect-changes.outputs.contexts }}'
+          RESTART_FAILED=""
+          cd repos/cli
+          if [ "$CONTEXTS" = "[]" ] || [ -z "$CONTEXTS" ]; then
+            echo "No images rebuilt — restarting all service pods for config changes"
+            for ctx in proxy backend caddy; do
+              echo "Restarting $ctx..."
+              if ! pnpm cli kube remove --context "$ctx" --env production; then
+                echo "::warning::Failed to restart $ctx"
+                RESTART_FAILED="$RESTART_FAILED $ctx"
+              fi
+            done
+          else
+            echo "Restarting pods for rebuilt contexts: $CONTEXTS"
+            for ctx in $(echo "$CONTEXTS" | jq -r '.[] | select(. != "sandbox")'); do
+              echo "Restarting $ctx..."
+              if ! pnpm cli kube remove --context "$ctx" --env production; then
+                echo "::warning::Failed to restart $ctx"
+                RESTART_FAILED="$RESTART_FAILED $ctx"
+              fi
+            done
+          fi
+          if [ -n "$RESTART_FAILED" ]; then
+            echo "::error::Pod restart failed for:$RESTART_FAILED"
+            exit 1
+          fi
+
+  verify:
+    name: Verify & Rollback
+    runs-on: ubuntu-latest
+    needs: [detect-changes, deploy]
+    if: always() && (needs.deploy.result == 'success' || needs.deploy.result == 'failure')
+    env:
+      NODE_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Civo CLI
+        run: |
+          curl -fsSL "https://github.com/civo/cli/releases/download/v${{ env.CIVO_CLI_VERSION }}/civo-${{ env.CIVO_CLI_VERSION }}-linux-amd64.tar.gz" -o civo.tar.gz
+          tar xzf civo.tar.gz
+          sudo mv civo /usr/local/bin/civo
+          civo version
+          civo apikey save deploy-key "${{ secrets.TDSK_CIVO_TOKEN }}"
+          civo region use "${{ env.CIVO_REGION }}"
+
+      - name: Fetch kubeconfig
+        run: |
+          civo kubernetes config "${{ env.CIVO_CLUSTER }}" --save --merge
+          kubectl config use-context "${{ env.CIVO_CLUSTER }}"
+
+      - name: Wait for pods to stabilize
+        timeout-minutes: 3
+        run: |
+          echo "Waiting for all pods in ${{ env.K8S_NAMESPACE }} to be ready..."
+          for deployment in tdsk-caddy tdsk-proxy tdsk-backend; do
+            echo "Waiting for $deployment..."
+            kubectl rollout status deployment/"$deployment" \
+              -n "${{ env.K8S_NAMESPACE }}" \
+              --timeout=120s
+          done
+          echo "All deployments ready."
+
+      - name: Health check — Proxy
+        id: health-proxy
+        run: |
+          echo "Checking proxy health..."
+          curl -sf --retry 5 --retry-delay 10 --retry-all-errors \
+            https://px.threadedstack.app/health
+          echo "Proxy health: OK"
+
+      - name: Health check — Backend
+        id: health-backend
+        run: |
+          echo "Checking backend health..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --retry 5 --retry-delay 10 --retry-all-errors \
+            https://px.threadedstack.app/_/health)
+          echo "Backend response code: $HTTP_CODE"
+          # Backend /_/health returns 401 (auth required) when reachable — that's success
+          if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 401 ]; then
+            echo "Backend health: OK (HTTP $HTTP_CODE)"
+          else
+            echo "Backend health: FAILED (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Rollback — Capture failure logs
+        if: failure()
+        run: |
+          echo "=== DEPLOYMENT VERIFICATION FAILED ==="
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -n "${{ env.K8S_NAMESPACE }}" -o wide
+          echo ""
+          echo "=== Caddy Logs (last 50 lines) ==="
+          kubectl logs deployment/tdsk-caddy -n "${{ env.K8S_NAMESPACE }}" --tail=50 || true
+          echo ""
+          echo "=== Proxy Logs (last 50 lines) ==="
+          kubectl logs deployment/tdsk-proxy -n "${{ env.K8S_NAMESPACE }}" --tail=50 || true
+          echo ""
+          echo "=== Backend Logs (last 50 lines) ==="
+          kubectl logs deployment/tdsk-backend -n "${{ env.K8S_NAMESPACE }}" --tail=50 || true
+
+      - name: Rollback — Restore previous images
+        if: failure()
+        run: |
+          echo "=== ROLLING BACK ==="
+          PREV='${{ needs.deploy.outputs.previous_images }}'
+          echo "Previous images: $PREV"
+
+          if [ "$PREV" = "{}" ] || [ -z "$PREV" ]; then
+            echo "No previous image data available — cannot rollback automatically"
+            echo "Manual intervention required."
+            exit 1
+          fi
+
+          for ctx in caddy proxy backend; do
+            PREV_IMG=$(echo "$PREV" | jq -r ".${ctx}")
+            if [ "$PREV_IMG" != "null" ] && [ "$PREV_IMG" != "unknown" ]; then
+              DEPLOYMENT="tdsk-${ctx}"
+              echo "Rolling back $DEPLOYMENT to $PREV_IMG..."
+              kubectl set image deployment/"$DEPLOYMENT" \
+                "$DEPLOYMENT=$PREV_IMG" \
+                -n "${{ env.K8S_NAMESPACE }}"
+            fi
+          done
+
+          echo "Waiting for rollback to complete..."
+          ROLLBACK_FAILED=""
+          for deployment in tdsk-caddy tdsk-proxy tdsk-backend; do
+            if ! kubectl rollout status deployment/"$deployment" \
+              -n "${{ env.K8S_NAMESPACE }}" \
+              --timeout=120s; then
+              echo "::warning::Rollback rollout for $deployment did not complete within timeout"
+              ROLLBACK_FAILED="$ROLLBACK_FAILED $deployment"
+            fi
+          done
+          if [ -n "$ROLLBACK_FAILED" ]; then
+            echo "::error::Rollback incomplete for:$ROLLBACK_FAILED — manual intervention may be required"
+          fi
+
+      - name: Rollback — Verify recovery
+        if: failure()
+        run: |
+          echo "Verifying rollback health..."
+          sleep 10
+
+          PROXY_OK=false
+          BACKEND_OK=false
+          for i in 1 2 3 4 5; do
+            PROXY_OK=false
+            BACKEND_OK=false
+            if curl -sf --max-time 10 https://px.threadedstack.app/health; then
+              PROXY_OK=true
+            fi
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              https://px.threadedstack.app/_/health || echo "000")
+            if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 401 ]; then
+              BACKEND_OK=true
+            fi
+            if [ "$PROXY_OK" = "true" ] && [ "$BACKEND_OK" = "true" ]; then
+              break
+            fi
+            sleep 10
+          done
+
+          if [ "$PROXY_OK" = "true" ] && [ "$BACKEND_OK" = "true" ]; then
+            echo "Rollback successful — services recovered"
+          else
+            echo "CRITICAL: Rollback failed — services still unhealthy"
+            echo "  Proxy: $PROXY_OK | Backend: $BACKEND_OK"
+            echo "Manual intervention required immediately"
+          fi
+
+          # Always fail the workflow even if rollback succeeded
+          echo ""
+          echo "Workflow marked as FAILED because the original deployment did not pass health checks."
+          echo "The rollback restored the previous version, but the underlying issue must be investigated."
+          exit 1

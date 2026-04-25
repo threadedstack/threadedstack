@@ -1,28 +1,49 @@
-import type { User, Sandbox, Organization, Project } from '@tdsk/domain'
-import type { EThemeType } from '@TTH/types'
-import type { TParsedEvent, TToolState, TJsonComponentTree } from '@tdsk/domain'
-import type { TOpenSession } from '@TTH/types'
+import type { SessionEngine } from '@TTH/services/gui/engine/sessionEngine'
+import type {
+  User,
+  Sandbox,
+  Project,
+  TRoleType,
+  Organization,
+  TSandboxSession,
+} from '@tdsk/domain'
+import type {
+  TDocument,
+  TFeedEvent,
+  EThemeType,
+  TOpenSession,
+  TViewportMode,
+  TTerminalSettings,
+} from '@TTH/types'
 
 import { createStore } from 'jotai'
 import { userState } from '@TTH/state/user'
+import { storage } from '@TTH/services/storage'
+import { terminalSettingsAtom } from '@TTH/state/terminal'
+import { validateTerminal } from '@TTH/utils/terminal/validate'
 import { themeTypeState, defThemeType } from '@TTH/state/theme'
+import { DefaultTerminalSettings } from '@TTH/constants/terminal'
+import { TerminalSettingsStorageKey } from '@TTH/constants/storage'
+import { guiASTState, guiModeState, guiFeedState, guiEngineState } from '@TTH/state/gui'
+
 import {
-  defSidebarOpen,
-  sidebarOpenState,
   defOrgId,
   orgIdState,
+  defSidebarOpen,
+  sidebarOpenState,
+  defActiveOrgRole,
   defActiveProjectId,
+  activeOrgRoleState,
   activeProjectIdState,
 } from '@TTH/state/app'
+
 import {
-  sessionEventsAtom,
-  sessionToolStateAtom,
-  openSessionsAtom,
-  activeSessionAtom,
-  sandboxesAtom,
   orgsAtom,
   projectsAtom,
-  sessionUpgradesAtom,
+  sandboxesAtom,
+  openSessionsAtom,
+  activeSessionAtom,
+  backendSessionsAtom,
 } from '@TTH/state/sessions'
 
 export const store = createStore()
@@ -39,37 +60,14 @@ export const getOrgId = () => store.get(orgIdState)
 export const resetOrgId = () => store.set(orgIdState, defOrgId)
 export const setOrgId = (orgId: string) => store.set(orgIdState, orgId)
 
+export const getActiveOrgRole = () => store.get(activeOrgRoleState)
+export const resetActiveOrgRole = () => store.set(activeOrgRoleState, defActiveOrgRole)
+export const setActiveOrgRole = (role: TRoleType | null) =>
+  store.set(activeOrgRoleState, role)
+
 export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
 export const setUser = (user: User) => store.set(userState, user)
-
-export const getSessionEvents = (sessionId: string) =>
-  store.get(sessionEventsAtom).get(sessionId) ?? []
-export const setSessionEvents = (sessionId: string, events: TParsedEvent[]) => {
-  const map = new Map(store.get(sessionEventsAtom))
-  map.set(sessionId, events)
-  store.set(sessionEventsAtom, map)
-}
-export const appendSessionEvent = (sessionId: string, event: TParsedEvent) => {
-  const map = new Map(store.get(sessionEventsAtom))
-  const events = [...(map.get(sessionId) ?? []), event]
-  map.set(sessionId, events)
-  store.set(sessionEventsAtom, map)
-}
-
-export const clearSessionEvents = (sessionId: string) => {
-  const map = new Map(store.get(sessionEventsAtom))
-  map.delete(sessionId)
-  store.set(sessionEventsAtom, map)
-}
-
-export const getToolState = (sessionId: string) =>
-  store.get(sessionToolStateAtom).get(sessionId) ?? 'idle'
-export const setToolState = (sessionId: string, state: TToolState) => {
-  const map = new Map(store.get(sessionToolStateAtom))
-  map.set(sessionId, state)
-  store.set(sessionToolStateAtom, map)
-}
 
 export const getOpenSessions = () => store.get(openSessionsAtom)
 export const setOpenSession = (sessionId: string, session: TOpenSession) => {
@@ -111,18 +109,34 @@ export const resetActiveProjectId = () =>
 export const setActiveProjectId = (projectId: string) =>
   store.set(activeProjectIdState, projectId)
 
-export const setSessionUpgrade = (
-  sessionId: string,
-  chunkId: string,
-  tree: TJsonComponentTree
-) => {
-  const current = store.get(sessionUpgradesAtom)
-  const sessionMap = current.get(sessionId) ?? new Map()
-  sessionMap.set(chunkId, tree)
-  const next = new Map(current)
-  next.set(sessionId, sessionMap)
-  store.set(sessionUpgradesAtom, next)
+export const getTerminalSettings = () => store.get(terminalSettingsAtom)
+export const resetTerminalSettings = () => {
+  store.set(terminalSettingsAtom, DefaultTerminalSettings)
+  storage.remove(TerminalSettingsStorageKey)
+}
+export const setTerminalSettings = (settings: TTerminalSettings) => {
+  const validated = validateTerminal(settings)
+  store.set(terminalSettingsAtom, validated)
+  storage.set<TTerminalSettings>(TerminalSettingsStorageKey, validated)
 }
 
-export const getSessionUpgrades = (sessionId: string): Map<string, TJsonComponentTree> =>
-  store.get(sessionUpgradesAtom).get(sessionId) ?? new Map()
+export const getGuiAsts = () => store.get(guiASTState)
+export const setGuiAsts = (asts: Map<string, TDocument>) => store.set(guiASTState, asts)
+export const getGuiFeeds = () => store.get(guiFeedState)
+export const setGuiFeeds = (feeds: Map<string, TFeedEvent[]>) =>
+  store.set(guiFeedState, feeds)
+export const getGuiModes = () => store.get(guiModeState)
+export const setGuiModes = (modes: Map<string, TViewportMode>) =>
+  store.set(guiModeState, modes)
+export const getGuiEngines = () => store.get(guiEngineState)
+export const setGuiEngines = (engines: Map<string, SessionEngine>) =>
+  store.set(guiEngineState, engines)
+
+export const getBackendSessions = () => store.get(backendSessionsAtom)
+export const setBackendSessions = (sandboxId: string, sessions: TSandboxSession[]) => {
+  const map = new Map(store.get(backendSessionsAtom))
+  map.set(sandboxId, sessions)
+  store.set(backendSessionsAtom, map)
+}
+export const getBackendSessionsForSandbox = (sandboxId: string) =>
+  store.get(backendSessionsAtom).get(sandboxId) ?? []

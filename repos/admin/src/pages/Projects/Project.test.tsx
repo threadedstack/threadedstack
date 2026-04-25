@@ -22,6 +22,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => mockUseActiveOrgId(),
   useActiveProject: () => mockUseActiveProject(),
   useActiveProjectId: () => mockUseActiveProjectId(),
+  useProjectSandboxes: () => [{}],
 }))
 
 vi.mock(`@TAF/pages/Page/Page`, () => ({
@@ -63,7 +64,7 @@ describe(`Project Page`, () => {
   })
 
   describe(`stat cards with counts`, () => {
-    it(`should display endpoint, function, and agent counts from project`, () => {
+    it(`should display endpoint, function, agent, and sandbox counts from project`, () => {
       mockUseActiveProject.mockReturnValue([
         { ...baseProject, counts: { endpoint: 5, function: 3, agent: 2 } },
       ])
@@ -72,9 +73,10 @@ describe(`Project Page`, () => {
       expect(screen.getByText(`5`)).toBeTruthy()
       expect(screen.getByText(`3`)).toBeTruthy()
       expect(screen.getByText(`2`)).toBeTruthy()
-      expect(screen.getByText(`Endpoints`)).toBeTruthy()
-      expect(screen.getByText(`Functions`)).toBeTruthy()
-      expect(screen.getByText(`Agents`)).toBeTruthy()
+      expect(screen.getAllByText(`Endpoints`).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(`Functions`).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(`Agents`).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(`Sandboxes`).length).toBeGreaterThanOrEqual(1)
     })
 
     it(`should display 0 when count fields are undefined`, () => {
@@ -82,7 +84,7 @@ describe(`Project Page`, () => {
       render(<Project />)
 
       const zeros = screen.getAllByText(`0`)
-      expect(zeros.length).toBe(3)
+      expect(zeros.length).toBe(4)
     })
 
     it(`should display 0 when count fields are explicitly zero`, () => {
@@ -92,7 +94,7 @@ describe(`Project Page`, () => {
       render(<Project />)
 
       const zeros = screen.getAllByText(`0`)
-      expect(zeros.length).toBe(3)
+      expect(zeros.length).toBe(4)
     })
   })
 

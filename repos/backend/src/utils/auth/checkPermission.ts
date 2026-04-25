@@ -1,55 +1,51 @@
 import type { TRequest } from '@TBE/types'
-import type { EPermAction, EPermResource } from '@tdsk/domain'
-
-import {
+import type {
   ERoleType,
-  Exception,
-  canPerform,
-  hasMinRole,
-  isSuperAdmin,
-  getHighestRole,
+  EPermAction,
+  EPermResource,
+  TPermissionContext,
 } from '@tdsk/domain'
 
-export type TPermissionContext = {
-  orgId?: string
-  projectId?: string
-  resourceId?: string
-}
+import { Exception, canPerform, isSuperAdmin, getHighestRole } from '@tdsk/domain'
 
 /**
  * Get user`s effective role for the given context
  * Checks org-level and project-level roles, returns highest
+ * Returns null for non-members (no role found)
+ * Throws on DB errors to prevent silent permission denials
  */
 export const getUserRole = async (
   req: TRequest,
   context: TPermissionContext
-): Promise<ERoleType> => {
+): Promise<ERoleType | null> => {
   const { db } = req.app.locals
   const userId = req.user?.id
 
-  if (!userId) return ERoleType.viewer
+  if (!userId) return null
 
   const roles: ERoleType[] = []
 
-  // Get org role if orgId provided
   if (context.orgId) {
-    const { data: orgRole } = await db.services.role.getOrgRole(userId, context.orgId)
+    const { data: orgRole, error: orgErr } = await db.services.role.getOrgRole(
+      userId,
+      context.orgId
+    )
+    if (orgErr) throw new Exception(500, `Role lookup failed: ${orgErr.message}`)
     if (orgRole?.type) {
       roles.push(orgRole.type as ERoleType)
     }
   }
 
-  // Get project role if projectId provided
   if (context.projectId) {
-    const { data: projectRole } = await db.services.role.getProjectRole(
+    const { data: projectRole, error: projErr } = await db.services.role.getProjectRole(
       userId,
       context.projectId
     )
+    if (projErr) throw new Exception(500, `Role lookup failed: ${projErr.message}`)
     if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
 
-  // Return highest role, or viewer if no roles found
-  return roles.length > 0 ? getHighestRole(roles) : ERoleType.viewer
+  return roles.length > 0 ? getHighestRole(roles) : null
 }
 
 /**
@@ -64,8 +60,7 @@ export const checkPermission = async (
 ): Promise<void> => {
   const userRole = await getUserRole(req, context)
 
-  // Super admins can do anything
-  if (isSuperAdmin(userRole)) return
+  if (userRole !== null && isSuperAdmin(userRole)) return
 
   const result = canPerform(userRole, action, resource)
 
@@ -73,60 +68,6 @@ export const checkPermission = async (
     throw new Exception(
       403,
       result.reason || `Permission denied: cannot ${action} ${resource}`,
-      `FORBIDDEN`
-    )
-}
-
-/**
- * Check if user is member of org (has any role)
- * Throws 403 if not a member
- */
-export const requireOrgMember = async (req: TRequest, orgId: string): Promise<void> => {
-  const { db } = req.app.locals
-  const userId = req.user?.id
-
-  if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
-
-  const { data: isMember } = await db.services.role.isOrgMember(userId, orgId)
-
-  if (!isMember)
-    throw new Exception(403, `You are not a member of this organization`, `FORBIDDEN`)
-}
-
-/**
- * Check if user is member of project (has any role)
- * Throws 403 if not a member
- */
-export const requireProjectMember = async (
-  req: TRequest,
-  projectId: string
-): Promise<void> => {
-  const { db } = req.app.locals
-  const userId = req.user?.id
-
-  if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
-
-  const { data: isMember } = await db.services.role.isProjectMember(userId, projectId)
-
-  if (!isMember)
-    throw new Exception(403, `You are not a member of this project`, `FORBIDDEN`)
-}
-
-/**
- * Require minimum role level
- * Throws 403 if user doesn`t have required role
- */
-export const requireMinRole = async (
-  req: TRequest,
-  requiredRole: ERoleType,
-  context: TPermissionContext = {}
-): Promise<void> => {
-  const userRole = await getUserRole(req, context)
-
-  if (!hasMinRole(userRole, requiredRole))
-    throw new Exception(
-      403,
-      `This action requires ${requiredRole} role or higher`,
       `FORBIDDEN`
     )
 }

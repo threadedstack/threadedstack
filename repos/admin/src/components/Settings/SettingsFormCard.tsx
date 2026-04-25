@@ -1,6 +1,6 @@
-import { TextInput, Button } from '@tdsk/components'
 import SaveIcon from '@mui/icons-material/Save'
 import CancelIcon from '@mui/icons-material/Cancel'
+import { TextInput, Button } from '@tdsk/components'
 import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
@@ -34,6 +34,7 @@ export type TFormField = {
 export type TSettingsFormCard = {
   title?: string
   saving: boolean
+  disabled?: boolean
   resetText?: string
   saveText?: string
   onSave: () => void
@@ -48,6 +49,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
     onSave,
     onReset,
     saving,
+    disabled,
     hasChanges,
     saveText = `Save`,
     resetText = `Reset`,
@@ -69,7 +71,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
               value={field.value}
               minRows={field.rows}
               maxRows={field.rows}
-              disabled={field.disabled}
+              disabled={disabled || field.disabled}
               textarea={field.multiline}
               placeholder={field.placeholder}
               id={`tdsk-settings-${field.name}`}
@@ -95,7 +97,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
               loading={saving}
               Icon={<SaveIcon />}
               variant='contained'
-              disabled={!hasChanges}
+              disabled={disabled || !hasChanges}
               loadingText='Saving...'
             >
               {saveText}

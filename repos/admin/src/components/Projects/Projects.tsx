@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
 import { useProjects } from '@TAF/state/selectors'
 import { useActiveOrgId } from '@TAF/state/selectors'
+import { CardGrid } from '@TAF/components/CardGrid/CardGrid'
 import { NoProjects } from '@TAF/components/Projects/NoProjects'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { CardGrid } from '@TAF/components/CardGrid/CardGrid'
 import { ProjectCard } from '@TAF/components/Projects/ProjectCard'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
@@ -15,9 +17,12 @@ export type TProjects = {}
 export const Projects = (props: TProjects) => {
   const [orgId] = useActiveOrgId()
   const [projects] = useProjects()
+  const { canCreate, canDelete } = usePermissions()
   const [searchQuery, setSearchQuery] = useState(``)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const createDisabled = !canCreate(EPermResource.project)
+  const deleteDisabled = !canDelete(EPermResource.project)
 
   const onCreate = () => setDialogOpen(true)
 
@@ -61,12 +66,18 @@ export const Projects = (props: TProjects) => {
       count={projectsCount}
       error={error?.message}
       setSearchQuery={setSearchQuery}
+      actionDisabled={createDisabled}
       onAction={hasProjects && onCreate}
       actionLabel={hasProjects && 'Create Project'}
       searchPlaceholder='Search projects by name, URL, or branch...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
-      {!error && projectsCount === 0 && <NoProjects onCreate={onCreate} />}
+      {!error && projectsCount === 0 && (
+        <NoProjects
+          onCreate={onCreate}
+          createDisabled={createDisabled}
+        />
+      )}
 
       {!error && projectsCount > 0 && filteredProjects.length === 0 && (
         <EmptyState message='No projects match your search query.' />
@@ -79,9 +90,9 @@ export const Projects = (props: TProjects) => {
           renderCard={(project) => (
             <ProjectCard
               project={project}
-              showDelete={true}
               onSelect={onSelectProject}
               onDelete={onDeleteProject}
+              showDelete={!deleteDisabled}
             />
           )}
         />

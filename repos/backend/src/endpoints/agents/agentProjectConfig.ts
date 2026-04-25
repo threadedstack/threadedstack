@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,18 +12,10 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const getAgentProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { agentId, projectId } = req.params
-
-    // Get the agent to check permissions
-    const { data: agent, error: getError } = await db.services.agent.get(agentId)
-    if (getError || !agent) throw new Exception(404, `Agent not found`)
-
-    // Check read permission on the agent's org
-    await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      orgId: agent.orgId,
-    })
 
     const { data: config, error } = await db.services.agent.getProjectConfig(
       agentId,
@@ -48,18 +40,10 @@ export const getAgentProjectConfig: TEndpointConfig = {
 export const upsertAgentProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { agentId, projectId } = req.params
-
-    // Validate the agent exists and get org info
-    const { data: agent, error: getError } = await db.services.agent.get(agentId)
-    if (getError || !agent) throw new Exception(404, `Agent not found`)
-
-    // Check update permission on the agent's org
-    await checkPermission(req, EPermAction.update, EPermResource.agent, {
-      orgId: agent.orgId,
-    })
 
     const {
       model,
@@ -124,18 +108,10 @@ export const upsertAgentProjectConfig: TEndpointConfig = {
 export const deleteAgentProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.update, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { agentId, projectId } = req.params
-
-    // Validate the agent exists
-    const { data: agent, error: getError } = await db.services.agent.get(agentId)
-    if (getError || !agent) throw new Exception(404, `Agent not found`)
-
-    // Check update permission on the agent's org
-    await checkPermission(req, EPermAction.update, EPermResource.agent, {
-      orgId: agent.orgId,
-    })
 
     // Reset all override columns to null
     const { error } = await db.services.agent.upsertProjectConfig(agentId, projectId, {

@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /_/invitations/:invitationId - Revoke an invitation
@@ -14,6 +14,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const revokeInvitation: TEndpointConfig = {
   path: `/:invitationId`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.role)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { invitationId } = req.params
@@ -28,11 +29,6 @@ export const revokeInvitation: TEndpointConfig = {
     if (invitationError) throw new Exception(500, invitationError.message)
 
     if (!invitation) throw new Exception(404, `Invitation not found`)
-
-    // Check permission - requires admin+ in the org
-    await checkPermission(req, EPermAction.delete, EPermResource.role, {
-      orgId: invitation.orgId,
-    })
 
     // Validate invitation can be revoked
     if (invitation.isRevoked())

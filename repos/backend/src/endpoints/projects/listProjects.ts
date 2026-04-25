@@ -2,9 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ERoleType, Exception } from '@tdsk/domain'
 import { parsePagination } from '@TBE/utils/pagination'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import type { ERoleType } from '@tdsk/domain'
+import { isSuperAdmin, Exception } from '@tdsk/domain'
 
 /**
  * GET /Projects - List all Projects
@@ -21,14 +21,14 @@ export const listProjects: TEndpointConfig = {
 
     if (!userId) throw new Exception(401, `Authentication required`)
 
-    const userRole = await getUserRole(req, {})
+    const isSuper = isSuperAdmin((req.user?.role ?? ``) as ERoleType)
 
     const { limit, offset } = parsePagination(req)
 
     // Note: Super admins intentionally see all projects across all orgs.
     // This is by design for platform administration. Regular users
     // are filtered to only see projects in their member orgs.
-    if (userRole === ERoleType.super) {
+    if (isSuper) {
       const { data, error } = orgId
         ? await db.services.project.list({
             where: { orgId },

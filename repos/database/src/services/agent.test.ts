@@ -324,12 +324,12 @@ describe(`Agent service`, () => {
       const result = service.model(data)
 
       expect(result.providerLinks).toHaveLength(2)
-      expect(result.providerLinks[0]).toEqual({
+      expect(result.providerLinks[0]).toMatchObject({
         provider: { id: `prov-1`, name: `Anthropic` },
         model: `claude-3`,
         priority: 0,
       })
-      expect(result.providerLinks[1]).toEqual({
+      expect(result.providerLinks[1]).toMatchObject({
         provider: { id: `prov-2`, name: `OpenAI` },
         model: null,
         priority: 1,

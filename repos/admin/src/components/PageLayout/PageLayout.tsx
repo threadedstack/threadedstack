@@ -29,6 +29,7 @@ export type TPageLayout = {
   actionIcon?: ReactNode
   filterAllLabel?: string
   actionLabel?: ReactNode
+  actionDisabled?: boolean
   filterOpts?: TFilterOpts
   searchPlaceholder?: string
   onAction?: (_?: any) => void
@@ -67,10 +68,11 @@ export const PageLayout = (props: TPageLayout) => {
     filterOpts,
     filterLabel,
     filterValue,
-    divider = true,
-    searchCount = 0,
     filterAllLabel,
     setSearchQuery,
+    actionDisabled,
+    divider = true,
+    searchCount = 0,
     searchPlaceholder,
     actionIcon = <AddIcon />,
   } = props
@@ -84,6 +86,7 @@ export const PageLayout = (props: TPageLayout) => {
         countLabel={countLabel}
         actionIcon={actionIcon}
         actionLabel={actionLabel}
+        actionDisabled={actionDisabled}
       />
 
       {setSearchQuery && count > searchCount && (

@@ -25,29 +25,34 @@ const mockApiKeysMap: Record<string, any> = {}
 vi.mock(`@TAF/state/selectors`, () => ({
   useUser: () => [{ id: `auth-user`, role: `admin` }],
   useActiveOrgId: () => [`org-1`],
+  useActiveOrgRole: () => [`admin`],
   useApiKeys: () => [mockApiKeysMap],
 }))
 
-vi.mock(`@tdsk/components`, () => ({
-  Drawer: ({ open, title, children, actions }: any) =>
-    open ? (
-      <div data-testid='drawer'>
-        <div data-testid='drawer-title'>{title}</div>
-        <div data-testid='drawer-content'>{children}</div>
-        <div data-testid='drawer-actions'>{actions}</div>
+vi.mock(`@tdsk/components`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tdsk/components')>()
+  return {
+    ...actual,
+    Drawer: ({ open, title, children, actions }: any) =>
+      open ? (
+        <div data-testid='drawer'>
+          <div data-testid='drawer-title'>{title}</div>
+          <div data-testid='drawer-content'>{children}</div>
+          <div data-testid='drawer-actions'>{actions}</div>
+        </div>
+      ) : null,
+    DrawerActions: ({ form }: any) => (
+      <div data-testid='drawer-actions-component'>
+        <button type='submit'>Save</button>
       </div>
-    ) : null,
-  DrawerActions: ({ form }: any) => (
-    <div data-testid='drawer-actions-component'>
-      <button type='submit'>Save</button>
-    </div>
-  ),
-  Button: ({ children, startIcon, ...rest }: any) => (
-    <button {...rest}>{children}</button>
-  ),
-  ConfirmDelete: () => null,
-  Loading: ({ children }: any) => <div data-testid='loading'>{children}</div>,
-}))
+    ),
+    Button: ({ children, startIcon, ...rest }: any) => (
+      <button {...rest}>{children}</button>
+    ),
+    ConfirmDelete: () => null,
+    Loading: ({ children }: any) => <div data-testid='loading'>{children}</div>,
+  }
+})
 
 vi.mock(`@TAF/components/Roles/RoleSelect`, () => ({
   RoleSelect: ({ roleType, onChange }: any) => (

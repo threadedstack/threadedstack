@@ -1,13 +1,17 @@
+import { useMemo } from 'react'
 import { Box } from '@mui/material'
 import { Outlet } from 'react-router'
+import { hasMinRole } from '@tdsk/domain'
 import { styled } from '@mui/material/styles'
+import { PermissionsProvider } from '@tdsk/components'
 import { Header } from '@TAF/components/Header/Header'
 import { Menu as MenuIcon } from '@mui/icons-material'
 import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Sidebar } from '@TAF/components/Sidebar/Sidebar'
+import { resolveRole } from '@TAF/utils/permissions/resolveRole'
 import { useTheme, useMediaQuery, IconButton } from '@mui/material'
-import { useSidebarOpen } from '@TAF/state/selectors'
 import { SignedIn, RedirectToSignIn } from '@neondatabase/neon-js/auth/react'
+import { useSidebarOpen, useUser, useActiveOrgRole } from '@TAF/state/selectors'
 
 const LayoutContainer = styled(Box)(({ theme }) => {
   return `
@@ -47,25 +51,39 @@ const MobileToggle = styled(IconButton)(({ theme }) => {
 
 const Layout = (props: any) => {
   const theme = useTheme()
+  const [user] = useUser()
+  const [activeOrgRole] = useActiveOrgRole()
   const [, setSidebarOpen] = useSidebarOpen()
   const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
+
+  const role = resolveRole(user?.role, activeOrgRole)
+
+  const filteredHeaderItems = useMemo(
+    () =>
+      HeaderSettingsItems.filter(
+        (item) => !item.minRole || hasMinRole(role, item.minRole)
+      ),
+    [role]
+  )
 
   return (
     <>
       <SignedIn>
-        <LayoutContainer className='tdsk-layout-container'>
-          <Header navItems={HeaderSettingsItems} />
-          <LayoutContent className='tdsk-page-content'>
-            <Sidebar isMobile={isMobile} />
-            <Outlet />
-            {props?.children}
-            {isMobile && (
-              <MobileToggle onClick={() => setSidebarOpen(true)}>
-                <MenuIcon />
-              </MobileToggle>
-            )}
-          </LayoutContent>
-        </LayoutContainer>
+        <PermissionsProvider role={role}>
+          <LayoutContainer className='tdsk-layout-container'>
+            <Header navItems={filteredHeaderItems} />
+            <LayoutContent className='tdsk-page-content'>
+              <Sidebar isMobile={isMobile} />
+              <Outlet />
+              {props?.children}
+              {isMobile && (
+                <MobileToggle onClick={() => setSidebarOpen(true)}>
+                  <MenuIcon />
+                </MobileToggle>
+              )}
+            </LayoutContent>
+          </LayoutContainer>
+        </PermissionsProvider>
       </SignedIn>
       <RedirectToSignIn />
     </>

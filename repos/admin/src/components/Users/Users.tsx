@@ -15,6 +15,7 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { Box, Alert, Avatar, Chip, Typography } from '@mui/material'
 import { EditUserDrawer } from '@TAF/components/Users/EditUserDrawer'
 import { useLocalSearch } from '@TAF/hooks/components/useLocalSearch'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { InviteUserDrawer } from '@TAF/components/Users/InviteUserDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
@@ -42,6 +43,7 @@ const styles = {
 export const Users = (props: TUsers) => {
   const [orgId] = useActiveOrgId()
   const [authUser] = useUser()
+  const { canManageMembers } = usePermissions()
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 
@@ -167,8 +169,8 @@ export const Users = (props: TUsers) => {
             icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
-            disabled={authUser.role === ERoleType.viewer}
-            disabledTooltip='Viewers cannot edit users'
+            disabled={!canManageMembers}
+            disabledTooltip='You do not have permission to edit users'
             onClick={(e) => {
               e.stopPropagation()
               onEditUser(user)
@@ -179,11 +181,17 @@ export const Users = (props: TUsers) => {
             icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
-            disabled={user.role === ERoleType.super || authUser.id === user.id}
+            disabled={
+              !canManageMembers ||
+              user.role === ERoleType.super ||
+              authUser.id === user.id
+            }
             disabledTooltip={
-              user.role === ERoleType.super
-                ? 'Cannot remove super admin'
-                : 'Cannot remove yourself'
+              !canManageMembers
+                ? `You do not have permission to remove users`
+                : user.role === ERoleType.super
+                  ? `Cannot remove super admin`
+                  : `Cannot remove yourself`
             }
             onClick={(e) => {
               e.stopPropagation()

@@ -1,14 +1,19 @@
-import type { TSandboxSession } from '@tdsk/domain'
-
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
+import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
-import { useParams, useNavigate, useLocation } from 'react-router'
-import { sandboxApi } from '@TTH/services/sandboxApi'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router'
+import { useState, useCallback, useMemo } from 'react'
+import { usePermissions } from '@TTH/hooks/permissions'
 import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
-import { useOrgId, useSandboxes, useUser, useOpenSessions } from '@TTH/state/selectors'
+import {
+  useUser,
+  useOrgId,
+  useSandboxes,
+  useOpenSessions,
+  useBackendSessions,
+} from '@TTH/state/selectors'
 import {
   Box,
   Chip,
@@ -20,16 +25,18 @@ import {
 } from '@mui/material'
 
 const Sandbox = () => {
-  const { sandboxId } = useParams<{ sandboxId: string }>()
-  const navigate = useNavigate()
-  const orgId = useOrgId()
-  const sandboxes = useSandboxes()
+  const [orgId] = useOrgId()
   const [user] = useUser()
+  const navigate = useNavigate()
+  const [sandboxes] = useSandboxes()
+  const { sandboxId } = useParams<{ sandboxId: string }>()
 
-  const openSessions = useOpenSessions()
-  const [sessions, setSessions] = useState<TSandboxSession[]>([])
-  const [loading, setLoading] = useState(true)
+  const { canExec } = usePermissions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
+
+  const [openSessions] = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
+  const [backendSessionsMap] = useBackendSessions()
 
   const sandbox = useMemo(
     () => sandboxes.find((s) => s.id === sandboxId),
@@ -37,36 +44,7 @@ const Sandbox = () => {
   )
 
   const projectId = sandbox?.projects?.[0]?.id ?? ``
-
-  // Re-fetch sessions whenever this page is navigated to.
-  // location.key changes on every navigation (even to the same path),
-  // ensuring the fetch re-runs when returning from a session page.
-  const location = useLocation()
-  useEffect(() => {
-    if (!sandboxId || !orgId || !projectId) {
-      setLoading(false)
-      return
-    }
-
-    setSessions([])
-    setLoading(true)
-
-    let cancelled = false
-    sandboxApi.sessions(orgId, projectId, sandboxId).then((resp) => {
-      if (cancelled) return
-      if (resp.error) {
-        toast.error(`Failed to load sessions`, {
-          description: resp.error.message ?? `An unexpected error occurred`,
-        })
-      }
-      setSessions(resp.data ?? [])
-      setLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [sandboxId, orgId, projectId, location.key])
+  const sessions = sandboxId ? (backendSessionsMap.get(sandboxId) ?? []) : []
 
   const mySessions = useMemo(
     () => sessions.filter((s) => s.userId === user?.id),
@@ -138,17 +116,6 @@ const Sandbox = () => {
     )
   }
 
-  if (loading) {
-    return (
-      <Page className='tdsk-sandbox-page'>
-        <Loading
-          message='Loading sessions...'
-          messageSx={{ color: `text.primary` }}
-        />
-      </Page>
-    )
-  }
-
   if (connecting) {
     return (
       <Page className='tdsk-sandbox-page'>
@@ -213,8 +180,11 @@ const Sandbox = () => {
                           ? navigate(`/session/${s.sessionId}`, {
                               state: { sandboxId, projectId },
                             })
-                          : handleReconnect(s.sessionId)
+                          : canExecSandbox
+                            ? handleReconnect(s.sessionId)
+                            : undefined
                       }
+                      disabled={!isOpen && !canExecSandbox}
                       sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                     >
                       <Box>
@@ -232,6 +202,7 @@ const Sandbox = () => {
                         component='span'
                         size='small'
                         variant='outlined'
+                        disabled={!isOpen && !canExecSandbox}
                         color={isOpen ? `primary` : `inherit`}
                         startIcon={isOpen ? <Login /> : <PlayArrow />}
                       >
@@ -265,7 +236,8 @@ const Sandbox = () => {
                   variant='outlined'
                 >
                   <CardActionArea
-                    onClick={() => handleJoin(s.sessionId)}
+                    onClick={() => (canExecSandbox ? handleJoin(s.sessionId) : undefined)}
+                    disabled={!canExecSandbox}
                     sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                   >
                     <Box>
@@ -281,10 +253,11 @@ const Sandbox = () => {
                       </Typography>
                     </Box>
                     <Button
-                      component='span'
                       size='small'
+                      component='span'
                       variant='outlined'
                       startIcon={<Login />}
+                      disabled={!canExecSandbox}
                     >
                       Join
                     </Button>
@@ -295,17 +268,19 @@ const Sandbox = () => {
           </Box>
         )}
 
-        <Box sx={{ display: `flex`, justifyContent: `center`, mt: 2 }}>
-          <Button
-            variant='contained'
-            size='large'
-            startIcon={<Add />}
-            onClick={() => handleStart(null)}
-            disabled={!orgId || !projectId}
-          >
-            New Session
-          </Button>
-        </Box>
+        {canExecSandbox && (
+          <Box sx={{ display: `flex`, justifyContent: `center`, mt: 2 }}>
+            <Button
+              size='large'
+              variant='contained'
+              startIcon={<Add />}
+              onClick={() => handleStart(null)}
+              disabled={!orgId || !projectId}
+            >
+              New Session
+            </Button>
+          </Box>
+        )}
       </Box>
     </Page>
   )

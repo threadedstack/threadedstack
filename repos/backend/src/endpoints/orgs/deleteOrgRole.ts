@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,14 +12,10 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const deleteOrgRole: TEndpointConfig = {
   path: `/:orgId/roles/:roleId`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.role)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, roleId } = req.params
-
-    // Check permission - requires admin+ in the org
-    await checkPermission(req, EPermAction.delete, EPermResource.role, {
-      orgId,
-    })
 
     // Get existing role
     const { data: existingRole, error: fetchError } = await db.services.role.get(roleId)

@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { InviteService } from '@TBE/services/invite'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import {
   Exception,
   ERoleType,
@@ -37,6 +36,7 @@ export type TValidate = {
 export const inviteOrgUser: TEndpointConfig = {
   path: `/:orgId/users/invite`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.role)],
   action: async (req: TRequest<TOrgReq, TValidate>, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { email, roleType, expiresInDays = 7 } = req.body
@@ -55,9 +55,6 @@ export const inviteOrgUser: TEndpointConfig = {
     // Validate expiration days
     if (expiresInDays < 1 || expiresInDays > 30)
       throw new Exception(400, `expiresInDays must be between 1 and 30`)
-
-    // Check permission - requires admin+ in the org
-    await checkPermission(req, EPermAction.create, EPermResource.role, { orgId })
 
     // Verify org exists
     const { data: org, error: orgError } = await db.services.org.get(orgId)

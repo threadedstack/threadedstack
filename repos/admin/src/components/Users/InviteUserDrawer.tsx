@@ -2,12 +2,13 @@ import type { TRoleType } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { ERoleType } from '@tdsk/domain'
-import { PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 import { AuthRoles } from '@TAF/constants/values'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
 import { useSubscription } from '@TAF/state/selectors'
+import { PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 import { inviteToOrg } from '@TAF/actions/users/api/inviteToOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import {
@@ -16,7 +17,6 @@ import {
   Button,
   Dialog,
   Tooltip,
-  Typography,
   DialogTitle,
   DialogActions,
   DialogContent,
@@ -31,18 +31,21 @@ export type TInviteUserDrawer = {
   currentMemberCount?: number
 }
 
-export const InviteUserDrawer = ({
-  open,
-  orgId,
-  onClose: onCloseCB,
-  onSuccess: onSuccessCB,
-  currentMemberCount = 0,
-}: TInviteUserDrawer) => {
+export const InviteUserDrawer = (props: TInviteUserDrawer) => {
+  const {
+    open,
+    orgId,
+    onClose: onCloseCB,
+    onSuccess: onSuccessCB,
+    currentMemberCount = 0,
+  } = props
+
   const [email, setEmail] = useState('')
+  const { canInviteUsers } = usePermissions()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
   const [seatConfirmOpen, setSeatConfirmOpen] = useState(false)
+  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
 
   const [subscription] = useSubscription()
 
@@ -106,7 +109,7 @@ export const InviteUserDrawer = ({
     onClose,
   })
 
-  const inviteDisabled = !canInvite || loading || !email.trim()
+  const inviteDisabled = !canInvite || !canInviteUsers || loading || !email.trim()
 
   return (
     <>
@@ -116,10 +119,10 @@ export const InviteUserDrawer = ({
         title='Invite User to Organization'
         actions={
           <DrawerActions
-            form='invite-user-form'
             editing={false}
             actions={actions}
             loading={loading}
+            form='invite-user-form'
             disabled={inviteDisabled}
           />
         }

@@ -3,10 +3,10 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { parsePagination } from '@TBE/utils/pagination'
 import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { parsePagination } from '@TBE/utils/pagination'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /api-keys - List all API keys (masked)
@@ -15,6 +15,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const listApiKeys: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.apiKey)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
@@ -26,20 +27,6 @@ export const listApiKeys: TEndpointConfig = {
 
     // Require orgId — keys are listed under /orgs/:orgId even when project-scoped (exclusive arc)
     if (!orgId) throw new Exception(400, `orgId parameter required`)
-
-    if (projectId) {
-      // Project-scoped listing: check project or org-level permission
-      // Org admins/owners can view project keys even without explicit project membership
-      await checkPermission(req, EPermAction.read, EPermResource.apiKey, {
-        projectId: projectId as string,
-        orgId,
-      })
-    } else {
-      // Org-scoped listing: check org-level permission
-      await checkPermission(req, EPermAction.read, EPermResource.apiKey, {
-        orgId,
-      })
-    }
 
     const { limit, offset } = parsePagination(req)
 

@@ -2,9 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /orgs/:orgId/quotas - Get current quota usage for an organization
@@ -12,15 +12,13 @@ import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 export const getOrgQuota: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.quota)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
-
-    // Check membership
-    await requireOrgMember(req, orgId)
 
     // Get current period (YYYY-MM format)
     const period = getBillingPeriod()

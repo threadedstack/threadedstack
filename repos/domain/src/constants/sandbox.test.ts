@@ -13,7 +13,7 @@ describe(`RuntimeProviderEnvMap`, () => {
     }
   })
 
-  it(`claude-code supports anthropic, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama`, () => {
+  it(`claude-code supports anthropic, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama, ollamaCloud`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.claudeCode]!)
     expect(brands).toContain(`anthropic`)
     expect(brands).toContain(`amazon-bedrock`)
@@ -22,13 +22,16 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`openrouter`)
     expect(brands).toContain(`custom`)
     expect(brands).toContain(`ollama`)
+    expect(brands).toContain(`ollama:cloud`)
   })
 
-  it(`codex supports openai, openrouter, google`, () => {
+  it(`codex supports openai, openrouter, google, zai, ollamaCloud`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.codex]!)
     expect(brands).toContain(`openai`)
     expect(brands).toContain(`openrouter`)
     expect(brands).toContain(`google`)
+    expect(brands).toContain(`zai`)
+    expect(brands).toContain(`ollama:cloud`)
   })
 
   it(`gemini-cli supports google and google-vertex`, () => {
@@ -145,11 +148,13 @@ describe(`RuntimeProviderEnvMap`, () => {
     }
   })
 
-  it(`open-code supports anthropic, openai, openrouter`, () => {
+  it(`open-code supports anthropic, openai, openrouter, zai, ollamaCloud`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.openCode]!)
     expect(brands).toContain(`anthropic`)
     expect(brands).toContain(`openai`)
     expect(brands).toContain(`openrouter`)
+    expect(brands).toContain(`zai`)
+    expect(brands).toContain(`ollama:cloud`)
   })
 })
 
@@ -168,5 +173,19 @@ describe(`SandboxRuntimeConfigs`, () => {
   it(`includes geminiCli config`, () => {
     expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli]).toBeDefined()
     expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].runtimeCommand).toBe(`gemini`)
+  })
+
+  it(`codex initScript generates config.toml with custom providers`, () => {
+    const script = SandboxRuntimeConfigs[ESandboxRuntime.codex].initScript!
+    expect(script).toContain(`mkdir -p ~/.codex`)
+    expect(script).toContain(`config.toml`)
+    expect(script).toContain(`[model_providers.openai-direct]`)
+    expect(script).toContain(`[model_providers.openrouter]`)
+    expect(script).toContain(`[model_providers.zai]`)
+    expect(script).toContain(`[model_providers.google-ai]`)
+    expect(script).toContain(`[model_providers.ollama-cloud]`)
+    expect(script).not.toMatch(/\[model_providers\.openai\]/)
+    expect(script).not.toMatch(/\[model_providers\.ollama\]/)
+    expect(script).not.toMatch(/\[model_providers\.lmstudio\]/)
   })
 })

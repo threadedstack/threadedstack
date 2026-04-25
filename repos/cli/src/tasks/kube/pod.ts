@@ -35,7 +35,7 @@ export const pod: TTask = {
   name: `pod`,
   alias: [`pods`, `po`, `describe`],
   action: podAction,
-  example: `pnpm tdsk kube pod <options>`,
+  example: `tdsk kube pod <options>`,
   description: `Describes a Kubernetes pod based on the passed context or name`,
   options: {
     context: {

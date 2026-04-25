@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { requireOrgMember, getUserRole } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /orgs/:id - Get org by ID
@@ -13,15 +14,13 @@ import { requireOrgMember, getUserRole } from '@TBE/utils/auth/checkPermission'
 export const getOrg: TEndpointConfig = {
   path: `/:orgId`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.org)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
-
-    // Check membership first
-    await requireOrgMember(req, orgId)
 
     const { data, error } = await db.services.org.get(orgId)
     if (error) throw new Exception(500, error.message)

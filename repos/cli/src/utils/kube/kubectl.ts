@@ -144,7 +144,7 @@ kubectl.getContexts = resolveArgs<string[]>(async (props: TTaskActionArgs) => {
 })
 
 /**
- * Sets the current kube-context to the passed in value
+ * Uses the current kube-context to the passed in value
  */
 kubectl.useContext = resolveArgs<string>(
   async (props: TTaskActionArgs, args: string | string[]) => {
@@ -152,6 +152,21 @@ kubectl.useContext = resolveArgs<string>(
       ...props.params,
       output: true,
       args: [`config`, `use-context`, ...args],
+    })
+
+    return await kubectl.currentContext(props, args)
+  }
+)
+
+/**
+ * Sets the current kube-context to the passed in value
+ */
+kubectl.setContext = resolveArgs<string>(
+  async (props: TTaskActionArgs, args: string | string[]) => {
+    await kubectl({
+      ...props.params,
+      output: true,
+      args: [`config`, `set-context`, ...args],
     })
 
     return await kubectl.currentContext(props, args)

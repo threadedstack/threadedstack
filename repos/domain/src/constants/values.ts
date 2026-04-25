@@ -52,6 +52,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.owner,
     [EPermAction.manage]: ERoleType.admin, // Member management
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.project]: {
     [EPermAction.create]: ERoleType.member, // Members can create projects in orgs
@@ -59,6 +60,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member, // Members can update projects they created
     [EPermAction.delete]: ERoleType.admin, // Only admins can delete projects
     [EPermAction.manage]: ERoleType.admin, // Manage project settings/members
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.agent]: {
     [EPermAction.create]: ERoleType.member, // Members can create agents in projects
@@ -66,6 +68,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.member,
     [EPermAction.manage]: ERoleType.member,
+    [EPermAction.exec]: ERoleType.member,
   },
   [EPermResource.secret]: {
     [EPermAction.create]: ERoleType.admin,
@@ -73,6 +76,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.apiKey]: {
     [EPermAction.create]: ERoleType.admin,
@@ -80,6 +84,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.endpoint]: {
     [EPermAction.create]: ERoleType.member,
@@ -87,6 +92,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.provider]: {
     [EPermAction.create]: ERoleType.admin, // Creating providers requires admin
@@ -94,6 +100,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.user]: {
     [EPermAction.create]: ERoleType.admin, // Invite users to org/project
@@ -101,6 +108,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin, // Update other users' roles
     [EPermAction.delete]: ERoleType.owner, // Only owner can remove users
     [EPermAction.manage]: ERoleType.admin, // Manage user roles/permissions
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.function]: {
     [EPermAction.create]: ERoleType.member,
@@ -108,6 +116,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.member,
   },
   [EPermResource.role]: {
     [EPermAction.create]: ERoleType.admin, // Only admins can create roles
@@ -115,6 +124,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin, // Only admins can modify roles
     [EPermAction.delete]: ERoleType.owner, // Only owner can delete roles
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.domain]: {
     [EPermAction.create]: ERoleType.admin, // Creating domain requires admin
@@ -122,6 +132,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.subscription]: {
     [EPermAction.create]: ERoleType.admin, // Only admins can create subscriptions
@@ -129,6 +140,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.owner,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.quota]: {
     [EPermAction.create]: ERoleType.admin, // Only admins can create quotas
@@ -136,6 +148,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.owner,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.invitation]: {
     [EPermAction.create]: ERoleType.admin, // Admins can invite users
@@ -143,6 +156,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.thread]: {
     [EPermAction.create]: ERoleType.member, // Members can create threads
@@ -150,6 +164,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.message]: {
     [EPermAction.create]: ERoleType.member, // Members can create messages
@@ -157,6 +172,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.asset]: {
     [EPermAction.create]: ERoleType.member, // Members can upload assets
@@ -164,6 +180,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.skill]: {
     [EPermAction.create]: ERoleType.member, // Members can create skills
@@ -171,6 +188,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.schedule]: {
     [EPermAction.create]: ERoleType.member, // Members can create schedules
@@ -178,6 +196,7 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.member,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.admin,
   },
   [EPermResource.sandbox]: {
     [EPermAction.create]: ERoleType.admin, // Sandbox configs control K8s resources
@@ -185,5 +204,6 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.update]: ERoleType.admin,
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
+    [EPermAction.exec]: ERoleType.member,
   },
 }

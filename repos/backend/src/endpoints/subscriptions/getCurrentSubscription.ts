@@ -6,6 +6,7 @@ import { Exception } from '@tdsk/domain'
 
 /**
  * GET /subscriptions/current - Get current user's subscription
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const getCurrentSubscription: TEndpointConfig = {
   path: `/current`,

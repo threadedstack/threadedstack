@@ -1,28 +1,32 @@
 import type { Function as FunctionModel } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { ConfirmDelete } from '@tdsk/components'
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
+import { ConfirmDelete } from '@tdsk/components'
 import { Box, Chip, Typography } from '@mui/material'
 import { EmptyState, DataTable } from '@TAF/components'
+import { deleteFunction } from '@TAF/actions/functions'
 import { useActiveProjectId } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
-import { useProjectFunctions, useActiveOrgId } from '@TAF/state/selectors'
-import { deleteFunction } from '@TAF/actions/functions'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
-import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-
+import { useProjectFunctions, useActiveOrgId } from '@TAF/state/selectors'
 import { Code as CodeIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 
 export type TFunctions = {}
 
 export const Functions = (props: TFunctions) => {
-  const [functions] = useProjectFunctions()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [functions] = useProjectFunctions()
+  const { canCreate, canDelete } = usePermissions()
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const createDisabled = !canCreate(EPermResource.function)
+  const deleteDisabled = !canDelete(EPermResource.function)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string>(`all`)
   const [selectedFunction, setSelectedFunction] = useState<FunctionModel | null>(null)
@@ -164,6 +168,8 @@ export const Functions = (props: TFunctions) => {
           icon={<DeleteIcon />}
           size='small'
           color='error'
+          disabled={deleteDisabled}
+          disabledTooltip='You do not have permission to delete functions'
           onClick={(e) => {
             e.stopPropagation()
             onDelete(func)
@@ -175,22 +181,28 @@ export const Functions = (props: TFunctions) => {
 
   return (
     <PageLayout
-      title='Functions'
-      count={functionsCount}
-      countLabel='function'
-      query={searchQuery}
-      setSearchQuery={setSearchQuery}
-      searchPlaceholder='Search functions by name...'
       searchCount={0}
-      onAction={functionsCount > 0 && onCreate}
-      actionLabel={functionsCount > 0 && 'Create Function'}
+      title='Functions'
+      query={searchQuery}
+      countLabel='function'
       filterLabel='Language'
+      count={functionsCount}
       filterValue={languageFilter}
       filterAllLabel='All Languages'
-      filterOpts={languageFilterOptions.length > 1 ? languageFilterOptions : undefined}
+      actionDisabled={createDisabled}
+      setSearchQuery={setSearchQuery}
+      onAction={functionsCount > 0 && onCreate}
+      searchPlaceholder='Search functions by name...'
+      actionLabel={functionsCount > 0 && 'Create Function'}
       onFilter={languageFilterOptions.length > 1 ? setLanguageFilter : undefined}
+      filterOpts={languageFilterOptions.length > 1 ? languageFilterOptions : undefined}
     >
-      {functionsCount === 0 && <NoFunctions onCreate={onCreate} />}
+      {functionsCount === 0 && (
+        <NoFunctions
+          onCreate={onCreate}
+          createDisabled={createDisabled}
+        />
+      )}
 
       {functionsCount > 0 && filteredFunctions.length === 0 && (
         <EmptyState message='No functions match your search or filter criteria.' />
@@ -199,9 +211,9 @@ export const Functions = (props: TFunctions) => {
       {filteredFunctions.length > 0 && (
         <DataTable
           columns={columns}
+          onRowClick={onEdit}
           data={filteredFunctions}
           getRowKey={(func) => func.id}
-          onRowClick={onEdit}
         />
       )}
 

@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,10 +12,11 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const updateProject: TEndpointConfig = {
   path: `/:projectId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { projectId } = req.params
     const { db } = req.app.locals
-    const updates = req.body
+    const { name, description } = req.body
 
     // First get the project to find its orgId
     const { data: existing, error: getError } = await db.services.project.get(projectId)
@@ -24,15 +25,11 @@ export const updateProject: TEndpointConfig = {
 
     if (!existing) throw new Exception(404, `Project not found`)
 
-    // Check permission - user must be member of org to update project
-    await checkPermission(req, EPermAction.update, EPermResource.project, {
-      orgId: existing.orgId,
-    })
-
     // Update the project
     const { data, error } = await db.services.project.update({
-      ...updates,
       id: projectId,
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
     })
     if (error) throw new Exception(500, error.message)
 

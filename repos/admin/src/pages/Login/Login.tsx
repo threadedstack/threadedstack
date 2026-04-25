@@ -1,20 +1,22 @@
 import type { TOnLogin } from '@TAF/types'
 
+import { nav } from '@TAF/services/nav'
 import { auth } from '@TAF/services/auth'
 import { Login } from '@TAF/components/Login'
 import { useState, useCallback } from 'react'
-import { setUser } from '@TAF/state/accessors'
 import { signin } from '@TAF/actions/auth/local/signin'
 import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
+import { loginWithEmail } from '@TAF/actions/auth/local/loginWithEmail'
+import { signupWithEmail } from '@TAF/actions/auth/local/signupWithEmail'
 
 export type TLogin = {}
 
 export const LoginPage = (props: TLogin) => {
   const [error, setError] = useState<string>()
-  const [authenticating, setAuthenticating] = useState<string>()
   const [emailError, setEmailError] = useState<string>()
-  const [emailSuccess, setEmailSuccess] = useState<string>()
   const [emailLoading, setEmailLoading] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState<string>()
+  const [authenticating, setAuthenticating] = useState<string>()
 
   const showEmailForm = TDSK_AUTH_PROVIDERS.includes(`email`)
 
@@ -23,26 +25,34 @@ export const LoginPage = (props: TLogin) => {
     setAuthenticating(data.provider)
     const resp = await signin(data.provider)
     resp.error && setError(resp.error.message)
-    setAuthenticating(undefined)
+    setTimeout(() => {
+      setEmailLoading(false)
+      setAuthenticating(undefined)
+    }, 1500)
   }, [])
 
   const runEmailAction = useCallback(
     async (fallbackMsg: string, action: () => Promise<any>) => {
       setEmailLoading(true)
+      setAuthenticating(`email`)
       setEmailError(undefined)
       setEmailSuccess(undefined)
       setError(undefined)
       try {
         const resp = await action()
-        if (resp.error) {
+        if (resp?.error) {
           setEmailError(resp.error.message || fallbackMsg)
           return
         }
+        resp?.user && nav.home()
         return resp
       } catch (err: any) {
         setEmailError(err?.message || fallbackMsg)
       } finally {
-        setEmailLoading(false)
+        setTimeout(() => {
+          setEmailLoading(false)
+          setAuthenticating(undefined)
+        }, 1500)
       }
     },
     []
@@ -50,20 +60,14 @@ export const LoginPage = (props: TLogin) => {
 
   const onEmailSignIn = useCallback(
     async (email: string, password: string) => {
-      const resp = await runEmailAction(`Sign in failed`, () =>
-        auth.signInWithEmail(email, password)
-      )
-      resp?.user && setUser(resp.user)
+      await runEmailAction(`Sign in failed`, () => loginWithEmail(email, password))
     },
     [runEmailAction]
   )
 
   const onEmailSignUp = useCallback(
     async (email: string, password: string) => {
-      const resp = await runEmailAction(`Sign up failed`, () =>
-        auth.signUpWithEmail(email, password)
-      )
-      resp?.user && setUser(resp.user)
+      await runEmailAction(`Sign up failed`, () => signupWithEmail(email, password))
     },
     [runEmailAction]
   )

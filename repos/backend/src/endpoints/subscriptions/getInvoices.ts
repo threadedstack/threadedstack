@@ -6,7 +6,7 @@ import { Exception } from '@tdsk/domain'
 
 /**
  * GET /subscriptions/invoices - Get invoices for the current user
- * Queries the local invoices table by userId.
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const getInvoices: TEndpointConfig = {
   path: `/invoices`,

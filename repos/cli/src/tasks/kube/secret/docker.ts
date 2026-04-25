@@ -1,6 +1,7 @@
 import type { TTask, TTaskActionArgs } from '@TSCL/types'
 
 import { Logger } from '@tdsk/logger'
+import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { taskError } from '@TSCL/utils/tasks/error'
 import { auth as docAuth } from '@TSCL/utils/docker/auth'
 
@@ -50,6 +51,32 @@ const docAuthAct = async (props: TTaskActionArgs) => {
       name: envs.TDSK_KUBE_SCRT_DOC_AUTH || `docker-auth`,
     },
   })
+
+  const pullName = envs.TDSK_KUBE_SCRT_DOC_PULL || `docker-auth-pull`
+  const server =
+    params.server ||
+    envs.DOCKER_REGISTRY ||
+    envs.TDSK_IMAGE?.split?.(`/`)?.shift() ||
+    `ghcr.io`
+  const namespace = secParams.namespace
+
+  params.log && Logger.pair(`Creating docker-registry secret`, pullName)
+
+  const deleteArgs = [`secret`, pullName, `--ignore-not-found`]
+  if (namespace) deleteArgs.push(`--namespace`, namespace)
+
+  const createArgs = [
+    `secret`,
+    `docker-registry`,
+    pullName,
+    `--docker-server=${server}`,
+    `--docker-username=${user}`,
+    `--docker-password=${token}`,
+  ]
+  if (namespace) createArgs.push(`--namespace`, namespace)
+
+  await kubectl.delete(props, deleteArgs)
+  await kubectl.create(props, createArgs)
 }
 
 export const docker: TTask = {
@@ -63,6 +90,16 @@ export const docker: TTask = {
       alias: [`tok`],
       example: `--token ****`,
       description: `Custom login token for the active git user, defaults to resolved NPM token`,
+    },
+    server: {
+      alias: [`srv`, `registry`],
+      example: `--server ghcr.io`,
+      description: `Docker registry server for the pull secret, defaults to DOCKER_REGISTRY env`,
+    },
+    namespace: {
+      alias: [`nsp`, `ns`],
+      example: `--namespace tdsk-production`,
+      description: `Kubernetes namespace to create the secrets in`,
     },
     log: {
       default: true,

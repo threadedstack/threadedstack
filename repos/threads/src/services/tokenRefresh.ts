@@ -102,3 +102,10 @@ export class TokenRefreshManager {
 }
 
 export const tokenRefresh = new TokenRefreshManager()
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    tokenRefresh.stop()
+  })
+  import.meta.hot.accept()
+}

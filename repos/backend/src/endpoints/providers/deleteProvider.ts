@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * DELETE /providers/:id - Delete a provider
@@ -12,19 +12,10 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const deleteProvider: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.provider)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-
-    await requireResourceWithPermission(
-      req,
-      db.services.provider,
-      id,
-      EPermAction.delete,
-      EPermResource.provider,
-      `Provider`,
-      (provider) => ({ orgId: provider.orgId })
-    )
 
     const { data, error } = await db.services.provider.delete(id)
 

@@ -2,12 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { Exception } from '@tdsk/domain'
 
 /**
  * DELETE /subscriptions/current - Cancel current subscription
- * Cancels at period end via Stripe, then updates local record.
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const cancelSubscription: TEndpointConfig = {
   path: `/current`,

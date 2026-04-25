@@ -1,19 +1,21 @@
 import type { Schedule } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
+import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
-import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { useSchedules, useOrgAgents } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
-import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { deleteSchedule } from '@TAF/actions/schedules/api/deleteSchedule'
 import { triggerSchedule } from '@TAF/actions/schedules/api/triggerSchedule'
-import { useSchedules, useOrgAgents } from '@TAF/state/selectors'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -44,14 +46,15 @@ const styles = {
 export const Schedules = (props: TSchedules) => {
   const { orgId, agentId } = props
 
-  const [schedulesMap] = useSchedules()
   const [orgAgents] = useOrgAgents()
+  const [schedulesMap] = useSchedules()
+  const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const schedules = useMemo(() => Object.values(schedulesMap || {}), [schedulesMap])
 
   const [error, setError] = useState<Error>()
   const [loading, setLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Schedule>()
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null)
 
@@ -134,10 +137,10 @@ export const Schedules = (props: TSchedules) => {
           <ScheduleIcon sx={{ color: 'text.secondary' }} />
           <Text
             variant='body2'
-            fontWeight='medium'
             display='block'
             overflow='hidden'
             whiteSpace='nowrap'
+            fontWeight='medium'
             textOverflow='ellipsis'
             sx={{ maxWidth: 300 }}
           >
@@ -167,9 +170,9 @@ export const Schedules = (props: TSchedules) => {
       render: (schedule) => (
         <Chip
           size='small'
+          variant='outlined'
           label={schedule.enabled ? 'Enabled' : 'Disabled'}
           color={schedule.enabled ? 'success' : 'default'}
-          variant='outlined'
         />
       ),
     },
@@ -193,30 +196,36 @@ export const Schedules = (props: TSchedules) => {
       render: (schedule) => (
         <Box sx={styles.table.actions.box}>
           <ActionIconButton
-            tooltip='Trigger Now'
-            icon={<TriggerIcon sx={styles.table.actions.icon} />}
             size='small'
             color='success'
+            tooltip='Trigger Now'
+            disabled={!canExec(EPermResource.schedule)}
+            icon={<TriggerIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to trigger schedules'
             onClick={(e) => {
               e.stopPropagation()
               onTrigger(schedule)
             }}
           />
           <ActionIconButton
-            tooltip='Edit Schedule'
-            icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
+            tooltip='Edit Schedule'
+            disabled={!canUpdate(EPermResource.schedule)}
+            icon={<EditIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to edit schedules'
             onClick={(e) => {
               e.stopPropagation()
               onEditSchedule(schedule)
             }}
           />
           <ActionIconButton
-            tooltip='Delete Schedule'
-            icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
+            tooltip='Delete Schedule'
+            disabled={!canDelete(EPermResource.schedule)}
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to delete schedules'
             onClick={(e) => {
               e.stopPropagation()
               setDeleting(schedule)
@@ -236,9 +245,10 @@ export const Schedules = (props: TSchedules) => {
       query={searchQuery}
       count={schedulesCount}
       error={error?.message}
-      setSearchQuery={setSearchQuery}
       actionIcon={<AddIcon />}
+      setSearchQuery={setSearchQuery}
       onAction={schedulesCount > 0 && onCreateSchedule}
+      actionDisabled={!canCreate(EPermResource.schedule)}
       actionLabel={schedulesCount > 0 && 'Create Schedule'}
       searchPlaceholder='Search schedules by prompt or cron...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
@@ -248,6 +258,7 @@ export const Schedules = (props: TSchedules) => {
           actionIcon={<AddIcon />}
           onAction={onCreateSchedule}
           actionLabel='Create Schedule'
+          actionDisabled={!canCreate(EPermResource.schedule)}
           message='No schedules yet. Create your first schedule to get started.'
         />
       )}

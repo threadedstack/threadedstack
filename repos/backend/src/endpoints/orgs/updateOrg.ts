@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,13 +12,11 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const updateOrg: TEndpointConfig = {
   path: `/:orgId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.org)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
-    const orgData = req.body
-
-    // Check permission first
-    await checkPermission(req, EPermAction.update, EPermResource.org, { orgId })
+    const { name, description, config } = req.body
 
     // Check if org exists
     const { data: existingOrg, error: getError } = await db.services.org.get(orgId)
@@ -27,7 +25,12 @@ export const updateOrg: TEndpointConfig = {
 
     if (!existingOrg) throw new Exception(404, `Org not found`)
 
-    const { data, error } = await db.services.org.update({ ...orgData, id: orgId })
+    const { data, error } = await db.services.org.update({
+      id: orgId,
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(config !== undefined && { config }),
+    })
 
     if (error) throw new Exception(500, error.message)
 

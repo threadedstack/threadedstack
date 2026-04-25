@@ -1,34 +1,28 @@
-import { useSidebarOpen, useOrgId, useOrgs } from '@TTH/state/selectors'
+import { SidebarWidthOpen } from '@TTH/constants/values'
 import { NavTree } from '@TTH/components/Sidebar/NavTree'
 import { OrgSelector } from '@TTH/components/OrgSelector'
-import { SidebarWidthOpen } from '@TTH/constants/values'
 import { Divider, Box, SwipeableDrawer } from '@mui/material'
+import { useOrgId, useOrgs, useSidebarOpen } from '@TTH/state/selectors'
+import { openSidebar, closeSidebar } from '@TTH/actions/sidebar/toggleSidebar'
 
-export type TMobileSidebar = {
-  drawerOpen: boolean
-  toggleDrawer: (status?: boolean) => any
-}
-
-export const MobileSidebar = (props: TMobileSidebar) => {
-  const { drawerOpen, toggleDrawer } = props
-
-  const [open, setOpen] = useSidebarOpen()
-  const orgs = useOrgs()
-  const orgId = useOrgId()
+export const MobileSidebar = () => {
+  const [open] = useSidebarOpen()
+  const [orgs] = useOrgs()
+  const [orgId] = useOrgId()
   const showOrgSelector = orgs.length > 1 || !orgId
 
   return (
     <SwipeableDrawer
       open={open}
       variant='temporary'
-      onOpen={() => setOpen(true)}
-      onClose={() => setOpen(false)}
-      className='tdsk-admin-sidebar'
+      onOpen={openSidebar}
+      onClose={closeSidebar}
+      className='tdsk-threads-sidebar'
       ModalProps={{ keepMounted: true }}
       sx={{
         [`& .MuiDrawer-paper`]: {
           width: SidebarWidthOpen,
-          boxSizing: 'border-box',
+          boxSizing: `border-box`,
         },
       }}
     >
@@ -37,9 +31,9 @@ export const MobileSidebar = (props: TMobileSidebar) => {
       <Box
         sx={{
           flex: 1,
-          overflow: `auto`,
           px: 0.5,
           py: 0.5,
+          overflow: `auto`,
         }}
       >
         {orgId && <NavTree />}

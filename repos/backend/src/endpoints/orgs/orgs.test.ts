@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 
 import { orgs } from './orgs'
+import { ERoleType } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
-import { ERoleType } from '@tdsk/domain'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
@@ -119,12 +119,13 @@ describe(`Orgs endpoints`, () => {
       mockGetOrgRole.mockResolvedValue({ data: null })
       mockGetUserRoles.mockResolvedValue({ data: [] })
       mockGetUserOrgs.mockResolvedValue({ data: [] })
-      mockList.mockResolvedValue({ data: [] })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
+      // Should NOT query orgs at all when user has no memberships
+      expect(mockList).not.toHaveBeenCalled()
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
@@ -432,19 +433,6 @@ describe(`Orgs endpoints`, () => {
       expect(mockGet).toHaveBeenCalledWith(`org-123`)
     })
 
-    it(`should throw 403 when user is not a member of the org`, async () => {
-      mockReq.params = { orgId: `org-123` }
-
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-
-      mockIsOrgMember.mockResolvedValue({ data: false })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `You are not a member of this organization`
-      )
-    })
-
     it(`should include user role in response`, async () => {
       const mockOrg = {
         id: `org-123`,
@@ -470,25 +458,29 @@ describe(`Orgs endpoints`, () => {
       expect(responseData.userRole).toBe(ERoleType.owner)
     })
 
-    it(`should allow super admin to access any org`, async () => {
+    it(`should return org data for any authenticated user (auth handled by middleware)`, async () => {
       mockReq.params = { orgId: `org-123` }
-      // Set user as Neon admin (super admin)
       mockReq.user = {
         id: `admin-user-id`,
         email: `admin@example.com`,
         role: ERoleType.admin,
       } as any
 
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
 
-      // requireOrgMember now runs before any super admin check
-      // Non-member throws 403 regardless of admin role
-      mockIsOrgMember.mockResolvedValue({ data: false })
+      mockGet.mockResolvedValue({
+        data: { id: `org-123`, name: `Test Org` },
+      })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
 
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `You are not a member of this organization`
-      )
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.id).toBe(`org-123`)
+      expect(responseData.userRole).toBe(ERoleType.admin)
     })
   })
 })

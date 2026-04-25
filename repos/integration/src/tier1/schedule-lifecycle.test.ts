@@ -4,6 +4,7 @@ import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Schedule Lifecycle
@@ -13,7 +14,7 @@ import { env } from '../utils/env'
  * Covers fix C2: triggerSchedule must set nextRunAt to a future cron time
  * (not `now`), preventing double-execution on the next scheduler tick.
  */
-describe('Tier 1: Schedule Lifecycle', () => {
+describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', () => {
   const ctx = readContext()
   let agentId = ''
   let scheduleId = ''

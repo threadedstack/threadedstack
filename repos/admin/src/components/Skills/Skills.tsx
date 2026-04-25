@@ -4,19 +4,21 @@ import type { TDataTableColumn } from '@TAF/components'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
+import { useSkills } from '@TAF/state/selectors'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { SkillDrawer } from '@TAF/components/Skills/SkillDrawer'
+import { deleteSkill } from '@TAF/actions/skills/api/deleteSkill'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { SkillDrawer } from '@TAF/components/Skills/SkillDrawer'
-import { useSkills } from '@TAF/state/selectors'
-import { deleteSkill } from '@TAF/actions/skills/api/deleteSkill'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
-  Extension as ExtensionIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Extension as ExtensionIcon,
 } from '@mui/icons-material'
 
 export type TSkills = {
@@ -40,6 +42,7 @@ const styles = {
 export const Skills = (props: TSkills) => {
   const { orgId } = props
 
+  const { canCreate, canUpdate, canDelete } = usePermissions()
   const [skillsMap] = useSkills()
   const skills = useMemo(() => Object.values(skillsMap || {}), [skillsMap])
 
@@ -152,6 +155,8 @@ export const Skills = (props: TSkills) => {
             icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
+            disabled={!canUpdate(EPermResource.skill)}
+            disabledTooltip='You do not have permission to edit skills'
             onClick={(e) => {
               e.stopPropagation()
               onEditSkill(skill)
@@ -162,6 +167,8 @@ export const Skills = (props: TSkills) => {
             icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
+            disabled={!canDelete(EPermResource.skill)}
+            disabledTooltip='You do not have permission to delete skills'
             onClick={(e) => {
               e.stopPropagation()
               setDeleting(skill)
@@ -185,6 +192,7 @@ export const Skills = (props: TSkills) => {
       actionIcon={<AddIcon />}
       onAction={skills.length > 0 && onCreateSkill}
       actionLabel={skills.length > 0 && 'Create Skill'}
+      actionDisabled={!canCreate(EPermResource.skill)}
       searchPlaceholder='Search skills by name or description...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
@@ -193,6 +201,7 @@ export const Skills = (props: TSkills) => {
           actionIcon={<AddIcon />}
           onAction={onCreateSkill}
           actionLabel='Create Skill'
+          actionDisabled={!canCreate(EPermResource.skill)}
           message='No skills yet. Create your first skill to get started.'
         />
       )}

@@ -431,6 +431,68 @@ describe(`resolveProviderEnv`, () => {
     expect(result.errors).toEqual([])
   })
 
+  it(`generates MITM placeholder for codex/zai API key`, async () => {
+    const result = await resolveProviderEnv(
+      `codex`,
+      [{ provider: { id: `p1`, brand: `zai`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.Z_AI_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(result.errors).toEqual([])
+  })
+
+  it(`maps ollama:cloud for codex when provider has secretId`, async () => {
+    const result = await resolveProviderEnv(
+      `codex`,
+      [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for opencode/zai (ZHIPU_API_KEY)`, async () => {
+    const result = await resolveProviderEnv(
+      `opencode`,
+      [{ provider: { id: `p1`, brand: `zai`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.ZHIPU_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(result.errors).toEqual([])
+  })
+
+  it(`maps ollama:cloud for opencode when provider has secretId`, async () => {
+    const result = await resolveProviderEnv(
+      `opencode`,
+      [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(result.errors).toEqual([])
+  })
+
+  it(`maps ollama:cloud for claude-code when provider has secretId`, async () => {
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
+    expect(result.extraEnv.ANTHROPIC_API_KEY).toBe(``)
+    expect(result.extraEnv.ANTHROPIC_BASE_URL).toBe(`https://ollama.com`)
+    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(result.errors).toEqual([])
+  })
+
   it(`later provider overwrites env vars from earlier provider (last writer wins)`, async () => {
     mockSecretResolver.resolveApiKey.mockResolvedValue(`decrypted-api-key`)
     const result = await resolveProviderEnv(
@@ -448,14 +510,14 @@ describe(`resolveProviderEnv`, () => {
       mockSecretResolver,
       `org_1`
     )
-    // Both anthropic and openrouter set ANTHROPIC_API_KEY for claude-code
-    // openrouter is second, so it should overwrite the anthropic placeholder
-    expect(result.extraEnv.ANTHROPIC_API_KEY).toBeDefined()
+    // openrouter overwrites ANTHROPIC_API_KEY with empty static and sets ANTHROPIC_AUTH_TOKEN
+    expect(result.extraEnv.ANTHROPIC_API_KEY).toBe(``)
+    expect(result.extraEnv.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
     // The openrouter mapping also sets ANTHROPIC_BASE_URL as a static value
     expect(result.extraEnv.ANTHROPIC_BASE_URL).toBe(`https://openrouter.ai/api`)
 
-    // The ANTHROPIC_API_KEY placeholder should map to sec_2 (the openrouter provider's secret)
-    const apiKeyValue = result.extraEnv.ANTHROPIC_API_KEY
-    expect(result.placeholders[apiKeyValue]).toBe(`sec_2`)
+    // The ANTHROPIC_AUTH_TOKEN placeholder should map to sec_2 (the openrouter provider's secret)
+    const authTokenValue = result.extraEnv.ANTHROPIC_AUTH_TOKEN
+    expect(result.placeholders[authTokenValue]).toBe(`sec_2`)
   })
 })

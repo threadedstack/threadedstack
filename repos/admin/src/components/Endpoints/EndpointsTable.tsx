@@ -16,6 +16,8 @@ import {
 
 export type TEndpointsTable = {
   endpoints: Endpoint[]
+  editDisabled?: boolean
+  deleteDisabled?: boolean
   onDelete: (id: string) => void
   onNavigate: (endpoint: Endpoint) => void
 }
@@ -35,7 +37,13 @@ const styles = {
 }
 
 export const EndpointsTable = (props: TEndpointsTable) => {
-  const { onNavigate, endpoints, onDelete: onDeleteCB } = props
+  const {
+    onNavigate,
+    endpoints,
+    editDisabled,
+    deleteDisabled,
+    onDelete: onDeleteCB,
+  } = props
 
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState<Endpoint>()
@@ -122,20 +130,24 @@ export const EndpointsTable = (props: TEndpointsTable) => {
       render: (endpoint) => (
         <Box sx={styles.table.actions.box}>
           <ActionIconButton
-            tooltip='Edit endpoint'
-            icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
+            tooltip='Edit endpoint'
+            disabled={editDisabled}
+            icon={<EditIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to edit endpoints'
             onClick={(e) => {
               e.stopPropagation()
               onNavigate(endpoint)
             }}
           />
           <ActionIconButton
-            tooltip='Delete endpoint'
-            icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
+            tooltip='Delete endpoint'
+            disabled={deleteDisabled}
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to delete endpoints'
             onClick={(e) => {
               e.stopPropagation()
               setDeleting(endpoint)

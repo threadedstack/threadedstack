@@ -3,15 +3,17 @@ import { EmptyState } from '@TAF/components'
 
 export type TNoFunctions = {
   onCreate: () => void
+  createDisabled?: boolean
 }
 
-export const NoFunctions = ({ onCreate }: TNoFunctions) => {
+export const NoFunctions = ({ onCreate, createDisabled }: TNoFunctions) => {
   return (
     <EmptyState
-      message='No functions found for this project.'
-      actionLabel='Create Function'
-      actionIcon={<AddIcon />}
       onAction={onCreate}
+      actionIcon={<AddIcon />}
+      actionLabel='Create Function'
+      actionDisabled={createDisabled}
+      message='No functions found for this project.'
     />
   )
 }

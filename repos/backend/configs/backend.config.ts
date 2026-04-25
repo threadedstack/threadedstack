@@ -30,8 +30,9 @@ const {
 
   TDSK_PAY_TYPE,
   TDSK_PAY_PLANS,
-  TDSK_STRIPE_SECRET_KEY = ``,
-  TDSK_STRIPE_WEBHOOK_SECRET = ``,
+  TDSK_PAY_ACCESS_TOKEN = ``,
+  TDSK_PAY_WEBHOOK_SECRET = ``,
+  // TODO: Pull these from the TDSK_PAY_PLANS env
   TDSK_STRIPE_SEAT_PRICE_ID_PRO = ``,
   TDSK_STRIPE_SEAT_PRICE_ID_TEAM = ``,
   // Frontend URL for email links (invitation emails, password reset, etc.)
@@ -106,9 +107,10 @@ export const config = {
   },
   payments: {
     type: TDSK_PAY_TYPE as EPayType,
-    secretKey: TDSK_STRIPE_SECRET_KEY,
-    webhookSecret: TDSK_STRIPE_WEBHOOK_SECRET,
+    secretKey: TDSK_PAY_ACCESS_TOKEN,
+    webhookSecret: TDSK_PAY_WEBHOOK_SECRET,
     priceIds: parsePayPlans(TDSK_PAY_PLANS) as Record<ESubscriptionTier, string>,
+    // TODO: Pull these from the TDSK_PAY_PLANS env
     seatPriceIds: {
       pro: TDSK_STRIPE_SEAT_PRICE_ID_PRO,
       team: TDSK_STRIPE_SEAT_PRICE_ID_TEAM,

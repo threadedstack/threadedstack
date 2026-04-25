@@ -3,6 +3,7 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
+import { EPermResource } from '@tdsk/domain'
 import { useState, useMemo } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
@@ -10,6 +11,7 @@ import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
 import { deleteSecret } from '@TAF/actions/secrets/api/deleteSecret'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Key as KeyIcon,
@@ -44,6 +46,7 @@ const styles = {
 
 export const Secrets = (props: TSecrets) => {
   const { orgId, error, loading, secrets, setError, projectId, setLoading } = props
+  const { canCreate, canUpdate, canDelete } = usePermissions()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -207,6 +210,8 @@ export const Secrets = (props: TSecrets) => {
             icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
+            disabled={!canUpdate(EPermResource.secret)}
+            disabledTooltip='You do not have permission to edit secrets'
             onClick={(e) => {
               e.stopPropagation()
               onEditSecret(secret)
@@ -217,6 +222,8 @@ export const Secrets = (props: TSecrets) => {
             icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
+            disabled={!canDelete(EPermResource.secret)}
+            disabledTooltip='You do not have permission to delete secrets'
             onClick={(e) => {
               e.stopPropagation()
               setDeleting(secret)
@@ -230,16 +237,17 @@ export const Secrets = (props: TSecrets) => {
   return (
     <PageLayout
       title='Secrets'
-      loading={loading}
       searchCount={0}
+      loading={loading}
       countLabel='secret'
       query={searchQuery}
       count={secretsCount}
       error={error?.message}
-      setSearchQuery={setSearchQuery}
       actionIcon={<AddIcon />}
+      setSearchQuery={setSearchQuery}
       onAction={secretsCount > 0 && onCreateSecret}
       actionLabel={secretsCount > 0 && 'Create Secret'}
+      actionDisabled={!canCreate(EPermResource.secret)}
       searchPlaceholder='Search secrets by name or ID...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
@@ -248,6 +256,7 @@ export const Secrets = (props: TSecrets) => {
           actionIcon={<AddIcon />}
           onAction={onCreateSecret}
           actionLabel='Create Secret'
+          actionDisabled={!canCreate(EPermResource.secret)}
           message='No secrets yet. Create your first secret to get started.'
         />
       )}

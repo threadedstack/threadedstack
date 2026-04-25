@@ -3,8 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
@@ -13,6 +13,7 @@ import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 export const createThread: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.thread)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
@@ -21,10 +22,6 @@ export const createThread: TEndpointConfig = {
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!agentId) throw new Exception(400, `agentId is required`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.thread, {
-      orgId,
-    })
 
     const threadData = {
       ...req.body,

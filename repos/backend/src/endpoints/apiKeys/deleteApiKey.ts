@@ -3,9 +3,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { authorize } from '@TBE/middleware/authorize'
+import { requireResource } from '@TBE/utils/auth/requireResource'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * DELETE /api-keys/:id - Revoke/delete an API key
@@ -14,22 +14,12 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const deleteApiKey: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.apiKey)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const existing = await requireResourceWithPermission(
-      req,
-      db.services.apiKey,
-      id,
-      EPermAction.delete,
-      EPermResource.apiKey,
-      `API key`,
-      (data) => ({
-        orgId: data.orgId || req.params.orgId,
-        projectId: data.projectId,
-      })
-    )
+    const existing = await requireResource(db.services.apiKey, id, `API key`)
 
     const { error } = await db.services.apiKey.revoke(id)
     if (error) throw new Exception(500, error.message)

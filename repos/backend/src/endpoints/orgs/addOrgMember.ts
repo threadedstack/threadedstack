@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
@@ -20,6 +21,7 @@ import {
 export const addOrgMember: TEndpointConfig = {
   path: `/:orgId/members`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.manage, EPermResource.org)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
@@ -35,9 +37,6 @@ export const addOrgMember: TEndpointConfig = {
         400,
         `Invalid role type. Must be one of: ${validRoles.join(', ')}`
       )
-
-    // Check permission (requires admin+ to manage members)
-    await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
 
     // Get current user's role to validate they can assign the requested role
     const currentUserRole = await getUserRole(req, { orgId })

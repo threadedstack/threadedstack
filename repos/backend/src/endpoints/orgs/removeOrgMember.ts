@@ -3,6 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
@@ -12,7 +14,6 @@ import {
   canManageRole,
   ESubscriptionTier,
 } from '@tdsk/domain'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /orgs/:id/members/:userId - Remove a member from a org
@@ -24,15 +25,13 @@ import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 export const removeOrgMember: TEndpointConfig = {
   path: `/:orgId/members/:userId`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.manage, EPermResource.org)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId, userId } = req.params
     const { db } = req.app.locals
     const currentUserId = req.user?.id
 
     if (!currentUserId) throw new Exception(401, `Authentication required`)
-
-    // Check permission (requires admin+ to manage members)
-    await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
 
     // Check if org exists
     const { data: existingOrg, error: orgError } = await db.services.org.get(orgId)

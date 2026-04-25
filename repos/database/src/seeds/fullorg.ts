@@ -26,8 +26,9 @@ import {
   EEndpointType,
   ProxyEndpoint,
   EInviteStatus,
-  Function as FunctionModel,
+  SandboxPresets,
   ELLMProviderBrand,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 // --- Organization ---
@@ -268,19 +269,53 @@ const providers = {
       tool_stream: true,
     },
   }),
+  openrouter: new Provider({
+    orgId: org.id,
+    type: EProvider.ai,
+    brand: ELLMProviderBrand.openrouter,
+    id: Ids.provider.openrouter,
+    name: `OpenRouter Provider`,
+    secretId: Ids.secret.openrouterKey,
+    options: {
+      model: `anthropic/claude-sonnet-4`,
+    },
+  }),
+  google: new Provider({
+    orgId: org.id,
+    type: EProvider.ai,
+    brand: ELLMProviderBrand.google,
+    id: Ids.provider.google,
+    name: `Google AI Provider`,
+    secretId: Ids.secret.googleKey,
+    options: {
+      model: `gemini-2.5-pro`,
+    },
+  }),
+  ollama: new Provider({
+    orgId: org.id,
+    type: EProvider.ai,
+    brand: ELLMProviderBrand.ollama,
+    id: Ids.provider.ollama,
+    name: `Ollama Cloud Provider`,
+    secretId: Ids.secret.ollamaKey,
+    options: {
+      baseUrl: `https://ollama.com`,
+      model: `devstral-small`,
+    },
+  }),
 }
 
 // --- Secrets (all 4 exclusive arc scopes + combo) ---
 // Provider secrets use env vars from ~/.config/tdsk/values.yaml (loaded by seed.ts via loadEnvs)
 const anthropicSecret = await encryptSecret(
   `Anthropic API Key`,
-  process.env.TDSK_ANTHROPIC_KEY || `sk-ant-test-key-for-seeding`,
+  process.env.TDSK_ANTHROPIC_API_KEY || `sk-ant-test-key-for-seeding`,
   Ids.project.acmeApi
 )
 
 const zaiSecret = await encryptSecret(
   `ZAI API Key`,
-  process.env.TDSK_ZAI_KEY || `sk-zai-test-key-for-seeding`,
+  process.env.TDSK_ZAI_API_KEY || `sk-zai-test-key-for-seeding`,
   Ids.project.acmeApi
 )
 
@@ -298,7 +333,7 @@ const githubSecret = await encryptSecret(
 
 const openaiProviderSecret = await encryptSecret(
   `OpenAI API Key`,
-  process.env.TDSK_OPENAI_KEY || `sk-test-openai-key-for-seeding`,
+  process.env.TDSK_OPENAI_API_KEY || `sk-test-openai-key-for-seeding`,
   Ids.provider.acmeOpenai
 )
 
@@ -306,6 +341,24 @@ const agentEnvSecret = await encryptSecret(
   `Agent Environment Config`,
   `agent-specific-secret-value`,
   Ids.agent.generalAgent
+)
+
+const openrouterProviderSecret = await encryptSecret(
+  `OpenRouter API Key`,
+  process.env.TDSK_OR_API_KEY || `sk-or-test-key-for-seeding`,
+  Ids.provider.openrouter
+)
+
+const googleProviderSecret = await encryptSecret(
+  `Google AI API Key`,
+  process.env.TDSK_GAI_API_KEY || `AIza-test-key-for-seeding`,
+  Ids.provider.google
+)
+
+const ollamaProviderSecret = await encryptSecret(
+  `Ollama Cloud API Key`,
+  process.env.TDSK_OLLAMA_API_KEY || `ollama-test-key-for-seeding`,
+  Ids.provider.ollama
 )
 
 const secrets = {
@@ -381,6 +434,42 @@ const secrets = {
     description: `ZAI API authentication key`,
     encryptedValue: zaiSecret.encryptedValue,
   }),
+  // Org+Provider combo-scoped secret
+  openrouterKey: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `OpenRouter API Key`,
+    id: Ids.secret.openrouterKey,
+    hashKey: openrouterProviderSecret.hashKey,
+    providerId: providers.openrouter.id,
+    description: `OpenRouter API key for multi-model routing`,
+    encryptedValue: openrouterProviderSecret.encryptedValue,
+  }),
+  // Org+Provider combo-scoped secret
+  googleKey: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `Google AI API Key`,
+    id: Ids.secret.googleKey,
+    hashKey: googleProviderSecret.hashKey,
+    providerId: providers.google.id,
+    description: `Google AI Studio API key for Gemini models`,
+    encryptedValue: googleProviderSecret.encryptedValue,
+  }),
+  // Org+Provider combo-scoped secret
+  ollamaKey: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `Ollama Cloud API Key`,
+    id: Ids.secret.ollamaKey,
+    hashKey: ollamaProviderSecret.hashKey,
+    providerId: providers.ollama.id,
+    description: `Ollama Cloud API key for hosted model inference`,
+    encryptedValue: ollamaProviderSecret.encryptedValue,
+  }),
 }
 
 // --- Agents ---
@@ -391,7 +480,10 @@ const agents = {
     name: `Coding Agent`,
     description: `A coding AI Agent`,
     projects: Object.values(projects),
-    providers: [providers.zai, providers.openai],
+    providerLinks: [
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.openai },
+    ],
     systemPrompt: `You are a senior software engineer.`,
     secrets: [secrets.anthropic],
     tools: [`readFile`, `writeFile`, `shellExec`],
@@ -416,7 +508,10 @@ const agents = {
     name: `Chat Agent`,
     description: `Conversational AI`,
     projects: [projects.api, projects.web],
-    providers: [providers.zai, providers.openai],
+    providerLinks: [
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.openai },
+    ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.anthropic],
     environment: {
@@ -431,7 +526,11 @@ const agents = {
     description: `General well rounded AI Agent`,
     model: `glm-5`,
     projects: [projects.api, projects.web],
-    providers: [providers.zai, providers.anthropic, providers.openai],
+    providerLinks: [
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.anthropic },
+      { priority: 2, provider: providers.openai },
+    ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.zaiSecret, secrets.agentEnv],
     projectConfigs: [
@@ -441,6 +540,51 @@ const agents = {
         functionIds: [Ids.function.agentDocGen],
       },
     ],
+    environment: {
+      streaming: true,
+      temperature: 0.7,
+    },
+  }),
+  openrouterAgent: new Agent({
+    orgId: org.id,
+    id: Ids.agent.openrouterAgent,
+    name: `OpenRouter Agent`,
+    description: `Multi-model routing AI Agent via OpenRouter`,
+    projects: [projects.api, projects.web],
+    providerLinks: [
+      { priority: 0, provider: providers.openrouter },
+      { priority: 1, provider: providers.anthropic },
+    ],
+    systemPrompt: `You are a helpful AI assistant with access to multiple model backends via OpenRouter.`,
+    secrets: [secrets.openrouterKey],
+    environment: {
+      streaming: true,
+      temperature: 0.5,
+    },
+  }),
+  googleAgent: new Agent({
+    orgId: org.id,
+    id: Ids.agent.googleAgent,
+    name: `Google AI Agent`,
+    description: `AI Agent powered by Google Gemini models`,
+    projects: [projects.api, projects.web],
+    providerLinks: [{ priority: 0, provider: providers.google }],
+    systemPrompt: `You are a helpful AI assistant powered by Google Gemini.`,
+    secrets: [secrets.googleKey],
+    environment: {
+      streaming: true,
+      temperature: 0.7,
+    },
+  }),
+  ollamaAgent: new Agent({
+    orgId: org.id,
+    id: Ids.agent.ollamaAgent,
+    name: `Ollama Agent`,
+    description: `AI Agent powered by Ollama Cloud hosted models`,
+    projects: [projects.api],
+    providerLinks: [{ priority: 0, provider: providers.ollama }],
+    systemPrompt: `You are a helpful AI assistant running on Ollama Cloud infrastructure.`,
+    secrets: [secrets.ollamaKey],
     environment: {
       streaming: true,
       temperature: 0.7,
@@ -1099,29 +1243,52 @@ const agentSchedules = {
   }),
 }
 
-// --- Sandboxes (isolated execution environments) ---
-const sandboxes = {
-  devNode: new Sandbox({
-    id: Ids.sandbox.devNode,
-    name: `Node.js Development Sandbox`,
+// --- Sandboxes (built-in presets matching createOrg.ts behavior) ---
+const defaultSandboxImage = `ghcr.io/threadedstack/tdsk-sandbox`
+
+const buildPresetSandbox = (
+  id: string,
+  preset: (typeof SandboxPresets)[keyof typeof SandboxPresets]
+) =>
+  new Sandbox({
+    id,
+    builtIn: true,
     orgId: org.id,
-    userId: users.owner.id,
-    config: {
-      image: `node:20-slim`,
-      workdir: `/workspace`,
-      command: [`/bin/sh`],
-      defaultRuntime: `typescript`,
-      envVars: {
-        NODE_ENV: `development`,
-      },
-      resources: {
-        limits: { cpu: `500m`, memory: `512Mi` },
-        requests: { cpu: `100m`, memory: `128Mi` },
-      },
-      imagePullPolicy: `IfNotPresent`,
-    },
-  }),
+    name: preset.name,
+    config: { image: defaultSandboxImage, ...preset.config },
+  })
+
+const sandboxes = {
+  claudeCode: buildPresetSandbox(Ids.sandbox.claudeCode, SandboxPresets[`claude-code`]),
+  codex: buildPresetSandbox(Ids.sandbox.codex, SandboxPresets[`codex`]),
+  openCode: buildPresetSandbox(Ids.sandbox.openCode, SandboxPresets[`opencode`]),
+  geminiCli: buildPresetSandbox(Ids.sandbox.geminiCli, SandboxPresets[`gemini-cli`]),
+  custom: buildPresetSandbox(Ids.sandbox.custom, SandboxPresets[`custom`]),
 }
+
+// --- Sandbox → Provider links (seeded via sandbox.addProvider in seed runner) ---
+const sandboxProviderLinks = [
+  // Claude Code: anthropic (primary), zai (fallback), openrouter (fallback), ollama cloud (fallback)
+  { sandboxId: Ids.sandbox.claudeCode, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.claudeCode, providerId: providers.zai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.claudeCode, providerId: providers.openrouter.id, priority: 2 },
+  { sandboxId: Ids.sandbox.claudeCode, providerId: providers.ollama.id, priority: 3 },
+  // Codex: openai (primary), zai, google, openrouter, ollama cloud (fallbacks)
+  { sandboxId: Ids.sandbox.codex, providerId: providers.openai.id, priority: 0 },
+  { sandboxId: Ids.sandbox.codex, providerId: providers.zai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.codex, providerId: providers.google.id, priority: 2 },
+  { sandboxId: Ids.sandbox.codex, providerId: providers.openrouter.id, priority: 3 },
+  { sandboxId: Ids.sandbox.codex, providerId: providers.ollama.id, priority: 4 },
+  // OpenCode: anthropic (primary), openai, openrouter, zai, ollama cloud (fallbacks)
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.openai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.openrouter.id, priority: 2 },
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.zai.id, priority: 3 },
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.ollama.id, priority: 4 },
+  // Gemini CLI: google (primary)
+  { sandboxId: Ids.sandbox.geminiCli, providerId: providers.google.id, priority: 0 },
+  // Custom: no providers linked — bring your own
+]
 
 /**
  * Full organization seed data
@@ -1130,7 +1297,7 @@ const sandboxes = {
  * Entity relationships:
  * - Organization has ownerId -> users.owner
  * - Roles: org-scoped (owner/admin/member/viewer) + project-scoped (admin/member/viewer)
- * - Providers: org-scoped (openai, anthropic, zai) with secretId linking to provider secrets
+ * - Providers: org-scoped (openai, anthropic, zai, openrouter, google, ollama) with secretId linking to provider secrets
  * - Agents: linked to providers via junction table, projects via junction table (with functionIds), skills via junction table
  * - Secrets: covers all 4 exclusive arc scopes (org, project, provider, agent)
  * - Assets: covers all 5 exclusive arc scopes (org, project, user, thread, message) + provider link
@@ -1138,7 +1305,7 @@ const sandboxes = {
  * - Messages: linked to thread, org, and project with TMessageContent[] format
  * - Skills: org-scoped, linked to agents via agentSkills junction table
  * - Schedules: cron-based agent execution, linked to agents and optionally threads
- * - Sandboxes: isolated execution environments, linked to orgs and users
+ * - Sandboxes: built-in presets (claude-code, codex, opencode, gemini-cli, custom) linked to providers via junction table
  * - Invitations: all 4 statuses (pending, accepted, expired, revoked)
  */
 export const seeds = {
@@ -1177,4 +1344,5 @@ export const seeds = {
   domains,
   // Compute
   sandboxes,
+  sandboxProviderLinks,
 }

@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EProvider, Sandbox, Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Sandbox, Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /_/sandboxes - Create a new sandbox
@@ -14,6 +14,7 @@ import { EProvider, Sandbox, Exception, EPermAction, EPermResource } from '@tdsk
 export const createSandbox: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const {
@@ -43,8 +44,6 @@ export const createSandbox: TEndpointConfig = {
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
     if (config?.gitBranch && !config?.gitRepo)
       throw new Exception(400, `gitBranch requires gitRepo to be set`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.sandbox, { orgId })
 
     const pins = await db.services.provider.validate({
       orgId,

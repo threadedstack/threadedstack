@@ -2,8 +2,14 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
-import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import {
+  Exception,
+  PlanLimits,
+  EPermAction,
+  EPermResource,
+  ESubscriptionTier,
+} from '@tdsk/domain'
 
 /**
  * GET /orgs/:orgId/quotas/limits - Get plan limits for an organization
@@ -12,15 +18,13 @@ import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 export const getOrgLimits: TEndpointConfig = {
   path: `/limits`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.quota)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
-
-    // Check membership
-    await requireOrgMember(req, orgId)
 
     // Get org to determine owner
     const orgResult = await db.services.org.get(orgId)

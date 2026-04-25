@@ -3,7 +3,6 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { parsePagination } from '@TBE/utils/pagination'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
 
 /**
@@ -20,8 +19,7 @@ export const listOrgs: TEndpointConfig = {
 
     if (!userId) throw new Exception(401, `Authentication required`)
 
-    const userRole = await getUserRole(req, {})
-    const isSuper = isSuperAdmin(userRole)
+    const isSuper = isSuperAdmin((req.user?.role ?? ``) as ERoleType)
 
     // Get all user roles to map orgId -> role type
     const { data: userRoles, error: rolesError } =
@@ -62,6 +60,12 @@ export const listOrgs: TEndpointConfig = {
       await db.services.role.getUserOrgs(userId)
 
     if (orgIdsError) throw new Exception(500, orgIdsError.message)
+
+    // User has no org memberships — return empty list immediately
+    if (!orgIds?.length) {
+      res.status(200).json({ data: [], limit, offset })
+      return
+    }
 
     // Fetch only orgs the user is a member of using DB filtering
     const { data: userOrgs, error: listError } = await db.services.org.list({

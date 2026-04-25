@@ -1,3 +1,11 @@
+export type TEnvFilter = {
+  add: string[]
+  ends: string[]
+  starts: string[]
+  contains: string[]
+  exclude: string[]
+}
+
 export type TEnvObject = {
   [k: string]: string | boolean | number
 }

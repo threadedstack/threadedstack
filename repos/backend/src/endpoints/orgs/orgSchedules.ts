@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { featureGate } from '@TBE/middleware/featureGate'
 import { getSchedule } from '@TBE/endpoints/schedules/getSchedule'
 import { listSchedules } from '@TBE/endpoints/schedules/listSchedules'
 import { createSchedule } from '@TBE/endpoints/schedules/createSchedule'
@@ -11,6 +12,7 @@ import { triggerSchedule } from '@TBE/endpoints/schedules/triggerSchedule'
 export const orgSchedules: TEndpointConfig = {
   path: `/:orgId/schedules`,
   method: EPMethod.Use,
+  middleware: [featureGate(`schedules`)],
   endpoints: {
     listSchedules,
     getSchedule,

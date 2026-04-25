@@ -311,4 +311,55 @@ describe(`buildPodManifest`, () => {
     expect(sc.allowPrivilegeEscalation).toBe(false)
     expect(sc.privileged).toBe(false)
   })
+
+  it(`should include initScript in postStart when config.initScript is set`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        initScript: `echo "hello world"`,
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const postStart = manifest.spec!.containers![0].lifecycle!.postStart!.exec!.command!
+    const script = postStart[2]
+    expect(script).toContain(`echo "hello world"`)
+    expect(script).toContain(`/etc/profile.d`)
+  })
+
+  it(`should not include initScript block when config.initScript is absent`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const postStart = manifest.spec!.containers![0].lifecycle!.postStart!.exec!.command!
+    const script = postStart[2]
+    expect(script).not.toContain(`initScript`)
+    expect(script).toContain(`TDSK_ENV_EOF`)
+  })
+
+  it(`should wrap initScript in error handler to prevent postStart failure`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        initScript: `exit 1`,
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const script = manifest.spec!.containers![0].lifecycle!.postStart!.exec!.command![2]
+    expect(script).toContain(`tdsk-init-error.log`)
+    expect(script).toContain(`_rc=$?`)
+    expect(script).toContain(`$_rc`)
+  })
+
+  it(`should source env profile before running initScript`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        initScript: `echo "after source"`,
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const script = manifest.spec!.containers![0].lifecycle!.postStart!.exec!.command![2]
+    const sourceIdx = script.indexOf(`. /etc/profile.d`)
+    const initIdx = script.indexOf(`echo "after source"`)
+    expect(sourceIdx).toBeGreaterThan(-1)
+    expect(initIdx).toBeGreaterThan(sourceIdx)
+  })
 })

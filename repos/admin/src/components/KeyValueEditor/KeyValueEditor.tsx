@@ -2,11 +2,11 @@ import type { Secret } from '@tdsk/domain'
 import type { TKeyValuePair } from '@TAF/types'
 
 import { useState } from 'react'
-import { TextInput } from '@tdsk/components'
 import { templates } from '@TAF/services/templates'
 import { Key as KeyIcon } from '@mui/icons-material'
+import { Box, Chip, Typography } from '@mui/material'
+import { SelectInput, TextInput } from '@tdsk/components'
 import { EditorList } from '@TAF/components/EditorList/EditorList'
-import { Box, Chip, TextField, Typography, Autocomplete } from '@mui/material'
 
 export type TSecretOption = {
   id: string
@@ -130,30 +130,21 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
               />
 
               {activeAutocomplete === pair.id && autocompleteOptions.length > 0 ? (
-                <Autocomplete<TSecretOption, false, false, true>
-                  freeSolo
-                  size='small'
-                  value={pair.value}
+                <SelectInput
+                  value=''
                   disabled={disabled}
-                  options={autocompleteOptions}
-                  getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option.label
-                  }
-                  isOptionEqualToValue={(option, value) =>
-                    typeof value === 'string' ? false : option.id === value.id
-                  }
-                  onChange={(_, value) =>
-                    value &&
-                    typeof value !== 'string' &&
-                    onSecretSelect(pair.id, pair.value, value)
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder={valuePlaceholder}
-                      onChange={(e) => onValueChange(pair.id, e.target.value, pair.value)}
-                    />
-                  )}
+                  placeholder={valuePlaceholder}
+                  id={`${pair.id}-value-select`}
+                  items={autocompleteOptions.map((o) => ({
+                    value: o.id,
+                    label: o.label,
+                  }))}
+                  onChange={(e) => {
+                    const option = autocompleteOptions.find(
+                      (o) => o.id === e.target.value
+                    )
+                    if (option) onSecretSelect(pair.id, pair.value, option)
+                  }}
                 />
               ) : (
                 <Box sx={{ position: 'relative' }}>

@@ -1,7 +1,7 @@
 import type {
-  Project as ProjectModel,
-  TAgentProjectConfig,
   TProviderInput,
+  TAgentProjectConfig,
+  Project as ProjectModel,
 } from '@tdsk/domain'
 import type {
   TDBUpdate,
@@ -16,15 +16,15 @@ import type {
 
 import { Base } from '@TDB/services/base'
 import { agents } from '@TDB/schemas/agents'
-import { eq, and, sql, inArray, notInArray } from 'drizzle-orm'
 import { secrets } from '@TDB/schemas/secrets'
 import { isStr, isObj } from '@keg-hub/jsutils'
 import { exists } from '@keg-hub/jsutils/exists'
 import { DBError } from '@TDB/utils/error/error'
-import { Agent as AgentModel } from '@tdsk/domain'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { agentProviders } from '@TDB/schemas/agentProviders'
+import { eq, and, sql, inArray, notInArray } from 'drizzle-orm'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
+import { Agent as AgentModel, Provider as ProviderModel } from '@tdsk/domain'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
   secretIds?: string[]
@@ -240,9 +240,9 @@ export class Agent extends Base<
         systemPrompt: link.systemPrompt ?? null,
       })),
       providerLinks: sortedProviders.map((link) => ({
-        provider: link.provider,
         model: link.model ?? null,
         priority: link.priority ?? 0,
+        provider: new ProviderModel(link.provider as Partial<ProviderModel>),
       })),
     })
 

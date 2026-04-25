@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { featureGate } from '@TBE/middleware/featureGate'
 import { getSkill } from '@TBE/endpoints/skills/getSkill'
 import { listSkills } from '@TBE/endpoints/skills/listSkills'
 import { createSkill } from '@TBE/endpoints/skills/createSkill'
@@ -12,6 +13,7 @@ import { detachSkill } from '@TBE/endpoints/skills/detachSkill'
 export const orgSkills: TEndpointConfig = {
   path: `/:orgId/skills`,
   method: EPMethod.Use,
+  middleware: [featureGate(`skills`)],
   endpoints: {
     listSkills,
     getSkill,

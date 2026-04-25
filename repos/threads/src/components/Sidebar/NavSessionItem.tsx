@@ -1,19 +1,21 @@
 import type { TClassifiedSession } from '@TTH/types'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router'
-import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
-import { PeopleOutline } from '@mui/icons-material'
 import { toast } from 'sonner'
-import { colors, cmx, dims } from '@tdsk/components'
+import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
+import { colors, cmx, dims } from '@tdsk/components'
+import { usePermissions } from '@TTH/hooks/permissions'
+import { useNavigate, useLocation } from 'react-router'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { PeopleOutline, VisibilityOutlined } from '@mui/icons-material'
+import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
 
 export type TNavSessionItem = {
-  session: TClassifiedSession
-  sandboxId: string
-  projectId: string
   orgId: string
   indent?: number
+  sandboxId: string
+  projectId: string
+  session: TClassifiedSession
 }
 
 const formatTimestamp = (date?: string): string => {
@@ -60,9 +62,12 @@ export const NavSessionItem = (props: TNavSessionItem) => {
   const navigate = useNavigate()
   const location = useLocation()
   const theme = useTheme()
+  const { canExec } = usePermissions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
   const [connecting, setConnecting] = useState(false)
   const connectingRef = useRef(false)
 
+  const isSharedViewOnly = session.category === `shared` && !canExecSandbox
   const isActive = location.pathname === `/session/${session.sessionId}`
   const shortId = session.sessionId.slice(0, 6)
   const timestamp = useMemo(
@@ -113,8 +118,8 @@ export const NavSessionItem = (props: TNavSessionItem) => {
         pl: `${indent + 12}px`,
         pr: `12px`,
         py: `4px`,
-        cursor: connecting ? `default` : `pointer`,
-        opacity: connecting ? 0.6 : 1,
+        cursor: connecting || isSharedViewOnly ? `default` : `pointer`,
+        opacity: connecting ? 0.6 : isSharedViewOnly ? 0.65 : 1,
         borderRadius: dims.border.smpx,
         borderLeft: isActive
           ? `3px solid ${colors.primary.main}`
@@ -127,7 +132,15 @@ export const NavSessionItem = (props: TNavSessionItem) => {
         userSelect: `none`,
       }}
     >
-      {session.category === `shared` ? (
+      {isSharedViewOnly ? (
+        <VisibilityOutlined
+          sx={{
+            fontSize: 14,
+            color: colors.grey[500],
+            flexShrink: 0,
+          }}
+        />
+      ) : session.category === `shared` ? (
         <PeopleOutline
           sx={{
             fontSize: 14,
@@ -168,7 +181,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
               lineHeight: 1.3,
             }}
           >
-            {timestamp}
+            {isSharedViewOnly ? `View only` : timestamp}
           </Typography>
         )}
       </Box>

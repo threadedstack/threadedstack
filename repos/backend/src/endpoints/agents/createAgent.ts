@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -16,6 +16,7 @@ import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const createAgent: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { secretIds, projectIds = [], providerInputs, ...agent } = req.body
@@ -39,11 +40,6 @@ export const createAgent: TEndpointConfig = {
 
     // Ensure orgId is set on the agent data
     agent.orgId = orgId
-
-    // Check permission to create agents in this org
-    await checkPermission(req, EPermAction.create, EPermResource.agent, {
-      orgId,
-    })
 
     const { data: projects, error: projErr } = projectIds?.length
       ? await db.services.project.list({ where: { id: projectIds } })

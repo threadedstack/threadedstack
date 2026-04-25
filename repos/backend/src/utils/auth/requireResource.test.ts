@@ -1,20 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { TRequest } from '@TBE/types'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from './requireResource'
+import { requireResource } from './requireResource'
 
-// Mock checkPermission
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: vi.fn().mockResolvedValue(undefined),
-}))
-
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-
-const mockCheckPermission = vi.mocked(checkPermission)
-
-describe(`requireResourceWithPermission`, () => {
-  const mockReq = {} as TRequest
-
+describe(`requireResource`, () => {
   const buildService = (data?: any, error?: any) => ({
     get: vi.fn().mockResolvedValue({ data, error }),
   })
@@ -23,18 +10,11 @@ describe(`requireResourceWithPermission`, () => {
     vi.clearAllMocks()
   })
 
-  it(`should return data when resource found and permission granted`, async () => {
+  it(`should return data when resource found`, async () => {
     const resource = { orgId: `org-1`, projectId: `proj-1`, name: `test` }
     const service = buildService(resource)
 
-    const result = await requireResourceWithPermission(
-      mockReq,
-      service,
-      `resource-id`,
-      EPermAction.read,
-      EPermResource.endpoint,
-      `Endpoint`
-    )
+    const result = await requireResource(service, `resource-id`, `Endpoint`)
 
     expect(result).toBe(resource)
   })
@@ -43,14 +23,7 @@ describe(`requireResourceWithPermission`, () => {
     const service = buildService(undefined, new Error(`DB error`))
 
     try {
-      await requireResourceWithPermission(
-        mockReq,
-        service,
-        `resource-id`,
-        EPermAction.read,
-        EPermResource.endpoint,
-        `Endpoint`
-      )
+      await requireResource(service, `resource-id`, `Endpoint`)
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
       expect(err.status).toBe(500)
@@ -58,18 +31,11 @@ describe(`requireResourceWithPermission`, () => {
     }
   })
 
-  it(`should throw 404 when service.get returns no data`, async () => {
-    const service = buildService(undefined)
+  it(`should throw 404 when service.get returns not found error`, async () => {
+    const service = buildService(undefined, new Error(`Resource not found`))
 
     try {
-      await requireResourceWithPermission(
-        mockReq,
-        service,
-        `resource-id`,
-        EPermAction.read,
-        EPermResource.endpoint,
-        `Endpoint`
-      )
+      await requireResource(service, `resource-id`, `Endpoint`)
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
       expect(err.status).toBe(404)
@@ -77,112 +43,15 @@ describe(`requireResourceWithPermission`, () => {
     }
   })
 
-  it(`should call checkPermission with orgId from resource`, async () => {
-    const resource = { orgId: `org-1` }
-    const service = buildService(resource)
-
-    await requireResourceWithPermission(
-      mockReq,
-      service,
-      `resource-id`,
-      EPermAction.read,
-      EPermResource.apiKey,
-      `API key`
-    )
-
-    expect(mockCheckPermission).toHaveBeenCalledWith(
-      mockReq,
-      EPermAction.read,
-      EPermResource.apiKey,
-      { orgId: `org-1`, projectId: undefined }
-    )
-  })
-
-  it(`should call checkPermission with projectId from resource`, async () => {
-    const resource = { projectId: `proj-1` }
-    const service = buildService(resource)
-
-    await requireResourceWithPermission(
-      mockReq,
-      service,
-      `resource-id`,
-      EPermAction.update,
-      EPermResource.function,
-      `Function`
-    )
-
-    expect(mockCheckPermission).toHaveBeenCalledWith(
-      mockReq,
-      EPermAction.update,
-      EPermResource.function,
-      { orgId: undefined, projectId: `proj-1` }
-    )
-  })
-
-  it(`should call checkPermission with both orgId and projectId`, async () => {
-    const resource = { orgId: `org-1`, projectId: `proj-1` }
-    const service = buildService(resource)
-
-    await requireResourceWithPermission(
-      mockReq,
-      service,
-      `resource-id`,
-      EPermAction.read,
-      EPermResource.secret,
-      `Secret`
-    )
-
-    expect(mockCheckPermission).toHaveBeenCalledWith(
-      mockReq,
-      EPermAction.read,
-      EPermResource.secret,
-      { orgId: `org-1`, projectId: `proj-1` }
-    )
-  })
-
-  it(`should use custom getContext when provided`, async () => {
-    const resource = { orgId: `org-1`, projectId: `proj-1`, customField: `custom-org` }
-    const service = buildService(resource)
-
-    await requireResourceWithPermission(
-      mockReq,
-      service,
-      `resource-id`,
-      EPermAction.read,
-      EPermResource.provider,
-      `Provider`,
-      (data) => ({ orgId: data.orgId || undefined, projectId: undefined })
-    )
-
-    expect(mockCheckPermission).toHaveBeenCalledWith(
-      mockReq,
-      EPermAction.read,
-      EPermResource.provider,
-      { orgId: `org-1`, projectId: undefined }
-    )
-  })
-
-  it(`should throw permission error when checkPermission fails`, async () => {
-    const resource = { orgId: `org-1` }
-    const service = buildService(resource)
-
-    mockCheckPermission.mockRejectedValueOnce(
-      Object.assign(new Error(`Permission denied`), { status: 403 })
-    )
+  it(`should throw 404 when service.get returns no data`, async () => {
+    const service = buildService(undefined)
 
     try {
-      await requireResourceWithPermission(
-        mockReq,
-        service,
-        `resource-id`,
-        EPermAction.delete,
-        EPermResource.apiKey,
-        `API key`
-      )
+      await requireResource(service, `resource-id`, `Endpoint`)
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
-      expect(err.status).toBe(403)
-      expect(err.message).toBe(`Permission denied`)
+      expect(err.status).toBe(404)
+      expect(err.message).toBe(`Endpoint not found`)
     }
   })
 
@@ -190,14 +59,7 @@ describe(`requireResourceWithPermission`, () => {
     const resource = { orgId: `org-1` }
     const service = buildService(resource)
 
-    await requireResourceWithPermission(
-      mockReq,
-      service,
-      `my-specific-id`,
-      EPermAction.read,
-      EPermResource.endpoint,
-      `Endpoint`
-    )
+    await requireResource(service, `my-specific-id`, `Endpoint`)
 
     expect(service.get).toHaveBeenCalledWith(`my-specific-id`)
   })
@@ -206,36 +68,10 @@ describe(`requireResourceWithPermission`, () => {
     const service = buildService(undefined)
 
     try {
-      await requireResourceWithPermission(
-        mockReq,
-        service,
-        `resource-id`,
-        EPermAction.read,
-        EPermResource.function,
-        `Custom Label`
-      )
+      await requireResource(service, `resource-id`, `Custom Label`)
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
       expect(err.message).toBe(`Custom Label not found`)
     }
-  })
-
-  it(`should not call checkPermission when resource not found`, async () => {
-    const service = buildService(undefined)
-
-    try {
-      await requireResourceWithPermission(
-        mockReq,
-        service,
-        `resource-id`,
-        EPermAction.read,
-        EPermResource.endpoint,
-        `Endpoint`
-      )
-    } catch {
-      // Expected to throw
-    }
-
-    expect(mockCheckPermission).not.toHaveBeenCalled()
   })
 })

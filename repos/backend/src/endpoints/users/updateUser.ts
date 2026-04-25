@@ -2,9 +2,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /users/:id - Update an existing user
@@ -15,12 +15,13 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const updateUser: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.user)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const userData = req.body
+    const { name, email, avatar, metadata, orgId: bodyOrgId } = req.body
     const currentUserId = req.user?.id
-    const orgId = userData.orgId as string | undefined
+    const orgId = bodyOrgId as string | undefined
 
     const { data: existingUser, error: getError } = await db.services.user.get(id)
     if (getError) throw new Exception(500, getError.message)
@@ -32,9 +33,10 @@ export const updateUser: TEndpointConfig = {
 
     if (isOwnProfile) {
       // Allow self-update (limited fields - role cannot be changed here)
-      const allowedFields = [`name`, `avatar`, `email`, `metadata`]
       const filteredData = Object.fromEntries(
-        Object.entries(userData).filter(([key]) => allowedFields.includes(key))
+        Object.entries({ name, email, avatar, metadata }).filter(
+          ([, v]) => v !== undefined
+        )
       )
 
       const { data, error } = await db.services.user.update({ ...filteredData, id })
@@ -68,7 +70,12 @@ export const updateUser: TEndpointConfig = {
       })
     }
 
-    const { data, error } = await db.services.user.update({ ...userData, id })
+    const adminAllowed: Record<string, unknown> = {}
+    if (name !== undefined) adminAllowed.name = name
+    if (email !== undefined) adminAllowed.email = email
+    if (avatar !== undefined) adminAllowed.avatar = avatar
+    if (metadata !== undefined) adminAllowed.metadata = metadata
+    const { data, error } = await db.services.user.update({ ...adminAllowed, id })
     if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })

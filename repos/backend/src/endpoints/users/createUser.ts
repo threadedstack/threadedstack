@@ -2,9 +2,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /_/users - Create a new user (invite user to org)
@@ -14,6 +13,7 @@ import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 export const createUser: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.user)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userData = req.body
@@ -21,8 +21,6 @@ export const createUser: TEndpointConfig = {
 
     if (!orgId) throw new Exception(400, `orgId is required to invite users`)
     if (!userData || !userData.email) throw new Exception(400, `Email is required`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.user, { orgId })
 
     const { data, error } = await db.services.user.create(userData)
     if (error) throw new Exception(500, error.message)

@@ -202,6 +202,7 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
 
 export type TDBApiResType<T> = {
   data?: T
+  status?: number
   error?: Error | DBError
 }
 

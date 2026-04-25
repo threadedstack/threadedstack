@@ -1,6 +1,7 @@
+import type { TInteraction } from '@tdsk/domain'
+
 import { useState } from 'react'
 import { Box, Button, Typography } from '@mui/material'
-import type { TInteraction } from '@tdsk/domain'
 
 type TGuiConfirmProps = {
   prompt: string
@@ -11,8 +12,8 @@ type TGuiConfirmProps = {
 
 export function GuiConfirm({
   prompt,
-  yesLabel = 'Yes',
-  noLabel = 'No',
+  yesLabel = `Yes`,
+  noLabel = `No`,
   onAction,
 }: TGuiConfirmProps) {
   const [decided, setDecided] = useState<boolean | null>(null)
@@ -20,35 +21,35 @@ export function GuiConfirm({
   const handleClick = (approved: boolean) => {
     if (decided !== null) return
     setDecided(approved)
-    onAction?.({ type: 'YesNo', approved })
+    onAction?.({ type: `YesNo`, approved })
   }
 
   return (
     <Box sx={{ my: 1 }}>
       <Typography
-        variant='body2'
+        variant={`body2`}
         sx={{ mb: 1 }}
       >
         {prompt}
       </Typography>
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: `flex`, gap: 1 }}>
         <Button
-          variant='contained'
-          color='success'
-          size='small'
+          variant={`contained`}
+          color={`success`}
+          size={`small`}
           onClick={() => handleClick(true)}
           disabled={decided !== null}
-          sx={{ opacity: decided === false ? 0.4 : 1, textTransform: 'none' }}
+          sx={{ opacity: decided === false ? 0.4 : 1, textTransform: `none` }}
         >
           {yesLabel}
         </Button>
         <Button
-          variant='outlined'
-          color='error'
-          size='small'
+          variant={`outlined`}
+          color={`error`}
+          size={`small`}
           onClick={() => handleClick(false)}
           disabled={decided !== null}
-          sx={{ opacity: decided === true ? 0.4 : 1, textTransform: 'none' }}
+          sx={{ opacity: decided === true ? 0.4 : 1, textTransform: `none` }}
         >
           {noLabel}
         </Button>

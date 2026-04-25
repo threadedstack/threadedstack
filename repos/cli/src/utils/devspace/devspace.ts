@@ -37,6 +37,20 @@ export const devspace = {
         args: [...(props?.params?.dsargs || []), `deploy`, `--render`, `--skip-build`],
       })
   ),
+  deploy: dsdefaults(
+    async (props: TTaskActionArgs) =>
+      await cmd({
+        ...cmdOpts(props),
+        args: [
+          ...(props?.params?.dsargs || []),
+          `deploy`,
+          ...(props?.params?.args || []),
+        ],
+      }),
+    {
+      build: `--force-build`,
+    }
+  ),
   logs: dsdefaults(
     async (props: TTaskActionArgs) =>
       await cmd({

@@ -7,7 +7,7 @@ import type { Endpoint, Secret } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource, fromAuthHeaders } from '@tdsk/domain'
 
 /**
  * BaseEndpoint
@@ -46,7 +46,9 @@ export abstract class BaseEndpoint {
     if (endpoint.public) return
 
     try {
+      const auth = fromAuthHeaders(req)
       await checkPermission(req, EPermAction.read, EPermResource.endpoint, {
+        orgId: auth.orgId,
         projectId: endpoint.projectId,
       })
     } catch (error) {

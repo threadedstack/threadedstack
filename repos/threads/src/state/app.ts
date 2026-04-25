@@ -1,4 +1,4 @@
-import type { Organization, Project } from '@tdsk/domain'
+import type { Organization, Project, TRoleType } from '@tdsk/domain'
 
 import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
@@ -12,6 +12,9 @@ export const orgIdState = atomWithReset<string>(defOrgId)
 
 export const defActiveProjectId = ``
 export const activeProjectIdState = atomWithReset<string>(defActiveProjectId)
+
+export const defActiveOrgRole: TRoleType | null = null
+export const activeOrgRoleState = atomWithReset<TRoleType | null>(defActiveOrgRole)
 
 export const activeOrgState = atom<Organization | undefined>((get) => {
   const orgId = get(orgIdState)

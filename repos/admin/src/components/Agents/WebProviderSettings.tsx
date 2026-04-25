@@ -1,8 +1,9 @@
 import type { Secret, TWebProviderBrand } from '@tdsk/domain'
 
+import { SelectInput } from '@tdsk/components'
 import { EWebProviderBrand } from '@tdsk/domain'
+import { Box, Stack, Typography } from '@mui/material'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
-import { Autocomplete, Box, Stack, TextField, Typography } from '@mui/material'
 
 export type TWebProviderSettings = {
   loading: boolean
@@ -32,43 +33,31 @@ export const WebProviderSettings = (props: TWebProviderSettings) => {
         Web Provider
       </Typography>
       <Stack spacing={2}>
-        <Autocomplete
-          disabled={loading}
+        <SelectInput
           id='web-provider-type'
-          getOptionLabel={capitalize}
-          value={webProviderType || null}
-          options={Object.values(EWebProviderBrand)}
-          onChange={(_, val) => onWebProviderTypeChange((val as TWebProviderBrand) || '')}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size='small'
-              placeholder='Select provider...'
-            />
-          )}
+          disabled={loading}
+          value={webProviderType}
+          placeholder='Select provider...'
+          items={Object.values(EWebProviderBrand).map((v) => ({
+            value: v,
+            label: capitalize(v),
+          }))}
+          onChange={(e) =>
+            onWebProviderTypeChange((e.target.value as TWebProviderBrand) || '')
+          }
         />
         {webProviderType && (
-          <Autocomplete
+          <SelectInput
             disabled={loading}
             id='web-provider-secret'
-            options={secretsList.map((s) => s.id)}
-            onChange={(_, val) => onWebProviderSecretIdChange(val || '')}
+            placeholder='Select API key secret...'
             value={
               secretsList.some((s) => s.id === webProviderSecretId)
                 ? webProviderSecretId
-                : null
+                : ''
             }
-            getOptionLabel={(id) => {
-              const secret = secretsList.find((s) => s.id === id)
-              return secret?.name || id
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size='small'
-                placeholder='Select API key secret...'
-              />
-            )}
+            items={secretsList.map((s) => ({ value: s.id, label: s.name || s.id }))}
+            onChange={(e) => onWebProviderSecretIdChange(e.target.value as string)}
           />
         )}
       </Stack>

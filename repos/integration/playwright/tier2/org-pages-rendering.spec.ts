@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 const ignoredPatterns = [
   'Function components cannot be given refs',
@@ -164,6 +165,7 @@ test.describe('Org Pages', () => {
   })
 
   test('Org Skills - renders Skills heading', async ({ authenticatedPage: page, ctx }) => {
+    test.skip(!isFeatureEnabled('skills'), 'skills feature flag is disabled')
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
@@ -177,6 +179,7 @@ test.describe('Org Pages', () => {
   })
 
   test('Org Schedules - renders Schedules heading', async ({ authenticatedPage: page, ctx }) => {
+    test.skip(!isFeatureEnabled('schedules'), 'schedules feature flag is disabled')
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())

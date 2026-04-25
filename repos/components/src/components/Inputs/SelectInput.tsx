@@ -22,13 +22,13 @@ export type TSelectInput = IInput &
     capitalize?: boolean
     placeholder?: string
     items?: TSelectItem[]
-    value?: string | number
     selectSx?: SxProps<Theme>
     children?: React.ReactNode
     renderLabel?: () => string
     itemMap?: Record<string, any>
-    selected?: Array<string | number | boolean>
+    value?: string | number | string[]
     onChange: (e: SelectChangeEvent) => void
+    selected?: Array<string | number | boolean>
     onItemMouseEnter?: (e: MouseEvent<HTMLLIElement>, itemName: string) => void
     onItemMouseLeave?: (e: MouseEvent<HTMLLIElement>) => void
   }
@@ -40,8 +40,11 @@ type TRenderValue = {
   placeholder?: string
   capitalize?: boolean
   itemMap?: Record<string, any>
-  value: string | number | boolean
-  renderLabel: (item?: TSelectItem, value?: string | number | boolean) => ReactNode
+  value: string | number | boolean | string[]
+  renderLabel: (
+    item?: TSelectItem,
+    value?: string | number | boolean | string[]
+  ) => ReactNode
 }
 
 const RenderValue = (props: TRenderValue) => {

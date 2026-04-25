@@ -1,9 +1,8 @@
 import type { TOpenSessionOpts } from '@TTH/types'
-import type { TParsedEvent, ESandboxSessionVisibility } from '@tdsk/domain'
+import type { ESandboxSessionVisibility } from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { apiService } from '@TTH/services/api'
-import { deriveToolState } from '@tdsk/domain'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
 import {
@@ -12,19 +11,17 @@ import {
   removeStoredSession,
 } from '@TTH/utils/sessionStorage'
 import {
-  setToolState,
   setOpenSession,
   getOpenSessions,
   getActiveSession,
   setActiveSession,
   removeOpenSession,
-  appendSessionEvent,
-  setSessionUpgrade,
 } from '@TTH/state/accessors'
 
-const connections = new Map<string, WebSocket>()
-const rawBuffers = new Map<string, string[]>()
-const terminalWriters = new Map<string, Set<(data: string) => void>>()
+let rawBuffers = new Map<string, string[]>()
+let connections = new Map<string, WebSocket>()
+let terminalWriters = new Map<string, Set<(data: string) => void>>()
+let engineWriters = new Map<string, Set<(data: Uint8Array) => void>>()
 
 export const getConnection = (sessionId: string) => connections.get(sessionId)
 export const getRawBuffer = (sessionId: string) => rawBuffers.get(sessionId) ?? []
@@ -34,6 +31,17 @@ export const subscribeTerminalData = (sessionId: string, cb: (data: string) => v
   terminalWriters.get(sessionId)!.add(cb)
   return () => {
     terminalWriters.get(sessionId)?.delete(cb)
+  }
+}
+
+export const subscribeEngineData = (
+  sessionId: string,
+  cb: (data: Uint8Array) => void
+) => {
+  if (!engineWriters.has(sessionId)) engineWriters.set(sessionId, new Set())
+  engineWriters.get(sessionId)!.add(cb)
+  return () => {
+    engineWriters.get(sessionId)?.delete(cb)
   }
 }
 
@@ -119,6 +127,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
         try {
           msg = JSON.parse(event.data)
         } catch {
+          console.warn(`[Session] Non-JSON text from server:`, event.data.slice(0, 200))
           return
         }
 
@@ -146,31 +155,6 @@ export const openSession = async (opts: TOpenSessionOpts) => {
             toast.info(`User joined your session`, { duration: 3000 })
           } else if (msg.type === `user-left`) {
             toast.info(`User left your session`, { duration: 3000 })
-          } else if (msg.type === 'generative-ui' && msg.chunkId && msg.tree) {
-            if (
-              typeof msg.tree === 'object' &&
-              msg.tree !== null &&
-              typeof msg.tree.type === 'string'
-            ) {
-              setSessionUpgrade(msg.sessionId, msg.chunkId, msg.tree)
-            }
-          } else if (msg.sessionId && msg.event) {
-            const parsedEvent = msg.event as TParsedEvent
-            if (msg.chunkId) (parsedEvent as any).chunkId = msg.chunkId
-            if (msg.timestamp) (parsedEvent as any).wsTimestamp = msg.timestamp
-            appendSessionEvent(msg.sessionId, parsedEvent)
-
-            if (
-              parsedEvent.type === `permission` &&
-              getActiveSession() !== msg.sessionId
-            ) {
-              toast.warning(`Sandbox needs permission`, { duration: 5000 })
-            }
-
-            const newState = deriveToolState(parsedEvent)
-            if (newState) {
-              setToolState(msg.sessionId, newState)
-            }
           } else if (msg.type === `error`) {
             settled = true
             reject(new Error(msg.message))
@@ -193,6 +177,8 @@ export const openSession = async (opts: TOpenSessionOpts) => {
         }
       }
       terminalWriters.get(sessionId)?.forEach((cb) => cb(data))
+      const rawBytes = new Uint8Array(event.data)
+      engineWriters.get(sessionId)?.forEach((cb) => cb(rawBytes))
     }
 
     ws.onclose = (event: CloseEvent) => {
@@ -201,6 +187,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       connections.delete(sessionId)
       rawBuffers.delete(sessionId)
       terminalWriters.delete(sessionId)
+      engineWriters.delete(sessionId)
 
       // Also clean temp key if still present
       if (tempKey !== sessionId) {
@@ -239,4 +226,21 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       }
     }
   })
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    for (const ws of connections.values()) {
+      try {
+        ws.close()
+      } catch {
+        /* already closed */
+      }
+    }
+    rawBuffers = new Map()
+    connections = new Map()
+    engineWriters = new Map()
+    terminalWriters = new Map()
+  })
+  import.meta.hot.accept()
 }

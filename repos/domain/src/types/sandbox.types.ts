@@ -21,6 +21,7 @@ export enum ERuntimeBrand {
   googleVertex = ELLMProviderBrand.googleVertex,
   amazonBedrock = ELLMProviderBrand.amazonBedrock,
   amazonBedrockBearer = `${ELLMProviderBrand.amazonBedrock}:bearer`,
+  ollamaCloud = `${ELLMProviderBrand.ollama}:cloud`,
 }
 
 export type TEnvVarInjection = `mitm` | `direct` | `file`

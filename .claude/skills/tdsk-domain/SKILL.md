@@ -7,582 +7,168 @@ tags: ["typescript", "types", "models", "domain", "shared", "utilities", "paymen
 
 ## Overview
 
-The `@tdsk/domain` repo is the **shared foundation** for the Threaded Stack monorepo. It provides:
+The `@tdsk/domain` repo (`repos/domain`) is the shared foundation for the Threaded Stack monorepo.
 
-- **Type definitions** for Express APIs, authentication, providers, AI/LLM configs, sandboxes, and helpers
-- **Model classes** for core entities (Organization, Project, ApiKey, Secret, Endpoint, Function, Role, Provider, User, Agent, Thread, Message, Asset, Domain, Certificate, Invitation, Quota, Subscription)
-- **Utility functions** for crypto (encryption, hashing, key derivation), permissions, time, async handling, data manipulation
-- **API helpers** for Express router wrapping, CORS, auth headers, and error handling
-- **Custom error handling** with the `Exception` class
-- **Constants** including provider templates for quickstart flows
-
-This repo is consumed by `backend`, `proxy`, `admin`, `agent`, `tsa`, and `sandbox` repos as the single source of truth for shared logic.
+- **Type definitions** for Express APIs, auth, providers, AI/LLM configs, sandboxes, permissions, payments, and helpers
+- **19 model classes** for core entities (all extend `Base` with `id`, `createdAt?`, `updatedAt?`)
+- **Utility functions** for crypto (AES-256-GCM encryption, hashing, key derivation), permissions, time, async, data manipulation
+- **API helpers** for Express routing, CORS, auth headers, and error handling via `Exception` class
+- **Two export entry points**: `index.ts` (full, includes Node.js code) and `web.ts` (frontend-safe, excludes api/environment/services/crypto)
 
 ## Directory Structure
 
 ```
 repos/domain/src/
-+-- api/              # Express API utilities (adminPath, authHeaders, behindLBProxy, checkAuthHeader, inKube)
-+-- constants/        # ProviderTemplates, ApiKeyPrefix, AuthHeaders, RoleHierarchy, PermissionMatrix
-+-- crypto/           # AES-256-GCM encryption/decryption, hashKey, generateApiKey, createHashKey
-+-- models/           # Domain model classes (19 models)
-+-- types/            # TypeScript type definitions (14 type files)
-+-- utils/            # Utility functions (permissions, payments, cleanSplit, isDomain, shortId, time)
-+-- error/            # Exception class with status codes
-+-- environment/      # loadEnvs, addToProcess
-+-- index.ts          # Main export barrel (all modules)
-+-- web.ts            # Web-safe exports (excludes Node.js-specific: api, environment, services, crypto)
+├── api/           # Express utilities: adminPath, authHeaders, behindLBProxy, checkAuthHeader, inKube
+├── constants/     # ProviderTemplates, ApiKeyPrefix, AuthHeaders, RoleHierarchy, PermissionMatrix, SandboxPresets, SandboxRuntimeConfigs
+├── crypto/        # AES-256-GCM encryption/decryption, hashing, key generation
+├── models/        # 19 domain model classes
+├── types/         # 14 type definition files
+├── utils/         # Permissions, payments, cleanSplit, isDomain, shortId, time
+├── error/         # Exception class with HTTP status codes
+├── environment/   # loadEnvs, addToProcess
+├── parser/        # Terminal output parser (AST nodes, GUI types)
+├── index.ts       # Full barrel export (Node.js)
+└── web.ts         # Web-safe barrel export (frontend)
 ```
+
+Import alias: `@TDM/*` (e.g., `import { User } from '@TDM/models'`)
 
 ## Type Definitions
 
-### Express API Types (`types/endpoint.types.ts`)
+Types are in `src/types/`. Key files and their exports:
 
-- `TApp<C, D, P, E, A, L>` - Express app with typed locals (config, db, payments, email, auth)
-- `TRequest<App, ReqParams, ResBody, ReqBody, ReqQuery, Locals>` - Extended Express request with `user` property
-- `TResponse<ResBody, Locals>` - Extended Express response with typed locals
-- `TRouter` - Type-safe Express router with all HTTP methods typed
-- `TResLocals` - Response locals: `{ user?, subdomain? }`
+### Enums
 
-### AI/LLM Types (`types/ai.types.ts`)
+| Enum | File | Purpose |
+|------|------|---------|
+| `EMsgType` | ai.types.ts | user, tool, system, action, assistant |
+| `EAgentTool` | ai.types.ts | mkdir, listDir, readFile, shellExec, webSearch, writeFile, deleteFile, fileExists |
+| `ELLMProviderBrand` | ai.types.ts | zai, openai, google, custom, anthropic |
+| `EEndpointType` | epd.types.ts | proxy, faas, agent |
+| `ESandboxType` | sandbox.types.ts | local, kubernetes |
+| `EContainerState` | sandbox.types.ts | Failed, Pending, Running, Unknown, Succeeded |
+| `ESBState` | sandbox.types.ts | Error, Running, Stopped, Starting |
+| `ESandboxRuntime` | sandbox.types.ts | claude-code, codex, opencode, gemini-cli, custom |
+| `EApiKeyScope` | scopes.types.ts | read, write, admin |
+| `EApiKeyExpire` | scopes.types.ts | d7, d30, d90, d180, y1, never |
+| `EProvider` | provider.types.ts | ai, git, auth, storage |
+| `EGitProvider` | git.types.ts | github, gitlab |
+| `ERoleType` | permissions.types.ts | super, owner, admin, member, viewer |
+| `EPermAction` | permissions.types.ts | create, read, update, delete, manage |
+| `EPermResource` | permissions.types.ts | org, project, user, role, secret, apiKey, endpoint, provider, domain, function, agent, subscription, quota, invitation, thread, message, asset |
+| `EPermScope` | permissions.types.ts | global, org, project |
+| `EFunLanguage` | functions.types.ts | python, typescript, javascript |
+| `ESubscriptionTier` | payments.types.ts | free, basic, developer, pro |
+| `ESubscriptionStatus` | payments.types.ts | active, canceled, past_due, incomplete |
+| `EInviteStatus` | invitation.types.ts | pending, accepted, expired, revoked |
+| `EHttpMethod` | http.types.ts | GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD |
 
-```typescript
-enum EMsgType { user, tool, system, action, assistant }
+### Key Interfaces & Types
 
-enum EAgentTool { mkdir, listDir, readFile, shellExec, webSearch, writeFile, deleteFile, fileExists }
-
-enum ELLMProviderBrand { zai, openai, google, custom, anthropic }
-```
-
-**TAgentRunRequest:**
-```typescript
-{ orgId, prompt, agentId, threadId?, projectId?, providerId?, overrides? }
-```
-
-**TLLMAdapterConfig:**
-```typescript
-{ model, apiKey?, maxTokens?, temperature?, systemPrompt?, provider: TLLMProviderBrand, options?, headers?, bodyParams? }
-```
-
-**ILLMAdapter Interface:**
-```typescript
-interface ILLMAdapter {
-  readonly provider: TLLMProviderBrand
-  stream(messages: TAIMessage[], tools: TLLMToolDef[], config: TLLMAdapterConfig): AsyncIterable<TStreamEvent>
-}
-```
-
-- **TAIMessage**: `{ role: TMessageRole, content: TMessageContent[] }` — content is array of `TTextContent | TToolUseContent | TToolResultContent`
-- **TStreamEvent**: Union of `text`, `tool_call_start`, `tool_call_args`, `tool_result`, `tool_execution_update`, `error`, `done` events
-- **TLLMToolDef**: Tool definition with `name`, `description`, and `inputSchema` (JSON Schema format)
-
-### Endpoint Data Types (`types/epd.types.ts`)
-
-```typescript
-enum EEndpointType { proxy, faas, agent }
-```
-
-**TEndpointOpts<T>** - Discriminated union based on endpoint type:
-- `TProxyEndpointConfig`: `{ url, transform?, ...shared }`
-- `TFaaSEndpointConfig`: `{ functionId, arguments?, envVars?, secrets?, memory?, ...shared }`
-- `TAgentEndpointConfig`: `{ agentId, overrides?, ...shared }`
-- Shared options: `timeout`, `pathRegex`, `oauth`, `auth`, `headers`, `retries`, `domainWhitelist`
-
-### Quickstart Types (`types/quickstart.types.ts`)
-
-| Type | Fields |
-|------|--------|
-| `TProviderModel` | `id, name, maxTokens, description?` |
-| `TProviderTemplate` | `id: TLLMProviderBrand, name, baseUrl, defaultModel, defaultSecretName, apiKeyPlaceholder, apiKeyPattern?, models: TProviderModel[]` |
-| `TQuickstartRequest` | `apiKey, projectName, agentName, agentDescription?, model?, maxTokens?, systemPrompt?, providerUrl?, providerName?, providerBrand: TLLMProviderBrand` |
-| `TQuickstartResponse` | `provider, secret, project, agent, endpoint` (all `Record<string, any>`) |
-
-### Sandbox Types (`types/sandbox.types.ts`)
-
-```typescript
-enum ESandboxType { local, kubernetes }
-enum EContainerState { Failed, Pending, Running, Unknown, Succeeded }
-enum EImagePullPolicy { Never, Always, IfNotPresent }
-enum ESBState { Error, Running, Stopped, Starting }
-
-enum ESandboxRuntime { 'claude-code', 'codex', 'opencode', 'gemini-cli', 'custom' }
-type TSandboxRuntimeId = `${ESandboxRuntime}`  // String literal union of runtime values
-```
-
-| Interface/Type | Methods/Fields |
-|-----------|---------------|
-| `ISandbox` | `reset()`, `close()`, `mkdir(path)`, `readFile(path)`, `deleteFile(path)`, `listDir(path)`, `fileExists(path)`, `writeFile(path, content)`, `exec(command, args?)`, `evaluate(code, opts?)` |
-| `ISandboxProvider` | `readonly type`, `create(config): Promise<ISandbox>` |
-| `TSandboxConfig` | `provider: TSandboxType, timeout?, envVars?, options?` |
-| `TKubeSandboxConfig` | `image, args?, gitRepo?, gitBranch?, workdir?, command?, secretIds?, sshEnabled?, defaultRuntime?, imagePullSecret?, gitTokenSecretId?, idleTimeoutMinutes?, runtimes?, envVars?, ports?, imagePullPolicy?, resources?, runtime?: TSandboxRuntimeId, runtimeCommand?: string, initScript?: string` |
-| `TSandboxSession` | `orgId, userId, podName, sandboxId, sessionId, connectedAt` |
-| `TSandboxConnectResponse` | `port, command, podName, password, sandboxId` |
-| `TContainerMeta` | `podIp, state: EContainerState, sandboxId, podName` |
-| `TRouteEntry` | `host, port, protocol` |
-| `TRouteMapEntry` | `meta: TContainerMeta, placeholders: TPlaceholderMap, ports: Record<string, TRouteEntry>` |
-
-### Scopes Types (`types/scopes.types.ts`)
-
-```typescript
-enum EApiKeyScope { read, write, admin }
-enum EApiKeyExpire { d7 = 7, d30 = 30, d90 = 90, d180 = 180, y1 = 365, never = 'none' }
-type TKeyHash = { key: string, hash: string, prefix: string }
-```
-
-### Provider Types (`types/provider.types.ts`)
-
-```typescript
-enum EProvider { ai, git, auth, storage }
-type TProviderBrand = TLLMProviderBrand | TGitBrand
-```
-
-### Git Types (`types/git.types.ts`)
-
-```typescript
-enum EGitProvider { github, gitlab }
-```
-
-### Permission Types (`types/permissions.types.ts`)
-
-```typescript
-enum ERoleType {
-  super = 'super',   // Platform admin
-  owner = 'owner',   // Org/Project creator
-  admin = 'admin',   // Can manage members, settings, secrets
-  member = 'member', // Can create/edit resources
-  viewer = 'viewer'  // Read-only access
-}
-
-enum EPermAction { create, read, update, delete, manage }
-enum EPermResource { org, project, user, role, secret, apiKey, endpoint, provider, domain, function, agent, subscription, quota, invitation, thread, message, asset }
-enum EPermScope { global, org, project }
-```
-
-### Functions Types (`types/functions.types.ts`)
-
-```typescript
-enum EFunLanguage { python, typescript, javascript }
-
-type TFunctionParam = { name, default?, required?, type: TFunParamType, description? }
-type TFunctionRequest = { path?, body?, method?, query?, headers? }
-type TFunctionContext = { args?, envVars?, secrets? }
-type TFunctionResponse = { body?, statusCode?, headers? }
-type TFunctionExecResult = { error?, output, duration, success }
-```
-
-### Payment Types (`types/payments.types.ts`)
-
-```typescript
-enum ESubscriptionTier { free, basic, developer, pro }
-enum ESubscriptionStatus { active, canceled, past_due, incomplete }
-```
-
-### Invitation Types (`types/invitation.types.ts`)
-
-```typescript
-enum EInviteStatus { pending, accepted, expired, revoked }
-```
-
-### HTTP Types (`types/http.types.ts`)
-
-```typescript
-enum EHttpMethod { GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD }
-```
-
-### Helper Types (`types/helpers.types.ts`)
-
-- `TAnyCB` - Generic callback type
-- `TValueOf<T>` - Extract value types from object
-- `TAnyObj` - `Record<string, any>`
-- `TKeyLike` - `string | number | symbol`
+- **Express**: `TApp` (typed Express app with locals), `TRequest` (extended with `user`), `TResponse` (typed locals), `TRouter`, `TResLocals`
+- **AI/LLM**: `TLLMAdapterConfig` (model, apiKey, provider, systemPrompt, temperature, maxTokens, headers, bodyParams), `ILLMAdapter` (provider, stream method), `TAIMessage` (role + TMessageContent[]), `TStreamEvent` (union: text, tool_call_start/args, tool_result, tool_execution_update, error, done), `TLLMToolDef` (name, description, inputSchema), `TAgentRunRequest`, `TAgentEnvironment`, `TAgentConfigFields`
+- **Endpoint**: `TEndpointOpts<T>` (discriminated union: TProxyEndpointConfig, TFaaSEndpointConfig, TAgentEndpointConfig)
+- **Sandbox**: `ISandbox` (reset, close, mkdir, readFile, deleteFile, listDir, fileExists, writeFile, exec, evaluate), `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig` (image, args, gitRepo, workdir, sshEnabled, runtimes, initScript, etc.), `TSandboxSession`, `TSandboxConnectResponse`, `TContainerMeta`, `TRouteEntry`, `TRouteMapEntry`, `TSandboxRuntimeId`
+- **Quickstart**: `TProviderTemplate` (id, name, baseUrl, models, defaultModel, apiKeyPattern), `TQuickstartRequest`, `TQuickstartResponse`
+- **Scopes**: `TKeyHash` (key, hash, prefix)
+- **Functions**: `TFunctionParam`, `TFunctionRequest`, `TFunctionContext`, `TFunctionResponse`, `TFunctionExecResult`
+- **Helpers**: `TAnyCB`, `TValueOf<T>`, `TAnyObj`, `TKeyLike`
 
 ## Models
 
-All models extend `Base` class: `{ id: string, createdAt?: string|Date, updatedAt?: string|Date }`.
+All extend `Base { id, createdAt?, updatedAt? }`. Key fields and methods for each:
 
-### User
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `first`, `last`, `name` | `string?` | Constructor auto-parses `name` into `first`/`last` |
-| `email` | `string?` | |
-| `image` | `string?` | |
-| `banned` | `boolean?` | |
-| `provider` | `string?` | Runtime-only, from auth provider, not persisted |
-| `banReason` | `string?` | |
-| `emailVerified` | `boolean?` | |
-| `role` | `TRoleType?` | |
-| `banExpires` | `string\|Date?` | |
-| **Computed** | `displayName` | From name or first+last |
-
-### Organization
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string` | Required |
-| `ownerId` | `string` | Required |
-| `description` | `string?` | |
-
-### Project
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string` | Required |
-| `orgId` | `string` | Required |
-| `gitUrl` | `string?` | |
-| `description` | `string?` | |
-| `branch` | `string` | Default: `'main'` |
-| `meta` | `Record<string, any>` | Default: `{}` |
-
-### ApiKey
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `key` | `string?` | Only returned on creation (hashed in DB) |
-| `name` | `string` | Required |
-| `orgId`, `userId`, `projectId` | `string?` | |
-| `keyHash` | `string` | SHA-256 hash of full key |
-| `scopes` | `string?` | Comma-separated (e.g., `'read,write,admin'`) |
-| `active` | `boolean` | |
-| `keyPrefix` | `string` | First 12 chars (e.g., `'tdsk_abc12345'`) |
-| `rateLimit` | `number?` | |
-| `expiresAt`, `lastUsedAt` | `Date\|string?` | |
-| **Methods** | `hasScope(scope)`, `isExpired()`, `isValid()`, `getRateLimit()`, `sanitize()` | sanitize removes key+keyHash |
-
-### Secret
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string` | Required |
-| `value` | `string?` | Decrypted value (only when requested) |
-| `description` | `string?` | |
-| `hashKey` | `string` | Truncated SHA-256 hash of name for lookup |
-| `encryptedValue` | `string` | Base64-encoded encrypted value |
-| `orgId`, `agentId`, `projectId`, `providerId` | `string?` | **Exclusive arc**: exactly one must be set |
-| **Methods** | `sanitize()` | Removes value + encryptedValue |
-
-### Endpoint
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `type` | `T extends TEndpointType` | `'proxy' \| 'faas' \| 'agent'` |
-| `path` | `string` | Required |
-| `name` | `string?` | |
-| `projectId` | `string` | Required |
-| `method` | `string` | Default: `'GET'` |
-| `public` | `boolean?` | Default: `false` |
-| `options` | `TEndpointOpts<T>?` | Typed by endpoint type |
-| `headers` | `Record<string, string>?` | |
-| **Subclasses** | `ProxyEndpoint`, `FaaSEndpoint`, `AgentEndpoint` | |
-
-### Function
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name`, `content` | `string` | Required |
-| `projectId` | `string` | Required |
-| `endpointId` | `string?` | |
-| `description` | `string?` | |
-| `agentIds` | `string[]?` | Agents that can use this function |
-| `branch` | `string` | Default: `'main'` |
-| `inputSchema` | `TFunctionParam[]?` | |
-| `defaultArgs`, `dependencies` | `Record<string, any>?` | |
-| `language` | `string` | Default: `EFunLanguage.typescript` |
-
-### Role
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string?` | |
-| `type` | `ERoleType` | Not string — uses enum |
-| `userId` | `string` | Required |
-| `orgId`, `projectId` | `string?` | |
-| **Methods** | `hasMinRole(required)`, `isAdmin()`, `isOwner()`, `isSuperAdmin()` | |
-
-### Provider
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string?` | |
-| `orgId` | `string` | Required |
-| `type` | `TProviderType` | `'ai' \| 'git' \| 'auth' \| 'storage'` |
-| `brand` | `TProviderBrand` | e.g., `'anthropic'`, `'openai'`, `'github'` |
-| `options` | `Record<string, any>` | Default: `{}` |
-| `headers`, `bodyParams` | `Record<string, string\|any>?` | |
-| `secretId` | `string?` | Link to associated secret |
-
-### Agent
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string` | Required |
-| `orgId` | `string` | Required |
-| `model` | `string?` | LLM model ID (e.g., `'claude-sonnet-4-20250514'`) |
-| `maxTokens` | `number?` | |
-| `description` | `string?` | |
-| `tools` | `string[]` | EAgentTool values. Default: `[]` |
-| `systemPrompt` | `string?` | |
-| `active` | `boolean` | Default: `true` |
-| `secrets` | `Secret[]` | Populated objects. Default: `[]` |
-| `projects` | `Project[]` | Populated objects. Default: `[]` |
-| `providers` | `Provider[]` | Populated objects (replaces single providerId). Default: `[]` |
-| `functions` | `FunctionModel[]` | Populated objects. Default: `[]` |
-| `envVars` | `TAgentEnvVars` | Default: `{}` |
-| `environment` | `TAgentEnvironment` | Default: `{}` |
-| **Computed** | `primaryProvider` | First provider in array |
-| **Methods** | `sanitize()` | Returns copy with sanitized secrets |
-
-### Thread
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string?` | |
-| `userId` | `string` | Required |
-| `orgId`, `agentId`, `projectId`, `providerId` | `string?` | |
-| `public` | `boolean` | Default: `false` |
-| `parentThreadId` | `string?` | For thread branching |
-| `branchMessageId` | `string?` | Message where branch occurred |
-| `meta` | `Record<string, any>?` | |
-
-### Message
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `type` | `TMsgType` | `'user' \| 'tool' \| 'system' \| 'action' \| 'assistant'` |
-| `content` | `TMessageContent[]` | Array of text/tool-use/tool-result content |
-| `threadId` | `string` | Required |
-| `projectId`, `orgId` | `string?` | |
-| `meta` | `Record<string, any>?` | |
-
-### Asset
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name`, `type` | `string` | Required. type = MIME or custom |
-| `url` | `string?` | |
-| `content` | `any?` | |
-| `orgId`, `userId`, `threadId`, `projectId`, `messageId`, `providerId` | `string?` | |
-| `meta` | `Record<string, any>` | Default: `{}` |
-
-### Domain
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `domain` | `string` | Required (e.g., `'api.example.com'`) |
-| `orgId`, `projectId` | `string?` | **Exclusive arc**: orgId XOR projectId |
-| `verified` | `boolean` | Default: `false` |
-| `verifiedAt` | `string\|Date?` | |
-| `sslEnabled` | `boolean` | Default: `false` |
-| `sslPrivateKey`, `sslCertificate` | `string?` | |
-| `sslExpiresAt` | `string\|Date?` | |
-| `certificates` | `Certificate[]?` | Default: `[]` |
-| **Computed** | `certificate` | First found certificate content |
-
-### Certificate
-
-Does NOT extend Base. Fields: `parent, name, isFile, value: Buffer|null, modified`.
-
-### Invitation
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `email`, `orgId`, `token` | `string` | Required |
-| `userId`, `invitedBy`, `revokedBy` | `string?` | |
-| `roleType` | `string` | |
-| `status` | `TInviteStatus` | `'pending' \| 'accepted' \| 'expired' \| 'revoked'` |
-| `expiresAt` | `string\|Date` | Required |
-| `acceptedAt`, `revokedAt` | `string\|Date?` | |
-| **Methods** | `sanitize()` (removes token), `isPending()`, `isExpired()`, `isAccepted()`, `isRevoked()`, `daysUntilExpiration()` | |
-
-### Quota
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `orgId`, `period` | `string` | Required |
-| `projects`, `members`, `endpoints`, `threads`, `messages`, `functionCalls` | `number` | Default: `0` |
-| `runtime` | `number` | Seconds of FaaS runtime. Default: `0` |
-| `orgSecrets`, `projectSecrets`, `organizations` | `number` | Default: `0` |
-| `price` | `number` | Total spend in cents. Default: `0` |
-| `retention` | `number` | Data retention days. Default: `0` |
-
-### Subscription
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `tier` | `string` | Default: `ESubscriptionTier.free` (`'free' \| 'basic' \| 'developer' \| 'pro'`) |
-| `status` | `string` | Default: `ESubscriptionStatus.active` (`'active' \| 'canceled' \| 'past_due' \| 'incomplete'`) |
-| `userId` | `string` | Required |
-| `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId` | `string?` | Stripe integration |
-| `seats` | `number` | Default: `1` |
-| `currentPeriodEnd`, `currentPeriodStart` | `string?` | |
-| `cancelAtPeriodEnd` | `boolean?` | |
-
-### Sandbox
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | `string` | Required |
-| `orgId` | `string` | Required |
-| `userId` | `string?` | |
-| `projectId` | `string?` | Optional project scoping |
-| `config` | `TKubeSandboxConfig` | Container config (image, ports, resources, SSH, git, etc.) |
-| `builtIn` | `boolean?` | Whether sandbox was auto-seeded during org creation (default `false`) |
-
-### Plan
-
-Does NOT extend Base. Fields: `id, name, description?, recurring?: { count?, active?, interval? }, metadata: TPayPlanMeta`. Constructor auto-converts raw metadata via `rawPlanToMeta()`.
+- **User** -- first, last, name, email, image, banned, banReason, emailVerified, role, provider. Computed: `displayName`
+- **Organization** -- name (required), ownerId (required), description
+- **Project** -- name, orgId, gitUrl, description, branch (default 'main'), meta
+- **ApiKey** -- key, name, orgId, userId, projectId, keyHash, scopes, active, keyPrefix, rateLimit, expiresAt, lastUsedAt. Methods: `hasScope()`, `isExpired()`, `isValid()`, `getRateLimit()`, `sanitize()`
+- **Secret** -- name, value, description, hashKey, encryptedValue, orgId/agentId/projectId/providerId (exclusive arc). Methods: `sanitize()`
+- **Endpoint** -- type, path, name, projectId, method, public, options, headers. Subclasses: ProxyEndpoint, FaaSEndpoint, AgentEndpoint
+- **Function** -- name, content, projectId, endpointId, description, agentIds, branch, inputSchema, defaultArgs, dependencies, language
+- **Role** -- name, type (ERoleType), userId, orgId, projectId. Methods: `hasMinRole()`, `isAdmin()`, `isOwner()`, `isSuperAdmin()`
+- **Provider** -- name, orgId, type, brand, options, headers, bodyParams, secretId
+- **Agent** -- name, orgId, model, maxTokens, description, tools, systemPrompt, active, secrets[], projects[], providers[], functions[], envVars, environment. Computed: `primaryProvider`. Methods: `sanitize()`
+- **Thread** -- name, userId, orgId, agentId, projectId, providerId, public, parentThreadId, branchMessageId, meta
+- **Message** -- type (TMsgType), content (TMessageContent[]), threadId, projectId, orgId, meta
+- **Asset** -- name, type, url, content, orgId, userId, threadId, projectId, messageId, providerId, meta
+- **Domain** -- domain, orgId/projectId (exclusive arc), verified, verifiedAt, sslEnabled, sslPrivateKey, sslCertificate, sslExpiresAt, certificates[]. Computed: `certificate`
+- **Certificate** -- does NOT extend Base. Fields: parent, name, isFile, value, modified
+- **Invitation** -- email, orgId, token, userId, invitedBy, revokedBy, roleType, status, expiresAt, acceptedAt, revokedAt. Methods: `sanitize()`, `isPending()`, `isExpired()`, `isAccepted()`, `isRevoked()`, `daysUntilExpiration()`
+- **Quota** -- orgId, period, projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, organizations, price, retention
+- **Subscription** -- tier, status, userId, stripeCustomerId, stripeSubscriptionId, stripePriceId, seats, currentPeriodEnd, currentPeriodStart, cancelAtPeriodEnd
+- **Sandbox** -- name, orgId, userId, projectId, config (TKubeSandboxConfig), builtIn
+- **Plan** -- does NOT extend Base. Fields: id, name, description, recurring, metadata (auto-converted via `rawPlanToMeta()`)
 
 ## Constants
 
-### Provider Templates (`constants/providers.ts`)
+- **ProviderTemplates** (`constants/providers.ts`) -- `Record<ELLMProviderBrand, TProviderTemplate>` with model lists, base URLs, API key patterns for anthropic, openai, google, zai, custom
+- **ApiKeyPrefix** -- `tdsk_`
+- **AuthHeaders** -- `X-User-Id`, `X-User-Role`, `X-User-Email`
+- **RoleHierarchy** -- `[viewer, member, admin, owner, super]`
+- **PermissionMatrix** -- role-to-permission mapping for 17 resource types
+- **SandboxRuntimeConfigs** -- `Record<TSandboxRuntimeId, { command, args, runtimeCommand }>` for each runtime
+- **SandboxPresets** -- full seed configs per runtime, used by backend to seed 4 default sandboxes on org creation
+- **SBImagePresets** -- image preset buttons: Claude Code, Codex, OpenCode
 
-`ProviderTemplates: Record<ELLMProviderBrand, TProviderTemplate>` — contains pre-configured templates for `anthropic`, `openai`, `google`, `zai`, and `custom` providers with model lists, base URLs, default models, and API key patterns. See `src/constants/providers.ts` for current values (model IDs and URLs change frequently).
+## Crypto Functions
 
-### Values (`constants/values.ts`)
+All in `src/crypto/crypto.ts`. Requires `TDSK_MASTER_KEY` env (hex-encoded, min 64 hex chars).
 
-- `ApiKeyPrefix` - `tdsk_` prefix for API keys
-- `AuthHeaders` - Auth header name constants (`X-User-Id`, `X-User-Role`, `X-User-Email`)
-- `RoleHierarchy` - Role priority levels: `[viewer, member, admin, owner, super]`
-- `PermissionMatrix` - Role-to-permission mapping for 17 resource types
+- `deriveKey(ref_id)` -- HKDF-SHA256 key derivation from user ID + master key
+- `encryptValue(derivedKey, plaintext)` -- AES-256-GCM encrypt (12-byte IV, 16-byte auth tag)
+- `decryptValue(derivedKey, ciphertext, iv, authTag)` -- decrypt
+- `encodeEncrypted(iv, authTag, encrypted)` -- base64 encode for storage
+- `bufferToBytea(buffer)` / `byteaToBuffer(byteaString)` -- PostgreSQL bytea conversion
+- `createHashKey(name)` -- truncated SHA-256 hash (16 hex chars) for secret name lookup
+- `hashKey(key)` -- SHA-256 hash for API key storage/validation
+- `generateApiKey()` -- generate new API key with `tdsk_` prefix, returns `{ key, hash, prefix }`
 
-### Sandbox Constants (`constants/sandbox.ts`)
+## Permissions Functions
 
-- `SBImagePullPolicyOptions` — Dropdown options for image pull policy (Never, Always, IfNotPresent)
-- `SBRuntimeOptions` — Dropdown options for sandbox runtime (Node.js, Python)
-- `SBImagePresets` — Image preset buttons: Claude Code (`tdsk-sandbox-claude`), Codex (`tdsk-sandbox-codex`), OpenCode (`tdsk-sandbox-opencode`)
-- `SandboxRuntimeConfigs: Record<TSandboxRuntimeId, { command, args, runtimeCommand }>` — Maps each runtime to its container start command and `tsa run` command
-- `SandboxPresets: Record<TSandboxRuntimeId, Partial<TKubeSandboxConfig & { name, description }>>` — Full seed configs for org creation (one per runtime). Used by backend to seed 4 default sandboxes when an org is created
+All in `src/utils/permissions/permissions.ts`:
 
-## Utilities
+- `getRoleLevel(role)` -- viewer=0 through super=4
+- `hasMinRole(userRole, requiredRole)` -- check minimum role level
+- `canPerform(userRole, action, resource)` -- main permission check
+- `canAccessSecretValue(userRole)` -- requires admin+
+- `isSuperAdmin(userRole)`
+- `getHighestRole(roles)`
+- `canManageRole(managerRole, targetRole)` -- must be strictly higher
+- `getAllowedActions(userRole, resource)`
+- `isValidRoleType(role)`
 
-### Crypto (`crypto/crypto.ts`)
+## Other Utilities
 
-```typescript
-// Key derivation from user ID + master key (HKDF-SHA256)
-deriveKey(ref_id: string): Promise<Buffer>
-
-// Encrypt plaintext with derived key (AES-256-GCM, 12-byte IV, 16-byte auth tag)
-encryptValue(derivedKey: Buffer, plaintextValue: string): Promise<TEncryptVal>
-// Returns: { iv: Buffer, encrypted: Buffer, authTag: Buffer }
-
-// Decrypt ciphertext
-decryptValue(derivedKey: Buffer, ciphertext: Buffer, iv: Buffer, authTag: Buffer): Promise<string>
-
-// Base64 encoding of encrypted data (iv + authTag + encrypted)
-encodeEncrypted(iv: Buffer, authTag: Buffer, encrypted: Buffer): string
-
-// PostgreSQL bytea conversion
-bufferToBytea(buffer: Buffer): string   // => "\\x..."
-byteaToBuffer(byteaString: string): Buffer
-
-// Truncated SHA-256 hash for secret name lookup (16 hex chars)
-createHashKey(name: string): string
-
-// SHA-256 hash for API key storage/validation
-hashKey(key: string): string
-
-// Generate a new API key with tdsk_ prefix, hash, and prefix
-generateApiKey(): TKeyHash  // { key, hash, prefix }
-```
-
-**Required env**: `TDSK_MASTER_KEY` — hex-encoded master key (minimum 64 hex chars / 32 bytes)
-
-### Permissions (`utils/permissions/permissions.ts`)
-
-```typescript
-getRoleLevel(role: ERoleType): number           // viewer=0, member=1, admin=2, owner=3, super=4
-hasMinRole(userRole, requiredRole): boolean      // Check minimum role level
-canPerform(userRole, action, resource): TPermCheckResult  // Main permission check
-canAccessSecretValue(userRole): boolean          // Requires admin+
-isSuperAdmin(userRole): boolean
-getHighestRole(roles: ERoleType[]): ERoleType
-canManageRole(managerRole, targetRole): boolean  // Must be strictly higher
-getAllowedActions(userRole, resource): EPermAction[]
-isValidRoleType(role: string): role is ERoleType
-```
-
-### Other Utilities
-
-- `shortId(): string` - Generate short unique ID
-- `isDomain(domain: string): boolean` - Validate domain name format
-- `splitBy(str, sep): string[]` / `cleanSplit(str, sep): string[]` - String splitting
-- `timestamp(): number` - `Date.now()`
-- `nextFrame(callback): void` - Schedule on next animation frame
-- `throttleCBLast(callback, delay): Function` - Throttle with last call guarantee
+- `shortId()` -- generate short unique ID
+- `isDomain(domain)` -- validate domain name format
+- `splitBy(str, sep)` / `cleanSplit(str, sep)` -- string splitting
+- `timestamp()` -- `Date.now()`
+- `nextFrame(callback)` -- schedule on next animation frame
+- `throttleCBLast(callback, delay)` -- throttle with last call guarantee
 
 ## API Helpers
 
-```typescript
-// Admin route prefix (default: "/_")
-adminPath(config: { adminPath?: string }): string
-
-// Forward auth headers from request to proxy request
-setAuthHeaders(pxReq: TClientReq, req: Record<string, any>): void
-
-// Extract auth header values from incoming request
-fromAuthHeaders(req: TReq): Partial<TAuthHeaderObj>
-
-// Extract Bearer token from Authorization header
-checkAuthHeader(authHeader?: string): { access_token: string | undefined }
-
-// Returns true if behind load balancer (TDSK_WITH_LB_PROXY env set)
-behindLBProxy(): boolean
-
-// Returns true if running inside Kubernetes
-inKube(): boolean
-```
+In `src/api/`: `adminPath(config)` (default `/_`), `setAuthHeaders(pxReq, req)`, `fromAuthHeaders(req)`, `checkAuthHeader(authHeader)` (extract Bearer token), `behindLBProxy()`, `inKube()`
 
 ## Error Handling
 
-```typescript
-class Exception extends Error {
-  status: number         // HTTP status code
-  code?: string          // Error code
-  details?: TErrDetails  // Array of error details
-  __isAuthError?: boolean
-
-  static throw(status, message, code?, details?, stack?): never
-}
-
-// Usage:
-Exception.throw(400, 'Invalid input', 'INVALID_INPUT', ['Missing field: email'])
-```
-
-## Architecture
-
-### Exclusive Arc Pattern
-
-Multiple models implement the exclusive arc pattern:
-- `Secret`: `orgId` XOR `agentId` XOR `projectId` XOR `providerId` (4-way arc)
-- `Domain`: `orgId` XOR `projectId` (2-way arc)
-- `Provider`: `orgId` only (org-scoped)
-- Database enforces this with constraints (matches `database` repo schema)
-
-### Export Strategy
-
-- `src/index.ts` - Full exports (includes Node.js code: api, environment, services, crypto)
-- `src/web.ts` - Web-safe exports (types, utils, models, constants, error) — **use this for frontend/admin**
-
-### Import Aliases
-
-All repos can import via `@TDM/*`:
-```typescript
-import { User, Organization } from '@TDM/models'
-import { TRequest, TResponse } from '@TDM/types'
-import { Exception } from '@TDM/error'
-import { encryptValue, decryptValue, hashKey } from '@TDM/crypto'
-import { canPerform, hasMinRole } from '@TDM/utils/permissions'
-import { ProviderTemplates } from '@TDM/constants'
-```
+`Exception` extends `Error` with `status` (HTTP code), `code?`, `details?` (array), `__isAuthError?`. Static method: `Exception.throw(status, message, code?, details?)`.
 
 ## Integration Points
 
-| Consumer | Import | Key Usage |
-|----------|--------|-----------|
-| **Backend** | Full `index.ts` | `TApp`, `TRequest`, `adminPath`, `authHeaders`, `Exception`, `loadEnvs`, `canPerform`, `hashKey`, `generateApiKey` |
-| **Proxy** | Full `index.ts` | `checkAuthHeader`, `behindLBProxy`, `inKube`, `hashKey`, encryption |
-| **Admin** | `web.ts` only | `Exception`, model classes, `ProviderTemplates`, constants |
-| **Database** | Model classes | All model classes for ORM type definitions |
-| **Agent** | Full `index.ts` | `TLLMAdapterConfig`, `ILLMAdapter`, `TStreamEvent`, `Agent`, `Thread`, `Message` |
-| **Tsa** | Full `index.ts` | AI types, `Agent`, `Thread`, `Message`, `User` |
-| **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig`, `TSandboxSession`, `TSandboxConnectResponse`, `ESBState`, `ESandboxRuntime`, `TSandboxRuntimeId`, `SandboxRuntimeConfigs`, `SandboxPresets` |
+- **Backend** -- full `index.ts`: TApp, TRequest, adminPath, authHeaders, Exception, loadEnvs, canPerform, hashKey, generateApiKey
+- **Proxy** -- full `index.ts`: checkAuthHeader, behindLBProxy, inKube, hashKey, encryption
+- **Admin** -- `web.ts` only: Exception, model classes, ProviderTemplates, constants
+- **Agent** -- full `index.ts`: TLLMAdapterConfig, ILLMAdapter, TStreamEvent, model classes
+- **TSA** -- full `index.ts`: AI types, model classes
+- **Sandbox** -- sandbox types: ISandbox, ISandboxProvider, TSandboxConfig, TKubeSandboxConfig, ESandboxRuntime, SandboxRuntimeConfigs, SandboxPresets
+- **Database** -- model classes for ORM type definitions
+
+## Build & Test
+
+```bash
+cd repos/domain
+pnpm test     # Vitest
+# No build script -- TypeScript source consumed directly via aliases
+```

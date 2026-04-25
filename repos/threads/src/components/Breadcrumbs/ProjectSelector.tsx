@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 
 import { useNavigate } from 'react-router'
 import { useState, useCallback } from 'react'
-import { setActiveProjectId } from '@TTH/state/accessors'
+import { selectProject } from '@TTH/actions/projects/selectProject'
 import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 import {
   useOrgId,
@@ -12,11 +12,11 @@ import {
 } from '@TTH/state/selectors'
 
 export const ProjectSelector = () => {
-  const orgId = useOrgId()
+  const [orgId] = useOrgId()
   const navigate = useNavigate()
-  const projects = useProjects()
+  const [projects] = useProjects()
   const [query, setQuery] = useState(``)
-  const activeProject = useActiveProject()
+  const [activeProject] = useActiveProject()
   const [activeProjectId] = useActiveProjectId()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
@@ -33,7 +33,7 @@ export const ProjectSelector = () => {
 
   const onSelect = useCallback(
     (item: { id: string }) => {
-      setActiveProjectId(item.id)
+      selectProject(item.id)
       onClose()
       navigate(`/project/${item.id}`)
     },

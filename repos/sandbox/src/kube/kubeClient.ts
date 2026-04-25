@@ -8,7 +8,7 @@ import { EProto, EContainerState } from '@tdsk/domain'
 import * as k8s from '@kubernetes/client-node'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { getKubeNS } from '@TSB/kube/getKubeNS'
-import { toContainerState } from '@TSB/kube/toContainerState'
+import { toContainerState, getTerminationReason } from '@TSB/kube/toContainerState'
 
 import {
   PodLabelKeys,
@@ -233,6 +233,10 @@ export class KubeClient {
 
   hydrateSingle(pod: k8s.V1Pod): void {
     if (this.shouldRemove(pod)) {
+      const reason = getTerminationReason(pod)
+      if (reason) {
+        logger.info(`[KubeClient] Pod ${pod.metadata?.name} terminated: ${reason}`)
+      }
       this.removeFromCache(pod)
       return
     }

@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,18 +12,30 @@ import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const updateAgent: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { secretIds, projectIds = [], providerInputs, ...agent } = req.body
+    const {
+      name,
+      model,
+      tools,
+      envVars,
+      secretIds,
+      maxTokens,
+      temperature,
+      description,
+      environment,
+      instructions,
+      systemPrompt,
+      thinkingBudget,
+      providerInputs,
+      thinkingEnabled,
+      projectIds = [],
+    } = req.body
 
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
     if (getError || !existingAgent) throw new Exception(404, `Agent not found`)
-
-    // Check permission to update agents in this org
-    await checkPermission(req, EPermAction.update, EPermResource.agent, {
-      orgId: existingAgent.orgId,
-    })
 
     // Project context: update project-level overrides, not the base agent
     const { projectId } = req.params
@@ -87,11 +99,23 @@ export const updateAgent: TEndpointConfig = {
       orgId: existingAgent.orgId,
     })
 
-    agent.id = id
-    if (projects?.length) agent.projects = projects
-    if (pins !== undefined) agent.providerInputs = pins
-    if (secretIds !== undefined) agent.secretIds = secretIds
-    const { data, error } = await db.services.agent.update(agent)
+    const agentUpdate: Record<string, unknown> & { id: string } = { id }
+    if (name !== undefined) agentUpdate.name = name
+    if (model !== undefined) agentUpdate.model = model
+    if (tools !== undefined) agentUpdate.tools = tools
+    if (projects?.length) agentUpdate.projects = projects
+    if (envVars !== undefined) agentUpdate.envVars = envVars
+    if (pins !== undefined) agentUpdate.providerInputs = pins
+    if (maxTokens !== undefined) agentUpdate.maxTokens = maxTokens
+    if (secretIds !== undefined) agentUpdate.secretIds = secretIds
+    if (description !== undefined) agentUpdate.description = description
+    if (environment !== undefined) agentUpdate.environment = environment
+    if (temperature !== undefined) agentUpdate.temperature = temperature
+    if (systemPrompt !== undefined) agentUpdate.systemPrompt = systemPrompt
+    if (instructions !== undefined) agentUpdate.instructions = instructions
+    if (thinkingBudget !== undefined) agentUpdate.thinkingBudget = thinkingBudget
+    if (thinkingEnabled !== undefined) agentUpdate.thinkingEnabled = thinkingEnabled
+    const { data, error } = await db.services.agent.update(agentUpdate)
 
     if (error) throw new Exception(500, error.message)
 

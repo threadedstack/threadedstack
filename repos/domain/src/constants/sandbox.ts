@@ -46,7 +46,47 @@ export const SandboxRuntimeConfigs: Record<
   },
   [ESandboxRuntime.codex]: {
     runtimeCommand: `codex`,
-    initScript: `echo "Codex sandbox ready"`,
+    initScript: [
+      `mkdir -p ~/.codex`,
+      `# Default provider: later assignments win — priority: openai > openrouter > zai > google > ollama`,
+      `DP=""`,
+      `[ -n "$OLLAMA_API_KEY" ] && DP="ollama-cloud"`,
+      `[ -n "$GEMINI_API_KEY" ] && DP="google-ai"`,
+      `[ -n "$Z_AI_API_KEY" ] && DP="zai"`,
+      `[ -n "$OPENROUTER_API_KEY" ] && DP="openrouter"`,
+      `[ -n "$OPENAI_API_KEY" ] && DP="openai-direct"`,
+      `{`,
+      `[ -n "$DP" ] && echo "model_provider = \\"$DP\\""`,
+      `cat << 'TDSK_CODEX_PROVIDERS'`,
+      ``,
+      `[model_providers.openai-direct]`,
+      `name = "OpenAI"`,
+      `base_url = "https://api.openai.com/v1"`,
+      `env_key = "OPENAI_API_KEY"`,
+      ``,
+      `[model_providers.openrouter]`,
+      `name = "OpenRouter"`,
+      `base_url = "https://openrouter.ai/api/v1"`,
+      `env_key = "OPENROUTER_API_KEY"`,
+      ``,
+      `[model_providers.zai]`,
+      `name = "Z.AI GLM Coding Plan"`,
+      `base_url = "https://api.z.ai/api/coding/paas/v4"`,
+      `env_key = "Z_AI_API_KEY"`,
+      ``,
+      `[model_providers.google-ai]`,
+      `name = "Google Gemini"`,
+      `base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"`,
+      `env_key = "GEMINI_API_KEY"`,
+      ``,
+      `[model_providers.ollama-cloud]`,
+      `name = "Ollama Cloud"`,
+      `base_url = "https://ollama.com/v1"`,
+      `env_key = "OLLAMA_API_KEY"`,
+      `TDSK_CODEX_PROVIDERS`,
+      `} > ~/.codex/config.toml`,
+      `echo "Codex sandbox ready"`,
+    ].join(`\n`),
   },
   [ESandboxRuntime.openCode]: {
     runtimeCommand: `opencode`,
@@ -257,7 +297,13 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
       },
     ],
     [ERuntimeBrand.openrouter]: [
-      { envVar: `ANTHROPIC_API_KEY`, source: `secret`, required: true },
+      { envVar: `ANTHROPIC_AUTH_TOKEN`, source: `secret`, required: true },
+      {
+        envVar: `ANTHROPIC_API_KEY`,
+        source: `static`,
+        staticValue: ``,
+        injection: `direct`,
+      },
       {
         envVar: `ANTHROPIC_BASE_URL`,
         source: `static`,
@@ -315,6 +361,27 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
         injection: `direct`,
       },
     ],
+    [ERuntimeBrand.ollamaCloud]: [
+      { envVar: `ANTHROPIC_AUTH_TOKEN`, source: `secret`, required: true },
+      {
+        envVar: `ANTHROPIC_API_KEY`,
+        source: `static`,
+        staticValue: ``,
+        injection: `direct`,
+      },
+      {
+        envVar: `ANTHROPIC_BASE_URL`,
+        source: `static`,
+        staticValue: `https://ollama.com`,
+        injection: `direct`,
+      },
+      {
+        envVar: `ANTHROPIC_MODEL`,
+        source: `option`,
+        optionKey: `model`,
+        injection: `direct`,
+      },
+    ],
   },
   [ESandboxRuntime.codex]: {
     [ERuntimeBrand.openai]: [
@@ -326,6 +393,10 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     [ERuntimeBrand.google]: [
       { envVar: `GEMINI_API_KEY`, source: `secret`, required: true },
     ],
+    [ERuntimeBrand.zai]: [{ envVar: `Z_AI_API_KEY`, source: `secret`, required: true }],
+    [ERuntimeBrand.ollamaCloud]: [
+      { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
+    ],
   },
   [ESandboxRuntime.openCode]: {
     [ERuntimeBrand.anthropic]: [
@@ -336,6 +407,10 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     ],
     [ERuntimeBrand.openrouter]: [
       { envVar: `OPENROUTER_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.zai]: [{ envVar: `ZHIPU_API_KEY`, source: `secret`, required: true }],
+    [ERuntimeBrand.ollamaCloud]: [
+      { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
     ],
   },
   [ESandboxRuntime.geminiCli]: {

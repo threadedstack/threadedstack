@@ -2,14 +2,16 @@ import type { Provider } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { useState, useMemo } from 'react'
-import { Box, Typography, Chip } from '@mui/material'
-import { useProviders } from '@TAF/state/selectors'
+import { EPermResource } from '@tdsk/domain'
 import { ConfirmDelete } from '@tdsk/components'
+import { useProviders } from '@TAF/state/selectors'
+import { Box, Typography, Chip } from '@mui/material'
 import { deleteProvider } from '@TAF/actions/providers'
-import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
-import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -43,6 +45,7 @@ export const Providers = ({ orgId }: TProviders) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Provider>()
   const [error, setError] = useState<Error | null>(null)
+  const { canCreate, canUpdate, canDelete } = usePermissions()
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
 
   const onCreateProvider = () => {
@@ -155,20 +158,24 @@ export const Providers = ({ orgId }: TProviders) => {
       render: (provider) => (
         <Box sx={styles.table.actions.box}>
           <ActionIconButton
-            tooltip='Edit Provider'
-            icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
+            tooltip='Edit Provider'
+            icon={<EditIcon sx={styles.table.actions.icon} />}
+            disabled={!canUpdate(EPermResource.provider)}
+            disabledTooltip='You do not have permission to edit providers'
             onClick={(e) => {
               e.stopPropagation()
               onEditProvider(provider)
             }}
           />
           <ActionIconButton
-            tooltip='Delete Provider'
-            icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
+            tooltip='Delete Provider'
+            disabled={!canDelete(EPermResource.provider)}
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
+            disabledTooltip='You do not have permission to delete providers'
             onClick={(e) => {
               e.stopPropagation()
               setDeleting(provider)
@@ -191,6 +198,7 @@ export const Providers = ({ orgId }: TProviders) => {
       setSearchQuery={setSearchQuery}
       onAction={providersCount > 0 && onCreateProvider}
       actionLabel={providersCount > 0 && 'Create Provider'}
+      actionDisabled={!canCreate(EPermResource.provider)}
       searchPlaceholder='Search providers by name, type, or URL...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
@@ -199,6 +207,7 @@ export const Providers = ({ orgId }: TProviders) => {
           actionIcon={<AddIcon />}
           onAction={onCreateProvider}
           actionLabel='Create Provider'
+          actionDisabled={!canCreate(EPermResource.provider)}
           message='No providers yet. Create your first provider to get started.'
         />
       )}
@@ -220,8 +229,8 @@ export const Providers = ({ orgId }: TProviders) => {
         <ProviderDrawer
           orgId={orgId}
           open={dialogOpen}
-          onClose={onDialogClose}
           onRemove={setDeleting}
+          onClose={onDialogClose}
           provider={selectedProvider}
         />
       )}

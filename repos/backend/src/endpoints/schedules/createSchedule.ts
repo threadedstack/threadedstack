@@ -2,20 +2,19 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { Schedule, Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
 
 export const createSchedule: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.schedule, { orgId })
 
     const {
       prompt,

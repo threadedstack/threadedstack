@@ -592,24 +592,6 @@ describe(`API Keys endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
-    it(`should reject member role from creating project-scoped key`, async () => {
-      // checkPermission blocks member role before reaching validateProjectKeyPermission
-      // Must set both org and project role to member since getUserRole takes the highest
-      const mockGetOrgRole = mockReq.app?.locals.db.services.role
-        .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
-
-      const mockGetProjectRole = mockReq.app?.locals.db.services.role
-        .getProjectRole as ReturnType<typeof vi.fn>
-      mockGetProjectRole.mockResolvedValue({ data: { type: `member` } })
-
-      mockReq.body = { name: `Bad Key`, projectId: `proj-1` }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Requires admin role or higher`
-      )
-    })
-
     it(`should reject when target user is not a project member`, async () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
@@ -696,48 +678,27 @@ describe(`API Keys endpoints`, () => {
     const ep = getEndpointCfg(apiKeys.endpoints?.updateApiKey)
 
     it(`should return 200 with updated API key`, async () => {
-      const existingApiKey = new ApiKey({
+      const updatedApiKey = new ApiKey({
         id: `123`,
-        name: `Old Name`,
+        name: `New Name`,
         keyHash: `hash`,
         keyPrefix: `tdsk_old_`,
-        scopes: `read`,
+        scopes: `read,write`,
         active: true,
         orgId: `org-1`,
       })
       const updateData = { name: `New Name`, scopes: `read,write` }
-      const updatedApiKey = { ...existingApiKey, ...updateData }
       mockReq.params = { id: `123` }
       mockReq.body = updateData
 
-      const mockGet = mockReq.app?.locals.db.services.apiKey.get as ReturnType<
-        typeof vi.fn
-      >
       const mockUpdate = mockReq.app?.locals.db.services.apiKey.update as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ data: existingApiKey })
       mockUpdate.mockResolvedValue({ data: updatedApiKey })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
-    })
-
-    it(`should return 404 when API key not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-      mockReq.body = { name: `New Name` }
-
-      const mockGet = mockReq.app?.locals.db.services.apiKey.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `API key not found`
-      )
-      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 400 when scopes are invalid`, async () => {

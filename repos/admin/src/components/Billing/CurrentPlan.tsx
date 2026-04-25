@@ -1,7 +1,10 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { createPortalSession } from '@TAF/actions'
+import { PlanSections } from '@TAF/constants/values'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
+import { formatDate } from '@TAF/utils/transforms/date'
+import { statusColor } from '@TAF/utils/transforms/status'
 import { CheckCircle as CheckIcon } from '@mui/icons-material'
 import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
 import {
@@ -17,44 +20,6 @@ import {
 } from '@mui/material'
 
 export type TCurrentPlan = {}
-
-const Sections = [
-  { key: `projects`, label: `Projects`, suffix: `` },
-  { key: `endpoints`, label: `Endpoints`, suffix: `` },
-  { key: `compute`, label: `Compute`, suffix: `seconds` },
-  { key: `threads`, label: `Threads`, suffix: `` },
-  { key: `messages`, label: `Messages`, suffix: `` },
-  { key: `secrets`, label: `Secrets`, suffix: `` },
-] as const
-
-const formatDate = (dateString: string | undefined): string => {
-  if (!dateString) return `N/A`
-  return new Date(dateString).toLocaleDateString(`en-US`, {
-    year: `numeric`,
-    month: `long`,
-    day: `numeric`,
-  })
-}
-
-const getStatusColor = (
-  status: string
-): `default` | `primary` | `success` | `warning` | `error` => {
-  switch (status.toLowerCase()) {
-    case `active`:
-      return `success`
-    case `trialing`:
-      return `primary`
-    case `past_due`:
-      return `warning`
-    case `canceled`:
-    case `incomplete`:
-    case `incomplete_expired`:
-    case `unpaid`:
-      return `error`
-    default:
-      return `default`
-  }
-}
 
 export const CurrentPlan = (props: TCurrentPlan) => {
   const [loading, setLoading] = useState(false)
@@ -112,9 +77,9 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 {wordCaps(currentPlan?.name || subscription.tier)}
               </Typography>
               <Chip
-                label={subscription.status}
-                color={getStatusColor(subscription.status)}
                 size='small'
+                label={subscription.status}
+                color={statusColor(subscription.status)}
               />
             </Box>
             {currentPlan?.price !== undefined && (
@@ -128,8 +93,8 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                   <>
                     ${currentPlan.price / 100}
                     <Typography
-                      component='span'
                       variant='body2'
+                      component='span'
                       color='text.secondary'
                     >
                       /month
@@ -176,8 +141,8 @@ export const CurrentPlan = (props: TCurrentPlan) => {
               <Box>
                 <Typography
                   variant='body2'
-                  color='text.secondary'
                   component='span'
+                  color='text.secondary'
                 >
                   Period End:{' '}
                 </Typography>
@@ -216,30 +181,30 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 spacing={1}
                 sx={{ mt: 1 }}
               >
-                {Sections.filter(({ key }) => currentPlan.limits[key] !== undefined).map(
-                  ({ key, label, suffix }) => {
-                    const value = currentPlan.limits[key]
-                    const display =
-                      value === -1 ? 'Unlimited' : suffix ? `${value} ${suffix}` : value
+                {PlanSections.filter(
+                  ({ key }) => currentPlan.limits[key] !== undefined
+                ).map(({ key, label, suffix }) => {
+                  const value = currentPlan.limits[key]
+                  const display =
+                    value === -1 ? 'Unlimited' : suffix ? `${value} ${suffix}` : value
 
-                    return (
-                      <Stack
-                        key={key}
-                        direction='row'
-                        spacing={1}
-                        alignItems='center'
-                      >
-                        <CheckIcon
-                          fontSize='small'
-                          color='success'
-                        />
-                        <Typography variant='body2'>
-                          {display} {label}
-                        </Typography>
-                      </Stack>
-                    )
-                  }
-                )}
+                  return (
+                    <Stack
+                      key={key}
+                      direction='row'
+                      spacing={1}
+                      alignItems='center'
+                    >
+                      <CheckIcon
+                        fontSize='small'
+                        color='success'
+                      />
+                      <Typography variant='body2'>
+                        {display} {label}
+                      </Typography>
+                    </Stack>
+                  )
+                })}
 
                 {currentPlan.limits.seats > 1 && (
                   <Stack

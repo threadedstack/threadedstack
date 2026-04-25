@@ -2,21 +2,17 @@ import type { Thread } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { useProviders } from '@TAF/state/selectors'
-import { Loading, Drawer, DrawerActions } from '@tdsk/components'
+import { Stack, Alert, Typography } from '@mui/material'
 import { createThread } from '@TAF/actions/threads/api/createThread'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
-  Stack,
-  Alert,
-  Select,
-  Switch,
-  MenuItem,
-  TextField,
-  Typography,
-  InputLabel,
-  FormControl,
-  FormControlLabel,
-} from '@mui/material'
+  Drawer,
+  Loading,
+  TextInput,
+  SelectInput,
+  SwitchInput,
+  DrawerActions,
+} from '@tdsk/components'
 
 export type TCreateThreadDrawerProps = {
   open: boolean
@@ -112,7 +108,8 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
 
           <form id='thread-form'>
             <Stack spacing={3}>
-              <TextField
+              <TextInput
+                id='create-thread-name'
                 required
                 fullWidth
                 autoFocus
@@ -122,36 +119,22 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
                 onChange={(e) => setName(e.target.value)}
               />
 
-              <FormControl fullWidth>
-                <InputLabel id='create-thread-provider-label'>AI Provider</InputLabel>
-                <Select
-                  labelId='create-thread-provider-label'
-                  value={selectedProviderId}
-                  label='AI Provider'
-                  onChange={(e) => setSelectedProviderId(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>None (use agent's primary provider)</em>
-                  </MenuItem>
-                  {availableProviders.map((provider) => (
-                    <MenuItem
-                      key={provider.id}
-                      value={provider.id}
-                    >
-                      {provider.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SelectInput
+                id='create-thread-provider'
+                label='AI Provider'
+                value={selectedProviderId}
+                items={[
+                  { value: '', label: "None (use agent's primary provider)" },
+                  ...availableProviders.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+                onChange={(e) => setSelectedProviderId(e.target.value as string)}
+              />
 
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={publicThread}
-                    onChange={(e) => setPublicThread(e.target.checked)}
-                  />
-                }
+              <SwitchInput
+                id='create-thread-public'
                 label='Public Thread'
+                checked={publicThread}
+                onChange={(e, checked) => setPublicThread(checked)}
               />
 
               <Typography

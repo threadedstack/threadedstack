@@ -5,26 +5,15 @@ import { ife } from '@keg-hub/jsutils/ife'
 const db = database()
 
 /**
- * Clean order is REVERSE of seed order to respect foreign key constraints
+ * Purge all seeded data by ID, in reverse FK dependency order
  *
- * Seed order:
- * 1. users
- * 2. organizations
- * 3. roles
- * 4. projects
- * 5. subscriptions
- * 6. invitations
- * 7. providers
- * 8. secrets
- * 9. apiKeys
- * 10. endpoints
- * 11. functions
- * 12. threads
- * 13. messages
- * 14. assets
- * 15. quotas
+ * Junction tables (agent_skills, agent_projects, agent_providers,
+ * agent_functions, sandbox_projects, sandbox_providers) are handled
+ * via CASCADE from their parent service deletes
  *
- * Clean order (reverse):
+ * Does NOT touch:
+ * - neon_auth.user (managed by Neon Auth — delete will fail if Neon ACLs block it)
+ * - caddy_certmagic_objects (managed by Caddy)
  */
 
 type SeedData = {
@@ -38,22 +27,21 @@ ife(async () => {
   console.log(``)
 
   const cleanOrder: SeedData[] = [
+    // Leaf tables first
     { name: `quotas`, ids: Object.values(Ids.quota), service: db.services.quota },
+    { name: `assets`, ids: Object.values(Ids.asset), service: db.services.asset },
+    { name: `messages`, ids: Object.values(Ids.message), service: db.services.message },
+    { name: `threads`, ids: Object.values(Ids.thread), service: db.services.thread },
     {
-      name: `assets`,
-      ids: Object.values(Ids.asset),
-      service: db.services.asset,
+      name: `schedules`,
+      ids: Object.values(Ids.schedule),
+      service: db.services.schedule,
     },
-    {
-      name: `messages`,
-      ids: Object.values(Ids.message),
-      service: db.services.message,
-    },
-    {
-      name: `threads`,
-      ids: Object.values(Ids.thread),
-      service: db.services.thread,
-    },
+    { name: `domains`, ids: Object.values(Ids.domain), service: db.services.domain },
+
+    // Mid-level tables (delete referencing rows before referenced rows)
+    { name: `skills`, ids: Object.values(Ids.skill), service: db.services.skill },
+    { name: `agents`, ids: Object.values(Ids.agent), service: db.services.agent },
     {
       name: `functions`,
       ids: Object.values(Ids.function),
@@ -64,16 +52,8 @@ ife(async () => {
       ids: Object.values(Ids.endpoint),
       service: db.services.endpoint,
     },
-    {
-      name: `apiKeys`,
-      ids: Object.values(Ids.apikey),
-      service: db.services.apiKey,
-    },
-    {
-      name: `secrets`,
-      ids: Object.values(Ids.secret),
-      service: db.services.secret,
-    },
+    { name: `apiKeys`, ids: Object.values(Ids.apikey), service: db.services.apiKey },
+    { name: `secrets`, ids: Object.values(Ids.secret), service: db.services.secret },
     {
       name: `providers`,
       ids: Object.values(Ids.provider),
@@ -89,11 +69,10 @@ ife(async () => {
       ids: Object.values(Ids.subscription),
       service: db.services.subscription,
     },
-    {
-      name: `projects`,
-      ids: Object.values(Ids.project),
-      service: db.services.project,
-    },
+    { name: `sandboxes`, ids: Object.values(Ids.sandbox), service: db.services.sandbox },
+
+    // Parent tables last
+    { name: `projects`, ids: Object.values(Ids.project), service: db.services.project },
     { name: `roles`, ids: Object.values(Ids.role), service: db.services.role },
     { name: `organizations`, ids: Object.values(Ids.org), service: db.services.org },
     { name: `users`, ids: Object.values(Ids.user), service: db.services.user },

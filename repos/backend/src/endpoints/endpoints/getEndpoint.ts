@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { requireResource } from '@TBE/utils/auth/requireResource'
 
 /**
  * GET /endpoints/:id - Get endpoint by ID
@@ -12,19 +13,12 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const getEndpoint: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.endpoint)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const data = await requireResourceWithPermission(
-      req,
-      db.services.endpoint,
-      id,
-      EPermAction.read,
-      EPermResource.endpoint,
-      `Endpoint`,
-      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
-    )
+    const data = await requireResource(db.services.endpoint, id, `Endpoint`)
 
     res.status(200).json({ data })
   },

@@ -4,8 +4,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
 import { FileMaxSize } from '@TBE/constants/values'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { isAllowedMimeType } from '@TBE/utils/validation/isAllowedMimeType'
 import { extractText, isImageMimeType } from '@TBE/services/files/fileExtractor'
 
@@ -18,6 +18,7 @@ import { extractText, isImageMimeType } from '@TBE/services/files/fileExtractor'
 export const uploadFile: TEndpointConfig = {
   path: `/:threadId/files`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.asset)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
@@ -31,10 +32,6 @@ export const uploadFile: TEndpointConfig = {
     const { data: thread, error: tErr } = await db.services.thread.get(threadId)
     if (tErr || !thread) throw new Exception(404, `Thread not found`)
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.asset, {
-      orgId: thread.orgId,
-    })
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
 

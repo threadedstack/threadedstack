@@ -1,0 +1,119 @@
+{
+	# Global options
+	admin {$TDSK_CADDY_ADMIN_HOST}:{$TDSK_CADDY_ADMIN_PORT}
+
+	email {$TDSK_CADDY_ACME_EMAIL}
+
+	# Trusted proxies + PROXY v2 listener wrappers for production (behind Civo LB)
+	servers {
+		listener_wrappers {
+			proxy_protocol {
+				timeout 5s
+				allow 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+				fallback_policy ignore
+			}
+			tls
+		}
+		trusted_proxies static 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+		client_ip_headers X-Forwarded-For
+	}
+
+	# Configure PostgreSQL storage for certificates
+	# NOTE: Caddy must be able to reach this DB, or it will fail to start.
+	storage postgresql {
+		dsn {$TDSK_DB_AUTH_URL}
+		#max_open_conns 25
+		#max_idle_conns 5
+		#conn_max_lifetime 300s
+	}
+
+	# On-Demand TLS configuration (Used only by Prod block below)
+	on_demand_tls {
+		ask http://{$TDSK_PX_DEPLOYMENT}:{$TDSK_PX_PORT}/domains/validate
+	}
+}
+
+# ---------------------------------------------------------
+# SNIPPET: Shared Application Logic (CORS, Headers, Proxy)
+# ---------------------------------------------------------
+(app_logic) {
+	# 1. Replicate NGINX headers
+	header {
+		X-TDSK-Host {header.X-TDSK-Host}
+		X-TDSK-Port {header.X-TDSK-Port}
+		X-TDSK-Route {header.X-TDSK-Route}
+		X-TDSK-Proto {header.X-TDSK-Proto}
+		X-TDSK-Subdomain {header.X-TDSK-Subdomain}
+	}
+
+	header {
+		# Warning: specific to dev/trusted setups.
+		# Validates that we are reflecting the request origin.
+		Access-Control-Allow-Origin "{header.Origin}"
+		Access-Control-Allow-Methods "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+		Access-Control-Allow-Headers "{$TDSK_ALLOWED_HEADERS}"
+		Vary Origin
+	}
+
+	#	# DYNAMIC CORS LOGIC
+	#	# 1. Check if the request Origin is in our allowed list (Env var)
+	#	@origin_allowed header Origin {$TDSK_SERVER_ORIGINS}
+	#
+	#	# 2. If it matches, set the header to THAT specific origin
+	#	header @origin_allowed Access-Control-Allow-Origin {header.Origin}
+	#
+	#	# 3. If it doesn't match, you can optionally set it to null or a default
+	#	# (Caddy simply won't send the header if we don't set it here)
+	#	header {
+	#		Access-Control-Allow-Methods "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+	#		Access-Control-Allow-Headers "{$TDSK_ALLOWED_HEADERS}"
+	#
+	#		# Vary is important so caches don't serve the wrong origin to the wrong user
+	#		Vary Origin
+	#	}
+
+	# 3. Reverse Proxy
+	# Added 'lb_policy cookie' to match your old NGINX 'affinity: cookie'
+	reverse_proxy {$TDSK_PX_DEPLOYMENT}:{$TDSK_PX_PORT} {
+		header_up Authorization {header.Authorization}
+		lb_policy cookie
+
+		# Flush immediately for SSE/streaming (no buffering)
+		flush_interval -1
+
+    header_down -Access-Control-Allow-Origin
+    header_down -Access-Control-Allow-Methods
+    header_down -Access-Control-Allow-Headers
+	}
+
+	# 4. Handle OPTIONS for CORS
+	@options {
+		method OPTIONS
+	}
+	respond @options 204
+}
+
+# ---------------------------------------------------------
+# BLOCK: Sandbox Subdomains (Production)
+# Matches *.sandbox.threadedstack.app for sandbox pod access
+# ---------------------------------------------------------
+*.sandbox.{$TDSK_HOST_DOMAIN:threadedstack.app} {
+	tls {
+		on_demand
+	}
+
+	import app_logic
+}
+
+# ---------------------------------------------------------
+# BLOCK: Production (Catch-All)
+# Matches everything else (e.g. *.threadedstack.app)
+# ---------------------------------------------------------
+:443 {
+	# Use On-Demand TLS with Postgres storage
+	tls {
+		on_demand
+	}
+
+	import app_logic
+}

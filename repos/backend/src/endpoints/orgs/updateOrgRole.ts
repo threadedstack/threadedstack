@@ -2,12 +2,13 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
+  ERoleType,
   Exception,
   EPermAction,
   EPermResource,
-  ERoleType,
   canManageRole,
 } from '@tdsk/domain'
 
@@ -20,6 +21,7 @@ import {
 export const updateOrgRole: TEndpointConfig = {
   path: `/:orgId/roles/:roleId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.role)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, roleId } = req.params
@@ -33,9 +35,6 @@ export const updateOrgRole: TEndpointConfig = {
         400,
         `Invalid role type. Must be one of: ${validRoles.join(', ')}`
       )
-
-    // Check permission - requires admin+ in the org
-    await checkPermission(req, EPermAction.update, EPermResource.role, { orgId })
 
     // Validate role hierarchy — can only assign roles below your own
     const currentUserRole = await getUserRole(req, { orgId })

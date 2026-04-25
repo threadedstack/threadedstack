@@ -1,16 +1,11 @@
 import { useNavigate } from 'react-router'
 import { Close } from '@mui/icons-material'
 import { useCallback, useMemo } from 'react'
-import { closeSession } from '@TTH/actions/sessions'
 import { Box, Tabs, Tab, Badge } from '@mui/material'
-import { setActiveSession } from '@TTH/state/accessors'
-import {
-  useToolState,
-  useSandboxes,
-  useOpenSessions,
-  useActiveSession,
-  useSessionsForSandbox,
-} from '@TTH/state/selectors'
+import { useSessionMode } from '@TTH/hooks/session/useSessionMode'
+import { activateSession, closeSession } from '@TTH/actions/sessions'
+import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
+import { useSandboxes, useOpenSessions, useActiveSession } from '@TTH/state/selectors'
 
 type TSessionTab = {
   sessionId: string
@@ -28,18 +23,18 @@ type TTabLabel = {
 }
 
 const StatusDot = (props: TStatusDot) => {
-  const toolState = useToolState(props.sessionId)
+  const mode = useSessionMode(props.sessionId)
 
   const color = useMemo(() => {
-    switch (toolState) {
-      case `working`:
+    switch (mode) {
+      case `streaming`:
         return `success.main`
-      case `permission`:
+      case `interactive`:
         return `warning.main`
       default:
         return `text.disabled`
     }
-  }, [toolState])
+  }, [mode])
 
   return (
     <Box
@@ -57,8 +52,8 @@ const StatusDot = (props: TStatusDot) => {
 
 const TabLabel = (props: TTabLabel) => {
   const { sessionId, name, onClose } = props
-  const toolState = useToolState(sessionId)
-  const showBadge = toolState === `permission`
+  const mode = useSessionMode(sessionId)
+  const showBadge = mode === `interactive`
 
   const handleClose = useCallback(
     (evt: React.MouseEvent) => {
@@ -120,8 +115,8 @@ type THTabLabelSession = {
 }
 
 const useTabLabel = (session: THTabLabelSession) => {
-  const sandboxes = useSandboxes()
-  const sbSessions = useSessionsForSandbox(session.sandboxId)
+  const [sandboxes] = useSandboxes()
+  const sbSessions = useSandboxSessions(session.sandboxId)
 
   return useMemo(() => {
     const sandbox = sandboxes.find((s) => s.id === session.sandboxId)
@@ -131,7 +126,7 @@ const useTabLabel = (session: THTabLabelSession) => {
       return `${baseName} (${idx + 1})`
     }
     return baseName
-  }, [sandboxes, session.sandboxId, session.sessionId, session.runtime, sbSessions])
+  }, [sandboxes, sbSessions, session.runtime, session.sandboxId, session.sessionId])
 }
 
 const SessionTabLabel = (props: Omit<TSessionTab, 'onSelect'>) => {
@@ -151,8 +146,8 @@ export type TSessionTabs = {}
 
 export const SessionTabs = (props: TSessionTabs) => {
   const navigate = useNavigate()
-  const openSessions = useOpenSessions()
-  const activeSession = useActiveSession()
+  const [openSessions] = useOpenSessions()
+  const [activeSession] = useActiveSession()
 
   const sessions = useMemo(() => Array.from(openSessions.entries()), [openSessions])
 
@@ -163,7 +158,7 @@ export const SessionTabs = (props: TSessionTabs) => {
 
   const onSelect = useCallback(
     (sessionId: string) => {
-      setActiveSession(sessionId)
+      activateSession(sessionId)
       const session = openSessions.get(sessionId)
       navigate(`/session/${sessionId}`, {
         state: session

@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -14,6 +14,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const deleteSecret: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.secret)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
@@ -21,12 +22,6 @@ export const deleteSecret: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.secret.get(id)
     if (getError) throw new Exception(500, getError.message)
     if (!existing) throw new Exception(404, `Secret not found`)
-
-    // Check permission based on secret's scope - requires admin+
-    await checkPermission(req, EPermAction.delete, EPermResource.secret, {
-      orgId: existing.orgId,
-      projectId: existing.projectId,
-    })
 
     // Check if any providers reference this secret as their API key
     const { data: linkedProviders } = await db.services.provider.list({

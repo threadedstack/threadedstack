@@ -2,9 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /orgs/:orgId/projects/:projectId/members - List all members of a project
@@ -13,12 +13,10 @@ import { parsePagination } from '@TBE/utils/pagination'
 export const listProjectMembers: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.role)],
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { orgId, projectId } = req.params
+    const { projectId } = req.params
     const { db } = req.app.locals
-
-    // Check org membership first (any org member can see project members)
-    await requireOrgMember(req, orgId)
 
     const { limit, offset } = parsePagination(req)
 

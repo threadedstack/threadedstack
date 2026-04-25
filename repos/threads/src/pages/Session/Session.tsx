@@ -1,29 +1,26 @@
+import type { TViewMode } from '@TTH/types'
+
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { styled } from '@mui/material/styles'
-import { openSession } from '@TTH/actions/sessions'
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { ChatView } from '@TTH/components/ChatView/ChatView'
-import { ArrowBack, Chat, Terminal } from '@mui/icons-material'
-import { useParams, useNavigate, useLocation } from 'react-router'
+import { ArrowBack } from '@mui/icons-material'
+import { useParams, useNavigate } from 'react-router'
+import { usePermissions } from '@TTH/hooks/permissions'
+import { ViewToggle } from '@TTH/components/ViewToggle'
+import { useState, useCallback, useEffect } from 'react'
+import { useOrgId, useSandboxes } from '@TTH/state/selectors'
+import { isFeatureEnabled, EPermResource } from '@tdsk/domain'
+import { SessionGUIView } from '@TTH/components/SessionGUIView'
+import { SessionProvider } from '@TTH/contexts/SessionProvider'
+import { useSessionContext } from '@TTH/contexts/SessionContext'
 import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
-import { TerminalView } from '@TTH/components/TerminalView/TerminalView'
+import { TerminalView } from '@TTH/components/Terminal/TerminalView'
+import { useSessionEngine } from '@TTH/hooks/session/useSessionEngine'
 import { SessionCommands } from '@TTH/components/Session/SessionCommands'
-import { findSandboxForSession } from '@TTH/utils/sessionStorage'
-import { useOpenSessions, useSandboxes, useOrgId, useUser } from '@TTH/state/selectors'
-import {
-  Box,
-  Chip,
-  Card,
-  Button,
-  IconButton,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-} from '@mui/material'
-
-type TViewMode = 'chat' | 'terminal'
+import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSettings'
+import { Box, Chip, Card, Button, IconButton, Typography } from '@mui/material'
+import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
 
 const SessionContainer = styled(Box)`
   display: flex;
@@ -82,99 +79,52 @@ const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) 
   </Box>
 )
 
-const Session = () => {
-  const { sessionId } = useParams<{ sessionId: string }>()
-  const orgId = useOrgId()
-  const [user] = useUser()
+const SessionInner = () => {
+  const [orgId] = useOrgId()
   const navigate = useNavigate()
-  const location = useLocation()
-  const sandboxes = useSandboxes()
-  const openSessions = useOpenSessions()
-  const [connecting, setConnecting] = useState(false)
-  const [viewMode, setViewMode] = useState<TViewMode>(`chat`)
-  const [pendingOp, setPendingOp] = useState<`restart` | `recreate` | null>(null)
+  const [sandboxes] = useSandboxes()
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const { session, isOwner, sandboxId, projectId, pendingOp, connecting, setPendingOp } =
+    useSessionContext()
 
-  const session = sessionId ? openSessions.get(sessionId) : undefined
   const hasSession = !!session
+  const activeSessionId = hasSession ? sessionId : null
+  const engine = useSessionEngine(activeSessionId ?? null)
 
-  // Resolve sandboxId: active session > route state > sessionStorage reverse lookup
-  const sandboxId = useMemo(() => {
-    if (session?.sandboxId) return session.sandboxId
-    const fromState = (location.state as { sandboxId?: string })?.sandboxId
-    if (fromState) return fromState
-    if (sessionId) return findSandboxForSession(sessionId)
-    return undefined
-  }, [session?.sandboxId, location.state, sessionId])
-
-  const isOwner = useMemo(
-    () => !!session && !!user && session.podOwnerUserId === user.id,
-    [session, user]
+  const [viewMode, setViewMode] = useState<TViewMode>(
+    isFeatureEnabled(`terminalGui`) ? `gui` : `terminal`
   )
+  const { canExec } = usePermissions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
 
-  const sandbox = useMemo(
-    () => (sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined),
-    [sandboxId, sandboxes]
-  )
+  const sandbox = sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined
 
-  const projectId = useMemo(() => {
-    if (session?.projectId) return session.projectId
-    const fromState = (location.state as { projectId?: string })?.projectId
-    if (fromState) return fromState
-    return sandbox?.projects?.[0]?.id ?? ``
-  }, [session?.projectId, location.state, sandbox?.projects])
-
-  // Auto-reconnect when we have sandboxId but no active WebSocket session
-  const reconnectAttempted = useRef(false)
-  const hadSession = useRef(false)
+  // Subscribe engine to terminal data
   useEffect(() => {
-    if (hasSession) hadSession.current = true
-  }, [hasSession])
-  useEffect(() => {
-    if (hasSession || connecting || pendingOp || reconnectAttempted.current) return
-    // Don't auto-reconnect if session was deliberately closed/stopped
-    if (hadSession.current) return
-    if (!sessionId || !sandboxId || !orgId || !projectId) return
-
-    reconnectAttempted.current = true
-    setConnecting(true)
-    openSession({ sandboxId, orgId, projectId, sessionId })
-      .then((newSessionId) => {
-        if (newSessionId !== sessionId) {
-          navigate(`/session/${newSessionId}`, {
-            replace: true,
-            state: { sandboxId, projectId },
-          })
-        }
-      })
-      .catch((err) => {
-        console.error(`[Session] auto-reconnect failed:`, err)
-        toast.error(`Failed to reconnect`, {
-          description:
-            err instanceof Error ? err.message : `An unexpected error occurred`,
-        })
-      })
-      .finally(() => setConnecting(false))
-  }, [hasSession, connecting, pendingOp, sessionId, sandboxId, orgId, projectId])
+    if (!activeSessionId || !engine) return
+    const buffer = getRawBuffer(activeSessionId)
+    for (const chunk of buffer) {
+      engine.write(chunk)
+    }
+    const unsub = subscribeEngineData(activeSessionId, (data) => engine.write(data))
+    return unsub
+  }, [activeSessionId, engine])
 
   const handleBack = useCallback(() => {
     if (sandboxId) navigate(`/sandbox/${sandboxId}`)
     else navigate(`/`)
   }, [navigate, sandboxId])
 
-  const handleViewChange = useCallback(
-    (_evt: React.MouseEvent<HTMLElement>, value: TViewMode | null) => {
-      if (value) setViewMode(value)
-    },
-    []
-  )
+  const handleViewChange = useCallback((value: TViewMode) => {
+    setViewMode(value)
+  }, [])
 
   const handleConnect = useCallback(async () => {
     if (!sandboxId || !orgId || !projectId) return
-    setConnecting(true)
     try {
       const newSessionId = await openSession({
-        sandboxId,
         orgId,
+        sandboxId,
         projectId,
         sessionId: null,
       })
@@ -187,8 +137,6 @@ const Session = () => {
       toast.error(`Failed to connect`, {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,
       })
-    } finally {
-      setConnecting(false)
     }
   }, [sandboxId, orgId, projectId, navigate])
 
@@ -225,43 +173,35 @@ const Session = () => {
           {hasSession && sandboxId && (
             <>
               <SessionCommands
+                isOwner={isOwner}
                 sandboxId={sandboxId}
                 sessionId={sessionId}
                 projectId={projectId}
-                isOwner={isOwner}
                 onPendingOp={setPendingOp}
               />
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={handleViewChange}
-                size='small'
-              >
-                <ToggleButton value='chat'>
-                  <Chat sx={{ fontSize: 18, mr: 0.5 }} />
-                  Chat
-                </ToggleButton>
-                <ToggleButton value='terminal'>
-                  <Terminal sx={{ fontSize: 18, mr: 0.5 }} />
-                  Terminal
-                </ToggleButton>
-              </ToggleButtonGroup>
+              {isFeatureEnabled('terminalGui') && (
+                <ViewToggle
+                  value={viewMode}
+                  onChange={handleViewChange}
+                />
+              )}
             </>
           )}
+          {hasSession && <TerminalQuickSettings />}
         </SessionHeader>
         <ContentArea>
           {!hasSession ? (
             <Box
               sx={{
-                flex: 1,
-                display: `flex`,
-                flexDirection: `column`,
-                alignItems: `center`,
-                justifyContent: `center`,
-                gap: 3,
-                overflow: `auto`,
                 py: 4,
                 px: 2,
+                gap: 3,
+                flex: 1,
+                display: `flex`,
+                overflow: `auto`,
+                alignItems: `center`,
+                flexDirection: `column`,
+                justifyContent: `center`,
               }}
             >
               {connecting || pendingOp ? (
@@ -280,28 +220,28 @@ const Session = () => {
                   {/* Sandbox header */}
                   <Box
                     sx={{
-                      display: `flex`,
-                      alignItems: `center`,
-                      gap: 1.5,
                       mb: 3,
-                      justifyContent: `center`,
+                      gap: 1.5,
+                      display: `flex`,
                       flexWrap: `wrap`,
+                      alignItems: `center`,
+                      justifyContent: `center`,
                     }}
                   >
                     <Typography variant='h5'>{sandbox?.name || sessionId}</Typography>
                     {sandbox?.config?.runtime && (
                       <Chip
-                        label={sandbox.config.runtime}
                         size='small'
                         color='primary'
                         variant='outlined'
+                        label={sandbox.config.runtime}
                       />
                     )}
                     {sandbox?.builtIn && (
                       <Chip
-                        label='Built-in'
                         size='small'
                         variant='filled'
+                        label='Built-in'
                         sx={{ bgcolor: `action.selected` }}
                       />
                     )}
@@ -326,8 +266,8 @@ const Session = () => {
                             value={
                               <ConfigValue
                                 noWrap
-                                title={sandbox.config.image}
                                 sx={{ maxWidth: 350 }}
+                                title={sandbox.config.image}
                               >
                                 {sandbox.config.image}
                               </ConfigValue>
@@ -406,21 +346,23 @@ const Session = () => {
                   )}
 
                   {/* Start Session button */}
-                  <Box sx={{ display: `flex`, justifyContent: `center` }}>
-                    <Button
-                      variant='contained'
-                      size='large'
-                      onClick={handleConnect}
-                      disabled={!orgId || !projectId || !sandboxId}
-                    >
-                      Start Session
-                    </Button>
-                  </Box>
+                  {canExecSandbox && (
+                    <Box sx={{ display: `flex`, justifyContent: `center` }}>
+                      <Button
+                        variant='contained'
+                        size='large'
+                        onClick={handleConnect}
+                        disabled={!orgId || !projectId || !sandboxId}
+                      >
+                        Start Session
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
-          ) : viewMode === `chat` ? (
-            <ChatView sessionId={sessionId} />
+          ) : viewMode === `gui` && isFeatureEnabled('terminalGui') ? (
+            <SessionGUIView sessionId={sessionId} />
           ) : (
             <TerminalView
               sessionId={sessionId}
@@ -428,11 +370,18 @@ const Session = () => {
             />
           )}
         </ContentArea>
-        {hasSession && viewMode === `chat` && <SmartInput sessionId={sessionId} />}
+        {hasSession && viewMode === `gui` && isFeatureEnabled('terminalGui') && (
+          <SmartInput sessionId={sessionId} />
+        )}
       </SessionContainer>
     </Page>
   )
 }
 
-export const Component = Session
+const Session = () => (
+  <SessionProvider>
+    <SessionInner />
+  </SessionProvider>
+)
+
 export default Session

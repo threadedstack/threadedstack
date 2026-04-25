@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -14,6 +14,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const createProject: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { name, ...projectData } = req.body
@@ -23,9 +24,6 @@ export const createProject: TEndpointConfig = {
 
     // Validate required fields
     if (!name) throw new Exception(400, `Project name is required`)
-
-    // Check permission - user must be member of org to create project
-    await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
 
     // Create the project
     const { data, error } = await db.services.project.create({

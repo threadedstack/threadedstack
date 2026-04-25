@@ -1,24 +1,30 @@
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
+import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
+import { ActionCards } from '@TAF/components/ActionCards/ActionCards'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import {
-  ConfirmDelete,
   Drawer,
-  ProjectIcon,
   TextInput,
+  ProjectIcon,
+  ConfirmDelete,
   RobotOutlineIcon,
 } from '@tdsk/components'
 import {
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
+  useProjectSandboxes,
 } from '@TAF/state/selectors'
 import {
+  Dns as SandboxIcon,
   Api as ApiIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  VpnKey as SecretIcon,
   Functions as FunctionsIcon,
 } from '@mui/icons-material'
 import {
@@ -26,12 +32,18 @@ import {
   Card,
   Chip,
   Grid,
+  List,
   Alert,
   Button,
   Divider,
+  ListItem,
   Typography,
   CardContent,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material'
+
+import type { Sandbox } from '@tdsk/domain'
 
 export type TProject = {}
 
@@ -40,6 +52,12 @@ export const Project = (props: TProject) => {
   const [orgId] = useActiveOrgId()
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
+
+  const [projectSandboxes] = useProjectSandboxes()
+  const sandboxList = useMemo<Sandbox[]>(
+    () => (projectSandboxes ? Object.values(projectSandboxes) : []),
+    [projectSandboxes]
+  )
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -149,7 +167,26 @@ export const Project = (props: TProject) => {
       >
         <Grid
           item
-          xs={4}
+          xs={6}
+          sm={3}
+        >
+          <Card>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <SandboxIcon sx={{ fontSize: 32, color: 'success.main', mb: 1 }} />
+              <Typography variant='h4'>{sandboxList.length}</Typography>
+              <Typography
+                variant='body2'
+                color='text.secondary'
+              >
+                Sandboxes
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid
+          item
+          xs={6}
+          sm={3}
         >
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
@@ -166,7 +203,8 @@ export const Project = (props: TProject) => {
         </Grid>
         <Grid
           item
-          xs={4}
+          xs={6}
+          sm={3}
         >
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
@@ -183,7 +221,8 @@ export const Project = (props: TProject) => {
         </Grid>
         <Grid
           item
-          xs={4}
+          xs={6}
+          sm={3}
         >
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
@@ -199,6 +238,145 @@ export const Project = (props: TProject) => {
           </Card>
         </Grid>
       </Grid>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <ActionCards
+            title='Quick Actions'
+            actions={[
+              {
+                title: 'Sandboxes',
+                Icon: SandboxIcon,
+                subtitle: 'Manage sandbox environments',
+                onClick: () =>
+                  navigate(
+                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes)
+                  ),
+              },
+              {
+                title: 'Endpoints',
+                Icon: ApiIcon,
+                subtitle: 'View and manage endpoints',
+                onClick: () =>
+                  navigate(
+                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectEndpoints)
+                  ),
+              },
+              {
+                title: 'Agents',
+                Icon: RobotOutlineIcon,
+                subtitle: 'Configure AI agents',
+                onClick: () =>
+                  navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectAgents)),
+              },
+              {
+                title: 'Secrets',
+                Icon: SecretIcon,
+                subtitle: 'Manage API keys and secrets',
+                onClick: () =>
+                  navigate(
+                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSecrets)
+                  ),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
+            <Typography variant='h6'>
+              Sandboxes
+              {sandboxList.length > 0 && ` (${sandboxList.length})`}
+            </Typography>
+            <Button
+              variant='outlined'
+              size='small'
+              startIcon={<SandboxIcon />}
+              onClick={() =>
+                navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes))
+              }
+            >
+              View All
+            </Button>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+
+          {sandboxList.length === 0 ? (
+            <Typography
+              color='text.secondary'
+              align='center'
+            >
+              No sandbox configs in this project yet.
+            </Typography>
+          ) : (
+            <>
+              <List disablePadding>
+                {sandboxList.slice(0, 5).map((sb) => (
+                  <ListItem
+                    key={sb.id}
+                    sx={{
+                      px: 0,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' },
+                      borderRadius: 1,
+                    }}
+                    onClick={() =>
+                      navigate(
+                        buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes)
+                      )
+                    }
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      <SandboxIcon
+                        fontSize='small'
+                        sx={{ color: 'text.secondary' }}
+                      />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={sb.name}
+                      secondary={
+                        [sb.config?.runtime, sb.config?.image]
+                          .filter(Boolean)
+                          .join(' \u2014 ') || undefined
+                      }
+                    />
+                    {sb.builtIn && (
+                      <Chip
+                        label='built-in'
+                        size='small'
+                        color='info'
+                        variant='outlined'
+                      />
+                    )}
+                  </ListItem>
+                ))}
+              </List>
+              {sandboxList.length > 5 && (
+                <Button
+                  size='small'
+                  onClick={() =>
+                    navigate(
+                      buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes)
+                    )
+                  }
+                  sx={{ mt: 1 }}
+                >
+                  View all {sandboxList.length} sandboxes
+                </Button>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card sx={{ mb: 3 }}>
         <CardContent>

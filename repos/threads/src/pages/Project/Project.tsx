@@ -1,17 +1,13 @@
 import type { Project as TProject, Sandbox } from '@tdsk/domain'
 
-import { useMemo, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import { styled } from '@mui/material/styles'
-import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material'
 import { dims } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
-import {
-  useProjects,
-  useSandboxes,
-  useSandboxHasSession,
-  useOrgId,
-} from '@TTH/state/selectors'
+import { useMemo, useCallback } from 'react'
+import { styled } from '@mui/material/styles'
+import { useParams, useNavigate } from 'react-router'
+import { useProjects, useSandboxes } from '@TTH/state/selectors'
+import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material'
+import { useSandboxHasSession } from '@TTH/hooks/sandbox/useSandboxHasSession'
 import { FolderOpen, LinkOff as GitIcon, GitHub as GitHubIcon } from '@mui/icons-material'
 
 const PageRoot = styled(Box)`
@@ -210,8 +206,8 @@ const GitInfo = (props: { gitUrl: string; branch: string }) => {
 
 const Project = () => {
   const { projectId } = useParams<{ projectId: string }>()
-  const projects = useProjects()
-  const sandboxes = useSandboxes()
+  const [projects] = useProjects()
+  const [sandboxes] = useSandboxes()
 
   const project = useMemo<TProject | undefined>(
     () => projects.find((p) => p.id === projectId),
@@ -281,5 +277,4 @@ const Project = () => {
   )
 }
 
-export const Component = Project
 export default Project

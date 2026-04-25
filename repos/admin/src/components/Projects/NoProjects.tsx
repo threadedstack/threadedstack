@@ -3,6 +3,7 @@ import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 
 export type TNoProjects = {
   onCreate?: () => void
+  createDisabled?: boolean
 }
 
 /**
@@ -10,14 +11,15 @@ export type TNoProjects = {
  * Uses the shared EmptyState component
  */
 export const NoProjects = (props: TNoProjects) => {
-  const { onCreate } = props
+  const { onCreate, createDisabled } = props
 
   return (
     <EmptyState
-      message='No projects yet. Create your first project to get started.'
-      actionLabel='Create Project'
       onAction={onCreate}
       actionIcon={<AddIcon />}
+      actionLabel='Create Project'
+      actionDisabled={createDisabled}
+      message='No projects yet. Create your first project to get started.'
     />
   )
 }

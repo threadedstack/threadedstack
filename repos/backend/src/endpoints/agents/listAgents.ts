@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
@@ -24,6 +25,7 @@ import {
 export const listAgents: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
@@ -33,11 +35,6 @@ export const listAgents: TEndpointConfig = {
     const sanitize = req.query.sanitize !== `false`
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)
-
-    // Check permission to read agents in this org
-    await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      orgId,
-    })
 
     // Get user role once for both sanitize check and access filtering
     const userRole = await getUserRole(req, { orgId })

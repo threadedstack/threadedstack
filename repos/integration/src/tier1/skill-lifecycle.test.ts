@@ -4,6 +4,7 @@ import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Skill Lifecycle
@@ -14,7 +15,7 @@ import { env } from '../utils/env'
  * The backend defaults it to `false` when omitted, and the response
  * should always include it as a boolean value.
  */
-describe('Tier 1: Skill Lifecycle', () => {
+describe.skipIf(!isFeatureEnabled('skills'))('Tier 1: Skill Lifecycle', () => {
   const ctx = readContext()
   let agentId = ''
   let skillId = ''

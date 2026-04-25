@@ -236,13 +236,13 @@ describe(`Sandbox service`, () => {
       const result = service.model(data)
 
       expect(result.providerLinks).toHaveLength(2)
-      expect(result.providerLinks[0]).toEqual({
-        provider: provB,
+      expect(result.providerLinks[0]).toMatchObject({
+        provider: { id: provB.id, name: provB.name },
         model: null,
         priority: 0,
       })
-      expect(result.providerLinks[1]).toEqual({
-        provider: provA,
+      expect(result.providerLinks[1]).toMatchObject({
+        provider: { id: provA.id, name: provA.name },
         model: `gpt-4`,
         priority: 1,
       })

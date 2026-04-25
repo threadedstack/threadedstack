@@ -6,6 +6,7 @@ import { signals } from '@TBE/utils/signals'
 import { initServer } from '@TBE/server/server'
 import { EmailService } from '@TBE/services/email'
 import { setupServer } from '@TBE/middleware/setupServer'
+import { setupRateLimit } from '@TBE/middleware/rateLimit'
 import { setupLogger } from '@TBE/middleware/setupLogger'
 import { setupSandbox } from '@TBE/middleware/setupSandbox'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
@@ -21,6 +22,7 @@ export const main = async (config: TBEConfig) => {
 
   setupLogger(app)
   setupServer(app, router)
+  setupRateLimit(app)
   setupDatabase(app)
 
   await setupSandbox(app)
@@ -29,8 +31,8 @@ export const main = async (config: TBEConfig) => {
   setupEndpoints(app, router)
   setupErrorHandler(app)
 
-  const server = initServer()
-  signals(server)
+  const { server, wss } = initServer()
+  signals(server, { wss })
 
   return {
     app,

@@ -6,6 +6,7 @@ import { Exception } from '@tdsk/domain'
 
 /**
  * POST /subscriptions/portal - Create a customer portal session
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const createPortalSession: TEndpointConfig = {
   path: `/portal`,

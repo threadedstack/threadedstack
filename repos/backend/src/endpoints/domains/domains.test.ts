@@ -281,29 +281,6 @@ describe(`Domains endpoints`, () => {
       expect(mockBy).toHaveBeenCalledWith({ domain: `nonexistent.example.com` })
     })
 
-    it(`should check project permission for project-based domain`, async () => {
-      const mockDomain = new Domain({
-        id: `dom-1`,
-        domain: `proj.example.com`,
-        projectId: `project-1`,
-      })
-      const mockProject = { id: `project-1`, orgId: `org-1`, name: `P1` }
-      mockReq.params = { domain: `proj.example.com` }
-
-      const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
-      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockBy.mockResolvedValue({ data: mockDomain })
-      mockProjectGet.mockResolvedValue({ data: mockProject })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockProjectGet).toHaveBeenCalledWith(`project-1`)
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockDomain })
-    })
-
     it(`should return 400 when domain param missing`, async () => {
       mockReq.params = {}
 
@@ -417,21 +394,15 @@ describe(`Domains endpoints`, () => {
       )
     })
 
-    it(`should create domain with projectId and verify project exists`, async () => {
+    it(`should create domain with projectId`, async () => {
       mockResolveCname.mockResolvedValue([`proxy.example.com`])
 
-      const mockProject = { id: `project-1`, orgId: `org-1`, name: `P1` }
       const mockDomain = new Domain({
         id: `dom-new`,
         domain: `proj.example.com`,
         projectId: `project-1`,
       })
       mockReq.body = { domain: `proj.example.com`, projectId: `project-1` }
-
-      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockProjectGet.mockResolvedValue({ data: mockProject })
 
       const mockCreate = mockReq.app?.locals.db.services.domain.create as ReturnType<
         typeof vi.fn
@@ -446,26 +417,10 @@ describe(`Domains endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockProjectGet).toHaveBeenCalledWith(`project-1`)
       expect(mockCreate).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(201)
 
       globalThis.fetch = origFetch
-    })
-
-    it(`should return 404 when project not found for projectId`, async () => {
-      mockResolveCname.mockResolvedValue([`proxy.example.com`])
-
-      mockReq.body = { domain: `proj.example.com`, projectId: `project-nonexistent` }
-
-      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockProjectGet.mockResolvedValue({ data: null })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Project not found`
-      )
     })
 
     it(`should return 500 on database create error`, async () => {

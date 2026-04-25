@@ -1,76 +1,38 @@
-import { useState, useCallback, useMemo } from 'react'
+import type { TCommand, TSessionCommandsProps } from '@TTH/types'
+
+import { toast } from 'sonner'
 import { useNavigate } from 'react-router'
+import { EPermResource } from '@tdsk/domain'
+import AddIcon from '@mui/icons-material/Add'
+import { useState, useCallback } from 'react'
+import ShareIcon from '@mui/icons-material/Share'
+import LogoutIcon from '@mui/icons-material/Logout'
+import { CommandConfig } from '@TTH/constants/sessions'
+import { usePermissions } from '@TTH/hooks/permissions'
+import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
+import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
+import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
+import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
+import { openSession, closeSession, sendControl } from '@TTH/actions/sessions'
 import {
   Box,
   Button,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
   CircularProgress,
+  DialogContentText,
 } from '@mui/material'
-import StopIcon from '@mui/icons-material/Stop'
-import RestartAltIcon from '@mui/icons-material/RestartAlt'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import AddIcon from '@mui/icons-material/Add'
-import ShareIcon from '@mui/icons-material/Share'
-import LogoutIcon from '@mui/icons-material/Logout'
-import { toast } from 'sonner'
-import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
-import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
-import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
-import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
-import { openSession, closeSession, sendControl } from '@TTH/actions/sessions'
-
-type TCommand = 'stop' | 'restart' | 'recreate'
-
-type TSessionCommandsProps = {
-  sandboxId: string
-  sessionId: string
-  projectId: string
-  isOwner: boolean
-  onPendingOp: (op: 'restart' | 'recreate' | null) => void
-}
-
-const commandConfig: Record<
-  TCommand,
-  {
-    label: string
-    icon: React.ReactNode
-    color: 'error' | 'warning'
-    dialogTitle: string
-    dialogText: string
-  }
-> = {
-  stop: {
-    label: `Stop`,
-    icon: <StopIcon sx={{ fontSize: 18 }} />,
-    color: `error`,
-    dialogTitle: `Stop Sandbox`,
-    dialogText: `Stop this sandbox session? The pod will be shut down.`,
-  },
-  restart: {
-    label: `Restart`,
-    icon: <RestartAltIcon sx={{ fontSize: 18 }} />,
-    color: `warning`,
-    dialogTitle: `Restart Sandbox`,
-    dialogText: `Restart this sandbox? Your session history will be preserved.`,
-  },
-  recreate: {
-    label: `Recreate`,
-    icon: <RefreshIcon sx={{ fontSize: 18 }} />,
-    color: `warning`,
-    dialogTitle: `Recreate Sandbox`,
-    dialogText: `Recreate this sandbox from scratch? All session history will be lost.`,
-  },
-}
 
 export const SessionCommands = (props: TSessionCommandsProps) => {
-  const { sandboxId, sessionId, projectId, isOwner, onPendingOp } = props
+  const { isOwner, sandboxId, sessionId, projectId, onPendingOp } = props
+
+  const [orgId] = useOrgId()
   const navigate = useNavigate()
-  const openSessions = useOpenSessions()
-  const orgId = useOrgId()
+  const { canExec } = usePermissions()
+  const [openSessions] = useOpenSessions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)
 
@@ -139,15 +101,15 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
 
   if (!session || !orgId) return null
 
-  const config = confirmAction ? commandConfig[confirmAction] : null
+  const config = confirmAction ? CommandConfig[confirmAction] : null
 
   return (
     <>
       <Box sx={{ display: `flex`, gap: 0.5 }}>
-        {isOwner ? (
+        {canExecSandbox && (
           <>
-            {(Object.keys(commandConfig) as TCommand[]).map((cmd) => {
-              const cfg = commandConfig[cmd]
+            {(Object.keys(CommandConfig) as TCommand[]).map((cmd) => {
+              const cfg = CommandConfig[cmd]
               return (
                 <Button
                   key={cmd}
@@ -175,19 +137,22 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
             >
               New
             </Button>
-            <Button
-              size='small'
-              variant={isPublic ? `contained` : `outlined`}
-              color={isPublic ? `primary` : (`default` as any)}
-              startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
-              onClick={handleToggleShare}
-              disabled={executing !== null}
-              sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
-            >
-              {isPublic ? `Shared` : `Share`}
-            </Button>
           </>
-        ) : (
+        )}
+        {isOwner && (
+          <Button
+            size='small'
+            variant={isPublic ? `contained` : `outlined`}
+            color={isPublic ? `primary` : (`default` as any)}
+            startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
+            onClick={handleToggleShare}
+            disabled={executing !== null}
+            sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+          >
+            {isPublic ? `Shared` : `Share`}
+          </Button>
+        )}
+        {!isOwner && (
           <Button
             size='small'
             variant='outlined'

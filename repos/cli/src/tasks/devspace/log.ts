@@ -11,7 +11,7 @@ export const log: TTask = {
   name: `log`,
   action: logAct,
   alias: [`logs`, `lg`, `lgs`],
-  example: `pnpm tdsk ds log <options>`,
+  example: `tdsk ds log <options>`,
   description: `Calls the devspace logs command`,
   options: {
     context: sharedOpts.shared.context,

@@ -1,96 +1,51 @@
-import type { atomWithReset } from 'jotai/utils'
-import type { TToolState, TJsonComponentTree } from '@tdsk/domain'
-import type { TOpenSession } from '@TTH/types'
+import type { Atom } from 'jotai'
 
-import { useMemo } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
-import { useResetAtom } from 'jotai/utils'
+import { useAtomValue } from 'jotai'
 import { userState } from '@TTH/state/user'
 import { themeTypeState } from '@TTH/state/theme'
+import { terminalSettingsAtom } from '@TTH/state/terminal'
+import { guiASTState, guiFeedState, guiModeState, guiEngineState } from '@TTH/state/gui'
 import {
-  sidebarOpenState,
   orgIdState,
-  activeProjectIdState,
   activeOrgState,
+  sidebarOpenState,
   activeProjectState,
+  activeOrgRoleState,
+  activeProjectIdState,
 } from '@TTH/state/app'
 import {
-  sessionEventsAtom,
-  sessionToolStateAtom,
-  openSessionsAtom,
-  activeSessionAtom,
-  sandboxesAtom,
   orgsAtom,
   projectsAtom,
-  sessionUpgradesAtom,
+  sandboxesAtom,
+  openSessionsAtom,
+  activeSessionAtom,
+  backendSessionsAtom,
 } from '@TTH/state/sessions'
 
-const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
-  const [current, setCurrent] = useAtom(state)
-  const resetCurrent = useResetAtom(state)
-
-  return [current, setCurrent, resetCurrent] as [
-    T,
-    typeof setCurrent,
-    typeof resetCurrent,
-  ]
+const useReadOnly = <T>(state: Atom<T>) => {
+  const value = useAtomValue(state)
+  return [value] as [T]
 }
 
-export const useUser = () => useRecState(userState)
-export const useThemeType = () => useRecState(themeTypeState)
-export const useSidebarOpen = () => useRecState(sidebarOpenState)
-export const useOrgId = () => useRecState(orgIdState)[0]
+export const useUser = () => useReadOnly(userState)
+export const useOrgId = () => useReadOnly(orgIdState)
+export const useThemeType = () => useReadOnly(themeTypeState)
+export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
+export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
 
-export const useSessionEvents = (sessionId: string) => {
-  const [eventsMap] = useRecState(sessionEventsAtom)
-  return eventsMap.get(sessionId) ?? []
-}
+export const useOrgs = () => useReadOnly(orgsAtom)
+export const useProjects = () => useReadOnly(projectsAtom)
+export const useSandboxes = () => useReadOnly(sandboxesAtom)
+export const useOpenSessions = () => useReadOnly(openSessionsAtom)
+export const useActiveSession = () => useReadOnly(activeSessionAtom)
 
-export const useToolState = (sessionId: string) => {
-  const [stateMap] = useRecState(sessionToolStateAtom)
-  return stateMap.get(sessionId) ?? ('idle' as TToolState)
-}
+export const useActiveOrg = () => useReadOnly(activeOrgState)
+export const useActiveProjectId = () => useReadOnly(activeProjectIdState)
+export const useActiveProject = () => useReadOnly(activeProjectState)
 
-export const useOpenSessions = () => useRecState(openSessionsAtom)[0]
-export const useActiveSession = () => useRecState(activeSessionAtom)[0]
-export const useSandboxes = () => useRecState(sandboxesAtom)[0]
-export const useOrgs = () => useRecState(orgsAtom)[0]
-export const useProjects = () => useRecState(projectsAtom)[0]
-
-export const useActiveOrgId = () => useRecState(orgIdState)
-export const useActiveOrg = () => useAtomValue(activeOrgState)
-export const useActiveProjectId = () => useRecState(activeProjectIdState)
-export const useActiveProject = () => useAtomValue(activeProjectState)
-
-export const useSessionsForSandbox = (sandboxId: string): TOpenSession[] => {
-  const [sessions] = useRecState(openSessionsAtom)
-  return useMemo(() => {
-    const result: TOpenSession[] = []
-    for (const session of sessions.values()) {
-      if (session.sandboxId === sandboxId) result.push(session)
-    }
-    return result
-  }, [sessions, sandboxId])
-}
-
-export const useSandboxHasSession = (sandboxId: string): boolean => {
-  const sessions = useSessionsForSandbox(sandboxId)
-  return sessions.length > 0
-}
-
-export const useSandboxToolState = (sandboxId: string): TToolState => {
-  const sessions = useSessionsForSandbox(sandboxId)
-  const [stateMap] = useRecState(sessionToolStateAtom)
-  for (const session of sessions) {
-    const state = stateMap.get(session.sessionId)
-    if (state && state !== `idle`) return state
-  }
-  return `idle` as TToolState
-}
-
-const EmptyUpgradesMap = new Map<string, TJsonComponentTree>()
-
-export const useSessionUpgrades = (sessionId: string) => {
-  const [all] = useRecState(sessionUpgradesAtom)
-  return all.get(sessionId) ?? EmptyUpgradesMap
-}
+export const useGuiAst = () => useReadOnly(guiASTState)
+export const useGuiFeed = () => useReadOnly(guiFeedState)
+export const useGuiModes = () => useReadOnly(guiModeState)
+export const useGuiEngines = () => useReadOnly(guiEngineState)
+export const useBackendSessions = () => useReadOnly(backendSessionsAtom)
+export const useTerminalSettings = () => useReadOnly(terminalSettingsAtom)

@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { requireResource } from '@TBE/utils/auth/requireResource'
 
 /**
  * GET /api-keys/:id - Get API key by ID (metadata only)
@@ -12,22 +13,12 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const getApiKey: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.apiKey)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const data = await requireResourceWithPermission(
-      req,
-      db.services.apiKey,
-      id,
-      EPermAction.read,
-      EPermResource.apiKey,
-      `API key`,
-      (data) => ({
-        orgId: data.orgId || req.params.orgId,
-        projectId: data.projectId,
-      })
-    )
+    const data = await requireResource(db.services.apiKey, id, `API key`)
 
     res.status(200).json({ data: data.sanitize() })
   },

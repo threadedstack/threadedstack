@@ -1,9 +1,9 @@
 import type { TFunctionParam, TFunParamType } from '@tdsk/domain'
 
+import { Box } from '@mui/material'
 import { EFunParamType } from '@tdsk/domain'
-import { TextInput, SelectInput } from '@tdsk/components'
-import { Box, Checkbox, FormControlLabel } from '@mui/material'
 import { EditorList } from '@TAF/components/EditorList/EditorList'
+import { TextInput, SelectInput, CheckboxInput } from '@tdsk/components'
 
 export type TParamRow = TFunctionParam & { id: string }
 
@@ -85,17 +85,12 @@ export const ParamsEditor = (props: TParamsEditorProps) => {
                   onChange={(e) => updateParam(param.id, `type`, e.target.value)}
                 />
               </Box>
-              <FormControlLabel
+              <CheckboxInput
                 label='Required'
-                slotProps={{ typography: { variant: `caption` } }}
-                control={
-                  <Checkbox
-                    size='small'
-                    disabled={disabled}
-                    checked={param.required || false}
-                    onChange={(e) => updateParam(param.id, `required`, e.target.checked)}
-                  />
-                }
+                disabled={disabled}
+                id={`${param.id}-required`}
+                checked={param.required || false}
+                onChange={(e, checked) => updateParam(param.id, `required`, checked)}
               />
             </Box>
             <Box sx={styles.row2}>

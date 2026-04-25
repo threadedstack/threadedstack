@@ -1,13 +1,15 @@
 import type { Domain } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useProjectDomains, useOrgDomains } from '@TAF/state/selectors'
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { DomainDrawer } from '@TAF/components/Domains/DomainDrawer'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { useProjectDomains, useOrgDomains } from '@TAF/state/selectors'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -23,6 +25,7 @@ export type TDomains = {
 }
 
 export const Domains = ({ orgId, projectId }: TDomains) => {
+  const { canCreate, canUpdate } = usePermissions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -162,6 +165,8 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
           color='primary'
           icon={<EditIcon />}
           tooltip='Edit Domain'
+          disabled={!canUpdate(EPermResource.domain)}
+          disabledTooltip='You do not have permission to edit domains'
           onClick={(e) => {
             e.stopPropagation()
             onEditDomain(domain)
@@ -181,6 +186,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
       setSearchQuery={setSearchQuery}
       onAction={domainsCount > 0 && onCreateDomain}
       actionLabel={domainsCount > 0 && 'Add Domain'}
+      actionDisabled={!canCreate(EPermResource.domain)}
       searchPlaceholder='Search domains by name or ID...'
     >
       {domainsCount === 0 && (
@@ -188,6 +194,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
           actionIcon={<AddIcon />}
           onAction={onCreateDomain}
           actionLabel='Add Your First Domain'
+          actionDisabled={!canCreate(EPermResource.domain)}
           message='No domains yet. Add your first domain to get started.'
         />
       )}

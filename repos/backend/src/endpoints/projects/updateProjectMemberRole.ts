@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   ERoleType,
   Exception,
@@ -20,6 +21,7 @@ import {
 export const updateProjectMemberRole: TEndpointConfig = {
   path: `/:userId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.manage, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId, projectId, userId } = req.params
     const { db } = req.app.locals
@@ -36,12 +38,6 @@ export const updateProjectMemberRole: TEndpointConfig = {
         400,
         `Invalid role type. Must be one of: ${validRoles.join(', ')}`
       )
-
-    // Check permission (requires admin+ to manage project members)
-    await checkPermission(req, EPermAction.manage, EPermResource.project, {
-      orgId,
-      projectId,
-    })
 
     // Get current user's role
     const currentUserRole = await getUserRole(req, { orgId, projectId })

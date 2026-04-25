@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /Projects/:id - Get Project by ID
@@ -12,6 +12,7 @@ import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 export const getProject: TEndpointConfig = {
   path: `/:projectId`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { projectId } = req.params
     const { db } = req.app.locals
@@ -20,9 +21,6 @@ export const getProject: TEndpointConfig = {
 
     if (projectResult.error) throw new Exception(500, projectResult.error.message)
     if (!projectResult.data) throw new Exception(404, `Project not found`)
-
-    // Check if user is member of the project's org
-    await requireOrgMember(req, projectResult.data.orgId)
 
     const countsResult = await db.services.project.getCounts(projectId)
 

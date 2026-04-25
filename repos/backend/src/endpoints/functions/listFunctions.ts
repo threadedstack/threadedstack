@@ -2,10 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /_/functions - List all functions
@@ -14,18 +13,13 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const listFunctions: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.function)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { projectId } = req.params
 
     // projectId is required
     if (!projectId) throw new Exception(400, `projectId parameter required`)
-
-    // Check permission — include orgId so org-level roles are considered
-    await checkPermission(req, EPermAction.read, EPermResource.function, {
-      orgId: req.params.orgId,
-      projectId: projectId as string,
-    })
 
     const { limit, offset } = parsePagination(req)
 

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Org Skills page integration tests.
@@ -43,6 +44,10 @@ function collectConsoleErrors(page: import('@playwright/test').Page) {
 }
 
 test.describe('Org Skills Page', () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(!isFeatureEnabled('skills'), 'skills feature flag is disabled')
+  })
+
   test('renders Skills page with heading and empty/list state', async ({
     authenticatedPage: page,
     ctx,

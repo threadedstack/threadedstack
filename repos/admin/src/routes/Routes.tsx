@@ -2,7 +2,9 @@ import { lazy, Suspense } from 'react'
 import { ERoutePath } from '@TAF/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TAF/pages/Layout/Layout'
+import { ERoleType, isFeatureEnabled } from '@tdsk/domain'
 import { AppError } from '@TAF/components/AppError/AppError'
+import { RequireRole } from '@TAF/components/Permissions/RequireRole'
 import { Navigate, createBrowserRouter, useRouteError } from 'react-router'
 import {
   rootLoader,
@@ -69,7 +71,6 @@ const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings')
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSandboxes = lazy(() => import('@TAF/pages/Projects/ProjectSandboxes'))
-const ProjectWorkspace = lazy(() => import('@TAF/pages/Projects/ProjectWorkspace'))
 const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
 const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThreadDetail'))
 
@@ -88,7 +89,6 @@ const EndpointConfigTab = lazy(
   () => import('@TAF/components/Endpoints/Tabs/EndpointConfigTab')
 )
 
-// Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   <Suspense
     fallback={
@@ -172,27 +172,45 @@ export const createRoutes = () =>
             },
             {
               path: ERoutePath.Settings,
-              Component: () => <SuspensePage Component={OrgSettings} />,
+              Component: () => (
+                <RequireRole
+                  minRole={ERoleType.admin}
+                  Component={OrgSettings}
+                />
+              ),
             },
             {
               path: ERoutePath.Usage,
               loader: orgUsageLoader,
               Component: () => <SuspensePage Component={OrgUsage} />,
             },
-            {
-              path: ERoutePath.Skills,
-              loader: orgSkillsLoader,
-              Component: () => <SuspensePage Component={OrgSkills} />,
-            },
-            {
-              path: ERoutePath.Schedules,
-              loader: orgSchedulesLoader,
-              Component: () => <SuspensePage Component={OrgSchedules} />,
-            },
+            ...(isFeatureEnabled(`skills`)
+              ? [
+                  {
+                    path: ERoutePath.Skills,
+                    loader: orgSkillsLoader,
+                    Component: () => <SuspensePage Component={OrgSkills} />,
+                  },
+                ]
+              : []),
+            ...(isFeatureEnabled(`schedules`)
+              ? [
+                  {
+                    path: ERoutePath.Schedules,
+                    loader: orgSchedulesLoader,
+                    Component: () => <SuspensePage Component={OrgSchedules} />,
+                  },
+                ]
+              : []),
             {
               path: ERoutePath.ApiKeys,
               loader: orgApiKeysLoader,
-              Component: () => <SuspensePage Component={OrgApiKeys} />,
+              Component: () => (
+                <RequireRole
+                  minRole={ERoleType.admin}
+                  Component={OrgApiKeys}
+                />
+              ),
             },
             {
               path: ERoutePath.Agents,
@@ -210,7 +228,7 @@ export const createRoutes = () =>
                 {
                   index: true,
                   loader: projectSandboxesLoader,
-                  Component: () => <SuspensePage Component={ProjectWorkspace} />,
+                  Component: () => <SuspensePage Component={Project} />,
                 },
                 {
                   path: ERoutePath.Endpoints,
@@ -289,24 +307,42 @@ export const createRoutes = () =>
                       loader: threadDetailLoader,
                       Component: () => <SuspensePage Component={ProjectThreadChat} />,
                     },
-                    {
-                      path: `skills`,
-                      Component: () => <SuspensePage Component={SkillsTab} />,
-                    },
-                    {
-                      path: `schedules`,
-                      Component: () => <SuspensePage Component={SchedulesTab} />,
-                    },
+                    ...(isFeatureEnabled(`skills`)
+                      ? [
+                          {
+                            path: `skills`,
+                            Component: () => <SuspensePage Component={SkillsTab} />,
+                          },
+                        ]
+                      : []),
+                    ...(isFeatureEnabled(`schedules`)
+                      ? [
+                          {
+                            path: `schedules`,
+                            Component: () => <SuspensePage Component={SchedulesTab} />,
+                          },
+                        ]
+                      : []),
                   ],
                 },
                 {
                   path: ERoutePath.ApiKeys,
                   loader: projectApiKeysLoader,
-                  Component: () => <SuspensePage Component={ProjectApiKeys} />,
+                  Component: () => (
+                    <RequireRole
+                      minRole={ERoleType.admin}
+                      Component={ProjectApiKeys}
+                    />
+                  ),
                 },
                 {
                   path: ERoutePath.Settings,
-                  Component: () => <SuspensePage Component={ProjectSettings} />,
+                  Component: () => (
+                    <RequireRole
+                      minRole={ERoleType.admin}
+                      Component={ProjectSettings}
+                    />
+                  ),
                 },
                 {
                   path: ERoutePath.Members,

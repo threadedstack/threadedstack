@@ -69,6 +69,10 @@ export async function resolveProviderEnv(
     )
       brandKey = ERuntimeBrand.amazonBedrockBearer
 
+    // Ollama cloud variant: provider with a secretId is cloud-hosted (needs real auth)
+    if (provider.brand === ERuntimeBrand.ollama && provider.secretId)
+      brandKey = ERuntimeBrand.ollamaCloud
+
     const mapping = runtimeMap[brandKey as keyof typeof runtimeMap] as
       | TRuntimeEnvVar[]
       | undefined
