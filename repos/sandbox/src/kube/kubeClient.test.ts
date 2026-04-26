@@ -60,7 +60,9 @@ const makePod = (overrides: Record<string, any> = {}) => ({
     annotations: {
       [PodAnnotationKeys.subdomain]: `sb-test1234-abcd`,
       [PodAnnotationKeys.ports]: JSON.stringify({ '3000': { protocol: `http` } }),
-      [PodAnnotationKeys.placeholders]: JSON.stringify({ tdsk_ph_abc: `secret-1` }),
+      [PodAnnotationKeys.placeholders]: JSON.stringify({
+        tdsk_ph_abc: { secretId: `secret-1` },
+      }),
       ...overrides.annotations,
     },
     ...overrides.metadata,
@@ -103,7 +105,9 @@ describe(`KubeClient`, () => {
         port: 3000,
         protocol: EProto.http,
       })
-      expect(routes[`sb-test1234-abcd`].placeholders).toEqual({ tdsk_ph_abc: `secret-1` })
+      expect(routes[`sb-test1234-abcd`].placeholders).toEqual({
+        tdsk_ph_abc: { secretId: `secret-1` },
+      })
     })
 
     it(`should skip pods without subdomain annotation`, async () => {
@@ -167,7 +171,10 @@ describe(`KubeClient`, () => {
     })
 
     it(`should parse placeholders annotation into route entry`, async () => {
-      const placeholders = { tdsk_ph_key1: `secret-a`, tdsk_ph_key2: `secret-b` }
+      const placeholders = {
+        tdsk_ph_key1: { secretId: `secret-a` },
+        tdsk_ph_key2: { secretId: `secret-b` },
+      }
       const pod = makePod({
         annotations: {
           [PodAnnotationKeys.subdomain]: `sb-placeholders`,
@@ -355,7 +362,7 @@ describe(`KubeClient`, () => {
         port: 3000,
         protocol: EProto.http,
       })
-      expect(entry.placeholders).toEqual({ tdsk_ph_abc: `secret-1` })
+      expect(entry.placeholders).toEqual({ tdsk_ph_abc: { secretId: `secret-1` } })
     })
 
     it(`should set meta.state from pod.status.phase via toContainerState`, () => {

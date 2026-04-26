@@ -1,19 +1,13 @@
-import type { TOnLogin, TLoginData } from '@TAF/types'
+import type { TProviderBtnProps, TLoginData } from '../../types'
 
 import GitHubIcon from '@mui/icons-material/GitHub'
-import { ProviderLoginButton } from '@TAF/components/Login/Login.styles'
-
-export type TGithubButton = {
-  loading?: boolean
-  disabled?: boolean
-  onLogin: TOnLogin
-}
+import { ProviderLoginButton } from './Login.styles'
 
 const creds: TLoginData = {
   provider: `github`,
 }
 
-export const GhButton = (props: TGithubButton) => {
+export const GhButton = (props: TProviderBtnProps) => {
   const { onLogin, loading, disabled } = props
 
   return (

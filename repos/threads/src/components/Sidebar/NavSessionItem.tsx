@@ -67,8 +67,9 @@ export const NavSessionItem = (props: TNavSessionItem) => {
   const [connecting, setConnecting] = useState(false)
   const connectingRef = useRef(false)
 
+  const basePath = `/orgs/${orgId}/projects/${projectId}`
   const isSharedViewOnly = session.category === `shared` && !canExecSandbox
-  const isActive = location.pathname === `/session/${session.sessionId}`
+  const isActive = location.pathname === `${basePath}/session/${session.sessionId}`
   const shortId = session.sessionId.slice(0, 6)
   const timestamp = useMemo(
     () => formatTimestamp(session.connectedAt),
@@ -77,7 +78,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
 
   const onClick = useCallback(async () => {
     if (session.category === `connected`) {
-      navigate(`/session/${session.sessionId}`, {
+      navigate(`${basePath}/session/${session.sessionId}`, {
         state: { sandboxId, projectId },
       })
       return
@@ -94,7 +95,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
         projectId,
         sessionId: session.sessionId,
       })
-      navigate(`/session/${resolvedId}`, {
+      navigate(`${basePath}/session/${resolvedId}`, {
         state: { sandboxId, projectId },
       })
     } catch (err) {
@@ -112,40 +113,40 @@ export const NavSessionItem = (props: TNavSessionItem) => {
     <Box
       onClick={onClick}
       sx={{
-        display: `flex`,
-        alignItems: `center`,
-        gap: `6px`,
-        pl: `${indent + 12}px`,
-        pr: `12px`,
         py: `4px`,
-        cursor: connecting || isSharedViewOnly ? `default` : `pointer`,
-        opacity: connecting ? 0.6 : isSharedViewOnly ? 0.65 : 1,
+        pr: `12px`,
+        gap: `6px`,
+        display: `flex`,
+        userSelect: `none`,
+        alignItems: `center`,
+        pl: `${indent + 12}px`,
         borderRadius: dims.border.smpx,
+        opacity: connecting ? 0.6 : isSharedViewOnly ? 0.65 : 1,
+        cursor: connecting || isSharedViewOnly ? `default` : `pointer`,
+        transition: `background-color 0.15s ease, border-color 0.15s ease`,
+        backgroundColor: isActive ? cmx(colors.primary.main, 6) : `transparent`,
         borderLeft: isActive
           ? `3px solid ${colors.primary.main}`
           : `3px solid transparent`,
-        backgroundColor: isActive ? cmx(colors.primary.main, 6) : `transparent`,
-        transition: `background-color 0.15s ease, border-color 0.15s ease`,
         '&:hover': {
           backgroundColor: connecting ? undefined : cmx(colors.grey[500], 5),
         },
-        userSelect: `none`,
       }}
     >
       {isSharedViewOnly ? (
         <VisibilityOutlined
           sx={{
             fontSize: 14,
-            color: colors.grey[500],
             flexShrink: 0,
+            color: colors.grey[500],
           }}
         />
       ) : session.category === `shared` ? (
         <PeopleOutline
           sx={{
             fontSize: 14,
-            color: isActive ? colors.primary.main : theme.palette.info.main,
             flexShrink: 0,
+            color: isActive ? colors.primary.main : theme.palette.info.main,
           }}
         />
       ) : (
@@ -153,8 +154,8 @@ export const NavSessionItem = (props: TNavSessionItem) => {
           sx={{
             width: 8,
             height: 8,
-            borderRadius: `50%`,
             flexShrink: 0,
+            borderRadius: `50%`,
             backgroundColor: categoryDotColor(session.category, theme.palette),
           }}
         />
@@ -165,9 +166,9 @@ export const NavSessionItem = (props: TNavSessionItem) => {
           noWrap
           sx={{
             fontSize: `12px`,
+            lineHeight: 1.3,
             fontWeight: 400,
             color: isActive ? colors.primary.main : `text.primary`,
-            lineHeight: 1.3,
           }}
         >
           {categoryLabel(session.category)} · {shortId}
@@ -176,9 +177,9 @@ export const NavSessionItem = (props: TNavSessionItem) => {
           <Typography
             noWrap
             sx={{
+              lineHeight: 1.3,
               fontSize: `10px`,
               color: colors.grey[500],
-              lineHeight: 1.3,
             }}
           >
             {isSharedViewOnly ? `View only` : timestamp}

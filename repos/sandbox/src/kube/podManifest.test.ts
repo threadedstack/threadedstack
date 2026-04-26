@@ -72,7 +72,7 @@ describe(`sanitizeLabel`, () => {
 })
 
 describe(`buildPodManifest`, () => {
-  const basePlaceholders = { '{{API_KEY}}': 'secret123' }
+  const basePlaceholders = { '{{API_KEY}}': { secretId: 'secret123' } }
   const egressOpts = {
     servicePort: 8889,
     serviceName: `tdsk-backend`,

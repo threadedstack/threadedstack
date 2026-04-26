@@ -8,28 +8,35 @@ import type {
   TLLMProviderBrand,
 } from '@tdsk/domain'
 
-import { ESecretMode } from '@tdsk/domain'
-import { useProviders, useOrgSecrets } from '@TAF/state/selectors'
+import {
+  EProvider,
+  ESecretMode,
+  ELLMProviderBrand,
+  ProviderTemplates,
+  ProviderBrandDomains,
+} from '@tdsk/domain'
 import { ProviderTypes } from '@TAF/constants/providers'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useProviders, useOrgSecrets } from '@TAF/state/selectors'
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createProvider, updateProvider } from '@TAF/actions/providers'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
-import { ELLMProviderBrand, EProvider, ProviderTemplates } from '@tdsk/domain'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { fetchProviderSecrets } from '@TAF/actions/secrets/api/fetchProviderSecrets'
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 
 import {
   Box,
   Chip,
   Alert,
   Accordion,
+  TextField,
   Typography,
+  Autocomplete,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
@@ -48,25 +55,29 @@ export type TProviderDrawer = {
   onRemove?: (provider: Provider) => void
 }
 
-export const ProviderDrawer = ({
-  open,
-  orgId,
-  provider,
-  onRemove,
-  onClose: onCloseCB,
-  onSuccess: onSuccessCB,
-}: TProviderDrawer) => {
+export const ProviderDrawer = (props: TProviderDrawer) => {
+  const {
+    open,
+    orgId,
+    provider,
+    onRemove,
+    onClose: onCloseCB,
+    onSuccess: onSuccessCB,
+  } = props
+
   const isEditMode = Boolean(provider)
   const [providers] = useProviders()
 
   const [name, setName] = useState(``)
   const [type, setType] = useState(``)
+  const domainsModified = useRef(false)
   const [baseUrl, setBaseUrl] = useState(``)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [brand, setBrand] = useState<TProviderBrand | ''>(``)
   const [headers, setHeaders] = useState<TKeyValuePair[]>([])
   const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
 
   // Secret management
   const [secretMode, setSecretMode] = useState<TSecretMode>(ESecretMode.none)
@@ -125,8 +136,10 @@ export const ProviderDrawer = ({
       setBrand(provider.brand || ``)
       setHeaders(objToKV(provider.headers, `header`))
       setBodyParams(objToKV(provider.bodyParams, `bodyParam`))
+      setAllowedDomains(options.allowedDomains || [])
       setError(null)
       setApiKeyValue(``)
+      domainsModified.current = false
 
       // Pre-select the linked API key secret
       if (provider.secretId) {
@@ -145,9 +158,11 @@ export const ProviderDrawer = ({
       setBodyParams([])
       setError(null)
       setApiKeyValue(``)
-      setSelectedSecretId(``)
+      setAllowedDomains([])
       setProviderSecrets([])
+      setSelectedSecretId(``)
       setSecretMode(ESecretMode.none)
+      domainsModified.current = false
     }
   }, [provider])
 
@@ -160,6 +175,12 @@ export const ProviderDrawer = ({
 
     setName(tpl.name)
     if (tpl.baseUrl) setBaseUrl(tpl.baseUrl)
+
+    // Pre-fill allowed domains from brand defaults when user hasn't manually modified them
+    if (!domainsModified.current) {
+      const defaults = ProviderBrandDomains[brand]
+      if (defaults?.length) setAllowedDomains(defaults)
+    }
   }, [brand, isAiType, isEditMode])
 
   const onClose = () => {
@@ -171,10 +192,12 @@ export const ProviderDrawer = ({
     setBrand(``)
     setHeaders([])
     setBodyParams([])
+    setAllowedDomains([])
     setError(null)
     setApiKeyValue(``)
     setSelectedSecretId(``)
     setProviderSecrets([])
+    domainsModified.current = false
     onCloseCB?.()
     setSecretMode(ESecretMode.none)
   }
@@ -199,6 +222,7 @@ export const ProviderDrawer = ({
       ...(isAiType && brand ? { brand } : {}),
       options: {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+        ...(allowedDomains.length > 0 ? { allowedDomains } : {}),
       },
       ...(Object.keys(headersObj).length > 0
         ? { headers: headersObj }
@@ -277,11 +301,11 @@ export const ProviderDrawer = ({
       title={isEditMode ? 'Edit Provider' : 'Create New Provider'}
       actions={
         <DrawerActions
-          form='provider-form'
-          editing={isEditMode}
           actions={actions}
           loading={loading}
           disabled={loading}
+          form='provider-form'
+          editing={isEditMode}
         />
       }
     >
@@ -295,12 +319,12 @@ export const ProviderDrawer = ({
           )}
 
           <SelectInput
+            required
+            value={type}
+            disabled={loading}
             id='provider-type'
             label='Provider Type'
-            value={type}
             items={ProviderTypes}
-            required
-            disabled={loading}
             onChange={(e) => {
               setType(e.target.value)
               e.target.value !== EProvider.ai && setBrand(``)
@@ -387,6 +411,78 @@ export const ProviderDrawer = ({
             </Accordion>
           )}
 
+          {/* Allowed Domains */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                variant='subtitle1'
+                fontWeight={500}
+              >
+                Allowed Domains
+              </Typography>
+              {allowedDomains.length > 0 && (
+                <Chip
+                  size='small'
+                  label={allowedDomains.length}
+                  sx={{ ml: 1 }}
+                />
+              )}
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={[]}
+                  disabled={loading}
+                  value={allowedDomains}
+                  data-testid='tdsk-provider-allowed-domains'
+                  onChange={(_evt, newValue) => {
+                    const normalized = (newValue as string[])
+                      .map((d) =>
+                        d
+                          .trim()
+                          .replace(/^https?:\/\//, ``)
+                          .split(`/`)[0]
+                          .trim()
+                      )
+                      .filter(Boolean)
+                    setAllowedDomains(normalized)
+                    domainsModified.current = true
+                  }}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index })
+                      return (
+                        <Chip
+                          key={key}
+                          size='small'
+                          label={option}
+                          {...tagProps}
+                        />
+                      )
+                    })
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      variant='outlined'
+                      label='Allowed Domains'
+                      placeholder='Type a domain and press Enter'
+                    />
+                  )}
+                />
+                <Alert
+                  severity='info'
+                  sx={{ fontSize: `0.875rem` }}
+                >
+                  Domains where this provider&apos;s secret can be sent. Leave empty to
+                  allow all domains. Supports wildcards (e.g. *.example.com)
+                </Alert>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
           {/* Custom Headers */}
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -399,8 +495,8 @@ export const ProviderDrawer = ({
               {headers.length > 0 && (
                 <Chip
                   size='small'
-                  label={headers.length}
                   sx={{ ml: 1 }}
+                  label={headers.length}
                 />
               )}
             </AccordionSummary>
@@ -410,10 +506,10 @@ export const ProviderDrawer = ({
                   pairs={headers}
                   disabled={loading}
                   secrets={orgSecrets}
-                  keyPlaceholder='Header Name'
-                  valuePlaceholder='Header Value or {{secret-name}}'
-                  enableSecretReferences={true}
                   onChange={setHeaders}
+                  keyPlaceholder='Header Name'
+                  enableSecretReferences={true}
+                  valuePlaceholder='Header Value or {{secret-name}}'
                 />
                 <Alert
                   severity='info'
@@ -438,8 +534,8 @@ export const ProviderDrawer = ({
               {bodyParams.length > 0 && (
                 <Chip
                   size='small'
-                  label={bodyParams.length}
                   sx={{ ml: 1 }}
+                  label={bodyParams.length}
                 />
               )}
             </AccordionSummary>
@@ -449,10 +545,10 @@ export const ProviderDrawer = ({
                   pairs={bodyParams}
                   disabled={loading}
                   secrets={orgSecrets}
+                  onChange={setBodyParams}
+                  enableSecretReferences={true}
                   keyPlaceholder='Parameter Name'
                   valuePlaceholder='Value (supports JSON: numbers, booleans, objects)'
-                  enableSecretReferences={true}
-                  onChange={setBodyParams}
                 />
                 <Alert
                   severity='info'

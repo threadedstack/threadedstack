@@ -1,9 +1,9 @@
+import type { TAuthData } from '@tdsk/components'
 import type {
   TApiRes,
   TApiReq,
   TApiData,
   TApiReqEx,
-  TAuthData,
   TFetchOpts,
   TApiService,
 } from '@TTH/types'

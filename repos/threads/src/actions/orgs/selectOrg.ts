@@ -10,6 +10,7 @@ import {
   setSandboxes,
   setProjects,
   setActiveOrgRole,
+  resetActiveProjectId,
 } from '@TTH/state/accessors'
 
 export const selectOrg = async (orgId: string) => {
@@ -17,6 +18,7 @@ export const selectOrg = async (orgId: string) => {
   storage.set(ActiveOrgIdStorageKey, orgId)
   setSandboxes([])
   setProjects([])
+  resetActiveProjectId()
 
   // Set the user's role for the newly selected org
   const orgs = getOrgs()

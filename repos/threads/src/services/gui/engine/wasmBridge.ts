@@ -253,5 +253,4 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     resetWasmCache()
   })
-  import.meta.hot.accept()
 }

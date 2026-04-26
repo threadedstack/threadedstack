@@ -1,15 +1,17 @@
 import type { Thread } from '@tdsk/domain'
 
 import { useCallback, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router'
 import { Box, Typography } from '@mui/material'
-import { ChatBubbleOutline } from '@mui/icons-material'
 import { colors, cmx, dims } from '@tdsk/components'
+import { useNavigate, useLocation } from 'react-router'
+import { ChatBubbleOutline } from '@mui/icons-material'
 
 export type TNavThreadItem = {
+  orgId: string
   thread: Thread
-  sandboxId: string
   indent?: number
+  sandboxId: string
+  projectId: string
 }
 
 const formatTimestamp = (date?: string | Date): string => {
@@ -24,16 +26,17 @@ const formatTimestamp = (date?: string | Date): string => {
 }
 
 export const NavThreadItem = (props: TNavThreadItem) => {
-  const { thread, sandboxId, indent = 48 } = props
+  const { thread, orgId, sandboxId, projectId, indent = 48 } = props
 
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isActive = location.pathname === `/session/${sandboxId}`
+  const basePath = `/orgs/${orgId}/projects/${projectId}`
+  const isActive = location.pathname === `${basePath}/session/${sandboxId}`
 
   const handleNavigate = useCallback(() => {
-    navigate(`/session/${sandboxId}`)
-  }, [navigate, sandboxId])
+    navigate(`${basePath}/session/${sandboxId}`)
+  }, [navigate, basePath, sandboxId])
 
   const timestamp = useMemo(() => formatTimestamp(thread.createdAt), [thread.createdAt])
 
@@ -41,19 +44,19 @@ export const NavThreadItem = (props: TNavThreadItem) => {
     <Box
       onClick={handleNavigate}
       sx={{
-        display: `flex`,
-        alignItems: `center`,
-        gap: `6px`,
-        pl: `${indent + 12}px`,
-        pr: `12px`,
         py: `4px`,
+        gap: `6px`,
+        pr: `12px`,
+        display: `flex`,
         cursor: `pointer`,
+        alignItems: `center`,
+        pl: `${indent + 12}px`,
         borderRadius: dims.border.smpx,
+        transition: `background-color 0.15s ease, border-color 0.15s ease`,
+        backgroundColor: isActive ? cmx(colors.primary.main, 6) : `transparent`,
         borderLeft: isActive
           ? `3px solid ${colors.primary.main}`
           : `3px solid transparent`,
-        backgroundColor: isActive ? cmx(colors.primary.main, 6) : `transparent`,
-        transition: `background-color 0.15s ease, border-color 0.15s ease`,
         '&:hover': {
           backgroundColor: cmx(colors.grey[500], 5),
         },
@@ -63,8 +66,8 @@ export const NavThreadItem = (props: TNavThreadItem) => {
       <ChatBubbleOutline
         sx={{
           fontSize: 14,
-          color: isActive ? colors.primary.main : colors.grey[500],
           flexShrink: 0,
+          color: isActive ? colors.primary.main : colors.grey[500],
         }}
       />
 
@@ -81,8 +84,8 @@ export const NavThreadItem = (props: TNavThreadItem) => {
           sx={{
             fontSize: `12px`,
             fontWeight: 400,
-            color: isActive ? colors.primary.main : `text.primary`,
             lineHeight: 1.3,
+            color: isActive ? colors.primary.main : `text.primary`,
           }}
         >
           {thread.name || `Session`}
@@ -91,9 +94,9 @@ export const NavThreadItem = (props: TNavThreadItem) => {
           <Typography
             noWrap
             sx={{
+              lineHeight: 1.3,
               fontSize: `10px`,
               color: colors.grey[500],
-              lineHeight: 1.3,
             }}
           >
             {timestamp}

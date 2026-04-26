@@ -2,10 +2,6 @@ import { ProxyService } from './proxy'
 import { Exception } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock(`axios`, () => ({
-  default: { post: vi.fn() },
-}))
-
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -177,10 +173,11 @@ describe(`ProxyService`, () => {
 
   describe(`getOAuthToken - Exception status codes`, () => {
     it(`should throw Exception(502) when access_token is missing from response`, async () => {
-      const axios = await import('axios')
-      vi.mocked(axios.default.post).mockResolvedValue({
-        data: { expires_in: 3600 },
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ expires_in: 3600 }),
       })
+      vi.stubGlobal(`fetch`, mockFetch)
 
       try {
         await service.getOAuthToken({
@@ -192,15 +189,15 @@ describe(`ProxyService`, () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Exception)
         expect((error as Exception).status).toBe(502)
-        // The inner Exception is caught by the outer catch block,
-        // which re-throws with a generic message
         expect((error as Exception).message).toBe(`Failed to obtain OAuth access token`)
+      } finally {
+        vi.unstubAllGlobals()
       }
     })
 
     it(`should throw Exception(502) when token exchange request fails`, async () => {
-      const axios = await import('axios')
-      vi.mocked(axios.default.post).mockRejectedValue(new Error(`Network error`))
+      const mockFetch = vi.fn().mockRejectedValue(new Error(`Network error`))
+      vi.stubGlobal(`fetch`, mockFetch)
 
       try {
         await service.getOAuthToken({
@@ -213,6 +210,32 @@ describe(`ProxyService`, () => {
         expect(error).toBeInstanceOf(Exception)
         expect((error as Exception).status).toBe(502)
         expect((error as Exception).message).toBe(`Failed to obtain OAuth access token`)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
+    it(`should throw Exception(502) when fetch response is not ok`, async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve(`Unauthorized`),
+      })
+      vi.stubGlobal(`fetch`, mockFetch)
+
+      try {
+        await service.getOAuthToken({
+          tokenUrl: 'https://auth.example.com/token',
+          clientId: 'client-3',
+          clientSecret: 'client-secret',
+        } as any)
+        expect.unreachable(`should have thrown`)
+      } catch (error) {
+        expect(error).toBeInstanceOf(Exception)
+        expect((error as Exception).status).toBe(502)
+        expect((error as Exception).message).toBe(`Failed to obtain OAuth access token`)
+      } finally {
+        vi.unstubAllGlobals()
       }
     })
   })

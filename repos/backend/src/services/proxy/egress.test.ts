@@ -97,8 +97,8 @@ const makeRoutes = (): TRouteMap => ({
       podName: `tdsk-sb-abc12345-xxxx`,
     },
     placeholders: {
-      tdsk_ph_token1: `secret-id-1`,
-      tdsk_ph_token2: `secret-id-2`,
+      tdsk_ph_token1: { secretId: `secret-id-1` },
+      tdsk_ph_token2: { secretId: `secret-id-2` },
     },
     ports: {
       '3000': { host: `10.0.0.5`, port: 3000, protocol: `http` as const },
@@ -496,6 +496,150 @@ describe(`EgressProxy`, () => {
       const errorArg = errorCall[1] as Error
       expect(errorArg.message).toContain(`secret-id-1`)
       expect(errorArg.message).toContain(`tdsk_ph_toke`)
+    })
+  })
+
+  // ── domain-gated placeholder swapping ──
+
+  describe(`domain-gated placeholders`, () => {
+    const makeRoutesWithDomains = (): TRouteMap => ({
+      'sb-domain-test': {
+        meta: {
+          podIp: `10.0.0.5`,
+          state: `Running` as EContainerState,
+          sandboxId: `domain123`,
+          podName: `tdsk-sb-domain-test`,
+        },
+        placeholders: {
+          tdsk_ph_gated: {
+            secretId: `secret-gated`,
+            allowedDomains: [`api.anthropic.com`, `*.openai.com`],
+          },
+          tdsk_ph_open: { secretId: `secret-open` },
+        },
+        ports: {
+          '3000': { host: `10.0.0.5`, port: 3000, protocol: `http` as const },
+        },
+      },
+    })
+
+    const setupDomain = (optsOverride: Record<string, unknown> = {}) => {
+      const opts = makeOpts({ routes: makeRoutesWithDomains(), ...optsOverride })
+      new EgressProxy(opts as any)
+      const onRequestHandler = mockProxy.onRequest.mock.calls[0][0] as (
+        ctx: any,
+        callback: (...args: any[]) => void
+      ) => void
+      return { opts, onRequestHandler }
+    }
+
+    it(`should swap placeholder when request is to an allowed domain`, async () => {
+      const { opts, onRequestHandler } = setupDomain()
+      opts.resolveSecret.mockResolvedValue(`real-secret`)
+      const ctx = makeCtx(`10.0.0.5`, { authorization: `Bearer tdsk_ph_gated` })
+      ;(ctx.proxyToServerRequestOptions as any).host = `api.anthropic.com:443`
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-gated`)
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(
+        `Bearer real-secret`
+      )
+    })
+
+    it(`should skip placeholder swap when request is to a disallowed domain`, async () => {
+      const { opts, onRequestHandler } = setupDomain()
+      opts.resolveSecret.mockResolvedValue(`real-secret`)
+      const ctx = makeCtx(`10.0.0.5`, { authorization: `Bearer tdsk_ph_gated` })
+      ;(ctx.proxyToServerRequestOptions as any).host = `api.stripe.com:443`
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      // The gated placeholder should NOT be resolved for a disallowed domain
+      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-gated`)
+      // The placeholder token remains in the header
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(
+        `Bearer tdsk_ph_gated`
+      )
+    })
+
+    it(`should swap placeholder with no allowedDomains for any domain (backwards compat)`, async () => {
+      const { opts, onRequestHandler } = setupDomain()
+      opts.resolveSecret.mockResolvedValue(`open-secret`)
+      const ctx = makeCtx(`10.0.0.5`, { 'x-api-key': `tdsk_ph_open` })
+      ;(ctx.proxyToServerRequestOptions as any).host = `any-domain.example.com`
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-open`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`open-secret`)
+    })
+
+    it(`should skip domain-gated swap when request has no host header`, async () => {
+      const { logger } = await import(`@TBE/utils/logger`)
+      const { opts, onRequestHandler } = setupDomain()
+      opts.resolveSecret.mockResolvedValue(`real-secret`)
+      // Authorization header has the domain-gated placeholder AND the ungated placeholder
+      const ctx = makeCtx(`10.0.0.5`, {
+        authorization: `Bearer tdsk_ph_gated`,
+        'x-other-key': `tdsk_ph_open`,
+      })
+      // host is NOT set — ctx.proxyToServerRequestOptions.host is undefined
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      // The gated placeholder should NOT be resolved (no host to match against)
+      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-gated`)
+      // The gated placeholder token remains in the header
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(
+        `Bearer tdsk_ph_gated`
+      )
+
+      // The ungated placeholder SHOULD still be resolved (no allowedDomains restriction)
+      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-open`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-other-key`]).toBe(`real-secret`)
+
+      // Should have logged a warning about missing host
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Could not determine destination host`)
+      )
+    })
+
+    it(`should swap placeholder with empty allowedDomains for any domain`, async () => {
+      const routes: TRouteMap = {
+        'sb-empty-domains': {
+          meta: {
+            podIp: `10.0.0.5`,
+            state: `Running` as EContainerState,
+            sandboxId: `empty-dom`,
+            podName: `tdsk-sb-empty-domains`,
+          },
+          placeholders: {
+            tdsk_ph_empty: { secretId: `secret-empty`, allowedDomains: [] },
+          },
+          ports: {},
+        },
+      }
+      const { opts, onRequestHandler } = setupDomain({ routes })
+      opts.resolveSecret.mockResolvedValue(`empty-secret`)
+      const ctx = makeCtx(`10.0.0.5`, { 'x-api-key': `tdsk_ph_empty` })
+      ;(ctx.proxyToServerRequestOptions as any).host = `any-host.io`
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      // Empty allowedDomains array means no domain restriction — entry.allowedDomains?.length is 0 (falsy)
+      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-empty`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`empty-secret`)
     })
   })
 

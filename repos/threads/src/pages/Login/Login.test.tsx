@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
+
+import { LoginPage } from './Login'
+import { render, screen, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockSignin = vi.fn()
 const mockSignInWithEmail = vi.fn()
@@ -10,12 +12,16 @@ const mockSetUser = vi.fn()
 
 let capturedLoginProps: any = {}
 
-vi.mock(`@TTH/components/Login`, () => ({
-  Login: (props: any) => {
-    capturedLoginProps = props
-    return <div data-testid='login-component' />
-  },
-}))
+vi.mock(`@tdsk/components`, async () => {
+  const actual = await vi.importActual(`@tdsk/components`)
+  return {
+    ...actual,
+    Login: (props: any) => {
+      capturedLoginProps = props
+      return <div data-testid='login-component' />
+    },
+  }
+})
 
 vi.mock(`@TTH/services/auth`, () => ({
   auth: {
@@ -36,8 +42,6 @@ vi.mock(`@TTH/constants/envs`, () => ({
 vi.mock(`@TTH/actions/auth/local/signin`, () => ({
   signin: (...args: any[]) => mockSignin(...args),
 }))
-
-import { LoginPage } from './Login'
 
 describe(`LoginPage`, () => {
   beforeEach(() => {

@@ -244,6 +244,7 @@ const providers = {
     options: {
       temperature: 0.7,
       model: `gpt-4-turbo`,
+      allowedDomains: [`api.openai.com`],
     },
   }),
   anthropic: new Provider({
@@ -255,6 +256,7 @@ const providers = {
     secretId: Ids.secret.providerAnthropicKey,
     options: {
       model: `claude-3-opus-20240229`,
+      allowedDomains: [`api.anthropic.com`],
     },
   }),
   zai: new Provider({
@@ -267,6 +269,7 @@ const providers = {
     options: {
       model: `glm-5`,
       tool_stream: true,
+      allowedDomains: [`api.z.ai`],
     },
   }),
   openrouter: new Provider({
@@ -278,6 +281,7 @@ const providers = {
     secretId: Ids.secret.openrouterKey,
     options: {
       model: `anthropic/claude-sonnet-4`,
+      allowedDomains: [`openrouter.ai`],
     },
   }),
   google: new Provider({
@@ -289,6 +293,7 @@ const providers = {
     secretId: Ids.secret.googleKey,
     options: {
       model: `gemini-2.5-pro`,
+      allowedDomains: [`generativelanguage.googleapis.com`],
     },
   }),
   ollama: new Provider({
@@ -301,6 +306,7 @@ const providers = {
     options: {
       baseUrl: `https://ollama.com`,
       model: `devstral-small`,
+      allowedDomains: [`ollama.com`],
     },
   }),
 }

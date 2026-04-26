@@ -282,9 +282,6 @@ importers:
       alias-hq:
         specifier: 6.2.2
         version: 6.2.2(@babel/preset-env@7.26.7(@babel/core@7.28.5))
-      axios:
-        specifier: 1.10.0
-        version: 1.10.0
       cors:
         specifier: 2.8.5
         version: 2.8.5
@@ -5855,9 +5852,6 @@ packages:
 
   avvio@8.4.0:
     resolution: {integrity: sha512-CDSwaxINFy59iNwhYnkvALBwZiTydGkOecZyPkqBpABYR1KqGEsET0VOOYDwtleZSUIdeY36DC2bSZ24CO1igA==}
-
-  axios@1.10.0:
-    resolution: {integrity: sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==}
 
   b4a@1.8.0:
     resolution: {integrity: sha512-qRuSmNSkGQaHwNbM7J78Wwy+ghLEYF1zNrSeMxj4Kgw6y33O3mXcQ6Ie9fRvfU/YnxWkOchPXbaLb73TkIsfdg==}
@@ -18049,14 +18043,6 @@ snapshots:
     dependencies:
       '@fastify/error': 3.4.1
       fastq: 1.18.0
-
-  axios@1.10.0:
-    dependencies:
-      follow-redirects: 1.15.11(debug@4.4.3)
-      form-data: 4.0.1
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
 
   b4a@1.8.0: {}
 

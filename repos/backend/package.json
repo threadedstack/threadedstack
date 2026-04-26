@@ -37,7 +37,6 @@
     "@tdsk/logger": "workspace:*",
     "@tdsk/sandbox": "workspace:*",
     "alias-hq": "6.2.2",
-    "axios": "1.10.0",
     "cors": "2.8.5",
     "date-fns": "4.1.0",
     "esbuild": "0.27.3",

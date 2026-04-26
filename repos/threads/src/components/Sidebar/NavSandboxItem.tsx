@@ -60,9 +60,10 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
 
   const runtime = sandbox.config?.runtime || `custom`
   const resolvedProjectId = projectId || sandbox.projects?.[0]?.id || ``
+  const basePath = `/orgs/${orgId}/projects/${resolvedProjectId}`
   const isActive =
-    location.pathname === `/sandbox/${sandbox.id}` ||
-    localSessions.some((s) => location.pathname === `/session/${s.sessionId}`)
+    location.pathname === `${basePath}/sandbox/${sandbox.id}` ||
+    localSessions.some((s) => location.pathname === `${basePath}/session/${s.sessionId}`)
 
   const backendSessions = backendSessionsMap.get(sandbox.id) ?? []
 
@@ -99,8 +100,8 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   )
 
   const onNavigate = useCallback(() => {
-    navigate(`/sandbox/${sandbox.id}`)
-  }, [navigate, sandbox.id])
+    navigate(`${basePath}/sandbox/${sandbox.id}`)
+  }, [navigate, basePath, sandbox.id])
 
   return (
     <Box>
@@ -164,8 +165,8 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
           variant='outlined'
           sx={{
             height: 18,
-            fontSize: `10px`,
             flexShrink: 0,
+            fontSize: `10px`,
             '& .MuiChip-label': { px: `5px` },
           }}
         />

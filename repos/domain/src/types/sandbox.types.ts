@@ -212,7 +212,12 @@ export type TKubeSandboxConfig = {
   guiConfig?: TGuiConfig
 }
 
-export type TPlaceholderMap = Record<string, string>
+export type TPlaceholderEntry = {
+  secretId: string
+  allowedDomains?: string[]
+}
+
+export type TPlaceholderMap = Record<string, TPlaceholderEntry>
 
 export enum EContainerState {
   Failed = `Failed`,

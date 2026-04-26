@@ -46,7 +46,7 @@ describe(`resolveProviderEnv`, () => {
     )
     expect(result.extraEnv.ANTHROPIC_API_KEY).toMatch(/^tdsk_ph_/)
     expect(Object.keys(result.placeholders)).toHaveLength(1)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -344,7 +344,7 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.GOOGLE_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -439,7 +439,7 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.Z_AI_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -451,7 +451,7 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -463,7 +463,7 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.ZHIPU_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -475,7 +475,7 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
@@ -489,8 +489,49 @@ describe(`resolveProviderEnv`, () => {
     expect(result.extraEnv.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
     expect(result.extraEnv.ANTHROPIC_API_KEY).toBe(``)
     expect(result.extraEnv.ANTHROPIC_BASE_URL).toBe(`https://ollama.com`)
-    expect(Object.values(result.placeholders)[0]).toBe(`sec_1`)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
+  })
+
+  it(`includes allowedDomains in placeholder entry when provider has options.allowedDomains`, async () => {
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `anthropic`,
+            secretId: `sec_1`,
+            options: { allowedDomains: [`api.anthropic.com`, `*.claude.ai`] },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    const entry = Object.values(result.placeholders)[0]
+    expect(entry).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.anthropic.com`, `*.claude.ai`],
+    })
+  })
+
+  it(`placeholder entry has undefined allowedDomains when provider has no allowedDomains`, async () => {
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [
+        {
+          provider: { id: `p1`, brand: `anthropic`, secretId: `sec_1` },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    const entry = Object.values(result.placeholders)[0]
+    expect(entry.secretId).toBe(`sec_1`)
+    expect(entry.allowedDomains).toBeUndefined()
   })
 
   it(`later provider overwrites env vars from earlier provider (last writer wins)`, async () => {
@@ -518,6 +559,6 @@ describe(`resolveProviderEnv`, () => {
 
     // The ANTHROPIC_AUTH_TOKEN placeholder should map to sec_2 (the openrouter provider's secret)
     const authTokenValue = result.extraEnv.ANTHROPIC_AUTH_TOKEN
-    expect(result.placeholders[authTokenValue]).toBe(`sec_2`)
+    expect(result.placeholders[authTokenValue]).toEqual({ secretId: `sec_2` })
   })
 })

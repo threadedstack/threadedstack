@@ -1,3 +1,4 @@
+export * from './auth'
 export * from './values'
 export * from './monaco'
 export * from './events'

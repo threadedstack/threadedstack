@@ -66,14 +66,16 @@ export const createOrg: TEndpointConfig = {
       }
     }
 
+    const orgWithRole = { ...data, userRole: ERoleType.owner }
+
     if (seedFailures.length) {
       res.status(201).json({
-        data,
+        data: orgWithRole,
         warnings: [`Failed to seed default sandboxes: ${seedFailures.join(`, `)}`],
       })
       return
     }
 
-    res.status(201).json({ data })
+    res.status(201).json({ data: orgWithRole })
   },
 }

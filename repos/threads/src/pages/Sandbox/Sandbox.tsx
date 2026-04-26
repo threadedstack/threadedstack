@@ -24,12 +24,23 @@ import {
   CardActionArea,
 } from '@mui/material'
 
+type TSandboxParams = {
+  orgId: string
+  projectId: string
+  sandboxId: string
+}
+
 const Sandbox = () => {
   const [orgId] = useOrgId()
   const [user] = useUser()
   const navigate = useNavigate()
   const [sandboxes] = useSandboxes()
-  const { sandboxId } = useParams<{ sandboxId: string }>()
+
+  const {
+    sandboxId,
+    orgId: paramOrgId,
+    projectId: paramProjectId,
+  } = useParams<TSandboxParams>()
 
   const { canExec } = usePermissions()
   const canExecSandbox = canExec(EPermResource.sandbox)
@@ -43,7 +54,8 @@ const Sandbox = () => {
     [sandboxes, sandboxId]
   )
 
-  const projectId = sandbox?.projects?.[0]?.id ?? ``
+  const projectId = paramProjectId || sandbox?.projects?.[0]?.id || ``
+  const resolvedOrgId = paramOrgId || orgId
   const sessions = sandboxId ? (backendSessionsMap.get(sandboxId) ?? []) : []
 
   const mySessions = useMemo(
@@ -56,21 +68,24 @@ const Sandbox = () => {
     [sessions, user?.id]
   )
 
-  const handleStart = useCallback(
+  const onStart = useCallback(
     async (sessionId?: string | null) => {
-      if (!sandboxId || !orgId || !projectId) return
+      if (!sandboxId || !resolvedOrgId || !projectId) return
       setConnecting(true)
       try {
         const newSessionId = await openSession({
           sandboxId,
-          orgId,
           projectId,
+          orgId: resolvedOrgId,
           sessionId: sessionId ?? null,
         })
         if (newSessionId) {
-          navigate(`/session/${newSessionId}`, {
-            state: { sandboxId, projectId },
-          })
+          navigate(
+            `/orgs/${resolvedOrgId}/projects/${projectId}/session/${newSessionId}`,
+            {
+              state: { sandboxId, projectId },
+            }
+          )
         }
       } catch (err) {
         console.error(`[Sandbox] connect failed:`, err)
@@ -82,26 +97,16 @@ const Sandbox = () => {
         setConnecting(false)
       }
     },
-    [sandboxId, orgId, projectId, navigate]
+    [sandboxId, resolvedOrgId, projectId, navigate]
   )
 
-  const handleReconnect = useCallback(
-    (sessionId: string) => {
-      handleStart(sessionId)
-    },
-    [handleStart]
-  )
+  const onReconnect = useCallback((sessionId: string) => onStart(sessionId), [onStart])
 
-  const handleJoin = useCallback(
-    (sessionId: string) => {
-      handleStart(sessionId)
-    },
-    [handleStart]
-  )
+  const onJoin = useCallback((sessionId: string) => onStart(sessionId), [onStart])
 
-  const handleBack = useCallback(() => {
-    navigate(`/`)
-  }, [navigate])
+  const onBack = useCallback(() => {
+    navigate(`/orgs/${resolvedOrgId}/projects/${projectId}`)
+  }, [navigate, resolvedOrgId, projectId])
 
   if (!sandboxId) {
     return (
@@ -116,7 +121,7 @@ const Sandbox = () => {
     )
   }
 
-  if (connecting) {
+  if (connecting)
     return (
       <Page className='tdsk-sandbox-page'>
         <Loading
@@ -125,7 +130,6 @@ const Sandbox = () => {
         />
       </Page>
     )
-  }
 
   return (
     <Page className='tdsk-sandbox-page'>
@@ -133,7 +137,7 @@ const Sandbox = () => {
         <Box sx={{ display: `flex`, alignItems: `center`, gap: 1, mb: 3 }}>
           <IconButton
             size='small'
-            onClick={handleBack}
+            onClick={onBack}
           >
             <ArrowBack />
           </IconButton>
@@ -145,10 +149,10 @@ const Sandbox = () => {
           </Typography>
           {sandbox?.config?.runtime && (
             <Chip
-              label={sandbox.config.runtime}
               size='small'
               color='primary'
               variant='outlined'
+              label={sandbox.config.runtime}
             />
           )}
         </Box>
@@ -160,8 +164,8 @@ const Sandbox = () => {
               sx={{
                 mb: 1.5,
                 fontWeight: 700,
-                textTransform: `uppercase`,
                 letterSpacing: 0.5,
+                textTransform: `uppercase`,
               }}
             >
               My Sessions
@@ -177,11 +181,12 @@ const Sandbox = () => {
                     <CardActionArea
                       onClick={() =>
                         isOpen
-                          ? navigate(`/session/${s.sessionId}`, {
-                              state: { sandboxId, projectId },
-                            })
+                          ? navigate(
+                              `/orgs/${resolvedOrgId}/projects/${projectId}/session/${s.sessionId}`,
+                              { state: { sandboxId, projectId } }
+                            )
                           : canExecSandbox
-                            ? handleReconnect(s.sessionId)
+                            ? onReconnect(s.sessionId)
                             : undefined
                       }
                       disabled={!isOpen && !canExecSandbox}
@@ -199,8 +204,8 @@ const Sandbox = () => {
                         </Typography>
                       </Box>
                       <Button
-                        component='span'
                         size='small'
+                        component='span'
                         variant='outlined'
                         disabled={!isOpen && !canExecSandbox}
                         color={isOpen ? `primary` : `inherit`}
@@ -223,8 +228,8 @@ const Sandbox = () => {
               sx={{
                 mb: 1.5,
                 fontWeight: 700,
-                textTransform: `uppercase`,
                 letterSpacing: 0.5,
+                textTransform: `uppercase`,
               }}
             >
               Shared Sessions
@@ -236,7 +241,7 @@ const Sandbox = () => {
                   variant='outlined'
                 >
                   <CardActionArea
-                    onClick={() => (canExecSandbox ? handleJoin(s.sessionId) : undefined)}
+                    onClick={() => (canExecSandbox ? onJoin(s.sessionId) : undefined)}
                     disabled={!canExecSandbox}
                     sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                   >
@@ -274,7 +279,7 @@ const Sandbox = () => {
               size='large'
               variant='contained'
               startIcon={<Add />}
-              onClick={() => handleStart(null)}
+              onClick={() => onStart(null)}
               disabled={!orgId || !projectId}
             >
               New Session

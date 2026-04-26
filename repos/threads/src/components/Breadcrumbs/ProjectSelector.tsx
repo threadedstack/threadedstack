@@ -35,9 +35,9 @@ export const ProjectSelector = () => {
     (item: { id: string }) => {
       selectProject(item.id)
       onClose()
-      navigate(`/project/${item.id}`)
+      navigate(`/orgs/${orgId}/projects/${item.id}`)
     },
-    [navigate]
+    [navigate, orgId]
   )
 
   const items = projects.map((p) => ({

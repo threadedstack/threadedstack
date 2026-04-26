@@ -5,24 +5,24 @@ import { Page } from '@TTH/pages/Page/Page'
 import { useMemo, useCallback } from 'react'
 import { styled } from '@mui/material/styles'
 import { useParams, useNavigate } from 'react-router'
-import { useProjects, useSandboxes } from '@TTH/state/selectors'
+import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
 import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material'
 import { useSandboxHasSession } from '@TTH/hooks/sandbox/useSandboxHasSession'
 import { FolderOpen, LinkOff as GitIcon, GitHub as GitHubIcon } from '@mui/icons-material'
 
 const PageRoot = styled(Box)`
-  max-width: 900px;
-  margin: 0 auto;
   width: 100%;
+  margin: 0 auto;
+  max-width: 900px;
 `
 
 const SectionLabel = styled(Typography)(({ theme }) => ({
-  textTransform: `uppercase`,
-  letterSpacing: `0.5px`,
   fontSize: 11,
   fontWeight: 600,
-  color: theme.palette.text.secondary,
+  letterSpacing: `0.5px`,
+  textTransform: `uppercase`,
   marginBottom: theme.spacing(1.5),
+  color: theme.palette.text.secondary,
 }))
 
 const SandboxCardRoot = styled(Card)(({ theme }) => ({
@@ -37,10 +37,10 @@ const SandboxCardRoot = styled(Card)(({ theme }) => ({
 const StatusChip = (props: { running: boolean }) => (
   <Chip
     size='small'
+    sx={{ height: 22, fontSize: 11 }}
     label={props.running ? `Running` : `Stopped`}
     color={props.running ? `success` : `default`}
     variant={props.running ? `filled` : `outlined`}
-    sx={{ height: 22, fontSize: 11 }}
   />
 )
 
@@ -48,48 +48,50 @@ type TProjectSandboxCard = {
   sandbox: Sandbox
 }
 
-const ProjectSandboxCard = (props: TProjectSandboxCard) => {
-  const { sandbox } = props
+const ProjectSandboxCard = (
+  props: TProjectSandboxCard & { orgId: string; projectId: string }
+) => {
+  const { sandbox, orgId, projectId } = props
   const navigate = useNavigate()
   const running = useSandboxHasSession(sandbox.id)
   const runtime = sandbox.config?.runtime || `custom`
 
   const handleClick = useCallback(() => {
-    navigate(`/sandbox/${sandbox.id}`)
-  }, [navigate, sandbox.id])
+    navigate(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandbox.id}`)
+  }, [navigate, orgId, projectId, sandbox.id])
 
   return (
     <SandboxCardRoot variant='outlined'>
       <CardActionArea
         onClick={handleClick}
         sx={{
+          p: 2,
+          gap: 1,
           display: `flex`,
           flexDirection: `column`,
           alignItems: `flex-start`,
-          p: 2,
-          gap: 1,
         }}
       >
         <Box
           sx={{
+            gap: 1,
+            width: `100%`,
             display: `flex`,
             alignItems: `center`,
-            width: `100%`,
-            gap: 1,
           }}
         >
           <Typography
-            variant='subtitle1'
             noWrap
+            variant='subtitle1'
             sx={{ flex: 1, fontWeight: 500 }}
           >
             {sandbox.name}
           </Typography>
           {sandbox.builtIn && (
             <Chip
-              label='Built-in'
               size='small'
               color='info'
+              label='Built-in'
               variant='outlined'
               sx={{ height: 20, fontSize: 10 }}
             />
@@ -97,15 +99,15 @@ const ProjectSandboxCard = (props: TProjectSandboxCard) => {
         </Box>
         <Box
           sx={{
+            gap: 1,
+            width: `100%`,
             display: `flex`,
             alignItems: `center`,
-            width: `100%`,
-            gap: 1,
           }}
         >
           <Chip
-            label={runtime}
             size='small'
+            label={runtime}
             variant='outlined'
             sx={{ height: 22, fontSize: 11 }}
           />
@@ -120,12 +122,12 @@ const ProjectSandboxCard = (props: TProjectSandboxCard) => {
 const EmptyState = () => (
   <Box
     sx={{
-      display: `flex`,
-      flexDirection: `column`,
-      alignItems: `center`,
-      justifyContent: `center`,
       py: 8,
       gap: 2,
+      display: `flex`,
+      alignItems: `center`,
+      flexDirection: `column`,
+      justifyContent: `center`,
     }}
   >
     <FolderOpen sx={{ fontSize: 48, color: `text.disabled` }} />
@@ -173,17 +175,17 @@ const GitInfo = (props: { gitUrl: string; branch: string }) => {
   return (
     <Box
       sx={{
+        mt: 0.5,
+        gap: 0.75,
         display: `flex`,
         alignItems: `center`,
-        gap: 0.75,
-        mt: 0.5,
       }}
     >
       <Icon sx={{ fontSize: 14, color: `text.disabled` }} />
       <Typography
+        noWrap
         variant='caption'
         color='text.disabled'
-        noWrap
         sx={{ maxWidth: 400 }}
       >
         {props.gitUrl}
@@ -206,6 +208,7 @@ const GitInfo = (props: { gitUrl: string; branch: string }) => {
 
 const Project = () => {
   const { projectId } = useParams<{ projectId: string }>()
+  const [orgId] = useOrgId()
   const [projects] = useProjects()
   const [sandboxes] = useSandboxes()
 
@@ -265,8 +268,10 @@ const Project = () => {
             >
               {projectSandboxes.map((sandbox) => (
                 <ProjectSandboxCard
+                  orgId={orgId}
                   key={sandbox.id}
                   sandbox={sandbox}
+                  projectId={projectId!}
                 />
               ))}
             </Box>

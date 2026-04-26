@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router'
 import { selectOrg } from '@TTH/actions/orgs'
 import { useOrgs, useOrgId, useActiveOrg } from '@TTH/state/selectors'
 import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
@@ -8,6 +9,7 @@ import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 export const OrgSelector = () => {
   const [orgs] = useOrgs()
   const [orgId] = useOrgId()
+  const navigate = useNavigate()
   const [activeOrg] = useActiveOrg()
   const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -22,6 +24,15 @@ export const OrgSelector = () => {
     setAnchorEl(null)
     setQuery('')
   }
+
+  const onSelect = useCallback(
+    (item: { id: string }) => {
+      selectOrg(item.id)
+      onClose()
+      navigate(`/orgs/${item.id}/projects`)
+    },
+    [navigate]
+  )
 
   const items = orgs.map((o) => ({
     id: o.id,
@@ -51,7 +62,7 @@ export const OrgSelector = () => {
         activeId={orgId}
         open={open}
         anchorEl={anchorEl}
-        onSelect={(item) => selectOrg(item.id)}
+        onSelect={onSelect}
         onClose={onClose}
         searchPlaceholder='Search organizations...'
         emptyMessage='No organizations found'

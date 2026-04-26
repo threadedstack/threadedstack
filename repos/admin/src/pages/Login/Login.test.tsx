@@ -10,12 +10,16 @@ const mockSetUser = vi.fn()
 
 let capturedLoginProps: any = {}
 
-vi.mock(`@TAF/components/Login`, () => ({
-  Login: (props: any) => {
-    capturedLoginProps = props
-    return <div data-testid='login-component' />
-  },
-}))
+vi.mock(`@tdsk/components`, async () => {
+  const actual = await vi.importActual(`@tdsk/components`)
+  return {
+    ...actual,
+    Login: (props: any) => {
+      capturedLoginProps = props
+      return <div data-testid='login-component' />
+    },
+  }
+})
 
 vi.mock(`@TAF/services/auth`, () => ({
   auth: {

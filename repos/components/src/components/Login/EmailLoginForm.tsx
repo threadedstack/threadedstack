@@ -1,21 +1,13 @@
 import type { FormEvent } from 'react'
+import type { TEmailLoginFormProps } from '../../types'
 
 import { useState, useCallback } from 'react'
 import Link from '@mui/material/Link'
 import Alert from '@mui/material/Alert'
-import { TextInput } from '@tdsk/components'
 import Typography from '@mui/material/Typography'
+import { TextInput } from '../Inputs/TextInput'
 
 import { EmailFormContainer, EmailFormButton } from './Login.styles'
-
-export type TEmailLoginFormProps = {
-  onSignIn: (email: string, password: string) => Promise<void>
-  onSignUp: (email: string, password: string) => Promise<void>
-  onForgotPassword?: (email: string) => Promise<void>
-  error?: string
-  success?: string
-  loading?: boolean
-}
 
 export const EmailLoginForm = (props: TEmailLoginFormProps) => {
   const { error, success, loading, onSignIn, onSignUp, onForgotPassword } = props

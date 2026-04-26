@@ -10,17 +10,12 @@ import {
   setOrgs,
   setUser,
   setOrgId,
-  setSandboxes,
   setProjects,
+  setSandboxes,
   setActiveOrgRole,
 } from '@TTH/state/accessors'
 
 let initPromise: Promise<void> | null = null
-
-export const init = () => {
-  if (!initPromise) initPromise = initOnce()
-  return initPromise
-}
 
 const initOnce = async () => {
   let resp
@@ -38,22 +33,21 @@ const initOnce = async () => {
   const orgsResult = await orgsApi.list()
   if (orgsResult.data?.length) setOrgs(orgsResult.data)
 
-  // Restore saved org selection, or session's active org
+  // Restore saved org selection — scope loaders will override if the URL
+  // contains an orgId, but pre-loading the saved org's data avoids a
+  // second fetch when the user lands on /orgs/:savedOrgId.
   const savedOrgId = storage.get<string>(ActiveOrgIdStorageKey)
   const validSaved = savedOrgId && orgsResult.data?.some((o) => o.id === savedOrgId)
   const orgId = validSaved
     ? savedOrgId
     : resp.session?.activeOrganizationId ||
-      // Auto-select when user belongs to exactly one org
       (orgsResult.data?.length === 1 ? orgsResult.data[0].id : undefined)
 
-  // Multiple orgs with no selection — UI will show org picker
   if (!orgId) return
 
   setOrgId(orgId)
   storage.set(ActiveOrgIdStorageKey, orgId)
 
-  // Set the user's role for the selected org
   const selectedOrg = orgsResult.data?.find((o) => o.id === orgId)
   setActiveOrgRole((selectedOrg as TOrgWithRole)?.userRole ?? null)
 
@@ -64,4 +58,14 @@ const initOnce = async () => {
 
   if (sandboxResult.data) setSandboxes(sandboxResult.data)
   if (projectResult.data) setProjects(projectResult.data)
+}
+
+export const init = () => {
+  if (!initPromise)
+    initPromise = initOnce().catch((err) => {
+      initPromise = null
+      throw err
+    })
+
+  return initPromise
 }

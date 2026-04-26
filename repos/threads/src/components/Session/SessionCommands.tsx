@@ -51,7 +51,9 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     try {
       if (action === `stop`) {
         await stopSandbox({ sandboxId, orgId })
-        navigate(`/sandbox/${sandboxId}`, { replace: true })
+        navigate(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`, {
+          replace: true,
+        })
         return
       }
       if (action === `restart`) {
@@ -79,7 +81,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         projectId,
         sessionId: null,
       })
-      navigate(`/session/${newSessionId}`, {
+      navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
         replace: true,
         state: { sandboxId, projectId },
       })

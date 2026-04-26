@@ -1,5 +1,6 @@
+import type { TAuthData } from '@tdsk/components'
 import type { TApiRequest, TApiResponse } from '@tdsk/domain'
-import type { TApiReq, TApiData, TAuthData, TApiService } from '@TAF/types'
+import type { TApiReq, TApiData, TApiService } from '@TAF/types'
 
 import { toast } from 'sonner'
 import { query } from '@TAF/services/query'

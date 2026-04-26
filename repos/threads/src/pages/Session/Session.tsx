@@ -18,8 +18,8 @@ import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
 import { TerminalView } from '@TTH/components/Terminal/TerminalView'
 import { useSessionEngine } from '@TTH/hooks/session/useSessionEngine'
 import { SessionCommands } from '@TTH/components/Session/SessionCommands'
-import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSettings'
 import { Box, Chip, Card, Button, IconButton, Typography } from '@mui/material'
+import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSettings'
 import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
 
 const SessionContainer = styled(Box)`
@@ -110,12 +110,13 @@ const SessionInner = () => {
     return unsub
   }, [activeSessionId, engine])
 
-  const handleBack = useCallback(() => {
-    if (sandboxId) navigate(`/sandbox/${sandboxId}`)
-    else navigate(`/`)
-  }, [navigate, sandboxId])
+  const onBack = useCallback(() => {
+    if (sandboxId && orgId && projectId)
+      navigate(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`)
+    else navigate(orgId ? `/orgs/${orgId}/projects` : `/orgs`)
+  }, [navigate, sandboxId, orgId, projectId])
 
-  const handleViewChange = useCallback((value: TViewMode) => {
+  const onViewChange = useCallback((value: TViewMode) => {
     setViewMode(value)
   }, [])
 
@@ -128,7 +129,7 @@ const SessionInner = () => {
         projectId,
         sessionId: null,
       })
-      navigate(`/session/${newSessionId}`, {
+      navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
         replace: true,
         state: { sandboxId, projectId },
       })
@@ -140,7 +141,7 @@ const SessionInner = () => {
     }
   }, [sandboxId, orgId, projectId, navigate])
 
-  if (!sessionId) {
+  if (!sessionId)
     return (
       <Page className='tdsk-session-page'>
         <Typography
@@ -151,7 +152,6 @@ const SessionInner = () => {
         </Typography>
       </Page>
     )
-  }
 
   return (
     <Page className='tdsk-session-page'>
@@ -159,7 +159,7 @@ const SessionInner = () => {
         <SessionHeader>
           <IconButton
             size='small'
-            onClick={handleBack}
+            onClick={onBack}
           >
             <ArrowBack />
           </IconButton>
@@ -182,7 +182,7 @@ const SessionInner = () => {
               {isFeatureEnabled('terminalGui') && (
                 <ViewToggle
                   value={viewMode}
-                  onChange={handleViewChange}
+                  onChange={onViewChange}
                 />
               )}
             </>

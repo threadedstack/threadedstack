@@ -1,8 +1,8 @@
-import type { TOnLogin } from '@TAF/types'
+import type { TOnLogin, TAuthProvider } from '@tdsk/components'
 
 import { nav } from '@TAF/services/nav'
+import { Login } from '@tdsk/components'
 import { auth } from '@TAF/services/auth'
-import { Login } from '@TAF/components/Login'
 import { useState, useCallback } from 'react'
 import { signin } from '@TAF/actions/auth/local/signin'
 import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
@@ -16,7 +16,7 @@ export const LoginPage = (props: TLogin) => {
   const [emailError, setEmailError] = useState<string>()
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState<string>()
-  const [authenticating, setAuthenticating] = useState<string>()
+  const [authenticating, setAuthenticating] = useState<TAuthProvider>()
 
   const showEmailForm = TDSK_AUTH_PROVIDERS.includes(`email`)
 

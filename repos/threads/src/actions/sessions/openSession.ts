@@ -242,5 +242,4 @@ if (import.meta.hot) {
     engineWriters = new Map()
     terminalWriters = new Map()
   })
-  import.meta.hot.accept()
 }

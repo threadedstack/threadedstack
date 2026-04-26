@@ -1,10 +1,11 @@
-import type { TPlaceholderMap } from '@tdsk/domain'
-import type { TRuntimeEnvVar } from '@tdsk/domain'
+import type { TRuntimeEnvVar, TPlaceholderMap } from '@tdsk/domain'
+import type { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
+import { isStr } from '@keg-hub/jsutils/isStr'
+import { isArr } from '@keg-hub/jsutils/isArr'
 import { PhTokenPrefix } from '@TBE/constants/values'
-import type { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { ESandboxRuntime, ERuntimeBrand, RuntimeProviderEnvMap } from '@tdsk/domain'
 
 type TProviderWithSecret = {
@@ -108,7 +109,15 @@ export async function resolveProviderEnv(
 
       if (injection === `mitm`) {
         const token = `${PhTokenPrefix}${nanoid(16)}`
-        placeholders[token] = provider.secretId
+        const rawDomains = provider.options?.allowedDomains
+        const allowedDomains = isArr(rawDomains)
+          ? rawDomains.filter((d): d is string => isStr(d) && d.length > 0)
+          : undefined
+
+        placeholders[token] = {
+          secretId: provider.secretId,
+          allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
+        }
         extraEnv[entry.envVar] = token
       } else if (injection === `direct`) {
         try {

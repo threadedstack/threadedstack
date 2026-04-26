@@ -1,4 +1,4 @@
-import type { TAuthError, TAuthResp } from '@TTH/types'
+import type { TAuthError, TAuthResp, TAuthProvider } from '@tdsk/components'
 
 import { User } from '@tdsk/domain'
 import { TDSK_AUTH_URL } from '@TTH/constants/envs'
@@ -21,7 +21,7 @@ export class Auth {
     return { error }
   }
 
-  signin = async (provider: string): Promise<TAuthResp> => {
+  signin = async (provider?: TAuthProvider): Promise<TAuthResp> => {
     const { error } = await this.client.signIn.social({ provider })
     if (error) return this.#error(error)
 

@@ -1,13 +1,19 @@
 import type { Readable } from 'stream'
 import type { TKubeClientConfig, TKubeEventHandlers } from '@TSB/types'
-import type { TSandboxResult, TRouteMap, TRouteMapEntry, TRouteEntry } from '@tdsk/domain'
+import type {
+  TRouteMap,
+  TRouteEntry,
+  TSandboxResult,
+  TRouteMapEntry,
+  TPlaceholderMap,
+} from '@tdsk/domain'
 
 import { PassThrough } from 'stream'
 import { logger } from '@TSB/utils/logger'
-import { EProto, EContainerState } from '@tdsk/domain'
 import * as k8s from '@kubernetes/client-node'
-import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { getKubeNS } from '@TSB/kube/getKubeNS'
+import { isFunc } from '@keg-hub/jsutils/isFunc'
+import { EProto, EContainerState } from '@tdsk/domain'
 import { toContainerState, getTerminationReason } from '@TSB/kube/toContainerState'
 
 import {
@@ -93,8 +99,6 @@ export class KubeClient {
     })
   }
 
-  // --- Shell Operations ---
-
   /**
    * Run a command inside a pod container via K8s API exec.
    * Uses K8s Exec API (not child_process) — the command array is sent directly to the container without host shell interpretation.
@@ -105,10 +109,10 @@ export class KubeClient {
     stdin?: Readable
   ): Promise<TSandboxResult> {
     return new Promise((resolve, reject) => {
-      const stdoutStream = new PassThrough()
-      const stderrStream = new PassThrough()
       const stdoutChunks: Buffer[] = []
       const stderrChunks: Buffer[] = []
+      const stdoutStream = new PassThrough()
+      const stderrStream = new PassThrough()
 
       stdoutStream.on(`data`, (chunk: Buffer) => stdoutChunks.push(chunk))
       stderrStream.on(`data`, (chunk: Buffer) => stderrChunks.push(chunk))
@@ -260,7 +264,7 @@ export class KubeClient {
     }
 
     let ports: Record<string, { protocol?: string }> = {}
-    let placeholders: Record<string, string> = {}
+    let placeholders: TPlaceholderMap = {}
 
     try {
       const portsRaw = annotations[PodAnnotationKeys.ports]

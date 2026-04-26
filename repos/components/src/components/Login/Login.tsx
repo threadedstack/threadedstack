@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
-import type { TOnLogin } from '@TTH/types'
+import type { TLogin, TLoginBtns } from '../../types'
+
 import Divider from '@mui/material/Divider'
-import { GhButton } from '@TTH/components/Login/GithubBtn'
-import { GgButton } from '@TTH/components/Login/GoogleBtn'
-import { VrButton } from '@TTH/components/Login/VercelBtn'
-import { EmailLoginForm } from '@TTH/components/Login/EmailLoginForm'
+import { GhButton } from './GithubBtn'
+import { GgButton } from './GoogleBtn'
+import { GlButton } from './GitlabBtn'
+import { VrButton } from './VercelBtn'
+import { EmailLoginForm } from './EmailLoginForm'
 
 import {
   ErrorText,
@@ -21,32 +22,15 @@ import {
   ErrorSection,
   LoginContainer,
   LoginMainContainer,
-} from '@TTH/components/Login/Login.styles'
+} from './Login.styles'
 
-type TLoginBtn = (props: TLoginBtnProps) => ReactNode
+const DefaultHeadline = `Threaded Stack`
+const DefaultSubtitle = `Secure AI agent orchestration with enterprise-grade security`
 
-export type TLoginBtnProps = {
-  error?: string
-  onLogin: TOnLogin
-  loading?: boolean
-  disabled?: boolean
-  authenticating?: string
-}
-
-export type TLogin = TLoginBtnProps & {
-  providers: Array<string>
-  showEmailForm?: boolean
-  emailError?: string
-  emailSuccess?: string
-  emailLoading?: boolean
-  onEmailSignIn?: (email: string, password: string) => Promise<void>
-  onEmailSignUp?: (email: string, password: string) => Promise<void>
-  onForgotPassword?: (email: string) => Promise<void>
-}
-
-const LoginBtns: Record<string, TLoginBtn> = {
+const LoginBtns: TLoginBtns = {
   github: GhButton,
   google: GgButton,
+  gitlab: GlButton,
   vercel: VrButton,
 }
 
@@ -55,14 +39,16 @@ export const Login = (props: TLogin) => {
     error,
     onLogin,
     providers,
-    authenticating,
-    showEmailForm,
     emailError,
     emailSuccess,
     emailLoading,
     onEmailSignIn,
     onEmailSignUp,
+    showEmailForm,
+    authenticating,
     onForgotPassword,
+    headline = DefaultHeadline,
+    subtitle = DefaultSubtitle,
   } = props
 
   const hasSocialProviders = providers.some((p) => LoginBtns[p])
@@ -75,10 +61,8 @@ export const Login = (props: TLogin) => {
 
       <LoginContent className='tdsk-login-content'>
         <BrandLogo />
-        <BrandHeadline>Threaded Stack</BrandHeadline>
-        <BrandSubtitle>
-          Secure AI agent orchestration with enterprise-grade security
-        </BrandSubtitle>
+        <BrandHeadline>{headline}</BrandHeadline>
+        <BrandSubtitle>{subtitle}</BrandSubtitle>
 
         <LoginMainContainer>
           <LoginStack className='tdsk-login-stack'>
@@ -116,11 +100,11 @@ export const Login = (props: TLogin) => {
                 </Divider>
               )}
               <EmailLoginForm
+                error={emailError}
+                success={emailSuccess}
                 onSignIn={onEmailSignIn}
                 onSignUp={onEmailSignUp}
                 onForgotPassword={onForgotPassword}
-                error={emailError}
-                success={emailSuccess}
                 loading={emailLoading || Boolean(authenticating)}
               />
             </BtnSection>

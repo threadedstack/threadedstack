@@ -1,11 +1,12 @@
-import type { TAuthSession } from '@TAF/types'
+import type { TAuthSession } from '@tdsk/components'
 
 import { apiService } from '@TAF/services/api'
 import { authClient } from '@TAF/services/auth'
-
-const REFRESH_BUFFER_MS = 2 * 60 * 1000
-const MIN_CHECK_INTERVAL_MS = 30 * 1000
-const FALLBACK_CHECK_INTERVAL_MS = 4 * 60 * 1000
+import {
+  RefreshBufferMS,
+  MinCheckIntervalMS,
+  FallbackCheckIntervalMS,
+} from '@tdsk/components'
 
 export class TokenRefreshManager {
   #timer: ReturnType<typeof setTimeout> | null = null
@@ -74,12 +75,12 @@ export class TokenRefreshManager {
     if (expiresAt) {
       const expiresMs = new Date(expiresAt).getTime()
       const msUntilRefresh = Math.max(
-        expiresMs - Date.now() - REFRESH_BUFFER_MS,
-        MIN_CHECK_INTERVAL_MS
+        expiresMs - Date.now() - RefreshBufferMS,
+        MinCheckIntervalMS
       )
       this.#timer = setTimeout(() => this.#proactiveRefresh(), msUntilRefresh)
     } else {
-      this.#timer = setTimeout(() => this.#proactiveRefresh(), FALLBACK_CHECK_INTERVAL_MS)
+      this.#timer = setTimeout(() => this.#proactiveRefresh(), FallbackCheckIntervalMS)
     }
   }
 
@@ -95,7 +96,7 @@ export class TokenRefreshManager {
     if (!expiresAt) return
 
     const expiresMs = new Date(expiresAt).getTime()
-    if (Date.now() >= expiresMs - REFRESH_BUFFER_MS) {
+    if (Date.now() >= expiresMs - RefreshBufferMS) {
       this.#doRefresh()
     }
   }

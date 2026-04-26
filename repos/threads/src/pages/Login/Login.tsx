@@ -1,8 +1,8 @@
-import type { TOnLogin } from '@TTH/types'
+import type { TOnLogin, TAuthProvider } from '@tdsk/components'
 
 import { nav } from '@TTH/services/nav'
+import { Login } from '@tdsk/components'
 import { auth } from '@TTH/services/auth'
-import { Login } from '@TTH/components/Login'
 import { useState, useCallback } from 'react'
 import { signin } from '@TTH/actions/auth/local/signin'
 import { TDSK_AUTH_PROVIDERS } from '@TTH/constants/envs'
@@ -13,7 +13,7 @@ export type TLogin = {}
 
 export const LoginPage = (props: TLogin) => {
   const [error, setError] = useState<string>()
-  const [authenticating, setAuthenticating] = useState<string>()
+  const [authenticating, setAuthenticating] = useState<TAuthProvider>()
   const [emailError, setEmailError] = useState<string>()
   const [emailSuccess, setEmailSuccess] = useState<string>()
   const [emailLoading, setEmailLoading] = useState(false)

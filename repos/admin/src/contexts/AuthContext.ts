@@ -1,4 +1,4 @@
-import type { TAuthSession } from '@TAF/types'
+import type { TAuthSession } from '@tdsk/components'
 
 import { createContext } from 'react'
 

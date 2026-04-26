@@ -1,9 +1,24 @@
 import type { LoaderFunctionArgs } from 'react-router'
+import type { TOrgWithRole } from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { init } from '@TTH/actions/init'
-import { getOrgId, getSandboxes } from '@TTH/state/accessors'
+import { storage } from '@TTH/services/storage'
+import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
+import { listProjects } from '@TTH/actions/projects/listProjects'
+import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import { fetchSandboxSessions } from '@TTH/actions/sandboxes/fetchSandboxSessions'
+import {
+  getOrgs,
+  getOrgId,
+  setOrgId,
+  getProjects,
+  setProjects,
+  setSandboxes,
+  setActiveOrgRole,
+  setActiveProjectId,
+  resetActiveProjectId,
+} from '@TTH/state/accessors'
 
 /**
  * Best-effort fetch for page/detail loaders.
@@ -32,19 +47,53 @@ export const rootLoader = async () => {
   return null
 }
 
-export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
-  // Ensure init() has completed — on deep-link React Router runs loaders in parallel
-  await rootLoader()
+export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId } = params
+  if (!orgId) return null
 
-  const { sandboxId } = params
-  const orgId = getOrgId()
-  if (!sandboxId || !orgId) return null
+  // Set org state
+  const currentOrgId = getOrgId()
+  if (currentOrgId !== orgId) {
+    setOrgId(orgId)
+    storage.set(ActiveOrgIdStorageKey, orgId)
 
-  const sandboxes = getSandboxes()
-  const sandbox = sandboxes.find((s) => s.id === sandboxId)
-  const projectId = sandbox?.projects?.[0]?.id
+    const orgs = getOrgs()
+    const selectedOrg = orgs.find((o) => o.id === orgId)
+    setActiveOrgRole((selectedOrg as TOrgWithRole)?.userRole ?? null)
+
+    // Clear and re-fetch scoped data when switching orgs
+    setSandboxes([])
+    setProjects([])
+    resetActiveProjectId()
+  }
+
+  // Fetch projects and sandboxes if not loaded
+  if (!getProjects().length || currentOrgId !== orgId) {
+    safeFetch(async () => {
+      const [sandboxResult, projectResult] = await Promise.all([
+        listSandboxes({ orgId }),
+        listProjects({ orgId }),
+      ])
+      if (sandboxResult.data) setSandboxes(sandboxResult.data)
+      if (projectResult.data) setProjects(projectResult.data)
+    })
+  }
+
+  return null
+}
+
+export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { projectId } = params
   if (!projectId) return null
 
-  await safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }))
+  setActiveProjectId(projectId)
+  return null
+}
+
+export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, sandboxId, projectId } = params
+  if (!sandboxId || !orgId || !projectId) return null
+
+  safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }))
   return null
 }

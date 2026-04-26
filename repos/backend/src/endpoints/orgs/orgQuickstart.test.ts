@@ -268,6 +268,41 @@ describe(`Quickstart endpoint`, () => {
       expect(providerInsertCall?.name).toBe(`Google AI`)
     })
 
+    it(`should include allowedDomains from ProviderBrandDomains in provider options`, async () => {
+      mockReq.body = { ...validBody, providerBrand: `anthropic` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.allowedDomains).toEqual([`api.anthropic.com`])
+    })
+
+    it(`should include openai allowedDomains for openai brand`, async () => {
+      mockReq.body = { ...validBody, providerBrand: `openai`, apiKey: `sk-test` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.allowedDomains).toEqual([`api.openai.com`])
+    })
+
+    it(`should default allowedDomains to empty array for custom brand`, async () => {
+      mockReq.body = {
+        ...validBody,
+        providerBrand: `custom`,
+        providerName: `My LLM`,
+        providerUrl: `https://my-llm.example.com`,
+      }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.allowedDomains).toEqual([])
+    })
+
     it(`should NOT store secretName in provider options`, async () => {
       mockReq.body = { ...validBody, providerBrand: `anthropic` }
 

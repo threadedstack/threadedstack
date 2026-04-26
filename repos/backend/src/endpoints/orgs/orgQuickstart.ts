@@ -23,6 +23,7 @@ import {
   EPermResource,
   encodeEncrypted,
   ProviderTemplates,
+  ProviderBrandDomains,
 } from '@tdsk/domain'
 
 /**
@@ -107,6 +108,10 @@ export const orgQuickstart: TEndpointConfig = {
             brand: providerBrand,
             options: {
               baseUrl,
+              allowedDomains:
+                ProviderBrandDomains[
+                  providerBrand as keyof typeof ProviderBrandDomains
+                ] ?? [],
             },
           })
           .returning()

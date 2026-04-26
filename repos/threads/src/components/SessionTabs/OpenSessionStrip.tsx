@@ -4,12 +4,18 @@ import { useCallback, useMemo } from 'react'
 import { useSessionMode } from '@TTH/hooks/session/useSessionMode'
 import { activateSession, closeSession } from '@TTH/actions/sessions'
 import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
-import { useSandboxes, useOpenSessions, useActiveSession } from '@TTH/state/selectors'
+import {
+  useSandboxes,
+  useOpenSessions,
+  useActiveSession,
+  useOrgId,
+} from '@TTH/state/selectors'
 
 type TSession = {
   runtime: string
   sandboxId: string
   sessionId: string
+  projectId: string
 }
 
 const useChipLabel = (session: TSession) => {
@@ -37,6 +43,7 @@ type TSessionChip = {
 
 const SessionChip = (props: TSessionChip) => {
   const { sessionId, session, active } = props
+  const [orgId] = useOrgId()
   const navigate = useNavigate()
   const mode = useSessionMode(sessionId)
   const label = useChipLabel(session)
@@ -53,11 +60,12 @@ const SessionChip = (props: TSessionChip) => {
   }, [mode])
 
   const handleClick = useCallback(() => {
+    if (!orgId || !session.projectId) return
     activateSession(sessionId)
-    navigate(`/session/${sessionId}`, {
-      state: { sandboxId: session.sandboxId },
+    navigate(`/orgs/${orgId}/projects/${session.projectId}/session/${sessionId}`, {
+      state: { sandboxId: session.sandboxId, projectId: session.projectId },
     })
-  }, [sessionId, session, navigate])
+  }, [sessionId, session, navigate, orgId])
 
   const handleDelete = useCallback(() => {
     closeSession(sessionId)

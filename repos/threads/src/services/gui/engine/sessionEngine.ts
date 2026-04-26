@@ -44,9 +44,10 @@ export class SessionEngine {
     this.terminal = terminal
     this.callbacks = callbacks
 
-    // Periodic idle check (every 1s)
+    // Periodic idle check — only processes when terminal has pending dirty
+    // state that wasn't flushed by rAF (e.g. mode transition after data stops)
     this.idleCheckTimer = setInterval(() => {
-      if (this.destroyed) return
+      if (this.destroyed || !this.dirty) return
       if (this.prevDoc.mode !== `idle`) {
         const idleMs = Date.now() - this.lastDataTime
         if (idleMs > 2000) this.process()

@@ -1,4 +1,4 @@
-import type { TAuthSession } from '@TAF/types'
+import type { TAuthSession } from '@tdsk/components'
 
 import { TokenRefreshManager } from './tokenRefresh'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'

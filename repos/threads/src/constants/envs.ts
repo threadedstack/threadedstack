@@ -1,3 +1,5 @@
+import type { TAuthProvider } from '@tdsk/components'
+
 const ensureEnv = (env: string, name: string): string => {
   if (!env?.trim?.())
     throw new Error(
@@ -26,7 +28,7 @@ export const Environment = process.env.NODE_ENV || `local`
 export const TDSK_AUTH_URL = ensureEnv(process.env.TDSK_AUTH_URL, `TDSK_AUTH_URL`)
 export const TDSK_AUTH_PROVIDERS = (process.env.TDSK_AUTH_PROVIDERS || `github`).split(
   `,`
-)
+) as TAuthProvider[]
 
 export const TDSK_POSTHOG_KEY = process.env.TDSK_POSTHOG_KEY
 export const TDSK_POSTHOG_HOST = process.env.TDSK_POSTHOG_HOST

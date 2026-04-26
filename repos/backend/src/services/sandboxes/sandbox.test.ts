@@ -272,7 +272,10 @@ describe(`SandboxService`, () => {
       await svc.startPod(baseOpts as any)
 
       const manifestCall = mockBuildPodManifest.mock.calls[0][0]
-      const placeholders = manifestCall.placeholders as Record<string, string>
+      const placeholders = manifestCall.placeholders as Record<
+        string,
+        { secretId: string }
+      >
       const tokens = Object.keys(placeholders)
 
       expect(tokens).toHaveLength(2)
@@ -280,7 +283,7 @@ describe(`SandboxService`, () => {
         expect(token).toMatch(/^tdsk_ph_/)
       }
 
-      const secretIds = Object.values(placeholders)
+      const secretIds = Object.values(placeholders).map((e) => e.secretId)
       expect(secretIds).toContain(`sec-a`)
       expect(secretIds).toContain(`sec-b`)
     })
@@ -363,7 +366,7 @@ describe(`SandboxService`, () => {
       })
       mockResolveProviderEnv.mockResolvedValue({
         extraEnv: { ANTHROPIC_API_KEY: `tdsk_ph_mock` },
-        placeholders: { tdsk_ph_mock: `sec-1` },
+        placeholders: { tdsk_ph_mock: { secretId: `sec-1` } },
         errors: [],
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -373,7 +376,7 @@ describe(`SandboxService`, () => {
 
       const manifestCall = mockBuildPodManifest.mock.calls[0][0]
       expect(manifestCall.extraEnv.ANTHROPIC_API_KEY).toBe(`tdsk_ph_mock`)
-      expect(manifestCall.placeholders.tdsk_ph_mock).toBe(`sec-1`)
+      expect(manifestCall.placeholders.tdsk_ph_mock).toEqual({ secretId: `sec-1` })
     })
 
     it(`should throw Exception(400) when provider resolution has errors`, async () => {

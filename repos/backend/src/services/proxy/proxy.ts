@@ -3,9 +3,9 @@ import type { ClientRequest } from 'http'
 import type { Options } from 'http-proxy-middleware'
 import type { TOAuthConfig, TEndpointOpts, TBodyTransformConfig } from '@tdsk/domain'
 
-import axios from 'axios'
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
+import { isDomainAllowed } from '@TBE/utils/proxy/domainMatch'
 import { Exception, EEPCredential, EEPAuthType } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
@@ -90,8 +90,19 @@ export class ProxyService {
     try {
       logger.debug(`Fetching OAuth token from ${tokenUrl}`)
 
-      const response = await axios.post(tokenUrl, params.toString(), { headers })
-      const { access_token: token, expires_in = 3600 } = response.data
+      const response = await fetch(tokenUrl, {
+        headers,
+        method: `POST`,
+        body: params.toString(),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Request failed with status ${response.status}: ${errorText}`)
+      }
+
+      const data = await response.json()
+      const { access_token: token, expires_in = 3600 } = data
 
       if (!token) throw new Exception(502, `OAuth token response missing access_token`)
 
@@ -227,15 +238,7 @@ export class ProxyService {
         hostname = requestOrigin
       }
 
-      const isAllowed = allowedDomains.some((domain) => {
-        // Support wildcards: *.example.com
-        if (domain.startsWith(`*.`)) {
-          const baseDomain = domain.slice(2)
-          return hostname === baseDomain || hostname.endsWith(`.${baseDomain}`)
-        }
-
-        return hostname === domain
-      })
+      const isAllowed = isDomainAllowed(hostname, allowedDomains)
 
       !isAllowed &&
         logBlocked &&

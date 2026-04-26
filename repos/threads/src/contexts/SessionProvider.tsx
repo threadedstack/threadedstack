@@ -101,7 +101,7 @@ export const SessionProvider = (props: TSessionProvider) => {
           return
         }
         if (newSessionId !== sessionId) {
-          navigate(`/session/${newSessionId}`, {
+          navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
             replace: true,
             state: { sandboxId, projectId },
           })

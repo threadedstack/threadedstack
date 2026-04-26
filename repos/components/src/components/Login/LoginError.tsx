@@ -1,13 +1,6 @@
-import {
-  ErrorText,
-  ErrorTitle,
-  ErrorSection,
-  LoginContainer,
-} from '@TTH/components/Login/Login.styles'
+import type { TLoginError } from '../../types'
 
-export type TLoginError = {
-  message?: string
-}
+import { ErrorText, ErrorTitle, ErrorSection, LoginContainer } from './Login.styles'
 
 export const LoginError = (props: TLoginError) => {
   const { message } = props

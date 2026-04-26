@@ -27,5 +27,4 @@ if (import.meta.hot) {
     destroyAllEngines()
     resetWasmCache()
   })
-  import.meta.hot.accept()
 }

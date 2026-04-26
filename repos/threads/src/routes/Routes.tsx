@@ -3,15 +3,22 @@ import { ERoutePath } from '@TTH/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TTH/pages/Layout/Layout'
 import { Navigate, createBrowserRouter } from 'react-router'
-import { rootLoader, sandboxLoader } from '@TTH/routes/loaders'
+import {
+  rootLoader,
+  sandboxLoader,
+  orgScopeLoader,
+  projectScopeLoader,
+} from '@TTH/routes/loaders'
 
 // Global pages
 const Home = lazy(() => import('@TTH/pages/Home/Home'))
+const Orgs = lazy(() => import('@TTH/pages/Orgs/Orgs'))
 const Login = lazy(() => import('@TTH/pages/Login/Login'))
 const Project = lazy(() => import('@TTH/pages/Project/Project'))
 const Session = lazy(() => import('@TTH/pages/Session/Session'))
 const Sandbox = lazy(() => import('@TTH/pages/Sandbox/Sandbox'))
 const Settings = lazy(() => import('@TTH/pages/Settings/Settings'))
+const Projects = lazy(() => import('@TTH/pages/Projects/Projects'))
 
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   <Suspense
@@ -43,23 +50,51 @@ export const Routes = createBrowserRouter([
         index: true,
         Component: () => <SuspensePage Component={Home} />,
       },
-      // Global settings route
       {
         path: ERoutePath.Settings,
         Component: () => <SuspensePage Component={Settings} />,
       },
       {
-        path: ERoutePath.Project,
-        Component: () => <SuspensePage Component={Project} />,
+        path: ERoutePath.Orgs,
+        Component: () => <SuspensePage Component={Orgs} />,
       },
       {
-        path: ERoutePath.Session,
-        Component: () => <SuspensePage Component={Session} />,
-      },
-      {
-        loader: sandboxLoader,
-        path: ERoutePath.Sandbox,
-        Component: () => <SuspensePage Component={Sandbox} />,
+        path: ERoutePath.OrgScope,
+        loader: orgScopeLoader,
+        children: [
+          {
+            index: true,
+            Component: () => (
+              <Navigate
+                replace
+                to='projects'
+              />
+            ),
+          },
+          {
+            path: ERoutePath.Projects,
+            Component: () => <SuspensePage Component={Projects} />,
+          },
+          {
+            path: ERoutePath.ProjectScope,
+            loader: projectScopeLoader,
+            children: [
+              {
+                index: true,
+                Component: () => <SuspensePage Component={Project} />,
+              },
+              {
+                loader: sandboxLoader,
+                path: ERoutePath.Sandbox,
+                Component: () => <SuspensePage Component={Sandbox} />,
+              },
+              {
+                path: ERoutePath.Session,
+                Component: () => <SuspensePage Component={Session} />,
+              },
+            ],
+          },
+        ],
       },
     ],
   },

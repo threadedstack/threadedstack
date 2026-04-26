@@ -1,6 +1,5 @@
 export * from './api.types'
 export * from './ast.types'
-export * from './auth.types'
 export * from './query.types'
 export * from './theme.types'
 export * from './engine.types'

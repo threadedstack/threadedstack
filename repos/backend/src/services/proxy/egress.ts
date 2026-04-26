@@ -14,6 +14,7 @@ import { isStr } from '@keg-hub/jsutils/isStr'
 import { extractSNI } from '@TBE/utils/proxy/extractSNI'
 import { createPublicKey, createPrivateKey } from 'crypto'
 import { CACertPath, CAKeyPath } from '@TBE/constants/values'
+import { isDomainAllowed } from '@TBE/utils/proxy/domainMatch'
 import { PhTokenPrefix, RealIpHeader } from '@TBE/constants/values'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
@@ -172,11 +173,25 @@ export class EgressProxy {
 
     if (!placeholders) return
 
+    // Extract destination host, strip port
+    const rawHost = ctx.proxyToServerRequestOptions?.host
+    const destHost = rawHost?.split(`:`)[0] || undefined
+
+    if (!destHost) {
+      const hasDomainGated = Object.values(placeholders).some(
+        (e) => e.allowedDomains?.length
+      )
+      if (hasDomainGated)
+        logger.warn(
+          `[EgressProxy] Could not determine destination host — domain-gated swaps will be skipped`
+        )
+    }
+
     // Scan and replace Authorization header
     const authHeader = outHeaders?.[`authorization`]
     if (authHeader) {
       const header = isArr(authHeader) ? authHeader[0] : authHeader
-      const replaced = await this.replaceTokens(header, placeholders)
+      const replaced = await this.replaceTokens(header, placeholders, destHost)
       if (replaced !== authHeader)
         ctx.proxyToServerRequestOptions!.headers[`authorization`] = replaced
     }
@@ -185,7 +200,7 @@ export class EgressProxy {
     const headers = outHeaders || {}
     for (const [key, value] of Object.entries(headers)) {
       if (isStr(value) && value.includes(PhTokenPrefix))
-        headers[key] = await this.replaceTokens(value, placeholders)
+        headers[key] = await this.replaceTokens(value, placeholders, destHost)
     }
   }
 
@@ -206,19 +221,30 @@ export class EgressProxy {
 
   private async replaceTokens(
     value: string,
-    placeholders: TPlaceholderMap
+    placeholders: TPlaceholderMap,
+    destHost?: string
   ): Promise<string> {
     let result = value
-    for (const [token, secretId] of Object.entries(placeholders)) {
-      if (result.includes(token)) {
-        const secret = await this.resolveSecret(secretId)
-        if (secret) {
-          result = result.replaceAll(token, secret)
-        } else {
-          throw new Error(
-            `[EgressProxy] Failed to resolve secret ${secretId} for placeholder ${token.slice(0, 12)}…`
+    for (const [token, entry] of Object.entries(placeholders)) {
+      if (!result.includes(token)) continue
+
+      // Domain-gate: skip swap if allowedDomains is set and destination doesn't match
+      if (entry.allowedDomains?.length) {
+        if (!destHost || !isDomainAllowed(destHost, entry.allowedDomains)) {
+          logger.info(
+            `[EgressProxy] Skipping placeholder swap for ${token.slice(0, 12)}… — destination ${destHost || `unknown`} not in allowedDomains`
           )
+          continue
         }
+      }
+
+      const secret = await this.resolveSecret(entry.secretId)
+      if (secret) {
+        result = result.replaceAll(token, secret)
+      } else {
+        throw new Error(
+          `[EgressProxy] Failed to resolve secret ${entry.secretId} for placeholder ${token.slice(0, 12)}…`
+        )
       }
     }
     return result

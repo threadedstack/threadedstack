@@ -1,7 +1,10 @@
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import { styled, alpha } from '@mui/material/styles'
-import { Text, TSIcon, gutter, LoadingButton } from '@tdsk/components'
+import { Text } from '../Text'
+import { TSIcon } from '../Icons/TSIcon'
+import { gutter } from '../../theme/gutter'
+import { LoadingButton } from '../Buttons/LoadingButton'
 
 export const LoginContainer = styled(Box)(({ theme }) => {
   return `

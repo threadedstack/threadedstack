@@ -5,7 +5,12 @@ import { Box, Tabs, Tab, Badge } from '@mui/material'
 import { useSessionMode } from '@TTH/hooks/session/useSessionMode'
 import { activateSession, closeSession } from '@TTH/actions/sessions'
 import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
-import { useSandboxes, useOpenSessions, useActiveSession } from '@TTH/state/selectors'
+import {
+  useSandboxes,
+  useOpenSessions,
+  useActiveSession,
+  useOrgId,
+} from '@TTH/state/selectors'
 
 type TSessionTab = {
   sessionId: string
@@ -146,6 +151,7 @@ export type TSessionTabs = {}
 
 export const SessionTabs = (props: TSessionTabs) => {
   const navigate = useNavigate()
+  const [orgId] = useOrgId()
   const [openSessions] = useOpenSessions()
   const [activeSession] = useActiveSession()
 
@@ -158,15 +164,14 @@ export const SessionTabs = (props: TSessionTabs) => {
 
   const onSelect = useCallback(
     (sessionId: string) => {
-      activateSession(sessionId)
       const session = openSessions.get(sessionId)
-      navigate(`/session/${sessionId}`, {
-        state: session
-          ? { sandboxId: session.sandboxId, projectId: session.projectId }
-          : undefined,
+      if (!session?.projectId || !orgId) return
+      activateSession(sessionId)
+      navigate(`/orgs/${orgId}/projects/${session.projectId}/session/${sessionId}`, {
+        state: { sandboxId: session.sandboxId, projectId: session.projectId },
       })
     },
-    [navigate, openSessions]
+    [navigate, openSessions, orgId]
   )
 
   const onClose = useCallback((sessionId: string) => {

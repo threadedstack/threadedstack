@@ -1,4 +1,5 @@
 import { ERoutePath } from '@TTH/types'
+import { getOrgId } from '@TTH/state/accessors'
 
 export class NavService {
   base: string
@@ -16,12 +17,34 @@ export class NavService {
     window.dispatchEvent(new PopStateEvent(`popstate`))
   }
 
-  is = (loc: ERoutePath) => window.location.pathname === loc
-  not = (loc: ERoutePath) => window.location.pathname !== loc
-  has = (loc: ERoutePath) => window.location.pathname.startsWith(loc)
+  is = (loc: string) => window.location.pathname === loc
+  not = (loc: string) => window.location.pathname !== loc
+  has = (loc: string) => window.location.pathname.startsWith(loc)
   back = () => history.back()
-  home = () => this.not(ERoutePath.Home) && this.to(ERoutePath.Home)
   signin = () => !this.has(ERoutePath.Signin) && this.to(ERoutePath.Signin)
+
+  // --- URL builders ---
+
+  orgs = () => this.to(`/orgs`)
+
+  org = (orgId: string) => this.to(`/orgs/${orgId}`)
+
+  projects = (orgId: string) => this.to(`/orgs/${orgId}/projects`)
+
+  project = (orgId: string, projectId: string) =>
+    this.to(`/orgs/${orgId}/projects/${projectId}`)
+
+  sandbox = (orgId: string, projectId: string, sandboxId: string) =>
+    this.to(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`)
+
+  session = (orgId: string, projectId: string, sessionId: string) =>
+    this.to(`/orgs/${orgId}/projects/${projectId}/session/${sessionId}`)
+
+  home = () => {
+    if (this.is(ERoutePath.Home)) return
+    const orgId = getOrgId()
+    orgId ? this.projects(orgId) : this.orgs()
+  }
 }
 
 export const nav = new NavService()

@@ -1,7 +1,6 @@
 export * from './qs.types'
 export * from './api.types'
 export * from './nav.types'
-export * from './auth.types'
 export * from './user.types'
 export * from './query.types'
 export * from './theme.types'

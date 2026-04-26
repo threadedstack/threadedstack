@@ -204,7 +204,7 @@ export class SandboxService {
     if (sandbox.config.secretIds) {
       for (const secretId of sandbox.config.secretIds) {
         const token = `${PhTokenPrefix}${nanoid(16)}`
-        placeholders[token] = secretId
+        placeholders[token] = { secretId }
       }
     }
 
@@ -216,7 +216,7 @@ export class SandboxService {
     // Generate placeholder for git auth token if configured
     if (sandbox.config.gitTokenSecretId) {
       const gitToken = `${PhTokenPrefix}${nanoid(16)}`
-      placeholders[gitToken] = sandbox.config.gitTokenSecretId
+      placeholders[gitToken] = { secretId: sandbox.config.gitTokenSecretId }
       extraEnv.TDSK_GIT_TOKEN = gitToken
     }
 

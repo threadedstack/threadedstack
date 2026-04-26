@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { TAuthSession } from '@TTH/types'
+import type { TAuthSession } from '@tdsk/components'
 
 import { useMemo, useState } from 'react'
 import { auth } from '@TTH/services/auth'
@@ -8,9 +8,8 @@ import { AuthContext } from '@TTH/contexts/AuthContext'
 import { initAuth } from '@TTH/actions/auth/local/init'
 import { signout } from '@TTH/actions/auth/local/signout'
 import { tokenRefresh } from '@TTH/services/tokenRefresh'
-import { LoginError } from '@TTH/components/Login/LoginError'
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react'
-import { Loading, MemoChildren, useEffectOnce } from '@tdsk/components'
+import { LoginError, Loading, MemoChildren, useEffectOnce } from '@tdsk/components'
 
 export type TAuthProvider = {
   children: ReactNode
