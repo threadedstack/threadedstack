@@ -1,6 +1,6 @@
+import { closeSession } from '@TTH/actions/sessions'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { getSessionsForSandbox } from '@TTH/state/accessors'
-import { closeSession } from '@TTH/actions/sessions'
 
 export type TStopSandboxOpts = {
   sandboxId: string

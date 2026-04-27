@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react'
 
-import { useNavigate } from 'react-router'
+import { nav } from '@TTH/services/nav'
 import { useState, useCallback } from 'react'
 import { selectProject } from '@TTH/actions/projects/selectProject'
 import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
@@ -13,7 +13,6 @@ import {
 
 export const ProjectSelector = () => {
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const [projects] = useProjects()
   const [query, setQuery] = useState(``)
   const [activeProject] = useActiveProject()
@@ -35,9 +34,9 @@ export const ProjectSelector = () => {
     (item: { id: string }) => {
       selectProject(item.id)
       onClose()
-      navigate(`/orgs/${orgId}/projects/${item.id}`)
+      nav.project(orgId, item.id)
     },
-    [navigate, orgId]
+    [orgId]
   )
 
   const items = projects.map((p) => ({

@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
-import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart, cleanupThread } from '../utils/tsa-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
 import { ApiClient } from '@tdsk/tsa'
 import { Thread } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: TSA Thread Lifecycle — Full CRUD Validation
@@ -19,7 +19,7 @@ describe('Tier 3: TSA Thread Lifecycle (live)', () => {
   let client: ApiClient
 
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult | null = null
 
   // Threads to clean up if tests fail partway
   const threadIds: string[] = []
@@ -29,21 +29,18 @@ describe('Tier 3: TSA Thread Lifecycle (live)', () => {
     client = new ApiClient(auth as any)
   })
 
-  // Create quickstart agent for thread tests
+  // Create fixtures for thread tests
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-thread-lifecycle',
-        projectName: uniqueName('TSA Thread Lifecycle IT'),
-        agentName: uniqueName('TSA Thread Lifecycle Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'anthropic',
+      apiKey: 'sk-ant-test-thread-lifecycle',
+      projectName: uniqueName('TSA Thread Lifecycle IT'),
+      agentName: uniqueName('TSA Thread Lifecycle Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
   })
 
   afterAll(async () => {
@@ -51,7 +48,7 @@ describe('Tier 3: TSA Thread Lifecycle (live)', () => {
     for (const tid of threadIds) {
       await cleanupThread(ctx.orgId, agentId, tid)
     }
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Create ─────────────────────────────────────────────────────

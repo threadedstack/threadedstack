@@ -2,10 +2,11 @@ import type {
   EThemeType,
   TQuotaData,
   TLimitsData,
-  TProxyFormState,
   TFaasFormState,
-  TAgentFormState,
   TRailSectionId,
+  TProxyFormState,
+  TAgentFormState,
+  TOnboardingState,
 } from '@TAF/types'
 import type {
   Role,
@@ -36,7 +37,8 @@ import { apiKeysState } from '@TAF/state/apiKeys'
 import { invoicesState } from '@TAF/state/invoices'
 import { providersState } from '@TAF/state/providers'
 import { sandboxesState } from '@TAF/state/sandboxes'
-import { quickstartState } from '@TAF/state/quickstart'
+import { onboardingState } from '@TAF/state/onboarding'
+import { DefOnboardingState } from '@TAF/constants/onboarding'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { projectMembersState } from '@TAF/state/projectMembers'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
@@ -91,10 +93,6 @@ export const resetActiveRailSection = () =>
   store.set(activeRailSectionState, defActiveRailSection)
 export const setActiveRailSection = (id: TRailSectionId | null) =>
   store.set(activeRailSectionState, id)
-
-export const getQuickstartOpen = () => store.get(quickstartState)
-export const resetQuickstartOpen = () => store.set(quickstartState, false)
-export const setQuickstartOpen = (status: boolean) => store.set(quickstartState, status)
 
 export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
@@ -360,3 +358,9 @@ export const setThreadMessages = (threadId: string, msgs: Record<string, Message
   const all = getMessages() || {}
   setMessages({ ...all, [threadId]: msgs })
 }
+
+// Onboarding
+export const getOnboardingState = () => store.get(onboardingState)
+export const resetOnboardingState = () => store.set(onboardingState, DefOnboardingState)
+export const setOnboardingState = (state: TOnboardingState) =>
+  store.set(onboardingState, state)

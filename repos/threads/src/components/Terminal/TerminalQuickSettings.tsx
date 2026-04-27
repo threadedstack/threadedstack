@@ -1,5 +1,8 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useState } from 'react'
+import { nav } from '@TTH/services/nav'
+import { resetTerminal } from '@TTH/actions/terminal/reset'
+import { Settings as SettingsIcon } from '@mui/icons-material'
+import { TerminalTabPanels } from '@TTH/components/Terminal/TerminalTabPanels'
 import {
   Box,
   Tab,
@@ -11,57 +14,34 @@ import {
   Typography,
 } from '@mui/material'
 
-import { resetTerminal } from '@TTH/actions/terminal/reset'
-import { TerminalFontSettings } from './TerminalFontSettings'
-import { Settings as SettingsIcon } from '@mui/icons-material'
-import { TerminalCursorSettings } from './TerminalCursorSettings'
-import { TerminalScrollSettings } from './TerminalScrollSettings'
-import { TerminalThemeSettings } from './TerminalThemeSettings'
-
-const TabPanels = [
-  { label: `Font`, Component: TerminalFontSettings },
-  { label: `Cursor`, Component: TerminalCursorSettings },
-  { label: `Scroll`, Component: TerminalScrollSettings },
-  { label: `Theme`, Component: TerminalThemeSettings },
-] as const
-
 export const TerminalQuickSettings = () => {
-  const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
   const [tabIndex, setTabIndex] = useState(0)
 
-  const handleOpen = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(e.currentTarget)
-  }, [])
-
-  const handleClose = useCallback(() => {
-    setAnchorEl(null)
-  }, [])
-
-  const ActivePanel = TabPanels[tabIndex].Component
+  const ActivePanel = TerminalTabPanels[tabIndex].Component
 
   return (
     <>
       <IconButton
         size='small'
-        onClick={handleOpen}
         title='Terminal Settings'
+        onClick={(e) => setAnchorEl(e.currentTarget)}
       >
         <SettingsIcon fontSize='small' />
       </IconButton>
       <Popover
         open={!!anchorEl}
         anchorEl={anchorEl}
-        onClose={handleClose}
+        onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: `bottom`, horizontal: `right` }}
         transformOrigin={{ vertical: `top`, horizontal: `right` }}
         slotProps={{
           paper: {
             sx: {
               width: 360,
+              display: `flex`,
               maxHeight: `80vh`,
               overflow: `hidden`,
-              display: `flex`,
               flexDirection: `column`,
             },
           },
@@ -84,11 +64,11 @@ export const TerminalQuickSettings = () => {
         </Box>
         <Tabs
           value={tabIndex}
-          onChange={(_, v) => setTabIndex(v)}
           variant='fullWidth'
+          onChange={(_, v) => setTabIndex(v)}
           sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0.5 } }}
         >
-          {TabPanels.map(({ label }) => (
+          {TerminalTabPanels.map(({ label }) => (
             <Tab
               key={label}
               label={label}
@@ -103,7 +83,7 @@ export const TerminalQuickSettings = () => {
         <Box sx={{ p: 1, display: `flex`, justifyContent: `center` }}>
           <Button
             size='small'
-            onClick={() => navigate(`/settings`)}
+            onClick={() => nav.settings()}
           >
             All Settings
           </Button>

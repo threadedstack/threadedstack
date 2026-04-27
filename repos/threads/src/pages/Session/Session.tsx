@@ -1,11 +1,12 @@
 import type { TViewMode } from '@TTH/types'
 
 import { toast } from 'sonner'
+import { nav } from '@TTH/services/nav'
+import { useParams } from 'react-router'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { styled } from '@mui/material/styles'
 import { ArrowBack } from '@mui/icons-material'
-import { useParams, useNavigate } from 'react-router'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { ViewToggle } from '@TTH/components/ViewToggle'
 import { useState, useCallback, useEffect } from 'react'
@@ -23,27 +24,27 @@ import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSet
 import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
 
 const SessionContainer = styled(Box)`
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
 `
 
 const SessionHeader = styled(Box)(({ theme }) => ({
+  minHeight: 48,
   display: `flex`,
   alignItems: `center`,
   gap: theme.spacing(1),
   padding: theme.spacing(1, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
-  minHeight: 48,
 }))
 
 const ContentArea = styled(Box)`
   flex: 1;
-  overflow: hidden;
   display: flex;
-  flex-direction: column;
+  overflow: hidden;
   position: relative;
+  flex-direction: column;
 `
 
 const monoFont = `'JetBrains Mono', monospace`
@@ -51,9 +52,9 @@ const monoFont = `'JetBrains Mono', monospace`
 const ConfigLabel = styled(Typography)(({ theme }) => ({
   fontSize: 13,
   fontWeight: 600,
+  letterSpacing: `0.05em`,
   color: theme.palette.text.secondary,
   textTransform: `uppercase` as const,
-  letterSpacing: `0.05em`,
 }))
 
 const ConfigValue = styled(Typography)({
@@ -64,10 +65,10 @@ const ConfigValue = styled(Typography)({
 const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <Box
     sx={{
-      display: `flex`,
-      justifyContent: `space-between`,
-      alignItems: `center`,
       py: 0.75,
+      display: `flex`,
+      alignItems: `center`,
+      justifyContent: `space-between`,
     }}
   >
     <ConfigLabel>{label}</ConfigLabel>
@@ -81,7 +82,6 @@ const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) 
 
 const SessionInner = () => {
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const [sandboxes] = useSandboxes()
   const { sessionId } = useParams<{ sessionId: string }>()
   const { session, isOwner, sandboxId, projectId, pendingOp, connecting, setPendingOp } =
@@ -111,10 +111,9 @@ const SessionInner = () => {
   }, [activeSessionId, engine])
 
   const onBack = useCallback(() => {
-    if (sandboxId && orgId && projectId)
-      navigate(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`)
-    else navigate(orgId ? `/orgs/${orgId}/projects` : `/orgs`)
-  }, [navigate, sandboxId, orgId, projectId])
+    if (sandboxId && orgId && projectId) nav.sandbox(orgId, projectId, sandboxId)
+    else orgId ? nav.projects(orgId) : nav.orgs()
+  }, [sandboxId, orgId, projectId])
 
   const onViewChange = useCallback((value: TViewMode) => {
     setViewMode(value)
@@ -129,7 +128,7 @@ const SessionInner = () => {
         projectId,
         sessionId: null,
       })
-      navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
+      nav.session(orgId, projectId, newSessionId, {
         replace: true,
         state: { sandboxId, projectId },
       })
@@ -139,7 +138,7 @@ const SessionInner = () => {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,
       })
     }
-  }, [sandboxId, orgId, projectId, navigate])
+  }, [sandboxId, orgId, projectId])
 
   if (!sessionId)
     return (
@@ -164,9 +163,9 @@ const SessionInner = () => {
             <ArrowBack />
           </IconButton>
           <Typography
-            variant='subtitle1'
             noWrap
             sx={{ flex: 1 }}
+            variant='subtitle1'
           >
             {session?.runtime || sandbox?.name || sessionId}
           </Typography>

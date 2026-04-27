@@ -1,7 +1,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { get, post } from '../utils/api-client'
+import { get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
-import { cleanupQuickstart } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -14,58 +15,60 @@ import { uniqueName } from '../utils/unique-name'
 describe('Tier 1: Project State Scoping', () => {
   const ctx = readContext()
 
-  let quickstartA: Record<string, any> = {}
-  let quickstartB: Record<string, any> = {}
+  let fixturesA: TFixtureResult = {}
+  let fixturesB: TFixtureResult = {}
   let setupFailed = false
 
   beforeAll(async () => {
-    // Create two test projects via quickstart (provides provider + secret + agent + endpoint)
-    const projA = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    // Create two test projects via fixtures (provides provider + secret + agent + endpoint)
+    try {
+      fixturesA = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-test-scope-a-12345',
         projectName: uniqueName('Scoping Test A'),
         agentName: uniqueName('Scoping Agent A'),
-      }
-    )
-
-    if (projA.status !== 201 || !projA.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartA = projA.data
+    if (!fixturesA.project?.id) {
+      setupFailed = true
+      return
+    }
 
-    const projB = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    try {
+      fixturesB = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-test-scope-b-12345',
         projectName: uniqueName('Scoping Test B'),
         agentName: uniqueName('Scoping Agent B'),
-      }
-    )
-
-    if (projB.status !== 201 || !projB.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartB = projB.data
+    if (!fixturesB.project?.id) {
+      setupFailed = true
+      return
+    }
   })
 
   afterAll(async () => {
-    await cleanupQuickstart(ctx.orgId, quickstartA)
-    await cleanupQuickstart(ctx.orgId, quickstartB)
+    await cleanupFixtures(ctx.orgId, fixturesA)
+    await cleanupFixtures(ctx.orgId, fixturesB)
   })
 
   test('GET endpoints for Project A returns only Project A endpoints', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const projectAId = quickstartA.project.id
-    const endpointAId = quickstartA.endpoint?.id || ''
-    const endpointBId = quickstartB.endpoint?.id || ''
+    const projectAId = fixturesA.project.id
+    const endpointAId = fixturesA.endpoint?.id || ''
+    const endpointBId = fixturesB.endpoint?.id || ''
 
     const res = await get<{ id: string; projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/endpoints`
@@ -88,9 +91,9 @@ describe('Tier 1: Project State Scoping', () => {
   test('GET endpoints for Project B returns only Project B endpoints', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const projectBId = quickstartB.project.id
-    const endpointAId = quickstartA.endpoint?.id || ''
-    const endpointBId = quickstartB.endpoint?.id || ''
+    const projectBId = fixturesB.project.id
+    const endpointAId = fixturesA.endpoint?.id || ''
+    const endpointBId = fixturesB.endpoint?.id || ''
 
     const res = await get<{ id: string; projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectBId}/endpoints`
@@ -113,8 +116,8 @@ describe('Tier 1: Project State Scoping', () => {
   test('endpoints from different projects have no overlap', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const projectAId = quickstartA.project.id
-    const projectBId = quickstartB.project.id
+    const projectAId = fixturesA.project.id
+    const projectBId = fixturesB.project.id
 
     const resA = await get<{ id: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/endpoints`
@@ -137,7 +140,7 @@ describe('Tier 1: Project State Scoping', () => {
   test('GET functions for Project A returns only Project A functions', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const projectAId = quickstartA.project.id
+    const projectAId = fixturesA.project.id
 
     const res = await get<{ projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/functions`
@@ -152,7 +155,7 @@ describe('Tier 1: Project State Scoping', () => {
   test('GET agents for Project A returns only Project A agents', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const projectAId = quickstartA.project.id
+    const projectAId = fixturesA.project.id
 
     const res = await get<{ orgId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/agents`

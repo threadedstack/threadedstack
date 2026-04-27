@@ -1,13 +1,13 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
-import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart, cleanupThread } from '../utils/tsa-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
 import { ApiClient } from '@tdsk/tsa/services/api'
 import { Executor } from '@tdsk/tsa/services/executor'
 import { env } from '../utils/env'
 import type { TStreamEvent } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: TSA Executor — Full LLM E2E
@@ -24,9 +24,9 @@ describe('Tier 3: TSA Executor — LLM E2E (live)', () => {
   const ctx = readContext()
   let executor: Executor
 
-  // Quickstart resources (created with real key)
+  // Fixture resources (created with real key)
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult | null = null
   const threadIds: string[] = []
 
   // Shared result from a single LLM call
@@ -41,20 +41,17 @@ describe('Tier 3: TSA Executor — LLM E2E (live)', () => {
     const client = new ApiClient(auth as any)
     executor = new Executor(client)
 
-    // Create quickstart agent with a REAL provider key
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'zai',
-        apiKey: env.testProviderKey,
-        projectName: uniqueName('TSA LLM E2E'),
-        agentName: uniqueName('TSA LLM E2E Agent'),
-      }
-    )
+    // Create fixtures with a REAL provider key
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'zai',
+      apiKey: env.testProviderKey,
+      projectName: uniqueName('TSA LLM E2E'),
+      agentName: uniqueName('TSA LLM E2E Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
 
     // Run a single LLM call — all tests assert on this shared result.
     // Retry once on transient failures (rate limits, network hiccups).
@@ -87,7 +84,7 @@ describe('Tier 3: TSA Executor — LLM E2E (live)', () => {
     for (const tid of threadIds) {
       await cleanupThread(ctx.orgId, agentId, tid)
     }
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test.skipIf(!hasProviderKey())('run() completes without error', () => {

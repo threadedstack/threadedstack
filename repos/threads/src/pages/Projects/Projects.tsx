@@ -1,10 +1,11 @@
 import type { Project, Sandbox } from '@tdsk/domain'
 
 import { dims } from '@tdsk/components'
+import { nav } from '@TTH/services/nav'
+import { useParams } from 'react-router'
 import { Page } from '@TTH/pages/Page/Page'
 import { useMemo, useCallback } from 'react'
 import { styled } from '@mui/material/styles'
-import { useNavigate, useParams } from 'react-router'
 import { useProjects, useSandboxes } from '@TTH/state/selectors'
 import { selectProject } from '@TTH/actions/projects/selectProject'
 import { FolderOutlined, Terminal, ChevronRight } from '@mui/icons-material'
@@ -124,7 +125,6 @@ const sandboxCountByProject = (sandboxes: Sandbox[]): Map<string, number> => {
 
 const Projects = () => {
   const { orgId } = useParams<{ orgId: string }>()
-  const navigate = useNavigate()
   const [projects] = useProjects()
   const [sandboxes] = useSandboxes()
 
@@ -133,9 +133,9 @@ const Projects = () => {
   const onSelect = useCallback(
     (projectId: string) => {
       selectProject(projectId)
-      navigate(`/orgs/${orgId}/projects/${projectId}`)
+      nav.project(orgId, projectId)
     },
-    [navigate, orgId]
+    [orgId]
   )
 
   if (!orgId) return null

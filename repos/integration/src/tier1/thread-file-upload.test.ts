@@ -1,7 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post } from '../utils/api-client'
-import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { readContext } from '../utils/test-context'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
 
@@ -17,7 +19,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
   const ctx = readContext()
   let agentId = ''
   let threadId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   beforeAll(async () => {
@@ -26,23 +28,20 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
       return
     }
 
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'zai',
-        apiKey: env.testProviderKey,
-        projectName: uniqueName('Upload Test'),
-        agentName: uniqueName('Upload Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'zai',
+      apiKey: env.testProviderKey,
+      projectName: uniqueName('Upload Test'),
+      agentName: uniqueName('Upload Agent'),
+    })
 
-    if (res.status !== 201 || !res.data?.agent?.id) {
+    if (!fixtures.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    agentId = fixtures.agent.id
 
     // Create a thread for upload tests
     const threadRes = await post<Record<string, any>>(
@@ -59,16 +58,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
 
   afterAll(async () => {
     if (threadId) await tryDelete(`/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}`)
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project?.id}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Successful Upload ─────────────────────────────────────────────

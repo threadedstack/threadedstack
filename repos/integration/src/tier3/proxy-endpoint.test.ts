@@ -4,6 +4,8 @@ import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: Proxy Endpoint Execution Flow
@@ -24,7 +26,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   const secretPlaintext = `proxy-test-value-${timestamp}`
 
   let setupFailed = false
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let projectId = ''
   let secretId = ''
   let basicEpId = ''
@@ -35,25 +37,26 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   let badAuthEpId = ''
 
   beforeAll(async () => {
-    // Step 1: Quickstart to get a project context
-    const qsRes = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    // Step 1: Setup fixtures to get a project context
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        /** IGNORE THIS KEY - It is intentionally fake */
-        apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('Proxy Test Project'),
         agentName: uniqueName('Proxy Test Agent'),
-      }
-    )
-
-    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data
-    projectId = quickstartResult.project.id
+    if (!fixtures.project?.id) {
+      setupFailed = true
+      return
+    }
+
+    projectId = fixtures.project.id
 
     // Step 2: Create a project-scoped secret for template injection testing
     const secretRes = await post<Record<string, any>>(
@@ -222,19 +225,8 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     // Delete test secret
     if (secretId) await tryDelete(`/orgs/${ctx.orgId}/secrets/${secretId}`)
 
-    // Delete quickstart resources (reverse dependency order)
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(
-        `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`
-      )
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    // Delete fixture resources (reverse dependency order)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ── Section 1: Endpoint CRUD Verification ──────────────────────────

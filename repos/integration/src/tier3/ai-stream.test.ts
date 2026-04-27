@@ -1,3 +1,4 @@
+import type { TFixtureResult } from '../utils/fixtures'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { env } from '../utils/env'
 import { post, get, del } from '../utils/api-client'
@@ -6,6 +7,7 @@ import { tryDelete } from '../utils/cleanup'
 import { consumeWS, connectWS } from '../utils/ws-client'
 import { EWSEventType } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 
 /**
  * Tier 3: WebSocket Agent Execution (/ai/ws)
@@ -26,25 +28,25 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   const ctx = readContext()
   let agentId = ''
   let sessionToken = ''
-  let qsResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
 
   beforeAll(async () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      try {
+        const result = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: uniqueName('WS Agent Flow Test'),
           agentName: uniqueName('WS Agent Flow Agent'),
-        }
-      )
-
-      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
-        qsResult = qsRes.data
-        agentId = qsResult!.agent.id
+        })
+        fixtures = result
+        agentId = result.agent?.id ?? ''
+      }
+      catch {
+        // fall through to pre-existing agent
       }
     }
 
@@ -78,17 +80,8 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   })
 
   afterAll(async () => {
-    if (!qsResult) return
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    if (!fixtures) return
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Session verification ──────────────────────────────────────────
@@ -286,47 +279,34 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   // ─── Deleted agent session → WS close 4001 ─────────────────────────
 
   test.skipIf(!hasLLM())('WS with session for deleted agent closes with 4001', async () => {
-    // Create a temporary agent via quickstart
-    const tempQs = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'zai',
-        apiKey: env.testProviderKey,
-        projectName: uniqueName('WS Deleted Agent'),
-        agentName: uniqueName('WS Del Agent'),
-      }
-    )
+    // Create a temporary agent via setupFixtures
+    const tempFixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'zai',
+      apiKey: env.testProviderKey,
+      projectName: uniqueName('WS Deleted Agent'),
+      agentName: uniqueName('WS Del Agent'),
+    })
 
-    expect(tempQs.status).toBe(201)
-    const tempAgent = tempQs.data.agent
-    const tempProject = tempQs.data.project
-    const tempEndpoint = tempQs.data.endpoint
-    const tempSecret = tempQs.data.secret
-    const tempProvider = tempQs.data.provider
+    expect(tempFixtures.agent).toBeDefined()
 
     // Create session for this agent
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: tempAgent.id }
+      { agentId: tempFixtures.agent!.id }
     )
     expect(sessionRes.status).toBe(200)
     const tempToken = sessionRes.data.sessionToken
 
     // Delete the agent BEFORE using the session token
-    await del(`/orgs/${ctx.orgId}/agents/${tempAgent.id}`)
+    await del(`/orgs/${ctx.orgId}/agents/${tempFixtures.agent!.id}`)
 
     // Connect WS — resolveSession returns null → ws.close(4001)
     const result = await connectWS(tempToken, { timeout: 10_000 })
     expect(result.closeCode).toBe(4001)
 
     // Cleanup remaining resources (agent already deleted)
-    if (tempEndpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${tempProject?.id}/endpoints/${tempEndpoint.id}`)
-    if (tempProject?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${tempProject.id}`)
-    if (tempSecret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${tempSecret.id}`)
-    if (tempProvider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${tempProvider.id}`)
+    const fixturesWithoutAgent: TFixtureResult = { ...tempFixtures, agent: undefined }
+    await cleanupFixtures(ctx.orgId, fixturesWithoutAgent)
   })
 })

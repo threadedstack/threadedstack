@@ -1,14 +1,14 @@
+import { nav } from '@TTH/services/nav'
 import { Box, Chip } from '@mui/material'
-import { useNavigate } from 'react-router'
 import { useCallback, useMemo } from 'react'
 import { useSessionMode } from '@TTH/hooks/session/useSessionMode'
 import { activateSession, closeSession } from '@TTH/actions/sessions'
 import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
 import {
+  useOrgId,
   useSandboxes,
   useOpenSessions,
   useActiveSession,
-  useOrgId,
 } from '@TTH/state/selectors'
 
 type TSession = {
@@ -44,7 +44,6 @@ type TSessionChip = {
 const SessionChip = (props: TSessionChip) => {
   const { sessionId, session, active } = props
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const mode = useSessionMode(sessionId)
   const label = useChipLabel(session)
 
@@ -62,10 +61,10 @@ const SessionChip = (props: TSessionChip) => {
   const handleClick = useCallback(() => {
     if (!orgId || !session.projectId) return
     activateSession(sessionId)
-    navigate(`/orgs/${orgId}/projects/${session.projectId}/session/${sessionId}`, {
+    nav.session(orgId, session.projectId, sessionId, {
       state: { sandboxId: session.sandboxId, projectId: session.projectId },
     })
-  }, [sessionId, session, navigate, orgId])
+  }, [sessionId, session, orgId])
 
   const handleDelete = useCallback(() => {
     closeSession(sessionId)
@@ -81,9 +80,9 @@ const SessionChip = (props: TSessionChip) => {
       variant={active ? `filled` : `outlined`}
       label={
         <Box
+          gap={0.75}
           display='flex'
           alignItems='center'
-          gap={0.75}
         >
           <Box
             sx={{

@@ -1,7 +1,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, put, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
-import { cleanupQuickstart } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
 
@@ -18,7 +19,7 @@ describe('Tier 1: Web Tools Configuration', () => {
   let orgId = ''
   let projectId = ''
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   const agentPath = () => `/orgs/${orgId}/agents/${agentId}`
@@ -30,31 +31,32 @@ describe('Tier 1: Web Tools Configuration', () => {
   beforeAll(async () => {
     orgId = ctx.orgId
 
-    const res = await post<Record<string, any>>(
-      `/orgs/${orgId}/quickstart`,
-      {
+    try {
+      fixtures = await setupFixtures({
+        orgId,
         providerBrand: 'zai',
         apiKey: env.testProviderKey,
         projectName: uniqueName('Web Tools Config IT'),
         agentName: uniqueName('Web Tools Config Agent'),
-        agentDescription: 'Agent for web tools config integration tests',
-        maxTokens: 4096,
         systemPrompt: 'You are a test assistant.',
-      }
-    )
-
-    if (res.status !== 201 || !res.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data
-    projectId = quickstartResult.project.id
-    agentId = quickstartResult.agent.id
+    if (!fixtures.project?.id) {
+      setupFailed = true
+      return
+    }
+
+    projectId = fixtures.project.id
+    agentId = fixtures.agent!.id
   })
 
   afterAll(async () => {
-    await cleanupQuickstart(orgId, quickstartResult)
+    await cleanupFixtures(orgId, fixtures)
   })
 
   // ─── Tool assignment ──────────────────────────────────────────────

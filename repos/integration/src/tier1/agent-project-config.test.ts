@@ -2,7 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, put, post, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
-import { cleanupQuickstart } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -18,12 +19,12 @@ import { uniqueName } from '../utils/unique-name'
 describe('Tier 1: Agent Project Config', () => {
   const ctx = readContext()
 
-  // Resources created by quickstart
+  // Resources created by fixtures
   let orgId = ''
   let projectId = ''
   let agentId = ''
   let providerId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   // Additional resources for specific tests
@@ -38,30 +39,35 @@ describe('Tier 1: Agent Project Config', () => {
   beforeAll(async () => {
     orgId = ctx.orgId
 
-    // Create a quickstart setup: provider + secret + project + agent + endpoint
-    const res = await post<Record<string, any>>(
-      `/orgs/${orgId}/quickstart`,
-      {
+    try {
+      fixtures = await setupFixtures({
+        orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-config-override',
         projectName: uniqueName('Config Override IT'),
         agentName: uniqueName('Config Override Agent'),
-        agentDescription: 'Base agent description',
         model: 'claude-sonnet-4-20250514',
-        maxTokens: 50000,
         systemPrompt: 'You are a helpful base assistant.',
-      }
-    )
-
-    if (res.status !== 201 || !res.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data
-    projectId = quickstartResult.project.id
-    agentId = quickstartResult.agent.id
-    providerId = quickstartResult.provider?.id || ''
+    if (!fixtures.project?.id) {
+      setupFailed = true
+      return
+    }
+
+    projectId = fixtures.project.id
+    agentId = fixtures.agent!.id
+    providerId = fixtures.provider?.id || ''
+
+    // Set base agent values that tests rely on
+    await put(`/orgs/${orgId}/agents/${agentId}`, {
+      description: 'Base agent description',
+      maxTokens: 50000,
+    })
 
     // Create a function in the project for functionIds tests
     const funcRes = await post<{ id: string }>(
@@ -86,8 +92,8 @@ describe('Tier 1: Agent Project Config', () => {
         `/orgs/${orgId}/projects/${projectId}/functions/${functionId}`
       )
     }
-    // Clean up quickstart resources (endpoint → agent → project → secret → provider)
-    await cleanupQuickstart(orgId, quickstartResult)
+    // Clean up fixture resources (endpoint → agent → project → secret → provider)
+    await cleanupFixtures(orgId, fixtures)
   })
 
   // ─── Config CRUD ─────────────────────────────────────────────────

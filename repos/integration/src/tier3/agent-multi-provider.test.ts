@@ -7,6 +7,7 @@ import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: Multi-Provider Agent E2E Tests
@@ -37,41 +38,36 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
   // ─── Quickstart-based agent with real provider key ─────────────────
 
   describe('quickstart agent with real provider key', () => {
-    let qsResult: Record<string, any> = {}
+    let fixtures: TFixtureResult = {}
     let setupFailed = false
     const threadIds: string[] = []
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
 
-      const res = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      try {
+        fixtures = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: uniqueName('MP E2E Project'),
           agentName: uniqueName('MP E2E Agent'),
-        }
-      )
-
-      if (res.status !== 201 || !res.data?.agent?.id) {
+        })
+      } catch {
         setupFailed = true
         return
       }
 
-      qsResult = res.data
+      if (!fixtures.agent?.id) {
+        setupFailed = true
+      }
     })
 
     afterAll(async () => {
       for (const tid of threadIds) {
-        if (qsResult.agent?.id) await cleanupThread(ctx.orgId, qsResult.agent.id, tid)
+        if (fixtures.agent?.id) await cleanupThread(ctx.orgId, fixtures.agent.id, tid)
       }
-      if (qsResult.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-      if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-      if (qsResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-      if (qsResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-      if (qsResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+      await cleanupFixtures(ctx.orgId, fixtures)
     })
 
     test.skipIf(!hasProviderKey())('quickstart agent resolves primary provider for session', async () => {
@@ -79,7 +75,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -100,7 +96,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Create session
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -136,7 +132,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const { events, threadId } = await consumeSSE(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
+        `/orgs/${ctx.orgId}/agents/${fixtures.agent!.id}/run`,
         { prompt: `Say hello in exactly 3 words` }
       )
       if (threadId) threadIds.push(threadId)
@@ -151,11 +147,11 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(threadEvent?.threadId || threadId).toBeTruthy()
     })
 
-    test.skipIf(!hasProviderKey())('GET agent returns providerLinks from quickstart', async () => {
+    test.skipIf(!hasProviderKey())('GET agent returns providerLinks from fixtures', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const agentRes = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
+        `/orgs/${ctx.orgId}/agents/${fixtures.agent!.id}`
       )
 
       expect(agentRes.status).toBe(200)
@@ -168,10 +164,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       // Set explicit junction model
       const updateRes = await put<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
+        `/orgs/${ctx.orgId}/agents/${fixtures.agent!.id}`,
         {
           providerInputs: [
-            { id: qsResult.provider.id, model: 'custom-junction-model' },
+            { id: fixtures.provider!.id, model: 'custom-junction-model' },
           ],
         }
       )
@@ -181,7 +177,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Session should use the junction model
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -192,45 +188,40 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
   // ─── Quickstart agent: Session uses primaryProvider ──────────────
 
   describe('existing agent primary provider resolution', () => {
-    let qsResult: Record<string, any> = {}
+    let fixtures2: TFixtureResult = {}
     let setupFailed = false
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
 
-      const res = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      try {
+        fixtures2 = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: uniqueName('MP Existing Project'),
           agentName: uniqueName('MP Existing Agent'),
-        }
-      )
-
-      if (res.status !== 201 || !res.data?.agent?.id) {
+        })
+      } catch {
         setupFailed = true
         return
       }
 
-      qsResult = res.data
+      if (!fixtures2.agent?.id) {
+        setupFailed = true
+      }
     })
 
     afterAll(async () => {
-      if (qsResult.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-      if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-      if (qsResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-      if (qsResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-      if (qsResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+      await cleanupFixtures(ctx.orgId, fixtures2)
     })
 
     test.skipIf(!hasProviderKey())('session resolves primary provider from agent providers array', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      // Verify the quickstart agent has providers
+      // Verify the agent has providers
       const agentRes = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
+        `/orgs/${ctx.orgId}/agents/${fixtures2.agent!.id}`
       )
 
       expect(agentRes.status).toBe(200)
@@ -242,7 +233,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Create session — should use the primary provider
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures2.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -260,7 +251,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures2.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -306,26 +297,29 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       }
       projectId = projRes.data.id
 
-      // Use quickstart to create agent + provider + secret with real key
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      // Use setupFixtures to create agent + provider + secret with real key
+      let switchFixtures: TFixtureResult = {}
+      try {
+        switchFixtures = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: uniqueName('MP Switch QS'),
           agentName: uniqueName('MP Switch Agent'),
-        }
-      )
-
-      if (qsRes.status !== 201) {
+        })
+      } catch {
         setupFailed = true
         return
       }
 
-      const qs = qsRes.data
-      agentId = qs.agent.id
-      provider1Id = qs.provider.id
-      secretId = qs.secret?.id
+      if (!switchFixtures.agent?.id) {
+        setupFailed = true
+        return
+      }
+
+      agentId = switchFixtures.agent.id
+      provider1Id = switchFixtures.provider!.id
+      secretId = switchFixtures.secret?.id
 
       // Create a second zai provider (same template)
       const prov2Res = await post<{ id: string }>(
@@ -361,10 +355,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         await put(`/orgs/${ctx.orgId}/providers/${provider2Id}`, { secretId: secret2Id })
       }
 
-      // Clean up the quickstart's project and endpoint (we use our own project)
-      if (qs.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qs.project?.id}/endpoints/${qs.endpoint.id}`)
-      if (qs.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qs.project.id}`)
+      // Clean up the fixtures' project and endpoint (we use our own project)
+      if (switchFixtures.endpoint?.id && switchFixtures.project?.id)
+        await tryDelete(`/orgs/${ctx.orgId}/projects/${switchFixtures.project.id}/endpoints/${switchFixtures.endpoint.id}`)
+      if (switchFixtures.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${switchFixtures.project.id}`)
     })
 
     afterAll(async () => {
@@ -570,7 +564,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
   // ─── Agent Run SSE with multi-provider ─────────────────────────────
 
   describe('agent run SSE with multi-provider', () => {
-    let qsResult: Record<string, any> = {}
+    let fixtures3: TFixtureResult = {}
     let provider2Id = ''
     let setupFailed = false
     const threadIds: string[] = []
@@ -578,23 +572,24 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     beforeAll(async () => {
       if (!hasProviderKey()) return
 
-      // Create agent via quickstart with real key
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      // Create agent via setupFixtures with real key
+      try {
+        fixtures3 = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: uniqueName('MP Run Project'),
           agentName: uniqueName('MP Run Agent'),
-        }
-      )
-
-      if (qsRes.status !== 201) {
+        })
+      } catch {
         setupFailed = true
         return
       }
 
-      qsResult = qsRes.data
+      if (!fixtures3.agent?.id) {
+        setupFailed = true
+        return
+      }
 
       // Add a second provider
       const prov2Res = await post<{ id: string }>(
@@ -615,21 +610,16 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       provider2Id = prov2Res.data.id
 
       // Update agent to have both providers
-      await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
-        providerInputs: [{ id: qsResult.provider.id }, { id: provider2Id }],
+      await put(`/orgs/${ctx.orgId}/agents/${fixtures3.agent.id}`, {
+        providerInputs: [{ id: fixtures3.provider!.id }, { id: provider2Id }],
       })
     })
 
     afterAll(async () => {
       for (const tid of threadIds) {
-        if (qsResult.agent?.id) await cleanupThread(ctx.orgId, qsResult.agent.id, tid)
+        if (fixtures3.agent?.id) await cleanupThread(ctx.orgId, fixtures3.agent.id, tid)
       }
-      if (qsResult.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-      if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-      if (qsResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-      if (qsResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-      if (qsResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+      await cleanupFixtures(ctx.orgId, fixtures3)
       if (provider2Id) await tryDelete(`/orgs/${ctx.orgId}/providers/${provider2Id}`)
     })
 
@@ -637,7 +627,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const { events, threadId } = await consumeSSE(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
+        `/orgs/${ctx.orgId}/agents/${fixtures3.agent!.id}/run`,
         { prompt: 'Say hello' }
       )
       if (threadId) threadIds.push(threadId)
@@ -656,7 +646,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const { threadId } = await consumeSSE(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
+        `/orgs/${ctx.orgId}/agents/${fixtures3.agent!.id}/run`,
         { prompt: 'What is 1+1?' }
       )
       if (threadId) threadIds.push(threadId)
@@ -668,12 +658,12 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const res = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
+        `/orgs/${ctx.orgId}/agents/${fixtures3.agent!.id}`
       )
 
       expect(res.status).toBe(200)
       expect(res.data.providerLinks.length).toBe(2)
-      expect(res.data.providerLinks[0].provider.id).toBe(qsResult.provider.id)
+      expect(res.data.providerLinks[0].provider.id).toBe(fixtures3.provider!.id)
       expect(res.data.providerLinks[1].provider.id).toBe(provider2Id)
     })
   })
@@ -682,22 +672,19 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
   describe('security: no key leakage', () => {
     test.skipIf(!hasProviderKey())('agent response never contains API keys or secret values', async () => {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: uniqueName('MP Security Project'),
-          agentName: uniqueName('MP Security Agent'),
-        }
-      )
+      const secFixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('MP Security Project'),
+        agentName: uniqueName('MP Security Agent'),
+      })
 
-      expect(qsRes.status).toBe(201)
-      const qs = qsRes.data
+      expect(secFixtures.provider).toBeDefined()
 
       // GET agent should not contain API key
       const agentRes = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qs.agent.id}`
+        `/orgs/${ctx.orgId}/agents/${secFixtures.agent!.id}`
       )
 
       const agentJson = JSON.stringify(agentRes.data)
@@ -717,7 +704,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Session creation should not leak API key
       const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qs.agent.id }
+        { agentId: secFixtures.agent!.id }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -727,12 +714,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(sessionJson).not.toContain('apiKey')
 
       // Cleanup
-      if (qs.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qs.project?.id}/endpoints/${qs.endpoint.id}`)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qs.agent.id}`)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qs.project?.id}`)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qs.secret?.id}`)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qs.provider?.id}`)
+      await cleanupFixtures(ctx.orgId, secFixtures)
     })
   })
 })

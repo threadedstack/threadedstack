@@ -1,11 +1,12 @@
 import type { Sandbox } from '@tdsk/domain'
 import type { TViewportMode } from '@TTH/types/ast.types'
 
+import { nav } from '@TTH/services/nav'
 import { ESandboxMode } from '@TTH/types'
+import { useLocation } from 'react-router'
 import { storage } from '@TTH/services/storage'
 import { colors, cmx, dims } from '@tdsk/components'
 import { useMemo, useState, useCallback } from 'react'
-import { useNavigate, useLocation } from 'react-router'
 import { classifySessions } from '@TTH/actions/sessions'
 import { Terminal, ChevronRight } from '@mui/icons-material'
 import { useSandboxMode } from '@TTH/hooks/sandbox/useSandboxMode'
@@ -48,7 +49,6 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
 
   const theme = useTheme()
   const [user] = useUser()
-  const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
   const sandboxMode = useSandboxMode(sandbox.id)
@@ -60,10 +60,11 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
 
   const runtime = sandbox.config?.runtime || `custom`
   const resolvedProjectId = projectId || sandbox.projects?.[0]?.id || ``
-  const basePath = `/orgs/${orgId}/projects/${resolvedProjectId}`
   const isActive =
-    location.pathname === `${basePath}/sandbox/${sandbox.id}` ||
-    localSessions.some((s) => location.pathname === `${basePath}/session/${s.sessionId}`)
+    location.pathname === nav.path.sandbox(orgId, resolvedProjectId, sandbox.id) ||
+    localSessions.some(
+      (s) => location.pathname === nav.path.session(orgId, resolvedProjectId, s.sessionId)
+    )
 
   const backendSessions = backendSessionsMap.get(sandbox.id) ?? []
 
@@ -100,8 +101,8 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   )
 
   const onNavigate = useCallback(() => {
-    navigate(`${basePath}/sandbox/${sandbox.id}`)
-  }, [navigate, basePath, sandbox.id])
+    nav.sandbox(orgId, resolvedProjectId, sandbox.id)
+  }, [orgId, resolvedProjectId, sandbox.id])
 
   return (
     <Box>

@@ -1,6 +1,6 @@
-import type { TLLMProviderBrand } from '@TDM/types/ai.types'
-import type { TGitBrand } from '@TDM/types/git.types'
 import type { Provider } from '@TDM/models/provider'
+import type { TGitBrand } from '@TDM/types/git.types'
+import type { TLLMProviderBrand, TModelCost } from '@TDM/types/ai.types'
 
 export enum EProvider {
   ai = `ai`,
@@ -43,4 +43,33 @@ export type TProviderLink = {
 export type TProviderInput = {
   id: string
   model?: string | null
+}
+
+/**
+ * Provider model entry — enriched with pi-mono metadata.
+ * Only `id` and `name` are required; the rest come from pi-mono's registry.
+ */
+export type TProviderModel = {
+  id: string
+  name: string
+  cost?: TModelCost
+  maxTokens?: number
+  reasoning?: boolean
+  description?: string
+  contextWindow?: number
+  inputTypes?: string[]
+}
+
+/**
+ * Provider template definition for the onboarding wizard.
+ * Models are sourced from pi-mono's registry (via backend endpoint),
+ * NOT from hardcoded arrays.
+ */
+export type TProviderTemplate = {
+  name: string
+  baseUrl: string
+  id: TLLMProviderBrand
+  apiKeyPattern?: string
+  defaultSecretName: string
+  apiKeyPlaceholder: string
 }

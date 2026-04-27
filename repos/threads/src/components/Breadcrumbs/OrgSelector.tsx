@@ -1,15 +1,14 @@
 import type { MouseEvent } from 'react'
 
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { nav } from '@TTH/services/nav'
 import { selectOrg } from '@TTH/actions/orgs'
+import { useState, useCallback } from 'react'
 import { useOrgs, useOrgId, useActiveOrg } from '@TTH/state/selectors'
 import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 
 export const OrgSelector = () => {
   const [orgs] = useOrgs()
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const [activeOrg] = useActiveOrg()
   const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -25,14 +24,11 @@ export const OrgSelector = () => {
     setQuery('')
   }
 
-  const onSelect = useCallback(
-    (item: { id: string }) => {
-      selectOrg(item.id)
-      onClose()
-      navigate(`/orgs/${item.id}/projects`)
-    },
-    [navigate]
-  )
+  const onSelect = useCallback((item: { id: string }) => {
+    selectOrg(item.id)
+    onClose()
+    nav.projects(item.id)
+  }, [])
 
   const items = orgs.map((o) => ({
     id: o.id,
@@ -43,27 +39,27 @@ export const OrgSelector = () => {
   return (
     <>
       <SelectorButton
+        open={open}
+        onClick={onClick}
+        text={activeOrg?.name}
+        placeholder='Select Org'
+        className='tdsk-org-selector'
         icon={
           <OrgIcon
             text
             sx={{ fontSize: 18 }}
           />
         }
-        text={activeOrg?.name}
-        open={open}
-        onClick={onClick}
-        className='tdsk-org-selector'
-        placeholder='Select Org'
       />
       <SelectorMenu
+        open={open}
         items={items}
         query={query}
-        setQuery={setQuery}
         activeId={orgId}
-        open={open}
+        onClose={onClose}
+        setQuery={setQuery}
         anchorEl={anchorEl}
         onSelect={onSelect}
-        onClose={onClose}
         searchPlaceholder='Search organizations...'
         emptyMessage='No organizations found'
       />

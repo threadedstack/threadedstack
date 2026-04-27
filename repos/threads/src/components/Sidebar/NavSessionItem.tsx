@@ -1,11 +1,12 @@
 import type { TClassifiedSession } from '@TTH/types'
 
 import { toast } from 'sonner'
+import { nav } from '@TTH/services/nav'
+import { useLocation } from 'react-router'
 import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
 import { colors, cmx, dims } from '@tdsk/components'
 import { usePermissions } from '@TTH/hooks/permissions'
-import { useNavigate, useLocation } from 'react-router'
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { PeopleOutline, VisibilityOutlined } from '@mui/icons-material'
 import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
@@ -59,7 +60,6 @@ const categoryLabel = (category: TClassifiedSession[`category`]) => {
 export const NavSessionItem = (props: TNavSessionItem) => {
   const { session, sandboxId, projectId, orgId, indent = 48 } = props
 
-  const navigate = useNavigate()
   const location = useLocation()
   const theme = useTheme()
   const { canExec } = usePermissions()
@@ -67,9 +67,9 @@ export const NavSessionItem = (props: TNavSessionItem) => {
   const [connecting, setConnecting] = useState(false)
   const connectingRef = useRef(false)
 
-  const basePath = `/orgs/${orgId}/projects/${projectId}`
   const isSharedViewOnly = session.category === `shared` && !canExecSandbox
-  const isActive = location.pathname === `${basePath}/session/${session.sessionId}`
+  const isActive =
+    location.pathname === nav.path.session(orgId, projectId, session.sessionId)
   const shortId = session.sessionId.slice(0, 6)
   const timestamp = useMemo(
     () => formatTimestamp(session.connectedAt),
@@ -78,7 +78,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
 
   const onClick = useCallback(async () => {
     if (session.category === `connected`) {
-      navigate(`${basePath}/session/${session.sessionId}`, {
+      nav.session(orgId, projectId, session.sessionId, {
         state: { sandboxId, projectId },
       })
       return
@@ -95,7 +95,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
         projectId,
         sessionId: session.sessionId,
       })
-      navigate(`${basePath}/session/${resolvedId}`, {
+      nav.session(orgId, projectId, resolvedId, {
         state: { sandboxId, projectId },
       })
     } catch (err) {
@@ -107,7 +107,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
       connectingRef.current = false
       setConnecting(false)
     }
-  }, [session, sandboxId, projectId, orgId, navigate])
+  }, [session, sandboxId, projectId, orgId])
 
   return (
     <Box

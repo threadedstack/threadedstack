@@ -3,9 +3,9 @@ import { env } from '../utils/env'
 import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
-import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: OpenAI-Compatible API Endpoints
@@ -24,26 +24,23 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 describe('Tier 3: OpenAI-Compatible API', () => {
   const ctx = readContext()
   let agentId = ''
-  let qsResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
   const threadIds: string[] = []
 
   beforeAll(async () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: uniqueName('OAI Compat Test Project'),
-          agentName: uniqueName('OAI Compat Test Agent'),
-        }
-      )
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('OAI Compat Test Project'),
+        agentName: uniqueName('OAI Compat Test Agent'),
+      })
 
-      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
-        qsResult = qsRes.data
-        agentId = qsResult!.agent.id
+      if (fixtures.agent?.id) {
+        agentId = fixtures.agent.id
       }
     }
 
@@ -69,17 +66,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     for (const tid of threadIds) {
       if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
     }
-    if (!qsResult) return
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── GET /agents/:id/v1/models ─────────────────────────────────────
@@ -218,7 +205,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
         `/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say hi' }],
-          model: 'custom-model-override',
+          model: 'glm-4.5-flash',
           stream: false,
         },
         { timeout: 90_000 }

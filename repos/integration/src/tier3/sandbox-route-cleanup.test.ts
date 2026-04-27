@@ -11,6 +11,7 @@ import {
   getPodSubdomain,
   waitForPodState,
 } from '../utils/sandbox-helpers'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 
 /**
  * Tier 3: Sandbox Route Map Cleanup
@@ -169,20 +170,18 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
     if (!env.testProviderKey) return
 
-    // Create a fresh agent with a real provider key via quickstart.
+    // Create a fresh agent with a real provider key via setupFixtures.
     // We can't use pre-configured testAgentId/testZaiAgentId because their
     // provider secrets may have been cleaned up by other tests.
-    const qsRes = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'zai',
-        apiKey: env.testProviderKey,
-        projectName: `route-cleanup-ws-${Date.now()}`,
-        agentName: `route-cleanup-ws-agent-${Date.now()}`,
-      }
-    )
-    expect(qsRes.status).toBe(201)
-    const agentId = qsRes.data.agent.id
+    const fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'zai',
+      apiKey: env.testProviderKey,
+      projectName: `route-cleanup-ws-${Date.now()}`,
+      agentName: `route-cleanup-ws-agent-${Date.now()}`,
+    })
+    expect(fixtures.provider).toBeDefined()
+    const agentId = fixtures.agent!.id
 
     try {
       // Create a session
@@ -218,18 +217,8 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
         expect(content.length).toBeGreaterThan(0)
       }
     } finally {
-      // Clean up quickstart resources
-      const qs = qsRes.data
-      if (qs.endpoint?.id)
-        await api(`/orgs/${ctx.orgId}/projects/${qs.project?.id}/endpoints/${qs.endpoint.id}`, { method: 'DELETE' })
-      if (qs.agent?.id)
-        await api(`/orgs/${ctx.orgId}/agents/${qs.agent.id}`, { method: 'DELETE' })
-      if (qs.project?.id)
-        await api(`/orgs/${ctx.orgId}/projects/${qs.project.id}`, { method: 'DELETE' })
-      if (qs.provider?.id)
-        await api(`/orgs/${ctx.orgId}/providers/${qs.provider.id}`, { method: 'DELETE' })
-      if (qs.secret?.id)
-        await api(`/orgs/${ctx.orgId}/secrets/${qs.secret.id}`, { method: 'DELETE' })
+      // Clean up fixture resources
+      await cleanupFixtures(ctx.orgId, fixtures)
     }
   }, 90_000)
 

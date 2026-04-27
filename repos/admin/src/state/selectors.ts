@@ -21,10 +21,15 @@ import { userState } from '@TAF/state/user'
 import { noOp } from '@keg-hub/jsutils/noOp'
 import { themeTypeState } from '@TAF/state/theme'
 import { apiKeysState } from '@TAF/state/apiKeys'
+import { invoicesState } from '@TAF/state/invoices'
 import { providersState } from '@TAF/state/providers'
-import { quickstartState } from '@TAF/state/quickstart'
+import { onboardingState } from '@TAF/state/onboarding'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
+import { skillsState, activeSkillIdState } from '@TAF/state/skills'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
+import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
+import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
+import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
 import {
   sandboxesState,
   orgSandboxesState,
@@ -32,13 +37,10 @@ import {
 } from '@TAF/state/sandboxes'
 import {
   assetsState,
-  activeAssetIdState,
   orgAssetsState,
   projectAssetsState,
+  activeAssetIdState,
 } from '@TAF/state/assets'
-import { skillsState, activeSkillIdState } from '@TAF/state/skills'
-import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
-import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
 import {
   domainsState,
   activeDomainIdState,
@@ -62,8 +64,6 @@ import {
   activeFunctionIdState,
   projectFunctionsState,
 } from '@TAF/state/functions'
-import { invoicesState } from '@TAF/state/invoices'
-import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import {
   agentsState,
   activeAgentIdState,
@@ -122,7 +122,6 @@ export const useProviders = () => useRecState(providersState)
 export const useSandboxes = () => useRecState(sandboxesState)
 export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
-export const useQuickstartOpen = () => useRecState(quickstartState)
 export const useActiveRailSection = () => useRecState(activeRailSectionState)
 
 export const useOrgs = () => useRecState(orgsState)
@@ -228,3 +227,6 @@ export const useOrgSandboxes = () =>
   useDerivedState<Record<string, Sandbox>>(orgSandboxesState)
 export const useProjectSandboxes = () =>
   useDerivedState<Record<string, Sandbox>>(projectSandboxesState)
+
+// Onboarding
+export const useOnboardingState = () => useRecState(onboardingState)

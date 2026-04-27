@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
-import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { ApiClient } from '@tdsk/tsa'
 import { uniqueName } from '../utils/unique-name'
 
@@ -18,33 +18,29 @@ describe('Tier 1: TSA Project Flow (live)', () => {
 
   let agentId = ''
   let projectId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
 
   beforeAll(() => {
     const auth = createTestAuth()
     client = new ApiClient(auth as any)
   })
 
-  // Create quickstart resources
+  // Create fixture resources
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-project-flow',
-        projectName: uniqueName('TSA Project Flow IT'),
-        agentName: uniqueName('TSA Project Flow Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'anthropic',
+      projectName: uniqueName('TSA Project Flow IT'),
+      agentName: uniqueName('TSA Project Flow Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
-    projectId = quickstartResult.project.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
+    projectId = fixtures.project!.id
   })
 
   afterAll(async () => {
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Project listing ────────────────────────────────────────────

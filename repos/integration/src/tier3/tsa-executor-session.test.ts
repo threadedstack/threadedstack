@@ -1,12 +1,12 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
-import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart, cleanupThread } from '../utils/tsa-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
 import { ApiClient } from '@tdsk/tsa/services/api'
 import { Executor } from '@tdsk/tsa/services/executor'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: TSA Executor — Session & Thread Orchestration
@@ -19,9 +19,9 @@ describe('Tier 3: TSA Executor — session orchestration (live)', () => {
   const ctx = readContext()
   let executor: Executor
 
-  // Quickstart resources
+  // Fixture resources
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult | null = null
   const threadIds: string[] = []
 
   beforeAll(async () => {
@@ -29,27 +29,24 @@ describe('Tier 3: TSA Executor — session orchestration (live)', () => {
     const client = new ApiClient(auth as any)
     executor = new Executor(client)
 
-    // Create quickstart agent
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-tsa-executor-session',
-        projectName: uniqueName('TSA Executor IT'),
-        agentName: uniqueName('TSA Executor Agent'),
-      }
-    )
+    // Create fixtures for executor tests
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'anthropic',
+      apiKey: 'sk-ant-test-tsa-executor-session',
+      projectName: uniqueName('TSA Executor IT'),
+      agentName: uniqueName('TSA Executor Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
   })
 
   afterAll(async () => {
     for (const tid of threadIds) {
       await cleanupThread(ctx.orgId, agentId, tid)
     }
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Session creation ─────────────────────────────────────────────

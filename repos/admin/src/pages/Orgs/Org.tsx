@@ -8,12 +8,12 @@ import { ConfirmDelete, OrgIcon } from '@tdsk/components'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
-import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
+import { OnboardingWizard } from '@TAF/components/Onboarding'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
-import { Quickstart } from '@TAF/components/Quickstart/Quickstart'
+import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
 import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
 import { ActionCards } from '@TAF/components/ActionCards/ActionCards'
-import { toggleQuickStart } from '@TAF/actions/quickstart/local/toggle'
+import { openOnboarding } from '@TAF/actions/onboarding/local/openOnboarding'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -188,12 +188,6 @@ export const Org = (props: TOrg) => {
             title='Quick Actions'
             actions={[
               {
-                title: `Quick Start`,
-                Icon: RocketLaunchIcon,
-                onClick: () => toggleQuickStart(true),
-                subtitle: `Everything you need in one place`,
-              },
-              {
                 title: `Projects`,
                 Icon: ProjectIcon,
                 subtitle: `View and manage projects`,
@@ -211,10 +205,19 @@ export const Org = (props: TOrg) => {
                 subtitle: `Configure API keys and secrets`,
                 onClick: () => navigate(`/orgs/${org.id}/secrets`),
               },
+              {
+                title: `Setup Wizard`,
+                Icon: RocketLaunchIcon,
+                onClick: () =>
+                  openOnboarding({
+                    mode: `manual`,
+                    orgId: org.id,
+                    startStep: 1,
+                  }),
+                subtitle: `Configure providers, projects & sandboxes`,
+              },
             ]}
           />
-
-          <Quickstart button={false} />
         </CardContent>
       </Card>
 
@@ -316,6 +319,8 @@ export const Org = (props: TOrg) => {
         onSuccess={onEditSuccess}
         onClose={onEditDrawerClose}
       />
+
+      <OnboardingWizard />
     </Page>
   )
 }

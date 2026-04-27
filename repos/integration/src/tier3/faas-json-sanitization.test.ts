@@ -3,6 +3,8 @@ import { post, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: FaaS JSON Sanitization
@@ -25,7 +27,7 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
   const timestamp = Date.now()
 
   let setupFailed = false
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let projectId = ''
 
   const functionIds: string[] = []
@@ -78,23 +80,25 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
   }
 
   beforeAll(async () => {
-    const qsRes = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('FaaS Sanitize Project'),
         agentName: uniqueName('FaaS Sanitize Agent'),
-      }
-    )
-
-    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data
-    projectId = quickstartResult.project.id
+    if (!fixtures.project?.id) {
+      setupFailed = true
+      return
+    }
+
+    projectId = fixtures.project.id
   }, 30_000)
 
   afterAll(async () => {
@@ -104,16 +108,7 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
     for (const id of functionIds.reverse()) {
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${id}`)
     }
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Non-serializable output: function properties ──────────────────

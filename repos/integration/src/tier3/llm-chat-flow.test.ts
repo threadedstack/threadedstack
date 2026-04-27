@@ -1,10 +1,11 @@
 import { env } from '../utils/env'
 import { api, get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
-import { tryDelete } from '../utils/cleanup'
 import { consumeWS } from '../utils/ws-client'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 
 
 /**
@@ -23,25 +24,25 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
   const ctx = readContext()
   let agentId = ``
-  let qsResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
 
   beforeAll(async () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
+      try {
+        const result = await setupFixtures({
+          orgId: ctx.orgId,
           providerBrand: `zai`,
           apiKey: env.testProviderKey,
           projectName: uniqueName('LLM WS Chat Flow Project'),
           agentName: uniqueName('LLM WS Chat Flow Agent'),
-        }
-      )
-
-      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
-        qsResult = qsRes.data
-        agentId = qsResult.agent.id
+        })
+        fixtures = result
+        agentId = result.agent?.id ?? ``
+      }
+      catch {
+        // fall through to pre-existing agent
       }
     }
 
@@ -64,18 +65,8 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
   })
 
   afterAll(async () => {
-    if (!qsResult) return
-
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    if (!fixtures) return
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Session Creation ──────────────────────────────────────────────

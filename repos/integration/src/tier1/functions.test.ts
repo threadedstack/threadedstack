@@ -2,12 +2,14 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 
 describe('Tier 1: Functions CRUD', () => {
   const ctx = readContext()
   let projectId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   /** ID of the first function (basic fields) */
@@ -37,23 +39,19 @@ describe('Tier 1: Functions CRUD', () => {
   ]
 
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-12345',
-        projectName: uniqueName('Functions Test Project'),
-        agentName: uniqueName('Functions Test Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'anthropic',
+      projectName: uniqueName('Functions Test Project'),
+      agentName: uniqueName('Functions Test Agent'),
+    })
 
-    if (res.status !== 201 || !res.data?.project?.id) {
+    if (!fixtures.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data
-    projectId = quickstartResult.project.id
+    projectId = fixtures.project.id
   })
 
   afterAll(async () => {
@@ -63,17 +61,7 @@ describe('Tier 1: Functions CRUD', () => {
     if (functionId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`)
 
-    // Clean up quickstart resources
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // --- Create ---

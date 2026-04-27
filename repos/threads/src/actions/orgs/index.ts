@@ -1,1 +1,2 @@
-export { selectOrg } from './selectOrg'
+export * from './goToOrgs'
+export * from './selectOrg'

@@ -2,7 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
 import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { tryDelete } from '../utils/cleanup'
 import { ApiClient } from '@tdsk/tsa'
 import { uniqueName } from '../utils/unique-name'
@@ -21,7 +22,7 @@ describe('Tier 1: TSA ChatLogic State (live)', () => {
   let client: ApiClient
 
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let bareProjectId = ''
 
   beforeAll(() => {
@@ -29,21 +30,18 @@ describe('Tier 1: TSA ChatLogic State (live)', () => {
     client = new ApiClient(auth as any)
   })
 
-  // Create quickstart resources (agent + project + provider)
+  // Create fixture resources (agent + project + provider)
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'zai',
-        apiKey: env.testProviderKey,
-        projectName: uniqueName('TSA ChatLogic State IT'),
-        agentName: uniqueName('TSA ChatLogic State Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'zai',
+      apiKey: env.testProviderKey,
+      projectName: uniqueName('TSA ChatLogic State IT'),
+      agentName: uniqueName('TSA ChatLogic State Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
   })
 
   // Create a bare project (no agents linked)
@@ -60,7 +58,7 @@ describe('Tier 1: TSA ChatLogic State (live)', () => {
     if (bareProjectId) {
       await tryDelete(`/orgs/${ctx.orgId}/projects/${bareProjectId}`)
     }
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Agent data shapes for cache lookup ────────────────────────────
@@ -109,7 +107,7 @@ describe('Tier 1: TSA ChatLogic State (live)', () => {
     test('listProjects includes both quickstart and bare projects', async () => {
       const { data: projects } = await client.listProjects(ctx.orgId)
       const quickstartProject = projects!.find(
-        (p: any) => p.id === quickstartResult.project?.id
+        (p: any) => p.id === fixtures.project?.id
       )
       const bareProject = projects!.find((p: any) => p.id === bareProjectId)
 

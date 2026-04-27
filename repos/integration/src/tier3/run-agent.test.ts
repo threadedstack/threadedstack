@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { env } from '../utils/env'
-import { post, get } from '../utils/api-client'
+import { get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
-import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: Run Agent SSE Flow
@@ -23,26 +23,23 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 describe('Tier 3: Run Agent SSE Flow', () => {
   const ctx = readContext()
   let agentId = ''
-  let qsResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
   const threadIds: string[] = []
 
   beforeAll(async () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: uniqueName('Run Agent Test Project'),
-          agentName: uniqueName('Run Agent Test Agent'),
-        }
-      )
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('Run Agent Test Project'),
+        agentName: uniqueName('Run Agent Test Agent'),
+      })
 
-      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
-        qsResult = qsRes.data
-        agentId = qsResult!.agent.id
+      if (fixtures.agent?.id) {
+        agentId = fixtures.agent.id
       }
     }
 
@@ -68,17 +65,7 @@ describe('Tier 3: Run Agent SSE Flow', () => {
     for (const tid of threadIds) {
       if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
     }
-    if (!qsResult) return
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test.skipIf(!hasLLM())('SSE stream starts with thread event', async () => {

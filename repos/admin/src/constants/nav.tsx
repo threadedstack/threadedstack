@@ -172,9 +172,6 @@ const ProjectSubNav: Record<string, TNavItem> = {
   },
 }
 
-// Steps for the Quick Start section
-export const QSSteps = [`AI Provider`, `Project & Agent`, `Review & Create`]
-
 export const HeaderSettingsItems: TSettingNavItem[] = [
   {
     label: `Profile`,

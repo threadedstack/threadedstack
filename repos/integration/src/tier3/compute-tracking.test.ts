@@ -3,6 +3,8 @@ import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: Compute Tracking
@@ -16,7 +18,7 @@ describe('Tier 3: Compute Tracking', () => {
   const timestamp = Date.now()
 
   let setupFailed = false
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let projectId = ''
   let functionId = ''
   let endpointId = ''
@@ -27,24 +29,26 @@ describe('Tier 3: Compute Tracking', () => {
 }`
 
   beforeAll(async () => {
-    // Create project via quickstart
-    const qsRes = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    // Create project via setupFixtures
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('Compute Track Project'),
         agentName: uniqueName('Compute Track Agent'),
-      }
-    )
-
-    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data
-    projectId = quickstartResult.project.id
+    if (!fixtures.project?.id) {
+      setupFailed = true
+      return
+    }
+
+    projectId = fixtures.project.id
 
     // Create a function
     const fnRes = await post<Record<string, any>>(
@@ -89,11 +93,7 @@ describe('Tier 3: Compute Tracking', () => {
   afterAll(async () => {
     if (endpointId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${endpointId}`)
     if (functionId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`)
-    if (quickstartResult.endpoint?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test('setup succeeded', () => {

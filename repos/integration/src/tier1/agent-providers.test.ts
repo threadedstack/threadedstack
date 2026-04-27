@@ -2,6 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 
@@ -420,68 +422,58 @@ describe('Tier 1: Agent-Provider Relationship', () => {
   // ─── Quickstart: Junction ──────────────────────────────────────────
 
   describe('quickstart agent-provider junction', () => {
-    let qsResult: Record<string, any> = {}
+    let junctionFixtures: TFixtureResult = {}
 
     afterAll(async () => {
-      if (qsResult.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-      if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-      if (qsResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-      if (qsResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-      if (qsResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+      await cleanupFixtures(ctx.orgId, junctionFixtures)
     })
 
     test('quickstart creates agent with providers array via junction', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const providerKey = env.testProviderKey || 'sk-test-quickstart-contract'
+      junctionFixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'anthropic',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('AP QS Project'),
+        agentName: uniqueName('AP QS Agent'),
+      })
 
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'anthropic',
-          apiKey: providerKey,
-          projectName: uniqueName('AP QS Project'),
-          agentName: uniqueName('AP QS Agent'),
-        }
-      )
+      expect(junctionFixtures.provider).toBeDefined()
 
-      expect(qsRes.status).toBe(201)
-      qsResult = qsRes.data
+      const qsAgent = junctionFixtures.agent
+      const qsProvider = junctionFixtures.provider
 
-      const qsAgent = qsResult.agent
-      const qsProvider = qsResult.provider
-
-      // Quickstart returns raw DB rows — verify the agent has providers via GET
+      // Verify the agent has providers via GET
       const agentRes = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsAgent.id}`
+        `/orgs/${ctx.orgId}/agents/${qsAgent!.id}`
       )
 
       expect(agentRes.status).toBe(200)
       expect(Array.isArray(agentRes.data.providerLinks)).toBe(true)
       expect(agentRes.data.providerLinks.length).toBe(1)
-      expect(agentRes.data.providerLinks[0].provider.id).toBe(qsProvider.id)
+      expect(agentRes.data.providerLinks[0].provider.id).toBe(qsProvider!.id)
       expect(agentRes.data.providerLinks[0].provider.type).toBe('ai')
       expect(agentRes.data.providerLinks[0].provider.brand).toBe('anthropic')
     })
 
     test('quickstart agent can have additional providers added', async () => {
-      if (setupFailed || !qsResult.agent?.id) return expect(setupFailed).toBe(false)
+      if (setupFailed || !junctionFixtures.agent?.id) return expect(setupFailed).toBe(false)
 
       // Add a second provider to the quickstart agent
       const res = await put<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
-        { providerInputs: [{ id: qsResult.provider.id }, { id: provider2Id }] }
+        `/orgs/${ctx.orgId}/agents/${junctionFixtures.agent.id}`,
+        { providerInputs: [{ id: junctionFixtures.provider!.id }, { id: provider2Id }] }
       )
 
       expect(res.status).toBe(200)
 
       const getRes = await get<Record<string, any>>(
-        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
+        `/orgs/${ctx.orgId}/agents/${junctionFixtures.agent.id}`
       )
 
       expect(getRes.data.providerLinks.length).toBe(2)
-      expect(getRes.data.providerLinks[0].provider.id).toBe(qsResult.provider.id)
+      expect(getRes.data.providerLinks[0].provider.id).toBe(junctionFixtures.provider!.id)
       expect(getRes.data.providerLinks[1].provider.id).toBe(provider2Id)
     })
   })

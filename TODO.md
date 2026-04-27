@@ -58,7 +58,6 @@ Items are split into separate groups, with the sub repo name as the header.
 * Using the sidebar to navigate to a sandbox page, in the main content area, a list of running sandboxes should be displayed, but currently it does not display. If I refresh the browser, then it displays as expected
 * Sidebar nav: sessions sometimes don't appear under their parent sandbox even when they exist on the backend. Something in the nav items is not being updated when switching between a running session and its parent sandbox.
 
-* Normalize `navigate` calls to use the `nav` service
 * Remove duplicate components / styles, refactor so they can be shared
 
 

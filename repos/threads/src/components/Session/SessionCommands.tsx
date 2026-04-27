@@ -1,7 +1,7 @@
 import type { TCommand, TSessionCommandsProps } from '@TTH/types'
 
 import { toast } from 'sonner'
-import { useNavigate } from 'react-router'
+import { nav } from '@TTH/services/nav'
 import { EPermResource } from '@tdsk/domain'
 import AddIcon from '@mui/icons-material/Add'
 import { useState, useCallback } from 'react'
@@ -29,7 +29,6 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   const { isOwner, sandboxId, sessionId, projectId, onPendingOp } = props
 
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const { canExec } = usePermissions()
   const [openSessions] = useOpenSessions()
   const canExecSandbox = canExec(EPermResource.sandbox)
@@ -51,9 +50,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     try {
       if (action === `stop`) {
         await stopSandbox({ sandboxId, orgId })
-        navigate(`/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`, {
-          replace: true,
-        })
+        nav.sandbox(orgId, projectId, sandboxId, { replace: true })
         return
       }
       if (action === `restart`) {
@@ -81,7 +78,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         projectId,
         sessionId: null,
       })
-      navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
+      nav.session(orgId, projectId, newSessionId, {
         replace: true,
         state: { sandboxId, projectId },
       })
@@ -90,7 +87,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,
       })
     }
-  }, [sandboxId, orgId, projectId, navigate])
+  }, [sandboxId, orgId, projectId])
 
   const handleToggleShare = useCallback(() => {
     const newVisibility = isPublic ? `private` : `public`
@@ -178,10 +175,10 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         <DialogActions>
           <Button onClick={() => setConfirmAction(null)}>Cancel</Button>
           <Button
-            onClick={handleConfirm}
-            color={config?.color}
-            variant='contained'
             autoFocus
+            variant='contained'
+            color={config?.color}
+            onClick={handleConfirm}
           >
             {config?.label}
           </Button>

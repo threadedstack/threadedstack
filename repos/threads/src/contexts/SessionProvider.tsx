@@ -3,12 +3,14 @@ import type { TSessionCtx } from '@TTH/contexts/SessionContext'
 import type { TPendingOp, TSessionLocationState } from '@TTH/types'
 
 import { toast } from 'sonner'
+import { nav } from '@TTH/services/nav'
+import { MemoChildren } from '@tdsk/components'
 import { openSession } from '@TTH/actions/sessions'
+import { useParams, useLocation } from 'react-router'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { SessionContext } from '@TTH/contexts/SessionContext'
 import { findSandboxForSession } from '@TTH/utils/sessionStorage'
-import { useParams, useNavigate, useLocation } from 'react-router'
-import { useOrgId, useUser, useSandboxes, useOpenSessions } from '@TTH/state/selectors'
+import { useUser, useOrgId, useSandboxes, useOpenSessions } from '@TTH/state/selectors'
 
 export type TSessionProvider = {
   children: ReactNode
@@ -19,7 +21,6 @@ export const SessionProvider = (props: TSessionProvider) => {
 
   const [user] = useUser()
   const [orgId] = useOrgId()
-  const navigate = useNavigate()
   const location = useLocation()
   const [sandboxes] = useSandboxes()
   const [openSessions] = useOpenSessions()
@@ -101,7 +102,7 @@ export const SessionProvider = (props: TSessionProvider) => {
           return
         }
         if (newSessionId !== sessionId) {
-          navigate(`/orgs/${orgId}/projects/${projectId}/session/${newSessionId}`, {
+          nav.session(orgId, projectId, newSessionId, {
             replace: true,
             state: { sandboxId, projectId },
           })
@@ -122,16 +123,7 @@ export const SessionProvider = (props: TSessionProvider) => {
     return () => {
       mounted = false
     }
-  }, [
-    orgId,
-    navigate,
-    projectId,
-    pendingOp,
-    sessionId,
-    sandboxId,
-    hasSession,
-    connecting,
-  ])
+  }, [orgId, projectId, pendingOp, sessionId, sandboxId, hasSession, connecting])
 
   const ctx = useMemo<TSessionCtx>(
     () => ({
@@ -146,5 +138,9 @@ export const SessionProvider = (props: TSessionProvider) => {
     [session, isOwner, sandboxId, projectId, pendingOp, connecting]
   )
 
-  return <SessionContext.Provider value={ctx}>{children}</SessionContext.Provider>
+  return (
+    <SessionContext.Provider value={ctx}>
+      <MemoChildren>{children}</MemoChildren>
+    </SessionContext.Provider>
+  )
 }

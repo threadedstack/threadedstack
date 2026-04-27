@@ -5,12 +5,13 @@ import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 describe('Tier 3: Agent with Custom Functions', () => {
   const ctx = readContext()
 
   let setupFailed = false
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult | null = null
   let functionId = ''
   let agentId = ''
   let projectId = ''
@@ -26,25 +27,27 @@ describe('Tier 3: Agent with Custom Functions', () => {
   ]
 
   beforeAll(async () => {
-    // Step 1: Quickstart to create agent + provider + secret + project + endpoint
-    const qsRes = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    // Step 1: Create fixtures (provider + secret + project + agent + endpoint)
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('Agent Fn Test Project'),
         agentName: uniqueName('Agent Fn Test Agent'),
-      }
-    )
-
-    if (qsRes.status !== 201 || !qsRes.data?.agent?.id) {
+      })
+    } catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data
-    agentId = quickstartResult.agent.id
-    projectId = quickstartResult.project.id
+    if (!fixtures.agent?.id) {
+      setupFailed = true
+      return
+    }
+
+    agentId = fixtures.agent.id
+    projectId = fixtures.project!.id
 
     // Step 2: Create a function in the project
     const fnRes = await post<Record<string, any>>(
@@ -85,16 +88,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
     // Cleanup in reverse dependency order
     if (functionId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`)
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test('function is linked to agent via project config', async () => {

@@ -2,6 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 
@@ -22,38 +24,33 @@ const hasProviderKey = () => !!env.testProviderKey
 describe('Tier 1: Agent-Provider Model Resolution', () => {
   const ctx = readContext()
 
-  let qsResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   beforeAll(async () => {
     if (!hasProviderKey()) return
 
-    // Create agent via quickstart with real provider key
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'zai',
         apiKey: env.testProviderKey,
         projectName: uniqueName('MR Test Project'),
         agentName: uniqueName('MR Test Agent'),
-      }
-    )
-
-    if (res.status !== 201 || !res.data?.agent?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    qsResult = res.data
+    if (!fixtures.agent?.id) {
+      setupFailed = true
+    }
   })
 
   afterAll(async () => {
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id) await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Junction model in session ──────────────────────────────────────
@@ -63,10 +60,10 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     // Set an explicit junction model
     const updateRes = await put<Record<string, any>>(
-      `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
+      `/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`,
       {
         providerInputs: [
-          { id: qsResult.provider.id, model: 'junction-test-model' },
+          { id: fixtures.provider.id, model: 'junction-test-model' },
         ],
       }
     )
@@ -76,7 +73,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     // Create session — should use junction model
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: qsResult.agent.id }
+      { agentId: fixtures.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
@@ -88,11 +85,11 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     // Set agent-level model and clear junction model
     const updateRes = await put<Record<string, any>>(
-      `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
+      `/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`,
       {
         model: 'agent-level-fallback',
         providerInputs: [
-          { id: qsResult.provider.id },
+          { id: fixtures.provider.id },
         ],
       }
     )
@@ -101,7 +98,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: qsResult.agent.id }
+      { agentId: fixtures.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
@@ -113,11 +110,11 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     // Set both agent-level model AND junction model
     const updateRes = await put<Record<string, any>>(
-      `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
+      `/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`,
       {
         model: 'agent-default-should-be-overridden',
         providerInputs: [
-          { id: qsResult.provider.id, model: 'junction-override' },
+          { id: fixtures.provider.id, model: 'junction-override' },
         ],
       }
     )
@@ -126,7 +123,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: qsResult.agent.id }
+      { agentId: fixtures.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
@@ -182,9 +179,9 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       if (setupFailed || !provider2Id) return expect(setupFailed).toBe(false)
 
       // Set provider1 as primary with model-a, provider2 with model-b
-      await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
+      await put(`/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`, {
         providerInputs: [
-          { id: qsResult.provider.id, model: 'model-a' },
+          { id: fixtures.provider.id, model: 'model-a' },
           { id: provider2Id, model: 'model-b' },
         ],
       })
@@ -192,24 +189,24 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       // Session should use model-a (primary = provider1)
       const session1 = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures.agent.id }
       )
 
       expect(session1.status).toBe(200)
       expect(session1.data.model).toBe('model-a')
 
       // Swap: provider2 becomes primary
-      await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
+      await put(`/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`, {
         providerInputs: [
           { id: provider2Id, model: 'model-b' },
-          { id: qsResult.provider.id, model: 'model-a' },
+          { id: fixtures.provider.id, model: 'model-a' },
         ],
       })
 
       // Session should now use model-b (primary = provider2)
       const session2 = await post<Record<string, any>>(
         `/_/ai/sessions`,
-        { agentId: qsResult.agent.id }
+        { agentId: fixtures.agent.id }
       )
 
       expect(session2.status).toBe(200)
@@ -223,15 +220,15 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Restore single provider with explicit model
-    await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
+    await put(`/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`, {
       providerInputs: [
-        { id: qsResult.provider.id, model: 'zai-model' },
+        { id: fixtures.provider.id, model: 'zai-model' },
       ],
     })
 
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: qsResult.agent.id }
+      { agentId: fixtures.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
@@ -244,16 +241,16 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Clear all models: no junction model, no agent model
-    await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
+    await put(`/orgs/${ctx.orgId}/agents/${fixtures.agent.id}`, {
       model: '',
       providerInputs: [
-        { id: qsResult.provider.id },
+        { id: fixtures.provider.id },
       ],
     })
 
     const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
-      { agentId: qsResult.agent.id }
+      { agentId: fixtures.agent.id }
     )
 
     // Should return 400 — no model configured anywhere

@@ -1,9 +1,10 @@
 import type { Thread } from '@tdsk/domain'
 
+import { nav } from '@TTH/services/nav'
+import { useLocation } from 'react-router'
 import { useCallback, useMemo } from 'react'
 import { Box, Typography } from '@mui/material'
 import { colors, cmx, dims } from '@tdsk/components'
-import { useNavigate, useLocation } from 'react-router'
 import { ChatBubbleOutline } from '@mui/icons-material'
 
 export type TNavThreadItem = {
@@ -28,15 +29,13 @@ const formatTimestamp = (date?: string | Date): string => {
 export const NavThreadItem = (props: TNavThreadItem) => {
   const { thread, orgId, sandboxId, projectId, indent = 48 } = props
 
-  const navigate = useNavigate()
   const location = useLocation()
 
-  const basePath = `/orgs/${orgId}/projects/${projectId}`
-  const isActive = location.pathname === `${basePath}/session/${sandboxId}`
+  const isActive = location.pathname === nav.path.session(orgId, projectId, sandboxId)
 
   const handleNavigate = useCallback(() => {
-    navigate(`${basePath}/session/${sandboxId}`)
-  }, [navigate, basePath, sandboxId])
+    nav.session(orgId, projectId, sandboxId)
+  }, [orgId, projectId, sandboxId])
 
   const timestamp = useMemo(() => formatTimestamp(thread.createdAt), [thread.createdAt])
 

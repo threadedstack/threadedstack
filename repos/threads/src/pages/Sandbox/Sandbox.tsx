@@ -1,9 +1,10 @@
 import { toast } from 'sonner'
+import { nav } from '@TTH/services/nav'
+import { useParams } from 'react-router'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
-import { useParams, useNavigate } from 'react-router'
 import { useState, useCallback, useMemo } from 'react'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
@@ -31,9 +32,8 @@ type TSandboxParams = {
 }
 
 const Sandbox = () => {
-  const [orgId] = useOrgId()
   const [user] = useUser()
-  const navigate = useNavigate()
+  const [orgId] = useOrgId()
   const [sandboxes] = useSandboxes()
 
   const {
@@ -46,16 +46,16 @@ const Sandbox = () => {
   const canExecSandbox = canExec(EPermResource.sandbox)
 
   const [openSessions] = useOpenSessions()
-  const [connecting, setConnecting] = useState(false)
   const [backendSessionsMap] = useBackendSessions()
+  const [connecting, setConnecting] = useState(false)
 
   const sandbox = useMemo(
     () => sandboxes.find((s) => s.id === sandboxId),
     [sandboxes, sandboxId]
   )
 
-  const projectId = paramProjectId || sandbox?.projects?.[0]?.id || ``
   const resolvedOrgId = paramOrgId || orgId
+  const projectId = paramProjectId || sandbox?.projects?.[0]?.id || ``
   const sessions = sandboxId ? (backendSessionsMap.get(sandboxId) ?? []) : []
 
   const mySessions = useMemo(
@@ -80,12 +80,9 @@ const Sandbox = () => {
           sessionId: sessionId ?? null,
         })
         if (newSessionId) {
-          navigate(
-            `/orgs/${resolvedOrgId}/projects/${projectId}/session/${newSessionId}`,
-            {
-              state: { sandboxId, projectId },
-            }
-          )
+          nav.session(resolvedOrgId, projectId, newSessionId, {
+            state: { sandboxId, projectId },
+          })
         }
       } catch (err) {
         console.error(`[Sandbox] connect failed:`, err)
@@ -97,16 +94,11 @@ const Sandbox = () => {
         setConnecting(false)
       }
     },
-    [sandboxId, resolvedOrgId, projectId, navigate]
+    [sandboxId, resolvedOrgId, projectId]
   )
 
-  const onReconnect = useCallback((sessionId: string) => onStart(sessionId), [onStart])
-
-  const onJoin = useCallback((sessionId: string) => onStart(sessionId), [onStart])
-
-  const onBack = useCallback(() => {
-    navigate(`/orgs/${resolvedOrgId}/projects/${projectId}`)
-  }, [navigate, resolvedOrgId, projectId])
+  const onBack = () => nav.project(resolvedOrgId, projectId)
+  const onConnect = (sessionId: string) => onStart(sessionId)
 
   if (!sandboxId) {
     return (
@@ -181,12 +173,11 @@ const Sandbox = () => {
                     <CardActionArea
                       onClick={() =>
                         isOpen
-                          ? navigate(
-                              `/orgs/${resolvedOrgId}/projects/${projectId}/session/${s.sessionId}`,
-                              { state: { sandboxId, projectId } }
-                            )
+                          ? nav.session(resolvedOrgId, projectId, s.sessionId, {
+                              state: { sandboxId, projectId },
+                            })
                           : canExecSandbox
-                            ? onReconnect(s.sessionId)
+                            ? onConnect(s.sessionId)
                             : undefined
                       }
                       disabled={!isOpen && !canExecSandbox}
@@ -241,7 +232,7 @@ const Sandbox = () => {
                   variant='outlined'
                 >
                   <CardActionArea
-                    onClick={() => (canExecSandbox ? onJoin(s.sessionId) : undefined)}
+                    onClick={() => (canExecSandbox ? onConnect(s.sessionId) : undefined)}
                     disabled={!canExecSandbox}
                     sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                   >

@@ -3,7 +3,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { env } from '../utils/env'
 import { post, get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
-import { tryDelete } from '../utils/cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { connectWS, consumeWS, createWSConnection, waitForMessage } from '../utils/ws-client'
 import { EWSEventType } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
@@ -29,25 +30,22 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 describe('Tier 1: WebSocket Lifecycle', () => {
   const ctx = readContext()
   let agentId = ''
-  let qsResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
 
   beforeAll(async () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: uniqueName('WS Lifecycle Test'),
-          agentName: uniqueName('WS Lifecycle Agent'),
-        }
-      )
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('WS Lifecycle Test'),
+        agentName: uniqueName('WS Lifecycle Agent'),
+      })
 
-      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
-        qsResult = qsRes.data
-        agentId = qsResult!.agent.id
+      if (fixtures.agent?.id) {
+        agentId = fixtures.agent.id
       }
     }
 
@@ -70,17 +68,8 @@ describe('Tier 1: WebSocket Lifecycle', () => {
   })
 
   afterAll(async () => {
-    if (!qsResult) return
-    if (qsResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
-    if (qsResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
-    if (qsResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
-    if (qsResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
-    if (qsResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
+    if (!fixtures) return
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   const createSessionToken = async (): Promise<string | null> => {

@@ -1,24 +1,15 @@
-import { useCallback } from 'react'
-import { useNavigate } from 'react-router'
 import { colors, cmx } from '@tdsk/components'
+import { goToOrgs } from '@TTH/actions/orgs/goToOrgs'
 import { Box, Typography, Divider } from '@mui/material'
 import { NavTree } from '@TTH/components/Sidebar/NavTree'
 import { Business, ChevronRight } from '@mui/icons-material'
 import { useOrgId, useActiveOrg } from '@TTH/state/selectors'
+import { goToProjects } from '@TTH/actions/projects/goToProjects'
 import { SidebarContainer } from '@TTH/components/Sidebar/Sidebar.styles'
 
 export const DesktopSidebar = () => {
   const [orgId] = useOrgId()
   const [activeOrg] = useActiveOrg()
-  const navigate = useNavigate()
-
-  const goToOrgs = useCallback(() => {
-    navigate(`/orgs`)
-  }, [navigate])
-
-  const goToProjects = useCallback(() => {
-    if (orgId) navigate(`/orgs/${orgId}/projects`)
-  }, [navigate, orgId])
 
   return (
     <SidebarContainer className='tdsk-threads-sidebar'>
@@ -65,7 +56,7 @@ export const DesktopSidebar = () => {
 
           {orgId && activeOrg && (
             <Box
-              onClick={goToProjects}
+              onClick={() => goToProjects(orgId)}
               sx={{
                 px: 1,
                 py: 0.75,

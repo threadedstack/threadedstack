@@ -2,6 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -18,14 +20,6 @@ import { uniqueName } from '../utils/unique-name'
  * - Function survives agent deletion (functions are project-scoped)
  */
 
-interface QuickstartResult {
-  provider: { id: string }
-  secret: { id: string }
-  project: { id: string }
-  agent: { id: string }
-  endpoint: { id: string }
-}
-
 interface FunctionRecord {
   id: string
   name: string
@@ -41,36 +35,31 @@ describe('Tier 1: Agent-Functions Relationship', () => {
   const ctx = readContext()
 
   let setupFailed = false
-  let quickstart: QuickstartResult | undefined
+  let fixtures: TFixtureResult | undefined
   let functionId1: string | undefined
   let functionId2: string | undefined
   let unlinkedFunctionId: string | undefined
 
   // Helper to build the functions base path for the quickstart project
   const functionsPath = () =>
-    `/orgs/${ctx.orgId}/projects/${quickstart!.project.id}/functions`
+    `/orgs/${ctx.orgId}/projects/${fixtures!.project!.id}/functions`
 
   const configPath = () =>
-    `/orgs/${ctx.orgId}/projects/${quickstart!.project.id}/agents/${quickstart!.agent.id}/config`
+    `/orgs/${ctx.orgId}/projects/${fixtures!.project!.id}/agents/${fixtures!.agent!.id}/config`
 
   beforeAll(async () => {
     try {
-      const res = await post<QuickstartResult>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'anthropic',
-          apiKey: 'sk-test-fake-key-agent-fn',
-          projectName: uniqueName('AgentFn Project'),
-          agentName: uniqueName('AgentFn Agent'),
-        }
-      )
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'anthropic',
+        projectName: uniqueName('AgentFn Project'),
+        agentName: uniqueName('AgentFn Agent'),
+      })
 
-      if (res.status !== 201 || !res.data) {
+      if (!fixtures.project?.id || !fixtures.agent?.id) {
         setupFailed = true
         return
       }
-
-      quickstart = res.data
     } catch {
       setupFailed = true
     }
@@ -78,36 +67,21 @@ describe('Tier 1: Agent-Functions Relationship', () => {
 
   afterAll(async () => {
     // Clean up functions first (children), then parent resources
-    if (unlinkedFunctionId && quickstart?.project?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstart.project.id}/functions/${unlinkedFunctionId}`)
+    if (unlinkedFunctionId && fixtures?.project?.id) {
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${fixtures.project.id}/functions/${unlinkedFunctionId}`)
     }
-    if (functionId1 && quickstart?.project?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstart.project.id}/functions/${functionId1}`)
+    if (functionId1 && fixtures?.project?.id) {
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${fixtures.project.id}/functions/${functionId1}`)
     }
-    if (functionId2 && quickstart?.project?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstart.project.id}/functions/${functionId2}`)
+    if (functionId2 && fixtures?.project?.id) {
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${fixtures.project.id}/functions/${functionId2}`)
     }
 
-    // Clean up quickstart resources in dependency order
-    if (quickstart?.endpoint?.id && quickstart?.project?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstart.project.id}/endpoints/${quickstart.endpoint.id}`)
-    }
-    if (quickstart?.agent?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstart.agent.id}`)
-    }
-    if (quickstart?.project?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstart.project.id}`)
-    }
-    if (quickstart?.secret?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstart.secret.id}`)
-    }
-    if (quickstart?.provider?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstart.provider.id}`)
-    }
+    if (fixtures) await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test('creates function in project', async (context) => {
-    if (setupFailed || !quickstart) {
+    if (setupFailed || !fixtures) {
       context.skip()
       return
     }
@@ -153,7 +127,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
   })
 
   test('creates second function and links both to agent', async (context) => {
-    if (setupFailed || !quickstart || !functionId1) {
+    if (setupFailed || !fixtures || !functionId1) {
       context.skip()
       return
     }
@@ -194,7 +168,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
   })
 
   test('creates unlinked function (not in functionIds)', async (context) => {
-    if (setupFailed || !quickstart) {
+    if (setupFailed || !fixtures) {
       context.skip()
       return
     }
@@ -226,7 +200,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
   })
 
   test('unlinking function removes it from functionIds', async (context) => {
-    if (setupFailed || !quickstart || !functionId1 || !functionId2) {
+    if (setupFailed || !fixtures || !functionId1 || !functionId2) {
       context.skip()
       return
     }
@@ -249,13 +223,13 @@ describe('Tier 1: Agent-Functions Relationship', () => {
   })
 
   test('functions survive agent deletion', async (context) => {
-    if (setupFailed || !quickstart || !functionId1 || !functionId2) {
+    if (setupFailed || !fixtures || !functionId1 || !functionId2) {
       context.skip()
       return
     }
 
     // Delete the agent
-    const deleteRes = await del(`/orgs/${ctx.orgId}/agents/${quickstart.agent.id}`)
+    const deleteRes = await del(`/orgs/${ctx.orgId}/agents/${fixtures!.agent!.id}`)
     expect(deleteRes.status).toBe(200)
 
     // Functions should still exist (they're project-scoped, not agent-scoped)
@@ -272,7 +246,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     expect(res2.data.id).toBe(functionId2)
 
     // Mark agent as deleted so afterAll doesn't try to re-delete it
-    quickstart.agent.id = ''
+    fixtures!.agent!.id = ''
   })
 
   test('unlinked function survives agent deletion', async (context) => {

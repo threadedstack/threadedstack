@@ -1,12 +1,12 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { post, put } from '../utils/api-client'
+import { put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
-import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
 import { setupRunningPod, execInPod, cleanupSandbox } from '../utils/sandbox-helpers'
+import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
 /**
  * Tier 3: Agent-Driven Sandbox Execution
@@ -30,7 +30,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
   let sandboxProjectId = ''
   let agentId = ''
   let agentProjectId = ''
-  let quickstartResult: Record<string, any> | null = null
+  let fixtures: TFixtureResult | null = null
   let setupFailed = false
   const threadIds: string[] = []
 
@@ -44,24 +44,21 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
       podName = setup.podName
       sandboxProjectId = setup.projectId
 
-      // 2. Create agent via quickstart with real LLM provider key
-      const qsRes = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: uniqueName('SB Agent Test Project'),
-          agentName: uniqueName('SB Agent Test Agent'),
-        }
-      )
+      // 2. Create agent via setupFixtures with real LLM provider key
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('SB Agent Test Project'),
+        agentName: uniqueName('SB Agent Test Agent'),
+      })
 
-      if (qsRes.status !== 201 || !qsRes.data?.agent?.id) {
-        throw new Error(`Quickstart failed: HTTP ${qsRes.status}`)
+      if (!fixtures.agent?.id) {
+        throw new Error('setupFixtures failed: no agent created')
       }
 
-      quickstartResult = qsRes.data
-      agentId = quickstartResult!.agent.id
-      agentProjectId = quickstartResult!.project.id
+      agentId = fixtures.agent.id
+      agentProjectId = fixtures.project!.id
 
       // 3. Configure agent's project-level environment for K8s sandbox
       const configRes = await put(
@@ -88,18 +85,9 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     for (const tid of threadIds) {
       if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
     }
-    // Clean up quickstart resources in reverse dependency order
-    if (quickstartResult) {
-      if (quickstartResult.endpoint?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${agentProjectId}/endpoints/${quickstartResult.endpoint.id}`)
-      if (quickstartResult.agent?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-      if (quickstartResult.project?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-      if (quickstartResult.secret?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-      if (quickstartResult.provider?.id)
-        await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    // Clean up fixture resources
+    if (fixtures) {
+      await cleanupFixtures(ctx.orgId, fixtures)
     }
     // Clean up sandbox pod + config + project
     await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId: sandboxProjectId })

@@ -1,49 +1,44 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { get, post } from '../utils/api-client'
+import { get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 
 describe('Tier 3: Thread CRUD Flow', () => {
   const ctx = readContext()
   let agentId = ''
   let threadId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
   let setupFailed = false
 
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
+    try {
+      fixtures = await setupFixtures({
+        orgId: ctx.orgId,
         providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('Thread CRUD Test Project'),
         agentName: uniqueName('Thread CRUD Test Agent'),
-      }
-    )
-
-    if (res.status !== 201 || !res.data?.agent?.id) {
+      })
+    }
+    catch {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
+    if (!fixtures.agent?.id) {
+      setupFailed = true
+      return
+    }
+
+    agentId = fixtures.agent.id
   })
 
   afterAll(async () => {
     if (threadId) await tryDelete(`/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}`)
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project?.id}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   test('agent run creates a thread', async () => {
@@ -86,8 +81,8 @@ describe('Tier 3: Thread CRUD Flow', () => {
       return
     }
 
-    expect(quickstartResult.agent).toBeDefined()
-    expect(quickstartResult.provider).toBeDefined()
-    expect(quickstartResult.project).toBeDefined()
+    expect(fixtures.agent).toBeDefined()
+    expect(fixtures.provider).toBeDefined()
+    expect(fixtures.project).toBeDefined()
   })
 })

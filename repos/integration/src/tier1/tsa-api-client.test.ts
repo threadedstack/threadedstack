@@ -1,8 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { readContext } from '../utils/test-context'
-import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/tsa-auth'
-import { cleanupQuickstart, cleanupThread } from '../utils/tsa-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
+import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import type { TFixtureResult } from '../utils/fixtures'
 import { ApiClient } from '@tdsk/tsa'
 import { Organization, Agent, Thread, Message } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
@@ -17,10 +18,10 @@ describe('Tier 1: TSA ApiClient (live)', () => {
   const ctx = readContext()
   let client: ApiClient
 
-  // Quickstart resources for agent/thread tests
+  // Fixture resources for agent/thread tests
   let agentId = ''
   let projectId = ''
-  let quickstartResult: Record<string, any> = {}
+  let fixtures: TFixtureResult = {}
 
   // Threads created during tests (for cleanup)
   const threadIds: string[] = []
@@ -30,22 +31,18 @@ describe('Tier 1: TSA ApiClient (live)', () => {
     client = new ApiClient(auth as any)
   })
 
-  // Create a quickstart agent for agent/thread/message tests
+  // Create fixture agent for agent/thread/message tests
   beforeAll(async () => {
-    const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-tsa-api-client',
-        projectName: uniqueName('TSA ApiClient IT'),
-        agentName: uniqueName('TSA ApiClient Agent'),
-      }
-    )
+    fixtures = await setupFixtures({
+      orgId: ctx.orgId,
+      providerBrand: 'anthropic',
+      projectName: uniqueName('TSA ApiClient IT'),
+      agentName: uniqueName('TSA ApiClient Agent'),
+    })
 
-    expect(res.status).toBe(201)
-    quickstartResult = res.data
-    agentId = quickstartResult.agent.id
-    projectId = quickstartResult.project.id
+    expect(fixtures.provider).toBeDefined()
+    agentId = fixtures.agent!.id
+    projectId = fixtures.project!.id
   })
 
   afterAll(async () => {
@@ -53,8 +50,8 @@ describe('Tier 1: TSA ApiClient (live)', () => {
     for (const tid of threadIds) {
       await cleanupThread(ctx.orgId, agentId, tid)
     }
-    // Clean up quickstart resources
-    await cleanupQuickstart(ctx.orgId, quickstartResult)
+    // Clean up fixture resources
+    await cleanupFixtures(ctx.orgId, fixtures)
   })
 
   // ─── Organizations ────────────────────────────────────────────────

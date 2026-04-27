@@ -1,8 +1,9 @@
 import type { Project, Sandbox } from '@tdsk/domain'
 
+import { nav } from '@TTH/services/nav'
+import { useLocation } from 'react-router'
+import { useState, useCallback } from 'react'
 import { colors, cmx, dims } from '@tdsk/components'
-import { useState, useCallback, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router'
 import { StorageKeyPrefix } from '@TTH/constants/storage'
 import { Box, Typography, Collapse, Chip } from '@mui/material'
 import { FolderOutlined, ChevronRight } from '@mui/icons-material'
@@ -28,12 +29,11 @@ const getInitialExpanded = (projectId: string): boolean => {
 export const NavProjectItem = (props: TNavProjectItem) => {
   const { project, sandboxes, orgId } = props
 
-  const navigate = useNavigate()
   const location = useLocation()
 
   const [expanded, setExpanded] = useState(() => getInitialExpanded(project.id))
 
-  const isActive = location.pathname === `/orgs/${orgId}/projects/${project.id}`
+  const isActive = location.pathname === nav.path.project(orgId, project.id)
 
   const onToggle = useCallback(
     (evt: React.MouseEvent) => {
@@ -42,23 +42,17 @@ export const NavProjectItem = (props: TNavProjectItem) => {
         const next = !prev
         try {
           localStorage.setItem(storageKey(project.id), String(next))
-        } catch {
-          /* storage full */
-        }
+        } catch {}
         return next
       })
     },
     [project.id]
   )
 
-  const onNavigate = useCallback(() => {
-    navigate(`/orgs/${orgId}/projects/${project.id}`)
-  }, [navigate, orgId, project.id])
-
   return (
     <Box>
       <Box
-        onClick={onNavigate}
+        onClick={() => nav.project(orgId, project.id)}
         sx={{
           display: `flex`,
           alignItems: `center`,

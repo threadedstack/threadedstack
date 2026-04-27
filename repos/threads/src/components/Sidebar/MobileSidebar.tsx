@@ -1,9 +1,9 @@
-import { useCallback } from 'react'
-import { useNavigate } from 'react-router'
 import { colors, cmx } from '@tdsk/components'
+import { goToOrgs } from '@TTH/actions/orgs/goToOrgs'
 import { SidebarWidthOpen } from '@TTH/constants/values'
 import { NavTree } from '@TTH/components/Sidebar/NavTree'
 import { Business, ChevronRight } from '@mui/icons-material'
+import { goToProjects } from '@TTH/actions/projects/goToProjects'
 import { Divider, Box, SwipeableDrawer, Typography } from '@mui/material'
 import { useOrgId, useActiveOrg, useSidebarOpen } from '@TTH/state/selectors'
 import { openSidebar, closeSidebar } from '@TTH/actions/sidebar/toggleSidebar'
@@ -12,19 +12,6 @@ export const MobileSidebar = () => {
   const [open] = useSidebarOpen()
   const [orgId] = useOrgId()
   const [activeOrg] = useActiveOrg()
-  const navigate = useNavigate()
-
-  const goToOrgs = useCallback(() => {
-    closeSidebar()
-    navigate(`/orgs`)
-  }, [navigate])
-
-  const goToProjects = useCallback(() => {
-    if (orgId) {
-      closeSidebar()
-      navigate(`/orgs/${orgId}/projects`)
-    }
-  }, [navigate, orgId])
 
   return (
     <SwipeableDrawer

@@ -21,6 +21,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => [`org-1`],
   useUser: () => [{ id: `auth-user-1`, role: `admin` }],
   useOrgUsers: () => [{}],
+  useOnboardingState: () => [{ open: false, mode: `auto` }, vi.fn(), vi.fn()],
 }))
 
 const mockLoadUsers = vi.fn()
@@ -54,8 +55,8 @@ vi.mock(`@TAF/actions/orgs/api/deleteOrg`, () => ({
   deleteOrg: vi.fn(),
 }))
 
-vi.mock(`@TAF/components/Quickstart/Quickstart`, () => ({
-  Quickstart: () => null,
+vi.mock(`@TAF/components/Onboarding`, () => ({
+  OnboardingWizard: () => null,
 }))
 
 vi.mock(`@tdsk/components`, async (importOriginal) => {

@@ -25,15 +25,15 @@ import {
   resetFaasFormState,
   resetActiveThreadId,
   resetActiveSecretId,
-  resetActiveOrgSecretId,
   resetActiveDomainId,
   resetAgentFormState,
-  resetQuickstartOpen,
   resetProxyFormState,
+  resetOnboardingState,
   resetActiveMessageId,
   resetActiveProjectId,
   resetActiveFunctionId,
   resetActiveEndpointId,
+  resetActiveOrgSecretId,
 } from '@TAF/state/accessors'
 
 export const reset = () => {
@@ -63,13 +63,13 @@ export const reset = () => {
   resetFaasFormState?.()
   resetActiveThreadId?.()
   resetActiveSecretId?.()
-  resetActiveOrgSecretId?.()
   resetActiveDomainId?.()
   resetAgentFormState?.()
   resetProxyFormState?.()
-  resetQuickstartOpen?.()
+  resetOnboardingState?.()
   resetActiveMessageId?.()
   resetActiveProjectId?.()
   resetActiveFunctionId?.()
   resetActiveEndpointId?.()
+  resetActiveOrgSecretId?.()
 }
