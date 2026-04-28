@@ -23,7 +23,7 @@ Threaded Stack supports two authentication methods:
 
 Both are sent in the `Authorization` header:
 
-```
+```http
 Authorization: Bearer <jwt-token>
 Authorization: Bearer tdsk_<api-key>
 ```
@@ -42,7 +42,7 @@ All other `/_/*` endpoints require a valid JWT or API key.
 
 The `/ai/ws` WebSocket endpoint uses session token authentication. Obtain a session token via `POST /_/ai/sessions` (which requires JWT/API key auth), then connect with:
 
-```
+```text
 wss://<base-url>/ai/ws?token=<session-token>
 ```
 
@@ -350,7 +350,7 @@ Every new organization is automatically seeded with four built-in sandbox config
 | `resources` | object | CPU/memory limits and requests |
 | `ports` | object | Exposed ports with protocol |
 
-See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the complete config schema including `sshEnabled`, `idleTimeoutMinutes`, `gitRepo`, `sync`, and other fields.
+See [Sandbox Connect](../features/sandbox-connect.md) for details on sandbox configuration, runtimes, and security.
 
 #### Schedules (Org-Scoped)
 
@@ -485,7 +485,7 @@ curl -N -X POST https://local.threadedstack.app/_/orgs/:orgId/agents/:id/run \
 
 Each SSE event is a JSON object with a `type` field:
 
-```
+```text
 data: {"type":"start","data":{}}
 
 data: {"type":"text_start","data":{}}

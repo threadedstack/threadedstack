@@ -436,19 +436,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/content/docs/guides/self-hosting.mdx`
   * New: `repos/website/src/content/docs/changelog.mdx`
 
-### [P3] Documentation: add screenshots and flow images
-
-* **Repos**: website
-* The docs lack visual aids — no screenshots of the Admin web app or TSA CLI. Images would significantly improve documentation quality, especially for guides
-* **Fix**:
-  1. Capture screenshots of key Admin UI views using Playwright (login, org dashboard, agent config, chat view, project settings)
-  2. Capture TSA CLI screenshots showing login, agent listing, chat interaction, slash commands
-  3. Create flow diagrams showing common workflows (agent setup, chat interaction, API key creation)
-  4. Add images to relevant MDX pages using standard markdown image syntax
-  5. Store images in `repos/website/src/content/docs/images/` or `repos/website/public/docs/`
-* **Files**:
-  * New: `repos/website/public/docs/images/` — screenshot directory
-  * Various MDX files — add image references
 
 ### [P3] Add Contact and About pages with footer links
 

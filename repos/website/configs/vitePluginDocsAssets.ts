@@ -12,6 +12,8 @@ const SkipDirs = [
   'payments',
   'tech',
   'endpoints',
+  'business',
+  'developer',
 ]
 
 export function vitePluginDocsAssets(options: DocsAssetsOptions): Plugin {

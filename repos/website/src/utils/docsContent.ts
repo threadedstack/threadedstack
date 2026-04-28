@@ -6,10 +6,23 @@ type MetaConfig = {
   pages?: (string | { slug: string; label: string })[]
 }
 
-const metaModules = import.meta.glob('@DOCS/**/_meta.json', {
-  eager: true,
-  import: 'default',
-}) as Record<string, MetaConfig>
+const metaModules = import.meta.glob(
+  [
+    '@DOCS/**/_meta.json',
+    '!@DOCS/superpowers/**',
+    '!@DOCS/plans/**',
+    '!@DOCS/meta/**',
+    '!@DOCS/payments/**',
+    '!@DOCS/tech/**',
+    '!@DOCS/endpoints/**',
+    '!@DOCS/business/**',
+    '!@DOCS/developer/**',
+  ],
+  {
+    eager: true,
+    import: 'default',
+  }
+) as Record<string, MetaConfig>
 
 export const contentModules = import.meta.glob([
   '@DOCS/*/**/*.md',
@@ -22,6 +35,8 @@ export const contentModules = import.meta.glob([
   '!@DOCS/payments/**',
   '!@DOCS/tech/**',
   '!@DOCS/endpoints/**',
+  '!@DOCS/business/**',
+  '!@DOCS/developer/**',
 ]) as Record<string, () => Promise<{ default: React.ComponentType }>>
 
 // Vite resolves @DOCS alias in glob patterns but uses the resolved relative path as keys

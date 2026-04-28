@@ -1,14 +1,17 @@
-import Typography from '@mui/material/Typography'
+import Box from '@mui/material/Box'
+import Link from '@mui/material/Link'
+import { lazy, Suspense } from 'react'
 import Table from '@mui/material/Table'
+import Divider from '@mui/material/Divider'
+import TableRow from '@mui/material/TableRow'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Box from '@mui/material/Box'
-import Link from '@mui/material/Link'
-import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
 import CodeBlock from '@TAF/components/Shared/CodeBlock'
 import CalloutBox from '@TAF/components/Shared/CalloutBox'
+
+const MermaidBlock = lazy(() => import('@TAF/components/Docs/MermaidBlock'))
 
 export const mdxComponents = {
   h1: (props: any) => (
@@ -99,6 +102,12 @@ export const mdxComponents = {
         >
           {children}
         </Box>
+      )
+    if (language === 'mermaid')
+      return (
+        <Suspense fallback={null}>
+          <MermaidBlock code={String(children).trim()} />
+        </Suspense>
       )
     return (
       <CodeBlock

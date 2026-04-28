@@ -32,31 +32,31 @@ The system is extensible: new providers are added by implementing `ISandboxProvi
 
 ## Provider Architecture
 
-```
-                         ISandboxProvider (interface)
-                                  |
-                        createSandboxProvider(type)
-                                  |
-                  +---------------+---------------+
-                  |                               |
-          ESandboxType.local              ESandboxType.kubernetes
-                  |                               |
-       LocalSandboxProvider            KubeSandboxProvider
-                  |                               |
-       .create(config) =>              .create(config) =>
-            LocalSandbox                    KubeSandbox
-                  |                               |
-    +-------------+----------+          K8s API (WebSocket)
-    |             |          |                    |
-  Bash       InMemoryFs  IsolateRunner     Pod container (sh -c)
-(just-bash)  (just-bash)  (isolated-vm)
+```mermaid
+flowchart TD
+  IF["ISandboxProvider\n(interface)"]
+  Factory["createSandboxProvider(type)"]
+  IF --> Factory
+
+  Factory -->|"ESandboxType.local"| LP["LocalSandboxProvider"]
+  Factory -->|"ESandboxType.kubernetes"| KP["KubeSandboxProvider"]
+
+  LP -->|".create(config)"| LS["LocalSandbox"]
+  KP -->|".create(config)"| KS["KubeSandbox"]
+
+  LS --> Bash["Bash\n(just-bash)"]
+  LS --> MemFS["InMemoryFs\n(just-bash)"]
+  LS --> Isolate["IsolateRunner\n(isolated-vm)"]
+
+  KS --> K8sAPI["K8s API\n(WebSocket)"]
+  K8sAPI --> Pod["Pod container\n(sh -c)"]
 ```
 
 ### ISandbox Contract
 
 Defined in `repos/domain/src/types/sandbox.types.ts`:
 
-```
+```text
 ISandbox
   run(command, args?)        Run a shell command
   readFile(path)             Read file contents
@@ -72,7 +72,7 @@ ISandbox
 
 ### ISandboxProvider Contract
 
-```
+```text
 ISandboxProvider
   readonly type: TSandboxType     Provider identifier ('local' | 'kubernetes')
   create(config): ISandbox        Create a new sandbox instance from config
@@ -95,20 +95,13 @@ Each call returns a fresh instance (not singleton). Throws for unknown types.
 
 The Local provider runs entirely in-process with no external dependencies. It combines three subsystems:
 
-```
-LocalSandboxProvider.create(config)
-         |
-         +---> InMemoryFs          Virtual filesystem (just-bash)
-         |     /workspace/         Default working directory
-         |     /tmp/               Temporary directory
-         |
-         +---> Bash                Virtual shell (just-bash)
-         |     run(cmd, {cwd})     Command execution against InMemoryFs
-         |     customCommands:     [gitCommand] registered for git ops
-         |
-         +---> IsolateRunner       V8 isolate (isolated-vm) -- OPTIONAL
-               evaluate(code)      Safe JS execution with module system
-               14 builtin shims    Node.js API compatibility layer
+```mermaid
+flowchart TD
+  Create["LocalSandboxProvider.create(config)"]
+
+  Create --> MemFS["InMemoryFs\n/workspace/ (default cwd)\n/tmp/ (temporary)"]
+  Create --> ShellBash["Bash (just-bash)\nrun(cmd, {cwd})\ncustomCommands: gitCommand"]
+  Create --> Isolate["IsolateRunner\n(isolated-vm) — OPTIONAL\nevaluate(code)\n14 builtin shims"]
 ```
 
 ### IsolateRunner Lifecycle
@@ -164,24 +157,23 @@ The Kubernetes provider runs user code in isolated K8s pods. Pods are persistent
 
 ### Architecture
 
-```
-SandboxService (backend)           KubeSandboxProvider
-  |                                     |
-  | startPod(opts)                      | create(config) -- requires existing podName
-  |   |                                 |     |
-  |   +-> DB: load sandbox config       |     +-> KubeClient(namespace)
-  |   +-> buildPodManifest()            |     +-> KubeSandbox(client, podName, runtimes)
-  |   +-> kube.createPod(manifest)      |
-  |                                     |
-  | getSandbox(podName)                 |
-  |   +-> KubeSandbox(kube, podName)    |
-  v                                     v
-KubeClient ----K8s API (WebSocket)----> Pod container
-  |
-  +-> createPod / getPod / deletePod / listPods    (CoreV1Api)
-  +-> runInPod(podName, command[])                 (K8s Exec via WebSocket)
-  +-> watch / cycleListen                          (K8s Watch)
-  +-> hydrate / hydrateSingle                      (Route map)
+```mermaid
+flowchart LR
+  subgraph Backend["Backend"]
+    SBS["SandboxService"]
+    SBS --> DB["DB: load config"]
+    SBS --> Manifest["buildPodManifest()"]
+    SBS --> KCreate["kube.createPod()"]
+    SBS --> KSand["KubeSandbox"]
+  end
+
+  subgraph Provider["KubeSandboxProvider"]
+    KSP["create(config)"]
+    KSP --> KC["KubeClient"]
+    KSP --> KSand2["KubeSandbox"]
+  end
+
+  KC -->|"K8s API\n(WebSocket)"| Pod["Pod container"]
 ```
 
 ### Pod Naming and Labels
@@ -217,8 +209,8 @@ KubeClient ----K8s API (WebSocket)----> Pod container
 
 Built by `buildPodManifest()` in `repos/sandbox/src/kube/podManifest.ts`:
 
-```
-V1Pod
+```yaml
+V1Pod:
   apiVersion: v1
   kind: Pod
   metadata:
@@ -229,15 +221,15 @@ V1Pod
     restartPolicy: Never
     automountServiceAccountToken: false
     volumes:
-      - name: proxy-ca-cert              <-- CA cert for MITM proxy
+      - name: proxy-ca-cert              # CA cert for MITM proxy
         secret: { secretName: <certSecretName> }
     initContainers:
-      - name: proxy-redirect             <-- iptables DNAT setup
+      - name: proxy-redirect             # iptables DNAT setup
         image: alpine
         securityContext: { capabilities: { add: [NET_ADMIN] } }
         command: [sh, -c, <iptables rules>]
     containers:
-      - name: sandbox                    <-- User workload container
+      - name: sandbox                    # User workload container
         image: <config.image>
         command: <config.command || resolved from SandboxRuntimeConfigs || [sleep, infinity]>
         workingDir: <config.workdir || /workspace>
@@ -261,26 +253,15 @@ V1Pod
 
 Managed by `SandboxService` in `repos/backend/src/services/sandboxes/sandbox.ts`:
 
-```
-1. CREATE   DB sandbox record with config (image, ports, runtimes, secretIds)
-                |
-2. START    SandboxService.startPod()
-             +-> Load config from DB
-             +-> Generate placeholder tokens for secretIds
-             +-> buildPodManifest() with egress opts
-             +-> kube.createPod(manifest)
-                |
-3. HYDRATE  KubeClient.hydrate() / hydrateSingle()
-             +-> Build route map: subdomain -> { podIp, ports, placeholders }
-             +-> Pods in Running/Pending state are hydrated
-             +-> Pods in Failed/Succeeded state are auto-deleted
-                |
-4. RUN      KubeSandbox operations (readFile, writeFile, evaluate, etc.)
-             +-> All operations go through KubeClient.runInPod()
-             +-> K8s API sends commands via WebSocket to pod's 'sandbox' container
-                |
-5. STOP     SandboxService.stopPod()
-             +-> kube.deletePod(podName, gracePeriod=30)
+```mermaid
+flowchart TD
+  Create["1. CREATE\nDB sandbox record"]
+  Start["2. START\nstartPod(): load config,\ngenerate placeholders,\nbuildPodManifest(),\nkube.createPod()"]
+  Hydrate["3. HYDRATE\nBuild route map:\nsubdomain → podIp, ports,\nplaceholders"]
+  Run["4. RUN\nKubeSandbox operations\nvia KubeClient.runInPod()\nK8s WebSocket → pod"]
+  Stop["5. STOP\nkube.deletePod()\ngracePeriod=30"]
+
+  Create --> Start --> Hydrate --> Run --> Stop
 ```
 
 ### KubeClient Watch System
@@ -315,64 +296,28 @@ The MITM egress proxy intercepts all outbound HTTP/HTTPS traffic from sandbox po
 
 ### Pod Internal Architecture
 
-```
-+----------- Kubernetes Pod -----------+
-|                                      |
-|  +---------------------------+       |
-|  |    Init Container         |       |
-|  |    (proxy-redirect)       |       |
-|  |                           |       |
-|  |  iptables -t nat rules:   |       |
-|  |  port 80  -> EGRESS_IP    |       |
-|  |  port 443 -> EGRESS_IP    |       |
-|  +---------------------------+       |
-|             runs once                |
-|                                      |
-|  +---------------------------+       |
-|  |    Sandbox Container      |       |
-|  |                           |       |
-|  |  User code runs here      |       |
-|  |  Outbound HTTP/S traffic  |------>+ iptables DNAT
-|  |  uses placeholder tokens  |       |     |
-|  |  NODE_EXTRA_CA_CERTS set  |       |     v
-|  +---------------------------+       |
-|                                      |
-+--------------------------------------+
-              |
-              | All port 80/443 traffic redirected
-              v
-+----------- Backend Service -----------+
-|                                       |
-|  EgressProxy                          |
-|    |                                  |
-|    +-> Front TCP Server (:port)       |
-|    |     |                            |
-|    |     +-> Peek first byte          |
-|    |         |                        |
-|    |   0x16 (TLS)        Other (HTTP) |
-|    |         |                |       |
-|    |    extractSNI()     Inject       |
-|    |    CONNECT tunnel   X-TDSK-      |
-|    |         |           Real-IP      |
-|    |         v                |       |
-|    |     MITM Proxy <---------+       |
-|    |     (http-mitm-proxy)            |
-|    |         |                        |
-|    |    Identify pod by source IP     |
-|    |    Lookup placeholders from      |
-|    |      route map                   |
-|    |    Scan headers for tdsk_ph_*    |
-|    |    Resolve secrets from DB       |
-|    |    Replace tokens with values    |
-|    |         |                        |
-|    |         v                        |
-|    |    Forward to original           |
-|    |    destination                   |
-|    |                                  |
-+---------------------------------------+
-              |
-              v
-       External API (receives real credentials)
+```mermaid
+flowchart TD
+  subgraph Pod["Kubernetes Pod"]
+    Init["Init Container\n(proxy-redirect)\niptables DNAT:\nport 80 → EGRESS_IP\nport 443 → EGRESS_IP"]
+    Sandbox["Sandbox Container\nUser code runs here\nPlaceholder tokens\nNODE_EXTRA_CA_CERTS set"]
+  end
+
+  Init -.->|"runs once"| Sandbox
+
+  Sandbox -->|"All port 80/443\ntraffic redirected\nvia iptables DNAT"| Egress
+
+  subgraph BackendSvc["Backend Service"]
+    Egress["EgressProxy\nFront TCP Server"]
+    Egress -->|"Peek first byte"| TLS{"0x16?"}
+    TLS -->|"TLS"| SNI["extractSNI()\nCONNECT tunnel"]
+    TLS -->|"HTTP"| Inject["Inject\nX-TDSK-Real-IP"]
+    SNI --> MITM["MITM Proxy\n(http-mitm-proxy)"]
+    Inject --> MITM
+    MITM --> Resolve["Identify pod by source IP\nLookup placeholders\nScan headers for tdsk_ph_*\nReplace tokens with values"]
+  end
+
+  Resolve --> ExtAPI["External API\n(receives real credentials)"]
 ```
 
 ### Protocol Handling
@@ -482,7 +427,7 @@ The `sandboxes` table stores persistent sandbox configuration records. These rec
 
 The `config` JSONB column stores a `TKubeSandboxConfig` (defined in `repos/domain/src/types/sandbox.types.ts`):
 
-```
+```text
 TKubeSandboxConfig
   image: string                          Container image (required)
   args?: string[]                        Container args
@@ -505,7 +450,7 @@ TKubeSandboxConfig
 
 The `Sandbox` model class extends `Base` and maps directly to the DB schema:
 
-```
+```text
 Sandbox extends Base
   name: string
   orgId: string

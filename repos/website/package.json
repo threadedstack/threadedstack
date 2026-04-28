@@ -23,7 +23,11 @@
     "start": "vite -c configs/vite.config.ts",
     "sf": "NODE_ENV=local vite -c configs/vite.config.ts",
     "test": "vitest run --config configs/vite.config.ts",
-    "types": "tsc --noEmit --pretty"
+    "types": "tsc --noEmit --pretty",
+    "screenshots": "npx tsx scripts/capture-screenshots.ts"
+  },
+  "optionalDependencies": {
+    "playwright": "1.59.1"
   },
   "dependencies": {
     "@emotion/react": "11.13.3",

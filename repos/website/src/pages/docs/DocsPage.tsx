@@ -2,9 +2,9 @@ import { useLocation } from 'react-router'
 import { useState, useEffect } from 'react'
 import { MDXProvider } from '@mdx-js/react'
 import ComingSoon from '@TAF/components/Docs/ComingSoon'
+import { findContentModule } from '@TAF/utils/docsContent'
 import DocsPrevNext from '@TAF/components/Docs/DocsPrevNext'
 import { mdxComponents } from '@TAF/components/Docs/MDXComponents'
-import { findContentModule } from '@TAF/utils/docsContent'
 
 const DocsPage = () => {
   const { pathname } = useLocation()

@@ -8,7 +8,7 @@ Every sandbox -- whether running an AI coding tool interactively or hosting an a
 
 - **Isolation**: Code executes in its own environment, separated from other workloads and the host system.
 - **Secret injection at the network layer**: Your code never sees real API keys or credentials. Instead, it receives opaque placeholder tokens (`tdsk_ph_*`). When the code makes outbound HTTP/HTTPS requests, a transparent man-in-the-middle (MITM) egress proxy intercepts the traffic and swaps the placeholders for the actual secret values before forwarding to the external service.
-- **No escape hatch**: All outbound traffic on ports 80 and 443 is redirected through the egress proxy via iptables rules set up before the sandbox container starts. The sandbox container cannot bypass this redirection because it lacks the `NET_ADMIN` capability needed to modify network rules.
+- **No escape hatch**: All outbound traffic on ports 80 and 443 is redirected through the egress proxy via network rules set up before the sandbox container starts. The sandbox container cannot bypass this redirection because it lacks the privileges needed to modify network rules.
 
 This design means that even if code running inside a sandbox is compromised or behaves unexpectedly, it cannot exfiltrate raw credentials.
 
@@ -24,7 +24,7 @@ The fastest way to start using Threaded Stack is the `tsa run` command. It start
 tsa login <api-key> --url https://your-instance.threadedstack.app
 
 # For local development (self-signed certs)
-tsa login <api-key> --url https://local.threadedstack.app --insecure
+tsa login <api-key> --url https://your-instance.threadedstack.app --insecure
 ```
 
 ### 2. List Available Sandboxes
@@ -133,7 +133,7 @@ The Local provider runs entirely in-process with no external dependencies. It is
 
 - A virtual in-memory filesystem (`/workspace` and `/tmp`) provides file storage.
 - A virtual shell handles command execution against that filesystem.
-- An optional V8 isolate (via `isolated-vm`) provides safe JavaScript code execution with a module system and Node.js-compatible APIs.
+- An optional isolated environment provides safe JavaScript code execution with a module system and Node.js-compatible APIs.
 
 **When it is used:**
 
@@ -150,8 +150,8 @@ The Local provider runs entirely in-process with no external dependencies. It is
 **Limitations:**
 
 - No real network access -- outbound HTTP requests from evaluated code are bridged through the host process, not through the MITM proxy.
-- No container isolation -- code runs in the same Node.js process (V8 isolate provides memory isolation but not process-level sandboxing).
-- If `isolated-vm` is not available on your platform (e.g., some ARM architectures), the provider degrades gracefully: shell and filesystem operations still work, but `evaluate()` calls will throw an error.
+- No container isolation -- code runs in the same Node.js process (the isolated environment provides memory isolation but not process-level sandboxing).
+- If the isolated execution environment is not available on your platform (e.g., some ARM architectures), the provider degrades gracefully: shell and filesystem operations still work, but `evaluate()` calls will throw an error.
 
 ### Kubernetes Provider (Production)
 
@@ -159,7 +159,7 @@ The Kubernetes provider runs code inside dedicated K8s pods. It is used in produ
 
 **How it works:**
 
-- A pod is created with a sandbox container (your configured Docker image) and an init container that sets up iptables rules for traffic redirection.
+- A pod is created with a sandbox container (your configured Docker image) and an init container that sets up network rules for traffic redirection.
 - All outbound HTTP/HTTPS traffic from the sandbox container is transparently routed through the MITM egress proxy.
 - Commands are executed inside the pod via the Kubernetes API (WebSocket-based exec), not via SSH or direct network access.
 - A custom CA certificate is mounted into the container so that TLS connections trust the proxy's generated certificates.
@@ -193,7 +193,7 @@ FaaS (Function as a Service) endpoints let you deploy JavaScript functions that 
 
 ### What Is Available Inside a FaaS Sandbox
 
-When your function code runs in the Local provider's V8 isolate, it has access to the following Node.js builtin shims:
+When your function code runs in the Local provider's isolated environment, it has access to the following Node.js builtin shims:
 
 | Module | What You Can Do |
 |--------|----------------|
@@ -228,7 +228,7 @@ When your FaaS endpoint is configured with secrets, those secrets are available 
 
 ### Resource Limits
 
-- **Memory**: Configurable per sandbox (default: 128 MB for the V8 isolate).
+- **Memory**: Configurable per sandbox (default: 128 MB for the isolated environment).
 - **Timeout**: Code evaluation has a default timeout of 5 seconds. Long-running computations are terminated.
 - **Timer support**: `setTimeout`, `setInterval`, `setImmediate`, and `clearTimeout`/`clearInterval` are available with a maximum timer duration of 30 seconds.
 
@@ -244,7 +244,7 @@ AI agents in Threaded Stack can execute code and make API calls within Kubernete
 2. **When an agent runs**, the `SandboxService` starts a pod from the configuration:
    - A unique pod name is generated (`tdsk-sb-<id>-<suffix>`).
    - Placeholder tokens are generated for each attached secret.
-   - The pod manifest is built with the sandbox container, the init container (iptables setup), and the CA certificate volume mount.
+   - The pod manifest is built with the sandbox container, the init container (network rules setup), and the CA certificate volume mount.
    - The pod is created via the K8s API.
 3. **The agent executes tool calls** inside the pod via the `KubeSandbox` interface -- running shell commands, reading/writing files, and evaluating code.
 4. **Outbound API calls** made by agent code are intercepted by the MITM proxy, which replaces placeholder tokens with real secret values before forwarding to external services.
@@ -255,7 +255,7 @@ AI agents in Threaded Stack can execute code and make API calls within Kubernete
 The MITM egress proxy is what makes sandbox security work transparently for agents. Here is what happens when agent code inside a pod makes an HTTPS request:
 
 1. The request leaves the sandbox container on port 443.
-2. The init container's iptables rules redirect it to the egress proxy service.
+2. The init container's network rules redirect it to the egress proxy service.
 3. The egress proxy peeks at the first byte to determine the protocol:
    - **TLS (byte `0x16`)**: Extracts the SNI hostname, establishes a CONNECT tunnel, and performs TLS interception using a per-hostname certificate signed by the custom CA.
    - **Plain HTTP**: Pipes directly to the MITM proxy with an internal tracking header.
@@ -392,7 +392,7 @@ When `sync.autoStart: true` is set in your config, `tsa ssh` automatically start
 
 ### How Credentials Stay Secure
 
-The security model remains intact during direct SSH access. The iptables DNAT rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks `NET_ADMIN` capability.
+The security model remains intact during direct SSH access. The network redirection rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks the privileges needed to do so.
 
 ### Copying Sandboxes
 
@@ -405,7 +405,7 @@ Copies always have `builtIn: false` and get a new ID. All configuration (image, 
 
 ### CLI Quick Reference
 
-```
+```bash
 tsa run <sandbox-id> [--org <id>]            # Start sandbox + sync + launch AI tool (recommended)
 tsa run --list [--org <id>]                  # List available sandboxes
 tsa ssh <sandbox-id> [--org <id>]            # SSH into sandbox (plain shell)
@@ -423,13 +423,13 @@ For full design details, see the [Sandbox Connect feature spec](../features/sand
 
 ## Troubleshooting
 
-### `isolated-vm` Not Available
+### Isolated Execution Environment Not Available
 
-**Symptom**: Warning message: `isolated-vm not available -- sandbox running without code execution isolation`. The `evaluate()` function throws errors.
+**Symptom**: Warning message about the sandbox running without code execution isolation. The `evaluate()` function throws errors.
 
-**Cause**: The `isolated-vm` package requires native compilation via `node-gyp`. It may fail on some platforms (Alpine Linux, certain ARM architectures) or if build tools are not installed.
+**Cause**: The isolated execution environment requires native compilation which may fail on some platforms (Alpine Linux, certain ARM architectures) or if build tools are not installed.
 
-**Solution**: Install the required build tools for your platform (`python3`, `make`, `g++` on Linux; Xcode Command Line Tools on macOS) and run `pnpm install` again. If the package still cannot compile for your platform, the Local provider will continue to work for shell and filesystem operations -- only V8 code evaluation is unavailable.
+**Solution**: Install the required build tools for your platform (`python3`, `make`, `g++` on Linux; Xcode Command Line Tools on macOS) and run the package install again. If the environment still cannot be set up for your platform, the Local provider will continue to work for shell and filesystem operations -- only isolated code evaluation is unavailable.
 
 ### Pod Stuck in Pending State
 
@@ -471,7 +471,7 @@ For full design details, see the [Sandbox Connect feature spec](../features/sand
 
 **Symptom**: Code evaluation fails with a timeout error.
 
-**Cause**: The code exceeded the evaluation timeout (default 5 seconds for V8 isolate, configurable for K8s pods).
+**Cause**: The code exceeded the evaluation timeout (default 5 seconds for the isolated environment, configurable for K8s pods).
 
 **Solution**:
 - Optimize the code to complete within the timeout window.

@@ -18,8 +18,7 @@ A comprehensive guide to creating, configuring, and calling proxy endpoints in T
 10. [Error Handling](#error-handling)
 11. [Limits & Constraints](#limits--constraints)
 12. [API Reference](#api-reference)
-13. [Source Code Map](#source-code-map)
-14. [Glossary](#glossary)
+13. [Glossary](#glossary)
 
 ---
 
@@ -29,13 +28,15 @@ A **proxy endpoint** lets you expose a safe, authenticated URL that forwards req
 
 Think of it like a secure relay:
 
-```
-Your App  ──>  Threaded Stack Proxy  ──>  External API (e.g. Stripe)
-                  │
-                  ├── Injects API keys from encrypted secrets
-                  ├── Adds custom headers
-                  ├── Handles retries on failure
-                  └── Logs everything
+```mermaid
+flowchart LR
+  App["Your App"]
+  Proxy["Threaded Stack Proxy"]
+  ExtAPI["External API (e.g. Stripe)"]
+
+  App --> Proxy --> ExtAPI
+
+  Proxy -.- Note1["Injects API keys from encrypted secrets Adds custom headers Handles retries on failure Logs everything"]
 ```
 
 **Why use it?**
@@ -59,39 +60,22 @@ Threaded Stack supports three endpoint types. This document focuses on **Proxy**
 
 ### Where Proxy Endpoints Fit
 
-```
-┌─────────────┐       ┌───────────┐       ┌──────────┐       ┌──────────────┐
-│   Client    │──────>│   Caddy   │──────>│  Auth    │──────>│   Backend    │
-│  (browser,  │ HTTPS │  (TLS +   │       │  Proxy   │       │  (Express)   │
-│   curl,     │       │  reverse  │       │  (JWT/   │       │              │
-│   app)      │       │  proxy)   │       │  API key)│       │              │
-└─────────────┘       └───────────┘       └──────────┘       └──────┬───────┘
-                                                                    │
-                                                              ┌─────┴──────┐
-                                                              │ Endpoint   │
-                                                              │ Dispatcher │
-                                                              └─────┬──────┘
-                                                                    │
-                                                     ┌──────────────┼────────────┐
-                                                     │              │            │
-                                               ┌─────┴─────┐ ┌──────┴────┐ ┌─────┴─────┐
-                                               │  Proxy    │ │   FaaS    │ │   Agent   │
-                                               │  Endpoint │ │  Endpoint │ │  Endpoint │
-                                               └─────┬─────┘ └───────────┘ └───────────┘
-                                                     │
-                                               ┌─────┴──────────────────┐
-                                               │ ProxyService           │
-                                               │  ├── Auth injection    │
-                                               │  ├── Secret resolution │
-                                               │  ├── OAuth 2.0 cache   │
-                                               │  └── Domain validation │
-                                               └─────┬──────────────────┘
-                                                     │
-                                               ┌─────┴─────┐
-                                               │ External  │
-                                               │    API    │
-                                               │ (target)  │
-                                               └───────────┘
+```mermaid
+flowchart LR
+  Client["Client (browser, curl, app)"]
+  Caddy["Caddy (TLS + reverse proxy)"]
+  Auth["Auth Proxy (JWT / API key)"]
+  Backend["Backend (Express)"]
+
+  Client -->|HTTPS| Caddy --> Auth --> Backend
+
+  Backend --> Dispatcher["Endpoint Dispatcher"]
+  Dispatcher --> ProxyEP["Proxy Endpoint"]
+  Dispatcher --> FaaSEP["FaaS Endpoint"]
+  Dispatcher --> AgentEP["Agent Endpoint"]
+
+  ProxyEP --> ProxySvc["ProxyService Auth injection Secret resolution OAuth 2.0 cache Domain validation"]
+  ProxySvc --> ExtAPI["External API (target)"]
 ```
 
 ### Key Services
@@ -99,8 +83,8 @@ Threaded Stack supports three endpoint types. This document focuses on **Proxy**
 | Service | Role |
 |---------|------|
 | **Caddy** | Terminates TLS, reverse-proxies to Auth Proxy |
-| **Auth Proxy** (`repos/proxy`) | Validates JWT or API key, forwards to Backend |
-| **Backend** (`repos/backend`) | Hosts the endpoint dispatcher + proxy engine |
+| **Auth Proxy** | Validates JWT or API key, forwards to Backend |
+| **Backend** | Hosts the endpoint dispatcher + proxy engine |
 | **ProxyEndpoint** | Builds and executes the proxied HTTP request |
 | **ProxyService** | Applies auth, OAuth, domain validation, transforms |
 | **SecretResolver** | Decrypts secrets and replaces `{{template}}` references |
@@ -234,7 +218,7 @@ All the same fields are available for editing.
 
 Once created, call your proxy endpoint through the Threaded Stack proxy URL:
 
-```
+```http
 https://px.local.threadedstack.app/proxy/{projectId}/{endpointId}
 ```
 
@@ -273,7 +257,7 @@ curl -s \
 
 If your Proxy URL is `https://api.openweathermap.org/data/2.5/weather`, the final request to the external API becomes:
 
-```
+```http
 GET https://api.openweathermap.org/data/2.5/weather?city=London&units=metric
 ```
 
@@ -312,7 +296,7 @@ Secrets are encrypted values stored in the database using AES-256-GCM encryption
 
 Anywhere you can provide a string value in endpoint configuration (headers, auth secret name, OAuth fields), you can reference a secret by name using double curly braces:
 
-```
+```text
 {{my-secret-name}}
 ```
 
@@ -329,13 +313,13 @@ You create a secret named `openweather-key` with the value `abc123xyz`.
 
 In your endpoint's headers, you set:
 
-```
+```http
 X-Api-Key: {{openweather-key}}
 ```
 
 When a client calls your proxy endpoint, the outgoing request to OpenWeatherMap includes:
 
-```
+```http
 X-Api-Key: abc123xyz
 ```
 
@@ -454,7 +438,7 @@ The proxy engine supports four authentication methods that are applied to the **
 
 ### Bearer Token
 
-```
+```http
 Authorization: Bearer <decrypted-secret-value>
 ```
 
@@ -462,7 +446,7 @@ The most common option. Set **Auth Type** to `Bearer Token`, provide a **Secret*
 
 ### Basic Auth
 
-```
+```http
 Authorization: Basic <base64(secret-value)>
 ```
 
@@ -470,7 +454,7 @@ Set **Auth Type** to `Basic Auth`. The secret value should be in `username:passw
 
 ### API Key
 
-```
+```http
 X-API-Key: <decrypted-secret-value>
 ```
 
@@ -518,8 +502,8 @@ Two layers of authentication govern access to proxy endpoints:
 
 | Layer | What It Checks | Where |
 |-------|---------------|-------|
-| **Auth Proxy** (gateway) | Valid JWT or `tdsk_*` API key | `repos/proxy` |
-| **Backend** (endpoint) | Project membership + `read` permission on endpoints | `repos/backend` |
+| **Auth Proxy** (gateway) | Valid JWT or `tdsk_*` API key | Gateway |
+| **Backend** (endpoint) | Project membership + `read` permission on endpoints | API Server |
 
 - **All requests** must pass the Auth Proxy (JWT or API key validation)
 - **Non-public endpoints** additionally require the user to have `read` access to endpoints in the target project
@@ -532,50 +516,31 @@ Two layers of authentication govern access to proxy endpoints:
 
 Here's exactly what happens when a client calls a proxy endpoint:
 
-```
- Client                Auth Proxy           Backend               Target API
-   │                      │                    │                      │
-   │  1. GET /proxy/...   │                    │                      │
-   │─────────────────────>│                    │                      │
-   │                      │  2. Validate JWT   │                      │
-   │                      │     or API key     │                      │
-   │                      │                    │                      │
-   │                      │  3. Forward with   │                      │
-   │                      │     X-User-* hdrs  │                      │
-   │                      │───────────────────>│                      │
-   │                      │                    │                      │
-   │                      │                    │  4. Look up endpoint │
-   │                      │                    │     in database      │
-   │                      │                    │                      │
-   │                      │                    │  5. Check project    │
-   │                      │                    │     ownership        │
-   │                      │                    │                      │
-   │                      │                    │  6. Authenticate &   │
-   │                      │                    │     check perms      │
-   │                      │                    │                      │
-   │                      │                    │  7. Validate HTTP    │
-   │                      │                    │     method           │
-   │                      │                    │                      │
-   │                      │                    │  8. Fetch & decrypt  │
-   │                      │                    │     project secrets  │
-   │                      │                    │                      │
-   │                      │                    │  9. Build proxy req: │
-   │                      │                    │     - Apply timeout  │
-   │                      │                    │     - Inject headers │
-   │                      │                    │     - Validate domain│
-   │                      │                    │     - Validate path  │
-   │                      │                    │     - Apply auth     │
-   │                      │                    │     - Replace {{}}   │
-   │                      │                    │                      │
-   │                      │                    │ 10. Forward ────────>│
-   │                      │                    │                      │
-   │                      │                    │ 11. Return response  │
-   │                      │                    │    (follow redirects)│
-   │                      │                    │<─────────────────────│
-   │                      │                    │                      │
-   │  12. JSON response   │                    │                      │
-   │<─────────────────────│<───────────────────│                      │
-   │                      │                    │                      │
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant P as Auth Proxy
+  participant B as Backend
+  participant T as Target API
+
+  C->>P: Request to /proxy/projId/epId/path
+  P->>P: JWT or API key validation
+  P->>B: Forward with X-User-* headers
+
+  B->>B: Load endpoint from DB
+  B->>B: Type dispatch → ProxyEndpoint
+  B->>B: Validate project ownership
+  B->>B: Auth check (skip if public)
+  B->>B: Permission check
+  B->>B: Method validation
+  B->>B: Load + decrypt secrets
+  B->>B: Build target URL + inject auth
+
+  B->>T: Forward request
+  T-->>B: Response
+  B-->>B: Response interceptor (transforms, redirects)
+  B-->>P: Response
+  P-->>C: Response
 ```
 
 ### Detailed Steps
@@ -607,7 +572,7 @@ If a request to the target API fails with a retryable error, the proxy engine au
 
 ### Retryable Status Codes
 
-```
+```text
 408  Request Timeout
 429  Too Many Requests
 500  Internal Server Error
@@ -632,7 +597,7 @@ Retry behavior is configured per endpoint in the `options` object:
 
 With defaults and `retries: 3`:
 
-```
+```text
 Attempt 1: fails → wait 1000ms (1s)
 Attempt 2: fails → wait 2000ms (2s)
 Attempt 3: fails → wait 4000ms (4s)
@@ -700,7 +665,7 @@ When the target API returns a 3xx redirect, the proxy follows it server-side rat
 
 ### Create Endpoint
 
-```
+```http
 POST /_/orgs/:orgId/projects/:projectId/endpoints
 ```
 
@@ -756,70 +721,29 @@ POST /_/orgs/:orgId/projects/:projectId/endpoints
 
 ### Get Endpoint
 
-```
+```http
 GET /_/orgs/:orgId/projects/:projectId/endpoints/:endpointId
 ```
 
 ### Update Endpoint
 
-```
+```http
 PATCH /_/endpoints/:endpointId
 ```
 
 ### Delete Endpoint
 
-```
+```http
 DELETE /_/endpoints/:endpointId
 ```
 
 ### Execute (Call the Proxy)
 
-```
+```http
 GET|POST|PUT|DELETE /proxy/:projectId/:endpointId[/*]
 ```
 
 All query parameters and extra path segments are forwarded to the target URL.
-
----
-
-## Source Code Map
-
-Key files involved in the proxy endpoint system:
-
-### Backend
-
-| File | Purpose |
-|------|---------|
-| `repos/backend/src/endpoints/proxy/endpoint.ts` | Entry point — dispatches `/proxy/:projectId/:endpointId` to the right service based on endpoint type |
-| `repos/backend/src/services/endpoints/base.ts` | Abstract base class with permission checks, secret fetching, validation |
-| `repos/backend/src/services/endpoints/proxyEndpoint.ts` | ProxyEndpoint class — builds and executes the proxied request with retry loop |
-| `repos/backend/src/services/endpoints/getEPService.ts` | Singleton registry mapping endpoint type to service |
-| `repos/backend/src/services/proxy/proxy.ts` | ProxyService — auth injection, OAuth token caching, domain validation, path regex, transforms |
-| `repos/backend/src/services/proxy/retry.ts` | RetryService — exponential backoff retry logic with metadata tracking |
-| `repos/backend/src/services/secrets/secretResolver.ts` | Decrypts secrets, resolves `{{template}}` references in strings and nested objects |
-
-### Auth Proxy
-
-| File | Purpose |
-|------|---------|
-| `repos/proxy/src/middleware/setupProxy.ts` | Forwards `/proxy/*` to the backend |
-| `repos/proxy/src/middleware/setupAuth.ts` | JWT validation via JWKS |
-| `repos/proxy/src/middleware/setupApiKeyAuth.ts` | API key validation for `tdsk_*` tokens |
-
-### Admin UI
-
-| File | Purpose |
-|------|---------|
-| `repos/admin/src/components/Endpoints/Proxy/` | All proxy form components (ProxyInputs, EndpointAuth, EndpointHeaders, etc.) |
-| `repos/admin/src/actions/endpoints/api/` | API actions (createEndpoint, updateEndpoint, etc.) |
-| `repos/admin/src/services/endpointsApi.ts` | EndpointsApi service class |
-
-### Domain
-
-| File | Purpose |
-|------|---------|
-| `repos/domain/src/models/endpoint.ts` | Endpoint model class |
-| `repos/domain/src/types/index.ts` | Type definitions (TProxyEndpointConfig, TEndpointOpts, TOAuthConfig, etc.) |
 
 ---
 
@@ -828,17 +752,11 @@ Key files involved in the proxy endpoint system:
 | Term | Definition |
 |------|-----------|
 | **Proxy Endpoint** | An endpoint configuration that forwards HTTP requests to an external target URL |
-| **Endpoint Dispatcher** | The backend route handler at `/proxy/:projectId/:endpointId` that loads the endpoint and delegates to the right service |
-| **ProxyEndpoint (class)** | The service class that handles proxy-type endpoint execution using `http-proxy-middleware` |
-| **ProxyService** | The service that applies auth, OAuth, domain validation, path regex, and transforms to outgoing proxy requests |
-| **RetryService** | The service that manages retry attempts with exponential backoff and metadata tracking |
-| **SecretResolver** | The service that decrypts secrets and replaces `{{template}}` references with plaintext values |
 | **Endpoint Path** | The path your clients call (e.g., `/api/weather`) — this is part of the endpoint configuration |
 | **Proxy URL** | The target URL the request gets forwarded to (e.g., `https://api.openweathermap.org/...`) |
 | **Proxy Method** | Optional method override — the HTTP method used for the outgoing request to the target, which can differ from the inbound method |
 | **Secret Template** | The `{{SECRET_NAME}}` syntax used to reference encrypted secrets in headers, auth, and body params |
 | **Exclusive Arc** | A database pattern where a record belongs to exactly one of several possible parent types |
 | **Public Endpoint** | An endpoint that skips backend permission checks (auth proxy still requires JWT/API key) |
-| **Auth Proxy** | The gateway service (`repos/proxy`) that validates authentication before forwarding to the backend |
 | **Domain Whitelist** | A list of approved request origins that are allowed to use the proxy endpoint |
 | **Path Regex** | A regular expression pattern that incoming request paths must match to be proxied |

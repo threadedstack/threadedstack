@@ -19,56 +19,47 @@ Source: `repos/database/src/schemas/`
 
 ## 2. Entity Relationship Diagram
 
-```
-                                   +-----------+
-                                   |   users   |  (Neon Auth, external)
-                                   +-----+-----+
-                                         |
-                         +---------------+----------------+
-                         |               |                |
-                    1:N (via roles)   1:1              1:N
-                         |               |                |
-     +------+       +----+----+    +-----+------+   +----+-----+
-     | orgs +-------+  roles  |    |subscriptions|   | invoices |
-     +--+---+  1:N  +---------+    +-------------+   +----------+
-        |
-        +---+--------+----------+-----------+----------+---------+
-        |   |        |          |           |          |         |
-       1:N 1:N      1:N       1:N         1:N        1:N      1:N
-        |   |        |          |           |          |         |
-  +-----++ ++-+  +---+---+ +---+----+ +----+---+ +---+---+ +---+----+
-  |projects| | | |providers| | agents | | secrets| | quotas| |invites |
-  +---+----+ | | +----+----+ +---+----+ +--------+ +-------+ +--------+
-      |      | |      |          |
-     1:N     | |      |    +-----+------+------+
-      |      | |      |    |     |      |      |
-  +---+----+ | |    M:N  M:N   M:N    1:N    1:N
-  |endpoints | |      |    |     |      |      |
-  +---+----+ | |      |    |     |      |      |
-      |      | | +----+--+ | +--+---+ ++-+  +-+-------+
-     1:N     | | |agent   | | |agent | |    ||threads  |
-      |      | | |Projects| | |Provs | |    |+---+-----+
-  +---+-----+| | +--------+ | +------+ |    |    |
-  |functions || |            |          |    |   1:N
-  +----------+| |  +---------+--+       |    |    |
-              | |  | agentSkills|       |    | +--+------+
-   +----------+ |  +------+-----+       |    | |messages |
-   |skills     | |        |             |    | +---+-----+
-   +-----------+ |   +----+--+          |    |     |
-                 |   |skills  |        1:N   |    1:N
-   +-------------+   +--------+         |    |     |
-   |assets (5-way arc)  |          +----++   |  +--+---+
-   +--------------------+          |secrets|  |  |assets|
-   |domains (2-way arc) |          +-------+  |  +------+
-   +--------------------+                     |
-   |sandboxes           |              +------+---+
-   +--------------------+              |schedules |
-                                       +----------+
+```mermaid
+erDiagram
+  users ||--o{ roles : "has"
+  users ||--o| subscriptions : "has"
+  users ||--o{ invoices : "has"
 
-  JUNCTION TABLES (many-to-many):
-    agentProjects  -- agents <-> projects (with per-project config overrides)
-    agentProviders -- agents <-> providers (with priority ordering + model override)
-    agentSkills    -- agents <-> skills
+  orgs ||--o{ roles : "has"
+  orgs ||--o{ projects : "owns"
+  orgs ||--o{ agents : "owns"
+  orgs ||--o{ providers : "owns"
+  orgs ||--o{ secrets : "owns (org-scoped)"
+  orgs ||--o{ quotas : "tracks"
+  orgs ||--o{ invitations : "has"
+  orgs ||--o{ assets : "owns"
+  orgs ||--o{ domains : "owns"
+  orgs ||--o{ sandboxes : "owns"
+  orgs ||--o{ threads : "owns"
+
+  projects ||--o{ endpoints : "contains"
+  projects ||--o{ functions : "contains"
+  projects ||--o{ secrets : "owns (project-scoped)"
+  projects ||--o{ roles : "has"
+  projects ||--o{ domains : "owns"
+  projects ||--o{ assets : "owns"
+  projects ||--o{ threads : "contains"
+
+  agents ||--o{ agentProjects : "linked via"
+  agents ||--o{ agentProviders : "linked via"
+  agents ||--o{ agentSkills : "linked via"
+  agents ||--o{ secrets : "owns"
+  agents ||--o{ threads : "has"
+  agents ||--o{ schedules : "has"
+
+  agentProjects }o--|| projects : "references"
+  agentProviders }o--|| providers : "references"
+  agentSkills }o--|| skills : "references"
+
+  threads ||--o{ messages : "contains"
+  messages ||--o{ assets : "has"
+
+  endpoints ||--o{ functions : "links"
 ```
 
 ### Key Relationship Summary
@@ -739,8 +730,12 @@ Database schemas map to domain model classes defined in `repos/domain/src/models
 
 Each database service extends a `Base` class that defines a `model()` method. This method converts a raw database select result into a domain model instance:
 
-```
-Database Row (TDBOrgSelect)  -->  service.model()  -->  Domain Model (Organization)
+```mermaid
+flowchart LR
+  DB["Database Row\n(TDBOrgSelect)"]
+  Conv["service.model()"]
+  Model["Domain Model\n(Organization)"]
+  DB --> Conv --> Model
 ```
 
 Services override `model()` to construct the appropriate domain class:

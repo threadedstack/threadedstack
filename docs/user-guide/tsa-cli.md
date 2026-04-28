@@ -4,7 +4,7 @@
 
 `tsa` is the Threaded Stack CLI for running AI tools in managed sandboxes and interacting with AI agents from the command line. The recommended entry point is `tsa run`, which starts a sandbox, syncs files, and launches your AI tool in one command.
 
-Built with Bun and Ink (React for terminals), `tsa` handles sandbox lifecycle, SSH tunneling, file sync, and agent chat sessions. API keys never leave the server.
+`tsa` handles sandbox lifecycle, SSH tunneling, file sync, and agent chat sessions. API keys never leave the server.
 
 Key capabilities:
 
@@ -20,28 +20,24 @@ Key capabilities:
 - Lifecycle hooks triggered on session, tool, and error events
 - Slash command system for in-session control
 
+### `tsa run` Workflow
+
+```mermaid
+flowchart TD
+  Login["tsa login &lt;api-key&gt;"]
+  List["tsa sandboxes (list available)"]
+  Run["tsa run &lt;sandbox-id&gt;"]
+  Start["Start sandbox pod (if not running)"]
+  Sync["Start file sync (Mutagen bidirectional)"]
+  SSH["SSH into pod"]
+  Launch["Launch runtime (e.g. claude, codex)"]
+  Work["Interactive AI tool session"]
+
+  Login --> List --> Run
+  Run --> Start --> Sync --> SSH --> Launch --> Work
+```
+
 ## Installation
-
-### From source (development)
-
-```bash
-cd repos/tsa
-
-# Run directly with Bun (requires Bun runtime)
-pnpm start
-
-# Bundle to dist/index.js
-pnpm build
-
-# Compile to standalone native binary (no Bun required at runtime)
-pnpm compile
-```
-
-After `pnpm compile`, the binary is at `repos/tsa/dist/tsa`. Add it to your PATH or symlink it:
-
-```bash
-ln -s "$(pwd)/repos/tsa/dist/tsa" /usr/local/bin/tsa
-```
 
 ### Verify installation
 
@@ -71,13 +67,13 @@ tsa login --apiKey tdsk_abc123def456
 
 | Flag | Description |
 |------|-------------|
-| `--url <proxy-url>` | Custom proxy URL (default: `https://px.local.threadedstack.app`) |
+| `--url <proxy-url>` | Custom proxy URL (default: https://px.threadedstack.app) |
 | `--insecure` | Skip TLS certificate validation (useful for local dev with self-signed certs) |
 
 Example with a local development proxy:
 
 ```bash
-tsa login tdsk_abc123def456 --url https://px.local.threadedstack.app --insecure
+tsa login tdsk_abc123def456 --url https://px.threadedstack.app --insecure
 ```
 
 ### Check status
@@ -100,7 +96,7 @@ Removes stored credentials from `~/.config/tdsk/tsa.yaml`.
 
 Credentials are stored in the global config file:
 
-```
+```text
 ~/.config/tdsk/tsa.yaml
 ```
 
@@ -109,7 +105,7 @@ The file is created with `0600` permissions (owner read/write only) inside a dir
 ```yaml
 auth:
   apiKey: "tdsk_..."
-  proxyUrl: "https://px.local.threadedstack.app"
+  proxyUrl: "https://px.threadedstack.app"
   insecure: false
 ```
 
@@ -183,6 +179,34 @@ tsa chat --thread thread_abc123
 
 ## Interactive Chat
 
+### Chat Session Lifecycle
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant TSA as tsa CLI
+  participant Proxy as Auth Proxy
+  participant Backend
+
+  User->>TSA: tsa chat --agent <id>;
+  TSA->>Proxy: GET /_/orgs (validate auth)
+  Proxy->>Backend: Forward
+  Backend-->>TSA: Org list
+
+  TSA->>Proxy: POST /_/ai/sessions {agentId}
+  Proxy->>Backend: Forward
+  Backend-->>TSA: {token: session-jwt}
+
+  TSA->>Backend: WS /ai/ws?token=jwt
+  Note over TSA,Backend: WebSocket connected
+
+  User->>TSA: Type message
+  TSA->>Backend: {type: prompt, message: ...}
+  Backend-->>TSA: {type: text_delta}
+  Backend-->>TSA: {type: done}
+  TSA-->>User: Rendered response
+```
+
 Running `tsa chat` (or just `tsa`) launches the interactive terminal UI. The session goes through several phases:
 
 1. **Login** -- If not authenticated, prompts for an API key. Pre-auth slash commands (`/login`, `/help`, `/exit`) are available.
@@ -192,23 +216,13 @@ Running `tsa chat` (or just `tsa`) launches the interactive terminal UI. The ses
 
 ### The chat interface
 
-```
-┌─────────────────────────────────────────────────┐
-│ Agent: my-agent | Provider: openai | Model: gpt │
-│ Thread: thread_abc123 | Status: connected       │
-├─────────────────────────────────────────────────┤
-│ > What files are in the project?                │
-│                                                 │
-│   Read file (src/index.ts) .................. OK │
-│   Listed directory (src/) ................... OK │
-│                                                 │
-│   The project contains the following files:     │
-│   - src/index.ts                                │
-│   - src/utils.ts                                │
-│   ...                                           │
-├─────────────────────────────────────────────────┤
-│ >                                               │
-└─────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+  subgraph ChatUI["Chat Interface"]
+    Header["Agent: my-agent | Provider: openai | Model: gpt Thread: thread_abc123 | Status: connected"]
+    Messages["&gt; What files are in the project?<br/>Read file (src/index.ts) ............ OK<br/>Listed directory (src/) ............. OK<br/>The project contains:<br/>- src/index.ts<br/>- src/utils.ts"]
+    Prompt["&gt; _"]
+  end
 ```
 
 - Type a message at the `>` prompt and press Enter to send.
@@ -258,14 +272,14 @@ Inside the chat session, type `/` followed by a command name. These are distinct
 
 `tsa` supports branching conversations at any message:
 
-```
+```text
 /fork              # Branch at the last message
 /fork msg_abc123   # Branch at a specific message ID
 ```
 
 View the branch tree with `/tree`:
 
-```
+```text
 /tree
 ```
 
@@ -290,7 +304,7 @@ This displays a visual tree of threads and their branch points.
 # Authentication (managed by tsa login/logout)
 auth:
   apiKey: "tdsk_..."
-  proxyUrl: "https://px.local.threadedstack.app"
+  proxyUrl: "https://px.threadedstack.app"
   insecure: false
 
 # Default IDs (used when --org/--agent not specified)

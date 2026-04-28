@@ -10,22 +10,21 @@ Threaded Stack is an **AI operations layer** for companies integrating AI agents
 
 ## Architecture
 
-- [Platform Overview](architecture/platform-overview.md) — Value prop, system topology, repo map, shared entity model
-- [Request Flow](architecture/request-flow.md) — Full request lifecycle per endpoint type, auth flows
-- [Data Model](architecture/data-model.md) — All schemas, relationships, exclusive arc pattern
-- [Security Model](architecture/security-model.md) — JIT secret injection, encryption, MITM proxy, scoping
-- [Sandbox Architecture](architecture/sandbox-architecture.md) — Providers, K8s pod lifecycle, MITM routing, agent hosting
+- [Platform Overview](architecture/platform-overview.md) — How the platform works, entity model, and subscription tiers
+- [Security Model](architecture/security-model.md) — How your data and credentials stay secure
 
 ## Features
 
-- [Proxy Endpoints](features/proxy-endpoints.md) — Secure API proxying with secret injection
-- [FaaS Endpoints](features/faas-endpoints.md) — Serverless function execution in sandboxes
-- [Agent Endpoints](features/agent-endpoints.md) — AI agent lifecycle, execution paths, tool attachment
-- [Sandbox Connect](features/sandbox-connect.md) — Managed sandboxes with runtime presets, SSH access, and file sync
-- [Threads](features/threads.md) — Conversation model, messages, branching
-- [Organizations](features/organizations.md) — Shared entity model, members, roles, invitations
-- [Secrets](features/secrets.md) — Encryption, scoping, template syntax, flow through system
-- [Billing](features/billing.md) — Stripe integration, tiers, quotas, subscription lifecycle
+- [Proxy Endpoints](features/proxy-endpoints.md) — Forward requests to external APIs with automatic credential injection
+- [FaaS Endpoints](features/faas-endpoints.md) — Run serverless JavaScript/TypeScript functions via HTTP
+- [Agent Endpoints](features/agent-endpoints.md) — Configure and run AI agents with tools and streaming responses
+- [Sandbox Connect](features/sandbox-connect.md) — Run AI tools in managed sandboxes with secure credential injection
+- [Threads](features/threads.md) — Persistent conversations with branching and message history
+- [Organizations](features/organizations.md) — Teams, roles, projects, and resource management
+- [Secrets](features/secrets.md) — Encrypted credential storage with scoped access and automatic injection
+- [Billing](features/billing.md) — Subscription tiers, quotas, and usage tracking
+- [Providers](features/providers.md) — AI model provider configuration and credential management
+- [API Keys](features/api-keys.md) — Programmatic API access with scoped permissions
 
 ## User Guide
 
@@ -35,16 +34,3 @@ Threaded Stack is an **AI operations layer** for companies integrating AI agents
 - [Threads App](user-guide/threads-app.md) — Web interface for non-developers
 - [Sandbox Usage](user-guide/sandbox-usage.md) — Sandbox setup, runtime selection, `tsa run`, SSH, file sync
 - [API Reference](user-guide/api-reference.md) — REST endpoints, auth, request/response examples
-
-## Business
-
-- [Value Proposition](business/value-proposition.md) — Positioning, problems, differentiators, target market
-- [Go-To-Market](business/go-to-market.md) — Beta strategy, growth path, competitive landscape
-- [Pricing](business/pricing.md) — Tiers, quotas, billing model
-
-## Internal Reference
-
-- [Local Development](meta/local.md)
-- [SSL Setup](meta/ssl.md)
-- [Environments](meta/environments.md)
-- [Kubernetes Setup](tech/kube-setup.md)

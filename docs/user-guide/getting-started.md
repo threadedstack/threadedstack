@@ -7,6 +7,20 @@ This guide walks you through your first session on Threaded Stack. There are two
 
 Both paths start the same way: sign up, create an organization, and add a secret.
 
+### Quick Start Flow
+
+```mermaid
+flowchart LR
+  Signup["Sign Up <br/>(Auth login)"]
+  Plan["Choose Plan <br/>(free tier auto)"]
+  Org["Create Organization"]
+  Provider["Add Provider <br/>(API key)"]
+  Sandbox["Launch Sandbox <br/>(tsa run)"]
+  Work["Start Working "]
+
+  Signup --> Plan --> Org --> Provider --> Sandbox --> Work
+```
+
 ---
 
 ## Prerequisites

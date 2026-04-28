@@ -2,9 +2,11 @@
 
 ## Overview
 
-The Threaded Stack Admin Dashboard is a single-page application (SPA) that serves as the primary interface for managing your organizations, projects, agents, endpoints, secrets, and billing. It is built with React, Vite, Material UI, and Jotai for state management.
+The Threaded Stack Admin Dashboard is a web application that serves as the primary interface for managing your organizations, projects, agents, endpoints, secrets, and billing.
 
 **Access**: Open the dashboard in your browser. All routes beyond the login screen require authentication via one of the supported social login providers (GitHub, Google, or Vercel). After signing in, the dashboard loads your organizations and presents the main workspace.
+
+![Admin login screen](./images/admin-login.png)
 
 ---
 
@@ -22,6 +24,8 @@ The dashboard uses a sidebar rail with context-sensitive navigation. The sidebar
 | Profile | `/profile` | Your user profile and account settings |
 | Settings | `/settings` | Global application settings |
 
+![Admin org dashboard with sidebar navigation](./images/admin-org-dashboard.png)
+
 ### Organization Scope
 
 When you select an organization, the sidebar updates to show organization-level navigation grouped into three sections:
@@ -32,13 +36,21 @@ When you select an organization, the sidebar updates to show organization-level 
 - Providers -- AI model providers (OpenAI, Anthropic, etc.) and their API key configuration
 - Skills -- Reusable agent skill definitions
 
+![Sandbox list view](./images/admin-sandbox-list.png)
+
+![Sandbox configuration](./images/admin-sandbox-config.png)
+
 **Security**
 - Secrets -- Encrypted key-value pairs (API keys, tokens, credentials)
 - API Keys -- API keys (`tdsk_*` tokens) for programmatic access
 - Domains -- Custom domain verification and management
 
+![Provider configuration](./images/admin-provider-config.png)
+
 **AI**
 - Agents -- AI agents scoped to this organization
+
+![Agent configuration](./images/admin-agent-config.png)
 
 **Management**
 - Members -- Organization member list, invitations, and role assignment
@@ -66,6 +78,8 @@ When you navigate into a project, the sidebar updates again:
 **Management**
 - Members -- Project member management
 - Settings -- Project name, description, and configuration
+
+![Project settings](./images/admin-project-settings.png)
 
 ### Header Menu
 

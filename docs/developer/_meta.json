@@ -1,0 +1,16 @@
+{
+  "label": "Developer Reference",
+  "order": 99,
+  "pages": [
+    "request-flow",
+    "data-model",
+    "sandbox-architecture",
+    "platform-overview-internals",
+    "security-model-internals",
+    "agent-endpoints-internals",
+    "threads-internals",
+    "billing-internals",
+    "sandbox-connect-internals",
+    "threads-app-internals"
+  ]
+}
