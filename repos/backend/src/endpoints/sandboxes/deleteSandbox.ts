@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 export const deleteSandbox: TEndpointConfig = {
@@ -14,10 +14,10 @@ export const deleteSandbox: TEndpointConfig = {
     const { db, sandbox: sbService } = req.app.locals
     const { id } = req.params
 
-    await requireResource(db.services.sandbox, id, `Sandbox`)
+    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     if (sbService) {
-      const activeSessions = sbService.getShellSessionsForSandbox(id)
+      const activeSessions = sbService.getShellSessionsForSandbox(sandbox.id)
       if (activeSessions.length > 0) {
         throw new Exception(
           409,
@@ -26,7 +26,7 @@ export const deleteSandbox: TEndpointConfig = {
       }
     }
 
-    const { data, error } = await db.services.sandbox.delete(id)
+    const { data, error } = await db.services.sandbox.delete(sandbox.id)
     if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })

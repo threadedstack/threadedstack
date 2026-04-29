@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -18,7 +18,7 @@ export const updateSandbox: TEndpointConfig = {
     const { db } = req.app.locals
     const { id } = req.params
 
-    const existing = await requireResource(db.services.sandbox, id, `Sandbox`)
+    const existing = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     const { name, config, projectIds, providerInputs } = req.body
 
@@ -52,7 +52,7 @@ export const updateSandbox: TEndpointConfig = {
     }
 
     const { data, error } = await db.services.sandbox.update({
-      id,
+      id: existing.id,
       ...(name !== undefined && { name }),
       ...(config !== undefined && { config }),
       ...(pins !== undefined && { providerInputs: pins }),

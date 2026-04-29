@@ -43,30 +43,27 @@ import { addProjectMember } from '@TBE/endpoints/projects/addProjectMember'
 import { listProjectMembers } from '@TBE/endpoints/projects/listProjectMembers'
 import { removeProjectMember } from '@TBE/endpoints/projects/removeProjectMember'
 import { updateProjectMemberRole } from '@TBE/endpoints/projects/updateProjectMemberRole'
-import {
-  getAgentProjectConfig,
-  upsertAgentProjectConfig,
-  deleteAgentProjectConfig,
-} from '@TBE/endpoints/agents/agentProjectConfig'
+
+import { getAPConfig } from '@TBE/endpoints/agents/getAPConfig'
+import { deleteAPConfig } from '@TBE/endpoints/agents/deleteAPConfig'
+import { upsertAPConfig } from '@TBE/endpoints/agents/upsertAPConfig'
 
 import { getSandbox } from '@TBE/endpoints/sandboxes/getSandbox'
 import { stopSandbox } from '@TBE/endpoints/sandboxes/stopSandbox'
 import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
 import { listSessions } from '@TBE/endpoints/sandboxes/listSessions'
 import { startSandbox } from '@TBE/endpoints/sandboxes/startSandbox'
+import { getSBPConfig } from '@TBE/endpoints/sandboxes/getSBPConfig'
 import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
 import { execInSandbox } from '@TBE/endpoints/sandboxes/execInSandbox'
 import { createSandbox } from '@TBE/endpoints/sandboxes/createSandbox'
 import { updateSandbox } from '@TBE/endpoints/sandboxes/updateSandbox'
 import { deleteSandbox } from '@TBE/endpoints/sandboxes/deleteSandbox'
 import { connectSandbox } from '@TBE/endpoints/sandboxes/connectSandbox'
+import { deleteSBPConfig } from '@TBE/endpoints/sandboxes/deleteSBPConfig'
+import { upsertSBPConfig } from '@TBE/endpoints/sandboxes/upsertSBPConfig'
 import { getSandboxStatus } from '@TBE/endpoints/sandboxes/getSandboxStatus'
 import { listSandboxThreads } from '@TBE/endpoints/sandboxes/listSandboxThreads'
-import {
-  getSandboxProjectConfig,
-  upsertSandboxProjectConfig,
-  deleteSandboxProjectConfig,
-} from '@TBE/endpoints/sandboxes/sandboxProjectConfig'
 
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
@@ -124,9 +121,9 @@ const projectAgentConfig: TEndpointConfig = {
   path: `/:agentId/config`,
   method: EPMethod.Use,
   endpoints: {
-    getAgentProjectConfig,
-    upsertAgentProjectConfig,
-    deleteAgentProjectConfig,
+    getAPConfig,
+    upsertAPConfig,
+    deleteAPConfig,
   },
 }
 
@@ -160,9 +157,9 @@ const projectSandboxConfig: TEndpointConfig = {
   path: `/:sandboxId/config`,
   method: EPMethod.Use,
   endpoints: {
-    getSandboxProjectConfig,
-    upsertSandboxProjectConfig,
-    deleteSandboxProjectConfig,
+    getSBPConfig,
+    upsertSBPConfig,
+    deleteSBPConfig,
   },
 }
 

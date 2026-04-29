@@ -101,6 +101,7 @@ const createMockDb = () => {
   })
 
   const spFindFirst = vi.fn()
+  const spFindMany = vi.fn().mockResolvedValue([])
 
   return {
     db: {
@@ -110,10 +111,14 @@ const createMockDb = () => {
       transaction: transactionFn,
       query: {
         sandboxes: { findFirst, findMany },
-        sandboxProjects: { findFirst: spFindFirst },
+        sandboxProjects: {
+          findMany: spFindMany,
+          findFirst: spFindFirst,
+        },
       },
     } as any,
     spFindFirst,
+    spFindMany,
     returningFn,
     valuesFn,
     setFn,
@@ -716,19 +721,21 @@ describe(`Sandbox service`, () => {
 
   // ---------- addProject() ----------
   describe(`addProject`, () => {
-    it(`should insert into sandboxProjects and return data`, async () => {
-      const junction = { sandboxId: `sbx-1`, projectId: `proj-1`, alias: undefined }
+    it(`should auto-generate alias from sandbox name when not provided`, async () => {
+      const sandboxRow = { id: `sbx-1`, name: `My Sandbox`, config: {}, orgId: `org-1` }
+      mocks.findFirst.mockResolvedValue(sandboxRow)
+      mocks.spFindMany.mockResolvedValue([])
+      const junction = { sandboxId: `sbx-1`, projectId: `proj-1`, alias: `my-sandbox` }
       mocks.returningFn.mockResolvedValue([junction])
 
       const result = await service.addProject(`sbx-1`, `proj-1`)
 
       expect(result.data).toEqual(junction)
       expect(result.error).toBeNull()
-      expect(mocks.insertFn).toHaveBeenCalledOnce()
       expect(mocks.valuesFn).toHaveBeenCalledWith({
         sandboxId: `sbx-1`,
         projectId: `proj-1`,
-        alias: undefined,
+        alias: `my-sandbox`,
       })
     })
 

@@ -5,7 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { signShellToken } from '@TBE/services/sessionToken'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { Exception, EPermAction, EPermResource, EContainerState } from '@tdsk/domain'
 
 export const connectSandbox: TEndpointConfig = {
@@ -16,40 +16,41 @@ export const connectSandbox: TEndpointConfig = {
     const { id } = req.params
     const { db, config } = req.app.locals
 
-    const sandbox = await requireResource(db.services.sandbox, id, `Sandbox`)
-
     const { projectId } = req.params
     if (!projectId)
       throw new Exception(400, `projectId is required to connect to a sandbox`)
+
+    const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
+    const sandboxId = sandbox.id
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
     // Check for already-running or starting pod (prevents duplicate pod race)
-    let podName = await sb.findRunningPod(id, sandbox.orgId)
+    let podName = await sb.findRunningPod(sandboxId, sandbox.orgId)
 
     if (!podName) {
       // Also check Pending pods and in-progress starts
-      const activePod = await sb.findActivePod(id, sandbox.orgId)
+      const activePod = await sb.findActivePod(sandboxId, sandbox.orgId)
       if (activePod) {
         podName = activePod
-      } else if (sb.isStarting(id)) {
+      } else if (sb.isStarting(sandboxId)) {
         throw new Exception(409, `Sandbox is already starting`)
       }
     }
 
     if (!podName) {
-      sb.markStarting(id)
+      sb.markStarting(sandboxId)
       try {
         podName = await sb.startPod({
           projectId,
-          sandboxId: id,
+          sandboxId,
           orgId: sandbox.orgId,
           userId: req.user!.id,
           egressOpts: config.egress,
         })
       } catch (err) {
-        sb.clearStarting(id)
+        sb.clearStarting(sandboxId)
         throw err
       }
 
@@ -98,7 +99,7 @@ export const connectSandbox: TEndpointConfig = {
         }
         throw err
       } finally {
-        sb.clearStarting(id)
+        sb.clearStarting(sandboxId)
       }
     }
 
@@ -120,10 +121,12 @@ export const connectSandbox: TEndpointConfig = {
     if (!password) throw new Exception(500, `Could not retrieve SSH password for pod`)
 
     const shellToken = signShellToken({
-      sandboxId: id,
+      sandboxId,
       userId: req.user!.id,
       orgId: sandbox.orgId,
     })
+
+    const alias = sandbox.getProjectAlias(projectId)
 
     res.status(200).json({
       data: {
@@ -131,8 +134,9 @@ export const connectSandbox: TEndpointConfig = {
         password,
         port: 2222,
         shellToken,
-        sandboxId: id,
-        command: `tsa ssh ${id}`,
+        sandboxId,
+        command: `tsa ssh ${alias || sandboxId}`,
+        ...(alias && { alias }),
         ...(initError && { initError }),
       },
     })

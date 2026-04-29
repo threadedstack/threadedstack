@@ -197,6 +197,7 @@ describe(`Sandbox model`, () => {
         {
           sandboxId: `sandbox-1`,
           projectId: `proj-1`,
+          alias: `test-sandbox`,
           config: {
             envVars: { LOG_LEVEL: `debug`, NEW_VAR: `added` },
           } as any,
@@ -216,6 +217,7 @@ describe(`Sandbox model`, () => {
         {
           sandboxId: `sandbox-1`,
           projectId: `proj-1`,
+          alias: `test-sandbox`,
           config: {
             resources: {
               limits: { memory: `4Gi` },
@@ -237,6 +239,7 @@ describe(`Sandbox model`, () => {
         {
           sandboxId: `sandbox-1`,
           projectId: `proj-1`,
+          alias: `test-sandbox`,
           config: {
             ports: { debug: 9229 },
           } as any,
@@ -252,6 +255,7 @@ describe(`Sandbox model`, () => {
         {
           sandboxId: `sandbox-1`,
           projectId: `proj-1`,
+          alias: `test-sandbox`,
           config: {
             sync: { bidirectional: true },
           } as any,
@@ -309,6 +313,7 @@ describe(`Sandbox model`, () => {
         {
           sandboxId: `sandbox-1`,
           projectId: `proj-1`,
+          alias: `test-sandbox`,
           config: { envVars: { X: `1` } } as any,
         },
       ]

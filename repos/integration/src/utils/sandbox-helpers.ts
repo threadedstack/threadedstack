@@ -165,11 +165,13 @@ export const getPodSubdomain = (podName: string): string | null => {
 export const connectSandbox = async (
   orgId: string,
   projectId: string,
-  sandboxId: string
+  sandboxId: string,
+  timeout = 130_000
 ) => {
   return await post<TSandboxConnectResult>(
     `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-    {}
+    {},
+    { timeout }
   )
 }
 

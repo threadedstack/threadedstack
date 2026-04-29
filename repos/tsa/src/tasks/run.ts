@@ -18,11 +18,11 @@ export const run: TTask = {
   name: `run`,
   alias: [],
   description: `Start a sandbox, sync files, and launch its configured AI tool`,
-  example: `tsa run <sandbox-id> [--org <id>] [--no-sync]`,
+  example: `tsa run <sandbox> [--org <id>] [--no-sync]`,
   options: {
     sandbox: {
       example: `--sb sb_xxx`,
-      description: `Sandbox ID`,
+      description: `Sandbox ID or alias`,
       alias: [`sandboxId`, `sb`],
     },
     org: {
@@ -90,25 +90,33 @@ export const run: TTask = {
 
       process.stdout.write(`\n${themed(`bold`, `Sandboxes:`)}\n`)
       const nameW = 20
+      const aliasW = 22
       const runtimeW = 20
-      process.stdout.write(`  ${'Name'.padEnd(nameW)} ${'Runtime'.padEnd(runtimeW)} ID\n`)
       process.stdout.write(
-        `  ${`─`.repeat(nameW)} ${`─`.repeat(runtimeW)} ${'─'.repeat(12)}\n`
+        `  ${'Name'.padEnd(nameW)} ${'Alias'.padEnd(aliasW)} ${'Runtime'.padEnd(runtimeW)} ID\n`
+      )
+      process.stdout.write(
+        `  ${`─`.repeat(nameW)} ${`─`.repeat(aliasW)} ${`─`.repeat(runtimeW)} ${'─'.repeat(12)}\n`
       )
       for (const sb of list) {
         const name = (sb.name || `unnamed`).slice(0, nameW).padEnd(nameW)
+        const alias = (
+          sb.projectConfigs?.find((pc: any) => pc.projectId === projectId)?.alias || `-`
+        )
+          .slice(0, aliasW)
+          .padEnd(aliasW)
         const runtime = (sb.config?.runtimeCommand || `-`)
           .slice(0, runtimeW)
           .padEnd(runtimeW)
         process.stdout.write(
-          `  ${name} ${themed(`muted`, runtime)} ${themed(`muted`, sb.id)}\n`
+          `  ${name} ${themed(`success`, alias)} ${themed(`muted`, runtime)} ${themed(`muted`, sb.id)}\n`
         )
       }
       process.stdout.write(`\n`)
 
       if (!params.list) {
         process.stdout.write(
-          `${themed(`warning`, `Usage: tsa run <sandbox-id> [--org <id>]`)}\n`
+          `${themed(`warning`, `Usage: tsa run <sandbox> [--org <id>]`)}\n`
         )
         process.exit(1)
       }
@@ -119,7 +127,8 @@ export const run: TTask = {
     // Fetch sandbox config to get runtimeCommand — hard error if this fails
     const { data: sandbox, error: sandboxError } = await client.getSandbox(
       orgId,
-      sandboxId
+      sandboxId,
+      projectId
     )
     if (sandboxError || !sandbox) {
       process.stderr.write(
@@ -131,8 +140,12 @@ export const run: TTask = {
 
     const runtimeCommand = sandbox.config?.runtimeCommand as string | undefined
 
+    let resolvedId: string
     try {
-      await sandboxConnect(client, orgId, projectId, sandboxId)
+      const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
+      if (!connectResp.sandboxId)
+        throw new Error(`Server did not return a resolved sandbox ID`)
+      resolvedId = connectResp.sandboxId
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
@@ -142,11 +155,11 @@ export const run: TTask = {
     const syncCtx = createSyncContext()
     if (!skipSync) {
       try {
-        await autoStartSync(syncCtx, config?.sync, client, orgId, sandboxId)
-        if (syncCtx.started) registerSyncCleanup(sandboxId, syncCtx.manager)
+        await autoStartSync(syncCtx, config?.sync, client, orgId, resolvedId)
+        if (syncCtx.started) registerSyncCleanup(resolvedId, syncCtx.manager)
       } catch (err) {
         process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-        await stopSync(syncCtx, sandboxId)
+        await stopSync(syncCtx, resolvedId)
         process.exit(1)
       }
     }
@@ -156,13 +169,13 @@ export const run: TTask = {
     }
 
     try {
-      await spawnSsh(sandboxId, runtimeCommand)
+      await spawnSsh(resolvedId, runtimeCommand)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1
     } finally {
       clearSyncCleanup()
-      await stopSync(syncCtx, sandboxId)
+      await stopSync(syncCtx, resolvedId)
     }
   }),
 }

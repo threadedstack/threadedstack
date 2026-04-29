@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import {
   Sandbox,
   Exception,
@@ -29,8 +30,7 @@ export const copySandbox: TEndpointConfig = {
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!id) throw new Exception(400, `Sandbox ID is required`)
 
-    const { data: original, error: getError } = await db.services.sandbox.get(id)
-    if (getError || !original) throw new Exception(404, `Sandbox not found`)
+    const original = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
     if (original.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
 
     const name = req.body.name || `${original.name} (copy)`

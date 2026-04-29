@@ -45,6 +45,10 @@ export class Sandbox extends Base {
     return this.projectConfigs?.find((c) => c.projectId === projectId)
   }
 
+  getProjectAlias(projectId: string): string | undefined {
+    return this.getProjectConfig(projectId)?.alias
+  }
+
   getEffectiveConfig(projectId?: string): Sandbox {
     if (!projectId) return this
     const pc = this.getProjectConfig(projectId)

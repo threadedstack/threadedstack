@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 
 export const getSandbox: TEndpointConfig = {
   path: `/:id`,
@@ -14,7 +14,7 @@ export const getSandbox: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const data = await requireResource(db.services.sandbox, id, `Sandbox`)
+    const data = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     res.status(200).json({ data })
   },

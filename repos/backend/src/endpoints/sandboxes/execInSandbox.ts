@@ -8,7 +8,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 export const execInSandbox: TEndpointConfig = {
@@ -23,7 +23,7 @@ export const execInSandbox: TEndpointConfig = {
     if (!command) throw new Exception(400, `command is required`)
     if (!podName) throw new Exception(400, `podName is required`)
 
-    const sandbox = await requireResource(db.services.sandbox, id, `Sandbox`)
+    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)

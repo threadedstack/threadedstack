@@ -34,10 +34,13 @@ const joinShellSession = async (
     throw new Error(connectErr?.message || `Failed to get shell token`)
   }
 
+  if (!connectData.sandboxId)
+    throw new Error(`Server did not return a resolved sandbox ID`)
+  const resolvedId = connectData.sandboxId
   const proxyUrl = client.proxyUrl.replace(/^http/, `ws`)
   const cols = process.stdout.columns || 80
   const rows = process.stdout.rows || 24
-  const wsUrl = `${proxyUrl}/_/sandboxes/${sandboxId}/shell?sessionId=${sessionId}&token=${connectData.shellToken}&cols=${cols}&rows=${rows}`
+  const wsUrl = `${proxyUrl}/_/sandboxes/${resolvedId}/shell?sessionId=${sessionId}&token=${connectData.shellToken}&cols=${cols}&rows=${rows}`
 
   const ws = new WebSocket(wsUrl)
   ws.binaryType = `arraybuffer`
@@ -121,11 +124,11 @@ export const ssh: TTask = {
   name: `ssh`,
   alias: [],
   description: `Connect to a running sandbox via SSH`,
-  example: `tsa ssh <sandbox-id> [--org <id>] [--session <id>]`,
+  example: `tsa ssh <sandbox> [--org <id>] [--session <id>]`,
   options: {
     sandbox: {
       example: `--sb sb_xxx`,
-      description: `Sandbox ID`,
+      description: `Sandbox ID or alias`,
       alias: [`sandboxId`, `sb`],
     },
     org: {
@@ -189,8 +192,12 @@ export const ssh: TTask = {
     }
 
     // Normal SSH path
+    let resolvedId: string
     try {
-      await sandboxConnect(client, orgId, projectId, sandboxId)
+      const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
+      if (!connectResp.sandboxId)
+        throw new Error(`Server did not return a resolved sandbox ID`)
+      resolvedId = connectResp.sandboxId
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
@@ -198,22 +205,22 @@ export const ssh: TTask = {
 
     const syncCtx = createSyncContext()
     try {
-      await autoStartSync(syncCtx, config?.sync, client, orgId, sandboxId)
-      if (syncCtx.started) registerSyncCleanup(sandboxId, syncCtx.manager)
+      await autoStartSync(syncCtx, config?.sync, client, orgId, resolvedId)
+      if (syncCtx.started) registerSyncCleanup(resolvedId, syncCtx.manager)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-      await stopSync(syncCtx, sandboxId)
+      await stopSync(syncCtx, resolvedId)
       process.exit(1)
     }
 
     try {
-      await spawnSsh(sandboxId)
+      await spawnSsh(resolvedId)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1
     } finally {
       clearSyncCleanup()
-      await stopSync(syncCtx, sandboxId)
+      await stopSync(syncCtx, resolvedId)
     }
   }),
 }

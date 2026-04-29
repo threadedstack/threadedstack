@@ -269,6 +269,7 @@ export type TSandboxSessionVisibility = `${ESandboxSessionVisibility}`
 
 export type TSandboxConnectResponse = {
   port: number
+  alias?: string
   command: string
   podName: string
   password: string
@@ -292,6 +293,6 @@ export type TSandboxProjectConfig = {
   sandboxId: string
   projectId: string
   enabled?: boolean
-  alias?: string | null
+  alias: string
   config?: Partial<TKubeSandboxConfig> | null
 }

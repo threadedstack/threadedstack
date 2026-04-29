@@ -311,6 +311,28 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
         </Box>
       ),
     },
+    ...(projectId
+      ? [
+          {
+            id: `alias`,
+            label: `Alias`,
+            render: (sandbox: Sandbox) => {
+              const alias = sandbox.projectConfigs?.find(
+                (pc) => pc.projectId === projectId
+              )?.alias
+              return (
+                <Typography
+                  variant='body2'
+                  fontFamily='monospace'
+                  color='text.secondary'
+                >
+                  {alias || `--`}
+                </Typography>
+              )
+            },
+          } as TDataTableColumn<Sandbox>,
+        ]
+      : []),
     {
       id: `auth`,
       label: `Auth`,

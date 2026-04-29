@@ -186,13 +186,13 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
       }
       sandboxId = sbRes.data.id
 
-      // Connect — starts pod, waits for Running, returns shellToken
       const connectRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-        {}
+        {},
+        { timeout: 130_000 }
       )
       if (!connectRes.ok) {
-        console.error('[sandbox-shell-gui] Failed to connect sandbox:', connectRes.status)
+        console.error('[sandbox-shell-gui] Failed to connect sandbox:', connectRes.status, (connectRes as any).error)
         setupFailed = true
         return
       }

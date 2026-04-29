@@ -24,13 +24,26 @@ import { eq, and, sql, notInArray } from 'drizzle-orm'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
-import { Sandbox as SandboxModel, Provider as ProviderModel } from '@tdsk/domain'
+import {
+  slugify,
+  isValidSandboxAlias,
+  Sandbox as SandboxModel,
+  Provider as ProviderModel,
+} from '@tdsk/domain'
+
+type TProjectSBRow = {
+  alias: string
+  sandboxId: string
+  projectId: string
+  enabled?: boolean
+  config?: Partial<TKubeSandboxConfig> | null
+}
 
 export type TSandboxSelectOpts = TDBSandboxSelect & {
   projects?: {
     sandboxId: string
     projectId: string
-    alias?: string | null
+    alias: string
     enabled?: boolean
     config?: Partial<TKubeSandboxConfig> | null
     project: ProjectModel | TDBProjectSelect
@@ -53,7 +66,7 @@ export type TSandboxInsertOpts = TDBSandboxInsert &
   TSandboxProviderMeta & {
     projects?: Array<
       Partial<ProjectModel> & {
-        alias?: string | null
+        alias?: string
         enabled?: boolean
         config?: Partial<TKubeSandboxConfig> | null
       }
@@ -62,10 +75,11 @@ export type TSandboxInsertOpts = TDBSandboxInsert &
 
 type TSandboxRelations = {
   id: string
+  sandboxName: string
   providerInputs?: TProviderInput[]
   projects?: Array<
     Partial<ProjectModel> & {
-      alias?: string | null
+      alias?: string
       enabled?: boolean
       config?: Partial<TKubeSandboxConfig> | null
     }
@@ -107,9 +121,9 @@ export class Sandbox extends Base<
       ...rest,
       projects: projectLinks.map((link) => link.project),
       projectConfigs: projectLinks.map((link) => ({
+        alias: link.alias,
         sandboxId: link.sandboxId,
         projectId: link.projectId,
-        alias: link.alias ?? null,
         config: link.config ?? null,
         enabled: link.enabled ?? true,
       })) as TSandboxProjectConfig[],
@@ -123,8 +137,27 @@ export class Sandbox extends Base<
     })
   }
 
+  #generateAlias = async (sandboxName: string, projectId: string): Promise<string> => {
+    const base = slugify(sandboxName) || `sandbox`
+
+    const existing = await this.db.query.sandboxProjects.findMany({
+      where: eq(sandboxProjects.projectId, projectId),
+      columns: { alias: true },
+    })
+
+    const taken = new Set(existing.map((r) => r.alias))
+    if (!taken.has(base)) return base
+
+    const maxSuffix = 1000
+    let suffix = 2
+    while (taken.has(`${base}-${suffix}`) && suffix <= maxSuffix) suffix++
+    if (suffix > maxSuffix)
+      throw new DBError(`Could not generate a unique alias for "${sandboxName}"`)
+    return `${base}-${suffix}`
+  }
+
   #relations = async (opts: TSandboxRelations) => {
-    const { id, projects, providerInputs } = opts
+    const { id, sandboxName, projects, providerInputs } = opts
 
     if (projects?.length) {
       const valid = projects.filter((p) => p?.id)
@@ -133,15 +166,29 @@ export class Sandbox extends Base<
           `[Sandbox] #relations: ${projects.length - valid.length} projects dropped (missing id) for sandbox ${id}`
         )
 
-      const rows = valid.map((proj) => ({
-        sandboxId: id,
-        projectId: proj.id!,
-        ...(proj.alias !== undefined && { alias: proj.alias }),
-        ...(proj.config !== undefined && { config: proj.config }),
-        ...(proj.enabled !== undefined && { enabled: proj.enabled }),
-      }))
+      const rows: Array<TProjectSBRow> = []
+
+      for (const proj of valid) {
+        if (proj.alias && !isValidSandboxAlias(proj.alias))
+          throw new DBError(`Invalid sandbox alias "${proj.alias}"`)
+        const alias = proj.alias || (await this.#generateAlias(sandboxName, proj.id!))
+        rows.push({
+          alias,
+          sandboxId: id,
+          projectId: proj.id!,
+          ...(proj.config !== undefined && { config: proj.config }),
+          ...(proj.enabled !== undefined && { enabled: proj.enabled }),
+        })
+      }
+
       if (rows.length)
-        await this.db.insert(sandboxProjects).values(rows).onConflictDoNothing()
+        await this.db
+          .insert(sandboxProjects)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [sandboxProjects.sandboxId, sandboxProjects.projectId],
+            set: { alias: sql`excluded.alias` },
+          })
     }
 
     if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs)
@@ -191,7 +238,12 @@ export class Sandbox extends Base<
 
     if (result.data && (projects?.length || providerInputs?.length)) {
       try {
-        await this.#relations({ id: result.data.id, projects, providerInputs })
+        await this.#relations({
+          projects,
+          providerInputs,
+          id: result.data.id,
+          sandboxName: result.data.name,
+        })
         const updated = await this.get(result.data.id)
         result.data = updated.data
       } catch (err) {
@@ -229,7 +281,12 @@ export class Sandbox extends Base<
             .delete(sandboxProjects)
             .where(eq(sandboxProjects.sandboxId, sandboxData.id))
 
-        await this.#relations({ id: sandboxData.id, projects, providerInputs })
+        await this.#relations({
+          projects,
+          providerInputs,
+          id: sandboxData.id,
+          sandboxName: result.data.name,
+        })
         const updated = await this.get(sandboxData.id)
         result.data = updated.data
       } catch (error: any) {
@@ -249,6 +306,15 @@ export class Sandbox extends Base<
    */
   async addProject(sandboxId: string, projectId: string, alias?: string) {
     try {
+      if (alias && !isValidSandboxAlias(alias))
+        return { data: null, error: new DBError(`Invalid sandbox alias "${alias}"`) }
+
+      if (!alias) {
+        const { data: sandbox } = await this.get(sandboxId)
+        if (!sandbox) return { data: null, error: new DBError(`Sandbox not found`) }
+        alias = await this.#generateAlias(sandbox.name, projectId)
+      }
+
       const [result] = await this.db
         .insert(sandboxProjects)
         .values({
@@ -294,6 +360,9 @@ export class Sandbox extends Base<
     config: Partial<Omit<TSandboxProjectConfig, 'sandboxId' | 'projectId'>>
   ) {
     try {
+      if (config.alias !== undefined && !isValidSandboxAlias(config.alias))
+        return { error: new DBError(`Invalid sandbox alias "${config.alias}"`) }
+
       const [result] = await this.db
         .update(sandboxProjects)
         .set({
@@ -333,15 +402,32 @@ export class Sandbox extends Base<
 
       return {
         data: {
+          alias: result.alias,
           sandboxId: result.sandboxId,
           projectId: result.projectId,
-          alias: result.alias ?? null,
-          enabled: result.enabled ?? true,
           config: result.config ?? null,
+          enabled: result.enabled ?? true,
         } as TSandboxProjectConfig,
       }
     } catch (error: any) {
       return { error }
+    }
+  }
+
+  async getByProjectAlias(projectId: string, alias: string) {
+    try {
+      const link = await this.db.query.sandboxProjects.findFirst({
+        where: and(
+          eq(sandboxProjects.projectId, projectId),
+          eq(sandboxProjects.alias, alias)
+        ),
+      })
+
+      if (!link) return { data: null, error: new DBError(`${this.title} not found`) }
+
+      return this.get(link.sandboxId)
+    } catch (error: any) {
+      return { data: null, error }
     }
   }
 

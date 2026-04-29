@@ -8,7 +8,7 @@ import {
   getAgentProjectConfig,
   upsertAgentProjectConfig,
   deleteAgentProjectConfig,
-} from './agentProjectConfig'
+} from './deleteAPConfig'
 
 describe(`AgentProjectConfig endpoints`, () => {
   let mockReq: Partial<TRequest>

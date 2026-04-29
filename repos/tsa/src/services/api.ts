@@ -18,7 +18,9 @@ export class ApiClient extends ApiService {
       headers: {
         Accept: `application/json`,
         [`Content-Type`]: `application/json`,
-        ...(creds?.apiKey ? { Authorization: `Bearer ${creds.apiKey}` } : {}),
+        ...(creds?.apiKey || creds?.token
+          ? { Authorization: `Bearer ${creds.apiKey ?? creds.token}` }
+          : {}),
       },
     })
     this.#auth = auth
@@ -28,7 +30,9 @@ export class ApiClient extends ApiService {
     const creds = this.#auth.creds()
     if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
     this.url = creds.proxyUrl
-    this.setBearer(creds.apiKey)
+    const bearer = creds.apiKey ?? creds.token
+    if (!bearer) throw new Error(`Not logged in. Run "tsa login" first.`)
+    this.setBearer(bearer)
   }
 
   get proxyUrl(): string {
@@ -220,8 +224,15 @@ export class ApiClient extends ApiService {
     })
   }
 
-  async getSandbox(orgId: string, sandboxId: string): Promise<TApiResponse<any>> {
-    return this.get<any>({ path: `orgs/${orgId}/sandboxes/${sandboxId}` })
+  async getSandbox(
+    orgId: string,
+    sandboxId: string,
+    projectId?: string
+  ): Promise<TApiResponse<any>> {
+    const path = projectId
+      ? `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}`
+      : `orgs/${orgId}/sandboxes/${sandboxId}`
+    return this.get<any>({ path })
   }
 
   async getSandboxSessions(

@@ -26,11 +26,14 @@ export const sandboxProjects = pgTable(
     projectId: varchar(`project_id`, { length: 10 })
       .references(() => projects.id, { onDelete: `cascade` })
       .notNull(),
-    alias: text(`alias`),
+    alias: text(`alias`).notNull(),
     enabled: boolean(`enabled`).default(true),
     config: jsonb(`config`).$type<Partial<TKubeSandboxConfig> | null>(),
   },
-  (table) => [unique(`unique_sandbox_project`).on(table.sandboxId, table.projectId)]
+  (table) => [
+    unique(`unique_sandbox_project`).on(table.sandboxId, table.projectId),
+    unique(`unique_project_alias`).on(table.projectId, table.alias),
+  ]
 )
 
 export const sandboxProjectsRelations = relations(sandboxProjects, ({ one }) => ({

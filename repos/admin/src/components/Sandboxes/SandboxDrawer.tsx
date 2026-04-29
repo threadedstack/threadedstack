@@ -535,6 +535,21 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
             onChange={(e) => setName(e.target.value)}
           />
 
+          {/* Per-project alias — project context, edit mode only */}
+          {isProjectContext && isEditMode && sandbox && (
+            <TextInput
+              fullWidth
+              disabled
+              id='sandbox-alias'
+              label='Alias'
+              value={
+                sandbox.projectConfigs?.find((pc) => pc.projectId === projectId)?.alias ||
+                ``
+              }
+              helperText='Auto-generated from sandbox name. Used in tsa ssh <alias>.'
+            />
+          )}
+
           {/* Project linking — org context only */}
           {!isProjectContext && (
             <SelectInput

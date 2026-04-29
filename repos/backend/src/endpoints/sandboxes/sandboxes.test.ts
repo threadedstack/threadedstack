@@ -289,18 +289,18 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should return 200 with updated sandbox`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Old Name`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
       const updatedSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `New Name`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { name: `New Name` }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -321,13 +321,13 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should update sandbox with new providerInputs`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
       const updatedSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
@@ -338,7 +338,7 @@ describe(`Sandboxes endpoints`, () => {
           },
         ],
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { providerInputs: [{ id: `provider-1` }] }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -357,7 +357,7 @@ describe(`Sandboxes endpoints`, () => {
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: `sandbox-1`,
+          id: `sb_test01`,
           providerInputs: [{ id: `provider-1` }],
         })
       )
@@ -366,7 +366,7 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should clear providers with empty providerInputs array`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
@@ -378,12 +378,12 @@ describe(`Sandboxes endpoints`, () => {
         ],
       })
       const updatedSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { providerInputs: [] }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -402,7 +402,7 @@ describe(`Sandboxes endpoints`, () => {
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: `sandbox-1`,
+          id: `sb_test01`,
           providerInputs: [],
         })
       )
@@ -411,7 +411,7 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should preserve providers when providerInputs is omitted`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
@@ -423,7 +423,7 @@ describe(`Sandboxes endpoints`, () => {
         ],
       })
       const updatedSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Updated Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
@@ -434,7 +434,7 @@ describe(`Sandboxes endpoints`, () => {
           },
         ],
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { name: `Updated Sandbox` }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -455,12 +455,12 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should validate provider existence on update`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { providerInputs: [{ id: `nonexistent` }] }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -477,7 +477,7 @@ describe(`Sandboxes endpoints`, () => {
     })
 
     it(`should return 404 when sandbox not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
+      mockReq.params = { id: `sb_noexst` }
       mockReq.body = { name: `Updated` }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -492,12 +492,12 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should return 400 when idleTimeoutMinutes is less than 1`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { config: { idleTimeoutMinutes: 0 } }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
@@ -512,12 +512,12 @@ describe(`Sandboxes endpoints`, () => {
 
     it(`should return 500 on database error`, async () => {
       const existingSandbox = new Sandbox({
-        id: `sandbox-1`,
+        id: `sb_test01`,
         name: `Sandbox`,
         orgId: `org-1`,
         config: { image: `tdsk-sandbox-claude` } as any,
       })
-      mockReq.params = { id: `sandbox-1` }
+      mockReq.params = { id: `sb_test01` }
       mockReq.body = { name: `Updated` }
 
       const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<

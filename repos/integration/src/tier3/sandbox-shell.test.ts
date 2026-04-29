@@ -111,7 +111,10 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('shell-project'), orgId: ctx.orgId }
       )
-      if (!projRes.ok) { setupFailed = true; return }
+      if (!projRes.ok) {
+        console.error('[sandbox-shell] Failed to create project:', projRes.status, (projRes as any).error)
+        setupFailed = true; return
+      }
       projectId = projRes.data.id
 
       const sbRes = await post<Record<string, any>>(
@@ -133,16 +136,21 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
           projectIds: [projectId],
         }
       )
-      if (!sbRes.ok) { setupFailed = true; return }
+      if (!sbRes.ok) {
+        console.error('[sandbox-shell] Failed to create sandbox:', sbRes.status, (sbRes as any).error)
+        setupFailed = true; return
+      }
       sandboxId = sbRes.data.id
 
-      // Connect starts the pod and returns shellToken
-      // Call directly with projectId since connectSandbox helper doesn't pass it
       const connectRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-        { projectId }
+        {},
+        { timeout: 130_000 }
       )
-      if (!connectRes.ok) { setupFailed = true; return }
+      if (!connectRes.ok) {
+        console.error('[sandbox-shell] Failed to connect:', connectRes.status, (connectRes as any).error)
+        setupFailed = true; return
+      }
       podName = connectRes.data.podName
       shellToken = connectRes.data.shellToken || ''
     } catch (err) {

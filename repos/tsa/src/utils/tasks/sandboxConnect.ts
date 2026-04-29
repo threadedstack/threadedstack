@@ -12,14 +12,16 @@ export const sandboxConnect = async (
   client: ApiClient,
   orgId: string,
   projectId: string,
-  sandboxId: string
+  sandboxIdOrAlias: string
 ): Promise<TSandboxConnectResponse> => {
-  process.stdout.write(`${themed(`muted`, `Connecting to sandbox "${sandboxId}"...`)}\n`)
+  process.stdout.write(
+    `${themed(`muted`, `Connecting to sandbox "${sandboxIdOrAlias}"...`)}\n`
+  )
 
   const { data: connectResp, error } = await client.connectSandbox(
     orgId,
     projectId,
-    sandboxId
+    sandboxIdOrAlias
   )
   if (error || !connectResp)
     throw new Error(error?.message || `Failed to connect to sandbox`)
@@ -34,10 +36,15 @@ export const sandboxConnect = async (
   } catch (err) {
     throw new Error(`Failed to configure SSH: ${(err as Error).message}`)
   }
+
+  if (!connectResp.sandboxId)
+    throw new Error(`Server did not return a resolved sandbox ID`)
+
+  const resolvedId = connectResp.sandboxId
   const { error: sshError } = await client.injectSshKey(
     orgId,
     projectId,
-    sandboxId,
+    resolvedId,
     podName,
     publicKey
   )

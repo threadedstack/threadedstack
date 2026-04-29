@@ -4,6 +4,7 @@ import type { TPendingOp, TSessionLocationState } from '@TTH/types'
 
 import { toast } from 'sonner'
 import { nav } from '@TTH/services/nav'
+import { SandboxIdPrefix } from '@tdsk/domain'
 import { MemoChildren } from '@tdsk/components'
 import { openSession } from '@TTH/actions/sessions'
 import { useParams, useLocation } from 'react-router'
@@ -41,16 +42,28 @@ export const SessionProvider = (props: TSessionProvider) => {
     return undefined
   }, [session?.sandboxId, locationState?.sandboxId, sessionId])
 
-  const sandbox = useMemo(
-    () => (sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined),
-    [sandboxId, sandboxes]
-  )
-
-  const projectId = useMemo((): string | undefined => {
+  const resolvedProjectId = useMemo((): string | undefined => {
     if (session?.projectId) return session.projectId
     if (locationState?.projectId) return locationState.projectId
+    return undefined
+  }, [session?.projectId, locationState?.projectId])
+
+  const sandbox = useMemo(() => {
+    if (!sandboxId) return undefined
+    if (sandboxId.startsWith(SandboxIdPrefix))
+      return sandboxes.find((s) => s.id === sandboxId)
+    if (!resolvedProjectId) return undefined
+    return sandboxes.find((s) =>
+      s.projectConfigs?.some(
+        (pc) => pc.alias === sandboxId && pc.projectId === resolvedProjectId
+      )
+    )
+  }, [sandboxId, sandboxes, resolvedProjectId])
+
+  const projectId = useMemo((): string | undefined => {
+    if (resolvedProjectId) return resolvedProjectId
     return sandbox?.projects?.[0]?.id
-  }, [session?.projectId, locationState?.projectId, sandbox?.projects])
+  }, [resolvedProjectId, sandbox?.projects])
 
   const isOwner = useMemo(
     () => !!session && !!user && session.podOwnerUserId === user.id,

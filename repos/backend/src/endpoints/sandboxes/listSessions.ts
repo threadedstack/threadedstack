@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { requireResource } from '@TBE/utils/auth/requireResource'
+import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 export const listSessions: TEndpointConfig = {
@@ -14,12 +14,12 @@ export const listSessions: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const sandbox = await requireResource(db.services.sandbox, id, `Sandbox`)
+    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    const podName = await sb.findRunningPod(id, sandbox.orgId)
+    const podName = await sb.findRunningPod(sandbox.id, sandbox.orgId)
     const sessions = podName ? sb.getSessions(podName) : []
 
     res.status(200).json({ data: sessions })
