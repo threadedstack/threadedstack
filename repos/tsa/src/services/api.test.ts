@@ -22,7 +22,10 @@ const makeCreds = () => ({
 })
 
 const makeAuth = (creds: ReturnType<typeof makeCreds> | null = makeCreds()) =>
-  ({ creds: vi.fn().mockReturnValue(creds) }) as unknown as AuthManager
+  ({
+    creds: vi.fn().mockReturnValue(creds),
+    isExpired: vi.fn().mockReturnValue(false),
+  }) as unknown as AuthManager
 
 describe(`ApiClient`, () => {
   let client: ApiClient
@@ -484,6 +487,36 @@ describe(`ApiClient`, () => {
       expect(result.ok).toBe(false)
       expect(result.status).toBe(403)
       expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe(`session expiry`, () => {
+    it(`should throw when token is expired and refresh fails`, async () => {
+      const pastDate = new Date(Date.now() - 60000).toISOString()
+      const auth = makeAuth({
+        token: `jwt.expired`,
+        expiresAt: pastDate,
+        proxyUrl: `https://proxy.test`,
+      } as any)
+      ;(auth.isExpired as any).mockReturnValue(true)
+      const c = new ApiClient(auth)
+
+      await expect(c.listOrgs()).rejects.toThrow(`Session expired`)
+    })
+
+    it(`should proceed normally when token is not expired`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [] }),
+      })
+
+      const auth = makeAuth()
+      ;(auth.isExpired as any).mockReturnValue(false)
+      const c = new ApiClient(auth)
+
+      const result = await c.listOrgs()
+      expect(result.ok).toBe(true)
     })
   })
 

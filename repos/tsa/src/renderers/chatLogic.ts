@@ -1,18 +1,19 @@
 import type { TStreamEvent } from '@tdsk/domain'
+import type { TTokenLoginOpts } from '@TSA/types'
 import type { AuthManager } from '@TSA/services/auth'
 import type {
   TAppPhase,
+  TToolCall,
   TTsaConfig,
   TContextFile,
   TSelectItem,
   TConnectionStatus,
-  TToolCall,
   TSlashCommandContext,
 } from '@TSA/types'
 
-import { EStreamEventType } from '@tdsk/domain'
-import { ApiClient } from '@TSA/services/api'
 import { setTheme } from '@TSA/theme'
+import { ApiClient } from '@TSA/services/api'
+import { EStreamEventType } from '@tdsk/domain'
 import { Executor } from '@TSA/services/executor'
 import { ContextLoader } from '@TSA/services/context'
 import { resolveOrg } from '@TSA/utils/api/resolveOrg'
@@ -326,6 +327,12 @@ export class ChatLogic {
 
   async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
     await this.#auth.login(apiKey, proxyUrl, insecure)
+    this.loggedIn = true
+    await this.#connectAfterLogin()
+  }
+
+  async loginWithToken(opts: TTokenLoginOpts): Promise<void> {
+    await this.#auth.loginWithToken(opts)
     this.loggedIn = true
     await this.#connectAfterLogin()
   }
@@ -645,6 +652,7 @@ export class ChatLogic {
       threadId: this.threadId,
       projectId: this.projectId,
       connection: this.connection,
+      output: (text: string) => this.#outputMessage(text),
       setAgentId: (id: string) => {
         this.agentId = id
         const cached = this.agents.find((a: any) => a.id === id)
@@ -827,11 +835,14 @@ export class ChatLogic {
       auth: {
         loggedIn: this.loggedIn,
         logout: () => this.logout(),
+        proxyUrl: this.#auth.creds()?.proxyUrl ?? null,
         login: async (apiKey: string, proxyUrl?: string, insecure?: boolean) => {
           await this.login(apiKey, proxyUrl, insecure)
         },
+        loginWithToken: async (opts: TTokenLoginOpts) => {
+          await this.loginWithToken(opts)
+        },
       },
-      output: (text: string) => this.#outputMessage(text),
     }
   }
 

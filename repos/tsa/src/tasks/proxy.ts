@@ -32,7 +32,7 @@ export const proxy: TTask = {
 
     const ws = new WebSocket(tunnelUrl, {
       headers: {
-        Authorization: `Bearer ${creds.apiKey}`,
+        Authorization: `Bearer ${creds.apiKey ?? creds.token}`,
       },
       rejectUnauthorized: !creds.insecure,
     })

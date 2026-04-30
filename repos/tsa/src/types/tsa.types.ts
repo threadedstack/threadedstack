@@ -1,8 +1,34 @@
-export type TAuthCredentials = {
+type TApiKeyAuth = {
   apiKey: string
+  token?: never
+  expiresAt?: never
   proxyUrl: string
   insecure?: boolean
 }
+
+type TTokenAuth = {
+  apiKey?: never
+  token: string
+  expiresAt?: string
+  proxyUrl: string
+  insecure?: boolean
+}
+
+export type TBrowserAuthResult = {
+  token: string
+  expiresAt?: string
+  authUrl?: string
+}
+
+export type TTokenLoginOpts = {
+  token: string
+  expiresAt?: string
+  proxyUrl?: string
+  insecure?: boolean
+  authUrl?: string
+}
+
+export type TAuthCredentials = TApiKeyAuth | TTokenAuth
 
 export enum EAppPhase {
   chat = `chat`,

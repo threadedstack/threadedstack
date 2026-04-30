@@ -17,6 +17,7 @@ const Login = lazy(() => import('@TTH/pages/Login/Login'))
 const Project = lazy(() => import('@TTH/pages/Project/Project'))
 const Session = lazy(() => import('@TTH/pages/Session/Session'))
 const Sandbox = lazy(() => import('@TTH/pages/Sandbox/Sandbox'))
+const CliAuth = lazy(() => import('@TTH/pages/CliAuth/CliAuth'))
 const Settings = lazy(() => import('@TTH/pages/Settings/Settings'))
 const Projects = lazy(() => import('@TTH/pages/Projects/Projects'))
 
@@ -97,6 +98,11 @@ export const Routes = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    id: ERoutePath.CliAuth,
+    path: ERoutePath.CliAuth,
+    Component: () => <SuspensePage Component={CliAuth} />,
   },
   {
     id: ERoutePath.AuthPage,

@@ -2,9 +2,13 @@ import type { TThemeType } from '@TSA/types/theme.types'
 import type { ESandboxType, TSyncConfig } from '@tdsk/domain'
 
 export type TAuthConfig = {
-  apiKey: string
+  token?: string
+  apiKey?: string
+  authUrl?: string
   proxyUrl?: string
   insecure?: boolean
+  expiresAt?: string
+  threadsUrl?: string
 }
 
 export type TDisplayConfig = {

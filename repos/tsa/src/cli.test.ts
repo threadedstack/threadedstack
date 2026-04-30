@@ -1,4 +1,4 @@
-import { main } from './cli'
+import { cli } from './cli'
 import { Version } from '@TSA/constants/version'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -17,6 +17,11 @@ vi.mock(`@TSA/services/config`, () => ({
 
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
+
+const mockBrowserLogin = vi.fn()
+vi.mock(`@TSA/services/browserAuth`, () => ({
+  browserLogin: (...args: any[]) => mockBrowserLogin(...args),
+}))
 
 const mockPiTuiStart = vi.fn()
 const mockPiTuiStop = vi.fn()
@@ -92,7 +97,7 @@ describe(`main`, () => {
 
   const runMain = async () => {
     try {
-      await main()
+      await cli()
     } catch (err: any) {
       if (err.message !== `__EXIT__`) throw err
     }
@@ -156,12 +161,18 @@ describe(`main`, () => {
   })
 
   describe(`login command`, () => {
-    it(`should require api key argument`, async () => {
+    it(`should start browser auth when no api key provided`, async () => {
       setArgv(`login`)
       setLoggedOut()
+      mockBrowserLogin.mockResolvedValue({
+        token: `jwt_test`,
+        expiresAt: `2099-01-01T00:00:00Z`,
+      })
+      mockFetch.mockResolvedValue({ ok: true })
+      mockLoadGlobal.mockReturnValue({})
       await runMain()
-      expect(joined()).toContain(`Usage: tsa login`)
-      expect(exitCode).toBe(1)
+      expect(joined()).toContain(`Opening browser`)
+      expect(mockBrowserLogin).toHaveBeenCalled()
     })
 
     it(`should call auth.login and show success`, async () => {

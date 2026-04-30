@@ -21,11 +21,11 @@ import { PiTuiChat } from '@TSA/renderers/PiTuiChat'
 import { PiTuiStatus } from '@TSA/renderers/PiTuiStatus'
 
 const selectListTheme = {
-  selectedPrefix: (s: string) => chalk.cyan(s),
-  selectedText: (s: string) => chalk.white(s),
-  description: (s: string) => chalk.dim(s),
-  scrollInfo: (s: string) => chalk.dim(s),
   noMatch: (s: string) => chalk.dim(s),
+  scrollInfo: (s: string) => chalk.dim(s),
+  description: (s: string) => chalk.dim(s),
+  selectedText: (s: string) => chalk.white(s),
+  selectedPrefix: (s: string) => chalk.cyan(s),
 }
 
 const editorTheme: EditorTheme = {

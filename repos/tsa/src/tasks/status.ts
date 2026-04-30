@@ -20,8 +20,26 @@ export const status: TTask = {
       `\n${themed(`bold`, `Status:`)} ${themed(`primary`, `logged in`)}\n`
     )
     process.stdout.write(`  ${themed(`muted`, `Proxy:`)} ${creds.proxyUrl}\n`)
-    process.stdout.write(
-      `  ${themed(`muted`, `Key:`)}   ${creds.apiKey.slice(0, 8)}${`*`.repeat(8)}\n\n`
-    )
+
+    if (creds.apiKey) {
+      process.stdout.write(
+        `  ${themed(`muted`, `Auth:`)}  API key (${creds.apiKey.slice(0, 8)}${`*`.repeat(8)})\n\n`
+      )
+    } else if (creds.token) {
+      const expired = auth.isExpired()
+      let expiryText = ``
+      if (creds.expiresAt) {
+        const remaining = new Date(creds.expiresAt).getTime() - Date.now()
+        if (expired) {
+          expiryText = themed(`error`, ` (expired)`)
+        } else {
+          const mins = Math.round(remaining / 60_000)
+          expiryText = themed(`muted`, ` (expires in ${mins} min)`)
+        }
+      }
+      process.stdout.write(
+        `  ${themed(`muted`, `Auth:`)}  Browser session${expiryText}\n\n`
+      )
+    }
   },
 }

@@ -9,9 +9,7 @@ export const DefaultMaxHistory = 50
 export const UpstreamTimeoutMS = 30_000
 export const DefaultTheme = `dark` as const
 export const DefaultSandboxTimeout = 300000
-
-// TODO: fix this, it should default to production URL once production is deployed
-export const DefaultProxyUrl = `https://px.local.threadedstack.app`
+export const LoginTimeoutMs = 5 * 60 * 1000
 
 // Retry
 export const MaxRetries = 3

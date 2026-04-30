@@ -42,8 +42,10 @@ const makeCtx = (
   closeMenu: vi.fn(),
   auth: {
     loggedIn: true,
+    proxyUrl: `https://px.local.threadedstack.app`,
     logout: vi.fn(),
     login: vi.fn().mockResolvedValue(undefined),
+    loginWithToken: vi.fn().mockResolvedValue(undefined),
   },
   ...overrides,
 })

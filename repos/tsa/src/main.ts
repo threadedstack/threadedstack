@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import util from 'node:util'
-import { main } from '@TSA/cli'
+import { cli } from '@TSA/cli'
 import { themed } from '@TSA/theme'
 import { runSyncCleanup } from '@TSA/utils/tasks/syncCleanupRegistry'
 
@@ -26,7 +26,7 @@ const signalCleanup = async () => {
 process.on(`SIGINT`, signalCleanup)
 process.on(`SIGTERM`, signalCleanup)
 
-main().catch(async (err) => {
+cli().catch(async (err) => {
   try {
     await runSyncCleanup()
   } catch {

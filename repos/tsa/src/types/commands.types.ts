@@ -1,56 +1,68 @@
-import type { TSelectItem } from '@TSA/types'
+import type { TSelectItem, TTokenLoginOpts } from '@TSA/types'
+
+type TMessage = { type: string; content: string }
+type TThread = { id: string; name?: string; createdAt?: string }
+type TThreadBranch = { id: string; name?: string; branchMessageId?: string }
+type TCtxFile = { path: string; name: string; content: string; sizeBytes: number }
+
+type TMenuOnAction = (item: TSelectItem) => void
+
+type TMenuOpts = {
+  onAction?: TMenuOnAction
+}
+
+type TThreadWBranches = {
+  id: string
+  name?: string
+  parentThread?: TThread
+  parentThreadId?: string
+  branches?: Array<TThreadBranch>
+}
+
+type TCmdCtxAuth = {
+  loggedIn: boolean
+  logout: () => void
+  proxyUrl: string | null
+  loginWithToken: (opts: TTokenLoginOpts) => Promise<void>
+  login: (apiKey: string, proxyUrl?: string, insecure?: boolean) => Promise<void>
+}
 
 export type TSlashCommandContext = {
   orgId: string
   agentId: string
   verbose: boolean
   exit: () => void
+  auth: TCmdCtxAuth
   connection: string
+  closeMenu: () => void
   threadId: string | null
   projectId: string | null
   clearMessages: () => void
+  messages: Array<TMessage>
+  contextFiles: Array<TCtxFile>
   output: (text: string) => void
   setAgentId: (id: string) => void
   setVerbose: (v: boolean) => void
+  switchProject: () => Promise<void>
   setProviderId: (id: string) => void
   setProjectId: (id: string) => void
   addContextFile: (path: string) => void
-  setThreadId: (id: string | null) => void
-  removeContextFile: (index: number) => void
-  deleteThread: (threadId: string) => Promise<void>
-  messages: Array<{ type: string; content: string }>
-  loadThreadMessages: (threadId: string) => Promise<void>
-  createThread: (name?: string) => Promise<{ id: string; name?: string }>
-  listThreads: () => Promise<Array<{ id: string; name?: string; createdAt?: string }>>
-  getThreadWithBranches: (threadId: string) => Promise<{
-    id: string
-    name?: string
-    parentThreadId?: string
-    branches?: Array<{ id: string; name?: string; branchMessageId?: string }>
-    parentThread?: { id: string; name?: string }
-  }>
-  branchThread: (
-    threadId: string,
-    messageId: string
-  ) => Promise<{ id: string; name?: string }>
-  switchProject: () => Promise<void>
-  listProjects: () => Promise<TSelectItem[]>
   listAgents: () => Promise<TSelectItem[]>
+  setThreadId: (id: string | null) => void
+  listProjects: () => Promise<TSelectItem[]>
+  removeContextFile: (index: number) => void
+  listThreads: () => Promise<Array<TThread>>
+  createThread: (name?: string) => Promise<TThread>
+  deleteThread: (threadId: string) => Promise<void>
+  loadThreadMessages: (threadId: string) => Promise<void>
+  getThreadWithBranches: (threadId: string) => Promise<TThreadWBranches>
+  branchThread: (threadId: string, messageId: string) => Promise<TThread>
   showMenu: (
     prompt: string,
     items: TSelectItem[],
-    onSelect: (item: TSelectItem) => void,
-    options?: {
-      onAction?: (item: TSelectItem) => void
-    }
+    onSelect: TMenuOnAction,
+    options?: TMenuOpts
   ) => void
-  closeMenu: () => void
-  contextFiles: Array<{ path: string; name: string; content: string; sizeBytes: number }>
-  auth: {
-    loggedIn: boolean
-    logout: () => void
-    login: (apiKey: string, proxyUrl?: string, insecure?: boolean) => Promise<void>
-  }
 }
 
 export type TSlashCommand = {

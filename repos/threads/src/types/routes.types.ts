@@ -4,6 +4,7 @@ export enum ERoutePath {
   // Global routes
   Home = `/`,
   Auth = `/auth`,
+  CliAuth = `/auth/cli`,
   Signin = `/auth/sign-in`,
   Signout = `/auth/sign-out`,
   AuthPage = `/auth/:pathname`,

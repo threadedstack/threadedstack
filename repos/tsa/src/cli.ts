@@ -5,9 +5,10 @@ import { hasArg } from '@TSA/utils/tasks/hasArg'
 import { Version } from '@TSA/constants/version'
 import { AuthManager } from '@TSA/services/auth'
 import { loadConfig } from '@TSA/utils/tasks/config'
+import { isLocalUrl } from '@TSA/utils/api/isLocalUrl'
 import { addDefaults } from '@TSA/utils/tasks/addDefaults'
 
-export const main = async (): Promise<any> => {
+export const cli = async (): Promise<any> => {
   const argv = process.argv.slice(2)
 
   if (hasArg(argv, `version`, [`v`])) return process.stdout.write(`tsa v${Version}\n`)
@@ -32,7 +33,8 @@ export const main = async (): Promise<any> => {
 
   // Apply insecure mode from stored credentials, --insecure flag, or local dev proxy
   const storedCreds = auth.creds()
-  const isLocalProxy = storedCreds?.proxyUrl?.includes(`local.threadedstack.app`)
+
+  const isLocalProxy = isLocalUrl(storedCreds?.proxyUrl)
   if (storedCreds?.insecure || isLocalProxy || hasArg(argv, `insecure`, [`ins`]))
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 

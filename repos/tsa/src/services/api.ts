@@ -6,9 +6,11 @@ import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TSA/constants'
 import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 import { RetryStatusCodes, RetryNetworkCodes } from '@TSA/constants/api'
+import { TokenRefreshService } from '@TSA/services/tokenRefresh'
 
 export class ApiClient extends ApiService {
   #auth: AuthManager
+  #refresh: TokenRefreshService
 
   constructor(auth: AuthManager) {
     const creds = auth.creds()
@@ -24,6 +26,7 @@ export class ApiClient extends ApiService {
       },
     })
     this.#auth = auth
+    this.#refresh = new TokenRefreshService(auth)
   }
 
   #ensureAuth(): void {
@@ -44,6 +47,10 @@ export class ApiClient extends ApiService {
   protected override async invoke<T>(
     opts: TApiRequest & { method: import('@tdsk/domain').EApiMethod }
   ): Promise<TApiResponse<T>> {
+    const refreshed = await this.#refresh.maybeRefresh()
+    if (!refreshed && this.#auth.isExpired()) {
+      throw new Error(`Session expired. Run "tsa login" to re-authenticate.`)
+    }
     this.#ensureAuth()
 
     let lastResult: TApiResponse<T> | undefined

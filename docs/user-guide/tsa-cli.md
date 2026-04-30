@@ -1,4 +1,4 @@
-# tsa -- Terminal TSA CLI
+# tsa -- Threaded Stack Agent CLI
 
 ## What is tsa
 

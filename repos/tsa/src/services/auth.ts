@@ -1,53 +1,117 @@
-import type { TAuthCredentials } from '@TSA/types'
+import type { TAuthCredentials, TTokenLoginOpts } from '@TSA/types'
+
+import { ApiKeyPrefix } from '@TSA/constants'
 import { ConfigService } from '@TSA/services/config'
-import { ApiKeyPrefix, DefaultProxyUrl } from '@TSA/constants'
+import { isLocalUrl } from '@TSA/utils/api/isLocalUrl'
+import { resolveProxyUrl } from '@TSA/utils/tasks/resolveUrls'
 
 export class AuthManager {
   creds(): TAuthCredentials | null {
     try {
       const config = ConfigService.loadGlobal()
-      if (!config.auth?.apiKey) return null
+      const auth = config.auth
+      if (!auth?.apiKey && !auth?.token) return null
+
+      const proxyUrl = auth.proxyUrl || resolveProxyUrl(config)
+      const insecure = auth.insecure
+
+      if (auth.apiKey) return { apiKey: auth.apiKey, proxyUrl, insecure }
+
       return {
-        apiKey: config.auth.apiKey,
-        insecure: config.auth.insecure,
-        proxyUrl: config.auth.proxyUrl || DefaultProxyUrl,
+        proxyUrl,
+        insecure,
+        token: auth.token!,
+        expiresAt: auth.expiresAt,
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `unknown error`
+      process.stderr.write(`Warning: could not read credentials: ${msg}\n`)
       return null
     }
+  }
+
+  get bearer(): string | null {
+    const c = this.creds()
+    return c?.apiKey ?? c?.token ?? null
   }
 
   loggedIn(): boolean {
     return this.creds() !== null
   }
 
+  isExpired(): boolean {
+    const c = this.creds()
+    if (!c?.expiresAt) return false
+    return new Date(c.expiresAt).getTime() <= Date.now()
+  }
+
   async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
-    const url = proxyUrl || DefaultProxyUrl
+    const url = proxyUrl || resolveProxyUrl()
 
     if (!apiKey.startsWith(ApiKeyPrefix)) {
       throw new Error(`Invalid API key format. Keys must start with "${ApiKeyPrefix}"`)
     }
 
-    const isLocalProxy = url.includes(`local.threadedstack.app`)
+    const isLocalProxy = isLocalUrl(url)
+    const originalTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED
     if (insecure || isLocalProxy) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 
-    const res = await fetch(`${url}/_/orgs`, {
-      headers: {
-        Accept: `application/json`,
-        Authorization: `Bearer ${apiKey}`,
-      },
-    })
+    try {
+      const res = await fetch(`${url}/_/orgs`, {
+        headers: {
+          Accept: `application/json`,
+          Authorization: `Bearer ${apiKey}`,
+        },
+      })
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => ``)
-      throw new Error(
-        `Authentication failed (${res.status}): ${body || `Invalid API key or proxy URL`}`
-      )
+      if (!res.ok) {
+        const body = await res.text().catch(() => ``)
+        throw new Error(
+          `Authentication failed (${res.status}): ${body || `Invalid API key or proxy URL`}`
+        )
+      }
+
+      const config = ConfigService.loadGlobal()
+      config.auth = { apiKey, proxyUrl: url, insecure }
+      ConfigService.saveGlobal(config)
+    } finally {
+      if (originalTls !== undefined)
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTls
+      else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
     }
+  }
 
-    const config = ConfigService.loadGlobal()
-    config.auth = { apiKey, proxyUrl: url, insecure }
-    ConfigService.saveGlobal(config)
+  async loginWithToken(opts: TTokenLoginOpts): Promise<void> {
+    const { token, expiresAt, authUrl, insecure } = opts
+    const url = opts.proxyUrl || resolveProxyUrl()
+
+    const isLocalProxy = isLocalUrl(url)
+    const originalTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED
+    if (insecure || isLocalProxy) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
+
+    try {
+      const res = await fetch(`${url}/_/orgs`, {
+        headers: {
+          Accept: `application/json`,
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => ``)
+        throw new Error(
+          `Authentication failed (${res.status}): ${body || `Invalid token or proxy URL`}`
+        )
+      }
+
+      const config = ConfigService.loadGlobal()
+      config.auth = { token, expiresAt, proxyUrl: url, insecure, authUrl }
+      ConfigService.saveGlobal(config)
+    } finally {
+      if (originalTls !== undefined)
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTls
+      else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+    }
   }
 
   logout(): void {
@@ -55,8 +119,9 @@ export class AuthManager {
       const config = ConfigService.loadGlobal()
       delete config.auth
       ConfigService.saveGlobal(config)
-    } catch {
-      // Ignore errors during cleanup
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `unknown`
+      process.stderr.write(`Warning: could not clear credentials: ${msg}\n`)
     }
   }
 }
