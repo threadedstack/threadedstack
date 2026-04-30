@@ -4,6 +4,7 @@ import { api, post } from '../utils/api-client'
 import { env } from '../utils/env'
 import { readContext } from '../utils/test-context'
 import { consumeWS } from '../utils/ws-client'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import {
   setupRunningPod,
   execInPod,
@@ -120,7 +121,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName: '', projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
   })
 
   // --- Pre-condition: route works while pod is Running ---
@@ -182,6 +183,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     })
     expect(fixtures.provider).toBeDefined()
     const agentId = fixtures.agent!.id
+    let wsThreadId: string | null = null
 
     try {
       // Create a session
@@ -199,6 +201,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
       const result = await consumeWS(token, 'Respond with exactly: ROUTE_CLEANUP_OK', {
         timeout: 60_000,
       })
+      wsThreadId = extractThreadId(result)
 
       // Connection should NOT have been hijacked by a stale proxy
       expect(result.closeCode).not.toBe(-2) // no connection error
@@ -217,7 +220,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
         expect(content.length).toBeGreaterThan(0)
       }
     } finally {
-      // Clean up fixture resources
+      if (wsThreadId && agentId) await cleanupThread(ctx.orgId, agentId, wsThreadId)
       await cleanupFixtures(ctx.orgId, fixtures)
     }
   }, 90_000)

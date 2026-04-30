@@ -4,7 +4,7 @@ import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { consumeWS } from '../utils/ws-client'
 import { tryDelete } from '../utils/cleanup'
-import { cleanupThread } from '../utils/tsa-cleanup'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
@@ -104,6 +104,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       // Stream response via WebSocket
       const result = await consumeWS(token, 'Respond with exactly: MULTI_PROVIDER_TEST_OK', { timeout: 60_000 })
+      const wsThreadId = extractThreadId(result)
+      if (wsThreadId) threadIds.push(wsThreadId)
 
       // Stream should have responded — either with content or a transient LLM error
       const textEvents = result.messages.filter((m) => m.type === 'text_delta')
@@ -190,6 +192,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
   describe('existing agent primary provider resolution', () => {
     let fixtures2: TFixtureResult = {}
     let setupFailed = false
+    const threadIds: string[] = []
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
@@ -213,6 +216,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     })
 
     afterAll(async () => {
+      for (const tid of threadIds) {
+        if (fixtures2.agent?.id) await cleanupThread(ctx.orgId, fixtures2.agent.id, tid)
+      }
       await cleanupFixtures(ctx.orgId, fixtures2)
     })
 
@@ -258,6 +264,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Say OK', { timeout: 60_000 })
+      const wsThreadId = extractThreadId(result)
+      if (wsThreadId) threadIds.push(wsThreadId)
 
       const textEvents = result.messages.filter((m) => m.type === 'text_delta')
       const doneEvents = result.messages.filter((m) => m.type === 'done')
@@ -281,6 +289,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     let secretId = ''
     let secret2Id = ''
     let setupFailed = false
+    const threadIds: string[] = []
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
@@ -362,6 +371,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     })
 
     afterAll(async () => {
+      for (const tid of threadIds) {
+        if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+      }
       if (agentId) await tryDelete(`/orgs/${ctx.orgId}/agents/${agentId}`)
       if (projectId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}`)
       if (provider1Id) await tryDelete(`/orgs/${ctx.orgId}/providers/${provider1Id}`)
@@ -438,6 +450,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Respond with: PROVIDER_SWITCH_OK', { timeout: 60_000 })
+      const wsThreadId1 = extractThreadId(result)
+      if (wsThreadId1) threadIds.push(wsThreadId1)
 
       const textEvents = result.messages.filter((m) => m.type === 'text_delta')
       const doneEvents = result.messages.filter((m) => m.type === 'done')
@@ -485,6 +499,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Say YES', { timeout: 60_000 })
+      const wsThreadId2 = extractThreadId(result)
+      if (wsThreadId2) threadIds.push(wsThreadId2)
 
       const textEvents = result.messages.filter((m) => m.type === 'text_delta')
       const doneEvents = result.messages.filter((m) => m.type === 'done')

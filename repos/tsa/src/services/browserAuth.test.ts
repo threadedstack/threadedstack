@@ -77,7 +77,7 @@ describe(`browserLogin`, () => {
         token: `jwt.issued.token`,
         expiresAt: `2099-12-31T00:00:00.000Z`,
         state,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       }),
       loginPromise,
     ])
@@ -87,7 +87,7 @@ describe(`browserLogin`, () => {
     expect(result).toEqual({
       token: `jwt.issued.token`,
       expiresAt: `2099-12-31T00:00:00.000Z`,
-      authUrl: `https://auth.example.com`,
+      neonAuthUrl: `https://auth.example.com`,
     })
   })
 
@@ -165,7 +165,7 @@ describe(`browserLogin`, () => {
     await loginPromise
   })
 
-  it(`should resolve without authUrl when not provided in callback`, async () => {
+  it(`should resolve without neonAuthUrl when not provided in callback`, async () => {
     const loginPromise = browserLogin(`https://auth.example.com/cli`)
 
     await new Promise((r) => setTimeout(r, 50))
@@ -178,7 +178,7 @@ describe(`browserLogin`, () => {
     })
 
     const result = await loginPromise
-    expect(result.authUrl).toBeUndefined()
+    expect(result.neonAuthUrl).toBeUndefined()
   })
 
   it(`should reject after timeout`, async () => {

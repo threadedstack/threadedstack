@@ -24,7 +24,7 @@ const redirectToCli = (port: string, state: string, token: string, expiresAt: st
     token,
     state,
     expiresAt,
-    authUrl: TDSK_AUTH_URL,
+    neonAuthUrl: TDSK_AUTH_URL,
   })
   window.location.href = `http://localhost:${port}/callback?${params.toString()}`
 }

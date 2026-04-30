@@ -14,20 +14,31 @@ const promptProjectSelection = async (
   })
 
   const rl = createInterface({ input: process.stdin, output: process.stdout })
-  return new Promise((resolve, reject) => {
-    rl.question(`${themed(`muted`, `Enter number:`)} `, (answer) => {
-      rl.close()
-      const idx = Number.parseInt(answer, 10) - 1
-      if (idx >= 0 && idx < projects.length) resolve(projects[idx].id)
-      else reject(new Error(`Invalid selection`))
-    })
+  const onSigint = () => {
+    rl.close()
+    process.exit(130)
+  }
+  process.once(`SIGINT`, onSigint)
+  return new Promise((resolve) => {
+    const ask = () => {
+      rl.question(`${themed(`muted`, `Enter number:`)} `, (answer) => {
+        const idx = Number.parseInt(answer, 10) - 1
+        if (idx >= 0 && idx < projects.length) {
+          process.removeListener(`SIGINT`, onSigint)
+          rl.close()
+          resolve(projects[idx].id)
+        } else {
+          process.stdout.write(
+            `  ${themed(`error`, `Invalid selection.`)} Enter a number between 1 and ${projects.length}.\n`
+          )
+          ask()
+        }
+      })
+    }
+    ask()
   })
 }
 
-/**
- * Resolves the project ID from an explicit parameter, auto-detect, or interactive selection.
- * Throws if no projects are found or multiple projects exist without an explicit param in non-TTY mode.
- */
 export const resolveProjectId = async (
   client: ApiClient,
   orgId: string,

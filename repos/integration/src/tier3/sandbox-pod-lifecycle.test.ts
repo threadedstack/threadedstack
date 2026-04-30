@@ -126,15 +126,17 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
       {}
     )
 
-    // projectId is optional — falls back to sandbox.projectId (which may be undefined)
+    if (res.data?.podName) podName = res.data.podName
+
     expect(res.status).toBe(201)
     expect(res.data.podName).toBeDefined()
 
-    // Stop the pod to clean up
     await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
       method: 'DELETE',
       body: { podName: res.data.podName },
     })
+
+    podName = ''
   })
 
   test('GET /:id/status without podName returns 400', async () => {

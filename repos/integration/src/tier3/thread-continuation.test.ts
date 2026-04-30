@@ -5,6 +5,7 @@ import { consumeWS } from '../utils/ws-client'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import type { TFixtureResult } from '../utils/fixtures'
 
 /**
@@ -21,6 +22,7 @@ const hasLLM = () => !!env.testProviderKey || !!env.testZaiAgentId
 
 describe(`Tier 3: Thread Continuation (live)`, () => {
   const ctx = readContext()
+  const threadIds: string[] = []
   let agentId = ``
   let fixtures: TFixtureResult | null = null
 
@@ -51,6 +53,9 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
     if (!fixtures?.agent?.id) return
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -69,6 +74,8 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         const sessionToken = sessionRes.data.sessionToken
 
         const result = await consumeWS(sessionToken, 'Say exactly: THREAD_PERSIST_OK', { timeout: 30_000 })
+        const extractedTid1 = extractThreadId(result)
+        if (extractedTid1) threadIds.push(extractedTid1)
 
         const threadCreated = result.messages.find((m) => m.type === `thread_created`)
         const doneEvents = result.messages.filter((m) => m.type === `done`)
@@ -120,6 +127,8 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         const sessionToken = sessionRes.data.sessionToken
 
         const result = await consumeWS(sessionToken, 'Hello', { timeout: 30_000 })
+        const extractedTid2 = extractThreadId(result)
+        if (extractedTid2) threadIds.push(extractedTid2)
         const threadCreated = result.messages.find((m) => m.type === `thread_created`)
 
         if (!threadCreated?.threadId) {
@@ -165,6 +174,8 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         expect(s1.status).toBe(200)
 
         const first = await consumeWS(s1.data.sessionToken, 'Remember: BANANA', { timeout: 30_000 })
+        const extractedTid3 = extractThreadId(first)
+        if (extractedTid3) threadIds.push(extractedTid3)
         const threadCreated = first.messages.find((m) => m.type === `thread_created`)
 
         if (!threadCreated?.threadId || !first.messages.some(m => m.type === 'done')) {

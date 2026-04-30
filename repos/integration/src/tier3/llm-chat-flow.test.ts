@@ -2,6 +2,7 @@ import { env } from '../utils/env'
 import { api, get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeWS } from '../utils/ws-client'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
@@ -23,6 +24,7 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
 describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
   const ctx = readContext()
+  const threadIds: string[] = []
   let agentId = ``
   let fixtures: TFixtureResult | null = null
 
@@ -65,6 +67,10 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
+
     if (!fixtures) return
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -143,6 +149,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     test.skipIf(!hasLLM())(`streams a response for a simple prompt`, async () => {
       const result = await consumeWS(sessionToken, `Respond with exactly: INTEGRATION_TEST_OK`, { timeout: 60_000 })
+      const wsThreadId1 = extractThreadId(result); if (wsThreadId1) threadIds.push(wsThreadId1)
 
       const textEvents = result.messages.filter((m) => m.type === `text_delta`)
       const doneEvents = result.messages.filter((m) => m.type === `done`)
@@ -165,6 +172,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     test.skipIf(!hasLLM())(`each WS message is valid JSON with type field`, async () => {
       const result = await consumeWS(sessionToken, `Say hello`, { timeout: 60_000 })
+      const wsThreadId2 = extractThreadId(result); if (wsThreadId2) threadIds.push(wsThreadId2)
 
       for (const msg of result.messages) {
         expect(msg).toBeDefined()
@@ -174,6 +182,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     test.skipIf(!hasLLM())(`streaming response contains no apiKey or secret data`, async () => {
       const result = await consumeWS(sessionToken, `What is 2+2?`, { timeout: 60_000 })
+      const wsThreadId3 = extractThreadId(result); if (wsThreadId3) threadIds.push(wsThreadId3)
 
       const raw = JSON.stringify(result.messages)
       expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
@@ -201,6 +210,8 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
         consumeWS(token1, `Say ALPHA`, { timeout: 60_000 }),
         consumeWS(token2, `Say BETA`, { timeout: 60_000 }),
       ])
+      const wsThreadId4 = extractThreadId(result1); if (wsThreadId4) threadIds.push(wsThreadId4)
+      const wsThreadId5 = extractThreadId(result2); if (wsThreadId5) threadIds.push(wsThreadId5)
 
       const r1HasContent = result1.messages.some((m) => m.type === `text_delta`)
       const r1HasDone = result1.messages.some((m) => m.type === `done`)
@@ -236,6 +247,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     test.skipIf(!hasLLM())(`WS with fabricated session token is rejected`, async () => {
       const result = await consumeWS(`fake-token-12345`, `hi`, { timeout: 10_000 })
+      const wsThreadId6 = extractThreadId(result); if (wsThreadId6) threadIds.push(wsThreadId6)
 
       const hasThread = result.messages.some((m) => m.type === `thread_created`)
       expect(hasThread).toBe(false)
@@ -265,6 +277,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
       // Step 4: WebSocket agent execution
       const result = await consumeWS(sessionToken, `Respond with exactly the word: PONG`, { timeout: 60_000 })
+      const wsThreadId7 = extractThreadId(result); if (wsThreadId7) threadIds.push(wsThreadId7)
 
       // Step 5: Validate response structure
       const textEvents = result.messages.filter((m) => m.type === `text_delta`)

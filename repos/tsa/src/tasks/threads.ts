@@ -2,7 +2,8 @@ import type { TTask } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
+import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 
 export const threads: TTask = {
   name: `threads`,
@@ -21,7 +22,7 @@ export const threads: TTask = {
       alias: [`organizationId`, `organization`, `orgId`],
     },
   },
-  action: requireAuth(async ({ params, auth, options }) => {
+  action: ensureAuth(async ({ params, auth, config, options }) => {
     // TODO: Check if agent-id and org-id can be loaded from state instead
     const agentId = params.agent || options?.[0]
     if (!agentId) {
@@ -33,22 +34,12 @@ export const threads: TTask = {
 
     const client = new ApiClient(auth)
 
-    let orgId = params.org as string | undefined
-    if (!orgId) {
-      const { data: orgs, error: orgsError } = await client.listOrgs()
-      if (orgsError || !orgs) {
-        const msg = orgsError?.message || `Failed to list organizations`
-        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
-        process.exit(1)
-      }
-      if (orgs.length === 1) {
-        orgId = orgs[0].id
-      } else {
-        process.stdout.write(
-          `${themed(`warning`, `Multiple orgs found. Use --org <id> to specify.`)}\n`
-        )
-        process.exit(1)
-      }
+    let orgId: string
+    try {
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
     }
 
     const { data: threadList, error: threadsError } = await client.listThreads(

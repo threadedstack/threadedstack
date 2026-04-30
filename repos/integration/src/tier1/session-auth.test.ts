@@ -5,6 +5,7 @@ import { readContext } from '../utils/test-context'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { connectWS, consumeWS } from '../utils/ws-client'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -23,6 +24,7 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
 describe('Tier 1: WebSocket Session Auth', () => {
   const ctx = readContext()
+  const threadIds: string[] = []
   let agentId = ''
   let sessionToken = ''
   let fixtures: TFixtureResult | null = null
@@ -74,6 +76,10 @@ describe('Tier 1: WebSocket Session Auth', () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
+
     if (!fixtures) return
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -99,6 +105,7 @@ describe('Tier 1: WebSocket Session Auth', () => {
 
   test.skipIf(!hasLLM())('WS with valid session token is accepted', async () => {
     const result = await consumeWS(sessionToken, 'Auth test prompt', { timeout: 60_000 })
+    const tid = extractThreadId(result); if (tid) threadIds.push(tid)
 
     expect(result.messages.length).toBeGreaterThanOrEqual(1)
     expect(result.closeCode).not.toBe(4001)
@@ -106,6 +113,7 @@ describe('Tier 1: WebSocket Session Auth', () => {
 
   test.skipIf(!hasLLM())('valid session returns thread_created as first message', async () => {
     const result = await consumeWS(sessionToken, 'Auth flow test', { timeout: 60_000 })
+    const tid = extractThreadId(result); if (tid) threadIds.push(tid)
 
     expect(result.messages.length).toBeGreaterThanOrEqual(1)
     expect(result.messages[0].type).toBe('thread_created')

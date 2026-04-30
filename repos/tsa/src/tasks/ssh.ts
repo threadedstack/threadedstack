@@ -3,7 +3,7 @@ import type { TTask } from '@TSA/types'
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { spawnSsh } from '@TSA/utils/tasks/spawnSsh'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
@@ -68,8 +68,7 @@ const joinShellSession = async (
           } else if (msg.type === `disconnected`) {
             process.stderr.write(`${themed(`muted`, `Disconnected: ${msg.reason}`)}\n`)
           }
-        } catch {
-          // Non-JSON text, write to stdout
+        } catch (_err) {
           process.stdout.write(data)
         }
         return
@@ -110,12 +109,16 @@ const joinShellSession = async (
       else reject(new Error(`Connection closed before session was joined`))
     })
 
-    ws.addEventListener(`error`, () => {
+    ws.addEventListener(`error`, (event) => {
       process.stdin.off(`data`, onStdinData)
       process.stdout.off(`resize`, onResize)
       if (process.stdin.isTTY) process.stdin.setRawMode(false)
       process.stdin.pause()
-      reject(new Error(`WebSocket connection failed`))
+      const msg =
+        (event as any).message ||
+        (event as any).error?.message ||
+        `WebSocket connection failed`
+      reject(new Error(msg))
     })
   })
 }
@@ -147,7 +150,7 @@ export const ssh: TTask = {
       example: `tsa ssh sb_abc --session sess_xy12ab`,
     },
   },
-  action: requireAuth(async ({ params, auth, config, options }) => {
+  action: ensureAuth(async ({ params, auth, config, options }) => {
     const sandboxId = params.sandbox || options?.[0]
     if (!sandboxId) {
       process.stdout.write(
@@ -160,7 +163,7 @@ export const ssh: TTask = {
 
     let orgId: string
     try {
-      orgId = await resolveOrgId(client, params.org as string | undefined)
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
@@ -193,13 +196,23 @@ export const ssh: TTask = {
 
     // Normal SSH path
     let resolvedId: string
+    let shellToken: string | undefined
     try {
       const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
       if (!connectResp.sandboxId)
         throw new Error(`Server did not return a resolved sandbox ID`)
       resolvedId = connectResp.sandboxId
+      shellToken = connectResp.shellToken
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (!shellToken && !auth.creds()?.apiKey) {
+      process.stderr.write(
+        `${themed(`error`, `Error:`)} Server did not return a tunnel token and no API key is configured.\n` +
+          `${themed(`muted`, `Run "tsa login <api-key>" or update the server to resolve this.`)}\n`
+      )
       process.exit(1)
     }
 
@@ -214,7 +227,7 @@ export const ssh: TTask = {
     }
 
     try {
-      await spawnSsh(resolvedId)
+      await spawnSsh(resolvedId, undefined, shellToken)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1

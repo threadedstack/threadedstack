@@ -93,7 +93,7 @@ export class TokenRefreshService {
         expiresAt,
         proxyUrl: creds.proxyUrl,
         insecure: creds.insecure,
-        authUrl,
+        neonAuthUrl: authUrl,
       })
 
       return true
@@ -107,7 +107,7 @@ export class TokenRefreshService {
   #resolveNeonAuthUrl(): string | null {
     try {
       const config = ConfigService.loadGlobal()
-      if (config?.auth?.authUrl) return config.auth.authUrl
+      if (config?.auth?.neonAuthUrl) return config.auth.neonAuthUrl
     } catch (err) {
       const msg = err instanceof Error ? err.message : `unknown`
       process.stderr.write(`Warning: could not read config for auth URL: ${msg}\n`)

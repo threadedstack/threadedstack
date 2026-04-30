@@ -3,7 +3,7 @@ import type { TSandboxSession } from '@tdsk/domain'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
@@ -144,7 +144,7 @@ export const sessions: TTask = {
           alias: [`projectId`, `p`],
         },
       },
-      action: requireAuth(async ({ params, auth, config, options }) => {
+      action: ensureAuth(async ({ params, auth, config, options }) => {
         const sessionId = options?.[0]
         if (!sessionId) {
           process.stderr.write(
@@ -157,7 +157,11 @@ export const sessions: TTask = {
 
         let orgId: string
         try {
-          orgId = await resolveOrgId(client, params.org as string | undefined)
+          orgId = await resolveOrgId(
+            client,
+            params.org as string | undefined,
+            config?.org
+          )
         } catch (err) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
           process.exit(1)
@@ -200,7 +204,7 @@ export const sessions: TTask = {
           alias: [`projectId`, `p`],
         },
       },
-      action: requireAuth(async ({ params, auth, config, options }) => {
+      action: ensureAuth(async ({ params, auth, config, options }) => {
         const sessionId = options?.[0]
         if (!sessionId) {
           process.stderr.write(
@@ -213,7 +217,11 @@ export const sessions: TTask = {
 
         let orgId: string
         try {
-          orgId = await resolveOrgId(client, params.org as string | undefined)
+          orgId = await resolveOrgId(
+            client,
+            params.org as string | undefined,
+            config?.org
+          )
         } catch (err) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
           process.exit(1)
@@ -241,7 +249,7 @@ export const sessions: TTask = {
       }),
     },
   },
-  action: requireAuth(async ({ params, auth, config, options }) => {
+  action: ensureAuth(async ({ params, auth, config, options }) => {
     const sandboxId = params.sandbox || options?.[0]
     if (!sandboxId) {
       process.stderr.write(
@@ -254,7 +262,7 @@ export const sessions: TTask = {
 
     let orgId: string
     try {
-      orgId = await resolveOrgId(client, params.org as string | undefined)
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)

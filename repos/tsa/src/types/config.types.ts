@@ -4,7 +4,7 @@ import type { ESandboxType, TSyncConfig } from '@tdsk/domain'
 export type TAuthConfig = {
   token?: string
   apiKey?: string
-  authUrl?: string
+  neonAuthUrl?: string
   proxyUrl?: string
   insecure?: boolean
   expiresAt?: string
@@ -48,6 +48,7 @@ export type TTsaConfig = {
   org?: string
   agent?: string
   project?: string
+  sandboxId?: string
   auth?: TAuthConfig
   sync?: TSyncConfig
   hooks?: THooksConfig

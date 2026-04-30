@@ -2,19 +2,31 @@ import type { TTsaConfig } from '@TSA/types'
 
 import { ConfigService } from '@TSA/services/config'
 
-/**
- * Persists resolved org + project IDs to the global TSA config.
- * No-op when both values already match the current config.
- */
 export const saveContext = (
   config: TTsaConfig,
   orgId: string,
-  projectId: string
+  projectId: string,
+  sandboxId?: string
 ): void => {
-  if (config.org === orgId && config.project === projectId) return
+  const updates: Partial<TTsaConfig> = {}
+
+  if (orgId !== config.org) {
+    updates.org = orgId
+    updates.project = projectId
+    updates.sandboxId = sandboxId
+  } else if (projectId !== config.project) {
+    updates.project = projectId
+    updates.sandboxId = sandboxId
+  } else if (sandboxId && sandboxId !== config.sandboxId) {
+    updates.sandboxId = sandboxId
+  }
+
+  if (Object.keys(updates).length === 0) return
+
   try {
-    ConfigService.saveGlobal({ ...config, org: orgId, project: projectId })
+    ConfigService.saveGlobal({ ...config, ...updates })
   } catch (err) {
-    process.stderr.write(`Warning: failed to save config: ${(err as Error).message}\n`)
+    const msg = err instanceof Error ? err.message : String(err)
+    process.stderr.write(`Warning: failed to save config: ${msg}\n`)
   }
 }

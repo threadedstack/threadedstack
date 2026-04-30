@@ -18,6 +18,7 @@ describe('Tier 3: Terminating Pod Awareness', () => {
   let projectId = ''
   let sandboxId = ''
   let setupFailed = false
+  const podNamesToCleanup: string[] = []
 
   const sandboxConfig = {
     image: 'node:22-slim',
@@ -50,6 +51,18 @@ describe('Tier 3: Terminating Pod Awareness', () => {
   }, 30_000)
 
   afterAll(async () => {
+    for (const pn of podNamesToCleanup) {
+      if (pn && sandboxId && projectId) {
+        try {
+          await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
+            method: 'DELETE',
+            body: { podName: pn },
+          })
+        } catch (err) {
+          console.warn(`[sandbox-terminating-pod] afterAll cleanup failed for ${pn}: ${(err as Error).message}`)
+        }
+      }
+    }
     if (sandboxId) await tryDelete(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}`)
     if (projectId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}`)
   })
@@ -61,6 +74,7 @@ describe('Tier 3: Terminating Pod Awareness', () => {
     const firstConnect = await connectSandbox(ctx.orgId, projectId, sandboxId)
     expect(firstConnect.status).toBe(200)
     const firstPodName = firstConnect.data.podName
+    podNamesToCleanup.push(firstPodName)
     expect(firstPodName).toMatch(/^tdsk-sb-/)
 
     // 2. Wait for pod to reach Running
@@ -77,6 +91,7 @@ describe('Tier 3: Terminating Pod Awareness', () => {
     const secondConnect = await connectSandbox(ctx.orgId, projectId, sandboxId)
     expect(secondConnect.status).toBe(200)
     const secondPodName = secondConnect.data.podName
+    podNamesToCleanup.push(secondPodName)
     expect(secondPodName).toMatch(/^tdsk-sb-/)
 
     // 5. The new pod MUST be different from the stopped one

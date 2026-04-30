@@ -112,8 +112,11 @@ export const connectSandbox: TEndpointConfig = {
         initError = check.output.trim()
         logger.warn(`[Sandbox] initScript failed for pod ${podName}: ${initError}`)
       }
-    } catch {
-      // Non-fatal — pod may not have the file or K8s exec may not be ready yet
+    } catch (err) {
+      logger.debug(
+        `[Sandbox] initScript error check failed for pod ${podName}:`,
+        (err as Error).message
+      )
     }
 
     let password = sb.getPassword(podName)

@@ -4,8 +4,9 @@ import type { TSyncMode, TSyncRule } from '@tdsk/domain'
 import { existsSync } from 'fs'
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
+import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { CliDriver } from '@TSA/services/sync/mutagenClient'
 import { SyncManager } from '@TSA/services/sync/syncManager'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
@@ -30,7 +31,7 @@ const stopTask: TTask = {
       alias: [`a`],
     },
   },
-  action: requireAuth(async ({ params, auth, options }) => {
+  action: ensureAuth(async ({ params, auth, options }) => {
     if (params.all) {
       const sessions = await manager.status()
       const errors: string[] = []
@@ -67,7 +68,7 @@ const statusTask: TTask = {
   name: `status`,
   description: `Show sync session status`,
   example: `tsa sync status [sandbox-id]`,
-  action: requireAuth(async ({ options }) => {
+  action: ensureAuth(async ({ options }) => {
     const sandboxId = options?.[0] as string | undefined
     const sessions = await manager.status(sandboxId)
 
@@ -106,7 +107,7 @@ const flushTask: TTask = {
   name: `flush`,
   description: `Force immediate sync cycle`,
   example: `tsa sync flush <sandbox-id>`,
-  action: requireAuth(async ({ options, params }) => {
+  action: ensureAuth(async ({ options, params }) => {
     const sandboxId = (options?.[0] || params.sandbox) as string
     if (!sandboxId) {
       process.stdout.write(`${themed(`error`, `Usage: tsa sync flush <sandbox-id>`)}\n`)
@@ -121,7 +122,7 @@ const cleanupTask: TTask = {
   name: `cleanup`,
   description: `Terminate orphaned sync sessions (errored/disconnected)`,
   example: `tsa sync cleanup`,
-  action: requireAuth(async () => {
+  action: ensureAuth(async () => {
     const sessions = await manager.status()
     const orphaned = sessions.filter(
       (s) => s.status === `errored` || s.status === `disconnected`
@@ -220,7 +221,7 @@ export const sync: TTask = {
       alias: [`n`],
     },
   },
-  action: requireAuth(async ({ params, auth, config, options }) => {
+  action: ensureAuth(async ({ params, auth, config, options }) => {
     const sandboxId = (params.sandbox || options?.[0]) as string
     if (!sandboxId) {
       process.stdout.write(
@@ -233,21 +234,12 @@ export const sync: TTask = {
     const client = new ApiClient(auth)
 
     // Resolve org
-    let orgId = params.org as string | undefined
-    if (!orgId) {
-      const { data: orgs, error } = await client.listOrgs()
-      if (error || !orgs) {
-        const msg = error?.message || `Failed to list organizations`
-        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
-        process.exit(1)
-      }
-      if (orgs.length === 1) orgId = orgs[0].id
-      else {
-        process.stdout.write(
-          `${themed(`error`, `Multiple orgs found. Use --org to specify.`)}\n`
-        )
-        process.exit(1)
-      }
+    let orgId: string
+    try {
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
     }
 
     // Resolve project — clear cached project when org changes

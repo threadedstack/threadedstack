@@ -2,7 +2,8 @@ import type { TTask } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
+import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 
 export const agents: TTask = {
   name: `agents`,
@@ -16,31 +17,15 @@ export const agents: TTask = {
       description: `Organization ID`,
     },
   },
-  action: requireAuth(async ({ params, auth }) => {
+  action: ensureAuth(async ({ params, auth, config }) => {
     const client = new ApiClient(auth)
 
-    let orgId = params.org as string | undefined
-
-    if (!orgId) {
-      const { data: orgs, error } = await client.listOrgs()
-      if (error || !orgs) {
-        const msg = error?.message || `Failed to list organizations`
-        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
-        process.exit(1)
-      }
-
-      if (orgs.length === 1) {
-        orgId = orgs[0].id
-      } else {
-        process.stdout.write(`\n${themed(`bold`, `Organizations:`)}\n`)
-        for (const org of orgs) {
-          process.stdout.write(`  ${themed(`muted`, org.id)} ${org.name}\n`)
-        }
-        process.stdout.write(
-          `\n${themed(`muted`, `Use --org <id> to list agents for a specific org`)}\n\n`
-        )
-        return
-      }
+    let orgId: string
+    try {
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
     }
 
     const { data: agentList, error } = await client.listAgents(orgId)

@@ -84,7 +84,12 @@ export const browserLogin = (authPageUrl: string): Promise<TBrowserAuthResult> =
         )
       }
       const expiresAt = rawExpiresAt || undefined
-      const authUrl = url.searchParams.get(`authUrl`) || undefined
+      const neonAuthUrl = url.searchParams.get(`neonAuthUrl`) || undefined
+      if (!neonAuthUrl) {
+        process.stderr.write(
+          `Warning: auth callback did not include neonAuthUrl. Token refresh may not work correctly.\n`
+        )
+      }
 
       res.writeHead(200, { 'Content-Type': `text/html` })
       res.end(
@@ -92,7 +97,7 @@ export const browserLogin = (authPageUrl: string): Promise<TBrowserAuthResult> =
       )
 
       server.close()
-      settle(() => resolve({ token, expiresAt, authUrl }))
+      settle(() => resolve({ token, expiresAt, neonAuthUrl }))
     })
 
     server.on(`error`, (err) => {

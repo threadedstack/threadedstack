@@ -6,7 +6,18 @@ import net from 'net'
 import { URL } from 'url'
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
-import { Exception, hashKey, ESandboxSessionVisibility } from '@tdsk/domain'
+import type { ERoleType, ESubscriptionTier } from '@tdsk/domain'
+import {
+  Exception,
+  hashKey,
+  canPerform,
+  PlanLimits,
+  ApiKeyPrefix,
+  EPermAction,
+  EPermResource,
+  ESandboxSessionVisibility,
+} from '@tdsk/domain'
+import { verifyShellToken } from '@TBE/services/sessionToken'
 import { InMemoryRateLimiter } from '@TBE/services/rateLimiter'
 import {
   SBTcpTimeout,
@@ -44,7 +55,7 @@ export const checkTunnelRateLimit = (sandboxId: string): boolean => {
 /**
  * Handle WebSocket tunnel connections for SSH access to sandbox pods.
  *
- * Auth: API key in Authorization header (validated here, not by Express middleware).
+ * Auth: API key or shell token in Authorization: Bearer header (validated here, not by Express middleware).
  * Path: /_/sandboxes/:id/tunnel
  * Protocol: Binary WebSocket frames bridged to TCP on pod:2222.
  */
@@ -83,7 +94,7 @@ export const onTunnelConnect = async (
     }
   })
 
-  // 2. Authenticate via API key
+  // 2. Authenticate via API key or shell token (both in Bearer header)
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith(`Bearer `)) {
     ws.close(4001, `Authorization required`)
@@ -91,21 +102,63 @@ export const onTunnelConnect = async (
   }
 
   const token = authHeader.slice(7)
-  const keyHash = hashKey(token)
-  const { data: apiKey, error: keyErr } = await db.services.apiKey.getByHash(keyHash)
-  if (keyErr || !apiKey || !apiKey.isValid()) {
-    ws.close(4001, `Invalid or expired API key`)
+  let orgId: string
+  let userId: string
+
+  if (token.startsWith(ApiKeyPrefix)) {
+    const keyHash = hashKey(token)
+    const { data: apiKey, error: keyErr } = await db.services.apiKey.getByHash(keyHash)
+    if (keyErr || !apiKey || !apiKey.isValid()) {
+      logger.debug(`[Tunnel] API key auth failed for sandbox ${sandboxId}`)
+      ws.close(4001, `Invalid or expired API key`)
+      return
+    }
+    if (!apiKey.orgId || !apiKey.userId) {
+      ws.close(4001, `API key missing org or user scope`)
+      return
+    }
+    orgId = apiKey.orgId
+    userId = apiKey.userId
+  } else {
+    const payload = verifyShellToken(token)
+    if (!payload) {
+      logger.debug(`[Tunnel] Shell token verification failed for sandbox ${sandboxId}`)
+      ws.close(4001, `Invalid or expired token`)
+      return
+    }
+    if (payload.sandboxId !== sandboxId) {
+      logger.debug(
+        `[Tunnel] Shell token sandbox mismatch: token for ${payload.sandboxId}, requested ${sandboxId}`
+      )
+      ws.close(4001, `Token not authorized for this sandbox`)
+      return
+    }
+    orgId = payload.orgId
+    userId = payload.userId
+  }
+
+  // 3. Check exec permission on sandbox resource
+  const { error: roleErr, data: userOrgRole } = await db.services.role.getOrgRole(
+    userId,
+    orgId
+  )
+  if (roleErr) {
+    logger.error(
+      `[Tunnel] Role lookup failed for user ${userId} in org ${orgId}:`,
+      roleErr.message
+    )
+    ws.close(4005, `Permission check failed, please retry`)
+    return
+  }
+  const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
+  const permResult = canPerform(effectiveRole, EPermAction.exec, EPermResource.sandbox)
+  if (!permResult.allowed) {
+    logger.debug(`[Tunnel] Permission denied for user ${userId}: ${permResult.reason}`)
+    ws.close(4003, permResult.reason || `Permission denied`)
     return
   }
 
-  const orgId = apiKey.orgId
-  const userId = apiKey.userId
-  if (!orgId || !userId) {
-    ws.close(4001, `API key missing org or user scope`)
-    return
-  }
-
-  // 3. Find running pod for this sandbox
+  // 4. Find running pod for this sandbox
   if (!sbService || !kube) {
     ws.close(4003, `Sandbox service not available`)
     return
@@ -117,7 +170,7 @@ export const onTunnelConnect = async (
     return
   }
 
-  // 4. Validate pod ownership
+  // 5. Validate pod ownership
   try {
     await sbService.validatePodOwnership(podName, orgId)
   } catch (err) {
@@ -134,7 +187,51 @@ export const onTunnelConnect = async (
     return
   }
 
-  // 5. Look up pod IP
+  // 6. Check PlanLimits concurrent session cap
+  try {
+    const { data: org, error: orgErr } = await db.services.org.get(orgId)
+    if (orgErr || !org) {
+      logger.error(`[Tunnel] Org lookup failed for ${orgId}:`, orgErr?.message)
+      ws.close(4029, `Unable to verify session limits. Please try again.`)
+      return
+    }
+    if (org.ownerId) {
+      const { data: sub, error: subErr } = await db.services.subscription.findByUser(
+        org.ownerId
+      )
+      if (subErr && subErr.message !== `Subscription not found`) {
+        logger.error(
+          `[Tunnel] Subscription lookup failed for owner ${org.ownerId}:`,
+          subErr.message
+        )
+        ws.close(4029, `Unable to verify session limits. Please try again.`)
+        return
+      }
+      const tier = (sub?.tier ?? `free`) as ESubscriptionTier
+      const planLimit = PlanLimits[tier]
+      if (!planLimit) {
+        logger.error(`[Tunnel] Unknown subscription tier "${sub?.tier}" for org ${orgId}`)
+        ws.close(4029, `Unable to verify session limits. Please try again.`)
+        return
+      }
+      if (planLimit.sandboxSessions !== -1) {
+        const count = sbService.getOrgShellSessionCount(orgId)
+        if (count >= planLimit.sandboxSessions) {
+          ws.close(4029, `Session limit reached for your plan`)
+          return
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(
+      `[Tunnel] PlanLimits check failed, denying session:`,
+      (err as Error).message
+    )
+    ws.close(4029, `Unable to verify session limits. Please try again.`)
+    return
+  }
+
+  // 7. Look up pod IP
   let podIp: string | undefined
   try {
     const pod = await kube.getPod(podName)
@@ -149,7 +246,7 @@ export const onTunnelConnect = async (
     return
   }
 
-  // 6. Open TCP connection to pod SSH port with timeout
+  // 8. Open TCP connection to pod SSH port with timeout
   const tcp = net.createConnection({ host: podIp, port: 2222, timeout: SBTcpTimeout })
 
   const sessionId = nanoid(12)
@@ -179,9 +276,10 @@ export const onTunnelConnect = async (
     }
   }
 
-  // 7. Bridge WebSocket ↔ TCP (session registered on TCP connect, not before)
+  // 9. Bridge WebSocket ↔ TCP (session registered on TCP connect, not before)
   tcp.on(`connect`, () => {
     logger.info(`[Tunnel] Connected to pod ${podName}:2222 (session ${sessionId})`)
+    tcp.setTimeout(0)
     clearTunnelFailures(sandboxId)
 
     // Register session only after TCP connects successfully

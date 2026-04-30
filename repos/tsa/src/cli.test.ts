@@ -71,11 +71,13 @@ const setLoggedOut = () => {
 
 describe(`main`, () => {
   let output: string[]
+  let errOutput: string[]
   let exitCode: number | undefined
 
   beforeEach(() => {
     vi.clearAllMocks()
     output = []
+    errOutput = []
     exitCode = undefined
     vi.spyOn(process.stdout, `write`).mockImplementation((chunk: any) => {
       output.push(String(chunk))
@@ -85,7 +87,10 @@ describe(`main`, () => {
       exitCode = code ?? 0
       throw new Error(`__EXIT__`)
     })
-    vi.spyOn(process.stderr, `write`).mockImplementation(() => true)
+    vi.spyOn(process.stderr, `write`).mockImplementation((chunk: any) => {
+      errOutput.push(String(chunk))
+      return true
+    })
     // Default: loadProject returns empty, merge returns global config
     mockLoadProject.mockReturnValue({})
     mockMerge.mockImplementation((global: any, _project: any) => global)
@@ -104,6 +109,7 @@ describe(`main`, () => {
   }
 
   const joined = () => output.join(``)
+  const joinedErr = () => errOutput.join(``)
 
   describe(`help command`, () => {
     it(`should print commands for 'help'`, async () => {
@@ -293,7 +299,7 @@ describe(`main`, () => {
       expect(joined()).toContain(`gpt-4`)
     })
 
-    it(`should list orgs when multiple exist`, async () => {
+    it(`should error when multiple orgs exist and no --org flag`, async () => {
       setArgv(`agents`)
       setLoggedIn()
       mockFetch.mockResolvedValueOnce({
@@ -308,10 +314,8 @@ describe(`main`, () => {
 
       await runMain()
 
-      expect(joined()).toContain(`Organizations:`)
-      expect(joined()).toContain(`Org A`)
-      expect(joined()).toContain(`Org B`)
-      expect(joined()).toContain(`--org`)
+      expect(joinedErr()).toContain(`Multiple orgs found`)
+      expect(exitCode).toBe(1)
     })
 
     it(`should show no agents found`, async () => {
@@ -363,7 +367,7 @@ describe(`main`, () => {
 
       await runMain()
 
-      expect(joined()).toContain(`Error:`)
+      expect(joinedErr()).toContain(`Error:`)
       expect(exitCode).toBe(1)
     })
   })
@@ -440,7 +444,7 @@ describe(`main`, () => {
 
       await runMain()
 
-      expect(joined()).toContain(`Multiple orgs found`)
+      expect(joinedErr()).toContain(`Multiple orgs found`)
       expect(exitCode).toBe(1)
     })
 
@@ -468,13 +472,13 @@ describe(`main`, () => {
       expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should start pi-tui chat for default (empty) command when not logged in`, async () => {
+    it(`should default to sandbox (not chat) when no args and not logged in`, async () => {
       setArgv()
       setLoggedOut()
       await runMain()
 
-      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
-      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
+      expect(joined()).toContain(`Not logged in`)
+      expect(exitCode).toBe(1)
     })
 
     it(`should start pi-tui chat with flags`, async () => {
@@ -524,13 +528,22 @@ describe(`main`, () => {
   })
 
   describe(`default command`, () => {
-    it(`should default to chat when first arg is a value flag`, async () => {
-      setArgv(`--org`, `org1`)
+    it(`should default to sandbox when first arg is a value flag`, async () => {
+      setArgv(`--list`, `--org`, `org1`)
       setLoggedIn()
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `proj1`, name: `TestProject` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
+
       await runMain()
 
-      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
-      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
+      expect(joined()).toContain(`No sandboxes found`)
     })
   })
 

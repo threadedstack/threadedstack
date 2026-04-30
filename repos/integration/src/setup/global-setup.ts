@@ -1,7 +1,7 @@
 import { env } from '../utils/env'
 import { loadEnvs } from '../utils/loadEnvs'
 import { checkHealth } from '../utils/health'
-import { get, post, del } from '../utils/api-client'
+import { api, get, post, del } from '../utils/api-client'
 import { writeContext, readContext } from '../utils/test-context'
 
 const cancelAndSuppressTLSWarning = () => {
@@ -71,9 +71,47 @@ const cleanupStaleTestResources = async (orgId: string) => {
       await tryDel(`/orgs/${orgId}/api-keys/${key.id}`)
   }
 
-  const sandboxesRes = await get<TResource[]>(`/orgs/${orgId}/sandboxes?limit=200`)
-  for (const sandbox of (sandboxesRes.data || [])) {
-    if (isTestResource(sandbox.name)) await tryDel(`/orgs/${orgId}/sandboxes/${sandbox.id}`)
+  type TSandboxResource = { id: string; name: string; projectId?: string }
+  const sandboxesRes = await get<TSandboxResource[]>(`/orgs/${orgId}/sandboxes?limit=200`)
+  const staleSandboxes = (sandboxesRes.data || []).filter(sb => isTestResource(sb.name))
+
+  try {
+    const { execFileSync } = await import('node:child_process')
+    const podsRaw = execFileSync(
+      'kubectl',
+      ['get', 'pods', '-l', 'tdsk.app/managed=true', '-o', 'json'],
+      { encoding: 'utf-8', timeout: 15_000 }
+    ).trim()
+
+    if (podsRaw) {
+      const pods = JSON.parse(podsRaw)
+      for (const pod of (pods.items || [])) {
+        const podName = pod.metadata?.name
+        const sbId = pod.metadata?.labels?.['tdsk.app/sandbox-id']
+        const projId = pod.metadata?.labels?.['tdsk.app/project-id']
+        if (!podName || !sbId || !projId) continue
+
+        if (!staleSandboxes.some(sb => sb.id === sbId)) continue
+
+        try {
+          await api(`/orgs/${orgId}/projects/${projId}/sandboxes/${sbId}/stop`, {
+            method: 'DELETE',
+            body: { podName },
+          })
+        } catch (err) {
+          console.warn(`[global-setup] Failed to stop pod ${podName}: ${(err as Error).message}`)
+        }
+      }
+    }
+  } catch (err) {
+    const msg = (err as Error).message || ''
+    if (!msg.includes('ENOENT')) {
+      console.warn(`[global-setup] Pod cleanup failed: ${msg}`)
+    }
+  }
+
+  for (const sandbox of staleSandboxes) {
+    await tryDel(`/orgs/${orgId}/sandboxes/${sandbox.id}`)
   }
 }
 
@@ -273,8 +311,8 @@ export default async function setup() {
           }
         }
       }
-    } catch {
-      // Best-effort cleanup
+    } catch (err) {
+      console.warn(`[global-teardown] Cleanup failed: ${(err as Error).message}`)
     }
   }
 }

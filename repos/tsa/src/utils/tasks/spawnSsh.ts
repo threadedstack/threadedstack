@@ -18,11 +18,16 @@ export const buildProxyCommand = (sandboxId: string): string => {
  * When `remoteCommand` is provided, the command is executed on the remote host
  * with PTY allocation (`-t`) for interactive tools.
  *
+ * When `shellToken` is provided, it is passed to the proxy subprocess via
+ * the TDSK_TUNNEL_TOKEN env var so the tunnel endpoint can authenticate
+ * browser-auth users who don't have an API key.
+ *
  * Returns a promise that resolves when SSH exits cleanly, or rejects on error.
  */
 export const spawnSsh = async (
   sandboxId: string,
-  remoteCommand?: string
+  remoteCommand?: string,
+  shellToken?: string
 ): Promise<void> => {
   const proxyCmd = buildProxyCommand(sandboxId)
 
@@ -42,10 +47,17 @@ export const spawnSsh = async (
 
   sshArgs.push(`sandbox@${sandboxId}`)
 
-  // Append remote command after the host
-  if (remoteCommand) sshArgs.push(`--`, remoteCommand)
+  // Wrap in login shell so /etc/profile.d/ is sourced (sets NODE_EXTRA_CA_CERTS etc.)
+  if (remoteCommand) {
+    const escaped = remoteCommand.replace(/'/g, `'\\''`)
+    sshArgs.push(`--`, `sh -l -c '${escaped}'`)
+  }
 
-  const sshProc = spawn(`ssh`, sshArgs, { stdio: `inherit` })
+  const env = { ...process.env }
+  if (shellToken) env.TDSK_TUNNEL_TOKEN = shellToken
+  else delete env.TDSK_TUNNEL_TOKEN
+
+  const sshProc = spawn(`ssh`, sshArgs, { stdio: `inherit`, env })
 
   await new Promise<void>((resolve, reject) => {
     sshProc.on(`close`, (code) => {

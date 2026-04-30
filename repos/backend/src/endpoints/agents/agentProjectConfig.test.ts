@@ -4,11 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { Agent } from '@tdsk/domain'
 import { EPMethod } from '@TBE/types'
-import {
-  getAgentProjectConfig,
-  upsertAgentProjectConfig,
-  deleteAgentProjectConfig,
-} from './deleteAPConfig'
+import { getAPConfig } from './getAPConfig'
+import { upsertAPConfig } from './upsertAPConfig'
+import { deleteAPConfig } from './deleteAPConfig'
 
 describe(`AgentProjectConfig endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -83,23 +81,23 @@ describe(`AgentProjectConfig endpoints`, () => {
   })
 
   describe(`Endpoint configuration`, () => {
-    it(`should have correct path and method for getAgentProjectConfig`, () => {
-      expect(getAgentProjectConfig.path).toBe(`/`)
-      expect(getAgentProjectConfig.method).toBe(EPMethod.Get)
+    it(`should have correct path and method for getAPConfig`, () => {
+      expect(getAPConfig.path).toBe(`/`)
+      expect(getAPConfig.method).toBe(EPMethod.Get)
     })
 
-    it(`should have correct path and method for upsertAgentProjectConfig`, () => {
-      expect(upsertAgentProjectConfig.path).toBe(`/`)
-      expect(upsertAgentProjectConfig.method).toBe(EPMethod.Put)
+    it(`should have correct path and method for upsertAPConfig`, () => {
+      expect(upsertAPConfig.path).toBe(`/`)
+      expect(upsertAPConfig.method).toBe(EPMethod.Put)
     })
 
-    it(`should have correct path and method for deleteAgentProjectConfig`, () => {
-      expect(deleteAgentProjectConfig.path).toBe(`/`)
-      expect(deleteAgentProjectConfig.method).toBe(EPMethod.Delete)
+    it(`should have correct path and method for deleteAPConfig`, () => {
+      expect(deleteAPConfig.path).toBe(`/`)
+      expect(deleteAPConfig.method).toBe(EPMethod.Delete)
     })
   })
 
-  describe(`GET - getAgentProjectConfig`, () => {
+  describe(`GET - getAPConfig`, () => {
     it(`should return 200 with config when found`, async () => {
       const mockConfig = {
         agentId: `agent-1`,
@@ -112,7 +110,7 @@ describe(`AgentProjectConfig endpoints`, () => {
         .getProjectConfig as ReturnType<typeof vi.fn>
       mockGetProjectConfig.mockResolvedValue({ data: mockConfig })
 
-      await getAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+      await getAPConfig.action!(mockReq as TRequest, mockRes as Response)
 
       expect(mockGetProjectConfig).toHaveBeenCalledWith(`agent-1`, `proj-1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
@@ -125,12 +123,12 @@ describe(`AgentProjectConfig endpoints`, () => {
       mockGetProjectConfig.mockResolvedValue({ error: new Error(`Not found`) })
 
       await expect(
-        getAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+        getAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`No config found for agent agent-1 in project proj-1`)
     })
   })
 
-  describe(`PUT - upsertAgentProjectConfig`, () => {
+  describe(`PUT - upsertAPConfig`, () => {
     it(`should upsert config and return effective agent`, async () => {
       const updatedAgent = new Agent({
         id: `agent-1`,
@@ -168,7 +166,7 @@ describe(`AgentProjectConfig endpoints`, () => {
         .mockResolvedValueOnce({ data: mockAgent })
         .mockResolvedValueOnce({ data: updatedAgent })
 
-      await upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+      await upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
 
       expect(mockUpsert).toHaveBeenCalledWith(`agent-1`, `proj-1`, {
         model: `claude-3`,
@@ -209,7 +207,7 @@ describe(`AgentProjectConfig endpoints`, () => {
         .mockResolvedValueOnce({ data: mockAgent })
         .mockResolvedValueOnce({ data: updatedAgent })
 
-      await upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+      await upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
 
       expect(mockFuncGet).toHaveBeenCalledTimes(2)
       expect(mockFuncGet).toHaveBeenCalledWith(`func-1`)
@@ -226,7 +224,7 @@ describe(`AgentProjectConfig endpoints`, () => {
       mockFuncGet.mockResolvedValue({ data: null, error: new Error(`Not found`) })
 
       await expect(
-        upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+        upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Function func-missing not found`)
     })
 
@@ -241,7 +239,7 @@ describe(`AgentProjectConfig endpoints`, () => {
       })
 
       await expect(
-        upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+        upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Function func-other does not belong to project proj-1`)
     })
 
@@ -253,7 +251,7 @@ describe(`AgentProjectConfig endpoints`, () => {
       mockUpsert.mockResolvedValue({ error: new Error(`Upsert failed`) })
 
       await expect(
-        upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+        upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Upsert failed`)
     })
 
@@ -283,7 +281,7 @@ describe(`AgentProjectConfig endpoints`, () => {
         .upsertProjectConfig as ReturnType<typeof vi.fn>
       mockUpsert.mockResolvedValue({ data: true })
 
-      await upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+      await upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
 
       expect(mockUpsert).toHaveBeenCalledWith(`agent-1`, `proj-1`, {
         model: `claude-3`,
@@ -292,13 +290,13 @@ describe(`AgentProjectConfig endpoints`, () => {
     })
   })
 
-  describe(`DELETE - deleteAgentProjectConfig`, () => {
+  describe(`DELETE - deleteAPConfig`, () => {
     it(`should reset config and return configReset: true`, async () => {
       const mockUpsert = mockReq.app?.locals.db.services.agent
         .upsertProjectConfig as ReturnType<typeof vi.fn>
       mockUpsert.mockResolvedValue({ data: true })
 
-      await deleteAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+      await deleteAPConfig.action!(mockReq as TRequest, mockRes as Response)
 
       expect(mockUpsert).toHaveBeenCalledWith(`agent-1`, `proj-1`, {
         model: null,
@@ -322,7 +320,7 @@ describe(`AgentProjectConfig endpoints`, () => {
       mockUpsert.mockResolvedValue({ error: new Error(`Reset failed`) })
 
       await expect(
-        deleteAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
+        deleteAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Reset failed`)
     })
   })

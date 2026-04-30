@@ -116,7 +116,8 @@
       "Bash(firebase hosting:sites:list --project threaded-stack-prod)",
       "Bash(firebase target:*)",
       "Bash(firebase target:apply:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(xargs -I {} basename {} .ts)"
     ]
   },
   "sandbox": {

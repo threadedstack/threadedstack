@@ -59,7 +59,12 @@ export const verifySessionToken = (token: string): TSessionTokenPayload | null =
       algorithms: [`HS256`],
     }) as JwtPayload & TSessionTokenPayload
 
-    if (!decoded.userId || !decoded.agentId || !decoded.orgId) return null
+    if (!decoded.userId || !decoded.agentId || !decoded.orgId) {
+      logger.warn(
+        `Session token rejected: missing required claims (userId/agentId/orgId)`
+      )
+      return null
+    }
 
     return {
       orgId: decoded.orgId,
@@ -102,8 +107,16 @@ export const verifyShellToken = (token: string): TShellTokenPayload | null => {
       algorithms: [`HS256`],
     }) as JwtPayload & TShellTokenPayload & { kind?: string }
 
-    if (decoded.kind !== `shell`) return null
-    if (!decoded.userId || !decoded.orgId || !decoded.sandboxId) return null
+    if (decoded.kind !== `shell`) {
+      logger.warn(`Shell token rejected: wrong kind="${decoded.kind}", expected "shell"`)
+      return null
+    }
+    if (!decoded.userId || !decoded.orgId || !decoded.sandboxId) {
+      logger.warn(
+        `Shell token rejected: missing required claims (userId/orgId/sandboxId)`
+      )
+      return null
+    }
 
     return {
       orgId: decoded.orgId,

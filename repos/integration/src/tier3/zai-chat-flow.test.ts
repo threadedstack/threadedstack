@@ -2,6 +2,7 @@ import { env } from '../utils/env'
 import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeWS } from '../utils/ws-client'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
@@ -23,6 +24,7 @@ const hasLLM = () => !!env.testProviderKey || !!env.testZaiAgentId
 
 describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   const ctx = readContext()
+  const threadIds: string[] = []
   let agentId = ``
   let fixtures: TFixtureResult | null = null
 
@@ -66,6 +68,10 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
+
     if (!fixtures?.agent?.id) return  // didn't create fixture resources
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -141,6 +147,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     test.skipIf(!hasLLM())(`streams a response for a simple prompt`, async () => {
       const result = await consumeWS(sessionToken, 'Respond with exactly: ZAI_INTEGRATION_OK', { timeout: 30_000 })
+      const tid0 = extractThreadId(result)
+      if (tid0) threadIds.push(tid0)
 
       const textEvents = result.messages.filter((m) => m.type === `text_delta`)
       const doneEvents = result.messages.filter((m) => m.type === `done`)
@@ -164,6 +172,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     test.skipIf(!hasLLM())(`all WS messages have valid type discriminator`, async () => {
       const result = await consumeWS(sessionToken, 'Say hi', { timeout: 30_000 })
+      const tid1 = extractThreadId(result)
+      if (tid1) threadIds.push(tid1)
 
       const validTypes = [
         'text_delta', 'thinking_delta', 'tool_execution_start', 'tool_execution_end',
@@ -178,6 +188,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     test.skipIf(!hasLLM())(`each WS message is valid JSON with type field`, async () => {
       const result = await consumeWS(sessionToken, 'Say hello', { timeout: 30_000 })
+      const tid2 = extractThreadId(result)
+      if (tid2) threadIds.push(tid2)
 
       for (const msg of result.messages) {
         expect(msg).toBeDefined()
@@ -187,6 +199,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     test.skipIf(!hasLLM())(`streaming response contains no secret data`, async () => {
       const result = await consumeWS(sessionToken, 'What is 2+2?', { timeout: 30_000 })
+      const tid3 = extractThreadId(result)
+      if (tid3) threadIds.push(tid3)
 
       const rawJson = JSON.stringify(result.messages)
       expect(rawJson).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
@@ -207,6 +221,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
       const token1 = res1.data.sessionToken
 
       const first = await consumeWS(token1, 'Remember the word: PINEAPPLE', { timeout: 30_000 })
+      const tid4 = extractThreadId(first)
+      if (tid4) threadIds.push(tid4)
 
       const textEvents = first.messages.filter((m) => m.type === `text_delta`)
       const doneEvents = first.messages.filter((m) => m.type === `done`)
@@ -228,6 +244,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           threadId: threadCreated.threadId as string,
           timeout: 30_000,
         })
+        const tid5 = extractThreadId(second)
+        if (tid5) threadIds.push(tid5)
 
         const text2 = second.messages.filter((m) => m.type === `text_delta`)
         const error2 = second.messages.filter((m) => m.type === `error`)
@@ -252,6 +270,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
         const token = res.data.sessionToken
 
         const result1 = await consumeWS(token, 'Say ONE', { timeout: 30_000 })
+        const tid6 = extractThreadId(result1)
+        if (tid6) threadIds.push(tid6)
 
         // Under concurrent load, LLM may return errors, empty text, or timeout
         const r1HasContent = result1.messages.some((m) => m.type === `text_delta`)
@@ -260,6 +280,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
         expect(r1HasContent || r1HasError || r1HasDone || result1.messages.some(m => m.type === 'thread_created') || result1.messages.length === 0).toBe(true)
 
         const result2 = await consumeWS(token, 'Say TWO', { timeout: 30_000 })
+        const tid7 = extractThreadId(result2)
+        if (tid7) threadIds.push(tid7)
 
         const r2HasContent = result2.messages.some((m) => m.type === `text_delta`)
         const r2HasError = result2.messages.some((m) => m.type === `error`)
@@ -291,6 +313,10 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
         consumeWS(token1, 'Say ALPHA', { timeout: 30_000 }),
         consumeWS(token2, 'Say BETA', { timeout: 30_000 }),
       ])
+      for (const r of [result1, result2]) {
+        const tid = extractThreadId(r)
+        if (tid) threadIds.push(tid)
+      }
 
       // Under concurrent load, LLM may return errors, empty text, or timeout
       for (const result of [result1, result2]) {
@@ -327,6 +353,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
       // Step 4: Stream LLM response through Z.AI via WebSocket
       const result = await consumeWS(sessionToken, 'Respond with exactly the word: PONG', { timeout: 30_000 })
+      const tid8 = extractThreadId(result)
+      if (tid8) threadIds.push(tid8)
 
       // Step 5: Validate response structure
       const textEvents = result.messages.filter((m) => m.type === `text_delta`)

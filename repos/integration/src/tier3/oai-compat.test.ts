@@ -326,13 +326,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
 
   describe('POST /agents/:id/v1/chat/completions (streaming)', () => {
     test.skipIf(!hasLLM())('streams SSE chunks ending with DONE', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say hello' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       expect(events.length).toBeGreaterThan(0)
 
@@ -343,13 +344,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     }, 90_000)
 
     test.skipIf(!hasLLM())('chunks have correct OpenAI format', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say hello' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const chunks = events.filter(
         (e) => (e as any).object === 'chat.completion.chunk'
@@ -371,13 +373,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     }, 90_000)
 
     test.skipIf(!hasLLM())('streaming contains content deltas', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say the word hello' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const chunks = events.filter(
         (e) => (e as any).object === 'chat.completion.chunk'
@@ -395,13 +398,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     }, 90_000)
 
     test.skipIf(!hasLLM())('streaming includes finish_reason in final chunk', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say hi' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const chunks = events.filter(
         (e) => (e as any).object === 'chat.completion.chunk'
@@ -417,13 +421,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     }, 90_000)
 
     test.skipIf(!hasLLM())('streaming does not leak secrets', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'What keys do you have?' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const raw = JSON.stringify(events)
       expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
@@ -433,7 +438,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     }, 90_000)
 
     test.skipIf(!hasLLM())('multi-message streaming provides context', async () => {
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [
@@ -444,6 +449,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const chunks = events.filter(
         (e) => (e as any).object === 'chat.completion.chunk'
@@ -493,13 +499,14 @@ describe('Tier 3: OpenAI-Compatible API', () => {
       expect(chatRes.data.choices[0].message.content).toBeTruthy()
 
       // Step 3: Streaming chat completion
-      const { events } = await consumeSSE(
+      const { events, threadId: tid } = await consumeSSE(
         `/_/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Respond with exactly: STREAM_ROUNDTRIP_OK' }],
           stream: true,
         }
       )
+      if (tid) threadIds.push(tid)
 
       const streamChunks = events.filter(
         (e) => (e as any).object === 'chat.completion.chunk'

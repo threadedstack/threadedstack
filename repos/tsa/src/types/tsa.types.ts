@@ -17,7 +17,7 @@ type TTokenAuth = {
 export type TBrowserAuthResult = {
   token: string
   expiresAt?: string
-  authUrl?: string
+  neonAuthUrl?: string
 }
 
 export type TTokenLoginOpts = {
@@ -25,7 +25,7 @@ export type TTokenLoginOpts = {
   expiresAt?: string
   proxyUrl?: string
   insecure?: boolean
-  authUrl?: string
+  neonAuthUrl?: string
 }
 
 export type TAuthCredentials = TApiKeyAuth | TTokenAuth

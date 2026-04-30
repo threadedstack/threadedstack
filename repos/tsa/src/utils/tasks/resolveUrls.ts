@@ -27,9 +27,6 @@ export const resolveThreadsUrl = (config?: TTsaConfig): string => {
 }
 
 export const resolveAuthUrl = (config?: TTsaConfig): string => {
-  if (config?.auth?.authUrl)
-    return `${config.auth.authUrl.replace(/\/$/, ``)}${CliAuthPath}`
-
   const threadsBase = resolveThreadsUrl(config)
   return `${threadsBase}${CliAuthPath}`
 }

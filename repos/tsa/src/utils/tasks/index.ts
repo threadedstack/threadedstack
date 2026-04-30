@@ -1,4 +1,4 @@
 export { find } from './find'
 export { taskError } from './error'
-export { requireAuth } from './requireAuth'
+export { ensureAuth } from './ensureAuth'
 export { loadConfig } from './config'

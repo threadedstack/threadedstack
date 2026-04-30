@@ -1,6 +1,9 @@
+import type { TDatabase } from '@tdsk/database'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Exception } from '@tdsk/domain'
 import { resolveSandbox } from './resolveSandbox'
+
+type TSandboxService = TDatabase[`services`][`sandbox`]
 
 const mockSandbox = {
   id: `sb_abc1234`,
@@ -9,10 +12,14 @@ const mockSandbox = {
   projectId: `proj_123`,
 } as any
 
-const buildService = () => ({
-  get: vi.fn(),
-  getByProjectAlias: vi.fn(),
-})
+const buildService = () =>
+  ({
+    get: vi.fn(),
+    getByProjectAlias: vi.fn(),
+  }) as unknown as TSandboxService & {
+    get: ReturnType<typeof vi.fn>
+    getByProjectAlias: ReturnType<typeof vi.fn>
+  }
 
 describe(`resolveSandbox`, () => {
   let service: ReturnType<typeof buildService>

@@ -29,10 +29,11 @@ export const proxy: TTask = {
 
     const wsUrl = creds.proxyUrl.replace(/^https:/, `wss:`).replace(/^http:/, `ws:`)
     const tunnelUrl = `${wsUrl}/_/sandboxes/${sandboxId}/tunnel`
+    const bearerToken = creds.apiKey || process.env.TDSK_TUNNEL_TOKEN || creds.token
 
     const ws = new WebSocket(tunnelUrl, {
       headers: {
-        Authorization: `Bearer ${creds.apiKey ?? creds.token}`,
+        Authorization: `Bearer ${bearerToken}`,
       },
       rejectUnauthorized: !creds.insecure,
     })

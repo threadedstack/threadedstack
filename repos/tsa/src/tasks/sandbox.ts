@@ -3,10 +3,11 @@ import type { TTask } from '@TSA/types'
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { spawnSsh } from '@TSA/utils/tasks/spawnSsh'
-import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
+import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 import {
@@ -14,11 +15,14 @@ import {
   registerSyncCleanup,
 } from '@TSA/utils/tasks/syncCleanupRegistry'
 
-export const run: TTask = {
-  name: `run`,
-  alias: [],
+const getAlias = (sandbox: any, projectId: string): string =>
+  sandbox.projectConfigs?.find((pc: any) => pc.projectId === projectId)?.alias || ``
+
+export const sandbox: TTask = {
+  name: `sandbox`,
+  alias: [`sb`, `run`],
   description: `Start a sandbox, sync files, and launch its configured AI tool`,
-  example: `tsa run <sandbox> [--org <id>] [--no-sync]`,
+  example: `tsa sandbox [<sandbox>] [--org <id>] [--project <id>] [--no-sync]`,
   options: {
     sandbox: {
       example: `--sb sb_xxx`,
@@ -48,13 +52,13 @@ export const run: TTask = {
       type: `bool`,
     },
   },
-  action: requireAuth(async ({ params, auth, config, options }) => {
-    const sandboxId = params.sandbox || options?.[0]
+  action: ensureAuth(async ({ params, auth, config, options }) => {
+    const explicitSandboxId = params.sandbox || options?.[0]
     const client = new ApiClient(auth)
 
     let orgId: string
     try {
-      orgId = await resolveOrgId(client, params.org as string | undefined)
+      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
@@ -72,10 +76,8 @@ export const run: TTask = {
       process.exit(1)
     }
 
-    if (config) saveContext(config, orgId, projectId)
-
-    // List sandboxes when --list flag is set or no sandbox ID provided
-    if (params.list || !sandboxId) {
+    // List sandboxes when --list flag is set
+    if (params.list) {
       const { data: list, error } = await client.listSandboxes(orgId, projectId)
       if (error || !list) {
         const msg = error?.message || `Failed to list sandboxes`
@@ -100,11 +102,7 @@ export const run: TTask = {
       )
       for (const sb of list) {
         const name = (sb.name || `unnamed`).slice(0, nameW).padEnd(nameW)
-        const alias = (
-          sb.projectConfigs?.find((pc: any) => pc.projectId === projectId)?.alias || `-`
-        )
-          .slice(0, aliasW)
-          .padEnd(aliasW)
+        const alias = (getAlias(sb, projectId) || `-`).slice(0, aliasW).padEnd(aliasW)
         const runtime = (sb.config?.runtimeCommand || `-`)
           .slice(0, runtimeW)
           .padEnd(runtimeW)
@@ -114,23 +112,32 @@ export const run: TTask = {
       }
       process.stdout.write(`\n`)
 
-      if (!params.list) {
-        process.stdout.write(
-          `${themed(`warning`, `Usage: tsa run <sandbox> [--org <id>]`)}\n`
-        )
-        process.exit(1)
-      }
-
+      if (config) saveContext(config, orgId, projectId)
       return
     }
 
+    // Resolve sandbox ID — interactive picker if no explicit ID provided
+    let sandboxId: string
+    try {
+      sandboxId = await resolveSandboxId(
+        client,
+        orgId,
+        projectId,
+        explicitSandboxId as string | undefined,
+        config?.sandboxId
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
     // Fetch sandbox config to get runtimeCommand — hard error if this fails
-    const { data: sandbox, error: sandboxError } = await client.getSandbox(
+    const { data: sandboxData, error: sandboxError } = await client.getSandbox(
       orgId,
       sandboxId,
       projectId
     )
-    if (sandboxError || !sandbox) {
+    if (sandboxError || !sandboxData) {
       process.stderr.write(
         `${themed(`error`, `Error:`)} Could not fetch sandbox config: ${sandboxError?.message || `sandbox not found`}\n` +
           `${themed(`muted`, `Cannot determine runtime command. Use "tsa ssh" for a plain shell.`)}\n`
@@ -138,16 +145,29 @@ export const run: TTask = {
       process.exit(1)
     }
 
-    const runtimeCommand = sandbox.config?.runtimeCommand as string | undefined
+    const runtimeCommand = sandboxData.config?.runtimeCommand as string | undefined
 
-    let resolvedId: string
+    let resolvedId: string | undefined
+    let shellToken: string | undefined
     try {
       const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
       if (!connectResp.sandboxId)
         throw new Error(`Server did not return a resolved sandbox ID`)
       resolvedId = connectResp.sandboxId
+      shellToken = connectResp.shellToken
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    // Persist sandbox only after confirmed successful connection
+    if (config) saveContext(config, orgId, projectId, resolvedId)
+
+    if (!shellToken && !auth.creds()?.apiKey) {
+      process.stderr.write(
+        `${themed(`error`, `Error:`)} Server did not return a tunnel token and no API key is configured.\n` +
+          `${themed(`muted`, `Run "tsa login <api-key>" or update the server to resolve this.`)}\n`
+      )
       process.exit(1)
     }
 
@@ -155,11 +175,13 @@ export const run: TTask = {
     const syncCtx = createSyncContext()
     if (!skipSync) {
       try {
-        await autoStartSync(syncCtx, config?.sync, client, orgId, resolvedId)
-        if (syncCtx.started) registerSyncCleanup(resolvedId, syncCtx.manager)
+        await autoStartSync(syncCtx, config?.sync, client, orgId, resolvedId!)
+        if (syncCtx.started) registerSyncCleanup(resolvedId!, syncCtx.manager)
       } catch (err) {
         process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-        await stopSync(syncCtx, resolvedId)
+        try {
+          await stopSync(syncCtx, resolvedId!)
+        } catch {}
         process.exit(1)
       }
     }
@@ -169,13 +191,13 @@ export const run: TTask = {
     }
 
     try {
-      await spawnSsh(resolvedId, runtimeCommand)
+      await spawnSsh(resolvedId!, runtimeCommand, shellToken)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1
     } finally {
       clearSyncCleanup()
-      await stopSync(syncCtx, resolvedId)
+      if (resolvedId) await stopSync(syncCtx, resolvedId)
     }
   }),
 }

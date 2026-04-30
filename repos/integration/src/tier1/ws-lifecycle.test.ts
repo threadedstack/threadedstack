@@ -6,6 +6,7 @@ import { readContext } from '../utils/test-context'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { connectWS, consumeWS, createWSConnection, waitForMessage } from '../utils/ws-client'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { EWSEventType } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 
@@ -31,6 +32,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
   const ctx = readContext()
   let agentId = ''
   let fixtures: TFixtureResult | null = null
+  const threadIds: string[] = []
 
   beforeAll(async () => {
     if (!hasLLM()) return
@@ -68,6 +70,10 @@ describe('Tier 1: WebSocket Lifecycle', () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
+
     if (!fixtures) return
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -89,11 +95,13 @@ describe('Tier 1: WebSocket Lifecycle', () => {
 
     // First connection — should work
     const first = await consumeWS(token!, 'Say hello', { timeout: 60_000 })
+    const tid1 = extractThreadId(first); if (tid1) threadIds.push(tid1)
     expect(first.messages.length).toBeGreaterThanOrEqual(1)
     expect(first.closeCode).not.toBe(4001)
 
     // Second connection with SAME token — tokens are not consumed on use
     const second = await consumeWS(token!, 'Say goodbye', { timeout: 60_000 })
+    const tid2 = extractThreadId(second); if (tid2) threadIds.push(tid2)
     expect(second.messages.length).toBeGreaterThanOrEqual(1)
     expect(second.closeCode).not.toBe(4001)
   }, 180_000)
@@ -104,6 +112,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
 
     for (let i = 0; i < 3; i++) {
       const result = await consumeWS(token!, `Message ${i + 1}`, { timeout: 60_000 })
+      const tid3 = extractThreadId(result); if (tid3) threadIds.push(tid3)
       expect(result.closeCode).not.toBe(4001)
       expect(result.messages.length).toBeGreaterThanOrEqual(1)
     }
@@ -120,6 +129,8 @@ describe('Tier 1: WebSocket Lifecycle', () => {
       consumeWS(token!, 'Say alpha', { timeout: 60_000 }),
       consumeWS(token!, 'Say beta', { timeout: 60_000 }),
     ])
+    const tid4 = extractThreadId(result1); if (tid4) threadIds.push(tid4)
+    const tid5 = extractThreadId(result2); if (tid5) threadIds.push(tid5)
 
     // Both should connect (neither should get 4001)
     expect(result1.closeCode).not.toBe(4001)
@@ -160,6 +171,9 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(doneMsg).toBeDefined()
     expect(['complete', 'error', 'cancelled']).toContain(doneMsg!.reason)
 
+    const cancelTid = (messages.find(m => m.type === 'thread_created')?.threadId as string)
+    if (cancelTid) threadIds.push(cancelTid)
+
     if (closeResult.closeCode !== -1) {
       expect(closeResult.closeCode).not.toBe(4001)
     }
@@ -172,6 +186,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(token).toBeTruthy()
 
     const result = await consumeWS(token!, 'Respond with OK', { timeout: 60_000 })
+    const tid6 = extractThreadId(result); if (tid6) threadIds.push(tid6)
 
     const doneMsg = result.messages.find(m => m.type === EWSEventType.Done)
     expect(doneMsg).toBeDefined()
@@ -183,6 +198,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(token).toBeTruthy()
 
     const result = await consumeWS(token!, 'Respond with exactly: OK', { timeout: 60_000 })
+    const tid7 = extractThreadId(result); if (tid7) threadIds.push(tid7)
 
     const doneMsg = result.messages.find(m => m.type === EWSEventType.Done)
     expect(doneMsg).toBeDefined()
@@ -245,6 +261,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(token).toBeTruthy()
 
     const result = await consumeWS(token!, 'Say hello', { timeout: 60_000 })
+    const tid8 = extractThreadId(result); if (tid8) threadIds.push(tid8)
 
     const threadCreated = result.messages.find(m => m.type === EWSEventType.ThreadCreated)
     expect(threadCreated).toBeDefined()
@@ -261,6 +278,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(token).toBeTruthy()
 
     const result = await consumeWS(token!, '', { timeout: 10_000 })
+    const tid9 = extractThreadId(result); if (tid9) threadIds.push(tid9)
 
     const errorMsg = result.messages.find(m => m.type === EWSEventType.Error)
     expect(errorMsg).toBeDefined()
@@ -278,6 +296,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(token).toBeTruthy()
 
     const result = await consumeWS(token!, 'Say hi', { timeout: 60_000 })
+    const tid10 = extractThreadId(result); if (tid10) threadIds.push(tid10)
 
     const turnEnd = result.messages.find(m => m.type === EWSEventType.TurnEnd)
     if (turnEnd) {
@@ -316,6 +335,9 @@ describe('Tier 1: WebSocket Lifecycle', () => {
       typeof m.message === 'string' && m.message.toLowerCase().includes('already running')
     )
     expect(hasRunningError).toBe(true)
+
+    const concurrentTid = (messages.find(m => m.type === 'thread_created')?.threadId as string)
+    if (concurrentTid) threadIds.push(concurrentTid)
 
     ws.close()
     await waitForClose().catch(() => {})

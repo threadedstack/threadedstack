@@ -87,7 +87,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: ninetySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       mockFetch.mockResolvedValue({
@@ -118,7 +118,7 @@ describe(`TokenRefreshService`, () => {
         expiresAt: `2099-12-31T00:00:00.000Z`,
         proxyUrl: `https://proxy.test`,
         insecure: undefined,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
     })
 
@@ -128,7 +128,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: thirtySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       mockFetch.mockResolvedValue({ ok: false, status: 401 })
@@ -154,7 +154,7 @@ describe(`TokenRefreshService`, () => {
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it(`should fall back to TDSK_AUTH_URL env var when config has no authUrl`, async () => {
+    it(`should fall back to TDSK_AUTH_URL env var when config has no neonAuthUrl`, async () => {
       const thirtySecondsFromNow = new Date(Date.now() + 30 * 1000).toISOString()
       const auth = buildAuthWithConfig({
         token: `jwt.token.here`,
@@ -187,7 +187,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: thirtySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       mockFetch.mockResolvedValue({
@@ -220,7 +220,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: thirtySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       mockFetch.mockRejectedValue(new Error(`ECONNREFUSED`))
@@ -237,7 +237,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: thirtySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       mockFetch.mockResolvedValue({
@@ -257,7 +257,7 @@ describe(`TokenRefreshService`, () => {
         token: `jwt.token.here`,
         expiresAt: thirtySecondsFromNow,
         proxyUrl: `https://proxy.test`,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       const expiresDate = new Date(`2099-12-31T00:00:00.000Z`)

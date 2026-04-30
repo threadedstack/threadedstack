@@ -314,7 +314,7 @@ describe(`AuthManager`, () => {
         expiresAt: `2099-12-31T00:00:00.000Z`,
         proxyUrl: `https://proxy.test`,
         insecure: undefined,
-        authUrl: undefined,
+        neonAuthUrl: undefined,
       })
       expect(savedConfig.auth?.apiKey).toBeUndefined()
     })
@@ -335,7 +335,7 @@ describe(`AuthManager`, () => {
       ).rejects.toThrow(`Authentication failed (403)`)
     })
 
-    it(`should store authUrl when provided`, async () => {
+    it(`should store neonAuthUrl when provided`, async () => {
       mockFetch.mockResolvedValue({ ok: true })
       vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
@@ -344,11 +344,11 @@ describe(`AuthManager`, () => {
         expiresAt: `2099-12-31T00:00:00.000Z`,
         proxyUrl: `https://proxy.test`,
         insecure: false,
-        authUrl: `https://auth.example.com`,
+        neonAuthUrl: `https://auth.example.com`,
       })
 
       const savedConfig = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
-      expect(savedConfig.auth?.authUrl).toBe(`https://auth.example.com`)
+      expect(savedConfig.auth?.neonAuthUrl).toBe(`https://auth.example.com`)
     })
 
     it(`should use default proxy URL when none provided`, async () => {
@@ -382,6 +382,99 @@ describe(`AuthManager`, () => {
       })
 
       expect(tlsValueDuringFetch).toBe(`0`)
+    })
+
+    describe(`JWT expiry resolution`, () => {
+      const makeJwt = (payload: Record<string, unknown>): string => {
+        const header = Buffer.from(JSON.stringify({ alg: `none` })).toString(`base64url`)
+        const body = Buffer.from(JSON.stringify(payload)).toString(`base64url`)
+        return `${header}.${body}.sig`
+      }
+
+      it(`should use JWT exp when shorter than session expiry`, async () => {
+        mockFetch.mockResolvedValue({ ok: true })
+        vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+        const jwtExp = Math.floor(Date.now() / 1000) + 900
+        const token = makeJwt({ sub: `user`, exp: jwtExp })
+        const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+        await auth.loginWithToken({
+          token,
+          expiresAt: sessionExpiry,
+          proxyUrl: `https://proxy.test`,
+        })
+
+        const saved = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+        expect(saved.auth?.expiresAt).toBe(new Date(jwtExp * 1000).toISOString())
+      })
+
+      it(`should use session expiry when JWT exp is longer`, async () => {
+        mockFetch.mockResolvedValue({ ok: true })
+        vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+        const jwtExp = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60
+        const token = makeJwt({ sub: `user`, exp: jwtExp })
+        const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+        await auth.loginWithToken({
+          token,
+          expiresAt: sessionExpiry,
+          proxyUrl: `https://proxy.test`,
+        })
+
+        const saved = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+        expect(saved.auth?.expiresAt).toBe(sessionExpiry)
+      })
+
+      it(`should use JWT exp when no session expiry provided`, async () => {
+        mockFetch.mockResolvedValue({ ok: true })
+        vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+        const jwtExp = Math.floor(Date.now() / 1000) + 900
+        const token = makeJwt({ sub: `user`, exp: jwtExp })
+
+        await auth.loginWithToken({
+          token,
+          proxyUrl: `https://proxy.test`,
+        })
+
+        const saved = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+        expect(saved.auth?.expiresAt).toBe(new Date(jwtExp * 1000).toISOString())
+      })
+
+      it(`should fall back to session expiry when JWT has no exp claim`, async () => {
+        mockFetch.mockResolvedValue({ ok: true })
+        vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+        const token = makeJwt({ sub: `user` })
+        const sessionExpiry = `2099-12-31T00:00:00.000Z`
+
+        await auth.loginWithToken({
+          token,
+          expiresAt: sessionExpiry,
+          proxyUrl: `https://proxy.test`,
+        })
+
+        const saved = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+        expect(saved.auth?.expiresAt).toBe(sessionExpiry)
+      })
+
+      it(`should fall back to session expiry for non-JWT tokens`, async () => {
+        mockFetch.mockResolvedValue({ ok: true })
+        vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+        const sessionExpiry = `2099-12-31T00:00:00.000Z`
+
+        await auth.loginWithToken({
+          token: `opaque-token-string`,
+          expiresAt: sessionExpiry,
+          proxyUrl: `https://proxy.test`,
+        })
+
+        const saved = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+        expect(saved.auth?.expiresAt).toBe(sessionExpiry)
+      })
     })
   })
 

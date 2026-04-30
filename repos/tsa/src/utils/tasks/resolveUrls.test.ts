@@ -133,18 +133,12 @@ describe(`resolveThreadsUrl`, () => {
 })
 
 describe(`resolveAuthUrl`, () => {
-  it(`uses config authUrl when provided`, () => {
-    const config = { auth: { authUrl: `https://custom.example.com` } }
-    expect(resolveAuthUrl(config as any)).toBe(`https://custom.example.com/auth/cli`)
+  it(`always uses threads URL even when neonAuthUrl is in config`, () => {
+    const config = { auth: { neonAuthUrl: `https://neon.example.com` } }
+    expect(resolveAuthUrl(config as any)).toBe(`http://localhost:5886/auth/cli`)
   })
 
-  it(`config authUrl takes priority over env var`, () => {
-    process.env.TDSK_TH_APP_URL = `https://env.example.com`
-    const config = { auth: { authUrl: `https://custom.example.com` } }
-    expect(resolveAuthUrl(config as any)).toBe(`https://custom.example.com/auth/cli`)
-  })
-
-  it(`uses TDSK_TH_APP_URL env var when no config authUrl`, () => {
+  it(`uses TDSK_TH_APP_URL env var`, () => {
     process.env.TDSK_TH_APP_URL = `https://threads.env.com`
     expect(resolveAuthUrl()).toBe(`https://threads.env.com/auth/cli`)
   })
@@ -183,13 +177,8 @@ describe(`resolveAuthUrl`, () => {
     expect(resolveAuthUrl()).toBe(`https://custom-threads.com/auth/cli`)
   })
 
-  it(`config threadsUrl is used when no authUrl`, () => {
+  it(`uses config threadsUrl for auth URL`, () => {
     const config = { auth: { threadsUrl: `https://custom.threads.com` } }
     expect(resolveAuthUrl(config as any)).toBe(`https://custom.threads.com/auth/cli`)
-  })
-
-  it(`strips trailing slash from config authUrl`, () => {
-    const config = { auth: { authUrl: `https://custom.example.com/` } }
-    expect(resolveAuthUrl(config as any)).toBe(`https://custom.example.com/auth/cli`)
   })
 })

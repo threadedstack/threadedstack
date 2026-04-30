@@ -1,6 +1,5 @@
 import type { TTasks } from '@TSA/types'
 
-import { run } from './run'
 import { ssh } from './ssh'
 import { sync } from './sync'
 import { chat } from './chat'
@@ -10,12 +9,11 @@ import { proxy } from './proxy'
 import { logout } from './logout'
 import { status } from './status'
 import { agents } from './agents'
+import { sandbox } from './sandbox'
 import { threads } from './threads'
 import { sessions } from './sessions'
-import { sandboxes } from './sandboxes'
 
 export const tasks: TTasks = {
-  run,
   ssh,
   sync,
   chat,
@@ -25,7 +23,7 @@ export const tasks: TTasks = {
   logout,
   status,
   agents,
+  sandbox,
   threads,
   sessions,
-  sandboxes,
 }

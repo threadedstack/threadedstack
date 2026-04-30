@@ -30,12 +30,18 @@ const listSessions = driverInstance.listSessions as ReturnType<typeof vi.fn>
 
 describe(`sync cleanup subtask`, () => {
   let output: string[]
-  let mockAuth: { loggedIn: ReturnType<typeof vi.fn> }
+  let mockAuth: {
+    loggedIn: ReturnType<typeof vi.fn>
+    isExpired: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
     output = []
-    mockAuth = { loggedIn: vi.fn().mockReturnValue(true) }
+    mockAuth = {
+      loggedIn: vi.fn().mockReturnValue(true),
+      isExpired: vi.fn().mockReturnValue(false),
+    }
     vi.spyOn(process.stdout, `write`).mockImplementation((chunk: any) => {
       output.push(chunk.toString())
       return true

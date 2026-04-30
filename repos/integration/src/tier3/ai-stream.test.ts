@@ -4,6 +4,7 @@ import { env } from '../utils/env'
 import { post, get, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { consumeWS, connectWS } from '../utils/ws-client'
 import { EWSEventType } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
@@ -26,6 +27,7 @@ const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
 describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   const ctx = readContext()
+  const threadIds: string[] = []
   let agentId = ''
   let sessionToken = ''
   let fixtures: TFixtureResult | null = null
@@ -80,6 +82,10 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
+
     if (!fixtures) return
     await cleanupFixtures(ctx.orgId, fixtures)
   })
@@ -96,6 +102,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('WS prompt triggers thread_created event', async () => {
     const result = await consumeWS(sessionToken, 'Say hello', { timeout: 60_000 })
+    const wsThreadId1 = extractThreadId(result); if (wsThreadId1) threadIds.push(wsThreadId1)
 
     expect(result.messages.length).toBeGreaterThanOrEqual(1)
 
@@ -107,6 +114,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('WS prompt ends with done event', async () => {
     const result = await consumeWS(sessionToken, 'Say OK', { timeout: 60_000 })
+    const wsThreadId2 = extractThreadId(result); if (wsThreadId2) threadIds.push(wsThreadId2)
 
     const doneMsg = result.messages.find(m => m.type === EWSEventType.Done)
     expect(doneMsg).toBeDefined()
@@ -115,6 +123,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('stream contains text_delta events with real LLM response', async () => {
     const result = await consumeWS(sessionToken, 'Respond with exactly: INTEGRATION_TEST_OK', { timeout: 60_000 })
+    const wsThreadId3 = extractThreadId(result); if (wsThreadId3) threadIds.push(wsThreadId3)
 
     const textEvents = result.messages.filter(m => m.type === EWSEventType.TextDelta)
     expect(textEvents.length).toBeGreaterThanOrEqual(1)
@@ -129,6 +138,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('all messages have valid type discriminator', async () => {
     const result = await consumeWS(sessionToken, 'Say hi', { timeout: 60_000 })
+    const wsThreadId4 = extractThreadId(result); if (wsThreadId4) threadIds.push(wsThreadId4)
 
     const validTypes = [
       'text_delta', 'thinking_delta', 'tool_execution_start', 'tool_execution_end',
@@ -153,6 +163,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('empty prompt returns error message over WS', async () => {
     const result = await consumeWS(sessionToken, '', { timeout: 10_000 })
+    const wsThreadId5 = extractThreadId(result); if (wsThreadId5) threadIds.push(wsThreadId5)
 
     const errorMsg = result.messages.find(m => m.type === EWSEventType.Error)
     expect(errorMsg).toBeDefined()
@@ -164,6 +175,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   test.skipIf(!hasLLM())('sending threadId in prompt skips thread creation', async () => {
     // First call to get a threadId
     const first = await consumeWS(sessionToken, 'First message', { timeout: 60_000 })
+    const wsThreadId6 = extractThreadId(first); if (wsThreadId6) threadIds.push(wsThreadId6)
     const firstThread = first.messages.find(m => m.type === EWSEventType.ThreadCreated)
     expect(firstThread).toBeDefined()
     expect(firstThread!.threadId).toBeTruthy()
@@ -181,6 +193,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
       threadId: firstThread!.threadId as string,
       timeout: 60_000,
     })
+    const wsThreadId7 = extractThreadId(second); if (wsThreadId7) threadIds.push(wsThreadId7)
 
     const secondThread = second.messages.find(m => m.type === EWSEventType.ThreadCreated)
     expect(secondThread).toBeUndefined()
@@ -190,6 +203,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('done reason is constrained to complete|error|cancelled', async () => {
     const result = await consumeWS(sessionToken, 'Respond with OK', { timeout: 60_000 })
+    const wsThreadId8 = extractThreadId(result); if (wsThreadId8) threadIds.push(wsThreadId8)
     const doneMsg = result.messages.find(m => m.type === EWSEventType.Done)
 
     expect(doneMsg).toBeDefined()
@@ -200,10 +214,12 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('session token is reusable after WS connection closes', async () => {
     const first = await consumeWS(sessionToken, 'First reuse test', { timeout: 60_000 })
+    const wsThreadId9 = extractThreadId(first); if (wsThreadId9) threadIds.push(wsThreadId9)
     expect(first.messages.length).toBeGreaterThanOrEqual(1)
     expect(first.closeCode).not.toBe(4001)
 
     const second = await consumeWS(sessionToken, 'Second reuse test', { timeout: 60_000 })
+    const wsThreadId10 = extractThreadId(second); if (wsThreadId10) threadIds.push(wsThreadId10)
     expect(second.messages.length).toBeGreaterThanOrEqual(1)
     expect(second.closeCode).not.toBe(4001)
   })
@@ -219,6 +235,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('thread_created is always the first message for new threads', async () => {
     const result = await consumeWS(sessionToken, 'Message ordering test', { timeout: 60_000 })
+    const wsThreadId11 = extractThreadId(result); if (wsThreadId11) threadIds.push(wsThreadId11)
 
     expect(result.messages.length).toBeGreaterThanOrEqual(1)
     expect(result.messages[0].type).toBe(EWSEventType.ThreadCreated)
@@ -226,6 +243,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('done is always the last message', async () => {
     const result = await consumeWS(sessionToken, 'Last message test', { timeout: 60_000 })
+    const wsThreadId12 = extractThreadId(result); if (wsThreadId12) threadIds.push(wsThreadId12)
 
     expect(result.messages.length).toBeGreaterThanOrEqual(1)
     const lastMsg = result.messages[result.messages.length - 1]
@@ -236,6 +254,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('empty prompt returns error followed by done with reason error', async () => {
     const result = await consumeWS(sessionToken, '', { timeout: 10_000 })
+    const wsThreadId13 = extractThreadId(result); if (wsThreadId13) threadIds.push(wsThreadId13)
 
     const errorIdx = result.messages.findIndex(m => m.type === EWSEventType.Error)
     const doneIdx = result.messages.findIndex(m => m.type === EWSEventType.Done)
@@ -249,6 +268,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('streaming response contains no apiKey or secret data', async () => {
     const result = await consumeWS(sessionToken, 'What is 2+2?', { timeout: 60_000 })
+    const wsThreadId14 = extractThreadId(result); if (wsThreadId14) threadIds.push(wsThreadId14)
 
     const raw = JSON.stringify(result.messages)
     expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)

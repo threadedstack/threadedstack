@@ -13,11 +13,9 @@ export const cli = async (): Promise<any> => {
 
   if (hasArg(argv, `version`, [`v`])) return process.stdout.write(`tsa v${Version}\n`)
 
-  // Default to 'chat' when no args or first arg is a value flag
-  // --help is a task alias, not a value flag
   const args =
     !argv.length || (argv[0].startsWith(`--`) && argv[0] !== `--help`)
-      ? [`chat`, ...argv]
+      ? [`sandbox`, ...argv]
       : argv
 
   const { task, options } = find(tasks, args)

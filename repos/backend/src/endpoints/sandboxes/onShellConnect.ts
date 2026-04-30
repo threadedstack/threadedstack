@@ -450,14 +450,34 @@ export const onShellConnect = async (
 
   // 8. Check PlanLimits concurrent session cap
   try {
-    const { data: org } = await db.services.org.get(orgId)
-    if (org?.ownerId) {
-      const { data: sub } = await db.services.subscription.findByUser(org.ownerId)
+    const { data: org, error: orgErr } = await db.services.org.get(orgId)
+    if (orgErr || !org) {
+      logger.error(`[Shell] Org lookup failed for ${orgId}:`, orgErr?.message)
+      ws.close(4029, `Unable to verify session limits. Please try again.`)
+      return
+    }
+    if (org.ownerId) {
+      const { data: sub, error: subErr } = await db.services.subscription.findByUser(
+        org.ownerId
+      )
+      if (subErr && subErr.message !== `Subscription not found`) {
+        logger.error(
+          `[Shell] Subscription lookup failed for owner ${org.ownerId}:`,
+          subErr.message
+        )
+        ws.close(4029, `Unable to verify session limits. Please try again.`)
+        return
+      }
       const tier = (sub?.tier ?? `free`) as ESubscriptionTier
-      const limit = PlanLimits[tier].sandboxSessions
-      if (limit !== -1) {
+      const planLimit = PlanLimits[tier]
+      if (!planLimit) {
+        logger.error(`[Shell] Unknown subscription tier "${sub?.tier}" for org ${orgId}`)
+        ws.close(4029, `Unable to verify session limits. Please try again.`)
+        return
+      }
+      if (planLimit.sandboxSessions !== -1) {
         const count = sbService.getOrgShellSessionCount(orgId)
-        if (count >= limit) {
+        if (count >= planLimit.sandboxSessions) {
           ws.close(4029, `Session limit reached for your plan`)
           return
         }

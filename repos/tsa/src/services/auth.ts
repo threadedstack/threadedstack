@@ -82,7 +82,7 @@ export class AuthManager {
   }
 
   async loginWithToken(opts: TTokenLoginOpts): Promise<void> {
-    const { token, expiresAt, authUrl, insecure } = opts
+    const { token, neonAuthUrl, insecure } = opts
     const url = opts.proxyUrl || resolveProxyUrl()
 
     const isLocalProxy = isLocalUrl(url)
@@ -104,14 +104,41 @@ export class AuthManager {
         )
       }
 
+      const expiresAt = this.#resolveExpiresAt(token, opts.expiresAt)
+
       const config = ConfigService.loadGlobal()
-      config.auth = { token, expiresAt, proxyUrl: url, insecure, authUrl }
+      config.auth = { token, expiresAt, proxyUrl: url, insecure, neonAuthUrl }
       ConfigService.saveGlobal(config)
     } finally {
       if (originalTls !== undefined)
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTls
       else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
     }
+  }
+
+  #resolveExpiresAt(token: string, sessionExpiresAt?: string): string | undefined {
+    try {
+      const parts = token.split(`.`)
+      if (parts.length !== 3) return sessionExpiresAt
+
+      const payload = JSON.parse(Buffer.from(parts[1], `base64url`).toString(`utf8`))
+
+      if (typeof payload.exp === `number`) {
+        const jwtMs = payload.exp * 1000
+        const jwtExpiry = new Date(jwtMs).toISOString()
+        if (!sessionExpiresAt) return jwtExpiry
+
+        const sessionMs = new Date(sessionExpiresAt).getTime()
+        return jwtMs < sessionMs ? jwtExpiry : sessionExpiresAt
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `unknown`
+      process.stderr.write(
+        `Warning: could not decode JWT expiry, using session expiresAt: ${msg}\n`
+      )
+    }
+
+    return sessionExpiresAt
   }
 
   logout(): void {
