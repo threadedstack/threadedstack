@@ -7,6 +7,8 @@ import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
+import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
+import { resolveSessionId } from '@TSA/utils/tasks/resolveSessionId'
 
 const resolveSessionSandbox = async (
   client: ApiClient,
@@ -14,11 +16,26 @@ const resolveSessionSandbox = async (
   projectId: string,
   sessionId: string
 ): Promise<{ sandboxId: string; session: TSandboxSession } | undefined> => {
-  const { data: sandboxes } = await client.listSandboxes(orgId, projectId)
-  if (!sandboxes) return undefined
+  const { data: sandboxes, error: listError } = await client.listSandboxes(
+    orgId,
+    projectId
+  )
+  if (listError || !sandboxes) {
+    throw new Error(listError?.message || `Failed to list sandboxes`)
+  }
 
   for (const sb of sandboxes) {
-    const { data: sessions } = await client.getSandboxSessions(orgId, projectId, sb.id)
+    const { data: sessions, error: sessError } = await client.getSandboxSessions(
+      orgId,
+      projectId,
+      sb.id
+    )
+    if (sessError) {
+      process.stderr.write(
+        `${themed(`warning`, `Warning:`)} Could not check sessions for sandbox ${sb.id}: ${sessError.message}\n`
+      )
+      continue
+    }
     const match = sessions?.find((s) => s.sessionId === sessionId)
     if (match) return { sandboxId: sb.id, session: match }
   }
@@ -69,29 +86,35 @@ const changeVisibility = async (
     })
 
     ws.addEventListener(`message`, (event) => {
+      let msg: any
       try {
-        const msg = JSON.parse(String(event.data))
-        if (msg.type === `visibility`) {
-          confirmed = true
-          clearTimeout(timeout)
-          process.stdout.write(
-            `${themed(`success`, `Done:`)} Session ${sessionId.slice(0, 12)} is now ${themed(`bold`, visibility)}\n`
-          )
-          ws.close()
-          resolve()
-        } else if (msg.type === `error`) {
-          clearTimeout(timeout)
-          ws.close()
-          reject(new Error(msg.message || `Server error`))
-        }
+        msg = JSON.parse(String(event.data))
       } catch {
-        // Non-JSON message, ignore
+        return
+      }
+
+      if (msg.type === `visibility`) {
+        confirmed = true
+        clearTimeout(timeout)
+        process.stdout.write(
+          `${themed(`success`, `Done:`)} Session ${sessionId.slice(0, 12)} is now ${themed(`bold`, visibility)}\n`
+        )
+        ws.close()
+        resolve()
+      } else if (msg.type === `error`) {
+        clearTimeout(timeout)
+        ws.close()
+        reject(new Error(msg.message || `Server error`))
       }
     })
 
-    ws.addEventListener(`error`, () => {
+    ws.addEventListener(`error`, (event) => {
       clearTimeout(timeout)
-      reject(new Error(`WebSocket connection failed`))
+      const msg =
+        (event as any).message ||
+        (event as any).error?.message ||
+        `WebSocket connection failed`
+      reject(new Error(msg))
     })
 
     ws.addEventListener(`close`, (event) => {
@@ -131,8 +154,13 @@ export const sessions: TTask = {
     share: {
       name: `share`,
       description: `Make a session public (shareable with project members)`,
-      example: `tsa sessions share <session-id> [--org <id>] [--project <id>]`,
+      example: `tsa sessions share [<session-id>] [--org <id>] [--project <id>]`,
       options: {
+        sandbox: {
+          example: `--sb sb_xxx`,
+          description: `Sandbox ID or alias`,
+          alias: [`sandboxId`, `sb`],
+        },
         org: {
           example: `--org org_xxx`,
           description: `Organization ID`,
@@ -145,14 +173,7 @@ export const sessions: TTask = {
         },
       },
       action: ensureAuth(async ({ params, auth, config, options }) => {
-        const sessionId = options?.[0]
-        if (!sessionId) {
-          process.stderr.write(
-            `${themed(`warning`, `Usage: tsa sessions share <session-id>`)}\n`
-          )
-          process.exit(1)
-        }
-
+        const explicitSessionId = options?.[0] as string | undefined
         const client = new ApiClient(auth)
 
         let orgId: string
@@ -178,7 +199,35 @@ export const sessions: TTask = {
           process.exit(1)
         }
 
-        if (config) saveContext(config, orgId, projectId)
+        let sandboxId: string
+        try {
+          sandboxId = await resolveSandboxId(
+            client,
+            orgId,
+            projectId,
+            params.sandbox as string | undefined,
+            config?.sandbox
+          )
+        } catch (err) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+          process.exit(1)
+        }
+
+        if (config) saveContext(config, orgId, projectId, sandboxId)
+
+        let sessionId: string
+        try {
+          sessionId = await resolveSessionId(
+            client,
+            orgId,
+            projectId,
+            sandboxId,
+            explicitSessionId
+          )
+        } catch (err) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+          process.exit(1)
+        }
 
         try {
           await changeVisibility(client, orgId, projectId, sessionId, `public`)
@@ -191,8 +240,13 @@ export const sessions: TTask = {
     unshare: {
       name: `unshare`,
       description: `Make a session private`,
-      example: `tsa sessions unshare <session-id> [--org <id>] [--project <id>]`,
+      example: `tsa sessions unshare [<session-id>] [--org <id>] [--project <id>]`,
       options: {
+        sandbox: {
+          example: `--sb sb_xxx`,
+          description: `Sandbox ID or alias`,
+          alias: [`sandboxId`, `sb`],
+        },
         org: {
           example: `--org org_xxx`,
           description: `Organization ID`,
@@ -205,14 +259,7 @@ export const sessions: TTask = {
         },
       },
       action: ensureAuth(async ({ params, auth, config, options }) => {
-        const sessionId = options?.[0]
-        if (!sessionId) {
-          process.stderr.write(
-            `${themed(`warning`, `Usage: tsa sessions unshare <session-id>`)}\n`
-          )
-          process.exit(1)
-        }
-
+        const explicitSessionId = options?.[0] as string | undefined
         const client = new ApiClient(auth)
 
         let orgId: string
@@ -238,7 +285,35 @@ export const sessions: TTask = {
           process.exit(1)
         }
 
-        if (config) saveContext(config, orgId, projectId)
+        let sandboxId: string
+        try {
+          sandboxId = await resolveSandboxId(
+            client,
+            orgId,
+            projectId,
+            params.sandbox as string | undefined,
+            config?.sandbox
+          )
+        } catch (err) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+          process.exit(1)
+        }
+
+        if (config) saveContext(config, orgId, projectId, sandboxId)
+
+        let sessionId: string
+        try {
+          sessionId = await resolveSessionId(
+            client,
+            orgId,
+            projectId,
+            sandboxId,
+            explicitSessionId
+          )
+        } catch (err) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+          process.exit(1)
+        }
 
         try {
           await changeVisibility(client, orgId, projectId, sessionId, `private`)
@@ -250,14 +325,7 @@ export const sessions: TTask = {
     },
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
-    const sandboxId = params.sandbox || options?.[0]
-    if (!sandboxId) {
-      process.stderr.write(
-        `${themed(`warning`, `Usage: tsa sessions <sandbox-id> [--org <id>]`)}\n`
-      )
-      process.exit(1)
-    }
-
+    const explicitSandboxId = params.sandbox || options?.[0]
     const client = new ApiClient(auth)
 
     let orgId: string
@@ -279,7 +347,21 @@ export const sessions: TTask = {
       process.exit(1)
     }
 
-    if (config) saveContext(config, orgId, projectId)
+    let sandboxId: string
+    try {
+      sandboxId = await resolveSandboxId(
+        client,
+        orgId,
+        projectId,
+        explicitSandboxId as string | undefined,
+        config?.sandbox
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId, sandboxId)
 
     const { data: sessionList, error } = await client.getSandboxSessions(
       orgId,

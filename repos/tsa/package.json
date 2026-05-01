@@ -9,7 +9,7 @@
   "scripts": {
     "serve": "./dist/tsa",
     "tsa": "./dist/tsa",
-    "start": "bun src/main.ts",
+    "tsz": "bun src/main.ts",
     "build": "bun run scripts/build.ts",
     "compile": "bun run scripts/build.ts --compile",
     "clean": "pnpm clean:dist && pnpm clean:nm",

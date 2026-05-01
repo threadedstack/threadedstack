@@ -381,11 +381,24 @@ describe(`main`, () => {
       expect(exitCode).toBe(1)
     })
 
-    it(`should require agent-id argument`, async () => {
+    it(`should resolve agent interactively when no agent-id argument`, async () => {
       setArgv(`threads`)
       setLoggedIn()
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `org1` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `proj1`, name: `Project 1` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
       await runMain()
-      expect(joined()).toContain(`Usage: tsa threads`)
+      expect(joinedErr()).toContain(`No agents found`)
       expect(exitCode).toBe(1)
     })
 
@@ -396,6 +409,10 @@ describe(`main`, () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ data: [{ id: `org1` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `proj1`, name: `Project 1` }] }),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -417,12 +434,17 @@ describe(`main`, () => {
     it(`should use --org flag`, async () => {
       setArgv(`threads`, `agent-1`, `--org`, `org1`)
       setLoggedIn()
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: [{ id: `t1`, name: `Thread` }],
-        }),
-      })
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `proj1`, name: `Project 1` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: [{ id: `t1`, name: `Thread` }],
+          }),
+        })
 
       await runMain()
 
@@ -451,10 +473,15 @@ describe(`main`, () => {
     it(`should show no threads found`, async () => {
       setArgv(`threads`, `agent-1`, `--org`, `org1`)
       setLoggedIn()
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: [] }),
-      })
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: `proj1`, name: `Project 1` }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
 
       await runMain()
 

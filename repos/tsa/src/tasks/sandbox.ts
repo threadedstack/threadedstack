@@ -124,7 +124,7 @@ export const sandbox: TTask = {
         orgId,
         projectId,
         explicitSandboxId as string | undefined,
-        config?.sandboxId
+        config?.sandbox
       )
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
@@ -181,7 +181,11 @@ export const sandbox: TTask = {
         process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
         try {
           await stopSync(syncCtx, resolvedId!)
-        } catch {}
+        } catch (cleanupErr) {
+          process.stderr.write(
+            `${themed(`warning`, `Warning:`)} Sync cleanup failed: ${(cleanupErr as Error).message}\n`
+          )
+        }
         process.exit(1)
       }
     }

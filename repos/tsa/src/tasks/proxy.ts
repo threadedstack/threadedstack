@@ -49,15 +49,13 @@ export const proxy: TTask = {
     let upstreamReady = false
 
     process.stdin.on(`data`, (chunk: Buffer) => {
-      if (upstreamReady && ws.readyState === WebSocket.OPEN) {
-        ws.send(chunk)
-      } else {
-        pendingStdin.push(chunk)
-      }
+      upstreamReady && ws.readyState === WebSocket.OPEN
+        ? ws.send(chunk)
+        : pendingStdin.push(chunk)
     })
 
     process.stdin.on(`end`, () => {
-      if (ws.readyState === WebSocket.OPEN) ws.close()
+      ws.readyState === WebSocket.OPEN && ws.close()
     })
 
     process.stdin.resume()
@@ -88,11 +86,19 @@ export const proxy: TTask = {
     })
 
     ws.on(`close`, (code, reason) => {
-      if (code !== 1000 && code !== 1005) {
-        process.stderr.write(`Tunnel closed: ${code} ${reason?.toString() || ``}\n`)
+      if (code === 1000 || code === 1005) process.exit(0)
+
+      // Bun emits close 1002 when the server rejects the WebSocket upgrade
+      // (e.g. 401 auth failure). The actual HTTP status is not available.
+      if (code === 1002 && !upstreamReady) {
+        process.stderr.write(
+          `Server tunnel rejected — check your API key or sandbox ID\n`
+        )
         process.exit(1)
       }
-      process.exit(0)
+
+      process.stderr.write(`Tunnel closed: ${code} ${reason?.toString() || ``}\n`)
+      process.exit(1)
     })
 
     ws.on(`error`, (err: any) => {
@@ -102,16 +108,6 @@ export const proxy: TTask = {
         hint = ` Try "tsa login --insecure".`
       else if (err.code === `ENOTFOUND`) hint = ` Check the proxy URL in your config.`
       process.stderr.write(`Tunnel error: ${err.message}${hint}\n`)
-      process.exit(1)
-    })
-
-    ws.on(`unexpected-response`, (_req: any, res: any) => {
-      const status = res?.statusCode || `unknown`
-      const msg =
-        status === 401 || status === 4001
-          ? `Authentication failed - check your API key`
-          : `Server rejected tunnel connection (${status})`
-      process.stderr.write(`${msg}\n`)
       process.exit(1)
     })
   },

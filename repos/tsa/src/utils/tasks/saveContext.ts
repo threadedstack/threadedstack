@@ -6,20 +6,25 @@ export const saveContext = (
   config: TTsaConfig,
   orgId: string,
   projectId: string,
-  sandboxId?: string
+  sandboxId?: string,
+  agentId?: string
 ): void => {
   const updates: Partial<TTsaConfig> = {}
 
   if (orgId !== config.org) {
     updates.org = orgId
+    updates.agent = agentId
     updates.project = projectId
-    updates.sandboxId = sandboxId
+    updates.sandbox = sandboxId
   } else if (projectId !== config.project) {
+    updates.agent = agentId
     updates.project = projectId
-    updates.sandboxId = sandboxId
-  } else if (sandboxId && sandboxId !== config.sandboxId) {
-    updates.sandboxId = sandboxId
+    updates.sandbox = sandboxId
   }
+
+  if (sandboxId && sandboxId !== config.sandbox) updates.sandbox = sandboxId
+
+  if (agentId && agentId !== config.agent) updates.agent = agentId
 
   if (Object.keys(updates).length === 0) return
 

@@ -8,6 +8,7 @@ import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
+import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 import {
   clearSyncCleanup,
@@ -56,20 +57,23 @@ const joinShellSession = async (
     ws.addEventListener(`message`, (event) => {
       const data = event.data
       if (typeof data === `string`) {
+        let msg: any
         try {
-          const msg = JSON.parse(data)
-          if (msg.type === `joined` || msg.type === `reconnected`) {
-            connected = true
-            process.stderr.write(
-              `${themed(`success`, `Joined`)} session ${sessionId.slice(0, 12)}\n`
-            )
-          } else if (msg.type === `error`) {
-            process.stderr.write(`${themed(`error`, `Error:`)} ${msg.message}\n`)
-          } else if (msg.type === `disconnected`) {
-            process.stderr.write(`${themed(`muted`, `Disconnected: ${msg.reason}`)}\n`)
-          }
-        } catch (_err) {
+          msg = JSON.parse(data)
+        } catch {
           process.stdout.write(data)
+          return
+        }
+
+        if (msg.type === `joined` || msg.type === `reconnected`) {
+          connected = true
+          process.stderr.write(
+            `${themed(`success`, `Joined`)} session ${sessionId.slice(0, 12)}\n`
+          )
+        } else if (msg.type === `error`) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${msg.message}\n`)
+        } else if (msg.type === `disconnected`) {
+          process.stderr.write(`${themed(`muted`, `Disconnected: ${msg.reason}`)}\n`)
         }
         return
       }
@@ -80,23 +84,21 @@ const joinShellSession = async (
       }
     })
 
-    const onStdinData = (chunk: Buffer) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(chunk)
-      }
+    const onStdinData = (chunk: string | BufferSource | Blob) => {
+      ws.readyState === WebSocket.OPEN && ws.send(chunk)
     }
+
     process.stdin.on(`data`, onStdinData)
 
     const onResize = () => {
-      if (ws.readyState === WebSocket.OPEN) {
+      ws.readyState === WebSocket.OPEN &&
         ws.send(
           JSON.stringify({
             type: `resize`,
-            cols: process.stdout.columns || 80,
             rows: process.stdout.rows || 24,
+            cols: process.stdout.columns || 80,
           })
         )
-      }
     }
     process.stdout.on(`resize`, onResize)
 
@@ -151,14 +153,7 @@ export const ssh: TTask = {
     },
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
-    const sandboxId = params.sandbox || options?.[0]
-    if (!sandboxId) {
-      process.stdout.write(
-        `${themed(`warning`, `Usage: tsa ssh <sandbox-id> [--org <id>]`)}\n`
-      )
-      process.exit(1)
-    }
-
+    const explicitSandboxId = params.sandbox || options?.[0]
     const client = new ApiClient(auth)
 
     let orgId: string
@@ -180,7 +175,21 @@ export const ssh: TTask = {
       process.exit(1)
     }
 
-    if (config) saveContext(config, orgId, projectId)
+    let sandboxId: string
+    try {
+      sandboxId = await resolveSandboxId(
+        client,
+        orgId,
+        projectId,
+        explicitSandboxId as string | undefined,
+        config?.sandbox
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId, sandboxId)
 
     // Session join path: connect via shell WebSocket instead of native SSH
     const sessionId = params.session as string | undefined

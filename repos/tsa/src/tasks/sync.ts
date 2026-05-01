@@ -3,6 +3,7 @@ import type { TSyncMode, TSyncRule } from '@tdsk/domain'
 
 import { existsSync } from 'fs'
 import { themed } from '@TSA/theme'
+import { createInterface } from 'readline'
 import { ApiClient } from '@TSA/services/api'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
@@ -10,15 +11,73 @@ import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { CliDriver } from '@TSA/services/sync/mutagenClient'
 import { SyncManager } from '@TSA/services/sync/syncManager'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
+import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
 import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
 import {
-  registerSyncCleanup,
   clearSyncCleanup,
+  registerSyncCleanup,
 } from '@TSA/utils/tasks/syncCleanupRegistry'
 
 const driver = new CliDriver()
 const manager = new SyncManager(driver)
+
+const promptSyncSandboxSelection = async (sbIds: string[]): Promise<string> => {
+  process.stdout.write(`\n${themed(`primary`, `Select a sandbox to target:`)}\n`)
+  sbIds.forEach((id, i) => {
+    process.stdout.write(`  ${themed(`muted`, `${i + 1}.`)} ${id}\n`)
+  })
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  const onSigint = () => {
+    rl.close()
+    process.exit(130)
+  }
+  process.once(`SIGINT`, onSigint)
+  return new Promise((resolve) => {
+    const ask = () => {
+      rl.question(`${themed(`muted`, `Enter number:`)} `, (answer) => {
+        const idx = Number.parseInt(answer, 10) - 1
+        if (idx >= 0 && idx < sbIds.length) {
+          process.removeListener(`SIGINT`, onSigint)
+          rl.close()
+          resolve(sbIds[idx])
+        } else {
+          process.stdout.write(
+            `  ${themed(`error`, `Invalid selection.`)} Enter a number between 1 and ${sbIds.length}.\n`
+          )
+          ask()
+        }
+      })
+    }
+    ask()
+  })
+}
+
+const resolveActiveSyncSandbox = async (
+  syncManager: SyncManager,
+  explicitSandboxId?: string
+): Promise<string | null> => {
+  if (explicitSandboxId) return explicitSandboxId
+
+  const sessions = await syncManager.status()
+  if (sessions.length === 0) return null
+
+  const sbIds = [
+    ...new Set(sessions.map((s) => s.labels?.sandboxId).filter(Boolean) as string[]),
+  ]
+
+  if (sbIds.length === 0) return null
+
+  if (sbIds.length === 1) {
+    process.stdout.write(`${themed(`muted`, `Using sandbox:`)} ${sbIds[0]}\n`)
+    return sbIds[0]
+  }
+
+  if (process.stdin.isTTY) return promptSyncSandboxSelection(sbIds)
+
+  throw new Error(`Multiple sync sessions found. Use <sandbox-id> or --all.`)
+}
 
 const stopTask: TTask = {
   name: `stop`,
@@ -33,7 +92,13 @@ const stopTask: TTask = {
   },
   action: ensureAuth(async ({ params, auth, options }) => {
     if (params.all) {
-      const sessions = await manager.status()
+      let sessions: Awaited<ReturnType<typeof manager.status>>
+      try {
+        sessions = await manager.status()
+      } catch (err) {
+        process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+        process.exit(1)
+      }
       const errors: string[] = []
       for (const s of sessions) {
         try {
@@ -51,15 +116,28 @@ const stopTask: TTask = {
       return
     }
 
-    const sandboxId = (options?.[0] || params.sandbox) as string
-    if (!sandboxId) {
-      process.stdout.write(
-        `${themed(`error`, `Usage: tsa sync stop <sandbox-id> or --all`)}\n`
+    let sandboxId: string | null
+    try {
+      sandboxId = await resolveActiveSyncSandbox(
+        manager,
+        (options?.[0] || params.sandbox) as string | undefined
       )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
     }
 
-    await manager.stopAll(sandboxId)
+    if (!sandboxId) {
+      process.stdout.write(`${themed(`muted`, `No active sync sessions`)}\n`)
+      return
+    }
+
+    try {
+      await manager.stopAll(sandboxId)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
     process.stdout.write(`${themed(`success`, `Sync stopped for ${sandboxId}`)}\n`)
   }),
 }
@@ -70,7 +148,13 @@ const statusTask: TTask = {
   example: `tsa sync status [sandbox-id]`,
   action: ensureAuth(async ({ options }) => {
     const sandboxId = options?.[0] as string | undefined
-    const sessions = await manager.status(sandboxId)
+    let sessions: Awaited<ReturnType<typeof manager.status>>
+    try {
+      sessions = await manager.status(sandboxId)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
 
     if (sessions.length === 0) {
       process.stdout.write(`${themed(`muted`, `No active sync sessions`)}\n`)
@@ -108,12 +192,28 @@ const flushTask: TTask = {
   description: `Force immediate sync cycle`,
   example: `tsa sync flush <sandbox-id>`,
   action: ensureAuth(async ({ options, params }) => {
-    const sandboxId = (options?.[0] || params.sandbox) as string
-    if (!sandboxId) {
-      process.stdout.write(`${themed(`error`, `Usage: tsa sync flush <sandbox-id>`)}\n`)
+    let sandboxId: string | null
+    try {
+      sandboxId = await resolveActiveSyncSandbox(
+        manager,
+        (options?.[0] || params.sandbox) as string | undefined
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
     }
-    await manager.flushAll(sandboxId)
+
+    if (!sandboxId) {
+      process.stdout.write(`${themed(`muted`, `No active sync sessions`)}\n`)
+      return
+    }
+
+    try {
+      await manager.flushAll(sandboxId)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
     process.stdout.write(`${themed(`success`, `Flush triggered for ${sandboxId}`)}\n`)
   }),
 }
@@ -123,7 +223,13 @@ const cleanupTask: TTask = {
   description: `Terminate orphaned sync sessions (errored/disconnected)`,
   example: `tsa sync cleanup`,
   action: ensureAuth(async () => {
-    const sessions = await manager.status()
+    let sessions: Awaited<ReturnType<typeof manager.status>>
+    try {
+      sessions = await manager.status()
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
     const orphaned = sessions.filter(
       (s) => s.status === `errored` || s.status === `disconnected`
     )
@@ -222,18 +328,9 @@ export const sync: TTask = {
     },
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
-    const sandboxId = (params.sandbox || options?.[0]) as string
-    if (!sandboxId) {
-      process.stdout.write(
-        `${themed(`error`, `Usage: tsa sync <sandbox-id> [options]`)}\n` +
-          `${themed(`muted`, `  Or configure rules in ~/.config/tdsk/tsa.yaml under sync.rules`)}\n`
-      )
-      process.exit(1)
-    }
-
+    const explicitSandboxId = (params.sandbox || options?.[0]) as string | undefined
     const client = new ApiClient(auth)
 
-    // Resolve org
     let orgId: string
     try {
       orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
@@ -242,7 +339,6 @@ export const sync: TTask = {
       process.exit(1)
     }
 
-    // Resolve project — clear cached project when org changes
     const explicitProject =
       orgId !== config?.org ? undefined : (params.project as string | undefined)
 
@@ -254,7 +350,21 @@ export const sync: TTask = {
       process.exit(1)
     }
 
-    if (config) saveContext(config, orgId, projectId)
+    let sandboxId: string
+    try {
+      sandboxId = await resolveSandboxId(
+        client,
+        orgId,
+        projectId,
+        explicitSandboxId,
+        config?.sandbox
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId, sandboxId)
 
     // Auto-start pod via connect
     process.stdout.write(`${themed(`muted`, `Connecting to sandbox...`)}\n`)
@@ -265,12 +375,12 @@ export const sync: TTask = {
     )
     if (connectError || !connectResp) {
       const msg = connectError?.message || `Failed to connect`
-      process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+      process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
     const { podName } = connectResp
     if (!podName) {
-      process.stdout.write(
+      process.stderr.write(
         `${themed(`error`, `Error: No pod name returned from server`)}\n`
       )
       process.exit(1)
@@ -287,7 +397,7 @@ export const sync: TTask = {
       publicKey
     )
     if (sshError) {
-      process.stdout.write(`${themed(`error`, `Error:`)} ${sshError.message}\n`)
+      process.stderr.write(`${themed(`error`, `Error:`)} ${sshError.message}\n`)
       process.exit(1)
     }
 
@@ -297,7 +407,7 @@ export const sync: TTask = {
       sandboxId
     )
     if (sandboxError) {
-      process.stdout.write(
+      process.stderr.write(
         `${themed('error', 'Error:')} Failed to fetch sandbox config: ${sandboxError.message}\n`
       )
       process.exit(1)
@@ -324,7 +434,7 @@ export const sync: TTask = {
       const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
       rules = mergeRules(syncConfig.rules, sandboxSync, overrides)
     } else {
-      process.stdout.write(
+      process.stderr.write(
         `${themed(`error`, `No sync rules configured.`)}\n` +
           `${themed(`muted`, `  Add rules to ~/.config/tdsk/tsa.yaml under sync.rules`)}\n` +
           `${themed(`muted`, `  Or use --source <path> for a quick one-off sync`)}\n`
@@ -337,7 +447,7 @@ export const sync: TTask = {
     for (const rule of rules) {
       rule.source = resolveSourcePath(rule.source, cwd)
       if (!existsSync(rule.source)) {
-        process.stdout.write(
+        process.stderr.write(
           `${themed(`error`, `Source path does not exist: ${rule.source}`)}\n`
         )
         process.exit(1)
@@ -345,14 +455,20 @@ export const sync: TTask = {
     }
 
     // Start sync
-    const sessions = await manager.startAll(
-      sandboxId,
-      orgId,
-      rules,
-      sandboxSync,
-      syncConfig?.defaultIgnores,
-      params.noDefaults as boolean
-    )
+    let sessions: Awaited<ReturnType<typeof manager.startAll>>
+    try {
+      sessions = await manager.startAll(
+        sandboxId,
+        orgId,
+        rules,
+        sandboxSync,
+        syncConfig?.defaultIgnores,
+        params.noDefaults as boolean
+      )
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
 
     if (sessions.length === 0) {
       process.stdout.write(

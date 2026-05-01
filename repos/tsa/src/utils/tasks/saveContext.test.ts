@@ -14,9 +14,9 @@ describe(`saveContext`, () => {
     vi.spyOn(process.stderr, `write`).mockImplementation(() => true)
   })
 
-  it(`saves org, project, and sandboxId when org changes`, () => {
+  it(`saves org, project, and sandbox when org changes`, () => {
     saveContext(
-      { org: `old-org`, project: `old-proj`, sandboxId: `old-sb` },
+      { org: `old-org`, project: `old-proj`, sandbox: `old-sb` },
       `new-org`,
       `new-proj`,
       `new-sb`
@@ -25,26 +25,26 @@ describe(`saveContext`, () => {
       expect.objectContaining({
         org: `new-org`,
         project: `new-proj`,
-        sandboxId: `new-sb`,
+        sandbox: `new-sb`,
       })
     )
   })
 
-  it(`clears sandboxId when org changes and no sandbox provided`, () => {
+  it(`clears sandbox when org changes and no sandbox provided`, () => {
     saveContext(
-      { org: `old-org`, project: `old-proj`, sandboxId: `old-sb` },
+      { org: `old-org`, project: `old-proj`, sandbox: `old-sb` },
       `new-org`,
       `new-proj`
     )
     const saved = mockSaveGlobal.mock.calls[0][0]
     expect(saved.org).toBe(`new-org`)
     expect(saved.project).toBe(`new-proj`)
-    expect(saved.sandboxId).toBeUndefined()
+    expect(saved.sandbox).toBeUndefined()
   })
 
-  it(`saves project and sandboxId when project changes but org is same`, () => {
+  it(`saves project and sandbox when project changes but org is same`, () => {
     saveContext(
-      { org: `org1`, project: `old-proj`, sandboxId: `old-sb` },
+      { org: `org1`, project: `old-proj`, sandbox: `old-sb` },
       `org1`,
       `new-proj`,
       `new-sb`
@@ -52,46 +52,87 @@ describe(`saveContext`, () => {
     const saved = mockSaveGlobal.mock.calls[0][0]
     expect(saved.org).toBe(`org1`)
     expect(saved.project).toBe(`new-proj`)
-    expect(saved.sandboxId).toBe(`new-sb`)
+    expect(saved.sandbox).toBe(`new-sb`)
   })
 
-  it(`clears sandboxId when project changes and no sandbox provided`, () => {
+  it(`clears sandbox when project changes and no sandbox provided`, () => {
     saveContext(
-      { org: `org1`, project: `old-proj`, sandboxId: `old-sb` },
+      { org: `org1`, project: `old-proj`, sandbox: `old-sb` },
       `org1`,
       `new-proj`
     )
     const saved = mockSaveGlobal.mock.calls[0][0]
     expect(saved.project).toBe(`new-proj`)
-    expect(saved.sandboxId).toBeUndefined()
+    expect(saved.sandbox).toBeUndefined()
   })
 
-  it(`saves only sandboxId when org and project are unchanged`, () => {
+  it(`saves only sandbox when org and project are unchanged`, () => {
     saveContext(
-      { org: `org1`, project: `proj1`, sandboxId: `old-sb` },
+      { org: `org1`, project: `proj1`, sandbox: `old-sb` },
       `org1`,
       `proj1`,
       `new-sb`
     )
     const saved = mockSaveGlobal.mock.calls[0][0]
-    expect(saved.sandboxId).toBe(`new-sb`)
+    expect(saved.sandbox).toBe(`new-sb`)
     expect(saved.org).toBe(`org1`)
     expect(saved.project).toBe(`proj1`)
   })
 
   it(`does not call saveGlobal when nothing changed`, () => {
+    saveContext({ org: `org1`, project: `proj1`, sandbox: `sb1` }, `org1`, `proj1`, `sb1`)
+    expect(mockSaveGlobal).not.toHaveBeenCalled()
+  })
+
+  it(`does not call saveGlobal when org and project match and no sandbox provided`, () => {
+    saveContext({ org: `org1`, project: `proj1` }, `org1`, `proj1`)
+    expect(mockSaveGlobal).not.toHaveBeenCalled()
+  })
+
+  it(`saves agent when agentId is provided and differs from config`, () => {
     saveContext(
-      { org: `org1`, project: `proj1`, sandboxId: `sb1` },
+      { org: `org1`, project: `proj1`, agent: `old-agent` },
       `org1`,
       `proj1`,
-      `sb1`
+      undefined,
+      `new-agent`
+    )
+    const saved = mockSaveGlobal.mock.calls[0][0]
+    expect(saved.agent).toBe(`new-agent`)
+  })
+
+  it(`does not save when agentId matches config.agent`, () => {
+    saveContext(
+      { org: `org1`, project: `proj1`, agent: `agent1` },
+      `org1`,
+      `proj1`,
+      undefined,
+      `agent1`
     )
     expect(mockSaveGlobal).not.toHaveBeenCalled()
   })
 
-  it(`does not call saveGlobal when org and project match and no sandboxId provided`, () => {
-    saveContext({ org: `org1`, project: `proj1` }, `org1`, `proj1`)
-    expect(mockSaveGlobal).not.toHaveBeenCalled()
+  it(`clears agent when org changes and no agentId provided`, () => {
+    saveContext(
+      { org: `old-org`, project: `old-proj`, agent: `old-agent` },
+      `new-org`,
+      `new-proj`
+    )
+    const saved = mockSaveGlobal.mock.calls[0][0]
+    expect(saved.agent).toBeUndefined()
+  })
+
+  it(`sets agent when org changes and agentId is provided`, () => {
+    saveContext(
+      { org: `old-org`, project: `old-proj`, agent: `old-agent` },
+      `new-org`,
+      `new-proj`,
+      undefined,
+      `new-agent`
+    )
+    const saved = mockSaveGlobal.mock.calls[0][0]
+    expect(saved.org).toBe(`new-org`)
+    expect(saved.agent).toBe(`new-agent`)
   })
 
   it(`writes warning to stderr when saveGlobal throws`, () => {

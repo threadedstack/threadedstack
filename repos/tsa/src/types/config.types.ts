@@ -1,5 +1,5 @@
+import type { TSyncConfig } from '@tdsk/domain'
 import type { TThemeType } from '@TSA/types/theme.types'
-import type { ESandboxType, TSyncConfig } from '@tdsk/domain'
 
 export type TAuthConfig = {
   token?: string
@@ -24,12 +24,6 @@ export type TBehaviorConfig = {
   confirmTools?: boolean
 }
 
-export type TSandboxConfig = {
-  timeout?: number
-  provider?: ESandboxType
-  envVars?: Record<string, string>
-}
-
 export type THooksConfig = {
   onError?: string
   onMessage?: string
@@ -47,13 +41,12 @@ export type TToolsConfig = {
 export type TTsaConfig = {
   org?: string
   agent?: string
+  sandbox?: string
   project?: string
-  sandboxId?: string
   auth?: TAuthConfig
   sync?: TSyncConfig
   hooks?: THooksConfig
   tools?: TToolsConfig
-  sandbox?: TSandboxConfig
   display?: TDisplayConfig
   behavior?: TBehaviorConfig
 }
