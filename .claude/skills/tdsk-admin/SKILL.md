@@ -11,7 +11,7 @@ tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-das
 - **Authentication**: Neon Auth (`@neondatabase/neon-js`) with social OAuth (GitHub, GitLab, Google, Vercel) + email login
 - **Path Alias**: `@TAF/*` via `alias-hq`; styling via Emotion + MUI theming; toasts via Sonner; analytics via PostHog
 - **Data flow**: React Router v7 loaders -> API actions -> services -> TanStack cache -> Jotai store -> components
-- 22 action domains, 49 component directories, 22 Jotai atom files, 36 service files
+- 22 action domains, 48 component directories, 23 Jotai atom files, 29 service files
 
 ## Directory Structure
 
@@ -23,16 +23,16 @@ repos/admin/
     ├── index.tsx               # Bootstrap: StrictMode > Jotai Provider > AuthProvider > App + Version
     ├── App.tsx                 # ThemeProvider > GlobalStyles > RouterProvider
     ├── actions/                # ~256 files across 22 domains (api/ + local/ subdirs)
-    ├── components/             # 49 directories, 210+ files
+    ├── components/             # 48 directories, 210+ files
     ├── constants/              # endpoints.ts, envs.ts, monaco.ts, nav.tsx, providers.ts, query.ts, storage.ts, tools.ts, values.ts
     ├── contexts/               # AuthContext/Provider (Neon Auth)
-    ├── hooks/                  # 40 files: chat/, components/, endpoints/, nav/, org/, permissions/, project/, theme/
+    ├── hooks/                  # 29 files: chat/, components/, endpoints/, nav/, org/, permissions/, project/, theme/
     ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Projects/*, Providers, Settings
     ├── routes/                 # Routes.tsx (createBrowserRouter + lazy loading), loaders.ts (26 loaders)
-    ├── services/               # 36 service files (singleton classes)
-    ├── state/                  # 22 Jotai atom files + accessors.ts + selectors.ts + index.ts
+    ├── services/               # 29 service files (singleton classes)
+    ├── state/                  # 23 Jotai atom files + accessors.ts + selectors.ts + index.ts
     ├── theme/                  # GlobalStyles.tsx
-    ├── types/                  # 19 type definition files (includes routes.types.ts with ERoutePath enum)
+    ├── types/                  # 16 type definition files (includes routes.types.ts with ERoutePath enum)
     └── utils/                  # api/, endpoints/, errors/, nav/, sandbox/, text/, transforms/, user/
 ```
 
@@ -75,7 +75,7 @@ Three-layer design:
 2. **Accessors** (`src/state/accessors.ts`) -- Imperative `get*/set*/reset*` for use outside React (actions, services). Includes scope-keyed accessors: `getContext*/setContext*` for org-scoped entities, `getProject*/setProject*` for project-scoped, `getThread*/setThread*` for messages.
 3. **Selectors** (`src/state/selectors.ts`) -- `useRecState` (returns [value, setter, resetter]) and `useDerivedState` (returns [value, setter, noOp]) hooks for React components.
 
-**22 atom files**: agents, apiKeys, app, assets, domains, endpoints, functions, invoices, messages, orgs, projectMembers, projects, providers, quickstart, quotas, sandboxes, schedules, secrets, skills, subscriptions, theme, threads, user. Each typically exports an entity state atom (`Record<string, Entity> | undefined`), an active ID atom, and derived atoms for org/project scoping.
+**23 atom files**: agents, apiKeys, app, assets, domains, endpoints, functions, invoices, messages, onboarding, orgs, projectMembers, projects, providers, quotas, sandboxes, schedules, secrets, skills, subscriptions, theme, threads, user. Each typically exports an entity state atom (`Record<string, Entity> | undefined`), an active ID atom, and derived atoms for org/project scoping.
 
 **Global store**: `export const store = createStore()` in `src/state/accessors.ts`.
 
@@ -84,9 +84,9 @@ Three-layer design:
 Three-layer design:
 1. **ApiService** (`src/services/api.ts`) -- Base fetch wrapper with Bearer auth (Neon Auth session token), TanStack QueryClient caching, URL resolution from `TDSK_CADDY_PX_HOST` > `TDSK_PX_URL` > `TDSK_PX_HOST:TDSK_PX_PORT`
 2. **BaseApi** -- Adds `_onError()` toast notification via Sonner
-3. **Domain APIs** -- 36 entity-specific service classes extending BaseApi, all exported as singletons
+3. **Domain APIs** -- 29 entity-specific service classes extending BaseApi, all exported as singletons
 
-Key services: `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (CRUD + lifecycle: start, stop, connect, status, sessions), `AgentWSService` (WebSocket sessions), `SkillsApi`, `SchedulesApi`, `QuickstartApi`, `ProjectMembersApi`.
+Key services (29 total): `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (CRUD + lifecycle: start, stop, connect, status, sessions), `AgentWSService` (WebSocket sessions), `SkillsApi`, `SchedulesApi`, `QuickstartApi`, `ProjectMembersApi`.
 
 **Cache key pattern**: `all: [path]`, `list: [path, 'list']`, `detail: [path, 'detail', id]`. TanStack defaults: staleTime 5 min, gcTime 30 min, no retry, refetchOnWindowFocus off.
 
@@ -103,7 +103,7 @@ Key services: `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (CRUD + life
 - **Local actions** (`actions/<domain>/local/`) -- Sync: direct Jotai mutations (upsert, remove, set)
 - Components call API actions which internally delegate to local actions after successful responses
 
-22 action domains: agents, apiKeys, assets, auth, domains, endpoints, functions, messages, orgs, profile, projectMembers, projects, providers, quickstart, quotas, sandboxes, schedules, secrets, skills, subscriptions, threads, users.
+22 action domains: agents, apiKeys, assets, auth, domains, endpoints, functions, messages, onboarding, orgs, profile, projectMembers, projects, providers, quotas, sandboxes, schedules, secrets, skills, subscriptions, threads, users.
 
 ## Navigation
 

@@ -91,6 +91,8 @@ Auth, subscription, and quota enforcement are applied in `accounts.ts`, not glob
 | `enforceQuota` | `enforceQuota.ts` | Map POST routes to quota resource keys (projects, endpoints, secrets, threads, messages, organizations), check tier limits from `PlanLimits`, return 403 `quota_exceeded` when over limit. For POST /orgs uses user-scoped owned org count. Fails closed (blocks on error) |
 | `projectAccessGuard` | `projectAccessGuard.ts` | Enforce project-level access for project-scoped API keys. Org-scoped keys and JWT auth pass through. 403 otherwise |
 | `sandboxProxy` | `sandboxProxy.ts` | Intercept sandbox subdomain requests, parse hostname to extract port+subdomain, look up in-memory route map, proxy to pod IP:port |
+| `featureGate` | `featureGate.ts` | Feature flag enforcement — gates routes behind `isFeatureEnabled(flag)`, returns 404 when flag is disabled |
+| `rateLimit` | `rateLimit.ts` | Rate limiting via `express-rate-limit` — auth routes (20/min) and general API routes (200/min) with draft-7 headers |
 
 ## Services
 

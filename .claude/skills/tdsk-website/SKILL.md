@@ -26,11 +26,11 @@ repos/website/
 │   ├── App.tsx             # HelmetProvider → ThemeProvider → GlobalStyles → RouterProvider
 │   ├── router.tsx          # Routes: MarketingLayout + DocsLayout
 │   ├── components/
-│   │   ├── Docs/           # DocsSidebar, DocsTableOfContents, DocsPrevNext, MDXComponents, ComingSoon, CodeBlock
+│   │   ├── Docs/           # ComingSoon, DocsPrevNext, DocsSidebar, DocsTableOfContents, MDXComponents, MermaidBlock
 │   │   ├── Header/         # Header, MobileMenu, ThemeToggle
 │   │   ├── Footer/         # MarketingFooter, DocsFooter
-│   │   ├── Landing/        # Hero, ArchitectureDiagram, Features, HowItWorks, CodePreview, Pricing, UseCases, CTABanner
-│   │   └── Shared/         # PricingCard, PricingTierGrid, CalloutBox, SectionContainer, SectionHeader, FeatureCard, StepItem, PageMeta, CodeBlock, pricingTiers.ts
+│   │   ├── Landing/        # ArchitectureDiagram, CodePreview, CTABanner, Features, Hero, HowItWorks, Pricing, Testimonials, UseCases
+│   │   └── Shared/         # CalloutBox, CodeBlock, FeatureCard, PageMeta, PricingCard, PricingTierGrid, pricingTiers.ts, SectionContainer, SectionHeader, StepItem
 │   ├── pages/              # Landing, Features, Pricing, UseCases, docs/DocsPage
 │   ├── layouts/            # MarketingLayout (Header+Footer), DocsLayout (Header+Sidebar+Footer)
 │   ├── hooks/              # useMakeTheme, useActiveHeading, useScrollPosition

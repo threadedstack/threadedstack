@@ -9,7 +9,7 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 
 - **ORM layer** for Threaded Stack using **Drizzle ORM** + **PostgreSQL (Neon.com)**
 - 25 Drizzle-managed tables + 2 external (Neon Auth `users`, Caddy `certificates`), 8 junction tables
-- 20 service classes with CRUD, domain model conversion, and polymorphic "Exclusive Arc" relationships
+- 21 service classes with CRUD, domain model conversion, and polymorphic "Exclusive Arc" relationships
 - Database singleton via `pg.Pool`; all services auto-initialized on first `database()` call
 - **Path Alias:** `@TDB/*`
 
@@ -26,7 +26,7 @@ repos/database/
 │   ├── constants/         # DefDBProto constant
 │   ├── schemas/           # 27 Drizzle table schemas
 │   ├── seeds/             # ids.seed.ts, fullorg.ts
-│   ├── services/          # 20 service classes + base + tests
+│   ├── services/          # 21 service classes + base + tests
 │   ├── types/             # db.types.ts, schema.types.ts, helper.types.ts, service.types.ts
 │   └── utils/             # crypto.ts, logger.ts, database/, error/, schema/
 ├── index.ts               # Root re-export
@@ -42,7 +42,7 @@ repos/database/
 | `src/schemas/schemas.ts` | Barrel for 25 Drizzle-managed tables (excludes users, certificates) |
 | `src/schemas/index.ts` | Full barrel: schemas.ts + users + certificates |
 | `src/services/base.ts` | `Base<TTable, S, I, M>` class with CRUD, `model()`, `with()` |
-| `src/services/index.ts` | 20 named service exports |
+| `src/services/index.ts` | 21 named service exports |
 | `src/types/schema.types.ts` | TDB*Select/Insert types via `$inferSelect`/`$inferInsert` |
 | `src/types/db.types.ts` | TDatabase (NodePgDatabase + services), TDBConfig, TDBServices |
 | `src/utils/crypto.ts` | `encryptSecret()` using domain's HKDF + AES-256-GCM |
@@ -92,13 +92,13 @@ repos/database/
 
 ## Architecture
 
-The database repo uses a 3-layer architecture: **Consumer repos** (backend, proxy) import the `database()` singleton which provides 20 auto-initialized services. Each **service** extends `Base<TTable, S, I, M>` with CRUD + domain model conversion. Services operate on **Drizzle schemas** (27 table definitions + relations) backed by PostgreSQL via Neon.com.
+The database repo uses a 3-layer architecture: **Consumer repos** (backend, proxy) import the `database()` singleton which provides 21 auto-initialized services. Each **service** extends `Base<TTable, S, I, M>` with CRUD + domain model conversion. Services operate on **Drizzle schemas** (27 table definitions + relations) backed by PostgreSQL via Neon.com.
 
-The `database()` factory is a singleton that creates a `pg.Pool`, initializes a Drizzle instance, and attaches all 20 services. Call `disconnectDatabase()` to close the pool and reset. Consumers access services via `db.services.<name>`.
+The `database()` factory is a singleton that creates a `pg.Pool`, initializes a Drizzle instance, and attaches all 21 services. Call `disconnectDatabase()` to close the pool and reset. Consumers access services via `db.services.<name>`.
 
 Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables (used for migrations), `schemas/index.ts` adds the 2 external read-only tables.
 
-## Services (20 total)
+## Services (21 total)
 
 ### Base Service Class
 
@@ -130,7 +130,7 @@ Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables 
 | `schedule` | `schedules` | `Schedule` | listDue (enabled + nextRunAt <= now), markRun (resets errors), incrementErrors (auto-disables at max) |
 | `invoice` | `invoices` | `Invoice` | findByUserId, upsertByStripeId |
 
-**Agent service** is the most complex (425 lines). Auto-loads secrets, projects, functions, providers, and skills. Sorts providers by priority. `create`/`update`/`upsert` handle junction tables automatically. Pass `opts.sanitize = false` to skip secret sanitization.
+**Agent service** is the most complex (~578 lines). Auto-loads secrets, projects, functions, providers, and skills. Sorts providers by priority. `create`/`update`/`upsert` handle junction tables automatically. Pass `opts.sanitize = false` to skip secret sanitization.
 
 **Sandbox service** auto-loads projects (via sandboxProjects) and providers (via sandboxProviders). The `model()` method maps junction data to `SandboxModel` with `projects`, `projectConfigs`, and `providerLinks` arrays.
 

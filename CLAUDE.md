@@ -67,7 +67,7 @@ The platform solves three key problems:
 3. **Context management** - Built-in RAG and memory management for LLM applications
 4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Stripe with usage quota tracking for 12 resource types
 
-**Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature. Orgs get 4 built-in sandbox presets on creation. Agents remain functional but are deprioritized in UI/UX. The `tsa run` CLI command is the hero entry point for launching AI tool runtimes in sandboxes.
+**Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature. Orgs get 4 built-in sandbox presets on creation. Agents remain functional but are deprioritized in UI/UX. The `tsa sandbox` CLI command (aliased as `tsa run`) is the hero entry point for launching AI tool runtimes in sandboxes.
 
 ### important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
@@ -154,7 +154,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `sandbox/` | Pluggable sandbox execution layer + runtime-aware pod manifest | K8s pods, isolated-vm, just-bash, isomorphic-git, runtime presets | `.claude/skills/tdsk-sandbox/SKILL.md` |
 | `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
 | `website/` | Marketing site + docs portal | Vite, React, MUI, MDX, Shiki, docs from root `docs/` | `.claude/skills/tdsk-website/SKILL.md` |
-| `threads/` | User-facing threads SPA — sandbox sessions, chat, terminal | Vite, React, MUI, Jotai, Neon Auth, ghostty-web | `.claude/skills/tdsk-threads/SKILL.md` |
+| `threads/` | User-facing threads SPA — sandbox sessions, AST-based GUI engine, terminal | Vite, React, MUI, Jotai, Neon Auth, ghostty-web | `.claude/skills/tdsk-threads/SKILL.md` |
 
 ## Sub-Repo Skills
 
@@ -174,19 +174,19 @@ Load the relevant skill when working on a specific repo:
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state (22 atoms), MUI theming, React Router v7 loaders, 49 component dirs, 22 action domains, Skills/Schedules UI, Billing, Quota tracking |
+| `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state (23 atoms), MUI theming, React Router v7 loaders, 48 component dirs, 22 action domains, Skills/Schedules UI, Billing, Quota tracking |
 | `tdsk-agent/SKILL.md` | Instance-based multi-turn agent orchestration (init/runTurn/updateConfig/destroy), skill resolver, context manager, web tools (Jina), artifact tool, thinking support, 12 sandbox+web tools |
-| `tdsk-backend/SKILL.md` | Express 5 API, Skills/Schedules/Shell endpoints, OpenAI-compatible chat completions, InterpreterService (generative UI), Scheduler (cron), EgressProxy (MITM), enforceQuota/projectAccessGuard middleware, sandbox lifecycle |
-| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), 6 contexts (app/proxy/backend/admin/caddy/sandbox), task system |
-| `tdsk-components/SKILL.md` | 37 React component dirs (incl. ArtifactRenderer, ChatComponents, Header), 28 icons, 7 hook categories, Monaco editor, theming |
-| `tdsk-database/SKILL.md` | Drizzle ORM, 27 tables (incl. skills, schedules, sandboxProjects, sandboxProviders junctions), 20 services, quotas/subscriptions/sandboxes/invoices |
-| `tdsk-domain/SKILL.md` | 25 model classes (incl. Skill, Schedule, Invoice), terminal parser module, GUI types, sync types, 24+ LLM provider brands, crypto, permissions, provider templates |
+| `tdsk-backend/SKILL.md` | Express 5 API, Skills/Schedules/Shell endpoints, OpenAI-compatible chat completions, InterpreterService (generative UI), Scheduler (cron), EgressProxy (MITM), enforceQuota/projectAccessGuard/featureGate/rateLimit middleware, sandbox lifecycle |
+| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), 6 contexts (app/proxy/backend/admin/caddy/sandbox), 6 task groups (db/deploy/devspace/docker/kube/web) |
+| `tdsk-components/SKILL.md` | 37 React component dirs (incl. ArtifactRenderer, ChatComponents, FeatureGate, Header), 28 icons, 9 hook categories, Monaco editor, theming |
+| `tdsk-database/SKILL.md` | Drizzle ORM, 27 tables (incl. skills, schedules, sandboxProjects, sandboxProviders junctions), 21 services, quotas/subscriptions/sandboxes/invoices |
+| `tdsk-domain/SKILL.md` | 23 model classes (incl. Skill, Schedule, Invoice, Sandbox), 27 type files, terminal parser module, GUI types, sync types, 24+ LLM provider brands, crypto, permissions, provider templates |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching, loadEnvs scripts |
-| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, dual-proxy (backend + sandbox subdomain), WebSocket upgrade dispatch |
-| `tdsk-tsa/SKILL.md` | Pi-TUI terminal CLI, tsa binary, 14 CLI tasks (incl. run/sync/sessions/ssh) + 21 slash commands, Mutagen file sync, thread branching, config system, session-based LLM proxy |
-| `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory (Local + K8s), KubeSandbox (K8s exec API), LocalSandbox (just-bash + V8 isolate), IsolateRunner (13 Node.js shims), git integration (isomorphic-git), evaluate/reset methods |
-| `tdsk-website/SKILL.md` | Vite + React + MUI marketing site, MDX docs portal from root `/docs`, Shiki code highlighting, DocsSidebar, remarkDocsLinks plugin, vitePluginDocsAssets, pricing tiers |
-| `tdsk-threads/SKILL.md` | User-facing threads SPA, sandbox session management, WebSocket streaming, ChatView event routing, GenerativeUI renderer, ghostty-web terminal, SmartInput, hierarchical sidebar nav, Neon Auth, Jotai state |
+| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, rate limiting (11 middleware), dual-proxy (backend + sandbox subdomain), WebSocket upgrade dispatch |
+| `tdsk-tsa/SKILL.md` | Pi-TUI terminal CLI, tsa binary, 12 CLI tasks (incl. sandbox/sync/sessions/ssh) + 19 slash commands, Mutagen file sync, thread branching, config system, session-based LLM proxy |
+| `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory (Local + K8s), KubeSandbox (K8s exec API), LocalSandbox (just-bash + V8 isolate), IsolateRunner (14 Node.js shims), git integration (isomorphic-git, 22 subcommands), evaluate/reset methods |
+| `tdsk-website/SKILL.md` | Vite + React + MUI marketing site, MDX docs portal from root `/docs`, Shiki code highlighting, MermaidBlock, DocsSidebar, remarkDocsLinks plugin, vitePluginDocsAssets, pricing tiers |
+| `tdsk-threads/SKILL.md` | User-facing threads SPA, sandbox session management, WebSocket streaming, AST-based GUI engine (tokenizer/parser/AST/engine/visitors), ASTNodes (15), ActivityFeed, ghostty-web terminal, SmartInput, org/project-scoped routing, Neon Auth, Jotai state |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
 | `integration-testing/SKILL.md` | Three-tier integration testing (API, Playwright UI, E2E flows), sandbox lifecycle tests, WebSocket tunnel tests |
 

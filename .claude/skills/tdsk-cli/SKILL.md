@@ -13,7 +13,7 @@ The CLI repo (`@tdsk/cli`) is a developer CLI for managing the Threaded Stack mo
 - **Kubernetes**: Secrets (6 presets: tdsk, docker, database, payments, email, egress), namespaces, ingress, pod inspection
 - **DevSpace**: Development environment start, clean, log, enter, render, attach, use
 - **Web UI**: Start admin UI in dev mode
-- **Hierarchical tasks**: Built on `@keg-hub/args-parse` with nested commands (3 levels deep), aliases, and options
+- **Hierarchical tasks**: Built on `@keg-hub/args-parse` with nested commands (3 levels deep), aliases, and options across 6 task groups
 
 ## Directory Structure
 
@@ -28,6 +28,8 @@ repos/cli/
 │   ├── types/            # TTask, TTaskAction, TCliCfg, ECtxMap
 │   ├── tasks/            # Command definitions
 │   │   ├── index.ts      # Task registry
+│   │   ├── db/           # certs, check, cleanup, db, dbExport, dk, drop, dup, generate, introspect, migrate, purge, push, reset, rmf, seed, studio
+│   │   ├── deploy/       # apply, deploy, status
 │   │   ├── docker/       # build, run, exec, pull, push, login
 │   │   ├── kube/         # set, pod, secret, remove, ingress, namespace
 │   │   │   └── secret/   # Presets: tdsk, docker, database, payments, email, egress
@@ -88,6 +90,8 @@ Six contexts map to repos/services. `getCtx()` resolves a context name (with ali
 
 | Task Group | Commands | Aliases | Key Options |
 |---|---|---|---|
+| **db** | certs, check, cleanup, db, dbExport, dk, drop, dup, generate, introspect, migrate, purge, push, reset, rmf, seed, studio | — | --context, --env |
+| **deploy** | apply, deploy, status | — | --context, --env, --namespace |
 | **web** | start | ui | --context (default: admin) |
 | **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port, --type, --push, --cache, --arm, --platforms, --login |
 | **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
@@ -130,6 +134,17 @@ pnpm tdsk dev use --namespace dev --context minikube
 
 # Web UI
 pnpm tdsk web start                                       # Start admin UI dev server
+
+# Database management
+pnpm tdsk db migrate                                      # Run migrations
+pnpm tdsk db seed                                         # Seed database
+pnpm tdsk db studio                                       # Open Drizzle Studio
+pnpm tdsk db generate                                     # Generate migration files
+pnpm tdsk db push                                         # Push schema changes
+
+# Deployment
+pnpm tdsk deploy apply                                    # Apply deployment
+pnpm tdsk deploy status                                   # Check deployment status
 ```
 
 ### Egress CA Secret Details

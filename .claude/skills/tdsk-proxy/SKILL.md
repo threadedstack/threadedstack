@@ -21,7 +21,7 @@ repos/proxy/
 ├── src/
 │   ├── constants/values.ts   # PublicRoutes, SessionRoutes, DeferredAuthRoutes, ProxyForwardRoutes, SandboxHostRx
 │   ├── endpoints/            # health, echo, auth/me, auth/logout, domains/validate
-│   ├── middleware/            # setupServer, setupAuth, setupApiKeyAuth, setupSessionAuth, setupProxy, setupLogger, setupDatabase, setupEndpoints, setupErrorHandler, setupPrewarm
+│   ├── middleware/            # setupServer, setupAuth, setupApiKeyAuth, setupSessionAuth, setupProxy, setupLogger, setupDatabase, setupEndpoints, setupErrorHandler, setupPrewarm, rateLimit.ts, setupRateLimit
 │   ├── server/               # app.ts, router.ts (async), server.ts (HTTP/HTTPS + onUpgrade)
 │   ├── services/auth.ts      # Auth class — JWKS client, token extraction, JWT verify, route classification
 │   ├── types/                # proxy, auth, config, envs, express types
@@ -55,17 +55,18 @@ repos/proxy/
 
 ## Middleware Chain Order
 
-Defined in `src/proxy.ts`, wired in this order:
+Defined in `src/proxy.ts`, wired in this order (11 middleware):
 1. **setupLogger** — Request/response logging (skips OPTIONS)
 2. **setupServer** — CORS, urlencoded, router mount
-3. **setupDatabase** — DB singleton on `app.locals.db`
-4. **setupAuth** — JWT via JWKS (skips public + session routes; deferred routes set user but don't reject)
-5. **setupApiKeyAuth** — `tdsk_*` validation (skips public + session; attaches `orgId`/`projectId` from key; fire-and-forget `touchLastUsed()`)
-6. **setupSessionAuth** — Session token (ONLY `/ai/ws`; accepts Bearer header or `?token=` query param)
-7. **setupPrewarm** — Caddy cert pre-warming interceptor
-8. **setupEndpoints** — Route registration
-9. **setupProxy** — Dual-proxy + WebSocket upgrade dispatch
-10. **setupErrorHandler** — Global error handler
+3. **setupRateLimit** — Rate limiting: `/auth` routes 20 req/min, `/_` routes 1000 req/min, uses `express-rate-limit` with draft-7 standard headers
+4. **setupDatabase** — DB singleton on `app.locals.db`
+5. **setupAuth** — JWT via JWKS (skips public + session routes; deferred routes set user but don't reject)
+6. **setupApiKeyAuth** — `tdsk_*` validation (skips public + session; attaches `orgId`/`projectId` from key; fire-and-forget `touchLastUsed()`)
+7. **setupSessionAuth** — Session token (ONLY `/ai/ws`; accepts Bearer header or `?token=` query param)
+8. **setupPrewarm** — Caddy cert pre-warming interceptor
+9. **setupEndpoints** — Route registration
+10. **setupProxy** — Dual-proxy + WebSocket upgrade dispatch
+11. **setupErrorHandler** — Global error handler
 
 After setup, `initServer()` creates HTTP/HTTPS server and registers `onUpgrade`.
 

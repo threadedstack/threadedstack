@@ -24,9 +24,9 @@ repos/sandbox/
 │   ├── index.ts            # Barrel export
 │   ├── sandbox.ts          # createSandboxProvider() factory
 │   ├── constants/          # DefaultWorkdir, DefaultTempdir, PodLabelKeys, PodCycleInterval, etc.
-│   ├── git/                # Virtual git (isomorphic-git): gitCommand (20 subcommands), fsAdapter
+│   ├── git/                # Virtual git (isomorphic-git): gitCommand (22 subcommands), fsAdapter
 │   ├── kube/               # K8s provider: kubeClient, kubeSandbox, kubeSandboxProvider, podManifest, kubeEvents, parseSandboxHost, toContainerState, getKubeNS
-│   ├── local/              # Local provider: local sandbox, isolate runner, shims/ (13 Node.js shims)
+│   ├── local/              # Local provider: local sandbox, isolate runner, shims/ (14 Node.js shims)
 │   ├── types/              # pod.types, kube.types, shims.types, git.types
 │   └── utils/              # Logger
 ```
@@ -39,7 +39,7 @@ repos/sandbox/
 
 ### Provider Hierarchy
 
-The `ISandboxProvider` interface (from `@tdsk/domain`) has two implementations. `KubeSandboxProvider` creates `KubeSandbox` instances that connect to existing K8s pods via `KubeClient` and the K8s Exec API (WebSocket, never child_process). Pods are created externally by the backend's `SandboxService`. `LocalSandboxProvider` creates `LocalSandbox` instances backed by a just-bash virtual shell, in-memory filesystem, optional `IsolateRunner` (V8 isolate with 13 Node.js shims), and virtual git via isomorphic-git.
+The `ISandboxProvider` interface (from `@tdsk/domain`) has two implementations. `KubeSandboxProvider` creates `KubeSandbox` instances that connect to existing K8s pods via `KubeClient` and the K8s Exec API (WebSocket, never child_process). Pods are created externally by the backend's `SandboxService`. `LocalSandboxProvider` creates `LocalSandbox` instances backed by a just-bash virtual shell, in-memory filesystem, optional `IsolateRunner` (V8 isolate with 14 Node.js shims), and virtual git via isomorphic-git.
 
 ### ISandbox Interface
 
@@ -76,7 +76,7 @@ Creates `LocalSandbox` with just-bash virtual shell, in-memory FS, optional `Iso
 
 V8 isolate wrapper (~361 LOC) for safe JS execution. Methods: `init()` (lazy, idempotent), `evaluate(code, timeout?)`, `registerModule(name, code)`, `releaseUserModules()`, `dispose()`.
 
-**Shims Provided** (13 modules + Process global):
+**Shims Provided** (14 modules + Process global):
 
 | Module | Key APIs |
 |--------|----------|
@@ -101,9 +101,9 @@ Timers: `setTimeout`/`setInterval`/`setImmediate` with `maxTimerMs` clamp, max 1
 
 ### Git System (`src/git/`)
 
-Full virtual git (~643 LOC) using isomorphic-git against in-memory FS. Registered as a just-bash custom command via `defineCommand('git', ...)`. Supports 20 subcommands:
+Full virtual git (~643 LOC) using isomorphic-git against in-memory FS. Registered as a just-bash custom command via `defineCommand('git', ...)`. Supports 22 subcommands:
 
-`init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`, `switch`, `merge`, `diff`, `rev-parse`, `tag`, `remote`, `reset`, `rm`, `show`, `cherry-pick`, `stash`, `clone`, `fetch`/`pull`/`push`
+`init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`, `switch`, `merge`, `diff`, `rev-parse`, `tag`, `remote`, `reset`, `rm`, `show`, `cherry-pick`, `stash`, `clone`, `fetch`, `pull`, `push`
 
 The `fsAdapter` bridges just-bash `IFileSystem` to isomorphic-git's `PromiseFsClient`, wrapping stat objects with method-based type checks and fixing POSIX error codes.
 

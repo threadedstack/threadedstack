@@ -10,11 +10,11 @@ tags: ["cli", "tsa", "bun", "agent", "terminal", "interactive", "session", "prox
 
 The **TSA** repo (`repos/tsa`, `@tdsk/tsa`) is a Bun-based terminal CLI for managing sandboxes and communicating with ThreadedStack AI agents.
 
-- **Sandbox-first**: `tsa run` is the hero command — connects sandbox, syncs files, launches AI tool runtime
+- **Sandbox-first**: `tsa sandbox` (aliased as `tsa run`) is the hero command — connects sandbox, syncs files, launches AI tool runtime
 - **Pi-TUI terminal UI**: Built with `@mariozechner/pi-tui` (pure TypeScript, NOT React). `ChatLogic` manages all state; renderers are pure display
 - **Local agent execution**: Session-based LLM proxy via WebSocket — API keys never leave the backend
 - **Two-layer config**: Global (`~/.config/tdsk/tsa.yaml`) + project (`.tdsk/config.yaml`), merged
-- **Two command systems**: 14 CLI tasks (`@keg-hub/args-parse`) + 21 in-chat slash commands
+- **Two command systems**: 12 CLI tasks (`@keg-hub/args-parse`) + 19 in-chat slash commands
 - **Context injection**: Auto-detects `AGENTS.md` and `.tdsk/context/` files, prepends to prompts as XML blocks
 - **Persistent auth**: API key-based login stored in YAML config
 - **Compilable binary**: Produces standalone `tsa` binary via `bun build --compile`
@@ -39,8 +39,8 @@ repos/tsa/
 │   │   ├── values.ts      # ApiKeyPrefix, defaults, ConnectionColors, ToolDisplayNames, SpinnerFrames, PreAuthCommands
 │   │   └── version.ts     # Build-time version injection
 │   ├── types/             # Types for client, commands, config, context, session, tasks, theme, tools
-│   ├── tasks/             # 14 CLI task definitions
-│   ├── commands/          # 21 slash commands for in-chat use
+│   ├── tasks/             # 12 CLI task definitions
+│   ├── commands/          # 19 slash commands for in-chat use
 │   ├── renderers/         # Pi-TUI renderer classes + ChatLogic
 │   ├── services/          # ConfigService, ContextLoader, HooksService, ApiClient, AuthManager, Executor
 │   │   ├── api.ts         # ApiClient (extends ApiService from @tdsk/domain)
@@ -81,14 +81,13 @@ Invoked from terminal. Use `@keg-hub/args-parse` for argument parsing. Task acti
 
 | Task | Alias | Description |
 |------|-------|-------------|
-| `run` | — | **Hero command** — Start sandbox, sync files, launch AI tool runtime |
+| `sandbox` | `sb`, `run` | **Hero command** — Start sandbox, sync files, launch AI tool runtime |
 | `chat` | `ch` | Start interactive chat (default, renders Pi-TUI App) |
 | `login` | `li` | Authenticate with API key |
 | `logout` | `lo` | Remove stored credentials |
 | `status` | `st` | Show authentication status |
 | `agents` | `ag` | List agents (auth required) |
 | `threads` | `th` | List threads for agent (auth required) |
-| `sandboxes` | `sb` | List sandbox configs for org (auth required) |
 | `sessions` | `session` | List/share/unshare sandbox sessions (auth required) |
 | `sync` | — | Start/stop Mutagen file sync (auth required) |
 | `ssh` | — | Interactive SSH to sandbox pod (auth required) |
@@ -97,7 +96,7 @@ Invoked from terminal. Use `@keg-hub/args-parse` for argument parsing. Task acti
 
 **Sub-tasks**: `sessions share/unshare <session-id>`, `sync stop [<sandbox-id> | --all]`
 
-### `tsa run` Flow
+### `tsa sandbox` (aliased as `tsa run`) Flow
 
 1. Resolve org ID via `resolveOrgId()` (params → config → single-org auto-select)
 2. Resolve project ID via `resolveProjectId()` (params → config)
@@ -219,9 +218,10 @@ Key constants across `src/constants/`:
 ## CLI Usage
 
 ```bash
-# Hero command
-tsa run <sandbox-id> [--org <id>] [--project <id>] [--no-sync] [--list]
-tsa run --list                     # List available sandboxes
+# Hero command (sandbox task, aliased as run)
+tsa sandbox <sandbox-id> [--org <id>] [--project <id>] [--no-sync] [--list]
+tsa run <sandbox-id>               # Alias for tsa sandbox
+tsa sandbox --list                 # List available sandboxes
 
 # File sync
 tsa sync <sandbox-id> [--org <id>] [--project <id>]
@@ -241,7 +241,6 @@ tsa status
 # Discovery
 tsa agents [--org <id>]
 tsa threads <agent-id> [--org <id>]
-tsa sandboxes [--org <id>]
 
 # Chat (default command)
 tsa chat [--org <id>] [--agent <id>] [--thread <id>]

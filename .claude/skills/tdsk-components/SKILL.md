@@ -17,8 +17,8 @@ tags: ["react", "mui", "components", "hooks", "frontend", "shared-library"]
 ```
 repos/components/
 ├── src/
-│   ├── components/       # 34 React UI component directories
-│   ├── hooks/            # 35+ custom hooks across 7 categories
+│   ├── components/       # 37 React UI component directories
+│   ├── hooks/            # 39 custom hooks across 9 categories
 │   ├── contexts/         # CacheContext provider
 │   ├── hocs/             # TooltipHoc, OverlayScroll
 │   ├── services/         # storage, clipboard, cacheService, eventEmitter, overlayScrollBody
@@ -57,6 +57,8 @@ Several items are NOT re-exported from their parent `index.ts` barrels and must 
 | **Icons** | Icon + 27 named SVG icons (Anthropic, OpenAI, Ollama, ZAI, MCP, etc.) |
 | **Layout** | Accordion (+Action/Actions/InfoAction), Card, Section (+Actions), Tabs, List (+Item), Menu (+Items/Multilevel/IconMenuItem/Back/Header/Context), Collapse, Resize |
 | **Selectors** | SelectorButton, SelectorMenu |
+| **Auth/Access** | FeatureGate, Login, Permissions |
+| **Chat** | ChatComponents |
 | **Utility** | ClipboardCopy, Confirm (+Delete), Definitions (+Definition/ComplexDefs/DefsFilters), Dropdown (+DDHeader), Empty, Image, InlineDom, Loading (+Dots), MemoChildren, Portal, RenderType (+Icon), Text (+Elements/Pair), Tooltip |
 
 ## Hooks by Category
@@ -68,7 +70,9 @@ Several items are NOT re-exported from their parent `index.ts` barrels and must 
 | **data** | useRecall, useTimeout, useInterval, useArrToggle |
 | **api** | useFetch, useLoadDynamic |
 | **theme** | useTheme, useColor, useColors, useIsDarkMode, useJoinSx |
+| **featureFlags** | useFeatureFlag |
 | **monaco** | useMonaco |
+| **permissions** | useCanPerform, usePermissions, usePermissionsContext |
 | **definitions** | useDefsFilters (NOT in hooks barrel) |
 
 ## Architecture

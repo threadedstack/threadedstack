@@ -44,6 +44,8 @@ export const TerminalView = (props: TTerminalView) => {
     const container = containerRef.current
     if (!container) return
 
+    container.replaceChildren()
+
     let term: Terminal
     let fitAddon: FitAddon
     try {

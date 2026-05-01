@@ -75,9 +75,27 @@ export const openSession = async (opts: TOpenSessionOpts) => {
 
   const wsUrl = `${wsProto}//${baseUrl.host}/_/sandboxes/${sandboxId}/shell?${params}`
 
-  const ws = new WebSocket(wsUrl)
-  // Use a temp key until we get the real sessionId from the server
   const tempKey = targetSessionId ?? `pending_${sandboxId}_${Date.now()}`
+
+  const existingWs = connections.get(tempKey)
+  if (existingWs) {
+    if (existingWs.readyState === WebSocket.OPEN) {
+      setActiveSession(tempKey)
+      storeSession(sandboxId, tempKey)
+      return Promise.resolve(tempKey)
+    }
+    try {
+      existingWs.close()
+    } catch {
+      /* already closed */
+    }
+    connections.delete(tempKey)
+    rawBuffers.delete(tempKey)
+    terminalWriters.delete(tempKey)
+    engineWriters.delete(tempKey)
+  }
+
+  const ws = new WebSocket(wsUrl)
   connections.set(tempKey, ws)
   rawBuffers.set(tempKey, [])
 
