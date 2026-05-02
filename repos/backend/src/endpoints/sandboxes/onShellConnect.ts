@@ -28,7 +28,9 @@ import {
   canPerform,
   PlanLimits,
   EPermAction,
+  ApiKeyPrefix,
   EPermResource,
+  DefaultWorkdir,
   ESandboxSessionVisibility,
 } from '@tdsk/domain'
 
@@ -155,20 +157,34 @@ export const onShellConnect = async (
   let userId: string
 
   if (authHeader?.startsWith(`Bearer `)) {
-    // API key auth (TSA CLI flow)
     const token = authHeader.slice(7)
-    const keyHash = hashKey(token)
-    const { data: apiKey, error: keyErr } = await db.services.apiKey.getByHash(keyHash)
-    if (keyErr || !apiKey || !apiKey.isValid()) {
-      ws.close(4001, `Invalid or expired API key`)
-      return
+
+    if (token.startsWith(ApiKeyPrefix)) {
+      const keyHash = hashKey(token)
+      const { data: apiKey, error: keyErr } = await db.services.apiKey.getByHash(keyHash)
+      if (keyErr || !apiKey || !apiKey.isValid()) {
+        ws.close(4001, `Invalid or expired API key`)
+        return
+      }
+      if (!apiKey.orgId || !apiKey.userId) {
+        ws.close(4001, `API key missing org or user scope`)
+        return
+      }
+      orgId = apiKey.orgId
+      userId = apiKey.userId
+    } else {
+      const payload = verifyShellToken(token)
+      if (!payload) {
+        ws.close(4001, `Invalid or expired token`)
+        return
+      }
+      if (payload.sandboxId !== sandboxId) {
+        ws.close(4001, `Token not authorized for this sandbox`)
+        return
+      }
+      orgId = payload.orgId
+      userId = payload.userId
     }
-    if (!apiKey.orgId || !apiKey.userId) {
-      ws.close(4001, `API key missing org or user scope`)
-      return
-    }
-    orgId = apiKey.orgId
-    userId = apiKey.userId
   } else if (queryToken) {
     // Shell session token auth (browser flow)
     const payload = verifyShellToken(queryToken)
@@ -187,7 +203,23 @@ export const onShellConnect = async (
     return
   }
 
-  // 3b. Check exec permission on sandbox resource
+  // 3b. Verify sandbox belongs to the authenticated org
+  const { data: sbRecord, error: sbGetErr } = await db.services.sandbox.get(sandboxId)
+  if (sbGetErr && sbRecord === undefined) {
+    if (/not found/i.test(sbGetErr.message)) {
+      ws.close(4004, `Sandbox not found`)
+      return
+    }
+    logger.error(`[Shell] Sandbox lookup failed for ${sandboxId}:`, sbGetErr.message)
+    ws.close(4005, `Failed to verify sandbox, please retry`)
+    return
+  }
+  if (!sbRecord || sbRecord.orgId !== orgId) {
+    ws.close(4001, `Sandbox not authorized`)
+    return
+  }
+
+  // 3c. Check exec permission on sandbox resource
   const { error: roleErr, data: userOrgRole } = await db.services.role.getOrgRole(
     userId,
     orgId
@@ -514,6 +546,7 @@ export const onShellConnect = async (
   }
   const runtime = sandbox?.config?.runtime ?? `custom`
   const runtimeCommand = sandbox?.config?.runtimeCommand
+  const workdir = sandbox?.config?.workdir || DefaultWorkdir
 
   // 11. Create thread for session history
   const { data: thread, error: threadErr } = await db.services.thread.create({
@@ -600,6 +633,8 @@ export const onShellConnect = async (
         })
       )
 
+      // Always cd into workdir (SSH sessions start in /home/sandbox)
+      stream.write(`cd '${workdir.replace(/'/g, `'\\''`)}'\n`)
       // Execute runtime command if requested
       if (shouldRun && runtimeCommand) stream.write(`${runtimeCommand}\n`)
 

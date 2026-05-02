@@ -117,12 +117,14 @@
       "Bash(firebase target:*)",
       "Bash(firebase target:apply:*)",
       "Bash(firebase deploy:*)",
-      "Bash(xargs -I {} basename {} .ts)"
+      "Bash(xargs -I {} basename {} .ts)",
+      "Bash(awk '{print $NF}')"
     ]
   },
   "sandbox": {
     "enabled": false,
     "autoAllowBashIfSandboxed": false,
     "network": {}
-  }
+  },
+  "prefersReducedMotion": true
 }

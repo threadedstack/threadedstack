@@ -11,7 +11,7 @@ export type TRecreateSandboxOpts = {
 export const recreateSandbox = async (opts: TRecreateSandboxOpts): Promise<void> => {
   const { sandboxId, orgId, projectId } = opts
 
-  await stopSandbox({ sandboxId, orgId })
+  await stopSandbox({ sandboxId, orgId, projectId, force: true })
   clearStoredSessionsForSandbox(sandboxId)
   await openSession({ sandboxId, orgId, projectId, sessionId: null })
 }

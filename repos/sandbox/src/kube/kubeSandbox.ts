@@ -23,7 +23,8 @@ import type {
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TSB/utils/logger'
-import { DefaultWorkdir, DefaultTempdir, DefaultRuntime } from '@TSB/constants/values'
+import { DefaultWorkdir } from '@tdsk/domain'
+import { DefaultTempdir, DefaultRuntime } from '@TSB/constants/values'
 
 export class KubeSandbox implements ISandbox {
   private podName: string

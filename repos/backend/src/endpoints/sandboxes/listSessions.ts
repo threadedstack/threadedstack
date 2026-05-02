@@ -22,6 +22,11 @@ export const listSessions: TEndpointConfig = {
     const podName = await sb.findRunningPod(sandbox.id, sandbox.orgId)
     const sessions = podName ? sb.getSessions(podName) : []
 
-    res.status(200).json({ data: sessions })
+    const enriched = sessions.map((s) => ({
+      ...s,
+      hasShellSession: !!sb.getShellSession(s.sessionId),
+    }))
+
+    res.status(200).json({ data: enriched })
   },
 }

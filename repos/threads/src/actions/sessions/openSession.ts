@@ -2,6 +2,7 @@ import type { TOpenSessionOpts } from '@TTH/types'
 import type { ESandboxSessionVisibility } from '@tdsk/domain'
 
 import { toast } from 'sonner'
+import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
@@ -150,17 +151,17 @@ export const openSession = async (opts: TOpenSessionOpts) => {
         }
 
         try {
-          if (msg.type === `connected` || msg.type === `joined`) {
+          if (msg.type === EShellMsg.Connected || msg.type === EShellMsg.Joined) {
             setupSession(msg)
             settled = true
             clearTimeout(timeoutId)
             resolve(sessionId)
-          } else if (msg.type === `reconnected`) {
+          } else if (msg.type === EShellMsg.Reconnected) {
             setupSession(msg)
             settled = true
             clearTimeout(timeoutId)
             resolve(sessionId)
-          } else if (msg.type === `visibility`) {
+          } else if (msg.type === EShellMsg.Visibility) {
             const current = getOpenSessions()
             const existing = current.get(msg.sessionId)
             if (existing) {
@@ -169,15 +170,19 @@ export const openSession = async (opts: TOpenSessionOpts) => {
                 visibility: msg.visibility,
               })
             }
-          } else if (msg.type === `user-joined`) {
+          } else if (msg.type === EShellMsg.UserJoined) {
             toast.info(`User joined your session`, { duration: 3000 })
-          } else if (msg.type === `user-left`) {
+          } else if (msg.type === EShellMsg.UserLeft) {
             toast.info(`User left your session`, { duration: 3000 })
-          } else if (msg.type === `error`) {
+          } else if (msg.type === EShellMsg.SandboxStopping) {
+            toast.info(`Sandbox is being stopped by another user`, { duration: 5000 })
+          } else if (msg.type === EShellMsg.Error) {
+            clearTimeout(timeoutId)
             settled = true
             reject(new Error(msg.message))
           }
         } catch (err) {
+          clearTimeout(timeoutId)
           settled = true
           reject(err instanceof Error ? err : new Error(`Session setup failed`))
         }
@@ -239,7 +244,9 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       clearTimeout(timeoutId)
       if (!settled) {
         settled = true
-        toast.error(`Session failed`, { description: `WebSocket connection failed` })
+        toast.error(`Session failed`, {
+          description: `Could not connect to ${baseUrl.host}`,
+        })
         reject(new Error(`WebSocket connection failed`))
       }
     }

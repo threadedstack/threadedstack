@@ -11,7 +11,7 @@ import type {
   TSandboxRuntimeId,
 } from '@tdsk/domain'
 
-import { isFeatureEnabled } from '@tdsk/domain'
+import { isFeatureEnabled, DefaultWorkdir } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
@@ -721,7 +721,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
                   fullWidth
                   value={workdir}
                   disabled={loading}
-                  placeholder='/app'
+                  placeholder={DefaultWorkdir}
                   id='sandbox-workdir'
                   label='Working Directory'
                   onChange={(e) => setWorkdir(e.target.value)}

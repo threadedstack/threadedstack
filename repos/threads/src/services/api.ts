@@ -114,7 +114,13 @@ export class ApiService {
         .then(async (res) => {
           const result = responseType !== `text` ? await res.json() : await res.text()
           return res.status >= 400
-            ? { error: new ApiError(this.#error(res, result), res.status) }
+            ? {
+                error: new ApiError(
+                  this.#error(res, result),
+                  res.status,
+                  isObj(result) ? result : undefined
+                ),
+              }
             : result
         })
         .catch((error) => ({ error: new ApiError(error, 400) }))

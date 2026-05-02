@@ -4,6 +4,7 @@ import type { TSyncMode, TSyncRule } from '@tdsk/domain'
 import { existsSync } from 'fs'
 import { themed } from '@TSA/theme'
 import { createInterface } from 'readline'
+import { DefaultWorkdir } from '@tdsk/domain'
 import { ApiClient } from '@TSA/services/api'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
@@ -304,7 +305,7 @@ export const sync: TTask = {
     target: {
       description: `Remote target path`,
       alias: [`t`, `tgt`],
-      default: `/workspace`,
+      default: DefaultWorkdir,
     },
     mode: {
       description: `Sync mode`,
@@ -424,7 +425,7 @@ export const sync: TTask = {
         {
           name: (params.name as string) || `cli-sync`,
           source: params.source as string,
-          target: (params.target as string) || `/workspace`,
+          target: (params.target as string) || connectResp?.workdir || DefaultWorkdir,
           mode: (params.mode as TSyncMode) || `one-way-replica`,
           ignores: (params.ignore as string[]) || [],
         },
@@ -432,7 +433,17 @@ export const sync: TTask = {
     } else if (syncConfig?.rules?.length) {
       // Get per-sandbox overrides if they exist
       const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
-      rules = mergeRules(syncConfig.rules, sandboxSync, overrides)
+      const workdir = connectResp?.workdir
+
+      const syncDefaults = sandboxSync
+        ? workdir && !sandboxSync.targetBase
+          ? { ...sandboxSync, targetBase: workdir }
+          : sandboxSync
+        : workdir
+          ? { targetBase: workdir }
+          : undefined
+
+      rules = mergeRules(syncConfig.rules, syncDefaults, overrides)
     } else {
       process.stderr.write(
         `${themed(`error`, `No sync rules configured.`)}\n` +

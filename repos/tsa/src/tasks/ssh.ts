@@ -15,121 +15,11 @@ import {
   registerSyncCleanup,
 } from '@TSA/utils/tasks/syncCleanupRegistry'
 
-/**
- * Join an existing shared session via shell WebSocket.
- * Pipes stdin/stdout through the WebSocket binary frames.
- */
-const joinShellSession = async (
-  client: ApiClient,
-  orgId: string,
-  projectId: string,
-  sandboxId: string,
-  sessionId: string
-): Promise<void> => {
-  const { data: connectData, error: connectErr } = await client.connectSandbox(
-    orgId,
-    projectId,
-    sandboxId
-  )
-  if (connectErr || !connectData?.shellToken) {
-    throw new Error(connectErr?.message || `Failed to get shell token`)
-  }
-
-  if (!connectData.sandboxId)
-    throw new Error(`Server did not return a resolved sandbox ID`)
-  const resolvedId = connectData.sandboxId
-  const proxyUrl = client.proxyUrl.replace(/^http/, `ws`)
-  const cols = process.stdout.columns || 80
-  const rows = process.stdout.rows || 24
-  const wsUrl = `${proxyUrl}/_/sandboxes/${resolvedId}/shell?sessionId=${sessionId}&token=${connectData.shellToken}&cols=${cols}&rows=${rows}`
-
-  const ws = new WebSocket(wsUrl)
-  ws.binaryType = `arraybuffer`
-
-  await new Promise<void>((resolve, reject) => {
-    let connected = false
-
-    ws.addEventListener(`open`, () => {
-      if (process.stdin.isTTY) process.stdin.setRawMode(true)
-      process.stdin.resume()
-    })
-
-    ws.addEventListener(`message`, (event) => {
-      const data = event.data
-      if (typeof data === `string`) {
-        let msg: any
-        try {
-          msg = JSON.parse(data)
-        } catch {
-          process.stdout.write(data)
-          return
-        }
-
-        if (msg.type === `joined` || msg.type === `reconnected`) {
-          connected = true
-          process.stderr.write(
-            `${themed(`success`, `Joined`)} session ${sessionId.slice(0, 12)}\n`
-          )
-        } else if (msg.type === `error`) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${msg.message}\n`)
-        } else if (msg.type === `disconnected`) {
-          process.stderr.write(`${themed(`muted`, `Disconnected: ${msg.reason}`)}\n`)
-        }
-        return
-      }
-
-      // Binary frame → stdout
-      if (data instanceof ArrayBuffer) {
-        process.stdout.write(Buffer.from(data))
-      }
-    })
-
-    const onStdinData = (chunk: string | BufferSource | Blob) => {
-      ws.readyState === WebSocket.OPEN && ws.send(chunk)
-    }
-
-    process.stdin.on(`data`, onStdinData)
-
-    const onResize = () => {
-      ws.readyState === WebSocket.OPEN &&
-        ws.send(
-          JSON.stringify({
-            type: `resize`,
-            rows: process.stdout.rows || 24,
-            cols: process.stdout.columns || 80,
-          })
-        )
-    }
-    process.stdout.on(`resize`, onResize)
-
-    ws.addEventListener(`close`, () => {
-      process.stdin.off(`data`, onStdinData)
-      process.stdout.off(`resize`, onResize)
-      if (process.stdin.isTTY) process.stdin.setRawMode(false)
-      process.stdin.pause()
-      if (connected) resolve()
-      else reject(new Error(`Connection closed before session was joined`))
-    })
-
-    ws.addEventListener(`error`, (event) => {
-      process.stdin.off(`data`, onStdinData)
-      process.stdout.off(`resize`, onResize)
-      if (process.stdin.isTTY) process.stdin.setRawMode(false)
-      process.stdin.pause()
-      const msg =
-        (event as any).message ||
-        (event as any).error?.message ||
-        `WebSocket connection failed`
-      reject(new Error(msg))
-    })
-  })
-}
-
 export const ssh: TTask = {
   name: `ssh`,
   alias: [],
   description: `Connect to a running sandbox via SSH`,
-  example: `tsa ssh <sandbox> [--org <id>] [--session <id>]`,
+  example: `tsa ssh <sandbox> [--org <id>]`,
   options: {
     sandbox: {
       example: `--sb sb_xxx`,
@@ -145,11 +35,6 @@ export const ssh: TTask = {
       example: `--project proj_xxx`,
       description: `Project ID`,
       alias: [`projectId`, `p`],
-    },
-    session: {
-      alias: [`s`],
-      description: `Join an existing shared session by ID (connects via shell WebSocket instead of SSH tunnel)`,
-      example: `tsa ssh sb_abc --session sess_xy12ab`,
     },
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
@@ -191,27 +76,17 @@ export const ssh: TTask = {
 
     if (config) saveContext(config, orgId, projectId, sandboxId)
 
-    // Session join path: connect via shell WebSocket instead of native SSH
-    const sessionId = params.session as string | undefined
-    if (sessionId) {
-      try {
-        await joinShellSession(client, orgId, projectId, sandboxId, sessionId)
-      } catch (err) {
-        process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-        process.exitCode = 1
-      }
-      return
-    }
-
     // Normal SSH path
     let resolvedId: string
     let shellToken: string | undefined
+    let workdir: string | undefined
     try {
       const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
       if (!connectResp.sandboxId)
         throw new Error(`Server did not return a resolved sandbox ID`)
       resolvedId = connectResp.sandboxId
       shellToken = connectResp.shellToken
+      workdir = connectResp.workdir
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
@@ -236,7 +111,7 @@ export const ssh: TTask = {
     }
 
     try {
-      await spawnSsh(resolvedId, undefined, shellToken)
+      await spawnSsh(resolvedId, undefined, shellToken, workdir)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1

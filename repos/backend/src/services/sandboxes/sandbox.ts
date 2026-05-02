@@ -367,6 +367,15 @@ export class SandboxService {
   }
 
   cleanupPod(podName: string): void {
+    const podSessions = this.sessions.get(podName) || []
+    const sandboxIds = new Set(podSessions.map((s) => s.sandboxId))
+
+    for (const sandboxId of sandboxIds) {
+      for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
+        this.removeShellSession(shell.sessionId)
+      }
+    }
+
     this.passwords.delete(podName)
     this.sessions.delete(podName)
     this.podActivity.delete(podName)
@@ -439,6 +448,18 @@ export class SandboxService {
   async stopPod(podName: string): Promise<void> {
     await this.kube.deletePod(podName, 30)
     this.cleanupPod(podName)
+  }
+
+  async gracefulStopPod(podName: string, sandboxId: string): Promise<void> {
+    try {
+      this.notifyShellClients(sandboxId, { type: `sandbox-stopping`, sandboxId })
+    } catch (err) {
+      logger.warn(
+        `[Sandbox] Failed to notify shell clients before stop:`,
+        (err as Error).message
+      )
+    }
+    await this.stopPod(podName)
   }
 
   /**
@@ -550,6 +571,21 @@ export class SandboxService {
     session.buffer.clear()
     session.attachments.clear()
     this.shellSessions.delete(sessionId)
+  }
+
+  notifyShellClients(sandboxId: string, message: Record<string, any>): void {
+    const payload = JSON.stringify(message)
+    for (const session of this.getShellSessionsForSandbox(sandboxId)) {
+      for (const ws of session.attachments) {
+        if (ws.readyState === 1) {
+          try {
+            ws.send(payload)
+          } catch (err) {
+            logger.warn(`[ShellSession] Failed to notify client:`, (err as Error).message)
+          }
+        }
+      }
+    }
   }
 
   attachToShellSession(

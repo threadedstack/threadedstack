@@ -8,14 +8,9 @@ import type {
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
-import { SandboxRuntimeConfigs, ESandboxRuntime } from '@tdsk/domain'
 import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
-import {
-  DefaultWorkdir,
-  EnvProfilePath,
-  VolumeMountName,
-  CACertMountPath,
-} from '@TSB/constants/values'
+import { SandboxRuntimeConfigs, ESandboxRuntime, DefaultWorkdir } from '@tdsk/domain'
+import { EnvProfilePath, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
 
 const podSuffix = customAlphabet(`0123456789abcdefghijklmnopqrstuvwxyz`, 4)
 

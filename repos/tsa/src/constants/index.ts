@@ -1,5 +1,6 @@
 export * from './api'
 export * from './sync'
+export * from './shell'
 export * from './paths'
 export * from './values'
 export * from './errors'

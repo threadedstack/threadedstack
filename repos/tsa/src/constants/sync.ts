@@ -1,7 +1,8 @@
 import { join } from 'path'
 import { homedir } from 'os'
+import { DefaultWorkdir } from '@tdsk/domain'
 
-export const DefSyncTarget = `/workspace`
+export const DefSyncTarget = DefaultWorkdir
 export const DefSyncMode = `one-way-replica` as const
 
 export const DefSyncIgnores = [

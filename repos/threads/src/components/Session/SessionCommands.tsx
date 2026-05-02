@@ -1,4 +1,5 @@
 import type { TCommand, TSessionCommandsProps } from '@TTH/types'
+import type { TSandboxSession } from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { nav } from '@TTH/services/nav'
@@ -16,9 +17,12 @@ import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
 import { openSession, closeSession, sendControl } from '@TTH/actions/sessions'
 import {
   Box,
+  List,
   Button,
   Dialog,
+  ListItem,
   DialogTitle,
+  ListItemText,
   DialogContent,
   DialogActions,
   CircularProgress,
@@ -34,11 +38,14 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   const canExecSandbox = canExec(EPermResource.sandbox)
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)
+  const [forceStopSessions, setForceStopSessions] = useState<TSandboxSession[] | null>(
+    null
+  )
 
   const session = openSessions.get(sessionId)
   const isPublic = session?.visibility === `public`
 
-  const handleConfirm = useCallback(async () => {
+  const onConfirm = useCallback(async () => {
     const action = confirmAction
     if (!action || !orgId) return
 
@@ -49,8 +56,18 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
 
     try {
       if (action === `stop`) {
-        await stopSandbox({ sandboxId, orgId })
-        nav.sandbox(orgId, projectId, sandboxId, { replace: true })
+        const result = await stopSandbox({ sandboxId, orgId, projectId })
+        if (result.stopped) {
+          nav.sandbox(orgId, projectId, sandboxId, { replace: true })
+          return
+        }
+        if (result.stopped === false && result.activeSessions.length) {
+          setForceStopSessions(result.activeSessions)
+          return
+        }
+        toast.error(`Failed to stop sandbox`, {
+          description: `The sandbox could not be stopped. It may already be stopped or stopping.`,
+        })
         return
       }
       if (action === `restart`) {
@@ -69,7 +86,24 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     }
   }, [confirmAction, sandboxId, orgId, projectId, onPendingOp])
 
-  const handleNewSession = useCallback(async () => {
+  const onForceStop = useCallback(async () => {
+    if (!orgId) return
+    setForceStopSessions(null)
+    setExecuting(`stop`)
+    try {
+      await stopSandbox({ sandboxId, orgId, projectId, force: true })
+      nav.sandbox(orgId, projectId, sandboxId, { replace: true })
+    } catch (err) {
+      console.error(`[SessionCommands] force stop failed:`, err)
+      toast.error(`Failed to stop sandbox`, {
+        description: err instanceof Error ? err.message : `An unexpected error occurred`,
+      })
+    } finally {
+      setExecuting(null)
+    }
+  }, [sandboxId, orgId, projectId])
+
+  const onNewSession = useCallback(async () => {
     if (!orgId) return
     try {
       const newSessionId = await openSession({
@@ -89,14 +123,12 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     }
   }, [sandboxId, orgId, projectId])
 
-  const handleToggleShare = useCallback(() => {
+  const onToggleShare = useCallback(() => {
     const newVisibility = isPublic ? `private` : `public`
     sendControl(sessionId, { type: `visibility`, visibility: newVisibility })
   }, [sessionId, isPublic])
 
-  const handleLeave = useCallback(() => {
-    closeSession(sessionId)
-  }, [sessionId])
+  const onLeave = useCallback(() => closeSession(sessionId), [sessionId])
 
   if (!session || !orgId) return null
 
@@ -115,12 +147,12 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
                   size='small'
                   color={cfg.color}
                   variant='outlined'
+                  disabled={executing !== null}
+                  onClick={() => setConfirmAction(cmd)}
+                  sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
                   startIcon={
                     executing === cmd ? <CircularProgress size={14} /> : cfg.icon
                   }
-                  onClick={() => setConfirmAction(cmd)}
-                  disabled={executing !== null}
-                  sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
                 >
                   {cfg.label}
                 </Button>
@@ -129,9 +161,9 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
             <Button
               size='small'
               variant='outlined'
-              startIcon={<AddIcon sx={{ fontSize: 18 }} />}
-              onClick={handleNewSession}
+              onClick={onNewSession}
               disabled={executing !== null}
+              startIcon={<AddIcon sx={{ fontSize: 18 }} />}
               sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
             >
               New
@@ -141,11 +173,11 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         {isOwner && (
           <Button
             size='small'
-            variant={isPublic ? `contained` : `outlined`}
-            color={isPublic ? `primary` : (`default` as any)}
-            startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
-            onClick={handleToggleShare}
+            onClick={onToggleShare}
             disabled={executing !== null}
+            variant={isPublic ? `contained` : `outlined`}
+            startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
+            color={isPublic ? `primary` : (`default` as any)}
             sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
           >
             {isPublic ? `Shared` : `Share`}
@@ -154,9 +186,9 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
         {!isOwner && (
           <Button
             size='small'
+            onClick={onLeave}
             variant='outlined'
             startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
-            onClick={handleLeave}
             sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
           >
             Leave
@@ -177,10 +209,44 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
           <Button
             autoFocus
             variant='contained'
+            onClick={onConfirm}
             color={config?.color}
-            onClick={handleConfirm}
           >
             {config?.label}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={forceStopSessions !== null}
+        onClose={() => setForceStopSessions(null)}
+      >
+        <DialogTitle>Active Sessions</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This sandbox has {forceStopSessions?.length} active session(s). Stopping will
+            disconnect all users.
+          </DialogContentText>
+          <List dense>
+            {forceStopSessions?.map((s) => (
+              <ListItem key={s.sessionId}>
+                <ListItemText
+                  primary={s.sessionId.slice(0, 12)}
+                  secondary={`Connected ${new Date(s.connectedAt).toLocaleTimeString()}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setForceStopSessions(null)}>Cancel</Button>
+          <Button
+            autoFocus
+            variant='contained'
+            color='error'
+            onClick={onForceStop}
+          >
+            Force Stop
           </Button>
         </DialogActions>
       </Dialog>

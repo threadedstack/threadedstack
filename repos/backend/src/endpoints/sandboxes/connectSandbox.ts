@@ -6,7 +6,13 @@ import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { signShellToken } from '@TBE/services/sessionToken'
 import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
-import { Exception, EPermAction, EPermResource, EContainerState } from '@tdsk/domain'
+import {
+  Exception,
+  EPermAction,
+  EPermResource,
+  EContainerState,
+  DefaultWorkdir,
+} from '@tdsk/domain'
 
 export const connectSandbox: TEndpointConfig = {
   path: `/:id/connect`,
@@ -21,6 +27,7 @@ export const connectSandbox: TEndpointConfig = {
       throw new Exception(400, `projectId is required to connect to a sandbox`)
 
     const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
+    const workdir = sandbox.config.workdir || DefaultWorkdir
     const sandboxId = sandbox.id
 
     const sb = req.app.locals.sandbox
@@ -134,10 +141,11 @@ export const connectSandbox: TEndpointConfig = {
     res.status(200).json({
       data: {
         podName,
+        workdir,
         password,
+        sandboxId,
         port: 2222,
         shellToken,
-        sandboxId,
         command: `tsa ssh ${alias || sandboxId}`,
         ...(alias && { alias }),
         ...(initError && { initError }),

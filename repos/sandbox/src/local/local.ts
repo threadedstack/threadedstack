@@ -10,11 +10,11 @@ import type {
 import type { IFileSystem } from 'just-bash'
 
 import { logger } from '@TSB/utils/logger'
-import { ESandboxType } from '@tdsk/domain'
 import { Bash, InMemoryFs } from 'just-bash'
 import { gitCommand } from '@TSB/git/gitCommand'
 import { IsolateRunner } from '@TSB/local/isolate'
-import { DefaultWorkdir, DefaultTempdir } from '@TSB/constants/values'
+import { DefaultTempdir } from '@TSB/constants/values'
+import { ESandboxType, DefaultWorkdir } from '@tdsk/domain'
 
 /**
  * Local sandbox instance using just-bash virtual shell/filesystem

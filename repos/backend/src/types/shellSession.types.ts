@@ -50,6 +50,7 @@ export type TShellServerMsg =
   | { type: `user-left`; sessionId: string; userId: string }
   | { type: `user-joined`; sessionId: string; userId: string }
   | { type: `visibility`; sessionId: string; visibility: ESandboxSessionVisibility }
+  | { type: `sandbox-stopping`; sandboxId: string }
   | (TSessionIdentity & { type: `connected` })
   | (TSessionIdentity & {
       type: `reconnected`

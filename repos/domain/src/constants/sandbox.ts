@@ -99,6 +99,8 @@ export const SandboxRuntimeConfigs: Record<
   [ESandboxRuntime.custom]: {},
 }
 
+export const DefaultWorkdir = `/workspace`
+
 const DefaultResources = {
   limits: { cpu: `2`, memory: `4Gi` },
   requests: { cpu: `500m`, memory: `1Gi` },

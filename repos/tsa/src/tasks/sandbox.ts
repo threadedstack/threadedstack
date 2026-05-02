@@ -2,13 +2,13 @@ import type { TTask } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { spawnSsh } from '@TSA/utils/tasks/spawnSsh'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
-import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
 import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
+import { sandboxConnectPod } from '@TSA/utils/tasks/sandboxConnectPod'
+import { connectShellWebSocket } from '@TSA/utils/tasks/shellWebSocket'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 import {
   clearSyncCleanup,
@@ -44,6 +44,11 @@ export const sandbox: TTask = {
       description: `Disable automatic file sync`,
       alias: [`nosync`],
       type: `bool`,
+    },
+    new: {
+      alias: [`n`],
+      type: `bool`,
+      description: `Skip session discovery and always create a new session`,
     },
     list: {
       example: `--list`,
@@ -150,7 +155,7 @@ export const sandbox: TTask = {
     let resolvedId: string | undefined
     let shellToken: string | undefined
     try {
-      const connectResp = await sandboxConnect(client, orgId, projectId, sandboxId)
+      const connectResp = await sandboxConnectPod(client, orgId, projectId, sandboxId)
       if (!connectResp.sandboxId)
         throw new Error(`Server did not return a resolved sandbox ID`)
       resolvedId = connectResp.sandboxId
@@ -163,12 +168,73 @@ export const sandbox: TTask = {
     // Persist sandbox only after confirmed successful connection
     if (config) saveContext(config, orgId, projectId, resolvedId)
 
-    if (!shellToken && !auth.creds()?.apiKey) {
+    const creds = auth.creds()
+    const bearerToken = creds?.apiKey || shellToken || creds?.token
+    if (!bearerToken) {
       process.stderr.write(
-        `${themed(`error`, `Error:`)} Server did not return a tunnel token and no API key is configured.\n` +
-          `${themed(`muted`, `Run "tsa login <api-key>" or update the server to resolve this.`)}\n`
+        `${themed(`error`, `Error:`)} No authentication credentials available.\n` +
+          `${themed(`muted`, `Run "tsa login <api-key>" to authenticate.`)}\n`
       )
       process.exit(1)
+    }
+
+    let targetSessionId: string | undefined
+    const forceNew = params.new as boolean | undefined
+
+    if (!forceNew && process.stdin.isTTY) {
+      try {
+        const { data: sessions } = await client.getSandboxSessions(
+          orgId,
+          projectId,
+          resolvedId!
+        )
+        const reconnectable = sessions?.filter((s) => s.hasShellSession) || []
+
+        if (reconnectable.length > 0) {
+          const readline = await import(`readline`)
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stderr,
+          })
+
+          const sessionLabel = reconnectable[0].sessionId.slice(0, 12)
+          const answer = await new Promise<string>((resolve) => {
+            rl.question(
+              `${themed(`primary`, `Found ${reconnectable.length} existing session(s).`)} ` +
+                `Reconnect to ${sessionLabel}? (Y/n/new) `,
+              (ans: string) => {
+                rl.close()
+                resolve(ans.trim().toLowerCase())
+              }
+            )
+          })
+
+          if (answer === `` || answer === `y` || answer === `yes`) {
+            targetSessionId = reconnectable[0].sessionId
+            process.stderr.write(
+              `${themed(`muted`, `Reconnecting to ${sessionLabel}... (ctrl+] to detach)`)}\n`
+            )
+          }
+        }
+      } catch (err) {
+        const status = (err as any)?.status ?? (err as any)?.statusCode
+        const msg = (err as Error).message
+        const statusErr =
+          status === 401 || status === 403 || msg.includes(`401`) || msg.includes(`403`)
+        if (statusErr || msg.includes(`Not logged in`)) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+          process.exit(1)
+        }
+        if (status && status >= 500) {
+          process.stderr.write(
+            `${themed(`warning`, `Warning:`)} Session discovery failed: ${msg}\n`
+          )
+        } else {
+          process.stderr.write(
+            `${themed(`muted`, `Session discovery skipped: ${msg}`)}\n`
+          )
+        }
+      }
     }
 
     const skipSync = params.noSync as boolean | undefined
@@ -195,7 +261,14 @@ export const sandbox: TTask = {
     }
 
     try {
-      await spawnSsh(resolvedId!, runtimeCommand, shellToken)
+      await connectShellWebSocket({
+        bearerToken,
+        sandboxId: resolvedId!,
+        proxyUrl: client.proxyUrl,
+        sessionId: targetSessionId,
+        insecure: !!creds?.insecure,
+        run: !targetSessionId && !!runtimeCommand,
+      })
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exitCode = 1

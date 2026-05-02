@@ -81,13 +81,16 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    podName: string
+    podName: string,
+    force?: boolean
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      data: { podName },
+      data: { podName, force },
       path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
-    resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
+    if (resp.error?.status !== 409) {
+      resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
+    }
     return resp
   }
 }

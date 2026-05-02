@@ -257,6 +257,7 @@ export type TSandboxSession = {
   sessionId: string
   projectId?: string
   connectedAt: string
+  hasShellSession?: boolean
   visibility: ESandboxSessionVisibility
 }
 
@@ -267,9 +268,25 @@ export enum ESandboxSessionVisibility {
 
 export type TSandboxSessionVisibility = `${ESandboxSessionVisibility}`
 
+export enum EShellMsg {
+  Error = `error`,
+  Joined = `joined`,
+  Resize = `resize`,
+  Signal = `signal`,
+  UserLeft = `user-left`,
+  Connected = `connected`,
+  Visibility = `visibility`,
+  UserJoined = `user-joined`,
+  Reconnected = `reconnected`,
+  Disconnected = `disconnected`,
+  SandboxStopping = `sandbox-stopping`,
+  PermissionResponse = `permission-response`,
+}
+
 export type TSandboxConnectResponse = {
   port: number
   alias?: string
+  workdir: string
   command: string
   podName: string
   password: string

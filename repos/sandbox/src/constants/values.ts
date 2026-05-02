@@ -1,7 +1,6 @@
 import type { TSandboxRuntime } from '@tdsk/domain'
 
 export const DefaultTempdir = `/tmp`
-export const DefaultWorkdir = `/workspace`
 export const EnvProfilePath = `/etc/profile.d/tdsk-env.sh`
 
 export const VolumeMountName = `proxy-ca-cert`

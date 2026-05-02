@@ -42,7 +42,15 @@ export const autoStartSync = async (
     }
 
     const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
-    const rules = mergeRules(syncConfig.rules, sandbox?.config?.sync, overrides)
+    const sandboxWorkdir = sandbox?.config?.workdir
+    const syncDefaults = sandbox?.config?.sync
+      ? sandboxWorkdir && !sandbox.config.sync.targetBase
+        ? { ...sandbox.config.sync, targetBase: sandboxWorkdir }
+        : sandbox.config.sync
+      : sandboxWorkdir
+        ? { targetBase: sandboxWorkdir }
+        : undefined
+    const rules = mergeRules(syncConfig.rules, syncDefaults, overrides)
 
     const cwd = process.cwd()
     for (const rule of rules) {

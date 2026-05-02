@@ -27,7 +27,8 @@ export const buildProxyCommand = (sandboxId: string): string => {
 export const spawnSsh = async (
   sandboxId: string,
   remoteCommand?: string,
-  shellToken?: string
+  shellToken?: string,
+  workdir?: string
 ): Promise<void> => {
   const proxyCmd = buildProxyCommand(sandboxId)
 
@@ -42,15 +43,19 @@ export const spawnSsh = async (
     `LogLevel=ERROR`,
   ]
 
-  // Add PTY allocation for remote commands (interactive tools need it)
-  if (remoteCommand) sshArgs.push(`-t`)
+  // Add PTY allocation for remote commands or workdir (interactive tools need it)
+  if (remoteCommand || workdir) sshArgs.push(`-t`)
 
   sshArgs.push(`sandbox@${sandboxId}`)
 
   // Wrap in login shell so /etc/profile.d/ is sourced (sets NODE_EXTRA_CA_CERTS etc.)
   if (remoteCommand) {
     const escaped = remoteCommand.replace(/'/g, `'\\''`)
-    sshArgs.push(`--`, `sh -l -c '${escaped}'`)
+    const cdPrefix = workdir ? `cd '${workdir.replace(/'/g, "'\\''")}' && ` : ``
+    sshArgs.push(`--`, `sh -l -c '${cdPrefix}${escaped}'`)
+  } else if (workdir) {
+    const escapedDir = workdir.replace(/'/g, `'\\''`)
+    sshArgs.push(`--`, `sh -l -c 'cd '\\''${escapedDir}'\\'' && exec $SHELL -l'`)
   }
 
   const env = { ...process.env }
