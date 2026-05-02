@@ -7,6 +7,7 @@ import { EPermResource } from '@tdsk/domain'
 import AddIcon from '@mui/icons-material/Add'
 import { useState, useCallback } from 'react'
 import ShareIcon from '@mui/icons-material/Share'
+import LinkOffIcon from '@mui/icons-material/LinkOff'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { CommandConfig } from '@TTH/constants/sessions'
 import { usePermissions } from '@TTH/hooks/permissions'
@@ -14,7 +15,12 @@ import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
-import { openSession, closeSession, sendControl } from '@TTH/actions/sessions'
+import {
+  sendControl,
+  openSession,
+  closeSession,
+  disconnectSession,
+} from '@TTH/actions/sessions'
 import {
   Box,
   List,
@@ -128,6 +134,19 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     sendControl(sessionId, { type: `visibility`, visibility: newVisibility })
   }, [sessionId, isPublic])
 
+  const onDisconnect = useCallback(() => {
+    if (!orgId) return
+    try {
+      const result = disconnectSession(sessionId)
+      if (result) nav.sandbox(orgId, result.projectId, sandboxId, { replace: true })
+    } catch (err) {
+      console.error(`[SessionCommands] disconnect failed:`, err)
+      toast.error(`Failed to disconnect session`, {
+        description: err instanceof Error ? err.message : `An unexpected error occurred`,
+      })
+    }
+  }, [sessionId, orgId, sandboxId])
+
   const onLeave = useCallback(() => closeSession(sessionId), [sessionId])
 
   if (!session || !orgId) return null
@@ -171,17 +190,29 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
           </>
         )}
         {isOwner && (
-          <Button
-            size='small'
-            onClick={onToggleShare}
-            disabled={executing !== null}
-            variant={isPublic ? `contained` : `outlined`}
-            startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
-            color={isPublic ? `primary` : (`default` as any)}
-            sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
-          >
-            {isPublic ? `Shared` : `Share`}
-          </Button>
+          <>
+            <Button
+              size='small'
+              variant='outlined'
+              onClick={onDisconnect}
+              disabled={executing !== null}
+              startIcon={<LinkOffIcon sx={{ fontSize: 18 }} />}
+              sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+            >
+              Disconnect
+            </Button>
+            <Button
+              size='small'
+              onClick={onToggleShare}
+              disabled={executing !== null}
+              variant={isPublic ? `contained` : `outlined`}
+              startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
+              color={isPublic ? `primary` : (`default` as any)}
+              sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+            >
+              {isPublic ? `Shared` : `Share`}
+            </Button>
+          </>
         )}
         {!isOwner && (
           <Button

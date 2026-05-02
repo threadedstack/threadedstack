@@ -550,9 +550,31 @@ export class SandboxService {
     this.shellSessions.set(session.sessionId, session)
   }
 
+  broadcastSessionList(sandboxId: string): void {
+    const sessions: TSandboxSession[] = []
+    for (const podSessions of this.sessions.values()) {
+      for (const s of podSessions) {
+        if (s.sandboxId === sandboxId) sessions.push(s)
+      }
+    }
+
+    const enriched = sessions.map((s) => ({
+      ...s,
+      hasShellSession: !!this.shellSessions.get(s.sessionId),
+    }))
+
+    this.notifyShellClients(sandboxId, {
+      type: `sessions-updated`,
+      sandboxId,
+      sessions: enriched,
+    })
+  }
+
   removeShellSession(sessionId: string) {
     const session = this.shellSessions.get(sessionId)
     if (!session) return
+
+    const sandboxId = session.sandboxId
 
     if (session.ttlTimer) clearTimeout(session.ttlTimer)
     this.clearEventBatch(sessionId)
@@ -571,6 +593,7 @@ export class SandboxService {
     session.buffer.clear()
     session.attachments.clear()
     this.shellSessions.delete(sessionId)
+    this.broadcastSessionList(sandboxId)
   }
 
   notifyShellClients(sandboxId: string, message: Record<string, any>): void {
@@ -601,6 +624,7 @@ export class SandboxService {
     }
 
     session.attachments.add(ws)
+    this.broadcastSessionList(session.sandboxId)
     return session
   }
 
@@ -619,13 +643,20 @@ export class SandboxService {
       const departingUserId = joinedUserId ?? session.userId
       for (const client of session.attachments) {
         if (client.readyState === 1) {
-          client.send(
-            JSON.stringify({
-              type: `user-left`,
-              sessionId,
-              userId: departingUserId,
-            })
-          )
+          try {
+            client.send(
+              JSON.stringify({
+                type: `user-left`,
+                sessionId,
+                userId: departingUserId,
+              })
+            )
+          } catch (err) {
+            logger.warn(
+              `[ShellSession] Failed to send user-left:`,
+              (err as Error).message
+            )
+          }
         }
       }
     }
@@ -671,6 +702,8 @@ export class SandboxService {
         this.removeShellSession(sessionId)
       }, this.ShellTtlMS)
     }
+
+    this.broadcastSessionList(session.sandboxId)
   }
 
   queueEventForPersistence(sessionId: string, event: TParsedEvent) {

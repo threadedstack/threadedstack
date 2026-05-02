@@ -17,6 +17,7 @@ import {
   getActiveSession,
   setActiveSession,
   removeOpenSession,
+  setBackendSessions,
 } from '@TTH/state/accessors'
 
 let rawBuffers = new Map<string, string[]>()
@@ -176,6 +177,16 @@ export const openSession = async (opts: TOpenSessionOpts) => {
             toast.info(`User left your session`, { duration: 3000 })
           } else if (msg.type === EShellMsg.SandboxStopping) {
             toast.info(`Sandbox is being stopped by another user`, { duration: 5000 })
+          } else if (msg.type === EShellMsg.SessionsUpdated) {
+            if (
+              msg.sandboxId &&
+              Array.isArray(msg.sessions) &&
+              msg.sessions.every(
+                (s: any) =>
+                  s && typeof s.sessionId === `string` && typeof s.sandboxId === `string`
+              )
+            )
+              setBackendSessions(msg.sandboxId as string, msg.sessions)
           } else if (msg.type === EShellMsg.Error) {
             clearTimeout(timeoutId)
             settled = true

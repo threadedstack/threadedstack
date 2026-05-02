@@ -31,13 +31,20 @@ export const classifySessions = (
     const { orgId: _org, podName: _pod, ...fields } = s
 
     if (isOwn) {
-      classified.push({ ...fields, category: isConnected ? `connected` : `disconnected` })
+      classified.push({
+        ...fields,
+        category: isConnected ? `connected` : `disconnected`,
+        hasShellSession: isConnected || !!fields.hasShellSession,
+      })
     } else if (s.visibility === ESandboxSessionVisibility.public) {
-      classified.push({ ...fields, category: `shared` })
+      classified.push({
+        ...fields,
+        category: `shared`,
+        hasShellSession: !!fields.hasShellSession,
+      })
     }
   }
 
-  // Include locally-connected sessions not yet in the backend response
   for (const local of localSessions) {
     if (!backendIds.has(local.sessionId)) {
       classified.push({
@@ -47,6 +54,7 @@ export const classifySessions = (
         connectedAt: new Date().toISOString(),
         visibility: local.visibility,
         category: `connected`,
+        hasShellSession: true,
       })
     }
   }

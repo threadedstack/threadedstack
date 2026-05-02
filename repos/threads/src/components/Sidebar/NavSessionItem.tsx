@@ -7,7 +7,7 @@ import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
 import { colors, cmx, dims } from '@tdsk/components'
 import { usePermissions } from '@TTH/hooks/permissions'
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { PeopleOutline, VisibilityOutlined } from '@mui/icons-material'
 import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
 
@@ -22,36 +22,37 @@ export type TNavSessionItem = {
 const formatTimestamp = (date?: string): string => {
   if (!date) return ``
   const d = new Date(date)
-  return d.toLocaleDateString(undefined, {
-    month: `short`,
-    day: `numeric`,
-    hour: `2-digit`,
-    minute: `2-digit`,
-  })
+  const diffMs = Date.now() - d.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+  if (diffMin < 1) return `just now`
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return `${diffHr}h ago`
+  return d.toLocaleDateString(undefined, { month: `short`, day: `numeric` })
 }
 
 type PaletteColor = { main: string }
 
 const categoryDotColor = (
-  category: TClassifiedSession[`category`],
+  session: TClassifiedSession,
   palette: { success: PaletteColor; warning: PaletteColor; info: PaletteColor }
 ) => {
-  switch (category) {
+  switch (session.category) {
     case `connected`:
       return palette.success.main
     case `disconnected`:
-      return palette.warning.main
+      return session.hasShellSession ? palette.warning.main : colors.grey[600]
     case `shared`:
       return palette.info.main
   }
 }
 
-const categoryLabel = (category: TClassifiedSession[`category`]) => {
-  switch (category) {
+const categoryLabel = (session: TClassifiedSession) => {
+  switch (session.category) {
     case `connected`:
       return `Active`
     case `disconnected`:
-      return `Reconnect`
+      return session.hasShellSession ? `Idle` : `Expired`
     case `shared`:
       return `Shared`
   }
@@ -71,10 +72,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
   const isActive =
     location.pathname === nav.path.session(orgId, projectId, session.sessionId)
   const shortId = session.sessionId.slice(0, 6)
-  const timestamp = useMemo(
-    () => formatTimestamp(session.connectedAt),
-    [session.connectedAt]
-  )
+  const timestamp = formatTimestamp(session.connectedAt)
 
   const onClick = useCallback(async () => {
     if (session.category === `connected`) {
@@ -156,7 +154,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
             height: 8,
             flexShrink: 0,
             borderRadius: `50%`,
-            backgroundColor: categoryDotColor(session.category, theme.palette),
+            backgroundColor: categoryDotColor(session, theme.palette),
           }}
         />
       )}
@@ -171,7 +169,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
             color: isActive ? colors.primary.main : `text.primary`,
           }}
         >
-          {categoryLabel(session.category)} · {shortId}
+          {categoryLabel(session)} · {shortId}
         </Typography>
         {timestamp && (
           <Typography

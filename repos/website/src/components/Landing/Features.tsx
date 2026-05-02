@@ -5,6 +5,7 @@ import ForumIcon from '@mui/icons-material/Forum'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import BusinessIcon from '@mui/icons-material/Business'
 import SecurityIcon from '@mui/icons-material/Security'
+import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 import FeatureCard from '@TAF/components/Shared/FeatureCard'
 import SectionHeader from '@TAF/components/Shared/SectionHeader'
 import SectionContainer from '@TAF/components/Shared/SectionContainer'
@@ -45,6 +46,12 @@ const features = [
     title: 'Multi-Tenant Design',
     description:
       'Organization and project hierarchy with role-based access control. Isolate resources, manage members, and track usage across teams.',
+  },
+  {
+    icon: ScreenShareIcon,
+    title: 'Session Sharing',
+    description:
+      'Share terminal sessions in real-time across CLI and browser. Multiple users collaborate on the same PTY with detach/reconnect and buffered output.',
   },
 ]
 

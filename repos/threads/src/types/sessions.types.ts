@@ -46,6 +46,7 @@ export type TSessionCategory = `connected` | `disconnected` | `shared`
 
 export type TClassifiedSession = Omit<TSandboxSession, `orgId` | `podName`> & {
   category: TSessionCategory
+  hasShellSession: boolean
 }
 
 export type TStopSandboxResult =

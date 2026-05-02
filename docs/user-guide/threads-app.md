@@ -57,6 +57,35 @@ Thread conversations are the core of the Threads App. Within a thread, you can:
 
 Each thread is scoped to an agent within an organization, and users can only see their own threads.
 
+### Sandbox Sessions
+
+The Threads App provides a browser-based terminal for sandbox sessions. Sessions are listed in the sidebar, grouped under their sandbox, with visual indicators for status:
+
+- **Green dot** -- Active session (you are currently connected).
+- **Yellow dot** -- Idle session (server-side PTY is alive but no client is attached). Click to reconnect.
+- **Grey dot** -- Expired session (no longer available on the server).
+- **People icon** -- Shared session from another user. Click to join.
+
+#### Connecting and Disconnecting
+
+Click any session in the sidebar to connect. For idle sessions, the terminal replays the PTY buffer so you see the full terminal state from where you left off.
+
+The session command bar provides lifecycle controls:
+
+- **Disconnect** (owner only) -- Closes your WebSocket connection without killing the PTY. The session enters a 5-minute idle window and can be reconnected.
+- **Leave** (non-owner, when you have joined a shared session) -- Closes your connection. The session owner and other participants are unaffected.
+- **New** -- Creates a new session on the same sandbox.
+
+#### Sharing Sessions
+
+Session owners can make a session public so other org members with sandbox exec permission can join:
+
+- Click the **Share** button in the session command bar to toggle visibility. The button shows "Shared" (filled style) when the session is public.
+- When a session is public, it appears in the sidebar for other org members with a people icon and a "Shared" label.
+- Members without exec permission see shared sessions dimmed with a "View only" label.
+
+The sidebar updates in real-time as sessions are created, destroyed, shared, or joined -- no manual refresh is needed.
+
 ## Relationship to Admin UI
 
 The Threads App and the Admin Dashboard are distinct applications serving different audiences within the same platform. An administrator uses the Admin Dashboard to create an organization, set up agents with tools and provider keys, and invite team members. Those team members then use the Threads App to have conversations with the configured agents -- without needing access to the underlying configuration.

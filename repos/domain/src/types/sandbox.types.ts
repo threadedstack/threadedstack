@@ -280,6 +280,7 @@ export enum EShellMsg {
   Reconnected = `reconnected`,
   Disconnected = `disconnected`,
   SandboxStopping = `sandbox-stopping`,
+  SessionsUpdated = `sessions-updated`,
   PermissionResponse = `permission-response`,
 }
 

@@ -123,6 +123,10 @@ These are invoked from your shell as `tsa <command>`.
 | `tsa sandboxes` | `sb` | List available sandbox configs | Yes |
 | `tsa ssh <sandbox-id>` | — | SSH into a running sandbox (plain shell) | Yes |
 | `tsa sync <sandbox-id>` | `sy` | Start file sync with a sandbox | Yes |
+| `tsa sessions <sandbox-id>` | `session` | List active sessions for a sandbox | Yes |
+| `tsa sessions connect <id>` | `join`, `attach` | Attach to an existing session | Yes |
+| `tsa sessions share [<id>]` | -- | Make a session public | Yes |
+| `tsa sessions unshare [<id>]` | -- | Make a session private | Yes |
 
 **`tsa run` flags:**
 
@@ -130,6 +134,7 @@ These are invoked from your shell as `tsa <command>`.
 |------|-------------|
 | `--list` | List available sandboxes with name, runtime, and ID |
 | `--no-sync` | Skip automatic file synchronization |
+| `--new` | Skip session discovery and always create a new session |
 | `--org <id>` | Specify organization (auto-detects if only one) |
 
 **Agent commands:**
@@ -176,6 +181,55 @@ tsa chat --agent agent_xyz789
 # Resume a specific thread
 tsa chat --thread thread_abc123
 ```
+
+## Session Sharing
+
+Sessions are persistent PTY connections to sandbox pods. Multiple clients (CLI and browser) can attach to the same session simultaneously, providing a shared terminal experience.
+
+### Reconnecting to sessions
+
+When you run `tsa run <sandbox-id>`, the CLI checks for existing sessions. If it finds one, it prompts you to reconnect rather than creating a new session. Use `--new` to skip the prompt:
+
+```bash
+tsa run <sandbox-id> --new
+```
+
+### Listing sessions
+
+```bash
+tsa sessions list <sandbox-id>
+```
+
+Displays each session's ID, owner, visibility (`private` or `public`), and connection time.
+
+### Joining a shared session
+
+```bash
+tsa sessions connect <session-id>
+```
+
+The sandbox is auto-resolved. The server validates that the session is public and that you have sandbox exec permission.
+
+### Sharing and unsharing
+
+Only the session owner can change visibility:
+
+```bash
+# Make a session public so org members can join
+tsa sessions share <session-id>
+
+# Make it private again
+tsa sessions unshare <session-id>
+```
+
+### Detaching
+
+Detaching closes your local connection without killing the server-side PTY. Other clients continue uninterrupted.
+
+- **`Ctrl+]`** -- Opens a session menu bar at the bottom of the terminal. Press `d` to detach, or any other key to dismiss.
+- **`~.`** -- Type tilde then period immediately after pressing Enter (SSH-style escape sequence).
+
+After detaching, the session enters a 5-minute idle window. If no one reconnects within 5 minutes, the session is cleaned up. The sandbox pod remains running independently.
 
 ## Interactive Chat
 

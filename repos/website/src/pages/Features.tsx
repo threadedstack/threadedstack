@@ -1,17 +1,18 @@
 import Box from '@mui/material/Box'
-import Container from '@mui/material/Container'
-import Typography from '@mui/material/Typography'
 import Grid from '@mui/material/Grid'
 import Link from '@mui/material/Link'
+import Container from '@mui/material/Container'
+import Typography from '@mui/material/Typography'
+import CloudIcon from '@mui/icons-material/Cloud'
+import ForumIcon from '@mui/icons-material/Forum'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
+import PageMeta from '@TAF/components/Shared/PageMeta'
 import SecurityIcon from '@mui/icons-material/Security'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
-import CloudIcon from '@mui/icons-material/Cloud'
-import VpnKeyIcon from '@mui/icons-material/VpnKey'
-import ForumIcon from '@mui/icons-material/Forum'
 import BusinessIcon from '@mui/icons-material/Business'
-import type { SvgIconComponent } from '@mui/icons-material'
 import CodeBlock from '@TAF/components/Shared/CodeBlock'
-import PageMeta from '@TAF/components/Shared/PageMeta'
+import type { SvgIconComponent } from '@mui/icons-material'
+import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 
 type FeatureSection = {
   icon: SvgIconComponent
@@ -185,13 +186,37 @@ await fetch('/_/invitations', {
 const quotas = await fetch('/_/quotas?orgId=org_abc123')`,
     docsLink: '/docs/features/organizations',
   },
+  {
+    icon: ScreenShareIcon,
+    title: 'Session Sharing',
+    paragraphs: [
+      'Threaded Stack enables real-time collaborative terminal sessions. When a sandbox session is running, any authorized user can attach to it from the TSA CLI or the Threads web UI. Every connected client sees the same PTY output in real time — keystrokes, command output, and control sequences are broadcast to all participants with sub-second latency.',
+      'Sessions support per-session visibility controls. Mark a session as public to allow any org member to connect, or keep it private so only the session owner can attach. Each session tracks its connected clients, and users can detach at any time without terminating the underlying process. When they reconnect, buffered terminal output is replayed so they never miss what happened while they were away.',
+      'Cross-platform access means you can start a session from the CLI with tsa sessions connect and hand it off to a colleague viewing the same session in the Threads browser UI. Disconnected sessions persist for 5 minutes, giving users time to switch devices or recover from network interruptions without losing their work.',
+    ],
+    code: `# List active sessions for a sandbox
+tsa sessions --sandbox <sandbox-id>
+
+# Connect to a shared session from the CLI
+tsa sessions connect <session-id>
+
+# Start a sandbox and share the session
+tsa run --sandbox <sandbox-id>
+# Another user connects to the same session
+tsa sessions connect <session-id>
+
+# Sessions persist for 5 minutes after disconnect
+# Reconnecting replays buffered output automatically`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/session-sharing',
+  },
 ]
 
 const Features = () => (
   <>
     <PageMeta
       title='Features'
-      description="Explore Threaded Stack's platform capabilities: auth proxy, AI agent runtime, serverless compute, secrets management, threads, and multi-tenant design."
+      description="Explore Threaded Stack's platform capabilities: auth proxy, AI agent runtime, serverless compute, secrets management, threads, multi-tenant design, and real-time session sharing."
     />
     <Box>
       {/* Mini Hero */}
@@ -240,8 +265,8 @@ const Features = () => (
             color='text.secondary'
             sx={{ maxWidth: 560, mx: 'auto' }}
           >
-            A deep dive into the six core systems that power Threaded Stack — from
-            authentication to multi-tenant billing.
+            A deep dive into the seven core systems that power Threaded Stack — from
+            authentication to real-time session sharing.
           </Typography>
         </Container>
       </Box>

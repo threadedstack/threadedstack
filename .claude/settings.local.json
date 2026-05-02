@@ -118,7 +118,8 @@
       "Bash(firebase target:apply:*)",
       "Bash(firebase deploy:*)",
       "Bash(xargs -I {} basename {} .ts)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -I {} basename {})"
     ]
   },
   "sandbox": {

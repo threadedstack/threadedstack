@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws'
 import type { Client, ClientChannel } from 'ssh2'
-import type { ESandboxSessionVisibility } from '@tdsk/domain'
 import type { RingBuffer } from '@TBE/utils/ringBuffer'
+import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
 export type TWebSocketMeta = {
   sessionId: string
@@ -51,6 +51,7 @@ export type TShellServerMsg =
   | { type: `user-joined`; sessionId: string; userId: string }
   | { type: `visibility`; sessionId: string; visibility: ESandboxSessionVisibility }
   | { type: `sandbox-stopping`; sandboxId: string }
+  | { type: `sessions-updated`; sandboxId: string; sessions: TSandboxSession[] }
   | (TSessionIdentity & { type: `connected` })
   | (TSessionIdentity & {
       type: `reconnected`

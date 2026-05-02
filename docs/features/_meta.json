@@ -11,6 +11,7 @@
     "secrets",
     "api-keys",
     "sandbox-connect",
+    "session-sharing",
     "billing"
   ]
 }

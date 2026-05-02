@@ -621,6 +621,7 @@ export const onShellConnect = async (
         visibility: ESandboxSessionVisibility.private,
         projectId: sandbox?.projects?.[0]?.id ?? undefined,
       })
+      sbService.broadcastSessionList(sandboxId)
 
       ws.send(
         JSON.stringify({
@@ -757,6 +758,7 @@ function wireWebSocket(
               )
             }
           }
+          sbService.broadcastSessionList(session.sandboxId)
         }
       } catch (err) {
         logger.warn(`[Shell] Failed to process control message:`, (err as Error).message)
