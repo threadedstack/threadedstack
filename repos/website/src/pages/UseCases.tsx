@@ -4,16 +4,16 @@ import Typography from '@mui/material/Typography'
 import Grid from '@mui/material/Grid'
 import Link from '@mui/material/Link'
 import Chip from '@mui/material/Chip'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
-import ApiIcon from '@mui/icons-material/Api'
-import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import BusinessIcon from '@mui/icons-material/Business'
-import type { SvgIconComponent } from '@mui/icons-material'
+import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import ScreenShareIcon from '@mui/icons-material/ScreenShare'
+import type { ComponentType } from 'react'
 import CodeBlock from '@TAF/components/Shared/CodeBlock'
 import PageMeta from '@TAF/components/Shared/PageMeta'
 
 type UseCaseSection = {
-  icon: SvgIconComponent
+  icon: ComponentType<any>
   title: string
   paragraphs: string[]
   scenario: string
@@ -25,165 +25,124 @@ type UseCaseSection = {
 
 const useCaseSections: UseCaseSection[] = [
   {
-    icon: SmartToyIcon,
-    title: 'Autonomous AI Agents',
+    icon: BusinessIcon,
+    title: 'Platform Engineering',
     paragraphs: [
-      'Build agents that reason, plan, and act across multi-step workflows. Threaded Stack provides the complete runtime: conversation memory, tool execution, provider routing, and streaming responses. Your agents can call external APIs, query databases, execute code, and maintain context across long-running interactions — all without you managing infrastructure.',
-      'Consider a customer support agent that monitors incoming tickets, searches a knowledge base for relevant articles, drafts a response, and escalates to a human when confidence is low. With Threaded Stack, this agent is defined declaratively — a system prompt, a set of tools, and a provider. The runtime handles the reasoning loop, tool invocation, and response streaming.',
-      'Thread branching enables advanced workflows like A/B testing agent responses or letting users retry from an earlier point in a conversation. Combined with metadata tagging, you can build analytics pipelines that track agent performance across thousands of interactions.',
+      'Platform engineering teams need to provide developers with standardized, secure environments for AI agents and tools. Without Threaded Stack, each developer configures their own credentials, installs their own tool versions, and manages their own environment inconsistencies. This creates security blind spots and support burden.',
+      'With Threaded Stack, platform engineers define sandbox presets at the organization level. Every developer in the org gets the same runtime configuration, the same resource limits, and the same credential injection pipeline. New developers are productive in seconds — just run tsa run and their sandbox is ready with all provider credentials pre-configured.',
+      'Role-based access control ensures that only platform admins can modify sandbox configurations and secret values. Developers interact with pre-configured sandboxes without needing access to raw API keys or infrastructure details.',
     ],
     scenario:
-      'A fintech company deploys a compliance review agent that reads transaction reports, flags anomalies using custom functions, queries regulatory databases via secure API proxying, and generates audit summaries — all running autonomously with full conversation history.',
-    features: [
-      'AI Agent Runtime',
-      'Threads & Memory',
-      'Secrets Management',
-      'Serverless Compute',
-    ],
-    code: `// Define a support agent with tools
-const agent = await api.post('/_/agents', {
-  name: 'Customer Support',
-  provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
-  systemPrompt: \`You are a support agent. Use the
-    search_kb tool to find answers, and escalate
-    to a human if you are not confident.\`,
-  tools: ['search_kb', 'create_ticket', 'escalate'],
-})
+      'A 50-person engineering team adopts AI agents and tools. The platform team configures five sandbox presets — one per AI tool — with org-wide Anthropic and OpenAI credentials. New engineers run tsa login and tsa run on day one. No credential sharing over Slack. No environment setup guides. No security reviews per-developer.',
+    features: ['Managed Sandboxes', 'Secret Management', 'Team Management', 'TSA CLI'],
+    code: `# Platform engineer: configure org-wide sandbox
+# presets via the admin dashboard or REST API
 
-// Run with streaming SSE
-const stream = await api.post(
-  \`/_/agents/\${agent.id}/run\`,
-  { threadId: 'thread_123', message: userMessage },
-  { responseType: 'stream' },
-)`,
-    docsLink: '/docs/features/agent-endpoints',
+# Developer: one-time login
+tsa login
+
+# Developer: launch Claude Code sandbox
+tsa run claude-code
+# → Sandbox starting... (preset: Claude Code)
+# → Syncing /Users/dev/project to /workspace...
+# → Claude Code ready. Session: sess_abc123
+
+# All credentials injected automatically
+# via the egress proxy.
+# Developer never sees ANTHROPIC_API_KEY`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/sandbox-connect',
   },
   {
-    icon: ApiIcon,
-    title: 'Secure API Orchestration',
+    icon: VpnKeyIcon,
+    title: 'Secure Credential Management',
     paragraphs: [
-      "Proxy and orchestrate calls to external APIs with automatic credential injection. Threaded Stack's proxy engine resolves secrets at runtime and injects them into outbound requests, so your agents and functions interact with third-party APIs without ever seeing raw credentials. This eliminates an entire class of security vulnerabilities.",
-      'Define proxy endpoints that map to external APIs — Stripe for payments, Twilio for messaging, GitHub for repository management, or any REST API. Each endpoint specifies which secrets to inject and how (headers, query params, or body fields). The proxy handles authentication, rate limiting, error normalization, and response transformation.',
-      'Because secrets are resolved server-side, your client code and AI agents never have access to API keys. Even if an agent is compromised or produces unexpected output, credentials remain safe inside the Threaded Stack secrets vault. Audit logs capture every proxied request for compliance and debugging.',
+      'AI agents and tools need API keys to function — Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Gemini CLI. Traditionally, developers store these in local .env files, share them over insecure channels, or hardcode them in configuration. Every key distribution is a potential leak vector.',
+      'Threaded Stack eliminates this entire problem class. Secrets are encrypted at rest with AES-256-GCM and never injected directly into sandbox environments. Instead, the sandbox receives placeholder tokens. When the AI tool makes an outbound API call, the MITM egress proxy intercepts the request, replaces placeholder tokens with real credentials, and forwards the request to the provider.',
+      'This architecture means that even if an AI tool is instructed to print its environment variables or exfiltrate data, it only has access to placeholder values — not real secrets. The actual credentials exist only transiently in proxy memory during request forwarding.',
     ],
     scenario:
-      'An e-commerce platform uses Threaded Stack to orchestrate an order fulfillment pipeline: an agent receives an order webhook, calls Stripe to verify payment, calls a shipping API to create a label, sends a confirmation via Twilio, and updates inventory in a PostgreSQL database — all through secure proxy endpoints.',
+      'A security-conscious fintech company needs developers to use Claude Code for assisted development but cannot risk API key exposure. They store all provider credentials in Threaded Stack, configure sandbox presets with MITM injection, and audit every outbound request through the egress proxy logs. No developer ever handles a raw API key.',
     features: [
-      'Auth Proxy',
-      'Secrets Management',
-      'AI Agent Runtime',
-      'Multi-Tenant Design',
+      'Zero-Trust Egress Proxy',
+      'Secret Management',
+      'Provider Integrations',
+      'Managed Sandboxes',
     ],
-    code: `// Create a proxy endpoint for Stripe
-await api.post('/_/endpoints', {
-  name: 'stripe-charges',
-  type: 'proxy',
-  target: 'https://api.stripe.com/v1/charges',
-  method: 'POST',
-  secrets: [{
-    name: 'STRIPE_SECRET_KEY',
-    inject: 'header',
-    header: 'Authorization',
-    prefix: 'Bearer ',
-  }],
-})
+    code: `# What the sandbox sees in its environment:
+echo $ANTHROPIC_API_KEY
+# → tdsk_ph_sec_abc123_anthropic
 
-// Agent calls the proxy — never sees the key
-const charge = await fetch('/proxy/stripe-charges', {
-  method: 'POST',
-  body: JSON.stringify({ amount: 2000, currency: 'usd' }),
-})`,
-    docsLink: '/docs/features/proxy-endpoints',
+# When Claude Code calls api.anthropic.com:
+# 1. Request leaves sandbox → hits egress proxy
+# 2. Proxy detects tdsk_ph_sec_abc123_anthropic
+# 3. Proxy resolves to real key: sk-ant-api03-...
+# 4. Request forwarded with real credentials
+# 5. Response returned to sandbox unchanged
+
+# The AI tool NEVER sees the real key.
+# Even "env" or "printenv" only shows placeholders.`,
+    codeLang: 'bash',
+    docsLink: '/docs/architecture/security-model',
   },
   {
     icon: CloudQueueIcon,
-    title: 'Serverless Functions',
+    title: 'Remote AI Development',
     paragraphs: [
-      'Deploy custom compute logic that runs in isolated sandboxes with zero infrastructure management. Threaded Stack supports two isolation levels: V8 isolates for lightweight, sub-millisecond-startup transformations, and Firecracker microVMs for workloads that need full OS capabilities including filesystem access and subprocess execution.',
-      'Functions are first-class citizens in the platform. They can be triggered via HTTP endpoints, invoked by AI agents as tools, or chained together in pipelines. Each function receives a context object with the request payload, environment variables, and any injected secrets. The sandbox provides shims for common Node.js APIs so existing code often works without modification.',
-      'The compute layer handles concurrency, timeout enforcement, and resource limits automatically. Execution logs, timing metrics, and error traces are captured for every invocation. Combined with the quota system, you get built-in cost control without building your own metering infrastructure.',
+      'AI agents and tools are resource-intensive. Running Claude Code or Codex locally competes with your IDE, build tools, and browser for CPU and memory. Cloud sandboxes give AI tools dedicated compute resources while keeping your local machine responsive.',
+      "Threaded Stack sandboxes include bidirectional file sync powered by Mutagen. Your local project files are mirrored to the sandbox's /workspace directory in real-time. The AI tool operates on the synced files, and any changes it makes are immediately reflected on your local filesystem. It feels like running locally, but with cloud-grade resources.",
+      'Sandbox pods are configurable: set CPU and memory limits, choose a base image, auto-clone a git repository, and define init scripts that run on startup. When you finish a session, the sandbox idles and stops automatically after a configurable timeout — you only use resources when actively developing.',
     ],
     scenario:
-      'A data analytics company deploys webhook processors as serverless functions: incoming events from Segment, Mixpanel, and custom sources are transformed, enriched with data from internal APIs, and written to a data warehouse — all running in V8 isolates with sub-millisecond cold starts.',
-    features: [
-      'Serverless Compute',
-      'Secrets Management',
-      'Auth Proxy',
-      'Multi-Tenant Design',
-    ],
-    code: `// Deploy a webhook processor
-await api.post('/_/endpoints', {
-  name: 'process-webhook',
-  type: 'faas',
-  runtime: 'isolate',
-  code: \`
-    export default async (ctx) => {
-      const event = ctx.request.body
+      'A developer is working on a large monorepo that takes 20 minutes to build locally. They launch a Codex sandbox with dedicated CPU and memory, sync their project, and let Codex generate code changes in the cloud while they continue reviewing PRs on their laptop. Changes appear locally in real-time via file sync.',
+    features: ['Managed Sandboxes', 'File Sync', 'TSA CLI', 'Configurable Resources'],
+    code: `# Launch a sandbox with file sync enabled
+tsa run my-codex-sandbox
+# → Syncing ./my-project to /workspace...
+# → Watching for file changes (bidirectional)...
+# → Codex runtime starting...
 
-      // Transform and enrich
-      const enriched = {
-        ...event,
-        processed_at: new Date().toISOString(),
-        geo: await ctx.fetch('/proxy/geo-lookup', {
-          body: JSON.stringify({ ip: event.ip }),
-        }),
-      }
+# Files sync in real-time:
+# Local edit → sandbox /workspace (instant)
+# AI-generated code → local filesystem (instant)
 
-      // Write to data warehouse
-      await ctx.fetch('/proxy/warehouse-ingest', {
-        method: 'POST',
-        body: JSON.stringify(enriched),
-      })
+# Check sync status
+tsa sync status
+# → Active | Local: 1,247 files | Remote: 1,247 files
 
-      return { status: 200, body: { ok: true } }
-    }
-  \`,
-})`,
-    docsLink: '/docs/features/faas-endpoints',
+# SSH in for debugging
+tsa ssh my-codex-sandbox`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/file-sync',
   },
   {
-    icon: BusinessIcon,
-    title: 'Multi-Tenant SaaS',
+    icon: ScreenShareIcon,
+    title: 'Collaborative AI Sessions',
     paragraphs: [
-      'Build multi-tenant products on Threaded Stack without implementing tenancy from scratch. Organizations provide complete isolation: each tenant gets their own agents, threads, secrets, endpoints, and quota limits. Role-based access control governs who can read, write, or administer resources, and invitation workflows handle onboarding new team members.',
-      'Consider an AI writing assistant SaaS where each customer organization has its own agents configured with custom prompts and tools, isolated conversation threads, and organization-scoped secrets for third-party integrations. Threaded Stack handles the multi-tenancy layer so you can focus on the writing experience, not infrastructure.',
-      'Subscription tiers and quota tracking are built in. Each organization is assigned a plan (Free, Basic, Developer, Pro) with defined limits across 12 resource types. Usage is tracked in real time and enforced at the API layer. Payment integration via Polar.sh handles billing, upgrades, and downgrades automatically.',
+      'AI-assisted development does not have to be a solo activity. Threaded Stack session sharing lets multiple developers observe and interact with the same sandbox session in real-time. One developer runs Claude Code in a sandbox; teammates connect via CLI or browser and see the same terminal output live.',
+      'This is powerful for onboarding, pair programming, and knowledge sharing. A senior engineer can demonstrate AI-assisted workflows to the team by sharing their session publicly within the org. Junior developers watch the AI tool in action, see how prompts are structured, and learn effective patterns — all without needing their own sandbox session quota.',
+      'Sessions support visibility controls (public within org or private), detach/reconnect with output replay, and cross-platform access. Start a session in the CLI, share the link, and teammates join from the Threads web UI. No screen-sharing tools needed.',
     ],
     scenario:
-      'A startup launches an AI code review SaaS: each customer org has dedicated agents trained on their coding standards, project-scoped secrets for GitHub and CI/CD integration, isolated threads for review conversations, and tiered pricing that scales from free individual use to enterprise team plans.',
-    features: [
-      'Multi-Tenant Design',
-      'AI Agent Runtime',
-      'Secrets Management',
-      'Threads & Memory',
-    ],
-    code: `// Set up a new customer tenant
-const org = await api.post('/_/orgs', {
-  name: 'Acme Writing Co',
-  tier: 'developer',
-})
+      'A team lead is using Claude Code to refactor a complex module. They share their session publicly within the org. Three teammates connect from the browser UI and watch the refactoring happen in real-time. They later reconnect to review the approach and extract prompting patterns for their own work.',
+    features: ['Session Sharing', 'TSA CLI', 'Threads Web UI', 'Cross-Platform Access'],
+    code: `# Developer A: start a sandbox and share it
+tsa run claude-code
+tsa sessions share sess_k8j2m
+# → Session shared. Org members can connect.
 
-// Create their writing agent
-await api.post('/_/agents', {
-  organizationId: org.id,
-  name: 'Writing Assistant',
-  provider: 'openai',
-  model: 'gpt-4o',
-  systemPrompt: 'You are a writing assistant...',
-})
+# Developer B: list available sessions
+tsa sessions list
+# → sess_k8j2m | my-sandbox | public | 2 connected
 
-// Org-scoped secrets — isolated per tenant
-await api.post('/_/secrets', {
-  name: 'GRAMMARLY_KEY',
-  value: 'grl_...',
-  scope: 'organization',
-  organizationId: org.id,
-})
+# Developer B: connect from CLI
+tsa sessions connect sess_k8j2m
+# → Connected. Replaying 47 lines of output...
 
-// Quotas are tracked automatically
-// GET /_/quotas?orgId=org_xxx → usage per resource`,
-    docsLink: '/docs/features/organizations',
+# Developer C: connects from Threads web UI
+# All three see the same live terminal output`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/session-sharing',
   },
 ]
 
@@ -191,7 +150,7 @@ const UseCases = () => (
   <>
     <PageMeta
       title='Use Cases'
-      description='Discover how teams use Threaded Stack to build autonomous AI agents, secure API orchestration, serverless functions, and multi-tenant SaaS platforms.'
+      description='Discover how engineering teams use Threaded Stack to run AI agents and tools in secure, managed sandbox environments with centralized credential management and real-time collaboration.'
     />
     <Box>
       {/* Mini Hero */}
@@ -233,15 +192,15 @@ const UseCases = () => (
             variant='h2'
             sx={{ mb: 2, fontWeight: 700 }}
           >
-            Built for Real-World Applications
+            Built for How Teams Actually Use AI Tools
           </Typography>
           <Typography
             variant='body1'
             color='text.secondary'
             sx={{ maxWidth: 560, mx: 'auto' }}
           >
-            See how teams use Threaded Stack to ship production AI systems — from
-            autonomous agents to multi-tenant SaaS platforms.
+            See how engineering teams standardize and secure their AI coding tool
+            environments.
           </Typography>
         </Container>
       </Box>

@@ -15,7 +15,7 @@ import CodePreview from '@TAF/components/Landing/CodePreview'
 
 const Landing = () => (
   <>
-    <PageMeta description='Threaded Stack is purpose-built for secure AI agents. We handle identity, execution, and external connections so your agents are secure by default, not as an afterthought.' />
+    <PageMeta description='Threaded Stack provides secure, managed sandbox environments for AI agents and tools. Run Claude Code, Codex, OpenCode, or Gemini CLI with zero-trust credential management and centralized team configuration.' />
     <Hero />
     <Features />
     <HowItWorks />

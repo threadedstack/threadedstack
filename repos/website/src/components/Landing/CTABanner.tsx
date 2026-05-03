@@ -18,14 +18,14 @@ const CTABanner = () => (
         variant='h4'
         sx={{ color: '#fff', fontWeight: 700, mb: 2 }}
       >
-        Ready to Build?
+        Ready to Run?
       </Typography>
       <Typography
         variant='body1'
         sx={{ color: 'rgba(255,255,255,0.8)', mb: 4, maxWidth: 480, mx: 'auto' }}
       >
-        Join developers building the next generation of AI-powered applications on
-        Threaded Stack.
+        Get a secure sandbox environment for your AI agents and tools in under a minute.
+        Free tier, no credit card.
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Button

@@ -190,7 +190,7 @@ The "bring your own AI tool" model creates natural partnership opportunities wit
 
 | Partner Type | Value to Partner | Value to Threaded Stack |
 |---|---|---|
-| **AI coding tools** (Anthropic/Claude Code, OpenAI/Codex, OpenCode) | Managed deployment environment for their tool. Enterprise customers get governance, secret management, and audit capabilities without the tool vendor building them. | Pre-configured sandbox environments that attract developers already using these tools. |
+| **AI agents and tools** (Anthropic/Claude Code, OpenAI/Codex, OpenCode) | Managed deployment environment for their tool. Enterprise customers get governance, secret management, and audit capabilities without the tool vendor building them. | Pre-configured sandbox environments that attract developers already using these tools. |
 | **LLM providers** (OpenAI, Anthropic, Google, Mistral) | Distribution channel — developers configure provider API keys as secrets and route all LLM traffic through the proxy. Usage visibility for the provider's sales team. | Provider templates ship with the platform, making it trivial to configure any major LLM. Reduces onboarding friction. |
 | **AI agent frameworks** (LangChain, CrewAI, AutoGen) | Managed runtime for framework-based agents. Teams using these frameworks get sandbox isolation and secret management without custom infrastructure. | Expands the addressable market beyond developers building custom agents to teams using established frameworks. |
 

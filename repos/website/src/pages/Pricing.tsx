@@ -27,45 +27,46 @@ type ComparisonRow = {
 }
 
 const comparisonRows: ComparisonRow[] = [
-  { resource: 'Organizations', free: '1', solo: '2', pro: '5', team: 'Unlimited' },
-  { resource: 'Projects', free: '2', solo: '10', pro: '50', team: 'Unlimited' },
-  { resource: 'Seats (included)', free: '1', solo: '1', pro: '3', team: '10' },
+  { resource: `Organizations`, free: `1`, solo: `2`, pro: `5`, team: `Unlimited` },
+  { resource: `Projects`, free: `2`, solo: `10`, pro: `50`, team: `Unlimited` },
+  { resource: `Sandbox Sessions`, free: `1`, solo: `3`, pro: `10`, team: `Unlimited` },
+  { resource: `Seats (included)`, free: `1`, solo: `1`, pro: `3`, team: `10` },
   {
-    resource: 'Additional Seats',
-    free: '\u2014',
-    solo: '\u2014',
-    pro: '+$10/seat/mo',
-    team: '+$8/seat/mo',
+    resource: `Additional Seats`,
+    free: `\u2014`,
+    solo: `\u2014`,
+    pro: `+$10/seat/mo`,
+    team: `+$8/seat/mo`,
   },
   {
-    resource: 'Compute',
-    free: '1,000/mo',
-    solo: '10,000/mo',
-    pro: '100,000/mo',
-    team: 'Unlimited',
+    resource: `Compute`,
+    free: `1,000/mo`,
+    solo: `10,000/mo`,
+    pro: `100,000/mo`,
+    team: `Unlimited`,
   },
   {
-    resource: 'Threads',
-    free: '100',
-    solo: '1,000',
-    pro: 'Unlimited',
-    team: 'Unlimited',
+    resource: `Threads`,
+    free: `100`,
+    solo: `1,000`,
+    pro: `Unlimited`,
+    team: `Unlimited`,
   },
   {
-    resource: 'Messages',
-    free: '500/mo',
-    solo: '10,000/mo',
-    pro: 'Unlimited',
-    team: 'Unlimited',
+    resource: `Messages`,
+    free: `500/mo`,
+    solo: `10,000/mo`,
+    pro: `Unlimited`,
+    team: `Unlimited`,
   },
-  { resource: 'Endpoints', free: '3', solo: '20', pro: 'Unlimited', team: 'Unlimited' },
-  { resource: 'Secrets', free: '5', solo: '25', pro: 'Unlimited', team: 'Unlimited' },
+  { resource: `Endpoints`, free: `3`, solo: `20`, pro: `Unlimited`, team: `Unlimited` },
+  { resource: `Secrets`, free: `5`, solo: `25`, pro: `Unlimited`, team: `Unlimited` },
   {
-    resource: 'Retention',
-    free: '7 days',
-    solo: '30 days',
-    pro: '90 days',
-    team: '365 days',
+    resource: `Retention`,
+    free: `7 days`,
+    solo: `30 days`,
+    pro: `90 days`,
+    team: `365 days`,
   },
 ]
 
@@ -76,39 +77,32 @@ type FAQItem = {
 
 const faqItems: FAQItem[] = [
   {
-    question: 'Can I switch plans at any time?',
-    answer:
-      'Yes. You can upgrade or downgrade your plan at any time from the admin dashboard. When upgrading, the new limits take effect immediately. When downgrading, your current billing cycle completes before the change applies, and you will not lose access to any existing resources — only new resource creation will be limited.',
+    question: `Can I switch plans at any time?`,
+    answer: `Yes. You can upgrade or downgrade your plan at any time from the admin dashboard. When upgrading, the new limits take effect immediately. When downgrading, your current billing cycle completes before the change applies, and you will not lose access to any existing resources — only new resource creation will be limited.`,
   },
   {
-    question: 'What happens if I exceed my quotas?',
-    answer:
-      'When you reach a quota limit, new resource creation for that type will be blocked until you upgrade your plan or reduce usage. Existing resources continue to function normally — we never delete or disable resources you have already created. You will receive notifications as you approach your limits.',
+    question: `What happens if I exceed my quotas?`,
+    answer: `When you reach a quota limit, new resource creation for that type will be blocked until you upgrade your plan or reduce usage. Existing resources continue to function normally — we never delete or disable resources you have already created. You will receive notifications as you approach your limits.`,
   },
   {
-    question: 'Is there a free trial for paid plans?',
-    answer:
-      'The Free tier is available indefinitely with no credit card required, so you can explore the platform at your own pace. For paid plans, we offer a 14-day free trial with full access to all features of the selected tier. If you cancel before the trial ends, you will not be charged.',
+    question: `How do I get started?`,
+    answer: `Sign up for the Free tier — no credit card required. You get a fully functional sandbox environment with one concurrent session. When you need more sessions, projects, or team seats, upgrade from the admin dashboard.`,
   },
   {
-    question: 'Do you offer custom enterprise plans?',
-    answer:
-      'Yes. For organizations that need higher limits, custom SLAs, dedicated infrastructure, or specific compliance requirements, we offer tailored enterprise plans. Contact our sales team at enterprise@threadedstack.com to discuss your needs.',
+    question: `Do you offer custom enterprise plans?`,
+    answer: `Yes. For organizations that need higher limits, custom SLAs, dedicated infrastructure, or specific compliance requirements, we offer tailored enterprise plans. Contact our sales team at enterprise@threadedstack.com to discuss your needs.`,
   },
   {
-    question: 'How does billing work?',
-    answer:
-      'All paid plans are billed monthly through Stripe. You can pay with any major credit card. Invoices are generated at the start of each billing cycle and are available in your admin dashboard. Annual billing with a discount is coming soon.',
+    question: `How does billing work?`,
+    answer: `All paid plans are billed monthly. You can upgrade or downgrade at any time from the admin dashboard. Invoices are generated at the start of each billing cycle and available in your account settings.`,
   },
   {
-    question: 'What payment methods do you accept?',
-    answer:
-      'We accept all major credit and debit cards (Visa, Mastercard, American Express) through Stripe. All transactions are processed securely and we never store your card details on our servers.',
+    question: `What counts as a sandbox session?`,
+    answer: `A sandbox session is one active, running sandbox pod. When a sandbox is stopped or idle-timed-out, it no longer counts against your session limit. You can have as many configured sandboxes as your project limit allows — the session limit only governs how many run simultaneously.`,
   },
   {
-    question: 'How does seat-based pricing work?',
-    answer:
-      'The Pro plan includes 3 seats and the Team plan includes 10 seats at the base price. If you need more, additional seats are billed per member per month — $10/seat on Pro, $8/seat on Team. Seats are prorated when added mid-cycle, and you are only charged for active members.',
+    question: `How does seat-based pricing work?`,
+    answer: `The Pro plan includes 3 seats and the Team plan includes 10 seats at the base price. If you need more, additional seats are billed per member per month — $10/seat on Pro, $8/seat on Team. Seats are prorated when added mid-cycle, and you are only charged for active members.`,
   },
 ]
 
@@ -116,7 +110,7 @@ const Pricing = () => (
   <>
     <PageMeta
       title='Pricing'
-      description='Simple, transparent pricing for Threaded Stack. Start free, scale as you grow with Solo, Pro, and Team plans.'
+      description='Simple, transparent pricing for Threaded Stack. Start free, scale as you grow with Solo, Pro, and Team plans. Every plan includes managed sandboxes, egress proxy, and secret management.'
     />
     <Box>
       {/* Mini Hero */}

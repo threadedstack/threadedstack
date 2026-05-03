@@ -4,6 +4,7 @@ import MobileMenu from './MobileMenu'
 import ThemeToggle from './ThemeToggle'
 import AppBar from '@mui/material/AppBar'
 import Button from '@mui/material/Button'
+import { TSIcon } from '@tdsk/components'
 import Toolbar from '@mui/material/Toolbar'
 import MenuIcon from '@mui/icons-material/Menu'
 import Typography from '@mui/material/Typography'
@@ -16,6 +17,7 @@ import { useScrollPosition } from '@TAF/hooks/useScrollPosition'
 const navItems = [
   { label: `Features`, path: `/features` },
   { label: `Pricing`, path: `/pricing` },
+  { label: `Use Cases`, path: `/use-cases` },
   { label: `Docs`, path: `/docs` },
 ]
 
@@ -46,12 +48,7 @@ const Header = () => {
             component={RouterLink}
             sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none' }}
           >
-            <Box
-              component='img'
-              src='/logo.svg'
-              alt='Threaded Stack'
-              sx={{ width: 28, height: 28 }}
-            />
+            <TSIcon sx={{ width: 28, height: 28, color: 'primary.main' }} />
             <Typography
               variant='h6'
               sx={{ fontSize: '18px', letterSpacing: '-1px', color: 'text.primary' }}
@@ -80,7 +77,7 @@ const Header = () => {
             <IconButton
               size='small'
               target='_blank'
-              href='https://github.com'
+              href='https://github.com/threadedstack'
               sx={{ color: 'text.secondary', ml: 0.5 }}
             >
               <GitHubIcon fontSize='small' />

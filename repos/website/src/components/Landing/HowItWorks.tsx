@@ -1,32 +1,28 @@
 import Box from '@mui/material/Box'
-import SectionContainer from '@TAF/components/Shared/SectionContainer'
-import SectionHeader from '@TAF/components/Shared/SectionHeader'
 import StepItem from '@TAF/components/Shared/StepItem'
+import SectionHeader from '@TAF/components/Shared/SectionHeader'
+import SectionContainer from '@TAF/components/Shared/SectionContainer'
 
 const steps = [
   {
     number: 1,
-    title: 'Create an Organization',
-    description:
-      'Set up your workspace and invite team members to collaborate on AI agent projects.',
+    title: `Install the TSA CLI`,
+    description: `Install the CLI with a single command and authenticate with your API key or browser login.`,
   },
   {
     number: 2,
-    title: 'Configure an Agent',
-    description:
-      "Define your AI agent's capabilities, connect tools, and set behavioral parameters.",
+    title: `Add Your Credentials`,
+    description: `Store your LLM provider API keys as encrypted secrets. They are never exposed to sandboxes directly, instead they are resolved through the egress proxy.`,
   },
   {
     number: 3,
-    title: 'Connect a Provider',
-    description:
-      'Link your preferred AI provider — OpenAI, Anthropic, or any compatible LLM service.',
+    title: `Choose a Runtime`,
+    description: `Select from built-in presets like Claude Code, Codex, OpenCode, Gemini CLI, or configure a custom runtime with your own tooling.`,
   },
   {
     number: 4,
-    title: 'Start Building',
-    description:
-      'Deploy and interact via the REST API, WebSocket, admin dashboard, or TSA CLI.',
+    title: `Run Your Sandbox`,
+    description: `Execute tsa run to launch your sandbox, sync files, and start coding with AI. Share sessions with teammates or switch to the browser UI.`,
   },
 ]
 
@@ -41,8 +37,8 @@ const HowItWorks = () => (
   >
     <SectionHeader
       overline='HOW IT WORKS'
-      title='Up and Running in Minutes'
-      subtitle='Four simple steps from zero to a fully operational AI agent platform.'
+      title='From Install to AI Sandbox in 60 Seconds'
+      subtitle='Four steps to a fully configured, secure AI tool environment.'
     />
     <Box
       className='tdsk-hw-items-box'

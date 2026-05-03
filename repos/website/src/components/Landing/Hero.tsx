@@ -111,7 +111,7 @@ const Hero = () => {
                 fontSize: '0.75rem',
               }}
             >
-              THE DEVELOPER PLATFORM FOR AI AGENTS
+              ISOLATED SECURE SANDBOXES FOR AI AGENTS
             </Typography>
 
             {/* Headline with gradient text */}
@@ -125,7 +125,7 @@ const Hero = () => {
               }}
             >
               <span className={isDark ? 'gradient-text-dark' : 'gradient-text-light'}>
-                Secure and Autonomous AI Agents without Headaches
+                Unleash AI Agents with Confidence
               </span>
             </Typography>
 
@@ -135,9 +135,9 @@ const Hero = () => {
               color='text.secondary'
               sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
             >
-              Threaded Stack is purpose-built for secure AI agents. We handle identity,
-              execution, and external connections so your agents are secure by default,
-              not as an afterthought.
+              Launch Claude Code, Codex, OpenCode, or Gemini CLI in managed K8s pods with
+              zero-trust credential injection. The real secrets are resolved on demand
+              through an encrypted proxy.
             </Typography>
 
             {/* CTAs */}
@@ -164,7 +164,7 @@ const Hero = () => {
               variant='caption'
               color='text.secondary'
             >
-              Free tier. No credit card required.
+              Free tier available. No credit card required.
             </Typography>
           </Grid>
 

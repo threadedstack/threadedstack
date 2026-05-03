@@ -1,41 +1,37 @@
+import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
-import Box from '@mui/material/Box'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
-import ApiIcon from '@mui/icons-material/Api'
-import CloudQueueIcon from '@mui/icons-material/CloudQueue'
-import BusinessIcon from '@mui/icons-material/Business'
 import { Link as RouterLink } from 'react-router'
-import SectionContainer from '@TAF/components/Shared/SectionContainer'
+import Typography from '@mui/material/Typography'
+import CardContent from '@mui/material/CardContent'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
+import BusinessIcon from '@mui/icons-material/Business'
+import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 import SectionHeader from '@TAF/components/Shared/SectionHeader'
+import SectionContainer from '@TAF/components/Shared/SectionContainer'
 
 const useCases = [
   {
-    icon: SmartToyIcon,
-    title: 'Autonomous AI Agents',
-    description:
-      'Build agents that reason, plan, and execute multi-step tasks using tools and external APIs. Full conversation memory, branching threads, and streaming responses out of the box.',
+    icon: BusinessIcon,
+    title: `Platform Engineering`,
+    description: `Give every developer on your team a standardized AI tool environment. Configure sandbox presets and provider credentials once at the org level — they propagate to all projects automatically.`,
   },
   {
-    icon: ApiIcon,
-    title: 'Secure API Orchestration',
-    description:
-      'Proxy and orchestrate calls to external APIs with automatic authentication injection. Secrets never leave the server — your agents interact with APIs without ever seeing credentials.',
+    icon: VpnKeyIcon,
+    title: `Secure Credential Management`,
+    description: `Centralize LLM API keys with zero-trust injection. The MITM egress proxy resolves credentials at the network layer — AI tools cannot exfiltrate real secrets from the sandbox.`,
   },
   {
     icon: CloudQueueIcon,
-    title: 'Serverless Functions',
-    description:
-      'Deploy custom functions that run in isolated sandboxes. From lightweight V8 isolates for quick transformations to full Firecracker microVMs for complex compute workloads.',
+    title: `Remote AI Development`,
+    description: `Run Claude Code, Codex, or any AI tool in a cloud sandbox with full file sync. Develop on your laptop, execute in a reproducible environment with consistent dependencies and resources.`,
   },
   {
-    icon: BusinessIcon,
-    title: 'Multi-Tenant SaaS Platform',
-    description:
-      'Build SaaS products on top of Threaded Stack with built-in multi-tenancy. Organizations, projects, roles, quotas, and billing are all handled for you.',
+    icon: ScreenShareIcon,
+    title: `Collaborative AI Sessions`,
+    description: `Share live AI tool sessions with teammates in real-time. Pair-program with AI from the CLI or browser — public sessions let your whole team observe and learn from AI-assisted workflows.`,
   },
 ]
 
@@ -43,8 +39,8 @@ const UseCases = () => (
   <SectionContainer id='use-cases'>
     <SectionHeader
       overline='USE CASES'
-      title='Built for Real-World Applications'
-      subtitle='See how teams are using Threaded Stack to ship production AI systems.'
+      title='Built for How Teams Actually Use AI Tools'
+      subtitle='See how engineering teams standardize and secure their AI coding tool environments.'
     />
     <Grid
       container

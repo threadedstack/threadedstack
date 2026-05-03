@@ -24,15 +24,15 @@ const allNodes: NodeDef[] = [
   {
     id: 'client',
     label: 'Client',
-    desc: 'Your app or API consumer',
-    x: 250,
+    desc: 'User entry point — tsa CLI or Threads App',
+    x: 235,
     y: 15,
-    w: 140,
+    w: 170,
     h: 44,
   },
   {
     id: 'proxy',
-    label: 'Auth Proxy',
+    label: 'Auth Gateway',
     desc: 'Validates JWTs and API keys',
     x: 250,
     y: 100,
@@ -42,7 +42,7 @@ const allNodes: NodeDef[] = [
   {
     id: 'backend',
     label: 'Backend',
-    desc: 'Core API — orchestrates all services',
+    desc: 'Orchestrates sandboxes, secrets, and sessions',
     x: 235,
     y: 185,
     w: 170,
@@ -56,25 +56,25 @@ const allNodes: NodeDef[] = [
     desc: 'Tools, context, and secrets injected into the sandbox',
     x: 168,
     y: 300,
-    w: 110,
+    w: 130,
     h: 44,
   },
   {
     id: 'response',
     label: 'Response',
-    desc: 'Agent response returned to the backend',
-    x: 362,
+    desc: 'Resolves placeholder tokens to real secrets',
+    x: 342,
     y: 300,
-    w: 110,
+    w: 130,
     h: 44,
   },
   {
     id: 'agent',
     label: 'AI Agent',
-    desc: 'Processes prompts and executes tools in isolation',
-    x: 245,
+    desc: 'Runs AI provider tooling (Claude-Code, Codex, Gemini-CLI, OpenCode, Custom)',
+    x: 235,
     y: 410,
-    w: 150,
+    w: 170,
     h: 48,
     fontSize: 14,
     fontWeight: 700,
@@ -142,7 +142,7 @@ const ArchitectureDiagram = () => {
         viewBox='95 0 450 510'
         style={{ width: '100%', height: 'auto', overflow: 'visible' }}
         role='img'
-        aria-label='Threaded Stack architecture: requests flow from Client through Auth Proxy to Backend, which runs a counter-clockwise execution loop — injecting tools, context, and secrets into an isolated Sandbox where the AI Agent processes them and returns a response'
+        aria-label='Threaded Stack architecture: requests flow from TSA CLI or Browser through Auth Gateway to Backend, which manages Sandboxs. Outbound requests pass through the MITM Proxy where placeholder tokens are resolved to real secrets before reaching LLM Providers.'
       >
         <defs>
           <style>{`
