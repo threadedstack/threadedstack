@@ -11,8 +11,8 @@ export const apiKeys: TEndpointConfig = {
   path: `/api-keys`,
   method: EPMethod.Use,
   endpoints: {
-    getApiKey,
     listApiKeys,
+    getApiKey,
     createApiKey,
     updateApiKey,
     deleteApiKey,

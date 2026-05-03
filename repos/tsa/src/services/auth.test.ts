@@ -6,6 +6,8 @@ vi.mock(`@TSA/services/config`, () => ({
   ConfigService: {
     loadGlobal: vi.fn(),
     saveGlobal: vi.fn(),
+    updateKey: vi.fn(),
+    deleteKey: vi.fn(),
   },
 }))
 
@@ -188,7 +190,6 @@ describe(`AuthManager`, () => {
         ok: true,
         json: async () => ({ data: [] }),
       })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`, `https://proxy.test`)
 
@@ -202,18 +203,14 @@ describe(`AuthManager`, () => {
 
     it(`should save credentials with apiKey and no token fields`, async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`, `https://proxy.test`)
 
-      const savedConfig = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
-      expect(savedConfig.auth).toEqual({
+      expect(ConfigService.updateKey).toHaveBeenCalledWith(`auth`, {
         apiKey: `tdsk_test123`,
         proxyUrl: `https://proxy.test`,
         insecure: undefined,
       })
-      expect(savedConfig.auth?.token).toBeUndefined()
-      expect(savedConfig.auth?.expiresAt).toBeUndefined()
     })
 
     it(`should throw on auth failure`, async () => {
@@ -230,7 +227,6 @@ describe(`AuthManager`, () => {
 
     it(`should use default proxy URL when none provided`, async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`)
 
@@ -242,16 +238,12 @@ describe(`AuthManager`, () => {
 
     it(`should store insecure flag when provided`, async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`, `https://proxy.test`, true)
 
-      expect(ConfigService.saveGlobal).toHaveBeenCalledWith(
-        expect.objectContaining({
-          auth: expect.objectContaining({
-            insecure: true,
-          }),
-        })
+      expect(ConfigService.updateKey).toHaveBeenCalledWith(
+        `auth`,
+        expect.objectContaining({ insecure: true })
       )
     })
 
@@ -261,7 +253,6 @@ describe(`AuthManager`, () => {
         tlsValueDuringFetch = process.env.NODE_TLS_REJECT_UNAUTHORIZED
         return { ok: true }
       })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`, `https://proxy.test`, true)
 
@@ -270,12 +261,13 @@ describe(`AuthManager`, () => {
 
     it(`should not store insecure flag when not provided`, async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       await auth.login(`tdsk_test123`, `https://proxy.test`)
 
-      const savedConfig = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
-      expect(savedConfig.auth?.insecure).toBeUndefined()
+      expect(ConfigService.updateKey).toHaveBeenCalledWith(
+        `auth`,
+        expect.objectContaining({ insecure: undefined })
+      )
     })
   })
 
@@ -480,20 +472,13 @@ describe(`AuthManager`, () => {
 
   describe(`logout`, () => {
     it(`should remove auth from config`, () => {
-      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
-        auth: { apiKey: `tdsk_test`, proxyUrl: `https://proxy.test` },
-        org: `org_1`,
-      })
-
       auth.logout()
 
-      expect(ConfigService.saveGlobal).toHaveBeenCalledWith(
-        expect.not.objectContaining({ auth: expect.anything() })
-      )
+      expect(ConfigService.deleteKey).toHaveBeenCalledWith(`auth`)
     })
 
     it(`should not throw on error`, () => {
-      vi.mocked(ConfigService.loadGlobal).mockImplementation(() => {
+      vi.mocked(ConfigService.deleteKey).mockImplementation(() => {
         throw new Error(`read error`)
       })
 

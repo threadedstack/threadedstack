@@ -15,6 +15,7 @@ import { setTheme } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { EStreamEventType } from '@tdsk/domain'
 import { Executor } from '@TSA/services/executor'
+import { ConfigService } from '@TSA/services/config'
 import { ContextLoader } from '@TSA/services/context'
 import { resolveOrg } from '@TSA/utils/api/resolveOrg'
 import { getToolName } from '@TSA/utils/tools/getToolName'
@@ -169,7 +170,7 @@ export class ChatLogic {
     this.#addMessage({ type: `system`, content: text })
   }
 
-  #handleCatchError(err: unknown, context: `startup` | `session`): void {
+  #onCatchError(err: unknown, context: `startup` | `session`): void {
     const error = err instanceof Error ? err : new Error(String(err))
     const kind = classifyApiError(err)
 
@@ -317,7 +318,7 @@ export class ChatLogic {
         this.#setPhase(`pickAgent`)
       }
     } catch (err) {
-      this.#handleCatchError(err, `startup`)
+      this.#onCatchError(err, `startup`)
     }
   }
 
@@ -337,7 +338,19 @@ export class ChatLogic {
     await this.#connectAfterLogin()
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    try {
+      const config = ConfigService.loadGlobal()
+      const sessionKeyId = config?.auth?.sessionKeyId
+      const orgId = config?.org
+      if (sessionKeyId && orgId) {
+        const api = new ApiClient(this.#auth)
+        await api.revokeCliSessionKey(orgId, sessionKeyId)
+      }
+    } catch (err) {
+      this.#outputMessage(`Error: ${(err as Error)?.message ?? err}`)
+    }
+
     this.#auth.logout()
     this.loggedIn = false
     this.#setPhase(`login`)
@@ -392,7 +405,7 @@ export class ChatLogic {
       this.onAgentsLoaded?.(this.agents)
       this.#setPhase(`pickAgent`)
     } catch (err) {
-      this.#handleCatchError(err, `startup`)
+      this.#onCatchError(err, `startup`)
     }
   }
 
@@ -464,7 +477,7 @@ export class ChatLogic {
         this.#setPhase(`pickProject`)
       }
     } catch (err) {
-      this.#handleCatchError(err, `session`)
+      this.#onCatchError(err, `session`)
     }
   }
 
@@ -597,7 +610,7 @@ export class ChatLogic {
         this.#addMessage({ type: `assistant`, content: this.#streamBuffer })
       }
 
-      this.#handleCatchError(err, `session`)
+      this.#onCatchError(err, `session`)
     } finally {
       this.#stopStreamFlush()
       this.isStreaming = false

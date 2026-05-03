@@ -21,8 +21,8 @@ type TThreadWBranches = {
 
 type TCmdCtxAuth = {
   loggedIn: boolean
-  logout: () => void
   proxyUrl: string | null
+  logout: () => Promise<void>
   loginWithToken: (opts: TTokenLoginOpts) => Promise<void>
   login: (apiKey: string, proxyUrl?: string, insecure?: boolean) => Promise<void>
 }

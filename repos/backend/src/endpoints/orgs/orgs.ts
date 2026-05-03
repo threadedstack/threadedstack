@@ -2,6 +2,7 @@ import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { getOrg } from '@TBE/endpoints/orgs/getOrg'
+import { orgCli } from '@TBE/endpoints/orgs/orgCli'
 import { listOrgs } from '@TBE/endpoints/orgs/listOrgs'
 import { createOrg } from '@TBE/endpoints/orgs/createOrg'
 import { updateOrg } from '@TBE/endpoints/orgs/updateOrg'
@@ -40,13 +41,14 @@ export const orgs: TEndpointConfig = {
     listOrgMembers,
     removeOrgMember,
     updateMemberRole,
+    orgCli,
+    orgSkills,
     orgQuotas,
     orgAgents,
     orgApiKeys,
     orgDomains,
     orgSecrets,
     orgProjects,
-    orgSkills,
     orgSchedules,
     orgProviders,
     orgSandboxes,

@@ -4,11 +4,12 @@ import type { TThemeType } from '@TSA/types/theme.types'
 export type TAuthConfig = {
   token?: string
   apiKey?: string
-  neonAuthUrl?: string
   proxyUrl?: string
   insecure?: boolean
   expiresAt?: string
   threadsUrl?: string
+  neonAuthUrl?: string
+  sessionKeyId?: string
 }
 
 export type TDisplayConfig = {
@@ -58,3 +59,5 @@ export type TProjectConfig = {
   hooks?: THooksConfig
   tools?: TToolsConfig
 }
+
+export type TTsaCfgKey = keyof TTsaConfig

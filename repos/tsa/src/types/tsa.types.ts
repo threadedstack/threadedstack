@@ -30,6 +30,13 @@ export type TTokenLoginOpts = {
 
 export type TAuthCredentials = TApiKeyAuth | TTokenAuth
 
+export type TCliSessionKeyResult = {
+  key: string
+  id: string
+  orgId: string
+  expiresAt: string
+}
+
 export enum EAppPhase {
   chat = `chat`,
   error = `error`,

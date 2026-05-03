@@ -5,10 +5,10 @@ import type {
   TDBQueryOpts,
 } from '@TDB/types'
 
-import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { apiKeys } from '@TDB/schemas/apiKeys'
 import { ApiKey as ApiKeyModel } from '@tdsk/domain'
+import { eq, and, like, lt, count } from 'drizzle-orm'
 
 export class ApiKey extends Base<
   typeof apiKeys,
@@ -88,6 +88,76 @@ export class ApiKey extends Base<
         .where(eq(apiKeys.id, id))
         .returning()
 
+      return { data: this.model(resp[0]) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  cleanupExpiredCliSessionKeys = async (
+    userId: string,
+    orgId: string,
+    namePrefix: string
+  ) => {
+    try {
+      await this.db
+        .update(apiKeys)
+        .set({ active: false })
+        .where(
+          and(
+            eq(apiKeys.userId, userId),
+            eq(apiKeys.orgId, orgId),
+            eq(apiKeys.active, true),
+            like(apiKeys.name, `${namePrefix}%`),
+            lt(apiKeys.expiresAt, new Date())
+          )
+        )
+      return { data: true }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  countActiveCliSessionKeys = async (
+    userId: string,
+    orgId: string,
+    namePrefix: string
+  ) => {
+    try {
+      const resp = await this.db
+        .select({ count: count() })
+        .from(apiKeys)
+        .where(
+          and(
+            eq(apiKeys.userId, userId),
+            eq(apiKeys.orgId, orgId),
+            eq(apiKeys.active, true),
+            like(apiKeys.name, `${namePrefix}%`)
+          )
+        )
+      return { data: Number(resp[0]?.count ?? 0) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  findOldestCliSessionKey = async (userId: string, orgId: string, namePrefix: string) => {
+    try {
+      const resp = await this.db
+        .select()
+        .from(apiKeys)
+        .where(
+          and(
+            eq(apiKeys.userId, userId),
+            eq(apiKeys.orgId, orgId),
+            eq(apiKeys.active, true),
+            like(apiKeys.name, `${namePrefix}%`)
+          )
+        )
+        .orderBy(apiKeys.createdAt)
+        .limit(1)
+
+      if (!resp[0]) return { data: undefined }
       return { data: this.model(resp[0]) }
     } catch (error: any) {
       return { error }

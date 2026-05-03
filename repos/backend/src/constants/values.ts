@@ -95,6 +95,10 @@ export const CAKeyPath = `/etc/tdsk/ca/tls.key`
 // Real client IP from custom header injected by the front TCP server
 export const RealIpHeader = `x-tdsk-real-ip`
 
+export const CliSessionKeyTtlDays = 30
+export const CliSessionKeyMaxPerOrg = 5
+export const CliSessionKeyPrefix = `cli-session-`
+
 /** Max character length for text extracted from uploaded documents (PDF, DOCX, text) */
 export const MaxExtractedLength = 50_000
 /** MIME type for Microsoft Word (.docx) documents */

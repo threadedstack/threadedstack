@@ -1,12 +1,12 @@
 import type { AuthManager } from '@TSA/services/auth'
-import type { TSessionInfo, TProviderInfo } from '@TSA/types'
 import type { TApiRequest, TApiResponse, TSandboxSession } from '@tdsk/domain'
+import type { TSessionInfo, TProviderInfo, TCliSessionKeyResult } from '@TSA/types'
 
 import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TSA/constants'
+import { TokenRefreshService } from '@TSA/services/tokenRefresh'
 import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 import { RetryStatusCodes, RetryNetworkCodes } from '@TSA/constants/api'
-import { TokenRefreshService } from '@TSA/services/tokenRefresh'
 
 export class ApiClient extends ApiService {
   #auth: AuthManager
@@ -304,6 +304,22 @@ export class ApiClient extends ApiService {
     }
 
     return { ok: true, status: result.status }
+  }
+
+  // --- CLI Session Keys ---
+
+  async createCliSessionKey(orgId: string): Promise<TApiResponse<TCliSessionKeyResult>> {
+    return this.post<TCliSessionKeyResult>({
+      path: `orgs/${orgId}/cli/session`,
+      data: {},
+    })
+  }
+
+  async revokeCliSessionKey(orgId: string, keyId: string): Promise<TApiResponse<void>> {
+    return this.delete<void>({
+      path: `orgs/${orgId}/cli/session`,
+      data: { keyId },
+    })
   }
 
   // --- Messages ---

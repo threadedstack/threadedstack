@@ -1,10 +1,10 @@
 import type { TEndpointConfig } from '@TBE/types'
 
-import { apiKeys } from '@TBE/endpoints/apiKeys/apiKeys'
+import { cli } from '@TBE/endpoints/cli/cli'
 import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 
-export const orgApiKeys: TEndpointConfig = {
-  ...apiKeys,
-  path: `/:orgId/api-keys`,
+export const orgCli: TEndpointConfig = {
+  ...cli,
+  path: `/:orgId/cli`,
   middleware: [projectAccessGuard()],
 }

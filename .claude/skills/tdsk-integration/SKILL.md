@@ -1,3 +1,8 @@
+---
+name: "tdsk-integration"
+description: "Knowledge base for the end to end integration tests across all services and applications"
+---
+
 # Integration Testing Skill
 
 ## Directory Structure
@@ -44,7 +49,7 @@ pnpm test:all
 
 ## Prerequisites
 
-Services must be running: `tdsk dev start --clean` for K8s (Backend :5885, Proxy :7118), `cd repos/admin && pnpm start` for Admin UI (:5887).
+The K8s services are always running and local changes are automatically synced into the running containers. If needed the services can be restart with `tdsk dev start --clean` for K8s (Backend :5885, Proxy :7118), `cd repos/admin && pnpm start` for Admin UI (:5887), and `cd repos/threads && pnpm start` for Threads UI (:5886).
 
 ## Authentication
 
@@ -79,7 +84,7 @@ Headless browser tests for UI workflows. Require admin UI running.
 
 ## Tier 3 -- Live Infrastructure Tests
 
-Real K8s pods, networking, SSH tunneling. ~2 min per spec.
+Real K8s pods (The K8s services are always running), networking, SSH tunneling. ~2 min per spec.
 
 - `sandbox-connect.test.ts` — POST `/connect` auto-start, concurrent deduplication
 - `sandbox-route-cleanup.test.ts` — Stale route cleanup, subdomain proxy, WebSocket after cleanup

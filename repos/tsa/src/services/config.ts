@@ -1,4 +1,4 @@
-import type { TTsaConfig, TProjectConfig } from '@TSA/types'
+import type { TTsaConfig, TTsaCfgKey, TProjectConfig } from '@TSA/types'
 
 import yaml from 'js-yaml'
 import { join } from 'node:path'
@@ -26,6 +26,18 @@ export class ConfigService {
     const content = yaml.dump(config, { sortKeys: true, lineWidth: 120 })
     writeFileSync(ConfigPath, content, `utf-8`)
     chmodSync(ConfigPath, 0o600)
+  }
+
+  static updateKey<K extends TTsaCfgKey = TTsaCfgKey>(key: K, value: TTsaConfig[K]) {
+    const globalConfig = ConfigService.loadGlobal()
+    globalConfig[key] = value
+    ConfigService.saveGlobal(globalConfig)
+  }
+
+  static deleteKey<K extends TTsaCfgKey = TTsaCfgKey>(key: K) {
+    const config = ConfigService.loadGlobal()
+    delete config[key]
+    ConfigService.saveGlobal(config)
   }
 
   static loadProject(cwd?: string): TProjectConfig {

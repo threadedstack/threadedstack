@@ -12,6 +12,16 @@ vi.mock(`@TSA/services/config`, () => ({
     saveGlobal: (...args: any[]) => mockSaveGlobal(...args),
     loadProject: (...args: any[]) => mockLoadProject(...args),
     merge: (global: any, project: any) => mockMerge(global, project),
+    updateKey: (...args: any[]) => {
+      const config = mockLoadGlobal() || {}
+      config[args[0]] = args[1]
+      mockSaveGlobal(config)
+    },
+    deleteKey: (...args: any[]) => {
+      const config = mockLoadGlobal() || {}
+      delete config[args[0]]
+      mockSaveGlobal(config)
+    },
   },
 }))
 

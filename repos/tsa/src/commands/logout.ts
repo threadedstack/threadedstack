@@ -5,7 +5,7 @@ export const logoutCommand: TSlashCommand = {
   aliases: [`lo`],
   description: `Remove stored credentials`,
   handler: async (_args, ctx) => {
-    ctx.auth.logout()
+    await ctx.auth.logout()
     ctx.output(`Logged out`)
   },
 }

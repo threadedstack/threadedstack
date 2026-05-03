@@ -45,7 +45,12 @@ export class AuthManager {
     return new Date(c.expiresAt).getTime() <= Date.now()
   }
 
-  async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
+  async login(
+    apiKey: string,
+    proxyUrl?: string,
+    insecure?: boolean,
+    sessionKeyId?: string
+  ): Promise<void> {
     const url = proxyUrl || resolveProxyUrl()
 
     if (!apiKey.startsWith(ApiKeyPrefix)) {
@@ -71,9 +76,12 @@ export class AuthManager {
         )
       }
 
-      const config = ConfigService.loadGlobal()
-      config.auth = { apiKey, proxyUrl: url, insecure }
-      ConfigService.saveGlobal(config)
+      ConfigService.updateKey(`auth`, {
+        apiKey,
+        insecure,
+        proxyUrl: url,
+        ...(sessionKeyId && { sessionKeyId }),
+      })
     } finally {
       if (originalTls !== undefined)
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTls
@@ -143,9 +151,7 @@ export class AuthManager {
 
   logout(): void {
     try {
-      const config = ConfigService.loadGlobal()
-      delete config.auth
-      ConfigService.saveGlobal(config)
+      ConfigService.deleteKey(`auth`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `unknown`
       process.stderr.write(`Warning: could not clear credentials: ${msg}\n`)
