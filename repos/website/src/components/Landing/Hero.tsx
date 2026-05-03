@@ -111,7 +111,7 @@ const Hero = () => {
                 fontSize: '0.75rem',
               }}
             >
-              ISOLATED SECURE SANDBOXES FOR AI AGENTS
+              PERMISSIONED, ISOLATED, SECURE AI SANDBOXES
             </Typography>
 
             {/* Headline with gradient text */}
@@ -135,9 +135,9 @@ const Hero = () => {
               color='text.secondary'
               sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
             >
-              Launch Claude Code, Codex, OpenCode, or Gemini CLI in managed K8s pods with
-              zero-trust credential injection. The real secrets are resolved on demand
-              through an encrypted proxy.
+              Launch AI agents and tools in managed K8s pods with zero-trust credential
+              injection. Full support for Claude Code, Codex, OpenCode, Gemini CLI, or
+              custom tooling.
             </Typography>
 
             {/* CTAs */}
