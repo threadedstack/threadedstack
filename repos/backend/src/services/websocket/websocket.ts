@@ -183,7 +183,11 @@ export class Websocket {
           name: prompt.substring(0, 100),
         })
 
-        if (threadErr || !thread) {
+        if (threadErr) {
+          this.#sendError(`Failed to create thread: ${threadErr.message}`)
+          return
+        }
+        if (!thread) {
           this.#sendError(`Failed to create thread`)
           return
         }

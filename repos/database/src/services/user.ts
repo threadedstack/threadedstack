@@ -30,7 +30,7 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
         .where(eq(users.email, email))
         .limit(1)
 
-      if (!result[0]) return { error: new DBError(`User not found`) }
+      if (!result[0]) return {} as TUserResp
 
       return { data: this.model(result[0] as TDBUserSelect) } as TUserResp
     } catch (error) {

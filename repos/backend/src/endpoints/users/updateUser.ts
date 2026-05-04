@@ -25,7 +25,6 @@ export const updateUser: TEndpointConfig = {
 
     const { data: existingUser, error: getError } = await db.services.user.get(id)
     if (getError) throw new Exception(500, getError.message)
-
     if (!existingUser) throw new Exception(404, `User not found`)
 
     // Users can update themselves

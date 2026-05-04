@@ -18,6 +18,12 @@ vi.mock('@TSA/services/config', () => ({
     saveGlobal: (config: Record<string, any>) => {
       store = { ...config }
     },
+    updateKey: (key: string, value: unknown) => {
+      store[key] = value
+    },
+    deleteKey: (key: string) => {
+      delete store[key]
+    },
   },
 }))
 

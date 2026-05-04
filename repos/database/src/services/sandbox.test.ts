@@ -377,13 +377,12 @@ describe(`Sandbox service`, () => {
       expect(mocks.findFirst).toHaveBeenCalledOnce()
     })
 
-    it(`should return error when not found`, async () => {
+    it(`should return empty result when not found`, async () => {
       mocks.findFirst.mockResolvedValue(undefined)
 
       const result = await service.get(`missing-id`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toContain(`not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 

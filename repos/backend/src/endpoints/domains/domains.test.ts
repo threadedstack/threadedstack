@@ -270,15 +270,23 @@ describe(`Domains endpoints`, () => {
       mockReq.params = { domain: `nonexistent.example.com` }
 
       const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
-      mockBy.mockResolvedValue({
-        data: undefined,
-        error: new Error(`Domain "nonexistent.example.com" not found!`),
-      })
+      mockBy.mockResolvedValue({})
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Domain "nonexistent.example.com" not found!`
       )
       expect(mockBy).toHaveBeenCalledWith({ domain: `nonexistent.example.com` })
+    })
+
+    it(`should return 500 on database error during lookup`, async () => {
+      mockReq.params = { domain: `nonexistent.example.com` }
+
+      const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
+      mockBy.mockResolvedValue({ error: new Error(`DB failure`) })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB failure`
+      )
     })
 
     it(`should return 400 when domain param missing`, async () => {
@@ -480,13 +488,22 @@ describe(`Domains endpoints`, () => {
       mockReq.body = { verified: true }
 
       const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
-      mockBy.mockResolvedValue({
-        data: undefined,
-        error: new Error(`Domain "nonexistent.example.com" not found!`),
-      })
+      mockBy.mockResolvedValue({})
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Domain "nonexistent.example.com" not found!`
+      )
+    })
+
+    it(`should return 500 on database error during lookup`, async () => {
+      mockReq.params = { domain: `nonexistent.example.com` }
+      mockReq.body = { verified: true }
+
+      const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
+      mockBy.mockResolvedValue({ error: new Error(`DB failure`) })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB failure`
       )
     })
 
@@ -535,13 +552,21 @@ describe(`Domains endpoints`, () => {
       mockReq.params = { domain: `nonexistent.example.com` }
 
       const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
-      mockBy.mockResolvedValue({
-        data: undefined,
-        error: new Error(`Domain "nonexistent.example.com" not found!`),
-      })
+      mockBy.mockResolvedValue({})
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Domain "nonexistent.example.com" not found!`
+      )
+    })
+
+    it(`should return 500 on database error during lookup`, async () => {
+      mockReq.params = { domain: `nonexistent.example.com` }
+
+      const mockBy = mockReq.app?.locals.db.services.domain.by as ReturnType<typeof vi.fn>
+      mockBy.mockResolvedValue({ error: new Error(`DB failure`) })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB failure`
       )
     })
 

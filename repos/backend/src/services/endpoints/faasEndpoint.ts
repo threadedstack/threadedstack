@@ -40,7 +40,8 @@ export class FaaSEndpoint extends BaseEndpoint {
     // Load the function record from the database
     const { data: func, error } = await db.services.function.get(functionId)
 
-    if (error || !func) throw new Exception(404, `Function not found: ${functionId}`)
+    if (error) throw new Exception(500, error.message)
+    if (!func) throw new Exception(404, `Function not found: ${functionId}`)
 
     // Build TFunctionRequest from the Express request
     // Body is already parsed by the endpoint dispatcher via parseJsonBody

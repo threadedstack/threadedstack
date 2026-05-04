@@ -17,7 +17,8 @@ export const deleteAgent: TEndpointConfig = {
     const { id } = req.params
 
     const { data: agent, error: getError } = await db.services.agent.get(id)
-    if (getError || !agent) throw new Exception(404, `Agent not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!agent) throw new Exception(404, `Agent not found`)
 
     // Project context: unlink agent from project (don't delete the org-level agent)
     const { projectId } = req.params

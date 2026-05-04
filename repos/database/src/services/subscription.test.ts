@@ -179,24 +179,22 @@ describe(`Subscription service`, () => {
       )
     })
 
-    it(`should return error when subscription is not found (empty array)`, async () => {
+    it(`should return empty result when subscription is not found (empty array)`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
       const result = await service.findByUser(`user-missing`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error).toBeInstanceOf(Error)
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 
-    it(`should return error when the result is undefined`, async () => {
+    it(`should return empty result when the result is undefined`, async () => {
       mocks.selectWhereFn.mockResolvedValue([undefined])
 
       const result = await service.findByUser(`user-1`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should return error on DB exception`, async () => {
@@ -242,24 +240,22 @@ describe(`Subscription service`, () => {
       )
     })
 
-    it(`should return error when subscription is not found (empty array)`, async () => {
+    it(`should return empty result when subscription is not found (empty array)`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
       const result = await service.findByStripeSubscriptionId(`sub_missing`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error).toBeInstanceOf(Error)
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 
-    it(`should return error when the result is undefined`, async () => {
+    it(`should return empty result when the result is undefined`, async () => {
       mocks.selectWhereFn.mockResolvedValue([undefined])
 
       const result = await service.findByStripeSubscriptionId(`sub_test1`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should return error on DB exception`, async () => {
@@ -305,24 +301,22 @@ describe(`Subscription service`, () => {
       )
     })
 
-    it(`should return error when subscription is not found (empty array)`, async () => {
+    it(`should return empty result when subscription is not found (empty array)`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
       const result = await service.findByStripeCustomerId(`cus_missing`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error).toBeInstanceOf(Error)
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 
-    it(`should return error when the result is undefined`, async () => {
+    it(`should return empty result when the result is undefined`, async () => {
       mocks.selectWhereFn.mockResolvedValue([undefined])
 
       const result = await service.findByStripeCustomerId(`cus_test1`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should return error on DB exception`, async () => {

@@ -9,6 +9,7 @@ import {
 
 test.describe.serial('CRUD Threads & Chat', () => {
   const threadName = uniqueName('pw-thread')
+  let currentThreadName = threadName
   let threadId: string | undefined
 
   test('CREATE — should create a thread via API and verify in UI', async ({
@@ -74,6 +75,40 @@ test.describe.serial('CRUD Threads & Chat', () => {
     expect(errors).toEqual([])
   })
 
+  test('UPDATE — should edit the thread name via API and verify in UI', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    test.skip(!threadId, 'No thread ID — CREATE must have failed')
+
+    const errors = collectErrors(page)
+    const updatedName = `${threadName}-edited`
+
+    // Update thread name via API
+    const res = await apiRequest(
+      page,
+      'PUT',
+      `/orgs/${ctx.orgId}/agents/${ctx.agentId}/threads/${threadId}`,
+      ctx.apiKey,
+      { name: updatedName }
+    )
+    expect(res.status()).toBe(200)
+
+    // Navigate to threads page and verify the updated name
+    const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`
+    await page.goto(threadsUrl)
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: 'Threads' })).toBeVisible({ timeout: 15_000 })
+
+    // Verify the updated thread name is visible
+    await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10_000 })
+
+    // Track the current name so DELETE can find it
+    currentThreadName = updatedName
+
+    expect(errors).toEqual([])
+  })
+
   test('CHAT — should send a message in the chat UI', async ({
     authenticatedPage: page,
     ctx,
@@ -118,8 +153,8 @@ test.describe.serial('CRUD Threads & Chat', () => {
     await page.goto(threadsUrl)
     await expect(page.getByRole('heading', { name: 'Threads' })).toBeVisible({ timeout: 15_000 })
 
-    // Find the thread row and click the delete button (red/error icon)
-    const row = page.locator('tr', { has: page.getByText(threadName) })
+    // Find the thread row and click the delete button (may have been renamed by UPDATE test)
+    const row = page.locator('tr', { has: page.getByText(currentThreadName) })
     await expect(row).toBeVisible({ timeout: 10_000 })
 
     const deleteButton = row.locator('button[title="Delete thread"]')
@@ -139,7 +174,7 @@ test.describe.serial('CRUD Threads & Chat', () => {
 
     // Verify the thread is removed from the table
     await expect(
-      page.locator('.MuiTableBody-root').getByText(threadName)
+      page.locator('.MuiTableBody-root').getByText(currentThreadName)
     ).not.toBeVisible({ timeout: 10_000 })
 
     // Mark as cleaned up

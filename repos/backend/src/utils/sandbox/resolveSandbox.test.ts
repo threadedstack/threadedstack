@@ -37,13 +37,13 @@ describe(`resolveSandbox`, () => {
       expect(result).toBe(mockSandbox)
     })
 
-    it(`throws 404 when error message contains 'not found'`, async () => {
+    it(`throws 500 when service returns error`, async () => {
       service.get.mockResolvedValue({ error: { message: `Sandbox not found` } })
       await expect(resolveSandbox(service, `sb_abc1234`)).rejects.toThrow(Exception)
       try {
         await resolveSandbox(service, `sb_abc1234`)
       } catch (err) {
-        expect((err as Exception).status).toBe(404)
+        expect((err as Exception).status).toBe(500)
       }
     })
 
@@ -88,7 +88,7 @@ describe(`resolveSandbox`, () => {
       }
     })
 
-    it(`throws 404 when error message contains 'not found'`, async () => {
+    it(`throws 500 when service returns error`, async () => {
       service.getByProjectAlias.mockResolvedValue({
         error: { message: `Sandbox not found` },
       })
@@ -98,7 +98,7 @@ describe(`resolveSandbox`, () => {
       try {
         await resolveSandbox(service, `my-alias`, `proj_123`)
       } catch (err) {
-        expect((err as Exception).status).toBe(404)
+        expect((err as Exception).status).toBe(500)
       }
     })
 

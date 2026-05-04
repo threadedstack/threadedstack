@@ -22,7 +22,8 @@ export const getAPConfig: TEndpointConfig = {
       projectId
     )
 
-    if (error)
+    if (error) throw new Exception(500, error.message)
+    if (!config)
       throw new Exception(
         404,
         `No config found for agent ${agentId} in project ${projectId}`

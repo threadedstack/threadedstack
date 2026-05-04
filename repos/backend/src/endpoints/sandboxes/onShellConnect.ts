@@ -205,16 +205,16 @@ export const onShellConnect = async (
 
   // 3b. Verify sandbox belongs to the authenticated org
   const { data: sbRecord, error: sbGetErr } = await db.services.sandbox.get(sandboxId)
-  if (sbGetErr && sbRecord === undefined) {
-    if (/not found/i.test(sbGetErr.message)) {
-      ws.close(4004, `Sandbox not found`)
-      return
-    }
+  if (sbGetErr) {
     logger.error(`[Shell] Sandbox lookup failed for ${sandboxId}:`, sbGetErr.message)
     ws.close(4005, `Failed to verify sandbox, please retry`)
     return
   }
-  if (!sbRecord || sbRecord.orgId !== orgId) {
+  if (!sbRecord) {
+    ws.close(4004, `Sandbox not found`)
+    return
+  }
+  if (sbRecord.orgId !== orgId) {
     ws.close(4001, `Sandbox not authorized`)
     return
   }
@@ -483,16 +483,20 @@ export const onShellConnect = async (
   // 8. Check PlanLimits concurrent session cap
   try {
     const { data: org, error: orgErr } = await db.services.org.get(orgId)
-    if (orgErr || !org) {
-      logger.error(`[Shell] Org lookup failed for ${orgId}:`, orgErr?.message)
+    if (orgErr) {
+      logger.error(`[Shell] Org lookup failed for ${orgId}:`, orgErr.message)
       ws.close(4029, `Unable to verify session limits. Please try again.`)
+      return
+    }
+    if (!org) {
+      ws.close(4004, `Organization not found`)
       return
     }
     if (org.ownerId) {
       const { data: sub, error: subErr } = await db.services.subscription.findByUser(
         org.ownerId
       )
-      if (subErr && subErr.message !== `Subscription not found`) {
+      if (subErr) {
         logger.error(
           `[Shell] Subscription lookup failed for owner ${org.ownerId}:`,
           subErr.message

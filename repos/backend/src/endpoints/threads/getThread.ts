@@ -27,7 +27,8 @@ export const getThread: TEndpointConfig = {
 
     const { data: thread, error } = await db.services.thread.get(id)
 
-    if (error || !thread) throw new Exception(404, `Thread not found`)
+    if (error) throw new Exception(500, error.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
 
     // Validate thread belongs to this agent
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)

@@ -19,7 +19,8 @@ export const updateSchedule: TEndpointConfig = {
 
     // Verify schedule exists and belongs to org
     const { data: existing, error: getErr } = await db.services.schedule.get(scheduleId)
-    if (getErr || !existing) throw new Exception(404, `Schedule not found`)
+    if (getErr) throw new Exception(500, getErr.message)
+    if (!existing) throw new Exception(404, `Schedule not found`)
     if (existing.orgId !== orgId) throw new Exception(404, `Schedule not found`)
 
     const {
@@ -35,14 +36,16 @@ export const updateSchedule: TEndpointConfig = {
     // Verify agent ownership if agentId is being updated
     if (agentId !== undefined) {
       const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
-      if (agentErr || !agent) throw new Exception(404, `Agent not found`)
+      if (agentErr) throw new Exception(500, agentErr.message)
+      if (!agent) throw new Exception(404, `Agent not found`)
       if (agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
     }
 
     // Verify thread ownership if threadId is being updated
     if (threadId !== undefined && threadId) {
       const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-      if (tErr || !thread) throw new Exception(404, `Thread not found`)
+      if (tErr) throw new Exception(500, tErr.message)
+      if (!thread) throw new Exception(404, `Thread not found`)
       if (thread.orgId !== orgId) throw new Exception(404, `Thread not found`)
     }
 

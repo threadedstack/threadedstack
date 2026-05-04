@@ -201,10 +201,16 @@ describe(`GET /:skillId - getSkill`, () => {
     await expect(getSkill.action(mockReq, mockRes)).rejects.toThrow(`Skill not found`)
   })
 
-  it(`should throw 404 when service returns error`, async () => {
-    skillService.get.mockResolvedValue({ error: { message: `DB error` } })
+  it(`should throw 404 when service returns no data`, async () => {
+    skillService.get.mockResolvedValue({})
 
     await expect(getSkill.action(mockReq, mockRes)).rejects.toThrow(`Skill not found`)
+  })
+
+  it(`should throw 500 when service returns error`, async () => {
+    skillService.get.mockResolvedValue({ error: { message: `DB error` } })
+
+    await expect(getSkill.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
   })
 
   it(`should throw 404 when skill belongs to different org`, async () => {

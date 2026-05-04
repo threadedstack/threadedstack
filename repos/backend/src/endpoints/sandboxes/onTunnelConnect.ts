@@ -190,16 +190,20 @@ export const onTunnelConnect = async (
   // 6. Check PlanLimits concurrent session cap
   try {
     const { data: org, error: orgErr } = await db.services.org.get(orgId)
-    if (orgErr || !org) {
-      logger.error(`[Tunnel] Org lookup failed for ${orgId}:`, orgErr?.message)
+    if (orgErr) {
+      logger.error(`[Tunnel] Org lookup failed for ${orgId}:`, orgErr.message)
       ws.close(4029, `Unable to verify session limits. Please try again.`)
+      return
+    }
+    if (!org) {
+      ws.close(4004, `Organization not found`)
       return
     }
     if (org.ownerId) {
       const { data: sub, error: subErr } = await db.services.subscription.findByUser(
         org.ownerId
       )
-      if (subErr && subErr.message !== `Subscription not found`) {
+      if (subErr) {
         logger.error(
           `[Tunnel] Subscription lookup failed for owner ${org.ownerId}:`,
           subErr.message

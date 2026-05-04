@@ -96,7 +96,7 @@ export class Thread extends Base<
         const original = await tx.query.threads.findFirst({
           where: eq(threads.id, threadId),
         })
-        if (!original) return { error: new Error(`Thread not found`) }
+        if (!original) return {}
 
         const threadMessages = await tx.query.messages.findMany({
           where: eq(messages.threadId, threadId),
@@ -104,8 +104,7 @@ export class Thread extends Base<
         })
 
         const branchIdx = threadMessages.findIndex((m) => m.id === messageId)
-        if (branchIdx === -1)
-          return { error: new Error(`Branch message not found in thread`) }
+        if (branchIdx === -1) return {}
 
         const messagesToCopy = threadMessages.slice(0, branchIdx + 1)
 

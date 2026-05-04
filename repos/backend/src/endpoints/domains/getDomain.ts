@@ -20,7 +20,8 @@ export const getDomain: TEndpointConfig = {
     if (!domain) throw new Exception(400, `Domain parameter is required`)
 
     const { data: record, error } = await db.services.domain.by({ domain })
-    if (error) throw new Exception(404, error?.message || `Domain "${domain}" not found!`)
+    if (error) throw new Exception(500, error.message)
+    if (!record) throw new Exception(404, `Domain "${domain}" not found!`)
 
     res.status(200).json({ data: record })
   },

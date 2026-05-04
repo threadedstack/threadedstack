@@ -13,18 +13,19 @@ export const isValidId = (value: string): boolean => SidRegex.test(value)
 
 /**
  * Middleware that validates all ID-shaped route params.
- * Any param named "id" or ending in "Id" is checked for valid ID format.
- * userId is validated as UUID (from Neon Auth), all others as nanoid(10).
+ * Any param named "id" or ending in "Id" is checked for valid format.
+ * Accepts both nanoid(10) and UUID formats — user IDs are UUIDs from Neon Auth,
+ * all other entity IDs are nanoid(10).
  * Throws 400 if any param fails validation.
  */
 export const validateIdParams = (req: TRequest, res: TResponse, next: NextFunction) => {
   for (const [key, value] of Object.entries(req.params)) {
-    if (key === `userId`) {
-      if (!UuidRegex.test(value as string))
-        throw new Exception(400, `Invalid userId format`)
-    } else if ((key === `id` || key.endsWith(`Id`)) && !isValidId(value as string)) {
+    if (
+      (key === `id` || key.endsWith(`Id`)) &&
+      !isValidId(value as string) &&
+      !UuidRegex.test(value as string)
+    )
       throw new Exception(400, `Invalid ${key} format — expected a valid ID`)
-    }
   }
 
   next()

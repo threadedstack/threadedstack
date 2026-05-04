@@ -18,7 +18,8 @@ export const getSkill: TEndpointConfig = {
     if (!skillId) throw new Exception(400, `skillId is required`)
 
     const { data, error } = await db.services.skill.get(skillId)
-    if (error || !data) throw new Exception(404, `Skill not found`)
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `Skill not found`)
     if (data.orgId !== orgId) throw new Exception(404, `Skill not found`)
 
     res.json({ data })

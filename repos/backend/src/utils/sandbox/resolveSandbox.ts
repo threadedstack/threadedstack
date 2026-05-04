@@ -10,8 +10,6 @@ export const resolveSandbox = async (
 ): Promise<Sandbox> => {
   if (idOrAlias.startsWith(SandboxIdPrefix)) {
     const { data, error } = await service.get(idOrAlias)
-    if (error?.message?.toLowerCase().includes(`not found`))
-      throw new Exception(404, `Sandbox not found`)
     if (error) throw new Exception(500, error.message)
     if (!data) throw new Exception(404, `Sandbox not found`)
     return data
@@ -21,8 +19,6 @@ export const resolveSandbox = async (
     throw new Exception(400, `projectId is required when connecting by sandbox alias`)
 
   const { data, error } = await service.getByProjectAlias(projectId, idOrAlias)
-  if (error?.message?.toLowerCase().includes(`not found`))
-    throw new Exception(404, `Sandbox not found`)
   if (error) throw new Exception(500, error.message)
   if (!data) throw new Exception(404, `Sandbox not found`)
   return data

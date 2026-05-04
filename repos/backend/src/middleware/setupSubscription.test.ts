@@ -100,33 +100,7 @@ describe(`setupSubscription middleware`, () => {
     expect(logger.warn).toHaveBeenCalledWith(`Failed to check subscription:`, lookupError)
   })
 
-  it(`should create free tier subscription when findByUser returns "Subscription not found" error`, async () => {
-    const req = buildMockReq()
-    const findByUser = req.app.locals.db.services.subscription.findByUser as ReturnType<
-      typeof vi.fn
-    >
-    // This is what the DB service actually returns for new users — a DBError sentinel
-    findByUser.mockResolvedValue({
-      data: undefined,
-      error: new Error(`Subscription not found`),
-    })
-
-    await setupSubscription(req, mockRes as TResponse, mockNext as NextFunction)
-
-    const create = req.app.locals.db.services.subscription.create as ReturnType<
-      typeof vi.fn
-    >
-    expect(create).toHaveBeenCalledWith({
-      userId: `test-user-id`,
-      tier: `free`,
-      seats: 1,
-      status: `active`,
-    })
-    expect((mockRes as any).locals.subscriptionError).toBeUndefined()
-    expect(mockNext).toHaveBeenCalledWith()
-  })
-
-  it(`should create free tier subscription when none exists (no error)`, async () => {
+  it(`should create free tier subscription when none exists`, async () => {
     const req = buildMockReq()
     const findByUser = req.app.locals.db.services.subscription.findByUser as ReturnType<
       typeof vi.fn

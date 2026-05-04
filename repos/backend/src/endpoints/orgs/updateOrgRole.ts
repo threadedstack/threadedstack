@@ -45,9 +45,7 @@ export const updateOrgRole: TEndpointConfig = {
       )
 
     const { data: existing, error: fetchError } = await db.services.role.get(roleId)
-
     if (fetchError) throw new Exception(500, fetchError.message)
-
     if (!existing) throw new Exception(404, `Role not found`)
 
     if (existing.orgId !== orgId)

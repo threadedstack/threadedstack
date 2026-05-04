@@ -35,7 +35,8 @@ export const endpoint: TEndpointConfig = {
     // Fetch endpoint from database
     const { data: ep, error } = await db.services.endpoint.get(endpointId)
 
-    if (error || !ep) throw new Exception(404, `Endpoint not found`)
+    if (error) throw new Exception(500, error.message)
+    if (!ep) throw new Exception(404, `Endpoint not found`)
 
     // Get the appropriate service for this endpoint type
     const service = getEPService(ep.type)

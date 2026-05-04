@@ -33,7 +33,8 @@ export const requireAgentAccess = async (
   let agent = agentData
   if (!agent) {
     const { data, error } = await db.services.agent.get(agentId)
-    if (error || !data) throw new Exception(404, `Agent not found`)
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `Agent not found`)
     agent = data
   }
 

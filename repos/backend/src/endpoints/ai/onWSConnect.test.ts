@@ -150,7 +150,7 @@ describe(`onWSConnect`, () => {
     mockVerify.mockReturnValue(validPayload)
 
     const app = buildMockApp()
-    app.locals.db.services.agent.get.mockResolvedValue({ data: null, error: `not found` })
+    app.locals.db.services.agent.get.mockResolvedValue({ data: null })
 
     const ws = createMockWS()
     const req = createMockReq(`valid.jwt.token`)

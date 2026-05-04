@@ -33,7 +33,6 @@ export const listUsers: TEndpointConfig = {
         await db.services.role.getOrgMembers(orgId)
       if (roleError) throw new Exception(500, roleError.message)
 
-      // Get full user details in one query
       const userIds = roleData?.map((r) => r.userId) || []
       const { data: userList, error: userError } =
         await db.services.user.getByIds(userIds)

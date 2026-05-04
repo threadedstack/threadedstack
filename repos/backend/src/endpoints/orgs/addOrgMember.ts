@@ -50,16 +50,12 @@ export const addOrgMember: TEndpointConfig = {
 
     // Check if org exists
     const { data: existingOrg, error: orgError } = await db.services.org.get(orgId)
-
     if (orgError) throw new Exception(500, orgError.message)
-
     if (!existingOrg) throw new Exception(404, `Org not found`)
 
     // Check if user exists
     const { data: existingUser, error: userError } = await db.services.user.get(userId)
-
     if (userError) throw new Exception(500, userError.message)
-
     if (!existingUser) throw new Exception(404, `User not found`)
 
     // Create role (org membership)

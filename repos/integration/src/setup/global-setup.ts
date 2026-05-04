@@ -50,25 +50,47 @@ const tryDel = async (path: string) => {
 const cleanupStaleTestResources = async (orgId: string) => {
   type TResource = { id: string; name: string }
 
+  // Agents first (threads cascade from agents)
   const agentsRes = await get<TResource[]>(`/orgs/${orgId}/agents?limit=200`)
   for (const agent of (agentsRes.data || [])) {
     if (isTestResource(agent.name)) await tryDel(`/orgs/${orgId}/agents/${agent.id}`)
   }
 
+  // Projects (endpoints, functions cascade from projects)
   const projectsRes = await get<TResource[]>(`/orgs/${orgId}/projects?limit=200`)
   for (const project of (projectsRes.data || [])) {
     if (isTestResource(project.name)) await tryDel(`/orgs/${orgId}/projects/${project.id}`)
   }
 
+  // Secrets
+  const secretsRes = await get<TResource[]>(`/orgs/${orgId}/secrets?limit=200`)
+  for (const secret of (secretsRes.data || [])) {
+    if (isTestResource(secret.name)) await tryDel(`/orgs/${orgId}/secrets/${secret.id}`)
+  }
+
+  // Providers (after secrets — secrets may reference providers)
   const providersRes = await get<TResource[]>(`/orgs/${orgId}/providers?limit=200`)
   for (const provider of (providersRes.data || [])) {
     if (isTestResource(provider.name)) await tryDel(`/orgs/${orgId}/providers/${provider.id}`)
   }
 
+  // API keys
   const keysRes = await get<TResource[]>(`/orgs/${orgId}/api-keys?limit=200`)
   for (const key of (keysRes.data || [])) {
-    if (key.name === 'integration-admin' || isTestResource(key.name))
+    if (key.name === 'integration-admin' || key.name === 'integration-member' || isTestResource(key.name))
       await tryDel(`/orgs/${orgId}/api-keys/${key.id}`)
+  }
+
+  // Assets
+  const assetsRes = await get<TResource[]>(`/assets?orgId=${orgId}&limit=200`)
+  for (const asset of (assetsRes.data || [])) {
+    if (isTestResource(asset.name)) await tryDel(`/assets/${asset.id}`)
+  }
+
+  // Orgs created by tests (NOT the seed org)
+  const orgsRes = await get<TResource[]>(`/orgs?limit=200`)
+  for (const org of (orgsRes.data || [])) {
+    if (org.id !== orgId && isTestResource(org.name)) await tryDel(`/orgs/${org.id}`)
   }
 
   type TSandboxResource = { id: string; name: string; projectId?: string }
@@ -173,99 +195,92 @@ export default async function setup() {
   // 5b. Clean up stale test resources from prior interrupted/failed runs
   await cleanupStaleTestResources(env.testOrgId)
 
-  // 6. Create admin-scoped API key for role hierarchy tests
-  //    Finds any admin member in the org (not the test user, who is the owner)
-  //    and creates an API key for them, then verifies it works.
+  // 6. Use dedicated test users from env (TDSK_IT_*_USER) for role-specific tests.
+  //    These are seeded users — no dynamic member discovery needed.
   let adminApiKey: string | undefined
   let adminApiKeyId: string | undefined
   let adminUserId: string | undefined
+  let memberApiKey: string | undefined
+  let memberApiKeyId: string | undefined
+  let memberUserId: string | undefined
+  let targetMemberUserId: string | undefined
 
   type TMember = { userId: string; type: string }
   const membersRes = await get<TMember[]>(`/orgs/${env.testOrgId}/members`)
   const orgMembers = membersRes.data || []
 
-  // Snapshot org members for teardown restoration
   const orgMemberSnapshot = orgMembers.map((m: TMember) => ({
     userId: m.userId,
     type: m.type,
   }))
 
-  if (orgMembers.length < 3) {
-    console.warn(
-      `[global-setup] WARNING: Only ${orgMembers.length} org members found (expected ≥3). ` +
-        `A prior test run may have removed members without restoring them. ` +
-        `Re-run the database seed to fix: cd repos/database && pnpm seed`
-    )
-  }
-
-  // Find an admin member who is NOT the test user (test user is typically the owner)
-  const adminMember = orgMembers.find(
-    (m: TMember) => m.type === 'admin' && m.userId !== env.testUserId
-  )
-
-  if (adminMember) {
-    adminUserId = adminMember.userId
+  // Use the dedicated admin user from env vars
+  if (env.adminUserId) {
+    adminUserId = env.adminUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
       { name: 'integration-admin', scopes: 'admin', userId: adminUserId }
     )
 
     if (keyRes.ok && keyRes.data) {
-      const candidateKey = keyRes.data.key
-      const candidateKeyId = keyRes.data.id
-
-      // Verify the key works — user must exist in users table for backend auth
-      const verifyRes = await get(`/orgs/${env.testOrgId}`, { apiKey: candidateKey })
-
+      const verifyRes = await get(`/orgs/${env.testOrgId}`, { apiKey: keyRes.data.key })
       if (verifyRes.ok) {
-        adminApiKey = candidateKey
-        adminApiKeyId = candidateKeyId
+        adminApiKey = keyRes.data.key
+        adminApiKeyId = keyRes.data.id
       } else {
-        console.warn(
-          `[global-setup] Admin API key created but verification failed (status ${verifyRes.status}). ` +
-            `User ${adminUserId} may not exist in users table. Role hierarchy tests will be skipped.`
-        )
-        // Clean up the unusable key
-        await del(`/orgs/${env.testOrgId}/api-keys/${candidateKeyId}`)
+        console.warn(`[global-setup] Admin key verification failed (${verifyRes.status}). Role hierarchy tests will be skipped.`)
+        await del(`/orgs/${env.testOrgId}/api-keys/${keyRes.data.id}`)
         adminUserId = undefined
       }
     } else {
-      console.warn(
-        `[global-setup] Failed to create admin API key (status ${keyRes.status}). ` +
-          `Role hierarchy tests will be skipped.`
-      )
+      console.warn(`[global-setup] Failed to create admin API key (${keyRes.status}). Role hierarchy tests will be skipped.`)
       adminUserId = undefined
     }
   } else {
-    console.warn(
-      `[global-setup] No admin member found in org (excluding test user). ` +
-        `Role hierarchy tests will be skipped.`
-    )
+    console.warn(`[global-setup] TDSK_IT_ADMIN_USER not set. Role hierarchy tests will be skipped.`)
   }
 
-  // 7. Find a target org member for role hierarchy tests
-  //    Must be different from both the test user (owner) and the admin user (actor)
-  let targetMemberUserId: string | undefined
-  if (adminUserId) {
-    const targetMember = orgMembers.find(
-      (m: TMember) => m.userId !== env.testUserId && m.userId !== adminUserId
+  // 7. Use the dedicated member user from env vars
+  if (env.memberUserId) {
+    memberUserId = env.memberUserId
+    const keyRes = await post<{ id: string; key: string }>(
+      `/orgs/${env.testOrgId}/api-keys`,
+      { name: 'integration-member', scopes: 'member', userId: memberUserId }
     )
-    if (targetMember) {
-      targetMemberUserId = targetMember.userId
+
+    if (keyRes.ok && keyRes.data) {
+      const verifyRes = await get(`/orgs/${env.testOrgId}`, { apiKey: keyRes.data.key })
+      if (verifyRes.ok) {
+        memberApiKey = keyRes.data.key
+        memberApiKeyId = keyRes.data.id
+      } else {
+        console.warn(`[global-setup] Member key verification failed (${verifyRes.status}). Permission boundary tests will be skipped.`)
+        await del(`/orgs/${env.testOrgId}/api-keys/${keyRes.data.id}`)
+        memberUserId = undefined
+      }
     } else {
-      console.warn(
-        `[global-setup] No target member found for role hierarchy tests. ` +
-          `Need at least 3 org members (owner, admin, target).`
-      )
+      console.warn(`[global-setup] Failed to create member API key (${keyRes.status}). Permission boundary tests will be skipped.`)
+      memberUserId = undefined
     }
+  } else {
+    console.warn(`[global-setup] TDSK_IT_MEMBER_USER not set. Permission boundary tests will be skipped.`)
   }
 
-  // 8. Write context for tests
+  // 8. Use the dedicated viewer user as the target for role hierarchy tests
+  targetMemberUserId = env.viewerUserId || undefined
+  if (!targetMemberUserId) {
+    console.warn(`[global-setup] TDSK_IT_VIEWER_USER not set. Role hierarchy target tests will be skipped.`)
+  }
+
+  // 9. Write context for tests
   writeContext({
     orgName,
     adminApiKey,
     adminUserId,
     adminApiKeyId,
+    memberApiKey,
+    memberUserId,
+    memberApiKeyId,
     targetMemberUserId,
     orgMemberSnapshot,
     orgId: env.testOrgId,
@@ -284,6 +299,10 @@ export default async function setup() {
 
       if (ctx.adminApiKeyId) {
         await del(`/orgs/${ctx.orgId}/api-keys/${ctx.adminApiKeyId}`)
+      }
+
+      if (ctx.memberApiKeyId) {
+        await del(`/orgs/${ctx.orgId}/api-keys/${ctx.memberApiKeyId}`)
       }
 
       // Restore any org members that were removed during tests

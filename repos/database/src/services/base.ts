@@ -101,9 +101,7 @@ export class Base<
         where: eq(this.table[property], value),
       })
 
-      return row
-        ? { data: this.model(row) }
-        : { error: new DBError(`${this.title} not found`) }
+      return row ? { data: this.model(row) } : {}
     } catch (error: any) {
       return this.classifyError(error)
     }
@@ -116,9 +114,7 @@ export class Base<
         where: eq(this.table.id, id),
       })
 
-      return row
-        ? { data: this.model(row) }
-        : { error: new DBError(`${this.title} not found`) }
+      return row ? { data: this.model(row) } : {}
     } catch (error: any) {
       return this.classifyError(error)
     }
@@ -155,7 +151,7 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
+      if (!resp[0]) return {}
 
       return { data: this.model(resp[0]) as M }
     } catch (error: any) {
@@ -177,7 +173,7 @@ export class Base<
         })
         .returning()
 
-      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
+      if (!resp[0]) return {}
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
@@ -192,7 +188,7 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
+      if (!resp[0]) return {}
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {

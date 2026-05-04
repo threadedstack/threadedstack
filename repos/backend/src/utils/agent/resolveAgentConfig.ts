@@ -46,7 +46,8 @@ export const resolveAgentConfig = async (
     sanitize: false,
   })
 
-  if (agentErr || !agent) throw new Exception(404, `Agent not found`)
+  if (agentErr) throw new Exception(500, agentErr.message)
+  if (!agent) throw new Exception(404, `Agent not found`)
 
   // 2. Apply project-level overrides if projectId is provided
   const effectiveAgent = projectId ? agent.getEffectiveConfig(projectId) : agent

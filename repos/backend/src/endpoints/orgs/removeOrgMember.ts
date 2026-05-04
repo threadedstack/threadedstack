@@ -71,9 +71,13 @@ export const removeOrgMember: TEndpointConfig = {
     // Decrement seat quantity on Stripe if the removed member was a paid seat
     try {
       if (existingOrg.ownerId) {
-        const { data: ownerSub } = await db.services.subscription.findByUser(
-          existingOrg.ownerId
-        )
+        const { data: ownerSub, error: subErr } =
+          await db.services.subscription.findByUser(existingOrg.ownerId)
+        if (subErr)
+          logger.error(
+            `[removeOrgMember] Subscription lookup failed for owner ${existingOrg.ownerId}:`,
+            subErr.message
+          )
         if (ownerSub?.stripeSubscriptionId) {
           const tier = (ownerSub.tier || `free`) as ESubscriptionTier
           const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]

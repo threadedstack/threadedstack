@@ -181,23 +181,21 @@ describe(`User service`, () => {
       expect(result.error).toBeUndefined()
     })
 
-    it(`should return error 'User not found' when no result`, async () => {
+    it(`should return empty result when no result`, async () => {
       mocks.limitFn.mockResolvedValue([])
 
       const result = await service.byEmail(`missing@example.com`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`User not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 
-    it(`should return error 'User not found' when result[0] is undefined`, async () => {
+    it(`should return empty result when result[0] is undefined`, async () => {
       mocks.limitFn.mockResolvedValue([undefined])
 
       const result = await service.byEmail(`ghost@example.com`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`User not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 

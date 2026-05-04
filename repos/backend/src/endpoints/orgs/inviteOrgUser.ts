@@ -95,10 +95,7 @@ export const inviteOrgUser: TEndpointConfig = {
 
     const { data: user, error: userError } = await db.services.user.byEmail(email)
 
-    // TODO: This is brittle and should not use the error message for matching
-    // Need a better pattern for checking the error type
-    if (userError && userError.message !== `User not found`)
-      throw new Exception(500, userError.message)
+    if (userError) throw new Exception(500, userError.message)
 
     const ins = new InviteService({
       db,

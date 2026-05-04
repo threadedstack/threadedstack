@@ -23,7 +23,8 @@ export const upsertSBPConfig: TEndpointConfig = {
 
     // Validate the sandbox exists and get org info
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
-    if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!sandbox) throw new Exception(404, `Sandbox not found`)
 
     const { alias, enabled, config } = req.body
 
@@ -52,8 +53,8 @@ export const upsertSBPConfig: TEndpointConfig = {
     // Re-fetch the sandbox to get updated projectConfigs and return effective config
     const { data: updatedSandbox, error: refetchError } =
       await db.services.sandbox.get(sandboxId)
-    if (refetchError || !updatedSandbox)
-      throw new Exception(500, `Failed to fetch updated sandbox`)
+    if (refetchError) throw new Exception(500, refetchError.message)
+    if (!updatedSandbox) throw new Exception(500, `Failed to fetch updated sandbox`)
 
     const effectiveSandbox = updatedSandbox.getEffectiveConfig(projectId)
 

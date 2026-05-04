@@ -175,7 +175,14 @@ export class SecretResolver {
   ): Promise<string> => {
     if (!provider.secretId) return ``
 
-    const { data: secret } = await this.db.services.secret.get(provider.secretId)
+    const { data: secret, error: secretErr } = await this.db.services.secret.get(
+      provider.secretId
+    )
+    if (secretErr)
+      logger.error(
+        `[SecretResolver] Failed to fetch secret ${provider.secretId}:`,
+        secretErr.message
+      )
     if (!secret?.encryptedValue) return ``
 
     const value = await this.decrypt(secret, agent.orgId)
@@ -187,12 +194,23 @@ export class SecretResolver {
    * Provider-scoped secrets take precedence over org-scoped when names collide.
    */
   loadAndDecrypt = async (scope: TSecretScope): Promise<Secret[]> => {
-    const { data: providerSecrets } = await this.db.services.secret.list({
-      where: { providerId: scope.providerId },
-    })
-    const { data: orgSecrets } = await this.db.services.secret.list({
+    const { data: providerSecrets, error: provSecretErr } =
+      await this.db.services.secret.list({
+        where: { providerId: scope.providerId },
+      })
+    if (provSecretErr)
+      logger.error(
+        `[SecretResolver] Failed to list provider secrets for ${scope.providerId}:`,
+        provSecretErr.message
+      )
+    const { data: orgSecrets, error: orgSecretErr } = await this.db.services.secret.list({
       where: { orgId: scope.orgId },
     })
+    if (orgSecretErr)
+      logger.error(
+        `[SecretResolver] Failed to list org secrets for ${scope.orgId}:`,
+        orgSecretErr.message
+      )
 
     const decrypted: Secret[] = []
     const allSecrets = [...(providerSecrets || []), ...(orgSecrets || [])]

@@ -18,7 +18,8 @@ export const deleteSchedule: TEndpointConfig = {
 
     // Verify schedule exists and belongs to org
     const { data: existing, error: getErr } = await db.services.schedule.get(scheduleId)
-    if (getErr || !existing) throw new Exception(404, `Schedule not found`)
+    if (getErr) throw new Exception(500, getErr.message)
+    if (!existing) throw new Exception(404, `Schedule not found`)
     if (existing.orgId !== orgId) throw new Exception(404, `Schedule not found`)
 
     const { error } = await db.services.schedule.delete(scheduleId)

@@ -511,7 +511,9 @@ describe(`Websocket`, () => {
         services: {
           ...db.services,
           thread: {
-            create: vi.fn().mockResolvedValue({ data: null, error: `db error` }),
+            create: vi
+              .fn()
+              .mockResolvedValue({ data: null, error: new Error(`db error`) }),
           },
         },
       }
@@ -520,7 +522,7 @@ describe(`Websocket`, () => {
 
       const errorMsg = parseSent(ws, 0)
       expect(errorMsg.type).toBe(EWSEventType.Error)
-      expect(errorMsg.message).toBe(`Failed to create thread`)
+      expect(errorMsg.message).toBe(`Failed to create thread: db error`)
 
       const doneMsg = parseSent(ws, 1)
       expect(doneMsg.type).toBe(EWSEventType.Done)

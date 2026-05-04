@@ -19,7 +19,8 @@ export const updateSkill: TEndpointConfig = {
 
     // Verify skill exists and belongs to org
     const { data: existing, error: getErr } = await db.services.skill.get(skillId)
-    if (getErr || !existing) throw new Exception(404, `Skill not found`)
+    if (getErr) throw new Exception(500, getErr.message)
+    if (!existing) throw new Exception(404, `Skill not found`)
     if (existing.orgId !== orgId) throw new Exception(404, `Skill not found`)
 
     const { name, description, instructions, triggerKeywords, tools, alwaysActive } =

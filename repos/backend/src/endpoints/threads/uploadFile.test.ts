@@ -117,15 +117,26 @@ describe(`POST /:threadId/files - Upload file`, () => {
       ).rejects.toThrow(`Thread not found`)
     })
 
-    it(`should throw 404 when thread service returns error`, async () => {
+    it(`should throw 404 when thread service returns no data`, async () => {
       const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ error: `Not found` })
+      mockGet.mockResolvedValue({})
 
       await expect(
         uploadFile.action(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Thread not found`)
+    })
+
+    it(`should throw 500 when thread service returns error`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ error: new Error(`DB error`) })
+
+      await expect(
+        uploadFile.action(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`DB error`)
     })
 
     it(`should throw 404 when thread belongs to different agent`, async () => {
@@ -325,7 +336,7 @@ describe(`POST /:threadId/files - Upload file`, () => {
       const mockCreate = mockReq.app?.locals.db.services.asset.create as ReturnType<
         typeof vi.fn
       >
-      mockCreate.mockResolvedValue({ error: `Failed to create asset` })
+      mockCreate.mockResolvedValue({ error: new Error(`Failed to create asset`) })
 
       await expect(
         uploadFile.action(mockReq as TRequest, mockRes as Response)

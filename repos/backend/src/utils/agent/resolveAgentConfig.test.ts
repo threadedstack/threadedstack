@@ -152,7 +152,19 @@ describe(`resolveAgentConfig`, () => {
     ).rejects.toThrow(`Agent not found`)
   })
 
-  it(`should throw 404 when agent.get returns error`, async () => {
+  it(`should throw 404 when agent.get returns no data`, async () => {
+    const db = buildMockDb()
+    ;(db.services.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: null,
+    })
+
+    await expect(
+      resolveAgentConfig(`agent-1`, db as any, buildMockApp())
+    ).rejects.toThrow(`Agent not found`)
+  })
+
+  it(`should throw 500 when agent.get returns a DB error`, async () => {
     const db = buildMockDb()
     ;(db.services.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
@@ -161,7 +173,7 @@ describe(`resolveAgentConfig`, () => {
 
     await expect(
       resolveAgentConfig(`agent-1`, db as any, buildMockApp())
-    ).rejects.toThrow(`Agent not found`)
+    ).rejects.toThrow(`DB error`)
   })
 
   it(`should throw 404 when agent has no providers`, async () => {

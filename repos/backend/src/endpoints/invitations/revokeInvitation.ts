@@ -25,9 +25,7 @@ export const revokeInvitation: TEndpointConfig = {
     // Get the invitation
     const { data: invitation, error: invitationError } =
       await db.services.invitation.get(invitationId)
-
     if (invitationError) throw new Exception(500, invitationError.message)
-
     if (!invitation) throw new Exception(404, `Invitation not found`)
 
     // Validate invitation can be revoked

@@ -192,7 +192,7 @@ describe(`Thread endpoints`, () => {
       const mockCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
         typeof vi.fn
       >
-      mockCreate.mockResolvedValue({ error: `Create failed` })
+      mockCreate.mockResolvedValue({ error: new Error(`Create failed`) })
       mockReq.body = { name: `Fail` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -319,7 +319,7 @@ describe(`Thread endpoints`, () => {
       const mockList = mockReq.app?.locals.db.services.thread.list as ReturnType<
         typeof vi.fn
       >
-      mockList.mockResolvedValue({ error: `DB failure` })
+      mockList.mockResolvedValue({ error: new Error(`DB failure`) })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `DB failure`
@@ -374,15 +374,27 @@ describe(`Thread endpoints`, () => {
       )
     })
 
-    it(`should throw 404 when service returns error`, async () => {
+    it(`should throw 404 when not found`, async () => {
       const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ error: `Not found` })
+      mockGet.mockResolvedValue({})
       mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Thread not found`
+      )
+    })
+
+    it(`should throw 500 when service returns error`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ error: new Error(`DB error`) })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB error`
       )
     })
 
@@ -667,15 +679,27 @@ describe(`Thread endpoints`, () => {
       )
     })
 
-    it(`should throw 404 when service returns error on get`, async () => {
+    it(`should throw 404 when not found on get`, async () => {
       const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ error: `Not found` })
+      mockGet.mockResolvedValue({})
       mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Thread not found`
+      )
+    })
+
+    it(`should throw 500 when service returns error on get`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ error: new Error(`DB error`) })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB error`
       )
     })
 
@@ -732,7 +756,7 @@ describe(`Thread endpoints`, () => {
         typeof vi.fn
       >
       mockGet.mockResolvedValue({ data: mockThread })
-      mockDel.mockResolvedValue({ error: `Delete failed` })
+      mockDel.mockResolvedValue({ error: new Error(`Delete failed`) })
       mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -888,11 +912,11 @@ describe(`Thread endpoints`, () => {
       )
     })
 
-    it(`should throw 404 when thread service returns error`, async () => {
+    it(`should throw 404 when thread not found via empty response`, async () => {
       const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      mockGetThread.mockResolvedValue({ error: `Not found` })
+      mockGetThread.mockResolvedValue({})
       mockReq.params = {
         threadId: `t-1`,
         agentId: `agent-1`,
@@ -901,6 +925,22 @@ describe(`Thread endpoints`, () => {
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Thread not found`
+      )
+    })
+
+    it(`should throw 500 when thread service returns error`, async () => {
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ error: new Error(`DB error`) })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `DB error`
       )
     })
 
@@ -964,7 +1004,7 @@ describe(`Thread endpoints`, () => {
       const mockListMsg = mockReq.app?.locals.db.services.message
         .listByThread as ReturnType<typeof vi.fn>
       mockGetThread.mockResolvedValue({ data: mockThread })
-      mockListMsg.mockResolvedValue({ error: `DB error` })
+      mockListMsg.mockResolvedValue({ error: new Error(`DB error`) })
       mockReq.params = {
         threadId: `t-1`,
         agentId: `agent-1`,
@@ -1134,7 +1174,7 @@ describe(`Thread endpoints`, () => {
         typeof vi.fn
       >
       mockGetThread.mockResolvedValue({ data: mockThread })
-      mockCreateMsg.mockResolvedValue({ error: `Create failed` })
+      mockCreateMsg.mockResolvedValue({ error: new Error(`Create failed`) })
       mockReq.params = {
         threadId: `t-1`,
         agentId: `agent-1`,
@@ -1356,7 +1396,7 @@ describe(`Thread endpoints`, () => {
       >
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockGetMsg.mockResolvedValue({ data: mockMessage })
-      mockUpdateMsg.mockResolvedValue({ error: `Update failed` })
+      mockUpdateMsg.mockResolvedValue({ error: new Error(`Update failed`) })
       mockReq.params = {
         threadId: `t-1`,
         messageId: `m-1`,
@@ -1538,7 +1578,7 @@ describe(`Thread endpoints`, () => {
       >
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockGetMsg.mockResolvedValue({ data: mockMessage })
-      mockDelMsg.mockResolvedValue({ error: `Delete failed` })
+      mockDelMsg.mockResolvedValue({ error: new Error(`Delete failed`) })
       mockReq.params = {
         threadId: `t-1`,
         messageId: `m-1`,

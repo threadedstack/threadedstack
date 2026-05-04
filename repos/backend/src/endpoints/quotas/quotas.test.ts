@@ -236,7 +236,7 @@ describe(`Quota Endpoints`, () => {
       )
     })
 
-    it(`should return 500 if org has no ownerId`, async () => {
+    it(`should return free tier limits if org has no ownerId`, async () => {
       mockReq.params = { orgId: mockOrgId }
 
       const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
@@ -245,9 +245,11 @@ describe(`Quota Endpoints`, () => {
 
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: null } })
 
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Organization not found`
-      )
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const jsonArg = mockJson.mock.calls[0][0]
+      expect(jsonArg.data.projects).toBe(2)
     })
 
     it(`should return 500 on database error`, async () => {

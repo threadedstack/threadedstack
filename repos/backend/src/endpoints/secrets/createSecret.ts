@@ -51,7 +51,9 @@ export const createSecret: TEndpointConfig = {
       if (agentId)
         throw new Exception(400, `Provider secrets cannot also be agent-scoped`)
 
-      const { data: provider } = await db.services.provider.get(providerId)
+      const { data: provider, error: providerErr } =
+        await db.services.provider.get(providerId)
+      if (providerErr) throw new Exception(500, providerErr.message)
       if (!provider) throw new Exception(404, `Provider not found`)
       if (provider.orgId !== orgId)
         throw new Exception(403, `Provider does not belong to this organization`)
@@ -70,13 +72,17 @@ export const createSecret: TEndpointConfig = {
       const owner = validateExclusiveArc(arcFields, `Secret`)
 
       if (owner.name === `providerId`) {
-        const { data: provider } = await db.services.provider.get(owner.value)
+        const { data: provider, error: providerErr } = await db.services.provider.get(
+          owner.value
+        )
+        if (providerErr) throw new Exception(500, providerErr.message)
         if (!provider) throw new Exception(404, `Provider not found`)
         await checkPermission(req, EPermAction.create, EPermResource.secret, {
           orgId: provider.orgId,
         })
       } else if (owner.name === `agentId`) {
-        const { data: agent } = await db.services.agent.get(owner.value)
+        const { data: agent, error: agentErr } = await db.services.agent.get(owner.value)
+        if (agentErr) throw new Exception(500, agentErr.message)
         if (!agent) throw new Exception(404, `Agent not found`)
         await checkPermission(req, EPermAction.create, EPermResource.secret, {
           orgId: agent.orgId,

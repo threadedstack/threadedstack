@@ -31,7 +31,13 @@ export const oaiModels: TEndpointConfig = {
         sanitize: true,
       })
 
-      if (agentErr || !agent) {
+      if (agentErr) {
+        const { status, body } = formatOAIError(new Exception(500, agentErr.message))
+        res.status(status).json(body)
+        return
+      }
+
+      if (!agent) {
         const { status, body } = formatOAIError(new Exception(404, `Agent not found`))
         res.status(status).json(body)
         return

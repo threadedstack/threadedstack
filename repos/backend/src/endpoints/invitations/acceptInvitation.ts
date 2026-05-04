@@ -81,9 +81,20 @@ export const acceptInvitation: TEndpointConfig = {
 
     // Update seat quantity on Stripe if this member pushes past included seats
     try {
-      const { data: org } = await db.services.org.get(invitation.orgId)
+      const { data: org, error: orgErr } = await db.services.org.get(invitation.orgId)
+      if (orgErr)
+        logger.error(
+          `[acceptInvitation] Org lookup failed for ${invitation.orgId}:`,
+          orgErr.message
+        )
       if (org?.ownerId) {
-        const { data: ownerSub } = await db.services.subscription.findByUser(org.ownerId)
+        const { data: ownerSub, error: subErr } =
+          await db.services.subscription.findByUser(org.ownerId)
+        if (subErr)
+          logger.error(
+            `[acceptInvitation] Subscription lookup failed for owner ${org.ownerId}:`,
+            subErr.message
+          )
         if (ownerSub?.stripeSubscriptionId) {
           const tier = (ownerSub.tier || `free`) as ESubscriptionTier
           const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]

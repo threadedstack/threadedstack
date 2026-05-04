@@ -18,11 +18,8 @@ export const updateOrg: TEndpointConfig = {
     const { db } = req.app.locals
     const { name, description, config } = req.body
 
-    // Check if org exists
     const { data: existingOrg, error: getError } = await db.services.org.get(orgId)
-
     if (getError) throw new Exception(500, getError.message)
-
     if (!existingOrg) throw new Exception(404, `Org not found`)
 
     const { data, error } = await db.services.org.update({

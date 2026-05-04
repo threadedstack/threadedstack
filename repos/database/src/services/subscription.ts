@@ -33,7 +33,7 @@ export class Subscription extends Base<
         .from(this.table)
         .where(eq(this.table.userId, userId))
 
-      if (!data) return { error: new DBError(`Subscription not found`) }
+      if (!data) return {}
 
       return { data: this.model(data) }
     } catch (err: unknown) {
@@ -51,7 +51,7 @@ export class Subscription extends Base<
         .from(this.table)
         .where(eq(this.table.stripeSubscriptionId, stripeSubscriptionId))
 
-      if (!data) return { error: new DBError(`Subscription not found`) }
+      if (!data) return {}
 
       return { data: this.model(data) }
     } catch (err: unknown) {
@@ -69,7 +69,7 @@ export class Subscription extends Base<
         .from(this.table)
         .where(eq(this.table.stripeCustomerId, stripeCustomerId))
 
-      if (!data) return { error: new DBError(`Subscription not found`) }
+      if (!data) return {}
 
       return { data: this.model(data) }
     } catch (err: unknown) {

@@ -219,12 +219,18 @@ describe(`GET /:scheduleId - getSchedule`, () => {
     )
   })
 
-  it(`should throw 404 when service returns error`, async () => {
-    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+  it(`should throw 404 when service returns no data`, async () => {
+    scheduleService.get.mockResolvedValue({})
 
     await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `Schedule not found`
     )
+  })
+
+  it(`should throw 500 when service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+
+    await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
   })
 
   it(`should throw 404 when schedule belongs to different org`, async () => {
@@ -644,11 +650,17 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     )
   })
 
-  it(`should throw 404 when service returns error`, async () => {
-    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+  it(`should throw 404 when service returns no data`, async () => {
+    scheduleService.get.mockResolvedValue({})
 
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `Schedule not found`
     )
+  })
+
+  it(`should throw 500 when service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
   })
 })

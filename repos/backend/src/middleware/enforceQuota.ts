@@ -80,9 +80,18 @@ export const enforceQuota = async (req: TRequest, res: TResponse, next: NextFunc
       logger.error(`[enforceQuota] Failed to look up org ${orgId}:`, orgResult.error)
       return res.status(503).json({ error: `quota_check_unavailable` })
     }
-    if (!orgResult.data?.ownerId) return next()
+    if (!orgResult.data) {
+      logger.error(`[enforceQuota] Org ${orgId} not found`)
+      return next()
+    }
+    if (!orgResult.data.ownerId) return next()
 
     const subResult = await db.services.subscription.findByUser(orgResult.data.ownerId)
+    if (subResult.error)
+      logger.error(
+        `[enforceQuota] Subscription lookup failed for owner ${orgResult.data.ownerId}:`,
+        subResult.error.message
+      )
     const tier = (subResult.data?.tier || `free`) as ESubscriptionTier
     const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
     const limit = (limits as Record<string, any>)[resource]

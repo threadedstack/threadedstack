@@ -15,6 +15,12 @@ export interface TestContext {
   adminApiKeyId?: string
   /** userId of the admin-role user */
   adminUserId?: string
+  /** API key scoped to a member-role user — for permission boundary tests */
+  memberApiKey?: string
+  /** ID of the member API key record — for teardown cleanup */
+  memberApiKeyId?: string
+  /** userId of the member-role user */
+  memberUserId?: string
   /** userId of a lower-role org member — target for role hierarchy tests */
   targetMemberUserId?: string
   /** Snapshot of org members at test start — for teardown restoration */

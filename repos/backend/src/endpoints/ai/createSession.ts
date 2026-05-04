@@ -29,7 +29,8 @@ export const createSession: TEndpointConfig = {
     // Load agent (sanitized — only need metadata for the response)
     const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
 
-    if (agentErr || !agent) throw new Exception(404, `Agent not found`)
+    if (agentErr) throw new Exception(500, agentErr.message)
+    if (!agent) throw new Exception(404, `Agent not found`)
 
     // Get primary provider from agent's providers array
     const provider = agent.primaryProvider

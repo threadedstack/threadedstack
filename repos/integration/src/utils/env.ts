@@ -37,8 +37,14 @@ export const env = {
 
   /** User ID associated with the test API key */
   get testUserId() {
-    return process.env.TDSK_IT_USER_ID || 'integration-test-user'
+    return process.env.TDSK_IT_USER_ID || process.env.TDSK_IT_SUPER_USER || ''
   },
+
+  /** Dedicated test user IDs by role (seeded in DB) */
+  get superUserId() { return process.env.TDSK_IT_SUPER_USER || '' },
+  get adminUserId() { return process.env.TDSK_IT_ADMIN_USER || '' },
+  get memberUserId() { return process.env.TDSK_IT_MEMBER_USER || '' },
+  get viewerUserId() { return process.env.TDSK_IT_VIEWER_USER || '' },
 
   /**
    * Agent ID with a real LLM provider key for live chat tests.

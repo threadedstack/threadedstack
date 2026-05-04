@@ -143,13 +143,23 @@ describe(`proxy endpoint action`, () => {
     )
   })
 
-  it(`should throw 404 when endpoint lookup returns error`, async () => {
+  it(`should throw 404 when endpoint lookup returns no data`, async () => {
+    const req = buildMockReq()
+    const mockGet = req.app.locals.db.services.endpoint.get as ReturnType<typeof vi.fn>
+    mockGet.mockResolvedValue({})
+
+    await expect(endpoint.action!(req as any, mockRes as Response)).rejects.toThrow(
+      `Endpoint not found`
+    )
+  })
+
+  it(`should throw 500 when endpoint lookup returns error`, async () => {
     const req = buildMockReq()
     const mockGet = req.app.locals.db.services.endpoint.get as ReturnType<typeof vi.fn>
     mockGet.mockResolvedValue({ data: null, error: new Error(`DB error`) })
 
     await expect(endpoint.action!(req as any, mockRes as Response)).rejects.toThrow(
-      `Endpoint not found`
+      `DB error`
     )
   })
 

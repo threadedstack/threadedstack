@@ -35,7 +35,8 @@ export const updateAgent: TEndpointConfig = {
     } = req.body
 
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
-    if (getError || !existingAgent) throw new Exception(404, `Agent not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!existingAgent) throw new Exception(404, `Agent not found`)
 
     // Project context: update project-level overrides, not the base agent
     const { projectId } = req.params
@@ -54,7 +55,8 @@ export const updateAgent: TEndpointConfig = {
       if (functionIds?.length) {
         for (const funcId of functionIds) {
           const { data: func, error: funcErr } = await db.services.function.get(funcId)
-          if (funcErr || !func) throw new Exception(404, `Function ${funcId} not found`)
+          if (funcErr) throw new Exception(500, funcErr.message)
+          if (!func) throw new Exception(404, `Function ${funcId} not found`)
           if (func.projectId !== projectId)
             throw new Exception(
               400,

@@ -30,7 +30,8 @@ export const uploadFile: TEndpointConfig = {
 
     // Validate thread exists and belongs to this agent
     const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-    if (tErr || !thread) throw new Exception(404, `Thread not found`)
+    if (tErr) throw new Exception(500, tErr.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
@@ -74,7 +75,7 @@ export const uploadFile: TEndpointConfig = {
       },
     })
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     res.status(201).json({
       data: {

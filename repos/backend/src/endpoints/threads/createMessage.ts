@@ -26,7 +26,8 @@ export const createMessage: TEndpointConfig = {
 
     // Validate thread exists and belongs to this agent
     const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-    if (tErr || !thread) throw new Exception(404, `Thread not found`)
+    if (tErr) throw new Exception(500, tErr.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
 
@@ -43,7 +44,7 @@ export const createMessage: TEndpointConfig = {
       orgId: thread.orgId,
     })
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     // Increment message quota for the org (period-usage, no decrement)
     if (thread.orgId && db.services.quota) {

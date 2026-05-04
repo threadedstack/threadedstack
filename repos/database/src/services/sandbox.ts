@@ -201,7 +201,7 @@ export class Sandbox extends Base<
         where: eq(this.table.id, id),
       })
 
-      if (!row) return { error: new DBError(`${this.title} not found`) }
+      if (!row) return {}
 
       return { data: this.model(row as TSandboxSelectOpts) }
     } catch (error: any) {

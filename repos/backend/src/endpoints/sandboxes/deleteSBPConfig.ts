@@ -22,7 +22,8 @@ export const deleteSBPConfig: TEndpointConfig = {
 
     // Validate the sandbox exists
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
-    if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!sandbox) throw new Exception(404, `Sandbox not found`)
 
     const { error } = await db.services.sandbox.upsertProjectConfig(
       sandboxId,

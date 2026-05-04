@@ -20,12 +20,14 @@ export const detachSkill: TEndpointConfig = {
 
     // Verify skill exists and belongs to org
     const { data: skill, error: sErr } = await db.services.skill.get(skillId)
-    if (sErr || !skill) throw new Exception(404, `Skill not found`)
+    if (sErr) throw new Exception(500, sErr.message)
+    if (!skill) throw new Exception(404, `Skill not found`)
     if (skill.orgId !== orgId) throw new Exception(404, `Skill not found`)
 
     // Verify agent exists and belongs to org
     const { data: agent, error: aErr } = await db.services.agent.get(agentId)
-    if (aErr || !agent) throw new Exception(404, `Agent not found`)
+    if (aErr) throw new Exception(500, aErr.message)
+    if (!agent) throw new Exception(404, `Agent not found`)
     if (agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
 
     // Remove junction record via skill service

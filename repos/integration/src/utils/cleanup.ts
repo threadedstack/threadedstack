@@ -7,7 +7,7 @@ import { del } from './api-client'
 export const tryDelete = async (path: string): Promise<void> => {
   try {
     await del(path)
-  } catch {
-    // Intentionally ignored — cleanup is best-effort
+  } catch (err: any) {
+    console.warn('[cleanup] tryDelete failed for %s —', path, err?.message || err)
   }
 }

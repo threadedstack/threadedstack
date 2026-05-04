@@ -291,12 +291,21 @@ describe(`SandboxService`, () => {
     it(`should throw when sandbox config not found in DB`, async () => {
       db.services.sandbox.get.mockResolvedValue({
         data: null,
-        error: new Error(`not found`),
+        error: null,
       })
 
       await expect(svc.startPod(baseOpts as any)).rejects.toThrow(
         `Sandbox config not found: sb-1`
       )
+    })
+
+    it(`should throw with DB error message when sandbox fetch fails`, async () => {
+      db.services.sandbox.get.mockResolvedValue({
+        data: null,
+        error: new Error(`connection refused`),
+      })
+
+      await expect(svc.startPod(baseOpts as any)).rejects.toThrow(`connection refused`)
     })
 
     it(`should throw 400 when sandbox config missing image field`, async () => {

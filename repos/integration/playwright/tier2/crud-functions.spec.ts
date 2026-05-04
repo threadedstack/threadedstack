@@ -20,6 +20,7 @@ const FORM_ID = 'function-form'
 
 test.describe.serial('CRUD Functions', () => {
   const funcName = uniqueName('pw-func')
+  let currentFuncName = funcName
   let funcId: string | undefined
 
   test('CREATE — should create a new function via the drawer', async ({
@@ -115,6 +116,64 @@ test.describe.serial('CRUD Functions', () => {
     expect(errors).toEqual([])
   })
 
+  test('UPDATE — should edit a function name via the drawer', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    test.skip(!funcId, 'No function ID — CREATE must have failed')
+
+    const errors = collectErrors(page)
+    const updatedName = `${funcName}-edited`
+
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/functions`)
+    await gotoAndWait(
+      page,
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/functions`,
+      PAGE_CLASS
+    )
+
+    // Search for the function
+    await searchInPage(page, funcName)
+
+    // Find the row and click the edit button
+    const row = page.locator('tr', { has: page.getByText(funcName) })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+
+    const editButton = row.locator('[aria-label="Edit function"]')
+    if ((await editButton.count()) > 0) {
+      await editButton.first().click()
+    } else {
+      // Fallback: try primary-colored icon button (edit icon)
+      const primaryButton = row.locator('.MuiIconButton-colorPrimary').first()
+      await primaryButton.click()
+    }
+
+    // Wait for the drawer to open
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
+
+    // Clear and update the function name
+    const nameInput = page.locator('#function-name')
+    await expect(nameInput).toBeVisible({ timeout: 5_000 })
+    await nameInput.fill(updatedName)
+
+    // Submit the form
+    await submitForm(page, FORM_ID)
+
+    // Wait for drawer to close
+    await waitForDrawerClose(page)
+
+    // Search for the updated name
+    await searchInPage(page, updatedName)
+
+    // Verify the updated name appears in the DataTable
+    await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10_000 })
+
+    // Track the current name so DELETE can find it
+    currentFuncName = updatedName
+
+    expect(errors).toEqual([])
+  })
+
   test('DELETE — should delete the function', async ({
     authenticatedPage: page,
     ctx,
@@ -129,11 +188,11 @@ test.describe.serial('CRUD Functions', () => {
       PAGE_CLASS
     )
 
-    // Search for the function
-    await searchInPage(page, funcName)
+    // Search for the function (may have been renamed by UPDATE test)
+    await searchInPage(page, currentFuncName)
 
     // Find the row and click the delete action button
-    const row = page.locator('tr', { has: page.getByText(funcName) })
+    const row = page.locator('tr', { has: page.getByText(currentFuncName) })
     const deleteButton = row.locator('[aria-label="Delete function"]')
 
     if ((await deleteButton.count()) > 0) {
@@ -152,7 +211,7 @@ test.describe.serial('CRUD Functions', () => {
 
     // Verify the function is removed from the table
     await expect(
-      page.locator('.MuiTableBody-root').getByText(funcName)
+      page.locator('.MuiTableBody-root').getByText(currentFuncName)
     ).not.toBeVisible({ timeout: 10_000 })
 
     // Mark as cleaned up

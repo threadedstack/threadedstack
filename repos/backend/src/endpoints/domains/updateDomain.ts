@@ -33,7 +33,8 @@ export const updateDomain: TEndpointConfig = {
 
     // Get the domain first to check permissions
     const { data: record, error } = await db.services.domain.by({ domain })
-    if (error) throw new Exception(404, error?.message || `Domain "${domain}" not found!`)
+    if (error) throw new Exception(500, error.message)
+    if (!record) throw new Exception(404, `Domain "${domain}" not found!`)
 
     const updateResult = await db.services.domain.update(
       cleanColl({

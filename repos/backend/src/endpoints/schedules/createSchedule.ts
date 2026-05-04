@@ -32,7 +32,8 @@ export const createSchedule: TEndpointConfig = {
 
     // Verify the agent exists and belongs to this org
     const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
-    if (agentErr || !agent) throw new Exception(404, `Agent not found`)
+    if (agentErr) throw new Exception(500, agentErr.message)
+    if (!agent) throw new Exception(404, `Agent not found`)
     if (agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
 
     if (!isValidCron(cronExpression)) throw new Exception(400, `Invalid cron expression`)

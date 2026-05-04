@@ -18,7 +18,8 @@ export const triggerSchedule: TEndpointConfig = {
     if (!scheduleId) throw new Exception(400, `scheduleId is required`)
 
     const { data, error } = await db.services.schedule.get(scheduleId)
-    if (error || !data) throw new Exception(404, `Schedule not found`)
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `Schedule not found`)
     if (data.orgId !== orgId) throw new Exception(404, `Schedule not found`)
 
     // Execute the agent if an executor is configured

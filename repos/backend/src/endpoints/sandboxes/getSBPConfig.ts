@@ -22,7 +22,8 @@ export const getSBPConfig: TEndpointConfig = {
 
     // Get the sandbox to check permissions
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
-    if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!sandbox) throw new Exception(404, `Sandbox not found`)
 
     const { data: config, error } = await db.services.sandbox.getProjectConfig(
       sandboxId,

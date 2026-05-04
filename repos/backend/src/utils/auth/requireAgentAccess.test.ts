@@ -192,7 +192,7 @@ describe(`requireAgentAccess`, () => {
     }
   })
 
-  it(`should throw 404 when agent fetch returns error`, async () => {
+  it(`should throw 500 when agent fetch returns error`, async () => {
     const req = buildMockReq()
     const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
       typeof vi.fn
@@ -206,7 +206,8 @@ describe(`requireAgentAccess`, () => {
       await requireAgentAccess(req, `agent-1`, `org-1`)
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
-      expect(err.status).toBe(404)
+      expect(err.status).toBe(500)
+      expect(err.message).toBe(`DB error`)
     }
   })
 

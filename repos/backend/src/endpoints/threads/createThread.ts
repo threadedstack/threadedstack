@@ -32,7 +32,7 @@ export const createThread: TEndpointConfig = {
 
     const { data, error } = await db.services.thread.create(threadData)
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     // Increment thread quota for the org (period-usage, no decrement)
     if (orgId && db.services.quota) {

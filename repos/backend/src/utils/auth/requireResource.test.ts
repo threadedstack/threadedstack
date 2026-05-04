@@ -31,8 +31,8 @@ describe(`requireResource`, () => {
     }
   })
 
-  it(`should throw 404 when service.get returns not found error`, async () => {
-    const service = buildService(undefined, new Error(`Resource not found`))
+  it(`should throw 404 when service.get returns no data (not found)`, async () => {
+    const service = buildService(undefined)
 
     try {
       await requireResource(service, `resource-id`, `Endpoint`)

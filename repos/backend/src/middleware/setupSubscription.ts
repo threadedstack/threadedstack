@@ -3,16 +3,6 @@ import type { TRequest, TResponse } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
 
-/**
- * Check if an error is a "not found" sentinel from the subscription service,
- * as opposed to an actual database failure.
- * The subscription.findByUser method returns { error: DBError("Subscription not found") }
- * when no row exists — this is expected for new users and should trigger free tier creation.
- */
-const isNotFoundError = (error: unknown): boolean => {
-  return error instanceof Error && error.message === `Subscription not found`
-}
-
 export const setupSubscription = async (
   req: TRequest,
   res: TResponse,
@@ -25,8 +15,7 @@ export const setupSubscription = async (
     const { db } = req.app.locals
     const { data, error } = await db.services.subscription.findByUser(userId)
 
-    // Distinguish "not found" (expected for new users) from real DB errors
-    if (error && !isNotFoundError(error)) {
+    if (error) {
       logger.warn(`Failed to check subscription:`, error)
       res.locals.subscriptionError = true
       return next()

@@ -196,7 +196,8 @@ export class SandboxService {
     const { orgId, userId, sandboxId, projectId, egressOpts } = opts
 
     const { data: sandbox, error } = await this.db.services.sandbox.get(sandboxId)
-    if (error || !sandbox) throw new Error(`Sandbox config not found: ${sandboxId}`)
+    if (error) throw new Error(error.message)
+    if (!sandbox) throw new Error(`Sandbox config not found: ${sandboxId}`)
     if (!sandbox.config?.image)
       throw new Exception(400, `Sandbox config is missing required "image" field`)
 

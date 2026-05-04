@@ -24,7 +24,8 @@ export const branchThread: TEndpointConfig = {
     if (!messageId) throw new Exception(400, `messageId is required`)
 
     const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-    if (tErr || !thread) throw new Exception(404, `Thread not found`)
+    if (tErr) throw new Exception(500, tErr.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
 
@@ -36,7 +37,14 @@ export const branchThread: TEndpointConfig = {
       userId
     )
 
-    if (error) throw new Exception(500, error)
+    if (error)
+      throw new Exception(
+        500,
+        typeof error === `string`
+          ? error
+          : (error as Error)?.message || `Failed to branch thread`
+      )
+    if (!data) throw new Exception(404, `Thread or message not found`)
 
     res.status(201).json({ data })
   },

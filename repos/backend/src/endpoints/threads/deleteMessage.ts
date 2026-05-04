@@ -21,21 +21,23 @@ export const deleteMessage: TEndpointConfig = {
     if (!userId) throw new Exception(401, `Authentication required`)
 
     const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-    if (tErr || !thread) throw new Exception(404, `Thread not found`)
+    if (tErr) throw new Exception(500, tErr.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
 
     const { data: message, error: mErr } = await db.services.message.get(messageId)
-    if (mErr || !message) throw new Exception(404, `Message not found`)
+    if (mErr) throw new Exception(500, mErr.message)
+    if (!message) throw new Exception(404, `Message not found`)
 
     if (message.threadId !== threadId)
       throw new Exception(404, `Message not found in this thread`)
 
     const { data, error } = await db.services.message.delete(messageId)
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

@@ -120,11 +120,21 @@ describe(`AgentProjectConfig endpoints`, () => {
     it(`should return 404 when config not found`, async () => {
       const mockGetProjectConfig = mockReq.app?.locals.db.services.agent
         .getProjectConfig as ReturnType<typeof vi.fn>
-      mockGetProjectConfig.mockResolvedValue({ error: new Error(`Not found`) })
+      mockGetProjectConfig.mockResolvedValue({})
 
       await expect(
         getAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`No config found for agent agent-1 in project proj-1`)
+    })
+
+    it(`should return 500 on database error`, async () => {
+      const mockGetProjectConfig = mockReq.app?.locals.db.services.agent
+        .getProjectConfig as ReturnType<typeof vi.fn>
+      mockGetProjectConfig.mockResolvedValue({ error: new Error(`Connection lost`) })
+
+      await expect(
+        getAPConfig.action!(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`Connection lost`)
     })
   })
 
@@ -221,11 +231,24 @@ describe(`AgentProjectConfig endpoints`, () => {
       const mockFuncGet = mockReq.app?.locals.db.services.function.get as ReturnType<
         typeof vi.fn
       >
-      mockFuncGet.mockResolvedValue({ data: null, error: new Error(`Not found`) })
+      mockFuncGet.mockResolvedValue({})
 
       await expect(
         upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Function func-missing not found`)
+    })
+
+    it(`should return 500 when function lookup returns error`, async () => {
+      mockReq.body = { functionIds: [`func-err`] }
+
+      const mockFuncGet = mockReq.app?.locals.db.services.function.get as ReturnType<
+        typeof vi.fn
+      >
+      mockFuncGet.mockResolvedValue({ error: new Error(`DB error`) })
+
+      await expect(
+        upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`DB error`)
     })
 
     it(`should return 400 when function belongs to different project`, async () => {

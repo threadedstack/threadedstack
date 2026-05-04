@@ -24,7 +24,8 @@ export const getAgent: TEndpointConfig = {
     const { data: agent, error: getError } = await db.services.agent.get(id, {
       sanitize: false,
     })
-    if (getError || !agent) throw new Exception(404, `Agent not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!agent) throw new Exception(404, `Agent not found`)
 
     // Enforce project-level access for non-admin users
     await requireAgentAccess(req, id, agent.orgId, agent)

@@ -266,7 +266,7 @@ export class Agent extends Base<
         where: eq(this.table.id, id),
       })
 
-      if (!row) return { error: new DBError(`${this.title} not found`) }
+      if (!row) return {}
 
       const sanitize = opts?.sanitize !== false
       return { data: this.model(row as TAgentSelectOpts, { sanitize }) }
@@ -299,7 +299,7 @@ export class Agent extends Base<
         where: eq(this.table[property], propValue),
       })
 
-      if (!row) return { error: new DBError(`${this.title} not found`) }
+      if (!row) return {}
 
       const sanitize = normalizedOpts?.sanitize !== false
       return { data: this.model(row as TAgentSelectOpts, { sanitize }) }

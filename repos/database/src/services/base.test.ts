@@ -133,13 +133,12 @@ describe(`Base service`, () => {
       expect(mocks.findFirst).toHaveBeenCalledOnce()
     })
 
-    it(`should return error when not found`, async () => {
+    it(`should return empty result when not found`, async () => {
       mocks.findFirst.mockResolvedValue(undefined)
 
       const result = await service.get(`missing-id`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toContain(`not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
   })
@@ -166,6 +165,15 @@ describe(`Base service`, () => {
       expect(result.data).toEqual(record)
       expect(result.error).toBeUndefined()
       expect(mocks.findFirst).toHaveBeenCalledOnce()
+    })
+
+    it(`should return empty result when not found`, async () => {
+      mocks.findFirst.mockResolvedValue(undefined)
+
+      const result = await service.by({ orgId: `missing` })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should return DBValueError when value is missing`, async () => {
@@ -220,37 +228,37 @@ describe(`Base service`, () => {
       expect(setArg.updatedAt.getTime()).toBeLessThanOrEqual(after)
     })
 
-    it(`should return error when record not found (SV-04)`, async () => {
+    it(`should return empty result when record not found (SV-04)`, async () => {
       mocks.whereReturningFn.mockResolvedValue([])
 
       const result = await service.update({ id: `1`, name: `Ghost` } as any)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Test_table not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
   })
 
   // ---------- upsert ----------
   describe(`upsert`, () => {
-    it(`should return error when result is empty`, async () => {
+    it(`should return empty result when result is empty`, async () => {
       mocks.returningFn.mockResolvedValue([])
 
       const result = await service.upsert({ id: `1`, name: `Upserted` } as any)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Test_table not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
   })
 
   // ---------- delete ----------
   describe(`delete`, () => {
-    it(`should return error when record not found`, async () => {
+    it(`should return empty result when record not found`, async () => {
       mocks.deleteWhereReturningFn.mockResolvedValue([])
 
       const result = await service.delete(`nonexistent`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Test_table not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should return model on successful delete`, async () => {

@@ -388,13 +388,12 @@ describe(`Agent service`, () => {
       expect(mocks.findFirst).toHaveBeenCalledOnce()
     })
 
-    it(`should return error when not found`, async () => {
+    it(`should return empty result when not found`, async () => {
       mocks.findFirst.mockResolvedValue(undefined)
 
       const result = await service.get(`missing-id`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toContain(`not found`)
+      expect(result.error).toBeUndefined()
       expect(result.data).toBeUndefined()
     })
 
@@ -483,13 +482,13 @@ describe(`Agent service`, () => {
       expect(mocks.findFirst).toHaveBeenCalledOnce()
     })
 
-    it(`should return error when not found`, async () => {
+    it(`should return empty result when not found`, async () => {
       mocks.findFirst.mockResolvedValue(undefined)
 
       const result = await service.by({ orgId: `abc` }, { sanitize: true })
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toContain(`not found`)
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
     })
 
     it(`should not call model when normalizedOpts is falsy`, async () => {

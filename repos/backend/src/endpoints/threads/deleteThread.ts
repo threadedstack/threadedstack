@@ -22,7 +22,8 @@ export const deleteThread: TEndpointConfig = {
 
     const { data: thread, error: getError } = await db.services.thread.get(id)
 
-    if (getError || !thread) throw new Exception(404, `Thread not found`)
+    if (getError) throw new Exception(500, getError.message)
+    if (!thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
 
@@ -30,7 +31,7 @@ export const deleteThread: TEndpointConfig = {
 
     const { data, error } = await db.services.thread.delete(id)
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

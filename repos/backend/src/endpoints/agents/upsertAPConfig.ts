@@ -32,7 +32,8 @@ export const upsertAPConfig: TEndpointConfig = {
     if (functionIds?.length) {
       for (const funcId of functionIds) {
         const { data: func, error: funcErr } = await db.services.function.get(funcId)
-        if (funcErr || !func) throw new Exception(404, `Function ${funcId} not found`)
+        if (funcErr) throw new Exception(500, funcErr.message)
+        if (!func) throw new Exception(404, `Function ${funcId} not found`)
         if (func.projectId !== projectId)
           throw new Exception(
             400,
@@ -65,8 +66,8 @@ export const upsertAPConfig: TEndpointConfig = {
     // Re-fetch the agent to get updated projectConfigs and return effective config
     const { data: updatedAgent, error: refetchError } =
       await db.services.agent.get(agentId)
-    if (refetchError || !updatedAgent)
-      throw new Exception(500, `Failed to fetch updated agent`)
+    if (refetchError) throw new Exception(500, refetchError.message)
+    if (!updatedAgent) throw new Exception(500, `Failed to fetch updated agent`)
 
     const effectiveAgent = updatedAgent.getEffectiveConfig(projectId)
 

@@ -54,7 +54,7 @@ export const listAgents: TEndpointConfig = {
       where: { orgId },
     })
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     let filteredData = data || []
 

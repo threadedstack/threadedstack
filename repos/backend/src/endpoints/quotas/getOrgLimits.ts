@@ -29,10 +29,15 @@ export const getOrgLimits: TEndpointConfig = {
     // Get org to determine owner
     const orgResult = await db.services.org.get(orgId)
 
-    if (orgResult.error || !orgResult.data?.ownerId)
-      throw new Exception(500, orgResult.error?.message || `Organization not found`)
+    if (orgResult.error) throw new Exception(500, orgResult.error.message)
+    if (!orgResult.data) throw new Exception(404, `Organization not found`)
 
     const ownerId = orgResult.data.ownerId
+    if (!ownerId) {
+      const limits = PlanLimits[ESubscriptionTier.free]
+      res.status(200).json({ data: limits })
+      return
+    }
 
     // Get owner's subscription to determine tier
     const subResult = await db.services.subscription.findByUser(ownerId)

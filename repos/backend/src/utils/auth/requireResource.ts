@@ -11,11 +11,7 @@ export const requireResource = async <T>(
 ): Promise<T> => {
   const { data, error } = await service.get(id)
 
-  if (error) {
-    if (error.message?.toLowerCase().includes(`not found`))
-      throw new Exception(404, `${label} not found`)
-    throw new Exception(500, error.message)
-  }
+  if (error) throw new Exception(500, error.message)
   if (!data) throw new Exception(404, `${label} not found`)
 
   return data

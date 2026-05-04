@@ -200,13 +200,23 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     )
   })
 
-  it(`should throw 404 when agent.get returns error`, async () => {
+  it(`should throw 404 when agent.get returns no data`, async () => {
+    const ep = getEndpointCfg(runAgent as any)
+    const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<typeof vi.fn>
+    mockGet.mockResolvedValue({})
+
+    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+      `Agent not found`
+    )
+  })
+
+  it(`should throw 500 when agent.get returns error`, async () => {
     const ep = getEndpointCfg(runAgent as any)
     const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<typeof vi.fn>
     mockGet.mockResolvedValue({ data: null, error: new Error(`DB error`) })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Agent not found`
+      `DB error`
     )
   })
 

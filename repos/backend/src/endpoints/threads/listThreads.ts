@@ -31,7 +31,7 @@ export const listThreads: TEndpointConfig = {
       where: { orgId, userId, agentId },
     })
 
-    if (error) throw new Exception(500, error)
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data: data || [], limit, offset })
   },
