@@ -207,7 +207,7 @@ Functions are created through the backend admin API:
 ```bash
 # Create a TypeScript function
 curl -X POST \
-  "https://local.threadedstack.app/_/orgs/{orgId}/projects/{projectId}/functions" \
+  "https://px.threadedstack.app/_/orgs/<org-id>/projects/<project-id>/functions" \
   -H "Authorization: Bearer tdsk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -263,7 +263,7 @@ Once you have a function, create an endpoint to make it callable via HTTP:
 ```bash
 # Create a FaaS endpoint that calls the function
 curl -X POST \
-  "https://local.threadedstack.app/_/orgs/{orgId}/projects/{projectId}/endpoints" \
+  "https://px.threadedstack.app/_/orgs/<org-id>/projects/<project-id>/endpoints" \
   -H "Authorization: Bearer tdsk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -335,14 +335,14 @@ curl -X POST \
 Once created, call the endpoint through the proxy route:
 
 ```
-POST /proxy/{projectId}/{endpointId}
+POST /proxy//<project-id>/<endpoint-id>
 ```
 
 ### Example Request
 
 ```bash
 curl -X POST \
-  "https://local.threadedstack.app/proxy/{projectId}/{endpointId}" \
+  "https://px.threadedstack.app/proxy//<project-id>/<endpoint-id>" \
   -H "Authorization: Bearer tdsk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1001,19 +1001,19 @@ When calling a FaaS endpoint, you authenticate in one of two ways:
 **1. JWT Token** (from browser/Neon Auth login):
 ```bash
 curl -H "Authorization: Bearer eyJhbGciOi..." \
-  https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+  https://px.threadedstack.app/proxy//<project-id>/<endpoint-id>
 ```
 
 **2. API Key** (for programmatic access):
 ```bash
 curl -H "Authorization: Bearer tdsk_your_api_key_here" \
-  https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+  https://px.threadedstack.app/proxy//<project-id>/<endpoint-id>
 ```
 
 **3. Public endpoints** (no auth needed):
 ```bash
 # If the endpoint was created with "public": true
-curl https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+curl https://px.threadedstack.app/proxy//<project-id>/<endpoint-id>
 ```
 
 ### How Auth Flows Through the System
@@ -1284,7 +1284,7 @@ export default async function handler(request, context) {
 │          options: { functionId } }                           │
 │                                                              │
 │  CALL ENDPOINT                                               │
-│  {METHOD} /proxy/{projectId}/{endpointId}                    │
+│  {METHOD} /proxy//<project-id>/<endpoint-id>                    │
 │  Auth: Bearer tdsk_xxx or JWT                                │
 │                                                              │
 │  FUNCTION SIGNATURE                                          │

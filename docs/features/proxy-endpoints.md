@@ -219,15 +219,15 @@ All the same fields are available for editing.
 Once created, call your proxy endpoint through the Threaded Stack proxy URL:
 
 ```http
-https://px.local.threadedstack.app/proxy/{projectId}/{endpointId}
+https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>
 ```
 
 ### Basic GET Request
 
 ```bash
 curl -s \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
-  "https://px.local.threadedstack.app/proxy/PROJECT_ID/ENDPOINT_ID" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
+  "https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>" \
   --insecure
 ```
 
@@ -237,10 +237,10 @@ The `--insecure` flag is only needed in local development (self-signed Caddy cer
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
   -H "Content-Type: application/json" \
   -d '{"greeting": "hello", "count": 42}' \
-  "https://px.local.threadedstack.app/proxy/PROJECT_ID/ENDPOINT_ID" \
+  "https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>" \
   --insecure
 ```
 
@@ -250,8 +250,8 @@ Query parameters are automatically forwarded to the target URL:
 
 ```bash
 curl -s \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
-  "https://px.local.threadedstack.app/proxy/PROJECT_ID/ENDPOINT_ID?city=London&units=metric" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
+  "https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>?city=London&units=metric" \
   --insecure
 ```
 
@@ -268,8 +268,8 @@ Any path segments after the endpoint ID are appended to the target URL:
 ```bash
 # Calls: https://api.example.com/v1/users/123/profile
 curl -s \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
-  "https://px.local.threadedstack.app/proxy/PROJECT_ID/ENDPOINT_ID/123/profile" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
+  "https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>/123/profile" \
   --insecure
 ```
 
@@ -278,7 +278,7 @@ curl -s \
 Requests without a valid JWT or API key are rejected at the Auth Proxy level:
 
 ```bash
-curl -s "https://px.local.threadedstack.app/proxy/PROJECT_ID/ENDPOINT_ID" --insecure
+curl -s "https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>" --insecure
 # => 401 Unauthorized
 ```
 
@@ -545,7 +545,7 @@ sequenceDiagram
 
 ### Detailed Steps
 
-1. **Client sends request** to `https://px.local.threadedstack.app/proxy/{projectId}/{endpointId}`
+1. **Client sends request** to `https://px.threadedstack.app/proxy/<project-id>/<endpoint-id>`
 2. **Auth Proxy validates** the JWT token or `tdsk_*` API key
 3. **Auth Proxy forwards** the request to the Backend, injecting `X-User-Id`, `X-User-Role`, and `X-User-Email` headers
 4. **Backend's endpoint dispatcher** (`/proxy/:projectId/:endpointId`) loads the endpoint record from the database

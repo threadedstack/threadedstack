@@ -43,24 +43,24 @@ Use the narrowest scope that fits your use case. A CI pipeline that deploys to a
 Include the API key in the `Authorization` header as a Bearer token:
 
 ```http
-Authorization: Bearer tdsk_YOUR_API_KEY
+Authorization: Bearer tdsk_<api-key>
 ```
 
 **Example -- list organizations:**
 
 ```bash
-curl -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
-  https://your-instance.threadedstack.app/_/orgs
+curl -H "Authorization: Bearer tdsk_<api-key>" \
+  https://px.threadedstack.app/_/orgs
 ```
 
 **Example -- create a thread:**
 
 ```bash
 curl -X POST \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
   -H "Content-Type: application/json" \
   -d '{"name": "My Thread"}' \
-  https://your-instance.threadedstack.app/_/orgs/ORG_ID/agents/AGENT_ID/threads
+  https://px.threadedstack.app/_/orgs/<org-id>/agents/<agent-id>/threads
 ```
 
 API keys work anywhere a JWT token would -- all authenticated endpoints accept both forms of authentication.

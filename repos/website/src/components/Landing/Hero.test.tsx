@@ -34,6 +34,6 @@ describe(`Hero`, () => {
   it(`renders Request a Demo button with mailto link`, () => {
     renderWithTheme(<Hero />)
     const demo = screen.getByRole(`link`, { name: /request a demo/i })
-    expect(demo).toHaveAttribute(`href`, `mailto:demo@threadedstack.app`)
+    expect(demo).toHaveAttribute(`href`, `mailto:demo@threadedstack.com`)
   })
 })

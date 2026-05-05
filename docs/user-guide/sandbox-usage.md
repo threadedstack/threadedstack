@@ -21,10 +21,7 @@ The fastest way to start using Threaded Stack is the `tsa run` command. It start
 ### 1. Install and Login
 
 ```bash
-tsa login <api-key> --url https://your-instance.threadedstack.app
-
-# For local development (self-signed certs)
-tsa login <api-key> --url https://your-instance.threadedstack.app --insecure
+tsa login tdsk_<api-key>
 ```
 
 ### 2. List Available Sandboxes

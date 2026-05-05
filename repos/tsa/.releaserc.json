@@ -1,0 +1,35 @@
+{
+  "tagFormat": "tsa-v${version}",
+  "branches": ["production"],
+  "plugins": [
+    ["@semantic-release/commit-analyzer", {
+      "preset": "conventionalcommits",
+      "releaseRules": [
+        { "scope": "tsa", "type": "feat", "release": "minor" },
+        { "scope": "tsa", "type": "fix", "release": "patch" },
+        { "scope": "tsa", "type": "perf", "release": "patch" },
+        { "scope": "tsa", "breaking": true, "release": "major" }
+      ]
+    }],
+    ["@semantic-release/release-notes-generator", {
+      "preset": "conventionalcommits"
+    }],
+    ["@semantic-release/changelog", {
+      "changelogFile": "CHANGELOG.md"
+    }],
+    ["@semantic-release/exec", {
+      "prepareCmd": "bun run scripts/publish.ts --version ${nextRelease.version}"
+    }],
+    ["@semantic-release/npm", {
+      "npmPublish": true,
+      "publishConfig": {
+        "access": "public",
+        "provenance": true
+      }
+    }],
+    ["@semantic-release/git", {
+      "assets": ["package.json", "CHANGELOG.md", "npm/*/package.json"],
+      "message": "chore(tsa): release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+    }]
+  ]
+}

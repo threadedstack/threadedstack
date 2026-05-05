@@ -2,11 +2,11 @@ import type { TTask } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
+import { SandboxOptions } from '@TSA/constants/options'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
-import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
+import { resolveContext } from '@TSA/utils/tasks/resolveContext'
 import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
-import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { sandboxConnectPod } from '@TSA/utils/tasks/sandboxConnectPod'
 import { connectShellWebSocket } from '@TSA/utils/tasks/shellWebSocket'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
@@ -24,21 +24,7 @@ export const sandbox: TTask = {
   description: `Start a sandbox, sync files, and launch its configured AI tool`,
   example: `tsa sandbox [<sandbox>] [--org <id>] [--project <id>] [--no-sync]`,
   options: {
-    sandbox: {
-      example: `--sb sb_xxx`,
-      description: `Sandbox ID or alias`,
-      alias: [`sandboxId`, `sb`],
-    },
-    org: {
-      example: `--org org_xxx`,
-      description: `Organization ID`,
-      alias: [`organizationId`, `organization`, `orgId`],
-    },
-    project: {
-      example: `--project proj_xxx`,
-      description: `Project ID`,
-      alias: [`projectId`, `p`],
-    },
+    ...SandboxOptions,
     noSync: {
       example: `--no-sync`,
       description: `Disable automatic file sync`,
@@ -61,27 +47,15 @@ export const sandbox: TTask = {
     const explicitSandboxId = params.sandbox || options?.[0]
     const client = new ApiClient(auth)
 
-    let orgId: string
-    try {
-      orgId = await resolveOrgId(client, params.org as string | undefined, config?.org)
-    } catch (err) {
-      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-      process.exit(1)
-    }
+    const base = await resolveContext({
+      client,
+      config,
+      skipSandbox: true,
+      explicitOrg: params.org as string | undefined,
+      explicitProject: params.project as string | undefined,
+    })
+    const { orgId, projectId } = base
 
-    // If the org changed from the saved config, clear the cached project to force re-selection
-    const explicitProject =
-      orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-    let projectId: string
-    try {
-      projectId = await resolveProjectId(client, orgId, explicitProject)
-    } catch (err) {
-      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-      process.exit(1)
-    }
-
-    // List sandboxes when --list flag is set
     if (params.list) {
       const { data: list, error } = await client.listSandboxes(orgId, projectId)
       if (error || !list) {
@@ -121,7 +95,6 @@ export const sandbox: TTask = {
       return
     }
 
-    // Resolve sandbox ID — interactive picker if no explicit ID provided
     let sandboxId: string
     try {
       sandboxId = await resolveSandboxId(
@@ -136,12 +109,12 @@ export const sandbox: TTask = {
       process.exit(1)
     }
 
-    // Fetch sandbox config to get runtimeCommand — hard error if this fails
     const { data: sandboxData, error: sandboxError } = await client.getSandbox(
       orgId,
       sandboxId,
       projectId
     )
+
     if (sandboxError || !sandboxData) {
       process.stderr.write(
         `${themed(`error`, `Error:`)} Could not fetch sandbox config: ${sandboxError?.message || `sandbox not found`}\n` +

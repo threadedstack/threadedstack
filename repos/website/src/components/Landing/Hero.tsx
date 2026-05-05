@@ -153,7 +153,7 @@ const Hero = () => {
               <Button
                 variant='outlined'
                 size='large'
-                href='mailto:demo@threadedstack.app'
+                href='mailto:demo@threadedstack.com'
               >
                 Request a Demo
               </Button>

@@ -1,0 +1,7 @@
+# Platform binaries (built by scripts/build.ts --publish)
+npm/*/tsa
+npm/*/tsa.exe
+
+# Installed binary (placed by postinstall)
+bin/tsa
+bin/tsa.exe

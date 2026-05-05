@@ -5,15 +5,13 @@ import WebSocket from 'ws'
 import { themed } from '@TSA/theme'
 import { EShellMsg } from '@tdsk/domain'
 import { ApiClient } from '@TSA/services/api'
+import { SandboxOptions } from '@TSA/constants/options'
 import { ShellConnectMsgs } from '@TSA/constants/shell'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
-import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
-import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
-import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
+import { resolveContext } from '@TSA/utils/tasks/resolveContext'
 import { resolveSessionId } from '@TSA/utils/tasks/resolveSessionId'
-import { sandboxConnectPod } from '@TSA/utils/tasks/sandboxConnectPod'
-import { connectShellWebSocket } from '@TSA/utils/tasks/shellWebSocket'
+import { connectAndAttach } from '@TSA/utils/tasks/connectAndAttach'
 
 const resolveSessionSandbox = async (
   client: ApiClient,
@@ -142,93 +140,28 @@ export const sessions: TTask = {
   alias: [`session`],
   description: `List active sessions for a sandbox`,
   example: `tsa sessions <sandbox-id> [--org <id>] [--project <id>]`,
-  options: {
-    sandbox: {
-      example: `--sb sb_xxx`,
-      description: `Sandbox ID`,
-      alias: [`sandboxId`, `sb`],
-    },
-    org: {
-      example: `--org org_xxx`,
-      description: `Organization ID`,
-      alias: [`organizationId`, `organization`, `orgId`],
-    },
-    project: {
-      example: `--project proj_xxx`,
-      description: `Project ID`,
-      alias: [`projectId`, `p`],
-    },
-  },
+  options: { ...SandboxOptions },
   tasks: {
     list: {
       name: `list`,
       alias: [`ls`],
       description: `List active sessions for a sandbox`,
       example: `tsa sessions list <sandbox-id>`,
-      options: {
-        sandbox: {
-          example: `--sb sb_xxx`,
-          description: `Sandbox ID`,
-          alias: [`sandboxId`, `sb`],
-        },
-        org: {
-          example: `--org org_xxx`,
-          description: `Organization ID`,
-          alias: [`organizationId`, `organization`, `orgId`],
-        },
-        project: {
-          example: `--project proj_xxx`,
-          description: `Project ID`,
-          alias: [`projectId`, `p`],
-        },
-      },
+      options: { ...SandboxOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
-        const explicitSandboxId = params.sandbox || options?.[0]
         const client = new ApiClient(auth)
-
-        let orgId: string
-        try {
-          orgId = await resolveOrgId(
-            client,
-            params.org as string | undefined,
-            config?.org
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        const explicitProject =
-          orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-        let projectId: string
-        try {
-          projectId = await resolveProjectId(client, orgId, explicitProject)
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        let sandboxId: string
-        try {
-          sandboxId = await resolveSandboxId(
-            client,
-            orgId,
-            projectId,
-            explicitSandboxId as string | undefined,
-            config?.sandbox
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        if (config) saveContext(config, orgId, projectId, sandboxId)
+        const ctx = await resolveContext({
+          client,
+          config,
+          explicitOrg: params.org as string | undefined,
+          explicitProject: params.project as string | undefined,
+          explicitSandbox: (params.sandbox || options?.[0]) as string | undefined,
+        })
 
         const { data: sessionList, error } = await client.getSandboxSessions(
-          orgId,
-          projectId,
-          sandboxId
+          ctx.orgId,
+          ctx.projectId,
+          ctx.sandboxId
         )
         if (error) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${error.message}\n`)
@@ -238,13 +171,13 @@ export const sessions: TTask = {
         const list = sessionList ?? []
         if (list.length === 0) {
           process.stdout.write(
-            `${themed(`muted`, `No active sessions for sandbox ${sandboxId}`)}\n`
+            `${themed(`muted`, `No active sessions for sandbox ${ctx.sandboxId}`)}\n`
           )
           return
         }
 
         process.stdout.write(
-          `\n${themed(`bold`, `Sessions for sandbox ${sandboxId}`)} (${list.length} active)\n\n`
+          `\n${themed(`bold`, `Sessions for sandbox ${ctx.sandboxId}`)} (${list.length} active)\n\n`
         )
 
         const idW = 16
@@ -273,23 +206,7 @@ export const sessions: TTask = {
       alias: [`new`],
       description: `Start a new plain shell session`,
       example: `tsa sessions start <sandbox-id>`,
-      options: {
-        sandbox: {
-          example: `--sb sb_xxx`,
-          description: `Sandbox ID or alias`,
-          alias: [`sandboxId`, `sb`],
-        },
-        org: {
-          example: `--org org_xxx`,
-          description: `Organization ID`,
-          alias: [`organizationId`, `organization`, `orgId`],
-        },
-        project: {
-          example: `--project proj_xxx`,
-          description: `Project ID`,
-          alias: [`projectId`, `p`],
-        },
-      },
+      options: { ...SandboxOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
         const sandboxIdInput = (params.sandbox || options?.[0]) as string | undefined
         if (!sandboxIdInput) {
@@ -298,64 +215,21 @@ export const sessions: TTask = {
         }
 
         const client = new ApiClient(auth)
+        const ctx = await resolveContext({
+          client,
+          config,
+          explicitOrg: params.org as string | undefined,
+          explicitProject: params.project as string | undefined,
+          explicitSandbox: sandboxIdInput,
+        })
 
-        let orgId: string
         try {
-          orgId = await resolveOrgId(
+          await connectAndAttach({
             client,
-            params.org as string | undefined,
-            config?.org
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        const explicitProject =
-          orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-        let projectId: string
-        try {
-          projectId = await resolveProjectId(client, orgId, explicitProject)
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        let sandboxId: string
-        try {
-          sandboxId = await resolveSandboxId(
-            client,
-            orgId,
-            projectId,
-            sandboxIdInput,
-            config?.sandbox
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        if (config) saveContext(config, orgId, projectId, sandboxId)
-
-        try {
-          const connectResp = await sandboxConnectPod(client, orgId, projectId, sandboxId)
-          const resolvedId = connectResp.sandboxId
-          const creds = auth.creds()
-          const bearerToken = creds?.apiKey || connectResp.shellToken || creds?.token
-
-          if (!bearerToken) {
-            process.stderr.write(
-              `${themed(`error`, `Error:`)} No authentication credentials available.\n`
-            )
-            process.exit(1)
-          }
-
-          await connectShellWebSocket({
-            proxyUrl: client.proxyUrl,
-            bearerToken,
-            sandboxId: resolvedId,
-            insecure: !!creds?.insecure,
+            auth,
+            orgId: ctx.orgId,
+            projectId: ctx.projectId,
+            sandboxId: ctx.sandboxId,
             run: false,
           })
         } catch (err) {
@@ -369,23 +243,7 @@ export const sessions: TTask = {
       alias: [`join`, `attach`],
       description: `Connect to an existing session`,
       example: `tsa sessions connect <session-id>`,
-      options: {
-        sandbox: {
-          example: `--sb sb_xxx`,
-          description: `Sandbox ID (auto-resolved if omitted)`,
-          alias: [`sandboxId`, `sb`],
-        },
-        org: {
-          example: `--org org_xxx`,
-          description: `Organization ID`,
-          alias: [`organizationId`, `organization`, `orgId`],
-        },
-        project: {
-          example: `--project proj_xxx`,
-          description: `Project ID`,
-          alias: [`projectId`, `p`],
-        },
-      },
+      options: { ...SandboxOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
         const sessionId = options?.[0] as string | undefined
         if (!sessionId) {
@@ -394,33 +252,22 @@ export const sessions: TTask = {
         }
 
         const client = new ApiClient(auth)
-
-        let orgId: string
-        try {
-          orgId = await resolveOrgId(
-            client,
-            params.org as string | undefined,
-            config?.org
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        const explicitProject =
-          orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-        let projectId: string
-        try {
-          projectId = await resolveProjectId(client, orgId, explicitProject)
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
+        const base = await resolveContext({
+          client,
+          config,
+          explicitOrg: params.org as string | undefined,
+          explicitProject: params.project as string | undefined,
+          skipSandbox: true,
+        })
 
         let sandboxId = params.sandbox as string | undefined
         if (!sandboxId) {
-          const result = await resolveSessionSandbox(client, orgId, projectId, sessionId)
+          const result = await resolveSessionSandbox(
+            client,
+            base.orgId,
+            base.projectId,
+            sessionId
+          )
           if (!result) {
             process.stderr.write(
               `${themed(`error`, `Error:`)} Could not find session ${sessionId} in any sandbox\n`
@@ -430,26 +277,15 @@ export const sessions: TTask = {
           sandboxId = result.sandboxId
         }
 
-        if (config) saveContext(config, orgId, projectId, sandboxId)
+        if (config) saveContext(config, base.orgId, base.projectId, sandboxId)
 
         try {
-          const connectResp = await sandboxConnectPod(client, orgId, projectId, sandboxId)
-          const resolvedId = connectResp.sandboxId
-          const creds = auth.creds()
-          const bearerToken = creds?.apiKey || connectResp.shellToken || creds?.token
-
-          if (!bearerToken) {
-            process.stderr.write(
-              `${themed(`error`, `Error:`)} No authentication credentials available.\n`
-            )
-            process.exit(1)
-          }
-
-          await connectShellWebSocket({
-            proxyUrl: client.proxyUrl,
-            bearerToken,
-            sandboxId: resolvedId,
-            insecure: !!creds?.insecure,
+          await connectAndAttach({
+            client,
+            auth,
+            orgId: base.orgId,
+            projectId: base.projectId,
+            sandboxId,
             sessionId,
           })
         } catch (err) {
@@ -462,73 +298,25 @@ export const sessions: TTask = {
       name: `share`,
       description: `Make a session public (shareable with project members)`,
       example: `tsa sessions share [<session-id>] [--org <id>] [--project <id>]`,
-      options: {
-        sandbox: {
-          example: `--sb sb_xxx`,
-          description: `Sandbox ID or alias`,
-          alias: [`sandboxId`, `sb`],
-        },
-        org: {
-          example: `--org org_xxx`,
-          description: `Organization ID`,
-          alias: [`organizationId`, `organization`, `orgId`],
-        },
-        project: {
-          example: `--project proj_xxx`,
-          description: `Project ID`,
-          alias: [`projectId`, `p`],
-        },
-      },
+      options: { ...SandboxOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
         const explicitSessionId = options?.[0] as string | undefined
         const client = new ApiClient(auth)
-
-        let orgId: string
-        try {
-          orgId = await resolveOrgId(
-            client,
-            params.org as string | undefined,
-            config?.org
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        const explicitProject =
-          orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-        let projectId: string
-        try {
-          projectId = await resolveProjectId(client, orgId, explicitProject)
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        let sandboxId: string
-        try {
-          sandboxId = await resolveSandboxId(
-            client,
-            orgId,
-            projectId,
-            params.sandbox as string | undefined,
-            config?.sandbox
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        if (config) saveContext(config, orgId, projectId, sandboxId)
+        const ctx = await resolveContext({
+          client,
+          config,
+          explicitOrg: params.org as string | undefined,
+          explicitProject: params.project as string | undefined,
+          explicitSandbox: params.sandbox as string | undefined,
+        })
 
         let sessionId: string
         try {
           sessionId = await resolveSessionId(
             client,
-            orgId,
-            projectId,
-            sandboxId,
+            ctx.orgId,
+            ctx.projectId,
+            ctx.sandboxId,
             explicitSessionId
           )
         } catch (err) {
@@ -538,7 +326,14 @@ export const sessions: TTask = {
 
         try {
           const creds = auth.creds()
-          await changeVisibility(client, orgId, projectId, sessionId, `public`, creds)
+          await changeVisibility(
+            client,
+            ctx.orgId,
+            ctx.projectId,
+            sessionId,
+            `public`,
+            creds
+          )
         } catch (err) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
           process.exit(1)
@@ -549,73 +344,25 @@ export const sessions: TTask = {
       name: `unshare`,
       description: `Make a session private`,
       example: `tsa sessions unshare [<session-id>] [--org <id>] [--project <id>]`,
-      options: {
-        sandbox: {
-          example: `--sb sb_xxx`,
-          description: `Sandbox ID or alias`,
-          alias: [`sandboxId`, `sb`],
-        },
-        org: {
-          example: `--org org_xxx`,
-          description: `Organization ID`,
-          alias: [`organizationId`, `organization`, `orgId`],
-        },
-        project: {
-          example: `--project proj_xxx`,
-          description: `Project ID`,
-          alias: [`projectId`, `p`],
-        },
-      },
+      options: { ...SandboxOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
         const explicitSessionId = options?.[0] as string | undefined
         const client = new ApiClient(auth)
-
-        let orgId: string
-        try {
-          orgId = await resolveOrgId(
-            client,
-            params.org as string | undefined,
-            config?.org
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        const explicitProject =
-          orgId !== config?.org ? undefined : (params.project as string | undefined)
-
-        let projectId: string
-        try {
-          projectId = await resolveProjectId(client, orgId, explicitProject)
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        let sandboxId: string
-        try {
-          sandboxId = await resolveSandboxId(
-            client,
-            orgId,
-            projectId,
-            params.sandbox as string | undefined,
-            config?.sandbox
-          )
-        } catch (err) {
-          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
-          process.exit(1)
-        }
-
-        if (config) saveContext(config, orgId, projectId, sandboxId)
+        const ctx = await resolveContext({
+          client,
+          config,
+          explicitOrg: params.org as string | undefined,
+          explicitProject: params.project as string | undefined,
+          explicitSandbox: params.sandbox as string | undefined,
+        })
 
         let sessionId: string
         try {
           sessionId = await resolveSessionId(
             client,
-            orgId,
-            projectId,
-            sandboxId,
+            ctx.orgId,
+            ctx.projectId,
+            ctx.sandboxId,
             explicitSessionId
           )
         } catch (err) {
@@ -625,7 +372,14 @@ export const sessions: TTask = {
 
         try {
           const creds = auth.creds()
-          await changeVisibility(client, orgId, projectId, sessionId, `private`, creds)
+          await changeVisibility(
+            client,
+            ctx.orgId,
+            ctx.projectId,
+            sessionId,
+            `private`,
+            creds
+          )
         } catch (err) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
           process.exit(1)

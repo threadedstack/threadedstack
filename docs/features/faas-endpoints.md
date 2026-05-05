@@ -142,8 +142,8 @@ Functions are created through the backend admin API:
 ```bash
 # Create a TypeScript function
 curl -X POST \
-  "https://local.threadedstack.app/_/orgs/{orgId}/projects/{projectId}/functions" \
-  -H "Authorization: Bearer tdsk_your_api_key" \
+  "https://local.threadedstack.app/_/orgs/<org-id>/projects/<project-id>/functions" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Hello World",
@@ -198,7 +198,7 @@ Once you have a function, create an endpoint to make it callable via HTTP:
 ```bash
 # Create a FaaS endpoint that calls the function
 curl -X POST \
-  "https://local.threadedstack.app/_/orgs/{orgId}/projects/{projectId}/endpoints" \
+  "https://local.threadedstack.app/_/orgs/<org-id>/projects/<project-id>/endpoints" \
   -H "Authorization: Bearer tdsk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -270,14 +270,14 @@ curl -X POST \
 Once created, call the endpoint through the proxy route:
 
 ```http
-POST /proxy/{projectId}/{endpointId}
+POST /proxy/<project-id>/<endpoint-id>
 ```
 
 ### Example Request
 
 ```bash
 curl -X POST \
-  "https://local.threadedstack.app/proxy/{projectId}/{endpointId}" \
+  "https://local.threadedstack.app/proxy/<project-id>/<endpoint-id>" \
   -H "Authorization: Bearer tdsk_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -665,19 +665,19 @@ When calling a FaaS endpoint, authenticate in one of these ways:
 **JWT Token** (from browser/Neon Auth login):
 ```bash
 curl -H "Authorization: Bearer eyJhbGciOi..." \
-  https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+  https://local.threadedstack.app/proxy/<project-id>/<endpoint-id>
 ```
 
 **API Key** (for programmatic access):
 ```bash
 curl -H "Authorization: Bearer tdsk_your_api_key_here" \
-  https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+  https://local.threadedstack.app/proxy/<project-id>/<endpoint-id>
 ```
 
 **Public endpoints** (no auth needed):
 ```bash
 # If the endpoint was created with "public": true
-curl https://local.threadedstack.app/proxy/{projectId}/{endpointId}
+curl https://local.threadedstack.app/proxy/<project-id>/<endpoint-id>
 ```
 
 ---
@@ -689,7 +689,7 @@ curl https://local.threadedstack.app/proxy/{projectId}/{endpointId}
 **Symptom:** 404 or 500 error mentioning function not found.
 
 **Checks:**
-1. Verify the function still exists: `GET /_/orgs/{orgId}/projects/{projectId}/functions/{functionId}`
+1. Verify the function still exists: `GET /_/orgs/<org-id>/projects/<project-id>/functions/{functionId}`
 2. Verify the endpoint's `options.functionId` matches the function's ID
 3. Verify both the function and endpoint belong to the same project
 

@@ -1,17 +1,8 @@
 #!/usr/bin/env bun
 
-/**
- * Build script for tsa CLI.
- * Handles both bundling (bun build) and compilation (bun build --compile).
- *
- * Usage:
- *   bun run scripts/build.ts           # Bundle to dist/index.js
- *   bun run scripts/build.ts --compile # Compile to dist/tsa binary
- */
-
 import { $ } from 'bun'
 import { join, resolve } from 'node:path'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const root = resolve(import.meta.dirname, `..`)
 const distDir = join(root, `dist`)
@@ -21,8 +12,16 @@ const pkg = JSON.parse(readFileSync(join(root, `package.json`), `utf-8`))
 if (!existsSync(distDir)) mkdirSync(distDir, { recursive: true })
 
 const isCompile = process.argv.includes(`--compile`)
+const isPublish = process.argv.includes(`--publish`)
 
-// Step 1: Bundle
+const Targets = [
+  { platform: `darwin-arm64`, bunTarget: `bun-darwin-arm64`, bin: `tsa` },
+  { platform: `darwin-x64`, bunTarget: `bun-darwin-x64`, bin: `tsa` },
+  { platform: `linux-x64`, bunTarget: `bun-linux-x64`, bin: `tsa` },
+  { platform: `linux-arm64`, bunTarget: `bun-linux-arm64`, bin: `tsa` },
+  { platform: `win32-x64`, bunTarget: `bun-windows-x64`, bin: `tsa.exe` },
+]
+
 console.log(`Bundling tsa...`)
 console.log(`  Entry: ${entrypoint}`)
 
@@ -31,7 +30,6 @@ const result = await Bun.build({
   outdir: distDir,
   target: `bun`,
   minify: true,
-  // @nuanced-dev/mutagen is not imported — CliDriver spawns the binary directly
   define: {
     __TDSK_TSA_VERSION__: JSON.stringify(pkg.version),
   },
@@ -45,13 +43,30 @@ if (!result.success) {
   process.exit(1)
 }
 
-// Bun.build names output after the entrypoint: main.ts -> main.js
 const bundleName = `main.js`
-console.log(`  Output: ${distDir}/${bundleName}`)
+const bundlePath = join(distDir, bundleName)
+console.log(`  Output: ${bundlePath}`)
 
-// Step 2: If --compile, compile the bundle into a native binary
-if (isCompile) {
-  const bundlePath = join(distDir, bundleName)
+if (isPublish) {
+  console.log(`\nCross-compiling for ${Targets.length} platforms...`)
+
+  for (const { platform, bunTarget, bin } of Targets) {
+    const outDir = join(root, `npm`, platform)
+    if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true })
+
+    const outfile = join(outDir, bin)
+    console.log(`  ${platform} → ${outfile}`)
+    await $`bun build ${bundlePath} --compile --target=${bunTarget} --outfile=${outfile}`.cwd(root)
+  }
+
+  const binDir = join(root, `bin`)
+  if (!existsSync(binDir)) mkdirSync(binDir, { recursive: true })
+  const binFile = join(binDir, `tsa`)
+  writeFileSync(binFile, ``)
+  chmodSync(binFile, 0o755)
+
+  console.log(`\nAll platforms compiled!`)
+} else if (isCompile) {
   const outfile = join(distDir, `tsa`)
 
   console.log(`\nCompiling to native binary...`)

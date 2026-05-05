@@ -97,7 +97,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * Dark/light theme — user preference, persisted locally
   * Notification support — browser notifications for agent completion when tab is backgrounded
 * **Deployment options**:
-  * **Web app**: Static SPA served from its own domain/subdomain (e.g., `chat.threadedstack.app`). Deployed to S3+CDN, Vercel, or a dedicated K8s pod — separate from the admin app's deployment
+  * **Web app**: Static SPA served from its own domain/subdomain (e.g., `threads.threadedstack.com`). Deployed to S3+CDN, Vercel, or a dedicated K8s pod — separate from the admin app's deployment
   * **Desktop app (Electron/Tauri)**: Wrap the same web app in Electron or Tauri for a native desktop experience. Tauri preferred (smaller binary, Rust-based, lower memory). Desktop app can add: system tray icon, global hotkey to open, native file picker for uploads, offline thread history cache
   * Both targets share the same core React codebase — platform-specific code isolated to a thin shell layer
 * **Tech stack (must use shared components repo for UI consistency)**:

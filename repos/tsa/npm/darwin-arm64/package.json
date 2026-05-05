@@ -1,0 +1,24 @@
+{
+  "name": "@tdsk/tsa-darwin-arm64",
+  "version": "0.1.1",
+  "description": "TSA CLI binary for macOS ARM64",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "license": "ISC",
+  "author": "Threaded Stack",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/threadedstack/threadedstack.git",
+    "directory": "repos/tsa"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "tsa"
+  ]
+}

@@ -191,7 +191,7 @@ Now make a request:
 
 ```bash
 curl -s \
-  -H "Authorization: Bearer tdsk_YOUR_API_KEY" \
+  -H "Authorization: Bearer tdsk_<api-key>" \
   "https://your-threaded-stack-url/proxy/PROJECT_ID/ENDPOINT_ID?q=London&units=metric"
 ```
 
@@ -234,7 +234,7 @@ When you created your organization, Threaded Stack automatically seeded four bui
 ### Step 3: Install and Login with `tsa`
 
 ```bash
-tsa login tdsk_YOUR_API_KEY --url https://your-instance.threadedstack.app
+tsa login tdsk_<api-key>
 ```
 
 ### Step 4: Run the Sandbox
