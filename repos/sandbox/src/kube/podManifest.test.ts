@@ -127,8 +127,12 @@ describe(`buildPodManifest`, () => {
 
     const initContainer = initContainers[0]
     expect(initContainer.name).toBe(`proxy-redirect`)
-    expect(initContainer.image).toBe(`alpine`)
+    expect(initContainer.image).toBe(`ghcr.io/threadedstack/tdsk-init`)
     expect(initContainer.securityContext!.capabilities!.add).toContain(`NET_ADMIN`)
+    expect(initContainer.securityContext!.capabilities!.drop).toEqual([`ALL`])
+    expect(initContainer.securityContext!.seccompProfile).toEqual({
+      type: `RuntimeDefault`,
+    })
 
     const cmd = initContainer.command!
     expect(cmd[0]).toBe(`sh`)
@@ -136,6 +140,16 @@ describe(`buildPodManifest`, () => {
     expect(cmd[2]).toContain(`iptables`)
     expect(cmd[2]).toContain(egressOpts.serviceName)
     expect(cmd[2]).toContain(egressOpts.servicePort)
+  })
+
+  it(`should use custom initImage when provided in egressOpts`, () => {
+    const built = buildOpts()
+    const opts = {
+      ...built,
+      egressOpts: { ...built.egressOpts, initImage: `custom-registry.io/my-init:v2` },
+    }
+    const manifest = buildPodManifest(opts)
+    expect(manifest.spec!.initContainers![0].image).toBe(`custom-registry.io/my-init:v2`)
   })
 
   it(`should use serviceIp directly when provided in egressOpts`, () => {
@@ -234,33 +248,6 @@ describe(`buildPodManifest`, () => {
     expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 8080 })
   })
 
-  it(`should include SSH port 2222 when no ports configured (sshEnabled defaults to true)`, () => {
-    const manifest = buildPodManifest(buildOpts())
-    const ports = manifest.spec!.containers![0].ports!
-    expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 2222 })
-    expect(ports).toHaveLength(1)
-  })
-
-  it(`should not add SSH port 2222 when sshEnabled is false`, () => {
-    const opts = buildOpts({ config: { image: `node:20`, sshEnabled: false } })
-    const manifest = buildPodManifest(opts)
-    const ports = manifest.spec!.containers![0].ports!
-    expect(ports).toEqual([])
-  })
-
-  it(`should not duplicate SSH port 2222 when already in config.ports`, () => {
-    const opts = buildOpts({
-      config: {
-        image: `node:20`,
-        ports: { '2222': { protocol: `http` } },
-      },
-    })
-    const manifest = buildPodManifest(opts)
-    const ports = manifest.spec!.containers![0].ports!
-    const sshPorts = ports.filter((p) => p.containerPort === 2222)
-    expect(sshPorts).toHaveLength(1)
-  })
-
   it(`should include extraEnv variables in container env`, () => {
     const opts = {
       ...buildOpts(),
@@ -305,11 +292,14 @@ describe(`buildPodManifest`, () => {
     )
   })
 
-  it(`should disable privilege escalation on sandbox container`, () => {
+  it(`should harden sandbox container security context`, () => {
     const manifest = buildPodManifest(buildOpts())
     const sc = manifest.spec!.containers![0].securityContext!
-    expect(sc.allowPrivilegeEscalation).toBe(false)
     expect(sc.privileged).toBe(false)
+    expect(sc.allowPrivilegeEscalation).toBe(false)
+    expect(sc.capabilities!.drop).toEqual([`ALL`])
+    expect(sc.capabilities!.add).toEqual([`SETUID`, `SETGID`, `SYS_CHROOT`])
+    expect(sc.seccompProfile).toEqual({ type: `RuntimeDefault` })
   })
 
   it(`should include initScript in postStart when config.initScript is set`, () => {
@@ -361,5 +351,29 @@ describe(`buildPodManifest`, () => {
     const initIdx = script.indexOf(`echo "after source"`)
     expect(sourceIdx).toBeGreaterThan(-1)
     expect(initIdx).toBeGreaterThan(sourceIdx)
+  })
+
+  it(`should include imagePullSecrets when provided in opts`, () => {
+    const opts = {
+      ...buildOpts(),
+      imagePullSecrets: [`secret-1`, `secret-2`],
+    }
+    const manifest = buildPodManifest(opts)
+    expect(manifest.spec!.imagePullSecrets).toEqual([
+      { name: `secret-1` },
+      { name: `secret-2` },
+    ])
+  })
+
+  it(`should not include imagePullSecrets when array is empty or undefined`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    expect(manifest.spec!.imagePullSecrets).toBeUndefined()
+
+    const optsWithEmpty = {
+      ...buildOpts(),
+      imagePullSecrets: [],
+    }
+    const manifestEmpty = buildPodManifest(optsWithEmpty)
+    expect(manifestEmpty.spec!.imagePullSecrets).toBeUndefined()
   })
 })

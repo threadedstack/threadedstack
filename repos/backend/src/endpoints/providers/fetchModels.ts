@@ -2,10 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { Exception } from '@tdsk/domain'
-import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
+import { ELLMProviderBrand, LLMProviderTemplates } from '@tdsk/domain'
 
 const validBrands = new Set(Object.values(ELLMProviderBrand))
 
@@ -38,7 +38,8 @@ export const fetchModels: TEndpointConfig = {
 
       // Ollama: fetch live from local API (user-installed models)
       if (brand === ELLMProviderBrand.ollama) {
-        const ollamaUrl = baseUrl || ProviderTemplates[ELLMProviderBrand.ollama].baseUrl
+        const ollamaUrl =
+          baseUrl || LLMProviderTemplates[ELLMProviderBrand.ollama].baseUrl
         const models = await ModelRegistry.fetchOllamaModels(ollamaUrl)
 
         res.status(200).json({ data: models })

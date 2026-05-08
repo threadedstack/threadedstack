@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { get, put, post } from '../utils/api-client'
+import { get, put, post, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
@@ -21,6 +21,7 @@ describe('Tier 1: Web Tools Configuration', () => {
   let agentId = ''
   let fixtures: TFixtureResult = {}
   let setupFailed = false
+  const extraSecretIds: string[] = []
 
   const agentPath = () => `/orgs/${orgId}/agents/${agentId}`
   const projectAgentPath = () =>
@@ -56,6 +57,11 @@ describe('Tier 1: Web Tools Configuration', () => {
   })
 
   afterAll(async () => {
+    for (const id of extraSecretIds) {
+      await del(`/orgs/${orgId}/secrets/${id}`).catch((e) =>
+        console.warn(`[web-tools-config] cleanup secret ${id} failed:`, e?.message)
+      )
+    }
     await cleanupFixtures(orgId, fixtures)
   })
 
@@ -114,6 +120,7 @@ describe('Tier 1: Web Tools Configuration', () => {
 
     expect(secretRes.status).toBe(201)
     const secretId = secretRes.data.id
+    extraSecretIds.push(secretId)
 
     const updateRes = await put<{ id: string; environment: Record<string, any> }>(agentPath(), {
       environment: { webProvider: { type: 'jina', secretId } },
@@ -201,6 +208,7 @@ describe('Tier 1: Web Tools Configuration', () => {
     )
     expect(secretRes.status).toBe(201)
     const wpSecretId = secretRes.data.id
+    extraSecretIds.push(wpSecretId)
 
     // Re-set tools and webProvider for session test
     await put(agentPath(), {

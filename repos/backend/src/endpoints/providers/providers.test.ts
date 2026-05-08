@@ -41,7 +41,7 @@ describe(`Providers endpoints`, () => {
               update: vi.fn(),
               delete: vi.fn(),
               validateType: vi.fn((type?: string) => {
-                const validTypes = [`ai`, `git`, `auth`, `storage`]
+                const validTypes = [`ai`, `git`, `auth`, `storage`, `docker`]
                 if (!type)
                   throw new Error(
                     `Provider type is required, must be one of: ${validTypes.join(`, `)}`
@@ -73,6 +73,25 @@ describe(`Providers endpoints`, () => {
                 if (!brand || typeof brand !== `string` || !validBrands.includes(brand))
                   throw new Error(
                     `AI providers require brand to be one of: ${validBrands.join(`, `)}` +
+                      (brand ? `. Got: "${brand}"` : ``)
+                  )
+              }),
+              validateDocker: vi.fn((type?: string, brand?: string | null) => {
+                if (type !== `docker`) return
+                const validDockerBrands = [
+                  `ghcr`,
+                  `gitlab`,
+                  `quay`,
+                  `dockerhub`,
+                  `custom`,
+                ]
+                if (
+                  !brand ||
+                  typeof brand !== `string` ||
+                  !validDockerBrands.includes(brand)
+                )
+                  throw new Error(
+                    `Docker providers require brand to be one of: ${validDockerBrands.join(`, `)}` +
                       (brand ? `. Got: "${brand}"` : ``)
                   )
               }),

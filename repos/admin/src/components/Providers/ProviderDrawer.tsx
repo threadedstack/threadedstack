@@ -7,15 +7,15 @@ import type {
   TProviderBrand,
   TLLMProviderBrand,
 } from '@tdsk/domain'
-
+import type { EDockerProviderBrand } from '@tdsk/domain'
 import {
   EProvider,
   ESecretMode,
   ELLMProviderBrand,
-  ProviderTemplates,
+  LLMProviderTemplates,
   ProviderBrandDomains,
+  DockerRegistryDefaults,
 } from '@tdsk/domain'
-import { ProviderTypes } from '@TAF/constants/providers'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
@@ -28,6 +28,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { fetchProviderSecrets } from '@TAF/actions/secrets/api/fetchProviderSecrets'
+import { ProviderTypes, DockerProviderOptions } from '@TAF/constants/providers'
 
 import {
   Box,
@@ -49,9 +50,10 @@ const LLMProviderOptions = Object.values(ELLMProviderBrand).map((value) => ({
 export type TProviderDrawer = {
   open: boolean
   orgId: string
-  provider?: Provider | null
   onClose: () => void
-  onSuccess?: () => void
+  provider?: Provider | null
+  defaultType?: TProviderType
+  onSuccess?: (providerId?: string) => void
   onRemove?: (provider: Provider) => void
 }
 
@@ -61,6 +63,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     orgId,
     provider,
     onRemove,
+    defaultType,
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
@@ -91,8 +94,12 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     [orgSecretsMap]
   )
 
+  const [registry, setRegistry] = useState(``)
+  const [username, setUsername] = useState(``)
+
   const isAiType = type === EProvider.ai
-  const template = isAiType && brand ? ProviderTemplates[brand] : undefined
+  const isDockerType = type === EProvider.docker
+  const template = isAiType && brand ? LLMProviderTemplates[brand] : undefined
 
   const duplicateName = useMemo(() => {
     if (isEditMode || !name.trim() || !providers) return false
@@ -134,6 +141,8 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
       setType(provider.type || ``)
       setBaseUrl(options.baseUrl || ``)
       setBrand(provider.brand || ``)
+      setRegistry(options.registry || ``)
+      setUsername(options.username || ``)
       setHeaders(objToKV(provider.headers, `header`))
       setBodyParams(objToKV(provider.bodyParams, `bodyParam`))
       setAllowedDomains(options.allowedDomains || [])
@@ -151,9 +160,11 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
       }
     } else {
       setName(``)
-      setType(``)
+      setType(defaultType || ``)
       setBaseUrl(``)
       setBrand(``)
+      setRegistry(``)
+      setUsername(``)
       setHeaders([])
       setBodyParams([])
       setError(null)
@@ -164,13 +175,13 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
       setSecretMode(ESecretMode.none)
       domainsModified.current = false
     }
-  }, [provider])
+  }, [provider, defaultType])
 
   // Auto-fill from template when LLM provider changes (create mode only)
   useEffect(() => {
     if (isEditMode || !isAiType || !brand) return
 
-    const tpl = ProviderTemplates[brand]
+    const tpl = LLMProviderTemplates[brand]
     if (!tpl) return
 
     setName(tpl.name)
@@ -183,13 +194,26 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     }
   }, [brand, isAiType, isEditMode])
 
+  // Auto-fill registry when docker brand changes (create mode only)
+  useEffect(() => {
+    if (isEditMode || !isDockerType || !brand) return
+
+    const dockerBrand = brand as EDockerProviderBrand
+    const dockerDefaults = DockerRegistryDefaults[dockerBrand]
+    if (dockerDefaults?.registry) setRegistry(dockerDefaults.registry)
+
+    setName(dockerDefaults?.name || brand)
+  }, [brand, isDockerType, isEditMode])
+
   const onClose = () => {
     if (loading) return
 
     setName(``)
-    setType(``)
+    setType(defaultType || ``)
     setBaseUrl(``)
     setBrand(``)
+    setRegistry(``)
+    setUsername(``)
     setHeaders([])
     setBodyParams([])
     setAllowedDomains([])
@@ -208,8 +232,12 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     if (!name.trim()) return setError(`Provider name is required`)
     if (!type) return setError(`Provider type is required`)
     if (isAiType && !brand) return setError(`LLM provider is required for AI providers`)
+    if (isDockerType && !brand)
+      return setError(`Registry brand is required for Docker providers`)
+    if (isDockerType && !registry.trim()) return setError(`Registry URL is required`)
+    if (isDockerType && !username.trim()) return setError(`Username is required`)
     if (secretMode === ESecretMode.new && !apiKeyValue.trim())
-      return setError(`API key value is required`)
+      return setError(`Secret value is required`)
 
     setLoading(true)
     setError(null)
@@ -219,18 +247,19 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     const providerData: Partial<Provider> = {
       name: name.trim(),
       type: type as TProviderType,
-      ...(isAiType && brand ? { brand } : {}),
+      ...((isAiType || isDockerType) && brand ? { brand } : {}),
       options: {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
         ...(allowedDomains.length > 0 ? { allowedDomains } : {}),
+        ...(isDockerType && registry.trim() ? { registry: registry.trim() } : {}),
+        ...(isDockerType && username.trim() ? { username: username.trim() } : {}),
       },
-      ...(Object.keys(headersObj).length > 0
+      ...(!isDockerType && Object.keys(headersObj).length > 0
         ? { headers: headersObj }
         : { headers: undefined }),
-      ...(Object.keys(bodyParamsObj).length > 0
+      ...(!isDockerType && Object.keys(bodyParamsObj).length > 0
         ? { bodyParams: bodyParamsObj }
         : { bodyParams: undefined }),
-      // Link existing secret as the API key
       ...(secretMode === 'existing' && selectedSecretId
         ? { secretId: selectedSecretId }
         : {}),
@@ -250,9 +279,10 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
 
     // Create secret with dual ownership (orgId + providerId) if "new" mode
     if (secretMode === `new` && apiKeyValue.trim()) {
-      const secretName =
-        template?.defaultSecretName ||
-        `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
+      const secretName = isDockerType
+        ? `${name.trim().toUpperCase().replace(/\s+/g, '_')}_REGISTRY_TOKEN`
+        : template?.defaultSecretName ||
+          `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
       const providerId = isEditMode ? provider?.id : result.data?.id
       const secretResult = await createSecret({
         orgId,
@@ -284,7 +314,8 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     }
 
     setLoading(false)
-    onSuccessCB?.()
+    const createdId = isEditMode ? provider?.id : result.data?.id
+    onSuccessCB?.(createdId)
     onClose()
   }
 
@@ -321,13 +352,14 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
           <SelectInput
             required
             value={type}
-            disabled={loading}
+            disabled={loading || (!!defaultType && !isEditMode)}
             id='provider-type'
             label='Provider Type'
             items={ProviderTypes}
             onChange={(e) => {
               setType(e.target.value)
-              e.target.value !== EProvider.ai && setBrand(``)
+              if (e.target.value !== EProvider.ai && e.target.value !== EProvider.docker)
+                setBrand(``)
             }}
           />
 
@@ -341,6 +373,19 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
               items={LLMProviderOptions}
               description='The AI service this provider connects to'
               onChange={(e) => setBrand(e.target.value as TLLMProviderBrand)}
+            />
+          )}
+
+          {isDockerType && (
+            <SelectInput
+              required
+              value={brand}
+              label='Registry'
+              disabled={loading}
+              id='provider-docker-brand'
+              items={DockerProviderOptions}
+              description='The Docker registry this provider connects to'
+              onChange={(e) => setBrand(e.target.value as EDockerProviderBrand)}
             />
           )}
 
@@ -362,25 +407,54 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
             </Alert>
           )}
 
-          <TextInput
-            fullWidth
-            value={baseUrl}
-            label='Base URL'
-            disabled={loading}
-            id='provider-base-url'
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={template?.baseUrl || 'https://api.example.com (optional)'}
-          />
+          {!isDockerType && (
+            <TextInput
+              fullWidth
+              value={baseUrl}
+              label='Base URL'
+              disabled={loading}
+              id='provider-base-url'
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder={template?.baseUrl || 'https://api.example.com (optional)'}
+            />
+          )}
 
-          {/* API Key Secret section */}
-          {isAiType && (
+          {isDockerType && (
+            <>
+              <TextInput
+                required
+                fullWidth
+                value={registry}
+                label='Registry URL'
+                disabled={loading}
+                id='provider-registry'
+                placeholder='e.g. ghcr.io'
+                onChange={(e) => setRegistry(e.target.value)}
+              />
+              <TextInput
+                required
+                fullWidth
+                value={username}
+                label='Username'
+                disabled={loading}
+                id='provider-username'
+                placeholder='Registry username or org name'
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </>
+          )}
+
+          {/* Secret section */}
+          {(isAiType || isDockerType) && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography
                   fontWeight={500}
                   variant='subtitle1'
                 >
-                  AI Provider Authentication
+                  {isDockerType
+                    ? `Registry Authentication`
+                    : `AI Provider Authentication`}
                 </Typography>
               </AccordionSummary>
 
@@ -389,7 +463,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
                   mode={secretMode}
                   disabled={loading}
                   editing={isEditMode}
-                  label='AI Provider Secret'
+                  label={isDockerType ? `Registry Token` : `AI Provider Secret`}
                   newSecretValue={apiKeyValue}
                   secretOptions={secretOptions}
                   linkedSecrets={providerSecrets}
@@ -397,9 +471,13 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
                   activeSecretId={provider?.secretId}
                   selectedSecretId={selectedSecretId}
                   onSecretSelect={setSelectedSecretId}
-                  editLabel='Change AI Provider Secret'
+                  editLabel={
+                    isDockerType ? `Change Registry Token` : `Change AI Provider Secret`
+                  }
                   valuePlaceholder={
-                    template?.apiKeyPlaceholder || 'Enter your AI Provider Secret...'
+                    isDockerType
+                      ? 'Enter registry password or access token...'
+                      : template?.apiKeyPlaceholder || 'Enter your AI Provider Secret...'
                   }
                   onModeChange={(mode) => {
                     setSecretMode(mode)
@@ -411,156 +489,162 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
             </Accordion>
           )}
 
-          {/* Allowed Domains */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Allowed Domains
-              </Typography>
-              {allowedDomains.length > 0 && (
-                <Chip
-                  size='small'
-                  label={allowedDomains.length}
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
-                <Autocomplete
-                  multiple
-                  freeSolo
-                  options={[]}
-                  disabled={loading}
-                  value={allowedDomains}
-                  data-testid='tdsk-provider-allowed-domains'
-                  onChange={(_evt, newValue) => {
-                    const normalized = (newValue as string[])
-                      .map((d) =>
-                        d
-                          .trim()
-                          .replace(/^https?:\/\//, ``)
-                          .split(`/`)[0]
-                          .trim()
-                      )
-                      .filter(Boolean)
-                    setAllowedDomains(normalized)
-                    domainsModified.current = true
-                  }}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => {
-                      const { key, ...tagProps } = getTagProps({ index })
-                      return (
-                        <Chip
-                          key={key}
-                          size='small'
-                          label={option}
-                          {...tagProps}
-                        />
-                      )
-                    })
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant='outlined'
-                      label='Allowed Domains'
-                      placeholder='Type a domain and press Enter'
-                    />
-                  )}
-                />
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: `0.875rem` }}
+          {/* Allowed Domains (AI only) */}
+          {!isDockerType && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  variant='subtitle1'
+                  fontWeight={500}
                 >
-                  Domains where this provider&apos;s secret can be sent. Leave empty to
-                  allow all domains. Supports wildcards (e.g. *.example.com)
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+                  Allowed Domains
+                </Typography>
+                {allowedDomains.length > 0 && (
+                  <Chip
+                    size='small'
+                    label={allowedDomains.length}
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    disabled={loading}
+                    value={allowedDomains}
+                    data-testid='tdsk-provider-allowed-domains'
+                    onChange={(_evt, newValue) => {
+                      const normalized = (newValue as string[])
+                        .map((d) =>
+                          d
+                            .trim()
+                            .replace(/^https?:\/\//, ``)
+                            .split(`/`)[0]
+                            .trim()
+                        )
+                        .filter(Boolean)
+                      setAllowedDomains(normalized)
+                      domainsModified.current = true
+                    }}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => {
+                        const { key, ...tagProps } = getTagProps({ index })
+                        return (
+                          <Chip
+                            key={key}
+                            size='small'
+                            label={option}
+                            {...tagProps}
+                          />
+                        )
+                      })
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant='outlined'
+                        label='Allowed Domains'
+                        placeholder='Type a domain and press Enter'
+                      />
+                    )}
+                  />
+                  <Alert
+                    severity='info'
+                    sx={{ fontSize: `0.875rem` }}
+                  >
+                    Domains where this provider&apos;s secret can be sent. Leave empty to
+                    allow all domains. Supports wildcards (e.g. *.example.com)
+                  </Alert>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
 
           {/* Custom Headers */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Headers
-              </Typography>
-              {headers.length > 0 && (
-                <Chip
-                  size='small'
-                  sx={{ ml: 1 }}
-                  label={headers.length}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <KeyValueEditor
-                  pairs={headers}
-                  disabled={loading}
-                  secrets={orgSecrets}
-                  onChange={setHeaders}
-                  keyPlaceholder='Header Name'
-                  enableSecretReferences={true}
-                  valuePlaceholder='Header Value or {{secret-name}}'
-                />
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
+          {!isDockerType && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  variant='subtitle1'
+                  fontWeight={500}
                 >
-                  Custom headers included in provider API requests. Use {'{{'} and {'}}'}{' '}
-                  to reference secrets.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+                  Headers
+                </Typography>
+                {headers.length > 0 && (
+                  <Chip
+                    size='small'
+                    sx={{ ml: 1 }}
+                    label={headers.length}
+                  />
+                )}
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <KeyValueEditor
+                    pairs={headers}
+                    disabled={loading}
+                    secrets={orgSecrets}
+                    onChange={setHeaders}
+                    keyPlaceholder='Header Name'
+                    enableSecretReferences={true}
+                    valuePlaceholder='Header Value or {{secret-name}}'
+                  />
+                  <Alert
+                    severity='info'
+                    sx={{ fontSize: '0.875rem' }}
+                  >
+                    Custom headers included in provider API requests. Use {'{{'} and{' '}
+                    {'}}'} to reference secrets.
+                  </Alert>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
 
           {/* Body Parameters */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Body Parameters
-              </Typography>
-              {bodyParams.length > 0 && (
-                <Chip
-                  size='small'
-                  sx={{ ml: 1 }}
-                  label={bodyParams.length}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <KeyValueEditor
-                  pairs={bodyParams}
-                  disabled={loading}
-                  secrets={orgSecrets}
-                  onChange={setBodyParams}
-                  enableSecretReferences={true}
-                  keyPlaceholder='Parameter Name'
-                  valuePlaceholder='Value (supports JSON: numbers, booleans, objects)'
-                />
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
+          {!isDockerType && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  variant='subtitle1'
+                  fontWeight={500}
                 >
-                  Extra parameters added to the LLM request body. Values are parsed as
-                  JSON (numbers, booleans, objects). Use {'{{'} and {'}}'} to reference
-                  secrets.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+                  Body Parameters
+                </Typography>
+                {bodyParams.length > 0 && (
+                  <Chip
+                    size='small'
+                    sx={{ ml: 1 }}
+                    label={bodyParams.length}
+                  />
+                )}
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <KeyValueEditor
+                    pairs={bodyParams}
+                    disabled={loading}
+                    secrets={orgSecrets}
+                    onChange={setBodyParams}
+                    enableSecretReferences={true}
+                    keyPlaceholder='Parameter Name'
+                    valuePlaceholder='Value (supports JSON: numbers, booleans, objects)'
+                  />
+                  <Alert
+                    severity='info'
+                    sx={{ fontSize: '0.875rem' }}
+                  >
+                    Extra parameters added to the LLM request body. Values are parsed as
+                    JSON (numbers, booleans, objects). Use {'{{'} and {'}}'} to reference
+                    secrets.
+                  </Alert>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
         </Box>
       </form>
     </Drawer>

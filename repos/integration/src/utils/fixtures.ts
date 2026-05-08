@@ -2,7 +2,7 @@ import type { TLLMProviderBrand } from '@tdsk/domain'
 
 import { env } from './env'
 import { uniqueName } from './unique-name'
-import { post, put, del } from './api-client'
+import { get, post, put, del } from './api-client'
 
 export type TFixtureOptions = {
   orgId: string
@@ -50,7 +50,7 @@ export const setupFixtures = async (opts: TFixtureOptions): Promise<TFixtureResu
 
   try {
     const provResp = await post(`/orgs/${orgId}/providers`, {
-      name: `${providerBrand}-provider-${Date.now()}`,
+      name: uniqueName(`${providerBrand}-provider`),
       type: `ai`,
       orgId,
       brand: providerBrand,
@@ -60,7 +60,7 @@ export const setupFixtures = async (opts: TFixtureOptions): Promise<TFixtureResu
     result.provider = provResp.data
 
     const secretResp = await post(`/orgs/${orgId}/secrets`, {
-      name: `${providerBrand}-key-${Date.now()}`,
+      name: uniqueName(`${providerBrand}-key`),
       value: apiKey,
       providerId: result.provider.id,
     })
@@ -121,8 +121,15 @@ export const cleanupFixtures = async (
 ): Promise<void> => {
   if (result.endpoint?.id && result.project?.id)
     await del(`/orgs/${orgId}/projects/${result.project.id}/endpoints/${result.endpoint.id}`).catch((e) => console.warn(`[fixtures] cleanup endpoint failed:`, e?.message))
-  if (result.agent?.id)
+  if (result.agent?.id) {
+    const threadsRes = await get<{ id: string }[]>(`/orgs/${orgId}/agents/${result.agent.id}/threads?limit=200`).catch(() => ({ ok: false, data: [] }))
+    if (threadsRes.ok) {
+      for (const thread of (threadsRes.data || [])) {
+        await del(`/orgs/${orgId}/agents/${result.agent.id}/threads/${thread.id}`).catch((e) => console.warn(`[fixtures] cleanup thread failed:`, e?.message))
+      }
+    }
     await del(`/orgs/${orgId}/agents/${result.agent.id}`).catch((e) => console.warn(`[fixtures] cleanup agent failed:`, e?.message))
+  }
   if (result.project?.id)
     await del(`/orgs/${orgId}/projects/${result.project.id}`).catch((e) => console.warn(`[fixtures] cleanup project failed:`, e?.message))
   if (result.secret?.id)

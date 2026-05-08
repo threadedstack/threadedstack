@@ -199,6 +199,11 @@ export const ProjectNavItems: TNavItem[] = Object.values(ProjectSubNav)
 
 export const GlobalNavItems: TNavItem[] = [
   {
+    to: ERoutePath.Orgs,
+    text: `Organizations`,
+    Icon: <OrgIcon />,
+  },
+  {
     to: `/${ERoutePath.Billing}`,
     text: `Billing`,
     Icon: <BillingIcon />,

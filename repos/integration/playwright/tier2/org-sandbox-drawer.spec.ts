@@ -15,30 +15,31 @@ import {
   ensureFullListLoad,
 } from '../utils/crud-helpers'
 
-const PAGE_CLASS = 'tdsk-project-sandboxes-page'
-const FORM_ID = 'project-sandbox-form'
+const PAGE_CLASS = 'tdsk-org-sandboxes-page'
+const FORM_ID = 'org-sandbox-form'
 
-test.describe.serial('CRUD Sandboxes', () => {
-  const sandboxName = uniqueName('pw-sandbox')
-  const updatedName = uniqueName('pw-sandbox-upd')
+test.describe.serial('Org Sandbox Drawer', () => {
+  const sandboxName = uniqueName('pw-org-sb')
+  const updatedName = uniqueName('pw-org-sb-upd')
   let sandboxId: string | undefined
 
-  test('CREATE — should create a new sandbox via the drawer', async ({
+  test('CREATE — should create an org sandbox via the drawer', async ({
     authenticatedPage: page,
     ctx,
   }) => {
     test.slow()
-    test.skip(!ctx.projectId, 'No projectId in context — cannot test project sandboxes')
 
     const errors = collectErrors(page)
     await gotoAndWait(
       page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
+      `/orgs/${ctx.orgId}/sandboxes`,
       PAGE_CLASS
     )
 
-    // Open create drawer (may be in empty state or page header action)
     await openDrawer(page, /Create Sandbox/i)
+
+    // Verify org drawer title
+    await expect(page.getByText('Define a Runtime Environment')).toBeVisible({ timeout: 5_000 })
 
     await fillField(page, 'sandbox-name', sandboxName)
 
@@ -51,19 +52,13 @@ test.describe.serial('CRUD Sandboxes', () => {
 
     await fillField(page, 'sandbox-image', 'node:22-slim')
 
-    // Submit the form
     await submitForm(page, FORM_ID)
-
-    // Wait for drawer to close
     await waitForDrawerClose(page)
 
-    // Search for the sandbox in the table
     await searchInPage(page, sandboxName)
-
-    // Verify the sandbox appears in the DataTable (name also appears in alias column)
     await expect(page.getByText(sandboxName).first()).toBeVisible({ timeout: 10_000 })
 
-    // Get sandbox ID via API for cleanup
+    // Get sandbox ID for cleanup
     const res = await apiRequest(
       page,
       'GET',
@@ -81,7 +76,7 @@ test.describe.serial('CRUD Sandboxes', () => {
     expect(errors).toEqual([])
   })
 
-  test('READ — should display the created sandbox in the table', async ({
+  test('EDIT — should open with correct title and persist changes', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -91,41 +86,13 @@ test.describe.serial('CRUD Sandboxes', () => {
     await ensureFullListLoad(page, `/orgs/${ctx.orgId}/sandboxes`)
     await gotoAndWait(
       page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
+      `/orgs/${ctx.orgId}/sandboxes`,
       PAGE_CLASS
     )
 
-    // Search for the sandbox
-    await searchInPage(page, sandboxName)
-
-    // Verify sandbox name is visible (name also appears in alias column)
-    await expect(page.getByText(sandboxName).first()).toBeVisible({ timeout: 10_000 })
-
-    // Verify the image column shows the expected value
-    await expect(page.getByText('node:22-slim')).toBeVisible({ timeout: 5_000 })
-
-    expect(errors).toEqual([])
-  })
-
-  test('UPDATE — should update the sandbox name via the drawer', async ({
-    authenticatedPage: page,
-    ctx,
-  }) => {
-    test.skip(!sandboxId, 'No sandbox ID — CREATE must have failed')
-
-    const errors = collectErrors(page)
-    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/sandboxes`)
-    await gotoAndWait(
-      page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
-      PAGE_CLASS
-    )
-
-    // Search for and click the sandbox row to open edit drawer
     await searchInPage(page, sandboxName)
     const row = page.locator('tr', { has: page.getByText(sandboxName) })
 
-    // Try the edit action button first, fall back to row click
     const editButton = row.locator('button').filter({ has: page.locator('[data-testid="EditIcon"]') })
     if ((await editButton.count()) > 0) {
       await editButton.first().click()
@@ -133,29 +100,86 @@ test.describe.serial('CRUD Sandboxes', () => {
       await row.click()
     }
 
-    // Wait for edit drawer to open with the edit title
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Edit Project Sandbox')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Edit Runtime Environment')).toBeVisible({ timeout: 5_000 })
 
-    // Update the name
     await fillField(page, 'sandbox-name', updatedName)
-
-    // Submit
     await submitForm(page, FORM_ID)
-
-    // Wait for drawer to close
     await waitForDrawerClose(page)
 
-    // Search for updated name
     await searchInPage(page, updatedName)
-
-    // Verify updated name appears (name also appears in alias column)
     await expect(page.getByText(updatedName).first()).toBeVisible({ timeout: 10_000 })
 
     expect(errors).toEqual([])
   })
 
-  test('DELETE — should delete the sandbox', async ({
+  test('Resources accordion shows resource fields', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    const errors = collectErrors(page)
+    await gotoAndWait(
+      page,
+      `/orgs/${ctx.orgId}/sandboxes`,
+      PAGE_CLASS
+    )
+
+    await openDrawer(page, /Create Sandbox/i)
+
+    // Expand the Resources accordion (org-only)
+    const resourcesAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Resources' })
+    await expect(resourcesAccordion).toBeVisible({ timeout: 5_000 })
+    await resourcesAccordion.click()
+
+    await expect(page.locator('#sandbox-cpu-limit')).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('#sandbox-memory-limit')).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('#sandbox-cpu-request')).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('#sandbox-memory-request')).toBeVisible({ timeout: 5_000 })
+
+    expect(errors).toEqual([])
+  })
+
+  test('Projects multi-select is visible', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    const errors = collectErrors(page)
+    await gotoAndWait(
+      page,
+      `/orgs/${ctx.orgId}/sandboxes`,
+      PAGE_CLASS
+    )
+
+    await openDrawer(page, /Create Sandbox/i)
+
+    // Projects multi-select is inside the defaultExpanded Sandbox accordion
+    const projectsSelect = page.locator('#sandbox-projects')
+    await expect(projectsSelect).toBeAttached({ timeout: 5_000 })
+
+    expect(errors).toEqual([])
+  })
+
+  test('No Git Repository accordion in org drawer', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    const errors = collectErrors(page)
+    await gotoAndWait(
+      page,
+      `/orgs/${ctx.orgId}/sandboxes`,
+      PAGE_CLASS
+    )
+
+    await openDrawer(page, /Create Sandbox/i)
+
+    // Git Repository accordion should not exist — it's project-only
+    const gitAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Git Repository' })
+    await expect(gitAccordion).toHaveCount(0)
+
+    expect(errors).toEqual([])
+  })
+
+  test('DELETE — should delete the org sandbox', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -165,15 +189,13 @@ test.describe.serial('CRUD Sandboxes', () => {
     await ensureFullListLoad(page, `/orgs/${ctx.orgId}/sandboxes`)
     await gotoAndWait(
       page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
+      `/orgs/${ctx.orgId}/sandboxes`,
       PAGE_CLASS
     )
 
-    // Project sandbox list shows alias (original name) not the updated name
-    // because getEffectiveConfig replaces name with the project alias
-    await searchInPage(page, sandboxName)
+    await searchInPage(page, updatedName)
 
-    const row = page.locator('tr', { has: page.getByText(sandboxName).first() })
+    const row = page.locator('tr', { has: page.getByText(updatedName) })
     const deleteButton = row.locator('.MuiIconButton-colorError').first()
     await deleteButton.click()
 
@@ -183,16 +205,14 @@ test.describe.serial('CRUD Sandboxes', () => {
     })
 
     await expect(
-      page.locator('.MuiTableBody-root').getByText(sandboxName)
+      page.locator('.MuiTableBody-root').getByText(updatedName)
     ).not.toBeVisible({ timeout: 10_000 })
 
-    // Mark as cleaned up
     sandboxId = undefined
 
     expect(errors).toEqual([])
   })
 
-  // Safety-net cleanup
   test.afterAll(async ({ browser }) => {
     if (!sandboxId) return
     const context = await browser.newContext({ ignoreHTTPSErrors: true })

@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { ProviderTemplates } from './providers'
-import { ELLMProviderBrand } from '@TDM/types'
+import { LLMProviderTemplates, DockerRegistryDefaults } from './providers'
+import { ELLMProviderBrand, EDockerProviderBrand } from '@TDM/types'
 
-describe(`ProviderTemplates`, () => {
+describe(`LLMProviderTemplates`, () => {
   it(`should have templates for configured providers only`, () => {
-    const configuredBrands = Object.keys(ProviderTemplates) as ELLMProviderBrand[]
+    const configuredBrands = Object.keys(LLMProviderTemplates) as ELLMProviderBrand[]
     for (const brand of configuredBrands) {
-      expect(ProviderTemplates[brand]).toBeDefined()
-      expect(ProviderTemplates[brand]!.id).toBe(brand)
+      expect(LLMProviderTemplates[brand]).toBeDefined()
+      expect(LLMProviderTemplates[brand]!.id).toBe(brand)
     }
   })
 
   it(`should have 7 provider entries`, () => {
-    expect(Object.keys(ProviderTemplates)).toHaveLength(7)
+    expect(Object.keys(LLMProviderTemplates)).toHaveLength(7)
   })
 
   it(`should be config-only templates (no models or defaultModel)`, () => {
-    for (const tmpl of Object.values(ProviderTemplates)) {
+    for (const tmpl of Object.values(LLMProviderTemplates)) {
       expect(tmpl).not.toHaveProperty(`models`)
       expect(tmpl).not.toHaveProperty(`defaultModel`)
       expect(tmpl).toHaveProperty(`id`)
@@ -28,7 +28,7 @@ describe(`ProviderTemplates`, () => {
   })
 
   describe(`OpenRouter template`, () => {
-    const tmpl = ProviderTemplates[ELLMProviderBrand.openrouter]
+    const tmpl = LLMProviderTemplates[ELLMProviderBrand.openrouter]
 
     it(`should have correct id and name`, () => {
       expect(tmpl.id).toBe(`openrouter`)
@@ -45,7 +45,7 @@ describe(`ProviderTemplates`, () => {
   })
 
   describe(`Ollama template`, () => {
-    const tmpl = ProviderTemplates[ELLMProviderBrand.ollama]
+    const tmpl = LLMProviderTemplates[ELLMProviderBrand.ollama]
 
     it(`should have correct id and name`, () => {
       expect(tmpl.id).toBe(`ollama`)
@@ -63,19 +63,55 @@ describe(`ProviderTemplates`, () => {
 
   describe(`Provider baseUrls`, () => {
     it(`should have Anthropic with correct baseUrl`, () => {
-      expect(ProviderTemplates[ELLMProviderBrand.anthropic].baseUrl).toBe(
+      expect(LLMProviderTemplates[ELLMProviderBrand.anthropic].baseUrl).toBe(
         `https://api.anthropic.com`
       )
     })
 
     it(`should have OpenAI with correct baseUrl`, () => {
-      expect(ProviderTemplates[ELLMProviderBrand.openai].baseUrl).toBe(
+      expect(LLMProviderTemplates[ELLMProviderBrand.openai].baseUrl).toBe(
         `https://api.openai.com/v1`
       )
     })
 
     it(`should have Custom with empty baseUrl`, () => {
-      expect(ProviderTemplates[ELLMProviderBrand.custom].baseUrl).toBe(``)
+      expect(LLMProviderTemplates[ELLMProviderBrand.custom].baseUrl).toBe(``)
     })
+  })
+})
+
+describe(`DockerRegistryDefaults`, () => {
+  it(`should have an entry for every EDockerProviderBrand member`, () => {
+    const brands = Object.values(EDockerProviderBrand)
+    expect(Object.keys(DockerRegistryDefaults)).toHaveLength(brands.length)
+    for (const brand of brands) {
+      expect(DockerRegistryDefaults[brand]).toBeDefined()
+      expect(DockerRegistryDefaults[brand].id).toBe(brand)
+    }
+  })
+
+  it(`should have required fields on every entry`, () => {
+    for (const entry of Object.values(DockerRegistryDefaults)) {
+      expect(entry).toHaveProperty(`id`)
+      expect(entry).toHaveProperty(`name`)
+      expect(entry).toHaveProperty(`registry`)
+      expect(entry).toHaveProperty(`defaultSecretName`)
+    }
+  })
+
+  it(`should have correct registry defaults for known brands`, () => {
+    expect(DockerRegistryDefaults[EDockerProviderBrand.ghcr].registry).toBe(`ghcr.io`)
+    expect(DockerRegistryDefaults[EDockerProviderBrand.gitlab].registry).toBe(
+      `registry.gitlab.com`
+    )
+    expect(DockerRegistryDefaults[EDockerProviderBrand.quay].registry).toBe(`quay.io`)
+    expect(DockerRegistryDefaults[EDockerProviderBrand.dockerhub].registry).toBe(
+      `https://index.docker.io/v1/`
+    )
+    expect(DockerRegistryDefaults[EDockerProviderBrand.custom].registry).toBe(``)
+  })
+
+  it(`should not contain ecr`, () => {
+    expect(Object.keys(DockerRegistryDefaults)).not.toContain(`ecr`)
   })
 })

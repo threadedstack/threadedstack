@@ -594,9 +594,9 @@ describe(`HomeSubNavGroups`, () => {
     expect(HomeSubNavGroups[0].label).toBe(`Navigation`)
   })
 
-  it(`Navigation should have Billing and Profile`, () => {
+  it(`Navigation should have Organizations, Billing, and Profile`, () => {
     const texts = HomeSubNavGroups[0].items.map((i) => i.text)
-    expect(texts).toEqual([`Billing`, `Profile`])
+    expect(texts).toEqual([`Organizations`, `Billing`, `Profile`])
   })
 })
 
@@ -636,9 +636,9 @@ describe(`RailNavSections`, () => {
 })
 
 describe(`GlobalNavItems`, () => {
-  it(`should have Billing and Profile`, () => {
+  it(`should have Organizations, Billing, and Profile`, () => {
     const texts = GlobalNavItems.map((i) => i.text)
-    expect(texts).toEqual([`Billing`, `Profile`])
+    expect(texts).toEqual([`Organizations`, `Billing`, `Profile`])
   })
 
   it(`should have static paths`, () => {

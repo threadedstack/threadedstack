@@ -12,10 +12,16 @@ import { networkInterfaces } from 'node:os'
 
 import { DefSBConfig } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
-import { Exception, EContainerState, ESandboxSessionVisibility } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
+import { resolveDockerPullSecrets } from '@TBE/utils/sandbox/resolveDockerPullSecrets'
+import {
+  Exception,
+  EProvider,
+  EContainerState,
+  ESandboxSessionVisibility,
+} from '@tdsk/domain'
 import {
   KubeClient,
   KubeSandbox,
@@ -66,6 +72,7 @@ export class SandboxService {
   private shellSessions = new Map<string, TShellSession>()
   private eventBatchTimers = new Map<string, NodeJS.Timeout>()
   private eventBatches = new Map<string, TParsedEvent[]>()
+  private dockerSecrets = new Map<string, string[]>()
 
   // Caches existing pod proxies
   static proxyMap = new Map<string, RequestHandler>()
@@ -226,18 +233,24 @@ export class SandboxService {
       if (sandbox.config.gitBranch) extraEnv.TDSK_GIT_BRANCH = sandbox.config.gitBranch
     }
 
-    // Resolve provider env vars for linked providers (auto-loaded via Drizzle relations)
-    if (sandbox.providerLinks?.length) {
-      const providerLinks = sandbox.providerLinks.map((link) => ({
-        provider: link.provider,
-        priority: link.priority ?? 0,
-        model: link.model ?? undefined,
-      }))
+    // Split provider links by type: env-injected (AI, etc.) vs docker registries
+    const allLinks = (sandbox.providerLinks || []).map((link) => ({
+      provider: link.provider,
+      priority: link.priority ?? 0,
+      model: link.model ?? undefined,
+    }))
+    const envProviderLinks = allLinks.filter((l) => l.provider.type !== EProvider.docker)
+    const dockerProviderLinks = allLinks.filter(
+      (l) => l.provider.type === EProvider.docker
+    )
 
-      const secrets = new SecretResolver(this.db)
+    const secrets = new SecretResolver(this.db)
+
+    // Resolve env vars for AI/git providers
+    if (envProviderLinks.length) {
       const providerEnv = await resolveProviderEnv(
         sandbox.config.runtime,
-        providerLinks,
+        envProviderLinks,
         secrets,
         orgId
       )
@@ -252,6 +265,40 @@ export class SandboxService {
       Object.assign(placeholders, providerEnv.placeholders)
     }
 
+    // Resolve docker registry credentials and create K8s pull secrets
+    const dockerSecretNames: string[] = []
+    if (dockerProviderLinks.length) {
+      const dockerResult = await resolveDockerPullSecrets(
+        dockerProviderLinks,
+        secrets,
+        orgId
+      )
+
+      if (dockerResult.errors.length)
+        throw new Exception(
+          400,
+          `Docker registry configuration error: ${dockerResult.errors.join(', ')}`
+        )
+
+      try {
+        for (let i = 0; i < dockerResult.credentials.length; i++) {
+          const cred = dockerResult.credentials[i]
+          const slug = sanitizeLabel(sandboxId).slice(0, 8)
+          const secretName = `tdsk-dkr-${slug}-${nanoid(4)}-${i}`
+          await this.kube.createDockerRegistrySecret(
+            secretName,
+            cred.registry,
+            cred.username,
+            cred.password
+          )
+          dockerSecretNames.push(secretName)
+        }
+      } catch (err) {
+        this.rollbackDockerSecrets(dockerSecretNames)
+        throw err
+      }
+    }
+
     const manifest = buildPodManifest({
       orgId,
       userId,
@@ -260,12 +307,58 @@ export class SandboxService {
       projectId,
       egressOpts,
       placeholders,
+      imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
 
-    const pod = await this.kube.createPod(manifest)
+    let pod: Awaited<ReturnType<KubeClient['createPod']>>
+    try {
+      pod = await this.kube.createPod(manifest)
+    } catch (err) {
+      this.rollbackDockerSecrets(dockerSecretNames)
+      throw err
+    }
+
     const podName = pod.metadata?.name
-    if (!podName)
+    if (!podName) {
+      this.rollbackDockerSecrets(dockerSecretNames)
       throw new Error(`Pod created but metadata.name is missing for sandbox ${sandboxId}`)
+    }
+
+    if (dockerSecretNames.length) this.dockerSecrets.set(podName, dockerSecretNames)
+
+    const podUid = pod.metadata?.uid
+    if (dockerSecretNames.length && podName && podUid) {
+      const ownerRef = [
+        {
+          apiVersion: `v1`,
+          kind: `Pod`,
+          name: podName,
+          uid: podUid,
+          blockOwnerDeletion: false,
+        },
+      ]
+      Promise.allSettled(
+        dockerSecretNames.map((name) =>
+          this.kube.patchSecretOwnerReferences(name, ownerRef)
+        )
+      )
+        .then((results) => {
+          for (let i = 0; i < results.length; i++) {
+            if (results[i].status === `rejected`)
+              logger.error(
+                `[Sandbox] Failed to set ownerReference on secret ${dockerSecretNames[i]}, ` +
+                  `secret may not be garbage-collected when pod is deleted:`,
+                (results[i] as PromiseRejectedResult).reason?.message
+              )
+          }
+        })
+        .catch((err) =>
+          logger.error(
+            `[Sandbox] ownerReference patch handler failed:`,
+            (err as Error).message
+          )
+        )
+    }
 
     this.passwords.set(podName, sshPassword)
     this.podActivity.set(podName, Date.now())
@@ -367,6 +460,19 @@ export class SandboxService {
     this.startingPods.delete(sandboxId)
   }
 
+  private rollbackDockerSecrets(names: string[]): void {
+    for (const name of names) {
+      this.kube
+        .deleteSecret(name)
+        .catch((err) =>
+          logger.error(
+            `[Sandbox] Rollback: failed to delete docker secret ${name}, credential may be leaked:`,
+            (err as Error).message
+          )
+        )
+    }
+  }
+
   cleanupPod(podName: string): void {
     const podSessions = this.sessions.get(podName) || []
     const sandboxIds = new Set(podSessions.map((s) => s.sandboxId))
@@ -375,6 +481,29 @@ export class SandboxService {
       for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
         this.removeShellSession(shell.sessionId)
       }
+    }
+
+    const dkrSecrets = this.dockerSecrets.get(podName)
+    if (dkrSecrets?.length) {
+      Promise.allSettled(dkrSecrets.map((name) => this.kube.deleteSecret(name)))
+        .then((results) => {
+          for (let i = 0; i < results.length; i++) {
+            if (results[i].status === `rejected`)
+              logger.error(
+                `[Sandbox] Failed to delete docker secret ${dkrSecrets[i]}, credential may be leaked:`,
+                (results[i] as PromiseRejectedResult).reason?.message
+              )
+          }
+        })
+        .catch((err) =>
+          logger.error(
+            `[Sandbox] Docker secret cleanup handler failed:`,
+            (err as Error).message
+          )
+        )
+        .finally(() => {
+          this.dockerSecrets.delete(podName)
+        })
     }
 
     this.passwords.delete(podName)

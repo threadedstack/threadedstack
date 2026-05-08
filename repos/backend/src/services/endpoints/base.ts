@@ -62,9 +62,15 @@ export abstract class BaseEndpoint {
    * Secrets are decrypted so {{template}} resolution and auth injection work.
    */
   async fetchSecrets(db: TDatabase, endpoint: Endpoint): Promise<Secret[]> {
-    const { data: secrets = [] } = await db.services.secret.list({
+    const { data: secrets = [], error } = await db.services.secret.list({
       where: { projectId: endpoint.projectId },
     })
+
+    if (error)
+      throw new Exception(
+        502,
+        `Failed to fetch secrets for project ${endpoint.projectId}: ${error.message}`
+      )
 
     if (!secrets.length) return []
 

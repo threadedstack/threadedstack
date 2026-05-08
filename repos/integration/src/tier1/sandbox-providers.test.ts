@@ -255,6 +255,89 @@ describe('Tier 1: Sandbox Provider Linking', () => {
     })
   })
 
+  // --- Docker provider linking ---
+
+  describe(`docker provider linking`, () => {
+    let dockerProviderId = ``
+    let dockerProviderName = ``
+
+    test(`setup: create docker provider`, async () => {
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/providers`,
+        {
+          name: uniqueName(`sb-docker-provider`),
+          type: `docker`,
+          brand: `ghcr`,
+          options: { registry: `ghcr.io`, username: `testuser` },
+        }
+      )
+
+      expect(res.status).toBe(201)
+      dockerProviderId = res.data.id
+      dockerProviderName = res.data.name
+      createdProviderIds.push(dockerProviderId)
+    })
+
+    test(`POST create sandbox with docker provider in providerInputs`, async () => {
+      if (!dockerProviderId) return expect(dockerProviderId).toBeTruthy()
+
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName(`sb-docker-link`),
+          config: { ...baseCfg, runtime: `claude-code`, runtimeCommand: `claude` },
+          orgId: ctx.orgId,
+          providerInputs: [{ id: dockerProviderId }],
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(Array.isArray(res.data.providerLinks)).toBe(true)
+
+      const linked = res.data.providerLinks.find((l: any) => l.provider.id === dockerProviderId)
+      expect(linked).toBeDefined()
+      expect(linked?.provider.type).toBe(`docker`)
+      expect(linked?.provider.brand).toBe(`ghcr`)
+      expect(linked?.provider.name).toBe(dockerProviderName)
+
+      createdSandboxIds.push(res.data.id)
+    })
+
+    test(`POST create sandbox with mixed AI + docker providers`, async () => {
+      if (!providerId || !dockerProviderId) {
+        return expect(providerId && dockerProviderId).toBeTruthy()
+      }
+
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName(`sb-mixed-providers`),
+          config: { ...baseCfg, runtime: `claude-code`, runtimeCommand: `claude` },
+          orgId: ctx.orgId,
+          providerInputs: [
+            { id: providerId },
+            { id: dockerProviderId },
+          ],
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(Array.isArray(res.data.providerLinks)).toBe(true)
+      expect(res.data.providerLinks.length).toBe(2)
+
+      const aiLink = res.data.providerLinks.find((l: any) => l.provider.id === providerId)
+      const dockerLink = res.data.providerLinks.find((l: any) => l.provider.id === dockerProviderId)
+      expect(aiLink).toBeDefined()
+      expect(aiLink?.provider.type).toBe(`ai`)
+      expect(dockerLink).toBeDefined()
+      expect(dockerLink?.provider.type).toBe(`docker`)
+
+      createdSandboxIds.push(res.data.id)
+    })
+  })
+
   // --- Cross-org isolation ---
 
   test('create sandbox with non-existent provider is handled', async () => {

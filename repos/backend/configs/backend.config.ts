@@ -57,6 +57,7 @@ const {
   TDSK_SB_POLL_INTERVAL_MS = `2000`,
   TDSK_SB_IDLE_INTERVAL_MS = `60_000`,
   TDSK_SB_IMAGE = `ghcr.io/threadedstack/tdsk-sandbox`,
+  TDSK_SB_INIT_IMAGE = `ghcr.io/threadedstack/tdsk-init`,
 
   // The deployed proxy host url
   // New domains are validated against this URL to ensure the CName is configured properly
@@ -74,6 +75,7 @@ export const config = {
     origins: (TDSK_BE_ALLOW_ORIGIN || '').split(','),
   },
   egress: {
+    initImage: TDSK_SB_INIT_IMAGE,
     serviceName: TDSK_BE_DEPLOYMENT,
     servicePort: toNum(TDSK_BE_EGRESS_PORT),
     certSecretName: TDSK_KUBE_SCRT_EGRESS_CA,

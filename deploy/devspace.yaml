@@ -190,7 +190,7 @@ hooks:
     silent: true
     command: |-
       CADDY_FILE="./Caddyfile"; [ "${TDSK_CADDY_PROXY_PROTOCOL:-off}" = "on" ] && CADDY_FILE="./Caddyfile.production"
-      kubectl create configmap caddy-config --from-file=Caddyfile="$CADDY_FILE" --dry-run=client -o yaml | kubectl apply -f -
+      kubectl create configmap caddy-config -n ${devspace.namespace} --context ${devspace.context} --from-file=Caddyfile="$CADDY_FILE" --dry-run=client -o yaml | kubectl apply -n ${devspace.namespace} --context ${devspace.context} -f -
 
 images:
   tdsk-app:

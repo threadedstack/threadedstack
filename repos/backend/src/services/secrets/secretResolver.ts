@@ -3,7 +3,13 @@ import type { TSecretResolverDb } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
-import { deriveKey, decryptValue, SecretRefTest, SecretRefPattern } from '@tdsk/domain'
+import {
+  Exception,
+  deriveKey,
+  decryptValue,
+  SecretRefTest,
+  SecretRefPattern,
+} from '@tdsk/domain'
 
 type TProvider = {
   id: string
@@ -167,7 +173,7 @@ export class SecretResolver {
   /**
    * Resolve an API key via provider.secretId (direct O(1) lookup only).
    * Returns empty string if no secretId set or decryption fails.
-   * Callers handle empty string by throwing 400.
+   * Throws on DB errors so callers can distinguish "no secret" from "DB down".
    */
   resolveApiKey = async (
     agent: { orgId: string },
@@ -179,10 +185,11 @@ export class SecretResolver {
       provider.secretId
     )
     if (secretErr)
-      logger.error(
-        `[SecretResolver] Failed to fetch secret ${provider.secretId}:`,
-        secretErr.message
+      throw new Exception(
+        500,
+        `Failed to fetch secret ${provider.secretId}: ${secretErr.message}`
       )
+
     if (!secret?.encryptedValue) return ``
 
     const value = await this.decrypt(secret, agent.orgId)
@@ -199,17 +206,18 @@ export class SecretResolver {
         where: { providerId: scope.providerId },
       })
     if (provSecretErr)
-      logger.error(
-        `[SecretResolver] Failed to list provider secrets for ${scope.providerId}:`,
-        provSecretErr.message
+      throw new Exception(
+        500,
+        `Failed to list provider secrets for ${scope.providerId}: ${provSecretErr.message}`
       )
+
     const { data: orgSecrets, error: orgSecretErr } = await this.db.services.secret.list({
       where: { orgId: scope.orgId },
     })
     if (orgSecretErr)
-      logger.error(
-        `[SecretResolver] Failed to list org secrets for ${scope.orgId}:`,
-        orgSecretErr.message
+      throw new Exception(
+        500,
+        `Failed to list org secrets for ${scope.orgId}: ${orgSecretErr.message}`
       )
 
     const decrypted: Secret[] = []

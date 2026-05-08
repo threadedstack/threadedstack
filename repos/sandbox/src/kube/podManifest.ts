@@ -8,9 +8,14 @@ import type {
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
-import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
 import { SandboxRuntimeConfigs, ESandboxRuntime, DefaultWorkdir } from '@tdsk/domain'
 import { EnvProfilePath, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
+import {
+  KubeSBPrefix,
+  PodLabelKeys,
+  DefaultInitImage,
+  PodAnnotationKeys,
+} from '@TSB/constants/kube'
 
 const podSuffix = customAlphabet(`0123456789abcdefghijklmnopqrstuvwxyz`, 4)
 
@@ -39,7 +44,16 @@ export const buildPodName = (sandboxId: string): string => {
  * Build a complete K8s pod manifest for a sandbox
  */
 export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
-  const { orgId, userId, sandbox, extraEnv, projectId, egressOpts, placeholders } = opts
+  const {
+    orgId,
+    userId,
+    sandbox,
+    extraEnv,
+    projectId,
+    egressOpts,
+    placeholders,
+    imagePullSecrets,
+  } = opts
 
   const config = sandbox.config
   const podName = buildPodName(sandbox.id)
@@ -61,6 +75,9 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
+      ...(imagePullSecrets?.length && {
+        imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
+      }),
       initContainers: [buildInitContainer(egressOpts)],
       containers: [buildSandboxContainer(config, extraEnv)],
       volumes: [
@@ -96,20 +113,23 @@ const buildMeta = (opts: TBuildPodMeta) => {
 }
 
 const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
-  const { serviceName, servicePort, serviceIp } = opts
+  const { serviceName, servicePort, serviceIp, initImage } = opts
   return {
-    image: `alpine`,
+    image: initImage || DefaultInitImage,
     name: `proxy-redirect`,
     securityContext: {
       capabilities: {
+        drop: [`ALL`],
         add: [`NET_ADMIN`],
+      },
+      seccompProfile: {
+        type: `RuntimeDefault`,
       },
     },
     command: [
       `sh`,
       `-c`,
       [
-        `apk add --no-cache iptables`,
         serviceIp
           ? `EGRESS_IP="${serviceIp}"`
           : `EGRESS_IP=$(getent hosts ${serviceName} | awk '{print $1}')`,
@@ -136,10 +156,6 @@ const buildSandboxContainer = (
     env.push({ name: `TDSK_RUNTIME_CMD`, value: config.runtimeCommand })
 
   const ports = buildPorts(config.ports)
-  if (config.sshEnabled !== false) {
-    const hasSSHPort = ports.some((p) => p.containerPort === 2222)
-    if (!hasSSHPort) ports.push({ protocol: `TCP`, containerPort: 2222 })
-  }
 
   const container: V1Container = {
     env,
@@ -151,6 +167,13 @@ const buildSandboxContainer = (
     securityContext: {
       privileged: false,
       allowPrivilegeEscalation: false,
+      capabilities: {
+        drop: [`ALL`],
+        add: [`SETUID`, `SETGID`, `SYS_CHROOT`],
+      },
+      seccompProfile: {
+        type: `RuntimeDefault`,
+      },
     },
     lifecycle: {
       postStart: {

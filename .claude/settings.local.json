@@ -120,7 +120,16 @@
       "Bash(xargs -I {} basename {} .ts)",
       "Bash(awk '{print $NF}')",
       "Bash(xargs -I {} basename {})",
-      "Bash(bc)"
+      "Bash(bc)",
+      "Bash(npm list *)",
+      "Bash(md5)",
+      "Bash(md5 /Users/lancetipton/keg-hub/external/apps/threadedstack/deploy/Caddyfile)",
+      "Bash(md5 /Users/lancetipton/keg-hub/external/apps/threadedstack/deploy/Caddyfile.production)",
+      "Bash(devspace --version)",
+      "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && grep -A 5 \"afterAll\\\\|afterEach\" {} | head -15')",
+      "Bash(sed *)",
+      "Bash(sort -t: -k2 -n)",
+      "Bash(wait)"
     ]
   },
   "sandbox": {

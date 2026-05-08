@@ -257,8 +257,8 @@ test.describe.serial('Sandbox Connect Modal', () => {
     const dialog = page.locator('.MuiDialog-root')
     await expect(dialog).toBeVisible({ timeout: 10_000 })
 
-    // Verify session count is displayed (singular "1 session")
-    await expect(dialog.getByText('1 session')).toBeVisible({ timeout: 5_000 })
+    // Verify session count is displayed in the heading
+    await expect(dialog.getByText('Active Sessions (1)')).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toEqual([])
   })

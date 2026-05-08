@@ -4,6 +4,7 @@ import {
   openDrawer,
   fillField,
   submitForm,
+  selectOption,
   waitForDrawerClose,
   uniqueName,
   collectErrors,
@@ -14,7 +15,7 @@ import {
 } from '../utils/crud-helpers'
 
 const PAGE_CLASS = 'tdsk-project-sandboxes-page'
-const FORM_ID = 'sandbox-form'
+const FORM_ID = 'project-sandbox-form'
 
 test.describe.serial('Sandbox Drawer Fields', () => {
   const createdSandboxIds: string[] = []
@@ -37,17 +38,14 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     // Open create drawer
     await openDrawer(page, /Create Sandbox/i)
 
-    // Find the SSH Enabled switch — MUI Switch renders a checkbox input
-    const sshLabel = page.locator('label', { hasText: 'SSH Enabled' })
-    await expect(sshLabel).toBeVisible({ timeout: 5_000 })
-
-    const sshCheckbox = sshLabel.locator('input[type="checkbox"]')
+    // SwitchInput renders label and checkbox as siblings via InputStateHandler
+    const sshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
     await expect(sshCheckbox).toBeChecked()
 
     expect(errors).toEqual([])
   })
 
-  test('Image preset buttons populate image field', async ({
+  test('Preset dropdown controls runtime and image field visibility', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -58,28 +56,24 @@ test.describe.serial('Sandbox Drawer Fields', () => {
       PAGE_CLASS
     )
 
-    // Open create drawer
     await openDrawer(page, /Create Sandbox/i)
 
-    // Click the "Claude Code" preset button
-    const claudePreset = page.getByRole('button', { name: 'Claude Code' })
-    await expect(claudePreset).toBeVisible({ timeout: 5_000 })
-    await claudePreset.click()
-
-    // Verify the image field is populated with the consolidated sandbox image
-    // All presets use the same TDSK_SB_IMAGE_FULL value after Dockerfile consolidation
+    // Default preset is "Claude Code" — image field should be hidden
     const imageInput = page.locator('#sandbox-image')
-    const presetImage = await imageInput.inputValue()
-    expect(presetImage).toBeTruthy()
-    expect(presetImage).toContain('tdsk-sandbox')
+    await expect(imageInput).not.toBeVisible()
 
-    // Verify other preset buttons exist
-    await expect(page.getByRole('button', { name: 'Codex' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'OpenCode' })).toBeVisible()
+    // Expand Container accordion — image still shouldn't be there for non-Custom preset
+    const containerAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Container' })
+    await containerAccordion.click()
+    await expect(imageInput).not.toBeVisible()
 
-    // Click another preset to verify it also populates the field
-    await page.getByRole('button', { name: 'Codex' }).click()
-    await expect(imageInput).toHaveValue(presetImage)
+    // Select "Custom" preset — image field should appear in the expanded Container accordion
+    await selectOption(page, 'sandbox-preset', 'Custom')
+    await expect(imageInput).toBeVisible({ timeout: 5_000 })
+
+    // Select "Codex" preset — image field should hide again
+    await selectOption(page, 'sandbox-preset', 'Codex')
+    await expect(imageInput).not.toBeVisible()
 
     expect(errors).toEqual([])
   })
@@ -154,13 +148,20 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     // Open create drawer
     await openDrawer(page, /Create Sandbox/i)
 
-    // Fill name and image
     await fillField(page, 'sandbox-name', sandboxName)
+
+    // Select Custom preset to make image field visible
+    await selectOption(page, 'sandbox-preset', 'Custom')
+
+    // Expand the Container accordion to access image field
+    const containerAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Container' })
+    await containerAccordion.click()
+
     await fillField(page, 'sandbox-image', 'node:22-slim')
 
-    // Toggle SSH off — click the label containing the switch
-    const sshLabel = page.locator('label', { hasText: 'SSH Enabled' })
-    await sshLabel.click()
+    // Toggle SSH off — click the switch input directly (SwitchInput separates label from checkbox)
+    const sshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
+    await sshCheckbox.click({ force: true })
 
     // Expand Git Repository accordion
     const gitAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Git Repository' })
@@ -197,10 +198,10 @@ test.describe.serial('Sandbox Drawer Fields', () => {
 
     // Search for the created sandbox and open it for editing
     await searchInPage(page, sandboxName)
-    await expect(page.getByText(sandboxName)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(sandboxName).first()).toBeVisible({ timeout: 10_000 })
 
     // Click the row to open the edit drawer
-    const row = page.locator('tr', { has: page.getByText(sandboxName) })
+    const row = page.locator('tr', { has: page.getByText(sandboxName).first() })
     const editButton = row.locator('button').filter({ has: page.locator('[data-testid="EditIcon"]') })
     if ((await editButton.count()) > 0) {
       await editButton.first().click()
@@ -210,11 +211,10 @@ test.describe.serial('Sandbox Drawer Fields', () => {
 
     // Wait for edit drawer to open
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Edit Sandbox Config')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Edit Project Sandbox')).toBeVisible({ timeout: 5_000 })
 
     // Verify SSH toggle is unchecked (we toggled it off)
-    const editSshLabel = page.locator('label', { hasText: 'SSH Enabled' })
-    const editSshCheckbox = editSshLabel.locator('input[type="checkbox"]')
+    const editSshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
     await expect(editSshCheckbox).not.toBeChecked()
 
     // Expand Git Repository accordion to verify fields

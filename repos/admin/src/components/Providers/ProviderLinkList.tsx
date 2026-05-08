@@ -25,6 +25,8 @@ export type TProviderLinkListProps = {
   addLabel?: string
   disabled?: boolean
   reorderable?: boolean
+  createLabel?: string
+  onCreateNew?: () => void
   emptyMessage?: string | null
   onRemove: (id: string) => void
   providers: TProviderLinkItem[]
@@ -44,10 +46,12 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
     providers,
     onReorder,
     reorderable,
+    onCreateNew,
     emptyMessage,
     onModelChange,
     availableProviders,
     addLabel = `Add Provider`,
+    createLabel = `Create New`,
   } = props
 
   const [addingProvider, setAddingProvider] = useState(false)
@@ -237,6 +241,28 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
               sx={{ position: 'absolute', right: 40, top: '50%', mt: -1 }}
             />
           )}
+        </Box>
+      )}
+
+      {!reorderable && onCreateNew && (
+        <Box sx={{ mt: availableProviders.length > 0 || providers.length > 0 ? 1 : 0 }}>
+          <IconButton
+            size='small'
+            disabled={isDisabled}
+            onClick={onCreateNew}
+            sx={{
+              px: 1.5,
+              borderRadius: 1,
+              border: '1px dashed',
+              borderColor: 'divider',
+            }}
+          >
+            <AddIcon
+              fontSize='small'
+              sx={{ mr: 0.5 }}
+            />
+            <Typography variant='caption'>{createLabel}</Typography>
+          </IconButton>
         </Box>
       )}
     </Box>

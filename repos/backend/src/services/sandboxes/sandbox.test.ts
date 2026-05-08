@@ -13,6 +13,11 @@ vi.mock(`@TBE/utils/sandbox/resolveProviderEnv`, () => ({
   resolveProviderEnv: (...args: any[]) => mockResolveProviderEnv(...args),
 }))
 
+const mockResolveDockerPullSecrets = vi.fn()
+vi.mock(`@TBE/utils/sandbox/resolveDockerPullSecrets`, () => ({
+  resolveDockerPullSecrets: (...args: any[]) => mockResolveDockerPullSecrets(...args),
+}))
+
 vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
   SecretResolver: vi.fn(),
 }))
@@ -56,6 +61,9 @@ const makeKube = () => ({
   createPod: vi.fn(),
   deletePod: vi.fn(),
   listPods: vi.fn(),
+  deleteSecret: vi.fn(),
+  createDockerRegistrySecret: vi.fn(),
+  patchSecretOwnerReferences: vi.fn(),
 })
 
 const makeDb = () => ({
@@ -426,6 +434,343 @@ describe(`SandboxService`, () => {
 
       expect(result).toBe(`tdsk-sb-test`)
       expect(mockResolveProviderEnv).not.toHaveBeenCalled()
+    })
+
+    describe(`docker secret lifecycle`, () => {
+      const dockerProvider = {
+        id: `prov-d1`,
+        brand: `ghcr`,
+        type: `docker`,
+        secretId: `sec-d1`,
+      }
+      const sandboxWithDocker = {
+        id: `sb-1`,
+        config: { image: `node:20` },
+        providerLinks: [{ provider: dockerProvider, priority: 0, model: undefined }],
+      }
+
+      it(`should create K8s secrets and pass imagePullSecrets to manifest`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({
+          metadata: { name: `tdsk-sb-test`, uid: `pod-uid-1` },
+        })
+        kube.patchSecretOwnerReferences.mockResolvedValue(undefined)
+
+        await svc.startPod(baseOpts as any)
+
+        expect(kube.createDockerRegistrySecret).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-dkr-/),
+          `ghcr.io`,
+          `user`,
+          `pass`
+        )
+        const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+        expect(manifestCall.imagePullSecrets).toBeDefined()
+        expect(manifestCall.imagePullSecrets).toHaveLength(1)
+        expect(manifestCall.imagePullSecrets[0]).toMatch(/^tdsk-dkr-/)
+      })
+
+      it(`should roll back created secrets when createDockerRegistrySecret fails mid-loop`, async () => {
+        const twoCredSandbox = {
+          ...sandboxWithDocker,
+          providerLinks: [
+            { provider: dockerProvider, priority: 0, model: undefined },
+            {
+              provider: { ...dockerProvider, id: `prov-d2` },
+              priority: 1,
+              model: undefined,
+            },
+          ],
+        }
+        db.services.sandbox.get.mockResolvedValue({ data: twoCredSandbox, error: null })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [
+            { registry: `ghcr.io`, username: `u1`, password: `p1` },
+            { registry: `docker.io`, username: `u2`, password: `p2` },
+          ],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error(`K8s API error`))
+        kube.deleteSecret.mockResolvedValue(undefined)
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toThrow(`K8s API error`)
+
+        expect(kube.deleteSecret).toHaveBeenCalledTimes(1)
+        expect(kube.deleteSecret).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-dkr-/)
+        )
+      })
+
+      it(`should roll back docker secrets when createPod fails`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockRejectedValue(new Error(`pod quota exceeded`))
+        kube.deleteSecret.mockResolvedValue(undefined)
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toThrow(`pod quota exceeded`)
+
+        expect(kube.deleteSecret).toHaveBeenCalledTimes(1)
+        expect(kube.deleteSecret).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-dkr-/)
+        )
+      })
+
+      it(`should roll back docker secrets when createPod returns no metadata.name`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({ metadata: {} })
+        kube.deleteSecret.mockResolvedValue(undefined)
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toThrow(
+          `Pod created but metadata.name is missing`
+        )
+
+        expect(kube.deleteSecret).toHaveBeenCalledTimes(1)
+      })
+
+      it(`should store docker secret names in dockerSecrets map`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({
+          metadata: { name: `tdsk-sb-test`, uid: `pod-uid-1` },
+        })
+        kube.patchSecretOwnerReferences.mockResolvedValue(undefined)
+
+        await svc.startPod(baseOpts as any)
+
+        const stored = (svc as any).dockerSecrets.get(`tdsk-sb-test`)
+        expect(stored).toBeDefined()
+        expect(stored).toHaveLength(1)
+        expect(stored[0]).toMatch(/^tdsk-dkr-/)
+      })
+
+      it(`should fire patchSecretOwnerReferences after successful pod creation`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({
+          metadata: { name: `tdsk-sb-test`, uid: `pod-uid-1` },
+        })
+        kube.patchSecretOwnerReferences.mockResolvedValue(undefined)
+
+        await svc.startPod(baseOpts as any)
+
+        await vi.waitFor(() => {
+          expect(kube.patchSecretOwnerReferences).toHaveBeenCalledWith(
+            expect.stringMatching(/^tdsk-dkr-/),
+            expect.arrayContaining([
+              expect.objectContaining({
+                apiVersion: `v1`,
+                kind: `Pod`,
+                name: `tdsk-sb-test`,
+                uid: `pod-uid-1`,
+                blockOwnerDeletion: false,
+              }),
+            ])
+          )
+        })
+      })
+
+      it(`should log error when patchSecretOwnerReferences fails`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({
+          metadata: { name: `tdsk-sb-test`, uid: `pod-uid-1` },
+        })
+        kube.patchSecretOwnerReferences.mockRejectedValue(new Error(`forbidden`))
+
+        await svc.startPod(baseOpts as any)
+
+        await vi.waitFor(() => {
+          expect(logger.error).toHaveBeenCalledWith(
+            expect.stringContaining(`Failed to set ownerReference`),
+            `forbidden`
+          )
+        })
+      })
+
+      it(`should log error when rollback deleteSecret fails`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockRejectedValue(new Error(`pod quota exceeded`))
+        kube.deleteSecret.mockRejectedValue(new Error(`k8s unavailable`))
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toThrow(`pod quota exceeded`)
+
+        await vi.waitFor(() => {
+          expect(logger.error).toHaveBeenCalledWith(
+            expect.stringContaining(`Rollback: failed to delete docker secret`),
+            `k8s unavailable`
+          )
+        })
+      })
+
+      it(`should resolve both env vars and docker secrets for mixed AI + docker providers`, async () => {
+        const aiProvider = {
+          id: `prov-ai`,
+          brand: `anthropic`,
+          type: `ai`,
+          secretId: `sec-ai`,
+        }
+        const mixedSandbox = {
+          id: `sb-1`,
+          config: { image: `node:20`, runtime: `claude-code` },
+          providerLinks: [
+            { provider: aiProvider, priority: 0, model: undefined },
+            { provider: dockerProvider, priority: 1, model: undefined },
+          ],
+        }
+        db.services.sandbox.get.mockResolvedValue({ data: mixedSandbox, error: null })
+        mockResolveProviderEnv.mockResolvedValue({
+          extraEnv: { ANTHROPIC_API_KEY: `tdsk_ph_mock` },
+          placeholders: { tdsk_ph_mock: { secretId: `sec-ai` } },
+          errors: [],
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+        kube.createPod.mockResolvedValue({
+          metadata: { name: `tdsk-sb-test`, uid: `pod-uid-1` },
+        })
+        kube.patchSecretOwnerReferences.mockResolvedValue(undefined)
+
+        await svc.startPod(baseOpts as any)
+
+        expect(mockResolveProviderEnv).toHaveBeenCalled()
+        expect(mockResolveDockerPullSecrets).toHaveBeenCalled()
+        expect(kube.createDockerRegistrySecret).toHaveBeenCalled()
+
+        const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+        expect(manifestCall.extraEnv.ANTHROPIC_API_KEY).toBe(`tdsk_ph_mock`)
+        expect(manifestCall.imagePullSecrets).toHaveLength(1)
+      })
+
+      it(`should throw Exception(400) when docker resolution has errors`, async () => {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sandboxWithDocker,
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [],
+          errors: [`Docker provider missing secret`],
+        })
+
+        try {
+          await svc.startPod(baseOpts as any)
+          expect.fail(`Expected startPod to throw`)
+        } catch (err) {
+          expect(err).toBeInstanceOf(Exception)
+          expect((err as any).status).toBe(400)
+          expect((err as Error).message).toContain(`Docker registry configuration error`)
+        }
+      })
+    })
+  })
+
+  describe(`cleanupPod`, () => {
+    it(`should delete docker secrets for the given pod name`, async () => {
+      const secretNames = [`tdsk-dkr-test-0`, `tdsk-dkr-test-1`]
+      ;(svc as any).dockerSecrets.set(`pod-a`, secretNames)
+      kube.deleteSecret.mockResolvedValue(undefined)
+
+      svc.cleanupPod(`pod-a`)
+
+      await vi.waitFor(() => {
+        expect(kube.deleteSecret).toHaveBeenCalledTimes(2)
+        expect(kube.deleteSecret).toHaveBeenCalledWith(`tdsk-dkr-test-0`)
+        expect(kube.deleteSecret).toHaveBeenCalledWith(`tdsk-dkr-test-1`)
+      })
+    })
+
+    it(`should log error when docker secret deletion fails`, async () => {
+      ;(svc as any).dockerSecrets.set(`pod-a`, [`tdsk-dkr-fail-0`])
+      kube.deleteSecret.mockRejectedValue(new Error(`forbidden`))
+
+      svc.cleanupPod(`pod-a`)
+
+      await vi.waitFor(() => {
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Failed to delete docker secret tdsk-dkr-fail-0`),
+          `forbidden`
+        )
+      })
+    })
+
+    it(`should remove docker secrets entry from map after cleanup`, async () => {
+      ;(svc as any).dockerSecrets.set(`pod-a`, [`tdsk-dkr-test-0`])
+      kube.deleteSecret.mockResolvedValue(undefined)
+
+      svc.cleanupPod(`pod-a`)
+
+      await vi.waitFor(() => {
+        expect((svc as any).dockerSecrets.has(`pod-a`)).toBe(false)
+      })
+    })
+
+    it(`should not call deleteSecret when pod has no docker secrets`, () => {
+      svc.cleanupPod(`pod-no-secrets`)
+      expect(kube.deleteSecret).not.toHaveBeenCalled()
     })
   })
 
