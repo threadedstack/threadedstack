@@ -41,3 +41,7 @@ env:
 # ---- Threads Envs ---- #
   TDSK_TH_APP_URL: https://threads.threadedstack.com
   TDSK_TH_PORT: 443
+
+
+# ---- Sandbox Envs ---- #
+  TDSK_SB_RUNTIME_CLASS: kata-clh

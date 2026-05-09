@@ -52,6 +52,7 @@ export type TSandboxOpts = {
   timeoutMin?: number
   pollInterval?: number
   idleInterval?: number
+  runtimeClassName?: string
 }
 
 /**
@@ -67,12 +68,12 @@ export class SandboxService {
   private readonly RingBufferSize = 1024 * 1024
   private passwords = new Map<string, string>()
   private podActivity = new Map<string, number>()
-  private sessions = new Map<string, TSandboxSession[]>()
-  private idleTimer: ReturnType<typeof setInterval> | null = null
-  private shellSessions = new Map<string, TShellSession>()
-  private eventBatchTimers = new Map<string, NodeJS.Timeout>()
-  private eventBatches = new Map<string, TParsedEvent[]>()
   private dockerSecrets = new Map<string, string[]>()
+  private sessions = new Map<string, TSandboxSession[]>()
+  private shellSessions = new Map<string, TShellSession>()
+  private eventBatches = new Map<string, TParsedEvent[]>()
+  private eventBatchTimers = new Map<string, NodeJS.Timeout>()
+  private idleTimer: ReturnType<typeof setInterval> | null = null
 
   // Caches existing pod proxies
   static proxyMap = new Map<string, RequestHandler>()
@@ -307,6 +308,7 @@ export class SandboxService {
       projectId,
       egressOpts,
       placeholders,
+      runtimeClassName: this.config.runtimeClassName,
       imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
 

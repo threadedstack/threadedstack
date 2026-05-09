@@ -156,6 +156,7 @@ tdsk doc build -c proxy --push      # Proxy changes
 tdsk doc build -c backend --push    # Backend changes
 tdsk doc build -c caddy --push      # Caddy/Caddyfile changes
 tdsk doc build -c sandbox --push    # Sandbox image changes
+tdsk doc build -c init --push       # Init image changes
 ```
 
 ### 2.2 Deploy

@@ -51,6 +51,7 @@ const {
   TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
 
   // ENVs specific to dynamic sandboxes
+  TDSK_SB_RUNTIME_CLASS,
   TDSK_SB_TIMEOUT_MIN = `30`,
   TDSK_SB_IMAGE_TAG = `latest`,
   TDSK_SB_MAX_WAIT_MS = `120000`,
@@ -87,6 +88,7 @@ export const config = {
     pollInterval: toNum(TDSK_SB_POLL_INTERVAL_MS),
     idleInterval: toNum(TDSK_SB_IDLE_INTERVAL_MS),
     image: `${TDSK_SB_IMAGE}:${TDSK_SB_IMAGE_TAG}`,
+    runtimeClassName: TDSK_SB_RUNTIME_CLASS?.trim() || undefined,
   },
   proxy: {
     // Validate if this URL field is needed

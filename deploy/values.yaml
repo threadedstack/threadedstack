@@ -298,6 +298,10 @@ env:
   # Interval time to wait between polling a sandboxes state
   TDSK_SB_POLL_INTERVAL_MS: 2000
 
+  # Runtime used in pod manifest of dynamic sandboxes using kubernetes (ignored when empty)
+  # This is required to use VM kata containers in deployed environments
+  TDSK_SB_RUNTIME_CLASS: 
+
 
   # ---- Payments ENVs --- #
   # Email provider type - 'stripe' | 'console'

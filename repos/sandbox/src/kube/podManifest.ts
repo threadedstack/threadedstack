@@ -52,6 +52,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     projectId,
     egressOpts,
     placeholders,
+    runtimeClassName,
     imagePullSecrets,
   } = opts
 
@@ -75,6 +76,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
+      ...(runtimeClassName && { runtimeClassName }),
       ...(imagePullSecrets?.length && {
         imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
       }),

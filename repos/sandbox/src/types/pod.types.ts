@@ -14,6 +14,7 @@ export type TBuildPodOpts = {
   sandbox: Sandbox
   projectId?: string
   namespace?: string
+  runtimeClassName?: string
   egressOpts: TPodEgressOpts
   imagePullSecrets?: string[]
   placeholders: TPlaceholderMap
