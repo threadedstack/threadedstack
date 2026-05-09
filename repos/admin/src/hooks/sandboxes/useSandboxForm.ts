@@ -255,7 +255,6 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setCpuLimit(``)
     setCpuRequest(``)
     setMemoryLimit(``)
-    setSshEnabled(true)
     setMemoryRequest(``)
     setGitBranch(`main`)
     setBaseSandboxId(null)

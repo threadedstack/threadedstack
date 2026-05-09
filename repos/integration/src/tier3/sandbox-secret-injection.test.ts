@@ -75,7 +75,7 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
         `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
         {}
       )
-      if (!startRes.ok) throw new Error(`Failed to start pod: HTTP ${startRes.status}`)
+      if (!startRes.ok) throw new Error(`Failed to start pod: HTTP ${startRes.status} ${JSON.stringify((startRes as any).error)}`)
       podName = startRes.data.podName
 
       await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)

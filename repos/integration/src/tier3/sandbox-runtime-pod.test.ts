@@ -29,10 +29,10 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
 
   const sandboxConfig = {
     image: 'node:22-slim',
+    sshEnabled: true,
     runtime: 'claude-code',
     runtimeCommand: 'claude',
     initScript: 'echo "sandbox ready"',
-    sshEnabled: true,
     resources: {
       limits: { cpu: '500m', memory: '512Mi' },
       requests: { cpu: '100m', memory: '256Mi' },

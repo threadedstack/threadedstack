@@ -108,7 +108,7 @@ const cleanupStaleTestResources = async (orgId: string) => {
     const { execFileSync } = await import('node:child_process')
     const podsRaw = execFileSync(
       'kubectl',
-      ['get', 'pods', '-l', 'tdsk.app/managed=true', '-o', 'json'],
+      ['--context', env.kubeContext, 'get', 'pods', '-n', env.kubeNamespace, '-l', 'tdsk.app/managed=true', '-o', 'json'],
       { encoding: 'utf-8', timeout: 15_000 }
     ).trim()
 

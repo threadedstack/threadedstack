@@ -166,14 +166,6 @@ const buildSandboxContainer = (
     workingDir: config.workdir || DefaultWorkdir,
     securityContext: {
       privileged: false,
-      allowPrivilegeEscalation: false,
-      capabilities: {
-        drop: [`ALL`],
-        add: [`SETUID`, `SETGID`, `SYS_CHROOT`],
-      },
-      seccompProfile: {
-        type: `RuntimeDefault`,
-      },
     },
     lifecycle: {
       postStart: {

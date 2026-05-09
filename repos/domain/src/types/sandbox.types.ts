@@ -187,6 +187,7 @@ export type TKubeSandboxConfig = {
   workdir?: string
   gitBranch?: string
   command?: string[]
+  sshEnabled?: boolean
   /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
   initScript?: string
   secretIds?: string[]

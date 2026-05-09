@@ -710,14 +710,9 @@ export class SandboxService {
     this.clearEventBatch(sessionId)
 
     try {
-      session.sshStream.close()
+      session.closeExec()
     } catch (err) {
-      logger.warn(`[ShellSession] Failed to close SSH stream:`, (err as Error).message)
-    }
-    try {
-      session.sshClient.end()
-    } catch (err) {
-      logger.warn(`[ShellSession] Failed to end SSH client:`, (err as Error).message)
+      logger.warn(`[ShellSession] Failed to close exec:`, (err as Error).message)
     }
 
     session.buffer.clear()

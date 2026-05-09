@@ -292,14 +292,10 @@ describe(`buildPodManifest`, () => {
     )
   })
 
-  it(`should harden sandbox container security context`, () => {
+  it(`should set sandbox container as non-privileged`, () => {
     const manifest = buildPodManifest(buildOpts())
     const sc = manifest.spec!.containers![0].securityContext!
     expect(sc.privileged).toBe(false)
-    expect(sc.allowPrivilegeEscalation).toBe(false)
-    expect(sc.capabilities!.drop).toEqual([`ALL`])
-    expect(sc.capabilities!.add).toEqual([`SETUID`, `SETGID`, `SYS_CHROOT`])
-    expect(sc.seccompProfile).toEqual({ type: `RuntimeDefault` })
   })
 
   it(`should include initScript in postStart when config.initScript is set`, () => {

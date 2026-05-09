@@ -98,6 +98,16 @@ export const env = {
     return process.env.TDSK_IT_USER_PASSWORD || ''
   },
 
+  /** K8s context for kubectl commands (must match the cluster running the backend) */
+  get kubeContext() {
+    return process.env.TDSK_IT_KUBE_CTX || process.env.TDSK_KUBE_CTX || 'docker-desktop'
+  },
+
+  /** K8s namespace where sandbox pods are created (must match backend's in-cluster namespace) */
+  get kubeNamespace() {
+    return process.env.TDSK_IT_KUBE_NS || process.env.TDSK_KUBE_NS || 'tdsk-local'
+  },
+
   /** Sandbox Docker image for tests that need SSH / custom entrypoint */
   get sandboxImage() {
     const image = process.env.TDSK_SB_IMAGE || 'ghcr.io/threadedstack/tdsk-sandbox'

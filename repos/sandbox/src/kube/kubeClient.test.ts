@@ -12,10 +12,40 @@ const mockCoreApi = {
   readNamespacedPod: vi.fn(),
   listNamespacedPod: vi.fn(),
   deleteNamespacedPod: vi.fn(),
+  createNamespacedSecret: vi.fn(),
+  patchNamespacedSecret: vi.fn(),
+  deleteNamespacedSecret: vi.fn(),
 }
 
 const mockWatcher = {
   watch: vi.fn(),
+}
+
+const mockExecWs = {
+  on: vi.fn(),
+  close: vi.fn(),
+  send: vi.fn(),
+}
+
+let capturedStatusCallback: ((status: any) => void) | null = null
+
+const mockExec = {
+  exec: vi.fn(
+    (
+      _ns: string,
+      _pod: string,
+      _container: string,
+      _cmd: string[],
+      _stdout: any,
+      _stderr: any,
+      _stdin: any,
+      _tty: boolean,
+      statusCb?: (status: any) => void
+    ) => {
+      capturedStatusCallback = statusCb ?? null
+      return Promise.resolve(mockExecWs)
+    }
+  ),
 }
 
 const mockKc = {
@@ -28,7 +58,7 @@ vi.mock(`@kubernetes/client-node`, () => ({
   KubeConfig: vi.fn(() => mockKc),
   CoreV1Api: vi.fn(),
   Watch: vi.fn(() => mockWatcher),
-  Exec: vi.fn(() => ({})),
+  Exec: vi.fn(() => mockExec),
 }))
 
 vi.mock(`@TSB/kube/getKubeNS`, () => ({
@@ -812,6 +842,341 @@ describe(`KubeClient`, () => {
       const routes = client.routes
       expect(routes[`sb-test1234-abcd`]).toBeDefined()
       expect(routes[`sb-test1234-abcd`].meta.sandboxId).toBe(`sandbox-1`)
+    })
+  })
+
+  // --- execStream ---
+
+  describe(`execStream`, () => {
+    beforeEach(() => {
+      mockExecWs.on.mockReset()
+      mockExecWs.close.mockReset()
+      mockExecWs.send.mockReset()
+      mockExec.exec.mockClear()
+      capturedStatusCallback = null
+      mockExec.exec.mockImplementation(
+        (_ns, _pod, _container, _cmd, _stdout, _stderr, _stdin, _tty, statusCb) => {
+          capturedStatusCallback = statusCb ?? null
+          return Promise.resolve(mockExecWs)
+        }
+      )
+    })
+
+    it(`should call kubeExec.exec with correct namespace, pod, container, and command`, async () => {
+      await client.execStream(`my-pod`, [`bash`, `-l`])
+
+      expect(mockExec.exec).toHaveBeenCalledWith(
+        `test-ns`,
+        `my-pod`,
+        `sandbox`,
+        [`bash`, `-l`],
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Object),
+        false,
+        expect.any(Function)
+      )
+    })
+
+    it(`should pass tty flag to exec`, async () => {
+      await client.execStream(`my-pod`, [`bash`], { tty: true, cols: 120, rows: 40 })
+
+      const call = mockExec.exec.mock.calls[0]
+      expect(call[7]).toBe(true)
+    })
+
+    it(`should return stdin, stdout, stderr, close, and resize`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      expect(result.stdin).toBeDefined()
+      expect(result.stdout).toBeDefined()
+      expect(result.stderr).toBeDefined()
+      expect(typeof result.close).toBe(`function`)
+      expect(typeof result.resize).toBe(`function`)
+    })
+
+    it(`should create ResizablePassThrough stdout with columns/rows when tty is true`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`], {
+        tty: true,
+        cols: 120,
+        rows: 40,
+      })
+
+      expect((result.stdout as any).columns).toBe(120)
+      expect((result.stdout as any).rows).toBe(40)
+    })
+
+    it(`should default to 80x24 when tty is true but cols/rows omitted`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`], { tty: true })
+
+      expect((result.stdout as any).columns).toBe(80)
+      expect((result.stdout as any).rows).toBe(24)
+    })
+
+    it(`should create plain PassThrough stdout without columns/rows when tty is false`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      expect((result.stdout as any).columns).toBeUndefined()
+      expect((result.stdout as any).rows).toBeUndefined()
+    })
+
+    it(`resize should update columns/rows, emit resize event, and send control frame when tty is true`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`], {
+        tty: true,
+        cols: 80,
+        rows: 24,
+      })
+
+      const resizeHandler = vi.fn()
+      result.stdout.on(`resize`, resizeHandler)
+
+      result.resize(200, 50)
+
+      expect((result.stdout as any).columns).toBe(200)
+      expect((result.stdout as any).rows).toBe(50)
+      expect(resizeHandler).toHaveBeenCalledOnce()
+
+      expect(mockExecWs.send).toHaveBeenCalledOnce()
+      const frame = mockExecWs.send.mock.calls[0][0] as Buffer
+      expect(frame[0]).toBe(4)
+      const payload = JSON.parse(frame.subarray(1).toString())
+      expect(payload).toEqual({ Width: 200, Height: 50 })
+    })
+
+    it(`resize should log warning when execWs.send throws`, async () => {
+      mockExecWs.send.mockImplementation(() => {
+        throw new Error(`ws closed`)
+      })
+      const result = await client.execStream(`my-pod`, [`bash`], {
+        tty: true,
+        cols: 80,
+        rows: 24,
+      })
+
+      result.resize(200, 50)
+
+      expect((result.stdout as any).columns).toBe(200)
+      expect((result.stdout as any).rows).toBe(50)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Resize failed`),
+        `ws closed`
+      )
+    })
+
+    it(`resize should be a no-op when tty is false`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      const resizeHandler = vi.fn()
+      result.stdout.on(`resize`, resizeHandler)
+
+      result.resize(200, 50)
+
+      expect(resizeHandler).not.toHaveBeenCalled()
+      expect((result.stdout as any).columns).toBeUndefined()
+      expect(mockExecWs.send).not.toHaveBeenCalled()
+    })
+
+    it(`close should end stdin and close the exec WebSocket`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      const stdinEndSpy = vi.spyOn(result.stdin, `end`)
+      result.close()
+
+      expect(stdinEndSpy).toHaveBeenCalled()
+      expect(mockExecWs.close).toHaveBeenCalled()
+    })
+
+    it(`close should log warning when execWs.close throws`, async () => {
+      mockExecWs.close.mockImplementation(() => {
+        throw new Error(`already closed`)
+      })
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      result.close()
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`execWs.close()`),
+        `already closed`
+      )
+    })
+
+    it(`status callback should end stdout and stderr`, async () => {
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      const stdoutEndSpy = vi.spyOn(result.stdout, `end`)
+      const stderrEndSpy = vi.spyOn(result.stderr, `end`)
+
+      expect(capturedStatusCallback).toBeDefined()
+      capturedStatusCallback!({ status: `Success` })
+
+      expect(stdoutEndSpy).toHaveBeenCalled()
+      expect(stderrEndSpy).toHaveBeenCalled()
+    })
+
+    it(`execWs error handler should destroy stdout and stderr with the error`, async () => {
+      let errorHandler: (err: Error) => void = () => {}
+      mockExecWs.on.mockImplementation((event: string, handler: any) => {
+        if (event === `error`) errorHandler = handler
+      })
+
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      result.stdout.on(`error`, () => {})
+      result.stderr.on(`error`, () => {})
+
+      const stdoutDestroySpy = vi.spyOn(result.stdout, `destroy`)
+      const stderrDestroySpy = vi.spyOn(result.stderr, `destroy`)
+      const testErr = new Error(`connection lost`)
+
+      errorHandler(testErr)
+
+      expect(stdoutDestroySpy).toHaveBeenCalledWith(testErr)
+      expect(stderrDestroySpy).toHaveBeenCalledWith(testErr)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Exec WebSocket error`),
+        `connection lost`
+      )
+    })
+
+    it(`execWs close handler should end stdout and stderr`, async () => {
+      let closeHandler: () => void = () => {}
+      mockExecWs.on.mockImplementation((event: string, handler: any) => {
+        if (event === `close`) closeHandler = handler
+      })
+
+      const result = await client.execStream(`my-pod`, [`bash`])
+
+      const stdoutEndSpy = vi.spyOn(result.stdout, `end`)
+      const stderrEndSpy = vi.spyOn(result.stderr, `end`)
+
+      closeHandler()
+
+      expect(stdoutEndSpy).toHaveBeenCalled()
+      expect(stderrEndSpy).toHaveBeenCalled()
+    })
+
+    it(`should propagate exec rejection`, async () => {
+      mockExec.exec.mockRejectedValue(new Error(`pod not found`))
+
+      await expect(client.execStream(`bad-pod`, [`bash`])).rejects.toThrow(
+        `pod not found`
+      )
+    })
+  })
+
+  // --- createDockerRegistrySecret ---
+
+  describe(`createDockerRegistrySecret`, () => {
+    it(`should create a docker-registry secret with correct structure`, async () => {
+      mockCoreApi.createNamespacedSecret.mockResolvedValue({})
+
+      await client.createDockerRegistrySecret(
+        `my-pull-secret`,
+        `ghcr.io`,
+        `myuser`,
+        `mytoken`
+      )
+
+      expect(mockCoreApi.createNamespacedSecret).toHaveBeenCalledOnce()
+      const call = mockCoreApi.createNamespacedSecret.mock.calls[0][0]
+      expect(call.namespace).toBe(`test-ns`)
+
+      const body = call.body
+      expect(body.type).toBe(`kubernetes.io/dockerconfigjson`)
+      expect(body.metadata.name).toBe(`my-pull-secret`)
+
+      const decoded = JSON.parse(
+        Buffer.from(body.data[`.dockerconfigjson`], `base64`).toString()
+      )
+      expect(decoded.auths[`ghcr.io`]).toBeDefined()
+      expect(decoded.auths[`ghcr.io`].username).toBe(`myuser`)
+      expect(decoded.auths[`ghcr.io`].password).toBe(`mytoken`)
+      expect(decoded.auths[`ghcr.io`].auth).toBe(
+        Buffer.from(`myuser:mytoken`).toString(`base64`)
+      )
+    })
+
+    it(`should propagate K8s API errors`, async () => {
+      mockCoreApi.createNamespacedSecret.mockRejectedValue(new Error(`403 Forbidden`))
+
+      await expect(
+        client.createDockerRegistrySecret(`s`, `ghcr.io`, `u`, `p`)
+      ).rejects.toThrow(`403 Forbidden`)
+    })
+  })
+
+  // --- deleteSecret ---
+
+  describe(`deleteSecret`, () => {
+    it(`should call deleteNamespacedSecret with correct name and namespace`, async () => {
+      mockCoreApi.deleteNamespacedSecret.mockResolvedValue({})
+
+      await client.deleteSecret(`my-secret`)
+
+      expect(mockCoreApi.deleteNamespacedSecret).toHaveBeenCalledWith({
+        name: `my-secret`,
+        namespace: `test-ns`,
+      })
+    })
+
+    it(`should swallow 404 errors silently`, async () => {
+      mockCoreApi.deleteNamespacedSecret.mockRejectedValue({ code: 404 })
+      await expect(client.deleteSecret(`gone`)).resolves.toBeUndefined()
+
+      mockCoreApi.deleteNamespacedSecret.mockRejectedValue({ statusCode: 404 })
+      await expect(client.deleteSecret(`gone2`)).resolves.toBeUndefined()
+
+      mockCoreApi.deleteNamespacedSecret.mockRejectedValue({
+        response: { statusCode: 404 },
+      })
+      await expect(client.deleteSecret(`gone3`)).resolves.toBeUndefined()
+    })
+
+    it(`should re-throw non-404 errors`, async () => {
+      mockCoreApi.deleteNamespacedSecret.mockRejectedValue({ code: 500 })
+      await expect(client.deleteSecret(`fail`)).rejects.toEqual({ code: 500 })
+    })
+  })
+
+  // --- patchSecretOwnerReferences ---
+
+  describe(`patchSecretOwnerReferences`, () => {
+    it(`should call patchNamespacedSecret with correct namespace, name, and body`, async () => {
+      mockCoreApi.patchNamespacedSecret.mockResolvedValue({})
+
+      const ownerRefs = [
+        {
+          apiVersion: `v1`,
+          kind: `Pod`,
+          name: `tdsk-sb-test-abcd`,
+          uid: `pod-uid-1234`,
+          blockOwnerDeletion: false,
+        },
+      ]
+
+      await client.patchSecretOwnerReferences(`my-docker-secret`, ownerRefs)
+
+      expect(mockCoreApi.patchNamespacedSecret).toHaveBeenCalledOnce()
+      expect(mockCoreApi.patchNamespacedSecret).toHaveBeenCalledWith({
+        name: `my-docker-secret`,
+        namespace: `test-ns`,
+        body: { metadata: { ownerReferences: ownerRefs } },
+      })
+    })
+
+    it(`should propagate errors from the K8s API`, async () => {
+      mockCoreApi.patchNamespacedSecret.mockRejectedValue(new Error(`403 Forbidden`))
+
+      await expect(
+        client.patchSecretOwnerReferences(`secret-x`, [
+          {
+            apiVersion: `v1`,
+            kind: `Pod`,
+            name: `pod-1`,
+            uid: `uid-1`,
+          },
+        ])
+      ).rejects.toThrow(`403 Forbidden`)
     })
   })
 })

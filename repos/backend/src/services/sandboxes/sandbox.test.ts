@@ -1192,8 +1192,10 @@ describe(`SandboxService`, () => {
         orgId: `org1`,
         userId: `u1`,
         threadId: `t1`,
-        sshClient: {} as any,
-        sshStream: {} as any,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
         buffer: { clear: vi.fn() } as any,
         ptyRecorder: {} as any,
         attachments: new Set() as any,
@@ -1229,8 +1231,10 @@ describe(`SandboxService`, () => {
         sandboxId: `sb_aaa`,
         userId: `u1`,
         threadId: `t1`,
-        sshClient: {} as any,
-        sshStream: {} as any,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
         buffer: { clear: vi.fn() } as any,
         ptyRecorder: {} as any,
         attachments: new Set() as any,
@@ -1258,8 +1262,10 @@ describe(`SandboxService`, () => {
         orgId: `org1`,
         userId: `u1`,
         threadId: `t1`,
-        sshClient: {} as any,
-        sshStream: {} as any,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
         buffer: { clear: vi.fn() } as any,
         ptyRecorder: {} as any,
         attachments: new Set() as any,
@@ -1294,6 +1300,79 @@ describe(`SandboxService`, () => {
       expect(
         svc.updateSessionVisibility(`nonexistent`, ESandboxSessionVisibility.public)
       ).toBe(false)
+    })
+
+    it(`removeShellSession calls closeExec and clears state`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const closeExec = vi.fn()
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        threadId: `t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec,
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        ptyRecorder: {} as any,
+        attachments: new Set([{ readyState: 1, send: vi.fn() }]) as any,
+        ttlTimer: setTimeout(() => {}, 99999),
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession(session)
+      expect(svc.getShellSession(`s1`)).toBeDefined()
+
+      svc.removeShellSession(`s1`)
+
+      expect(closeExec).toHaveBeenCalledOnce()
+      expect(session.buffer.clear).toHaveBeenCalled()
+      expect(session.attachments.size).toBe(0)
+      expect(svc.getShellSession(`s1`)).toBeUndefined()
+    })
+
+    it(`removeShellSession continues cleanup when closeExec throws`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const closeExec = vi.fn(() => {
+        throw new Error(`already closed`)
+      })
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        threadId: `t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec,
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        ptyRecorder: {} as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession(session)
+      svc.removeShellSession(`s1`)
+
+      expect(closeExec).toHaveBeenCalledOnce()
+      expect(session.buffer.clear).toHaveBeenCalled()
+      expect(svc.getShellSession(`s1`)).toBeUndefined()
+    })
+
+    it(`removeShellSession is a no-op for unknown session`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+      expect(() => svc.removeShellSession(`nonexistent`)).not.toThrow()
     })
   })
 })

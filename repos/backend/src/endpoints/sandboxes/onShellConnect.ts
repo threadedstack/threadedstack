@@ -1,6 +1,7 @@
 import type WebSocket from 'ws'
 import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
+import type { TExecStream } from '@tdsk/sandbox'
 import type { ESubscriptionTier, ERoleType } from '@tdsk/domain'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type {
@@ -9,19 +10,17 @@ import type {
   TWebSocketMeta,
 } from '@TBE/types/shellSession.types'
 
-import { Client } from 'ssh2'
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 import { PodLabelKeys } from '@tdsk/sandbox'
 import { RingBuffer } from '@TBE/utils/ringBuffer'
 import { verifyShellToken } from '@TBE/services/sessionToken'
-import { SBBackpressureThreshold } from '@TBE/constants/sandbox'
 import { parseShellControlMsg } from '@TBE/utils/shell/parseControlMsg'
 import {
   WsPingInterval,
-  SshReadyTimeout,
   MaxPtyBufferSize,
-  SshKeepaliveInterval,
+  SBBackpressureMaxWait,
+  SBBackpressureThreshold,
 } from '@TBE/constants/sandbox'
 import {
   hashKey,
@@ -70,13 +69,13 @@ function createPtyRecorder(): TPtyRecorder {
  * Auth: API key in Authorization header, or shell token in ?token query param (validated here, not by Express middleware).
  * Path: /_/sandboxes/:id/shell
  * Protocol:
- *   - Binary frames (browser -> server): raw stdin bytes -> SSH stream
+ *   - Binary frames (browser -> server): raw stdin bytes -> exec stream
  *   - Text frames (browser -> server): JSON control messages (resize, signal, visibility) -- see TShellControlMsg
- *   - Binary frames (server -> browser): raw stdout bytes from SSH stream
+ *   - Binary frames (server -> browser): raw stdout bytes from exec stream
  *   - Text frames (server -> browser): JSON status messages (connected, reconnected, joined, visibility, user-joined, user-left, disconnected, error) -- see TShellServerMsg
  *
  * Unlike the tunnel endpoint (raw TCP bridge), this handler:
- *   - Establishes an SSH connection via ssh2.Client and allocates a PTY shell
+ *   - Establishes a kubectl exec connection and allocates a PTY shell
  *   - Manages persistent sessions via the session broker (survives WS reconnects)
  *   - Creates a thread per session for history storage
  */
@@ -469,11 +468,9 @@ export const onShellConnect = async (
 
   // 7. Get pod info and verify requesting user is the pod creator
   let podOwnerUserId: string
-  let podIp: string | undefined
   try {
     const pod = await kube.getPod(podName)
     podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? ``
-    podIp = pod.status?.podIP
   } catch (err) {
     logger.warn(`[Shell] Failed to get pod ${podName}:`, (err as Error).message)
     ws.close(4004, `Pod not reachable`)
@@ -528,22 +525,7 @@ export const onShellConnect = async (
     return
   }
 
-  // 9. Validate pod IP and get SSH password
-  if (!podIp) {
-    ws.close(4004, `Pod has no IP address`)
-    return
-  }
-
-  let password = sbService.getPassword(podName)
-  if (!password) {
-    password = await sbService.recoverPassword(podName)
-  }
-  if (!password) {
-    ws.close(4005, `Cannot recover SSH credentials`)
-    return
-  }
-
-  // 10. Get sandbox config for runtime info
+  // 9. Get sandbox config for runtime info
   const { data: sandbox, error: sbErr } = await db.services.sandbox.get(sandboxId)
   if (sbErr) {
     logger.warn(`[Shell] Failed to load sandbox config for ${sandboxId}:`, sbErr.message)
@@ -568,154 +550,182 @@ export const onShellConnect = async (
   }
   const threadId = thread.id
 
-  // 12. Establish SSH connection
+  // 12. Establish kubectl exec connection
   const sessionId = nanoid(16)
-  const sshClient = new Client()
 
-  sshClient.on(`ready`, () => {
-    sshClient.shell({ term: `xterm-256color`, cols, rows }, (err, stream) => {
-      if (err || !stream) {
-        ws.close(4005, `Shell allocation failed`)
-        sshClient.end()
-        return
-      }
+  let exec: TExecStream
+  try {
+    exec = await kube.execStream(
+      podName,
+      [`su`, `-l`, `sandbox`, `-c`, `TERM=xterm-256color exec bash -l`],
+      { tty: true, cols, rows }
+    )
+  } catch (err) {
+    logger.error(`[Shell] Exec failed for pod ${podName}:`, (err as Error).message)
+    ws.close(4005, `Shell connection failed`)
+    return
+  }
 
-      const ptyRecorder = createPtyRecorder()
+  const ptyRecorder = createPtyRecorder()
 
-      const session: TShellSession = {
-        orgId,
-        userId,
-        threadId,
-        sandboxId,
-        sessionId,
-        sshClient,
-        ptyRecorder,
-        ttlTimer: null,
-        sshStream: stream,
-        attachments: new Set([ws]),
-        buffer: new RingBuffer(1024 * 1024),
-        projectId: sandbox?.projects?.[0]?.id ?? undefined,
-        visibility: ESandboxSessionVisibility.private,
-      }
+  const session: TShellSession = {
+    orgId,
+    userId,
+    threadId,
+    sandboxId,
+    sessionId,
+    ptyRecorder,
+    ttlTimer: null,
+    stdout: exec.stdout,
+    stdin: exec.stdin,
+    closeExec: exec.close,
+    resize: exec.resize,
+    attachments: new Set([ws]),
+    buffer: new RingBuffer(1024 * 1024),
+    visibility: ESandboxSessionVisibility.private,
+    projectId: sandbox?.projects?.[0]?.id ?? undefined,
+  }
 
-      sbService.addShellSession(session)
-      wsMeta.set(ws, { sessionId })
+  sbService.addShellSession(session)
+  wsMeta.set(ws, { sessionId })
 
-      // Update thread meta with session ID
-      db.services.thread
-        .update({
-          id: threadId,
-          meta: { runtime, shellSessionId: sessionId },
-        })
-        .catch((err) => {
-          logger.error(
-            `[Shell] Failed to update thread ${threadId} with session ${sessionId}:`,
-            (err as Error).message
-          )
-        })
-
-      // Register as a pod session too (for idle timeout tracking)
-      sbService.addSession(podName, {
-        orgId,
-        userId,
-        podName,
-        sessionId,
-        sandboxId,
-        connectedAt: new Date().toISOString(),
-        visibility: ESandboxSessionVisibility.private,
-        projectId: sandbox?.projects?.[0]?.id ?? undefined,
-      })
-      sbService.broadcastSessionList(sandboxId)
-
-      ws.send(
-        JSON.stringify({
-          type: `connected`,
-          runtime,
-          threadId,
-          sessionId,
-          sandboxId,
-          podOwnerUserId,
-        })
+  // Update thread meta with session ID
+  db.services.thread
+    .update({
+      id: threadId,
+      meta: { runtime, shellSessionId: sessionId },
+    })
+    .catch((err) => {
+      logger.error(
+        `[Shell] Failed to update thread ${threadId} with session ${sessionId}:`,
+        (err as Error).message
       )
+    })
 
-      // Always cd into workdir (SSH sessions start in /home/sandbox)
-      stream.write(`cd '${workdir.replace(/'/g, `'\\''`)}'\n`)
-      // Execute runtime command if requested
-      if (shouldRun && runtimeCommand) stream.write(`${runtimeCommand}\n`)
+  // Register as a pod session too (for idle timeout tracking)
+  sbService.addSession(podName, {
+    orgId,
+    userId,
+    podName,
+    sessionId,
+    sandboxId,
+    connectedAt: new Date().toISOString(),
+    visibility: ESandboxSessionVisibility.private,
+    projectId: sandbox?.projects?.[0]?.id ?? undefined,
+  })
+  sbService.broadcastSessionList(sandboxId)
 
-      // SSH stream -> WebSocket fan-out (raw binary bytes only)
-      stream.on(`data`, (data: Buffer) => {
-        const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
-        ptyRecorder.write(bytes)
+  ws.send(
+    JSON.stringify({
+      runtime,
+      threadId,
+      sessionId,
+      sandboxId,
+      podOwnerUserId,
+      type: `connected`,
+    })
+  )
 
-        if (session.attachments.size === 0) {
-          session.buffer.write(data)
-          return
-        }
+  // Always cd into workdir (exec sessions start in container default dir)
+  exec.stdin.write(`cd '${workdir.replace(/'/g, `'\\''`)}'\n`)
+  // Execute runtime command if requested
+  if (shouldRun && runtimeCommand) exec.stdin.write(`${runtimeCommand}\n`)
 
-        for (const client of session.attachments) {
-          if (client.readyState === 1) {
-            client.send(data)
-            if ((client as any).bufferedAmount > SBBackpressureThreshold) {
-              stream.pause()
-              const resume = () => {
-                if ((client as any).bufferedAmount <= SBBackpressureThreshold) {
-                  stream.resume()
-                } else {
-                  setTimeout(resume, 16)
-                }
-              }
+  // Exec stdout -> WebSocket fan-out (raw binary bytes only)
+  exec.stdout.on(`data`, (data: Buffer) => {
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+    ptyRecorder.write(bytes)
+
+    if (session.attachments.size === 0) {
+      session.buffer.write(data)
+      return
+    }
+
+    for (const client of session.attachments) {
+      if (client.readyState === 1) {
+        client.send(data)
+        if ((client as any).bufferedAmount > SBBackpressureThreshold) {
+          exec.stdout.pause()
+          const start = Date.now()
+          const resume = () => {
+            if ((client as any).bufferedAmount <= SBBackpressureThreshold) {
+              exec.stdout.resume()
+            } else if (Date.now() - start > SBBackpressureMaxWait) {
+              logger.warn(
+                `[Shell] Backpressure timeout for ${podName}, resuming exec stdout`
+              )
+              exec.stdout.resume()
+            } else {
               setTimeout(resume, 16)
             }
           }
+          setTimeout(resume, 16)
         }
-      })
-
-      stream.on(`close`, () => {
-        try {
-          const rawBuffer = ptyRecorder.getRawBuffer()
-          if (rawBuffer.length > 0) {
-            db.services.thread
-              .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
-              .catch((err) => {
-                logger.error(
-                  `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
-                  (err as Error).message
-                )
-              })
-          }
-        } catch (err) {
-          logger.error('[Shell] PTY buffer extraction failed:', (err as Error).message)
-        }
-
-        ptyRecorder.destroy()
-        sbService.removeSession(podName, sessionId)
-        cleanup(`SSH stream closed`)
-        sbService.removeShellSession(sessionId)
-      })
-
-      stream.on(`error`, (streamErr: Error) => {
-        cleanup(`SSH error: ${streamErr.message}`)
-      })
-
-      wireWebSocket(ws, session, sbService, cleanup, podName)
-      startPingInterval()
-    })
+      }
+    }
   })
 
-  sshClient.on(`error`, (sshErr) => {
-    logger.error(`[Shell] SSH connection failed for pod ${podName}:`, sshErr.message)
-    ws.close(4005, `SSH connection failed`)
+  exec.stdout.on(`end`, () => {
+    try {
+      const rawBuffer = ptyRecorder.getRawBuffer()
+      if (rawBuffer.length > 0) {
+        db.services.thread
+          .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
+          .catch((err) => {
+            logger.error(
+              `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
+              (err as Error).message
+            )
+          })
+      }
+    } catch (err) {
+      logger.error('[Shell] PTY buffer extraction failed:', (err as Error).message)
+    }
+
+    ptyRecorder.destroy()
+    sbService.removeSession(podName, sessionId)
+    cleanup(`Exec stream ended`)
+    sbService.removeShellSession(sessionId)
   })
 
-  sshClient.connect({
-    password,
-    port: 2222,
-    host: podIp,
-    username: `sandbox`,
-    readyTimeout: SshReadyTimeout,
-    keepaliveInterval: SshKeepaliveInterval,
+  exec.stdout.on(`error`, (streamErr: Error) => {
+    try {
+      const rawBuffer = ptyRecorder.getRawBuffer()
+      if (rawBuffer.length > 0) {
+        db.services.thread
+          .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
+          .catch((err) => {
+            logger.error(
+              `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
+              (err as Error).message
+            )
+          })
+      }
+    } catch (err) {
+      logger.error('[Shell] PTY buffer extraction failed:', (err as Error).message)
+    }
+
+    ptyRecorder.destroy()
+    sbService.removeSession(podName, sessionId)
+    cleanup(`Exec error: ${streamErr.message}`)
+    sbService.removeShellSession(sessionId)
   })
+
+  exec.stderr.on(`data`, (chunk: Buffer) => {
+    logger.debug(`[Shell] Exec stderr for ${podName}:`, chunk.toString().slice(0, 500))
+  })
+
+  exec.stderr.on(`error`, (err: Error) => {
+    logger.warn(`[Shell] Exec stderr error for ${podName}:`, err.message)
+  })
+
+  exec.stdin.on(`error`, (err: Error) => {
+    logger.warn(`[Shell] Exec stdin error for ${podName}:`, err.message)
+    cleanup(`Exec stdin error: ${err.message}`)
+  })
+
+  wireWebSocket(ws, session, sbService, cleanup, podName)
+  startPingInterval()
 }
 
 function wireWebSocket(
@@ -735,12 +745,14 @@ function wireWebSocket(
 
       try {
         if (msg.type === `resize`) {
-          session.sshStream.setWindow(msg.rows, msg.cols, msg.rows * 16, msg.cols * 8)
+          session.resize(msg.cols, msg.rows)
         } else if (msg.type === `signal`) {
-          if (msg.signal === `SIGINT`) session.sshStream.write(`\x03`)
-          else if (msg.signal === `SIGTSTP`) session.sshStream.write(`\x1a`)
+          if (session.stdin.writable) {
+            if (msg.signal === `SIGINT`) session.stdin.write(`\x03`)
+            else if (msg.signal === `SIGTSTP`) session.stdin.write(`\x1a`)
+          }
         } else if (msg.type === `permission-response`) {
-          session.sshStream.write(`${msg.response}\n`)
+          if (session.stdin.writable) session.stdin.write(`${msg.response}\n`)
         } else if (msg.type === `visibility`) {
           // Only the session creator can toggle visibility.
           const authUserId = wsMeta.get(ws)?.joinedUserId ?? session.userId
@@ -770,8 +782,8 @@ function wireWebSocket(
       return
     }
 
-    // Binary frame: forward raw stdin bytes to SSH stream
-    session.sshStream.write(data)
+    // Binary frame: forward raw stdin bytes to exec stream
+    if (session.stdin.writable) session.stdin.write(data)
     if (podName) sbService.updateActivity(podName)
   })
 
