@@ -555,11 +555,11 @@ export const onShellConnect = async (
 
   let exec: TExecStream
   try {
-    exec = await kube.execStream(
-      podName,
-      [`su`, `-l`, `sandbox`, `-c`, `TERM=xterm-256color exec bash -l`],
-      { tty: true, cols, rows }
-    )
+    exec = await kube.execStream(podName, [`su`, `-l`, `sandbox`], {
+      tty: true,
+      cols,
+      rows,
+    })
   } catch (err) {
     logger.error(`[Shell] Exec failed for pod ${podName}:`, (err as Error).message)
     ws.close(4005, `Shell connection failed`)

@@ -24,7 +24,10 @@ export const stopSandbox: TEndpointConfig = {
 
     await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
 
-    const activeSessions = sb.getSessions(podName)
+    const userId = req.user?.id
+    if (!userId) throw new Exception(401, `Authenticated user required`)
+
+    const activeSessions = sb.getSessions(podName).filter((s) => s.userId !== userId)
     if (activeSessions.length > 0 && !force) {
       res.status(409).json({
         error: { message: `Active sessions exist`, code: `ACTIVE_SESSIONS` },

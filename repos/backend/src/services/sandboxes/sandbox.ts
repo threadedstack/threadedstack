@@ -544,6 +544,25 @@ export class SandboxService {
                 timeoutMinutes = sb.config.idleTimeoutMinutes
             }
           } catch (err) {
+            const status =
+              (err as any)?.statusCode ??
+              (err as any)?.response?.statusCode ??
+              (err as any)?.code
+            if (status === 404) {
+              logger.info(
+                `[Sandbox] Pod ${podName} no longer exists, cleaning up tracking`
+              )
+              try {
+                this.cleanupPod(podName)
+              } catch (cleanupErr) {
+                logger.error(
+                  `[Sandbox] cleanupPod failed for pod ${podName}:`,
+                  (cleanupErr as Error).message
+                )
+                this.podActivity.delete(podName)
+              }
+              continue
+            }
             logger.warn(
               `[Sandbox] Failed to resolve idle timeout config for pod ${podName}:`,
               (err as Error).message

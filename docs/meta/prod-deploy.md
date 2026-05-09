@@ -172,8 +172,8 @@ If the deployment spec didn't change (e.g. same image tag `latest`), K8s may not
 ```sh
 # Restart a specific service
 tdsk kube remove --context proxy --env production
-tdsk kube remove --context backend --env production
 tdsk kube remove --context caddy --env production
+tdsk kube remove --context backend --env production
 ```
 
 ### 2.4 Verify

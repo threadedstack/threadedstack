@@ -8,8 +8,8 @@ import type {
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
-import { SandboxRuntimeConfigs, ESandboxRuntime, DefaultWorkdir } from '@tdsk/domain'
 import { EnvProfilePath, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
+import { DefaultWorkdir, ESandboxRuntime, SandboxRuntimeConfigs } from '@tdsk/domain'
 import {
   KubeSBPrefix,
   PodLabelKeys,
@@ -120,23 +120,18 @@ const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
     image: initImage || DefaultInitImage,
     name: `proxy-redirect`,
     securityContext: {
-      capabilities: {
-        drop: [`ALL`],
-        add: [`NET_ADMIN`],
-      },
-      seccompProfile: {
-        type: `RuntimeDefault`,
-      },
+      capabilities: { add: [`NET_ADMIN`] },
     },
     command: [
       `sh`,
       `-c`,
       [
+        `if iptables -t nat -L -n >/dev/null 2>&1; then IPT=iptables; else IPT=iptables-legacy; fi`,
         serviceIp
           ? `EGRESS_IP="${serviceIp}"`
           : `EGRESS_IP=$(getent hosts ${serviceName} | awk '{print $1}')`,
-        `iptables -t nat -A OUTPUT -p tcp --dport 80 -j DNAT --to-destination $EGRESS_IP:${servicePort}`,
-        `iptables -t nat -A OUTPUT -p tcp --dport 443 -j DNAT --to-destination $EGRESS_IP:${servicePort}`,
+        `$IPT -t nat -A OUTPUT -p tcp --dport 80 -j DNAT --to-destination $EGRESS_IP:${servicePort}`,
+        `$IPT -t nat -A OUTPUT -p tcp --dport 443 -j DNAT --to-destination $EGRESS_IP:${servicePort}`,
       ].join(` && `),
     ],
   }
@@ -147,6 +142,7 @@ const buildSandboxContainer = (
   extraEnv?: Record<string, string>
 ): V1Container => {
   const env: V1EnvVar[] = [
+    { name: `TERM`, value: `xterm-256color` },
     { name: `DISABLE_AUTOUPDATER`, value: `1` },
     { name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath },
     ...buildEnvVars(config.envVars),

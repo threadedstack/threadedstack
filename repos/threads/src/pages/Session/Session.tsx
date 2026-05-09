@@ -364,6 +364,7 @@ const SessionInner = () => {
             <SessionGUIView sessionId={sessionId} />
           ) : (
             <TerminalView
+              key={sessionId}
               sessionId={sessionId}
               active={viewMode === `terminal`}
             />

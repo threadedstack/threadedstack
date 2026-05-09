@@ -129,15 +129,12 @@ describe(`buildPodManifest`, () => {
     expect(initContainer.name).toBe(`proxy-redirect`)
     expect(initContainer.image).toBe(`ghcr.io/threadedstack/tdsk-init`)
     expect(initContainer.securityContext!.capabilities!.add).toContain(`NET_ADMIN`)
-    expect(initContainer.securityContext!.capabilities!.drop).toEqual([`ALL`])
-    expect(initContainer.securityContext!.seccompProfile).toEqual({
-      type: `RuntimeDefault`,
-    })
 
     const cmd = initContainer.command!
     expect(cmd[0]).toBe(`sh`)
     expect(cmd[1]).toBe(`-c`)
-    expect(cmd[2]).toContain(`iptables`)
+    expect(cmd[2]).toContain(`iptables-legacy`)
+    expect(cmd[2]).toContain(`$IPT -t nat`)
     expect(cmd[2]).toContain(egressOpts.serviceName)
     expect(cmd[2]).toContain(egressOpts.servicePort)
   })
@@ -225,11 +222,13 @@ describe(`buildPodManifest`, () => {
   it(`should only have default env vars when no envVars configured`, () => {
     const manifest = buildPodManifest(buildOpts())
     const env = manifest.spec!.containers![0].env!
-    expect(env).toHaveLength(2)
-    expect(env[0].name).toBe(`DISABLE_AUTOUPDATER`)
-    expect(env[0].value).toBe(`1`)
-    expect(env[1].name).toBe(`NODE_EXTRA_CA_CERTS`)
-    expect(env[1].value).toBe(CACertMountPath)
+    expect(env).toHaveLength(3)
+    expect(env[0].name).toBe(`TERM`)
+    expect(env[0].value).toBe(`xterm-256color`)
+    expect(env[1].name).toBe(`DISABLE_AUTOUPDATER`)
+    expect(env[1].value).toBe(`1`)
+    expect(env[2].name).toBe(`NODE_EXTRA_CA_CERTS`)
+    expect(env[2].value).toBe(CACertMountPath)
   })
 
   it(`should include port mappings when specified`, () => {

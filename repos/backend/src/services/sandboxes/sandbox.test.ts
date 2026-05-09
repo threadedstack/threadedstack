@@ -803,6 +803,53 @@ describe(`SandboxService`, () => {
       expect(kube.deletePod).toHaveBeenCalledWith(`orphan-pod`, 30)
     })
 
+    it(`should cleanup pod tracking when getPod returns 404 via statusCode`, async () => {
+      const kubeError = Object.assign(new Error(`Not Found`), { statusCode: 404 })
+      kube.getPod.mockRejectedValue(kubeError)
+      kube.deletePod.mockResolvedValue(undefined)
+      kube.deleteSecret.mockResolvedValue(undefined)
+
+      svc.updateActivity(`gone-pod`)
+
+      const original = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original, idleInterval: 50, timeoutMin: 0 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(kube.deletePod).not.toHaveBeenCalled()
+      expect((svc as any).podActivity.has(`gone-pod`)).toBe(false)
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining(`gone-pod no longer exists`)
+      )
+    })
+
+    it(`should cleanup pod tracking when getPod returns 404 via code`, async () => {
+      const kubeError = Object.assign(new Error(`Not Found`), { code: 404 })
+      kube.getPod.mockRejectedValue(kubeError)
+      kube.deletePod.mockResolvedValue(undefined)
+      kube.deleteSecret.mockResolvedValue(undefined)
+
+      svc.updateActivity(`gone-pod-2`)
+
+      const original = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original, idleInterval: 50, timeoutMin: 0 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(kube.deletePod).not.toHaveBeenCalled()
+      expect((svc as any).podActivity.has(`gone-pod-2`)).toBe(false)
+    })
+
     it(`should not stop pods that have active sessions`, async () => {
       kube.deletePod.mockResolvedValue(undefined)
 

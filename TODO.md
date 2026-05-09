@@ -8,6 +8,41 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Backend
 
+#### `startSandbox.ts` — Fire-and-Forget Pod Creation
+
+**File**: `repos/backend/src/endpoints/sandboxes/startSandbox.ts` (lines 25-33)
+
+**Problem**: The `startSandbox` endpoint calls `sb.startPod()` and immediately returns the pod name with a 201 status without waiting for the pod to reach `Running`. If the pod fails to schedule (invalid RuntimeClass, insufficient resources, image pull failure), the user receives a success response for a pod that will never start.
+
+**Impact**: The user has no indication the pod is stuck. Subsequent operations (exec, connect, shell) will fail with unrelated errors. The pod sits in `Pending` until the idle timeout cleans it up (30 min default).
+
+**Contrast**: `connectSandbox.ts` already has a polling loop that waits for `Running` state with a 120s timeout — `startSandbox` lacks this.
+
+**Possible fix**: Either poll for Running state like `connectSandbox.ts` does, or return the pod name with a status that indicates the pod is still starting (e.g., 202 Accepted) and let the client poll via a separate status endpoint.
+
+
+#### `resolveAgentConfig.ts` — Agent Starts Pod Without State Verification
+
+**File**: `repos/backend/src/utils/agent/resolveAgentConfig.ts` (lines 116-124)
+
+**Problem**: When the agent runner starts a sandbox pod, it immediately uses the pod name without waiting for the pod to reach `Running`. With a scheduling failure, the agent tries to execute commands against a non-running pod.
+
+**Impact**: The error surfaces from the exec/sandbox operation rather than from pod startup, making root cause diagnosis harder. The user sees something like "failed to exec in pod" rather than "pod failed to start because RuntimeClass not found."
+
+**Possible fix**: Add a wait-for-Running loop (similar to `connectSandbox.ts`) before returning the pod to the agent runner.
+
+#### `connectSandbox.ts` — Generic Timeout with No Root-Cause Logging
+
+**File**: `repos/backend/src/endpoints/sandboxes/connectSandbox.ts` (lines 52-97)
+
+**Problem**: The polling loop checks for `Failed` and `Terminating` states but does not inspect pod conditions during prolonged `Pending`. When a pod is stuck (e.g., nonexistent RuntimeClass), the user waits the full 120 seconds and gets a generic 504: "Pod did not reach Running state within timeout." Backend logs show the same generic message with no detail about *why* the pod is stuck.
+
+**Impact**: Operators debugging a production issue must manually `kubectl describe pod` to discover the root cause. If the RuntimeClass is misconfigured, every pod creation fails with the same opaque 2-minute timeout.
+
+**Possible fix**: During the polling loop, when state is `Pending` for more than ~30 seconds, fetch the pod's `status.conditions` and log them. K8s includes messages like `"RuntimeClass 'kata-clhh' not found"` in conditions that would immediately identify the problem. Optionally include condition messages in the 504 error response.
+
+
+
 ### Custom Endpoints
 
 * There are three custom endpoints types (agent, faas, proxy) with corresponding endpoint services
@@ -50,9 +85,11 @@ Items are split into separate groups, with the sub repo name as the header.
 
 * Setup wizard is very broken
 * Hide domains in navigation behind a feature flag
-
+* Add a warning when an AI provider is added to a sandbox and it doesn't have an auth secret and allow the user to select/add one from the same UI
 
 ## Threads
+
+* If a user has multiple session opened. And they click the x button in the tab of the currently active session, it closes the tab and session, but does not switch to the next closest tab or navigate back to the sandbox view if no sessions are opened. Instead it shows a spinner and waits on the current screen. Eventually is reconnects back to the session that was just closed and UI updates to show the session. It literally reopens the session the user just closed.
 
 * Using the sidebar to navigate to a sandbox page, in the main content area, a list of running sandboxes should be displayed, but currently it does not display. If I refresh the browser, then it displays as expected
 * Sidebar nav: sessions sometimes don't appear under their parent sandbox even when they exist on the backend. Something in the nav items is not being updated when switching between a running session and its parent sandbox.

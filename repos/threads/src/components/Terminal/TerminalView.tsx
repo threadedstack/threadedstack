@@ -63,7 +63,6 @@ export const TerminalView = (props: TTerminalView) => {
       fitAddon = new FitAddon()
       term.loadAddon(fitAddon)
       term.open(container)
-      fitAddon.fit()
       fitAddon.observeResize()
     } catch (err) {
       console.error(
@@ -72,6 +71,8 @@ export const TerminalView = (props: TTerminalView) => {
       )
       return
     }
+
+    const rafId = requestAnimationFrame(() => fitAddon.fit())
 
     termRef.current = term
     fitAddonRef.current = fitAddon
@@ -89,6 +90,7 @@ export const TerminalView = (props: TTerminalView) => {
     })
 
     return () => {
+      cancelAnimationFrame(rafId)
       dataDisposable.dispose()
       resizeDisposable.dispose()
       unsubscribe()
