@@ -4,13 +4,13 @@ import type { TOnboardingStepData } from '@TAF/types'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useState, useCallback } from 'react'
-import { ProviderTemplates } from '@tdsk/domain'
+import { LLMProviderTemplates } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
 import { Text, TextInput } from '@tdsk/components'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import {
-  ResourceChoiceCard,
   SkipWarning,
+  ResourceChoiceCard,
 } from '@TAF/components/Onboarding/OnboardingWizard.styled'
 
 export type TProviderStep = {
@@ -19,9 +19,9 @@ export type TProviderStep = {
   onUpdate: (data: TOnboardingStepData['provider']) => void
 }
 
-const brands = Object.entries(ProviderTemplates) as [
+const brands = Object.entries(LLMProviderTemplates) as [
   TLLMProviderBrand,
-  (typeof ProviderTemplates)[keyof typeof ProviderTemplates],
+  (typeof LLMProviderTemplates)[keyof typeof LLMProviderTemplates],
 ][]
 
 export const ProviderStep = (props: TProviderStep) => {
@@ -35,7 +35,7 @@ export const ProviderStep = (props: TProviderStep) => {
   )
 
   const onSelectMode = useCallback(
-    (mode: 'create' | 'select') => {
+    (mode: `create` | `select`) => {
       setShowChoice(false)
       if (mode === `create`)
         onUpdate({
@@ -254,8 +254,8 @@ export const ProviderStep = (props: TProviderStep) => {
         type='password'
         label='API Key'
         placeholder={
-          ProviderTemplates[
-            stepData.data?.providerBrand as keyof typeof ProviderTemplates
+          LLMProviderTemplates[
+            stepData.data?.providerBrand as keyof typeof LLMProviderTemplates
           ]?.apiKeyPlaceholder || `Enter API key`
         }
         value={stepData.data?.apiKey || ``}

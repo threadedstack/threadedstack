@@ -1,9 +1,10 @@
 import type { Sandbox, TKubeSandboxConfig, TPlaceholderMap } from '@tdsk/domain'
 
 export type TPodEgressOpts = {
+  initImage?: string
+  serviceIp?: string
   servicePort: number
   serviceName: string
-  serviceIp?: string
   certSecretName: string
 }
 
@@ -14,6 +15,7 @@ export type TBuildPodOpts = {
   projectId?: string
   namespace?: string
   egressOpts: TPodEgressOpts
+  imagePullSecrets?: string[]
   placeholders: TPlaceholderMap
   extraEnv?: Record<string, string>
 }

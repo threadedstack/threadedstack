@@ -24,6 +24,7 @@ export const createProvider: TEndpointConfig = {
 
     db.services.provider.validateType(providerData.type)
     db.services.provider.validateLLM(providerData.type, providerData.brand)
+    db.services.provider.validateDocker(providerData.type, providerData.brand)
 
     const { data, error } = await db.services.provider.create({
       ...providerData,

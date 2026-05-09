@@ -14,11 +14,13 @@ import {
   Exception,
   EProvider,
   ELLMProviderBrand,
+  EDockerProviderBrand,
   Provider as ProviderModel,
 } from '@tdsk/domain'
 
 const validTypes = Object.values(EProvider) as string[]
 const validLLMProviders = Object.values(ELLMProviderBrand) as string[]
+const validDockerBrands = Object.values(EDockerProviderBrand) as string[]
 
 type TResolveLLProvider = {
   name?: string | null
@@ -28,7 +30,7 @@ type TResolveLLProvider = {
 export type TProviderValidate = {
   orgId: string
   inputs: unknown
-  type?: TProviderType
+  type?: TProviderType | TProviderType[]
 }
 
 export class Provider extends Base<
@@ -68,6 +70,17 @@ export class Provider extends Base<
       throw new Exception(
         400,
         `AI providers require brand to be one of: ${validLLMProviders.join(`, `)}` +
+          (brand ? `. Got: "${brand}"` : ``)
+      )
+  }
+
+  validateDocker = (type?: string, brand?: string | null) => {
+    if (type !== EProvider.docker) return
+
+    if (!brand || !isStr(brand) || !validDockerBrands.includes(brand))
+      throw new Exception(
+        400,
+        `Docker providers require brand to be one of: ${validDockerBrands.join(`, `)}` +
           (brand ? `. Got: "${brand}"` : ``)
       )
   }
@@ -132,11 +145,14 @@ export class Provider extends Base<
           `Provider ${pin.id} does not belong to organization ${orgId}`
         )
 
-      if (type && provider.type !== type)
-        throw new Exception(
-          400,
-          `Invalid ${provider.type} provider. Only ${type} providers are allowed`
-        )
+      if (type) {
+        const allowed = Array.isArray(type) ? type : [type]
+        if (!allowed.includes(provider.type as TProviderType))
+          throw new Exception(
+            400,
+            `Invalid ${provider.type} provider. Only ${allowed.join(`, `)} providers are allowed`
+          )
+      }
     }
 
     return pins

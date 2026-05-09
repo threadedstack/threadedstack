@@ -6,6 +6,7 @@ export enum EProvider {
   ai = `ai`,
   git = `git`,
   auth = `auth`,
+  docker = `docker`,
   storage = `storage`,
 }
 export type TProviderType = `${EProvider}`
@@ -20,10 +21,20 @@ export enum EStorageProviderBrand {
 }
 export type TStorageProviderBrand = `${EStorageProviderBrand}`
 
+export enum EDockerProviderBrand {
+  ghcr = `ghcr`,
+  gitlab = `gitlab`,
+  quay = `quay`,
+  dockerhub = `dockerhub`,
+  custom = `custom`,
+}
+export type TDockerProviderBrand = `${EDockerProviderBrand}`
+
 export type TProviderBrand =
-  | TLLMProviderBrand
   | TGitBrand
+  | TLLMProviderBrand
   | TAuthProviderBrand
+  | TDockerProviderBrand
   | TStorageProviderBrand
 
 /**
@@ -72,4 +83,11 @@ export type TProviderTemplate = {
   apiKeyPattern?: string
   defaultSecretName: string
   apiKeyPlaceholder: string
+}
+
+export type TDockerProviderTemplate = {
+  name: string
+  registry: string
+  id: TDockerProviderBrand
+  defaultSecretName: string
 }

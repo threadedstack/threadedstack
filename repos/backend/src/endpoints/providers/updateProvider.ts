@@ -27,6 +27,7 @@ export const updateProvider: TEndpointConfig = {
 
     if (type) db.services.provider.validateType(type)
     db.services.provider.validateLLM(effectiveType, effectiveBrand)
+    db.services.provider.validateDocker(effectiveType, effectiveBrand)
 
     const { data, error } = await db.services.provider.update({
       id,

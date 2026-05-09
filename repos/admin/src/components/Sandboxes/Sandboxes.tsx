@@ -11,11 +11,12 @@ import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConnectModal } from '@TAF/components/Sandboxes/ConnectModal'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ESBState, ESandboxRuntime, EPermResource } from '@tdsk/domain'
-import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
 import { useOrgSandboxes, useProjectSandboxes } from '@TAF/state/selectors'
+import { OrgSandboxDrawer } from '@TAF/components/Sandboxes/OrgSandboxDrawer'
 import { Box, Typography, Chip, CircularProgress, Tooltip } from '@mui/material'
 import { getSandboxSessions } from '@TAF/actions/sandboxes/api/getSandboxSessions'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import { ProjectSandboxDrawer } from '@TAF/components/Sandboxes/ProjectSandboxDrawer'
 import {
   copySandbox,
   stopSandbox,
@@ -57,7 +58,8 @@ const styles = {
 
 type TPodState = { podName: string; state: ESBState }
 
-export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
+export const Sandboxes = (props: TSandboxes) => {
+  const { orgId, projectId } = props
   const [orgSandboxes] = useOrgSandboxes()
   const [loading, setLoading] = useState(false)
   const [projectSandboxes] = useProjectSandboxes()
@@ -148,8 +150,8 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
     const result = await stopSandbox({
       orgId,
       projectId,
-      sandboxId: sandbox.id,
       podName: pod.podName,
+      sandboxId: sandbox.id,
     })
     setBusy(sandbox.id, false)
 
@@ -176,8 +178,8 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
     setPodStates((prev) => ({
       ...prev,
       [sandbox.id]: {
-        podName: prev[sandbox.id]?.podName || ``,
         state: ESBState.Starting,
+        podName: prev[sandbox.id]?.podName || ``,
       },
     }))
 
@@ -565,6 +567,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
 
   return (
     <PageLayout
+      searchCount={0}
       loading={loading}
       countLabel='config'
       query={searchQuery}
@@ -572,7 +575,6 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
       error={error?.message}
       title='Sandbox Configs'
       setSearchQuery={setSearchQuery}
-      searchCount={0}
       searchPlaceholder='Search sandbox configs...'
       onAction={sandboxCount > 0 && onCreateSandbox}
       actionLabel={sandboxCount > 0 && 'Create Sandbox'}
@@ -602,11 +604,21 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
         />
       )}
 
-      {orgId && (
-        <SandboxDrawer
+      {orgId && projectId && (
+        <ProjectSandboxDrawer
           orgId={orgId}
           open={dialogOpen}
           projectId={projectId}
+          onRemove={setDeleting}
+          onClose={onDialogClose}
+          sandbox={selectedSandbox}
+        />
+      )}
+
+      {orgId && !projectId && (
+        <OrgSandboxDrawer
+          orgId={orgId}
+          open={dialogOpen}
           onRemove={setDeleting}
           onClose={onDialogClose}
           sandbox={selectedSandbox}

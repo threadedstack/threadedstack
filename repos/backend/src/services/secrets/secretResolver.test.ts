@@ -324,6 +324,19 @@ describe(`SecretResolver#resolveApiKey`, () => {
 
     expect(result).toBe(``)
   })
+
+  it(`should throw Exception(500) when DB returns an error`, async () => {
+    const db = createMockDb()
+    ;(db.services.secret.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: { message: `connection refused` },
+    })
+    const resolver = new SecretResolver(db)
+
+    await expect(
+      resolver.resolveApiKey({ orgId: `org-1` }, { id: `prov-1`, secretId: `sec-1` })
+    ).rejects.toThrow(`Failed to fetch secret sec-1: connection refused`)
+  })
 })
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -675,6 +688,132 @@ describe(`SecretResolver#resolveHeaders`, () => {
     expect(db.services.secret.list).toHaveBeenCalledWith({
       where: { orgId: `org-1` },
     })
+  })
+})
+
+// ── SecretResolver#loadAndDecrypt ────────────────────────────────────
+
+describe(`SecretResolver#loadAndDecrypt`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it(`should throw Exception(500) when provider secret query fails`, async () => {
+    const db = {
+      services: {
+        secret: {
+          get: vi.fn(),
+          list: vi.fn().mockResolvedValue({
+            data: undefined,
+            error: { message: `connection refused` },
+          }),
+        },
+      },
+    }
+    const resolver = new SecretResolver(db)
+
+    await expect(
+      resolver.loadAndDecrypt({ providerId: `prov-1`, orgId: `org-1` })
+    ).rejects.toThrow(`Failed to list provider secrets for prov-1: connection refused`)
+  })
+
+  it(`should throw when provider secret query fails`, async () => {
+    const db = {
+      services: {
+        secret: {
+          get: vi.fn(),
+          list: vi
+            .fn()
+            .mockResolvedValueOnce({ data: undefined, error: { message: `timeout` } })
+            .mockResolvedValueOnce({ data: [], error: undefined }),
+        },
+      },
+    }
+    const resolver = new SecretResolver(db)
+
+    await expect(
+      resolver.loadAndDecrypt({ providerId: `prov-1`, orgId: `org-1` })
+    ).rejects.toThrow(`Failed to list provider secrets for prov-1: timeout`)
+  })
+
+  it(`should throw when org secret query fails`, async () => {
+    const db = {
+      services: {
+        secret: {
+          get: vi.fn(),
+          list: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [], error: undefined })
+            .mockResolvedValueOnce({
+              data: undefined,
+              error: { message: `permission denied` },
+            }),
+        },
+      },
+    }
+    const resolver = new SecretResolver(db)
+
+    await expect(
+      resolver.loadAndDecrypt({ providerId: `prov-1`, orgId: `org-1` })
+    ).rejects.toThrow(`Failed to list org secrets for org-1: permission denied`)
+  })
+
+  it(`should return decrypted secrets from both provider and org scopes`, async () => {
+    const provSecret = {
+      id: `aaaaaaaaaa`,
+      name: `PROV_KEY`,
+      encryptedValue: fakeEncrypted(),
+      providerId: `prov-1`,
+      orgId: `org-1`,
+    }
+    const orgSecret = {
+      id: `bbbbbbbbbb`,
+      name: `ORG_KEY`,
+      encryptedValue: fakeEncrypted(),
+      orgId: `org-1`,
+    }
+    const db = {
+      services: {
+        secret: {
+          get: vi.fn(),
+          list: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [provSecret] })
+            .mockResolvedValueOnce({ data: [orgSecret] }),
+        },
+      },
+    }
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.loadAndDecrypt({ providerId: `prov-1`, orgId: `org-1` })
+    expect(result).toHaveLength(2)
+    expect(result[0].id).toBe(`aaaaaaaaaa`)
+    expect(result[1].id).toBe(`bbbbbbbbbb`)
+  })
+
+  it(`should deduplicate secrets by ID`, async () => {
+    const sharedSecret = {
+      id: `aaaaaaaaaa`,
+      name: `SHARED`,
+      encryptedValue: fakeEncrypted(),
+      providerId: `prov-1`,
+      orgId: `org-1`,
+    }
+    const db = {
+      services: {
+        secret: {
+          get: vi.fn(),
+          list: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [sharedSecret] })
+            .mockResolvedValueOnce({ data: [sharedSecret] }),
+        },
+      },
+    }
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.loadAndDecrypt({ providerId: `prov-1`, orgId: `org-1` })
+    expect(result).toHaveLength(1)
   })
 })
 

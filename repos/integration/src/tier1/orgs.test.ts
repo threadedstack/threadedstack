@@ -176,7 +176,7 @@ describe('Tier 1: Org Write Operations', () => {
       // Use a freshly created org to test admin-cannot-delete safely.
       // NEVER send DELETE for ctx.orgId — if the backend allows it, the seed org is destroyed.
       const createRes = await post<Record<string, any>>('/orgs', {
-        name: `admin-delete-test-${Date.now()}`,
+        name: uniqueName('admin-delete-test'),
       })
       if (createRes.status !== 201 || !createRes.data?.id) {
         console.warn('[orgs] SKIPPED: admin delete 403 test — could not create test org')

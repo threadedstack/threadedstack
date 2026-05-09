@@ -9,9 +9,6 @@ env:
 
 
 # ---- Caddy Envs ---- #
-  # TODO: Figure this out compared to internal proxy
-  TDSK_CADDY_PROXY_PROTOCOL: on
-  TDSK_CADDY_TLS_MODE: on_demand
   TDSK_CADDY_PX_HOST: px.threadedstack.app
   TDSK_CADDY_ACME_EMAIL: admin@threadedstack.com
 

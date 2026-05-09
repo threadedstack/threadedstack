@@ -50,10 +50,17 @@ const tryDel = async (path: string) => {
 const cleanupStaleTestResources = async (orgId: string) => {
   type TResource = { id: string; name: string }
 
-  // Agents first (threads cascade from agents)
+  // Agents first — delete threads before agents (agent deletion orphans threads via set null)
   const agentsRes = await get<TResource[]>(`/orgs/${orgId}/agents?limit=200`)
-  for (const agent of (agentsRes.data || [])) {
-    if (isTestResource(agent.name)) await tryDel(`/orgs/${orgId}/agents/${agent.id}`)
+  const staleAgents = (agentsRes.data || []).filter(a => isTestResource(a.name))
+  for (const agent of staleAgents) {
+    const threadsRes = await get<TResource[]>(`/orgs/${orgId}/agents/${agent.id}/threads?limit=200`)
+    if (threadsRes.ok) {
+      for (const thread of (threadsRes.data || [])) {
+        await tryDel(`/orgs/${orgId}/agents/${agent.id}/threads/${thread.id}`)
+      }
+    }
+    await tryDel(`/orgs/${orgId}/agents/${agent.id}`)
   }
 
   // Projects (endpoints, functions cascade from projects)
@@ -101,7 +108,7 @@ const cleanupStaleTestResources = async (orgId: string) => {
     const { execFileSync } = await import('node:child_process')
     const podsRaw = execFileSync(
       'kubectl',
-      ['get', 'pods', '-l', 'tdsk.app/managed=true', '-o', 'json'],
+      ['--context', env.kubeContext, 'get', 'pods', '-n', env.kubeNamespace, '-l', 'tdsk.app/managed=true', '-o', 'json'],
       { encoding: 'utf-8', timeout: 15_000 }
     ).trim()
 
@@ -296,6 +303,12 @@ export default async function setup() {
       loadEnvs()
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
       const ctx = readContext()
+
+      try {
+        await cleanupStaleTestResources(ctx.orgId)
+      } catch (err) {
+        console.warn(`[global-teardown] Stale resource cleanup failed: ${(err as Error).message}`)
+      }
 
       if (ctx.adminApiKeyId) {
         await del(`/orgs/${ctx.orgId}/api-keys/${ctx.adminApiKeyId}`)

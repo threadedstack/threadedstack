@@ -13,6 +13,7 @@ import {
   waitForPodState,
 } from '../utils/sandbox-helpers'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: Sandbox Route Map Cleanup
@@ -178,8 +179,8 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
       orgId: ctx.orgId,
       providerBrand: 'zai',
       apiKey: env.testProviderKey,
-      projectName: `route-cleanup-ws-${Date.now()}`,
-      agentName: `route-cleanup-ws-agent-${Date.now()}`,
+      projectName: uniqueName('route-cleanup-ws'),
+      agentName: uniqueName('route-cleanup-ws-agent'),
     })
     expect(fixtures.provider).toBeDefined()
     const agentId = fixtures.agent!.id

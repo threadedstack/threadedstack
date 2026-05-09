@@ -125,13 +125,6 @@ vars:
   TDSK_CADDY_IMAGE:
     source: env
     default: ghcr.io/threadedstack/tdsk-caddy
-  TDSK_CADDY_PROXY_PROTOCOL:
-    source: env
-    default: off
-  TDSK_CADDY_TLS_MODE:
-    source: env
-    default: internal
-
 
 # ----- Backend Values ----- #
   TDSK_BE_DEPLOYMENT:
@@ -189,8 +182,7 @@ hooks:
   - events: ["before:deploy:tdsk-caddy"]
     silent: true
     command: |-
-      CADDY_FILE="./Caddyfile"; [ "${TDSK_CADDY_PROXY_PROTOCOL:-off}" = "on" ] && CADDY_FILE="./Caddyfile.production"
-      kubectl create configmap caddy-config --from-file=Caddyfile="$CADDY_FILE" --dry-run=client -o yaml | kubectl apply -f -
+      kubectl create configmap caddy-config -n ${devspace.namespace} --context ${devspace.context} --from-file=Caddyfile="./Caddyfile" --dry-run=client -o yaml | kubectl apply -n ${devspace.namespace} --context ${devspace.context} -f -
 
 images:
   tdsk-app:
@@ -251,8 +243,6 @@ deployments:
                 value: ${TDSK_SERVER_ORIGINS}
               - name: TDSK_ALLOWED_HEADERS
                 value: ${TDSK_ALLOWED_HEADERS}
-              - name: TDSK_CADDY_TLS_MODE
-                value: ${TDSK_CADDY_TLS_MODE}
               - name: TDSK_CADDY_ADMIN_HOST
                 value: ${TDSK_CADDY_ADMIN_HOST}
               - name: TDSK_CADDY_ACME_EMAIL

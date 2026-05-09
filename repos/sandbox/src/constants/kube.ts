@@ -3,6 +3,9 @@ import { EContainerState } from '@tdsk/domain'
 // 10 minutes — K8s client bug #596 workaround
 export const PodCycleInterval = 10 * 60 * 1000
 
+export const DefaultInitImage =
+  process.env.TDSK_SB_INIT_IMAGE || `ghcr.io/threadedstack/tdsk-init`
+
 export const ContainerStatesSet = new Set<string>(Object.values(EContainerState))
 export const InClusterNamespacePath = `/var/run/secrets/kubernetes.io/serviceaccount/namespace`
 

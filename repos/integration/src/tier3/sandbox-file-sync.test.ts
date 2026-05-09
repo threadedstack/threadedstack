@@ -132,7 +132,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       // ApiClient.injectSshKey in repos/tsa/src/services/api.ts — keep them in sync.
       const publicKey = getPublicKey()
       const escaped = publicKey.replace(/'/g, `'\\''`)
-      await execInPod(
+      const sshKeyRes = await execInPod(
         ctx.orgId, projectId, sandboxId, podName,
         `mkdir -p /home/sandbox/.ssh && echo '${escaped}' > /home/sandbox/.ssh/authorized_keys && chmod 700 /home/sandbox/.ssh && chmod 600 /home/sandbox/.ssh/authorized_keys && chown -R sandbox:sandbox /home/sandbox/.ssh`
       )

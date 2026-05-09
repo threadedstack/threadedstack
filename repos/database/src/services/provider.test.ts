@@ -120,6 +120,10 @@ describe(`Provider service`, () => {
       expect(service.validateType(`storage`)).toBe(true)
     })
 
+    it(`should return true for type 'docker'`, () => {
+      expect(service.validateType(`docker`)).toBe(true)
+    })
+
     it(`should throw for undefined type`, () => {
       expect(() => service.validateType(undefined)).toThrow(`Provider type is required`)
     })
@@ -188,6 +192,54 @@ describe(`Provider service`, () => {
     it(`should not include 'Got:' when brand is missing`, () => {
       try {
         service.validateLLM(`ai`)
+        expect.unreachable(`should have thrown`)
+      } catch (err: any) {
+        expect(err.message).not.toContain(`Got:`)
+      }
+    })
+  })
+
+  // ---------- validateDocker ----------
+  describe(`validateDocker`, () => {
+    it(`should return undefined for non-docker type 'ai'`, () => {
+      expect(service.validateDocker(`ai`, `ghcr`)).toBeUndefined()
+    })
+
+    it(`should return undefined for non-docker type 'git'`, () => {
+      expect(service.validateDocker(`git`)).toBeUndefined()
+    })
+
+    it(`should return undefined for undefined type`, () => {
+      expect(service.validateDocker(undefined)).toBeUndefined()
+    })
+
+    it(`should throw for type='docker' with no brand`, () => {
+      expect(() => service.validateDocker(`docker`)).toThrow()
+    })
+
+    it(`should throw for type='docker' with null brand`, () => {
+      expect(() => service.validateDocker(`docker`, null)).toThrow()
+    })
+
+    it(`should throw for type='docker' with invalid brand string`, () => {
+      expect(() => service.validateDocker(`docker`, `acr`)).toThrow()
+    })
+
+    it(`should not throw for valid docker brands`, () => {
+      expect(() => service.validateDocker(`docker`, `ghcr`)).not.toThrow()
+      expect(() => service.validateDocker(`docker`, `gitlab`)).not.toThrow()
+      expect(() => service.validateDocker(`docker`, `quay`)).not.toThrow()
+      expect(() => service.validateDocker(`docker`, `dockerhub`)).not.toThrow()
+      expect(() => service.validateDocker(`docker`, `custom`)).not.toThrow()
+    })
+
+    it(`should include 'Got:' when invalid brand is provided`, () => {
+      expect(() => service.validateDocker(`docker`, `invalid`)).toThrow(`Got: "invalid"`)
+    })
+
+    it(`should not include 'Got:' when brand is missing`, () => {
+      try {
+        service.validateDocker(`docker`)
         expect.unreachable(`should have thrown`)
       } catch (err: any) {
         expect(err.message).not.toContain(`Got:`)
@@ -329,6 +381,36 @@ describe(`Provider service`, () => {
       await expect(service.validate({ orgId, inputs: pins, type: `ai` })).rejects.toThrow(
         `Invalid git provider. Only ai providers are allowed`
       )
+    })
+
+    it(`should accept providers matching any type in an array`, async () => {
+      const pins = [{ id: `prov-ai` }, { id: `prov-docker` }]
+      mocks.listMock.mockResolvedValue({
+        data: [
+          { id: `prov-ai`, orgId, type: `ai` },
+          { id: `prov-docker`, orgId, type: `docker` },
+        ],
+        error: undefined,
+      })
+
+      const result = await service.validate({
+        orgId,
+        inputs: pins,
+        type: [`ai`, `docker`],
+      })
+      expect(result).toEqual(pins)
+    })
+
+    it(`should reject providers not matching any type in an array`, async () => {
+      const pins = [{ id: `prov-1` }]
+      mocks.listMock.mockResolvedValue({
+        data: [{ id: `prov-1`, orgId, type: `git` }],
+        error: undefined,
+      })
+
+      await expect(
+        service.validate({ orgId, inputs: pins, type: [`ai`, `docker`] })
+      ).rejects.toThrow(`Invalid git provider. Only ai, docker providers are allowed`)
     })
 
     it(`should throw 500 when db.services.provider.list returns error`, async () => {

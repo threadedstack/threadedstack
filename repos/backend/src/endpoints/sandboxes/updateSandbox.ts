@@ -28,9 +28,9 @@ export const updateSandbox: TEndpointConfig = {
       throw new Exception(400, `gitBranch requires gitRepo to be set`)
 
     const pins = await db.services.provider.validate({
-      type: EProvider.ai,
       orgId: existing.orgId,
       inputs: providerInputs,
+      type: [EProvider.ai, EProvider.docker],
     })
 
     const { data: projects, error: projErr } = projectIds?.length

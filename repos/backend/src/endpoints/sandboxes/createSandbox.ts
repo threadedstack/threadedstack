@@ -47,8 +47,8 @@ export const createSandbox: TEndpointConfig = {
 
     const pins = await db.services.provider.validate({
       orgId,
-      type: EProvider.ai,
       inputs: providerInputs,
+      type: [EProvider.ai, EProvider.docker],
     })
 
     const { data: projects, error: projErr } = projectIds?.length

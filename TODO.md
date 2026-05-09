@@ -48,9 +48,8 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Admin UI
 
-### Create/Edit Sandbox Drawer
-
-* Needs to be cleaned up and simplified. Options are not well organized or separated properly. Some options are in an Accordion, while others are just displayed directly. No consistency and no organization makes for a bad user experience.
+* Setup wizard is very broken
+* Hide domains in navigation behind a feature flag
 
 
 ## Threads
@@ -61,6 +60,13 @@ Items are split into separate groups, with the sub repo name as the header.
 * Remove duplicate components / styles, refactor so they can be shared
 
 
+## Sandbox
+
+* When building the sandbox docker image, I see the following error:
+  ```
+  # Warning: Ignoring extra certs from `/usr/local/share/ca-certificates/tdsk-proxy.crt`, load failed: error:80000002:system library::No such file or directory
+  ```
+  * Is this an issue? Something that we should be concerned about? How do we fix it?
+
+
 ## Multi-Repo
-
-

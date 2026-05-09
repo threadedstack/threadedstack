@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws'
-import type { Client, ClientChannel } from 'ssh2'
+import type { PassThrough } from 'stream'
 import type { RingBuffer } from '@TBE/utils/ringBuffer'
 import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
@@ -17,16 +17,19 @@ export type TPtyRecorder = {
 export type TShellSession = {
   readonly orgId: string
   readonly userId: string
-  readonly sessionId: string
-  readonly sshClient: Client
   readonly threadId: string
   readonly sandboxId: string
+  readonly sessionId: string
+  readonly stdin: PassThrough
   readonly buffer: RingBuffer
-  readonly sshStream: ClientChannel
+  readonly stdout: PassThrough
+  readonly closeExec: () => void
+  readonly resize: (cols: number, rows: number) => void
+
+  projectId?: string
   ptyRecorder: TPtyRecorder
   attachments: Set<WebSocket>
   ttlTimer: NodeJS.Timeout | null
-  projectId?: string
   visibility: ESandboxSessionVisibility
 }
 

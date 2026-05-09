@@ -120,6 +120,24 @@ describe(`BaseEndpoint`, () => {
 
       expect(result).toEqual([])
     })
+
+    it(`should throw 502 when database returns an error`, async () => {
+      const mockDb = {
+        services: {
+          secret: {
+            list: vi.fn().mockResolvedValue({
+              data: undefined,
+              error: { message: `connection refused` },
+            }),
+          },
+        },
+      }
+
+      const endpoint = { projectId: `proj-123` } as any
+      await expect(service.fetchSecrets(mockDb as any, endpoint)).rejects.toThrow(
+        `Failed to fetch secrets for project proj-123: connection refused`
+      )
+    })
   })
 
   describe(`validateProject`, () => {

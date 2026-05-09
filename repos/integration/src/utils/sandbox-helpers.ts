@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import type { TPlaceholderEntry } from '@tdsk/domain'
 import { api, get, post } from './api-client'
+import { env } from './env'
 import { uniqueName } from './unique-name'
 import { tryDelete } from './cleanup'
 
@@ -72,7 +73,7 @@ export const waitForPodState = async (
     )
 
     if (res.status !== 200) {
-      if ((res.status === 403 || res.status >= 500) && retries < 3) {
+      if ((res.status === 403 || res.status === 404 || res.status >= 500) && retries < 3) {
         retries++
         await new Promise(r => setTimeout(r, intervalMs))
         continue
@@ -128,7 +129,7 @@ export const execInPod = async (
 export const getPodPlaceholders = (podName: string): Record<string, TPlaceholderEntry> => {
   try {
     const raw = execSync(
-      `kubectl get pod ${podName} -o jsonpath='{.metadata.annotations.tdsk\\.app/placeholders}'`,
+      `kubectl --context ${env.kubeContext} get pod ${podName} -n ${env.kubeNamespace} -o jsonpath='{.metadata.annotations.tdsk\\.app/placeholders}'`,
       { encoding: 'utf-8', timeout: 10_000 }
     ).trim()
 
@@ -148,7 +149,7 @@ export const getPodPlaceholders = (podName: string): Record<string, TPlaceholder
 export const getPodSubdomain = (podName: string): string | null => {
   try {
     const raw = execSync(
-      `kubectl get pod ${podName} -o jsonpath='{.metadata.annotations.tdsk\\.app/subdomain}'`,
+      `kubectl --context ${env.kubeContext} get pod ${podName} -n ${env.kubeNamespace} -o jsonpath='{.metadata.annotations.tdsk\\.app/subdomain}'`,
       { encoding: 'utf-8', timeout: 10_000 }
     ).trim().replace(/^'|'$/g, '')
     return raw || null
@@ -201,12 +202,11 @@ export const setupRunningPod = async (
 
   const sandboxName = uniqueName('test-sandbox')
   const sbRes = await post<Record<string, any>>(
-    `/orgs/${orgId}/sandboxes`,
+    `/orgs/${orgId}/projects/${projectId}/sandboxes`,
     {
       name: sandboxName,
       config: { ...defaultSandboxConfig, ...configOverrides },
       orgId,
-      projectId,
     }
   )
   if (!sbRes.ok) throw new Error(`Failed to create sandbox config: HTTP ${sbRes.status}`)

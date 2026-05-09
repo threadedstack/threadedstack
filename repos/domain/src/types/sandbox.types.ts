@@ -187,14 +187,13 @@ export type TKubeSandboxConfig = {
   workdir?: string
   gitBranch?: string
   command?: string[]
+  sshEnabled?: boolean
   /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
   initScript?: string
   secretIds?: string[]
-  sshEnabled?: boolean
   /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */
   runtimeCommand?: string
   defaultRuntime?: string
-  imagePullSecret?: string
   gitTokenSecretId?: string
   idleTimeoutMinutes?: number
   /** Which AI tool runtime to activate (claude-code, codex, opencode, or custom) */
@@ -285,7 +284,6 @@ export enum EShellMsg {
 }
 
 export type TSandboxConnectResponse = {
-  port: number
   alias?: string
   workdir: string
   command: string

@@ -1,5 +1,5 @@
 import type { Readable } from 'stream'
-import type { TKubeClientConfig, TKubeEventHandlers } from '@TSB/types'
+import type { TKubeClientConfig, TKubeEventHandlers, TExecStream } from '@TSB/types'
 import type {
   TRouteMap,
   TRouteEntry,
@@ -22,6 +22,17 @@ import {
   PodAnnotationKeys,
   PodManagedSelector,
 } from '@TSB/constants/kube'
+
+class ResizablePassThrough extends PassThrough {
+  rows: number
+  columns: number
+
+  constructor(cols: number, rows: number) {
+    super()
+    this.rows = rows
+    this.columns = cols
+  }
+}
 
 export class KubeClient {
   private namespace: string
@@ -99,6 +110,57 @@ export class KubeClient {
     })
   }
 
+  // --- Secret CRUD ---
+
+  async createDockerRegistrySecret(
+    name: string,
+    server: string,
+    username: string,
+    password: string
+  ): Promise<void> {
+    const auth = Buffer.from(`${username}:${password}`).toString(`base64`)
+    const dockerConfigJson = JSON.stringify({
+      auths: { [server]: { username, password, auth } },
+    })
+
+    await this.coreApi.createNamespacedSecret({
+      namespace: this.namespace,
+      body: {
+        kind: `Secret`,
+        apiVersion: `v1`,
+        metadata: { name },
+        type: `kubernetes.io/dockerconfigjson`,
+        data: {
+          [`.dockerconfigjson`]: Buffer.from(dockerConfigJson).toString(`base64`),
+        },
+      },
+    })
+  }
+
+  async patchSecretOwnerReferences(
+    secretName: string,
+    ownerReferences: k8s.V1OwnerReference[]
+  ): Promise<void> {
+    await this.coreApi.patchNamespacedSecret({
+      name: secretName,
+      namespace: this.namespace,
+      body: { metadata: { ownerReferences } },
+    })
+  }
+
+  async deleteSecret(name: string): Promise<void> {
+    try {
+      await this.coreApi.deleteNamespacedSecret({
+        name,
+        namespace: this.namespace,
+      })
+    } catch (err: any) {
+      const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode
+      if (code === 404) return
+      throw err
+    }
+  }
+
   /**
    * Run a command inside a pod container via K8s API exec.
    * Uses K8s Exec API (not child_process) — the command array is sent directly to the container without host shell interpretation.
@@ -159,6 +221,81 @@ export class KubeClient {
           }
         })
     })
+  }
+
+  async execStream(
+    podName: string,
+    command: string[],
+    opts?: { tty?: boolean; cols?: number; rows?: number }
+  ): Promise<TExecStream> {
+    const stdin = new PassThrough()
+    const stderr = new PassThrough()
+    const tty = opts?.tty ?? false
+
+    const stdout = tty
+      ? new ResizablePassThrough(opts?.cols ?? 80, opts?.rows ?? 24)
+      : new PassThrough()
+
+    const execWs = await this.kubeExec.exec(
+      this.namespace,
+      podName,
+      `sandbox`,
+      command,
+      stdout,
+      stderr,
+      stdin,
+      tty,
+      (_status: k8s.V1Status) => {
+        stdout.end()
+        stderr.end()
+      }
+    )
+
+    execWs.on(`error`, (err: Error) => {
+      logger.warn(`[KubeClient] Exec WebSocket error for pod ${podName}:`, err.message)
+      stdout.destroy(err)
+      stderr.destroy(err)
+    })
+
+    execWs.on(`close`, () => {
+      stdout.end()
+      stderr.end()
+    })
+
+    const close = () => {
+      stdin.end()
+      try {
+        execWs.close()
+      } catch (err) {
+        logger.warn(
+          `[KubeClient] execWs.close() for pod ${podName}:`,
+          (err as Error).message
+        )
+      }
+    }
+
+    const resize =
+      tty && stdout instanceof ResizablePassThrough
+        ? (cols: number, rows: number) => {
+            stdout.columns = cols
+            stdout.rows = rows
+            stdout.emit(`resize`)
+            try {
+              const payload = Buffer.from(JSON.stringify({ Width: cols, Height: rows }))
+              const frame = Buffer.alloc(payload.length + 1)
+              frame[0] = 4
+              payload.copy(frame, 1)
+              execWs.send(frame)
+            } catch (err) {
+              logger.warn(
+                `[KubeClient] Resize failed for pod ${podName}:`,
+                (err as Error).message
+              )
+            }
+          }
+        : (_cols: number, _rows: number) => {}
+
+    return { stdin, stdout, stderr, close, resize }
   }
 
   // --- Watch ---
