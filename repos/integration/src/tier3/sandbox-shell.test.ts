@@ -419,10 +419,10 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
   test('connect endpoint returns shellToken in response', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Re-connect to the existing running pod
+    // Re-connect to the existing running pod — must specify podName for multi-instance support
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      { projectId }
+      { podName }
     )
 
     expect(res.status).toBe(200)

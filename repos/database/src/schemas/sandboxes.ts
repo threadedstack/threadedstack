@@ -9,6 +9,7 @@ import { SandboxIdPrefix } from '@tdsk/domain'
 import { threads } from '@TDB/schemas/threads'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { text, jsonb, uuid, varchar, boolean, index, pgTable } from 'drizzle-orm/pg-core'
 
 /**
@@ -53,4 +54,5 @@ export const sandboxesRelations = relations(sandboxes, ({ one, many }) => ({
   }),
   projects: many(sandboxProjects),
   providers: many(sandboxProviders),
+  gitProjectProviders: many(sandboxProjectProviders),
 }))

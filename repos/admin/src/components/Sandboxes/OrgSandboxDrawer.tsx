@@ -98,62 +98,6 @@ export const OrgSandboxDrawer = (props: TSandboxDrawer) => {
             />
           </SandboxConfigAccordion>
 
-          {/* Resources */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                fontWeight={500}
-                variant='subtitle1'
-              >
-                Resources
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextInput
-                    fullWidth
-                    value={form.cpuLimit}
-                    label='CPU Limit'
-                    disabled={form.loading}
-                    placeholder='500m'
-                    id='sandbox-cpu-limit'
-                    onChange={(e) => form.setCpuLimit(e.target.value)}
-                  />
-                  <TextInput
-                    fullWidth
-                    value={form.memoryLimit}
-                    disabled={form.loading}
-                    label='Memory Limit'
-                    placeholder='256Mi'
-                    id='sandbox-memory-limit'
-                    onChange={(e) => form.setMemoryLimit(e.target.value)}
-                  />
-                </Box>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextInput
-                    fullWidth
-                    value={form.cpuRequest}
-                    disabled={form.loading}
-                    label='CPU Request'
-                    placeholder='100m'
-                    id='sandbox-cpu-request'
-                    onChange={(e) => form.setCpuRequest(e.target.value)}
-                  />
-                  <TextInput
-                    fullWidth
-                    disabled={form.loading}
-                    placeholder='128Mi'
-                    label='Memory Request'
-                    value={form.memoryRequest}
-                    id='sandbox-memory-request'
-                    onChange={(e) => form.setMemoryRequest(e.target.value)}
-                  />
-                </Box>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
           {/* AI Providers */}
           <SandboxProviderAccordion
             orgId={orgId}
@@ -240,6 +184,62 @@ export const OrgSandboxDrawer = (props: TSandboxDrawer) => {
           />
 
           <SandboxContainerAccordion form={form} />
+
+          {/* Resources */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                fontWeight={500}
+                variant='subtitle1'
+              >
+                Resources
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextInput
+                    fullWidth
+                    value={form.cpuLimit}
+                    label='CPU Limit'
+                    disabled={form.loading}
+                    placeholder='500m'
+                    id='sandbox-cpu-limit'
+                    onChange={(e) => form.setCpuLimit(e.target.value)}
+                  />
+                  <TextInput
+                    fullWidth
+                    value={form.memoryLimit}
+                    disabled={form.loading}
+                    label='Memory Limit'
+                    placeholder='256Mi'
+                    id='sandbox-memory-limit'
+                    onChange={(e) => form.setMemoryLimit(e.target.value)}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextInput
+                    fullWidth
+                    value={form.cpuRequest}
+                    disabled={form.loading}
+                    label='CPU Request'
+                    placeholder='100m'
+                    id='sandbox-cpu-request'
+                    onChange={(e) => form.setCpuRequest(e.target.value)}
+                  />
+                  <TextInput
+                    fullWidth
+                    disabled={form.loading}
+                    placeholder='128Mi'
+                    label='Memory Request'
+                    value={form.memoryRequest}
+                    id='sandbox-memory-request'
+                    onChange={(e) => form.setMemoryRequest(e.target.value)}
+                  />
+                </Box>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         </Box>
       </form>
     </Drawer>

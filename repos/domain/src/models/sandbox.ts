@@ -1,5 +1,10 @@
 import type { Provider } from '@TDM/models/provider'
-import type { TProviderLink, TKubeSandboxConfig, TSandboxProjectConfig } from '@TDM/types'
+import type {
+  TProviderLink,
+  TGitProviderLink,
+  TKubeSandboxConfig,
+  TSandboxProjectConfig,
+} from '@TDM/types'
 
 import { Base } from '@TDM/models/base'
 import { Project } from '@TDM/models/project'
@@ -15,21 +20,23 @@ export class Sandbox extends Base {
   projects: Project[] = []
   config: TKubeSandboxConfig
   providerLinks: TProviderLink[] = []
+  gitProviderLinks: TGitProviderLink[] = []
   projectConfigs: TSandboxProjectConfig[] = []
 
   constructor(data: TSandboxData) {
     super()
 
-    const { projects, providerLinks, projectConfigs, ...rest } = data
+    const { projects, providerLinks, projectConfigs, gitProviderLinks, ...rest } = data
 
     Object.assign(this, {
       ...rest,
+      projectConfigs: projectConfigs || [],
+      gitProviderLinks: gitProviderLinks || [],
+      providerLinks: toProviderLinks(providerLinks),
       projects:
         projects?.map((project) =>
           project instanceof Project ? project : new Project(project)
         ) || [],
-      providerLinks: toProviderLinks(providerLinks),
-      projectConfigs: projectConfigs || [],
     })
   }
 
@@ -39,6 +46,10 @@ export class Sandbox extends Base {
 
   get primaryProvider(): Provider | undefined {
     return this.providerLinks[0]?.provider
+  }
+
+  getGitProviders(projectId: string): TGitProviderLink[] {
+    return this.gitProviderLinks.filter((l) => l.projectId === projectId)
   }
 
   getProjectConfig(projectId: string): TSandboxProjectConfig | undefined {
@@ -55,31 +66,33 @@ export class Sandbox extends Base {
     if (!pc) return this
 
     const overrideConfig = pc.config
+    const base = this.config || ({} as TKubeSandboxConfig)
 
     return new Sandbox({
       ...this,
       ...(pc.alias != null && { name: pc.alias }),
       projects: this.projects,
-      projectConfigs: this.projectConfigs,
       providerLinks: this.providerLinks,
+      projectConfigs: this.projectConfigs,
+      gitProviderLinks: this.gitProviderLinks,
       ...(overrideConfig
         ? {
             config: {
-              ...this.config,
+              ...base,
               ...overrideConfig,
-              envVars: { ...this.config.envVars, ...(overrideConfig.envVars || {}) },
+              envVars: { ...base.envVars, ...(overrideConfig.envVars || {}) },
               resources: {
                 limits: {
-                  ...this.config.resources?.limits,
+                  ...base.resources?.limits,
                   ...overrideConfig.resources?.limits,
                 },
                 requests: {
-                  ...this.config.resources?.requests,
+                  ...base.resources?.requests,
                   ...overrideConfig.resources?.requests,
                 },
               },
-              ports: { ...this.config.ports, ...(overrideConfig.ports || {}) },
-              sync: { ...this.config.sync, ...(overrideConfig.sync || {}) },
+              sync: { ...base.sync, ...(overrideConfig.sync || {}) },
+              ports: { ...base.ports, ...(overrideConfig.ports || {}) },
             },
           }
         : {}),

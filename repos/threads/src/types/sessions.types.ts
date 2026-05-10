@@ -33,12 +33,8 @@ export type TOpenSessionOpts = {
   run?: boolean
   sandboxId: string
   projectId: string
-  /**
-   * Session intent:
-   * - `undefined` — auto-resolve from sessionStorage (reconnect first stored session)
-   * - `string` — reconnect/join a specific session by ID
-   * - `null` — force creation of a new session (ignore stored sessions)
-   */
+  podName?: string
+  newInstance?: boolean
   sessionId?: string | null
 }
 

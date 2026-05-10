@@ -5,16 +5,28 @@ import { sandboxApi } from '@TTH/services/sandboxApi'
 import { getSessionsForSandbox } from '@TTH/state/accessors'
 
 type TStopSandboxOpts = {
-  sandboxId: string
   orgId: string
-  projectId: string
   force?: boolean
+  sandboxId: string
+  projectId: string
+  stopAll?: boolean
 }
 
 export const stopSandbox = async (
   opts: TStopSandboxOpts
 ): Promise<TStopSandboxResult> => {
-  const { sandboxId, orgId, projectId, force } = opts
+  const { orgId, force, stopAll, projectId, sandboxId } = opts
+
+  if (stopAll) {
+    const resp = await sandboxApi.stop(orgId, projectId, sandboxId, ``, force, true)
+    if (resp.error?.status === 409) {
+      const body = resp.error?.details as Record<string, any> | undefined
+      return { stopped: false, activeSessions: body?.data?.activeSessions ?? [] }
+    }
+    if (resp.error) throw resp.error
+    return { stopped: true }
+  }
+
   const sessions = getSessionsForSandbox(sandboxId)
 
   let podName = sessions[0]?.podName
@@ -30,7 +42,7 @@ export const stopSandbox = async (
     if (!podName) return { stopped: false, activeSessions: [] }
   }
 
-  const resp = await sandboxApi.stop(orgId, projectId, sandboxId, podName, force)
+  const resp = await sandboxApi.stop(orgId, projectId, sandboxId, podName, force, stopAll)
 
   if (resp.error?.status === 409) {
     const body = resp.error?.details as Record<string, any> | undefined

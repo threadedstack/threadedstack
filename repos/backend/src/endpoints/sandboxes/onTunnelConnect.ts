@@ -164,7 +164,19 @@ export const onTunnelConnect = async (
     return
   }
 
-  const podName = await sbService.findRunningPod(sandboxId, orgId)
+  const url = new URL(req.url || ``, `http://localhost`)
+  const requestedPod = url.searchParams.get(`podName`)
+  let podName: string | undefined
+  if (requestedPod) {
+    podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+    if (!podName) {
+      ws.close(4004, `Requested pod ${requestedPod} is not running`)
+      return
+    }
+  } else {
+    const runningPods = await sbService.findRunningPods(sandboxId, orgId)
+    podName = runningPods[0]
+  }
   if (!podName) {
     ws.close(4004, `No running pod for sandbox ${sandboxId}`)
     return

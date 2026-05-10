@@ -68,6 +68,8 @@ describe('Tier 3: Sandbox Connect', () => {
     expect(conn.command).toContain('tsa ssh')
     expect(conn.shellToken).toBeTruthy()
     expect(typeof conn.shellToken).toBe('string')
+    expect(typeof conn.workdir).toBe('string')
+    expect(conn.workdir.length).toBeGreaterThan(0)
 
     podName = conn.podName
   }, 150_000)
@@ -86,7 +88,10 @@ describe('Tier 3: Sandbox Connect', () => {
   test('POST /:id/connect on already-running pod returns same podName', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await connectSandbox(ctx.orgId, projectId, sandboxId)
+    const res = await post<Record<string, any>>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
+      { podName }
+    )
 
     expect(res.status).toBe(200)
     expect(res.data.podName).toBe(podName)

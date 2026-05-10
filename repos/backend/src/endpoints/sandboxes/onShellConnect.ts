@@ -295,7 +295,18 @@ export const onShellConnect = async (
           }
         }
 
-        const podName = await sbService.findRunningPod(sandboxId, orgId)
+        const requestedPod = url.searchParams.get(`podName`)
+        let podName: string | undefined
+        if (requestedPod) {
+          podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+        } else {
+          const runningPods = await sbService.findRunningPods(sandboxId, orgId)
+          podName = runningPods[0]
+        }
+        if (requestedPod && !podName) {
+          ws.close(4004, `Requested pod is not running`)
+          return
+        }
         let podOwnerUserId = userId
         if (podName) {
           try {
@@ -410,7 +421,18 @@ export const onShellConnect = async (
         }
       }
 
-      const podName = await sbService.findRunningPod(sandboxId, orgId)
+      const requestedPod = url.searchParams.get(`podName`)
+      let podName: string | undefined
+      if (requestedPod) {
+        podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+      } else {
+        const runningPods = await sbService.findRunningPods(sandboxId, orgId)
+        podName = runningPods[0]
+      }
+      if (requestedPod && !podName) {
+        ws.close(4004, `Requested pod is not running`)
+        return
+      }
       let podOwnerUserId = existing.userId
       if (podName) {
         try {
@@ -451,7 +473,18 @@ export const onShellConnect = async (
   }
 
   // 6. Find running pod
-  const podName = await sbService.findRunningPod(sandboxId, orgId)
+  const requestedPod = url.searchParams.get(`podName`)
+  let podName: string | undefined
+  if (requestedPod) {
+    podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+    if (!podName) {
+      ws.close(4004, `Requested pod ${requestedPod} is not running`)
+      return
+    }
+  } else {
+    const runningPods = await sbService.findRunningPods(sandboxId, orgId)
+    podName = runningPods[0]
+  }
   if (!podName) {
     ws.close(4004, `No running pod for sandbox ${sandboxId}`)
     return

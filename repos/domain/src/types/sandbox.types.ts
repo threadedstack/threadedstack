@@ -189,6 +189,7 @@ export type TKubeSandboxConfig = {
   /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
   initScript?: string
   secretIds?: string[]
+  maxInstances?: number
   /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */
   runtimeCommand?: string
   defaultRuntime?: string
@@ -280,6 +281,12 @@ export enum EShellMsg {
   PermissionResponse = `permission-response`,
 }
 
+export type TSandboxStopResponse = {
+  success: boolean
+  stoppedCount?: number
+  failedPods?: string[]
+}
+
 export type TSandboxConnectResponse = {
   alias?: string
   workdir: string
@@ -288,6 +295,19 @@ export type TSandboxConnectResponse = {
   password: string
   sandboxId: string
   shellToken?: string
+}
+
+export type TSandboxInstance = {
+  userId: string
+  podName: string
+  sandboxId: string
+  state: EContainerState
+  sessions: TSandboxSession[]
+}
+
+export type TSandboxInstancesResponse = {
+  maxInstances: number
+  instances: TSandboxInstance[]
 }
 
 export enum ESBState {

@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { validateGitProviderInputs } from '@TBE/utils/sandbox/validateGitProviderInputs'
 import { Sandbox, Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -23,6 +24,7 @@ export const createSandbox: TEndpointConfig = {
       projectIds: bodyProjectIds,
       projectId: bodyProjectId,
       providerInputs,
+      gitProviderInputs,
     } = req.body
     const orgId = req.params.orgId || req.body.orgId
 
@@ -43,11 +45,20 @@ export const createSandbox: TEndpointConfig = {
     if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
 
+    if (config?.maxInstances != null)
+      config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
+
     const pins = await db.services.provider.validate({
       orgId,
       inputs: providerInputs,
-      type: [EProvider.ai, EProvider.docker, EProvider.git],
+      type: [EProvider.ai, EProvider.docker],
     })
+
+    const validatedGitInputs = await validateGitProviderInputs(
+      db,
+      orgId,
+      gitProviderInputs
+    )
 
     const { data: projects, error: projErr } = projectIds?.length
       ? await db.services.project.list({ where: { id: projectIds, orgId } })
@@ -76,6 +87,7 @@ export const createSandbox: TEndpointConfig = {
     const { data, error } = await db.services.sandbox.create({
       ...sb,
       ...(pins?.length ? { providerInputs: pins } : {}),
+      ...(validatedGitInputs?.length ? { gitProviderInputs: validatedGitInputs } : {}),
       ...(projects?.length ? { projects } : {}),
     })
     if (error) throw new Exception(500, error.message)

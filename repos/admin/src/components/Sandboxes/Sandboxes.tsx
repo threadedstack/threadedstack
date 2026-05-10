@@ -56,6 +56,7 @@ const styles = {
   },
 }
 
+type TPodStates = Record<string, TPodState[]>
 type TPodState = { podName: string; state: ESBState }
 
 export const Sandboxes = (props: TSandboxes) => {
@@ -68,7 +69,7 @@ export const Sandboxes = (props: TSandboxes) => {
   const [deleting, setDeleting] = useState<Sandbox>()
   const [error, setError] = useState<Error | null>(null)
   const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
-  const [podStates, setPodStates] = useState<Record<string, TPodState>>({})
+  const [podStates, setPodStates] = useState<TPodStates>({})
   const [busySandboxes, setBusySandboxes] = useState<Set<string>>(new Set())
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
   const [connectSessions, setConnectSessions] = useState<TSandboxSession[]>([])
@@ -109,7 +110,10 @@ export const Sandboxes = (props: TSandboxes) => {
     setBusy(sandbox.id, true)
     setPodStates((prev) => ({
       ...prev,
-      [sandbox.id]: { podName: ``, state: ESBState.Starting },
+      [sandbox.id]: [
+        ...(prev[sandbox.id] || []),
+        { podName: ``, state: ESBState.Starting },
+      ],
     }))
 
     const result = await startSandbox({
@@ -120,11 +124,10 @@ export const Sandboxes = (props: TSandboxes) => {
     setBusy(sandbox.id, false)
 
     if (result.error) {
-      setPodStates((prev) => {
-        const next = { ...prev }
-        delete next[sandbox.id]
-        return next
-      })
+      setPodStates((prev) => ({
+        ...prev,
+        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.podName !== ``),
+      }))
       toast.error(`Failed to start sandbox: ${result.error.message}`)
       return
     }
@@ -132,7 +135,9 @@ export const Sandboxes = (props: TSandboxes) => {
     const podName = result.data?.podName || ``
     setPodStates((prev) => ({
       ...prev,
-      [sandbox.id]: { podName, state: ESBState.Running },
+      [sandbox.id]: (prev[sandbox.id] || [])
+        .filter((p) => p.podName !== ``)
+        .concat({ podName, state: ESBState.Running }),
     }))
     toast.success(`Sandbox "${sandbox.name}" started`)
   }
@@ -143,14 +148,15 @@ export const Sandboxes = (props: TSandboxes) => {
       return
     }
 
-    const pod = podStates[sandbox.id]
-    if (!pod?.podName) return
+    const pods = podStates[sandbox.id] || []
+    if (pods.length === 0) return
 
     setBusy(sandbox.id, true)
     const result = await stopSandbox({
       orgId,
       projectId,
-      podName: pod.podName,
+      force: true,
+      stopAll: true,
       sandboxId: sandbox.id,
     })
     setBusy(sandbox.id, false)
@@ -177,31 +183,45 @@ export const Sandboxes = (props: TSandboxes) => {
     setBusy(sandbox.id, true)
     setPodStates((prev) => ({
       ...prev,
-      [sandbox.id]: {
-        state: ESBState.Starting,
-        podName: prev[sandbox.id]?.podName || ``,
-      },
+      [sandbox.id]: [
+        ...(prev[sandbox.id] || []),
+        { podName: ``, state: ESBState.Starting },
+      ],
     }))
 
-    const result = await connectSandbox({ orgId, sandboxId: sandbox.id, projectId })
+    const result = await connectSandbox({
+      orgId,
+      projectId,
+      newInstance: true,
+      sandboxId: sandbox.id,
+    })
     setBusy(sandbox.id, false)
 
     if (result.error) {
-      setPodStates((prev) => {
-        const next = { ...prev }
-        delete next[sandbox.id]
-        return next
-      })
+      setPodStates((prev) => ({
+        ...prev,
+        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.podName !== ``),
+      }))
       toast.error(`Failed to connect to sandbox: ${result.error.message}`)
       return
     }
 
     const data = result.data || null
     if (data?.podName) {
-      setPodStates((prev) => ({
-        ...prev,
-        [sandbox.id]: { podName: data.podName, state: ESBState.Running },
-      }))
+      setPodStates((prev) => {
+        const existing = prev[sandbox.id] || []
+        const already = existing.some((p) => p.podName === data.podName)
+        return {
+          ...prev,
+          [sandbox.id]: already
+            ? existing.map((p) =>
+                p.podName === data.podName ? { ...p, state: ESBState.Running } : p
+              )
+            : existing
+                .filter((p) => p.podName !== ``)
+                .concat({ podName: data.podName, state: ESBState.Running }),
+        }
+      })
     }
 
     setConnectData(data)
@@ -238,11 +258,12 @@ export const Sandboxes = (props: TSandboxes) => {
       return
     }
 
-    setPodStates((prev) => {
-      const next = { ...prev }
-      delete next[connectModalSandbox.id]
-      return next
-    })
+    setPodStates((prev) => ({
+      ...prev,
+      [connectModalSandbox.id]: (prev[connectModalSandbox.id] || []).filter(
+        (p) => p.podName !== connectData.podName
+      ),
+    }))
     toast.success(`Sandbox "${connectModalSandbox.name}" stopped`)
     onConnectModalClose()
   }
@@ -442,11 +463,17 @@ export const Sandboxes = (props: TSandboxes) => {
       id: `status`,
       label: `Status`,
       render: (sandbox: Sandbox) => {
-        const pod = podStates[sandbox.id]
+        const pods = podStates[sandbox.id] || []
         const isBusy = busySandboxes.has(sandbox.id)
-        const state = pod?.state || ESBState.Stopped
+        const runningCount = pods.filter((p) => p.state === ESBState.Running).length
+        const isStarting = pods.some((p) => p.state === ESBState.Starting)
+        const state = isStarting
+          ? ESBState.Starting
+          : runningCount > 0
+            ? ESBState.Running
+            : ESBState.Stopped
 
-        if (isBusy && state === ESBState.Starting) {
+        if (isBusy && isStarting) {
           return (
             <Box sx={{ display: `flex`, alignItems: `center`, gap: 1 }}>
               <CircularProgress size={14} />
@@ -463,9 +490,9 @@ export const Sandboxes = (props: TSandboxes) => {
         return (
           <Chip
             size='small'
-            label={state}
             variant='outlined'
             color={statusColor(state)}
+            label={runningCount > 1 ? `${runningCount} Running` : state}
           />
         )
       },
@@ -475,9 +502,9 @@ export const Sandboxes = (props: TSandboxes) => {
       label: `Actions`,
       align: `right` as const,
       render: (sandbox: Sandbox) => {
-        const pod = podStates[sandbox.id]
+        const pods = podStates[sandbox.id] || []
         const isBusy = busySandboxes.has(sandbox.id)
-        const isRunning = pod?.state === ESBState.Running
+        const isRunning = pods.some((p) => p.state === ESBState.Running)
 
         return (
           <Box sx={styles.table.actions.box}>

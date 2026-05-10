@@ -28,12 +28,9 @@ export const TerminalView = (props: TTerminalView) => {
   // triggers the construction effect to destroy and recreate the terminal.
   const themeKey = useMemo(() => JSON.stringify(settings.theme), [settings.theme])
 
-  const handleData = useCallback(
-    (data: string) => sendInput(sessionId, data),
-    [sessionId]
-  )
+  const onData = useCallback((data: string) => sendInput(sessionId, data), [sessionId])
 
-  const handleResize = useCallback(
+  const onResize = useCallback(
     (dims: { cols: number; rows: number }) =>
       sendControl(sessionId, { type: `resize`, cols: dims.cols, rows: dims.rows }),
     [sessionId]
@@ -72,34 +69,46 @@ export const TerminalView = (props: TTerminalView) => {
       return
     }
 
-    const rafId = requestAnimationFrame(() => fitAddon.fit())
+    let alive = true
+    let unsubscribe: (() => void) | undefined
 
     termRef.current = term
     fitAddonRef.current = fitAddon
 
-    const buffer = getRawBuffer(sessionId)
-    for (const chunk of buffer) {
-      term.write(chunk)
-    }
+    const dataDisposable = term.onData(onData)
+    const resizeDisposable = term.onResize(onResize)
 
-    const dataDisposable = term.onData(handleData)
-    const resizeDisposable = term.onResize(handleResize)
+    // Defer buffer replay + subscription to after fit() so content is written
+    // at the final grid dimensions.  ghostty-web's render loop only partial-
+    // redraws dirty rows — writing at 80×24 then resizing to the container
+    // causes garbled rendering because dirty flags are cleared before the
+    // resize triggers its full redraw.
+    const rafId = requestAnimationFrame(() => {
+      if (!alive) return
+      fitAddon.fit()
 
-    const unsubscribe = subscribeTerminalData(sessionId, (data: string) => {
-      term.write(data)
+      const buffer = getRawBuffer(sessionId).slice()
+      for (const chunk of buffer) {
+        term.write(chunk)
+      }
+
+      unsubscribe = subscribeTerminalData(sessionId, (data: string) => {
+        if (alive) term.write(data)
+      })
     })
 
     return () => {
+      alive = false
       cancelAnimationFrame(rafId)
       dataDisposable.dispose()
       resizeDisposable.dispose()
-      unsubscribe()
+      unsubscribe?.()
       fitAddon.dispose()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
     }
-  }, [sessionId, themeKey, handleData, handleResize])
+  }, [sessionId, themeKey, onData, onResize])
 
   // Apply non-theme runtime setting changes without recreating the terminal
   useEffect(() => {
@@ -128,9 +137,7 @@ export const TerminalView = (props: TTerminalView) => {
   ])
 
   useEffect(() => {
-    if (active && fitAddonRef.current) {
-      fitAddonRef.current.fit()
-    }
+    active && fitAddonRef?.current?.fit?.()
   }, [active])
 
   return (

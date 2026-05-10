@@ -323,7 +323,6 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
-            projectId: null,
           },
         ],
       })
@@ -363,7 +362,6 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
-            projectId: null,
           },
         ],
       })
@@ -409,7 +407,6 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
-            projectId: null,
           },
         ],
       })
@@ -422,7 +419,6 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
-            projectId: null,
           },
         ],
       })

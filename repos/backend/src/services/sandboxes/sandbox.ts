@@ -64,11 +64,11 @@ export class SandboxService {
   private kube: KubeClient
   private readonly config: TSandboxOpts
 
-  private startingPods = new Set<string>()
   private readonly ShellTtlMS = 5 * 60 * 1000
   private readonly RingBufferSize = 1024 * 1024
   private passwords = new Map<string, string>()
   private podActivity = new Map<string, number>()
+  private startingPods = new Map<string, number>()
   private dockerSecrets = new Map<string, string[]>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
@@ -210,6 +210,11 @@ export class SandboxService {
 
     const sandbox = projectId ? rawSandbox.getEffectiveConfig(projectId) : rawSandbox
 
+    if (projectId && sandbox === rawSandbox)
+      logger.debug(
+        `[Sandbox] No project config override for sandbox ${sandboxId} / project ${projectId}`
+      )
+
     if (!sandbox.config?.image)
       throw new Exception(400, `Sandbox config is missing required "image" field`)
 
@@ -226,30 +231,19 @@ export class SandboxService {
       TDSK_SSH_PASSWORD: sshPassword,
     }
 
-    // Split provider links by type and project scope
-    const allLinks = (sandbox.providerLinks || []).map((link) => ({
-      provider: link.provider,
-      priority: link.priority ?? 0,
-      model: link.model ?? undefined,
-      projectId: link.projectId ?? null,
-    }))
-    const activeLinks = allLinks.filter((l) => {
-      if (l.provider.type === EProvider.git)
-        return l.projectId != null && l.projectId === projectId
-      return l.projectId === null || l.projectId === projectId
-    })
-    const aiProviderLinks = activeLinks.filter((l) => l.provider.type === EProvider.ai)
-    const dockerProviderLinks = activeLinks.filter(
-      (l) => l.provider.type === EProvider.docker
-    )
-    const gitProviderLinks = activeLinks.filter((l) => l.provider.type === EProvider.git)
+    const aiProviderLinks = (sandbox.providerLinks || [])
+      .filter((l) => l.provider.type === EProvider.ai)
+      .map((l) => ({
+        provider: l.provider,
+        priority: l.priority ?? 0,
+        model: l.model ?? undefined,
+      }))
 
-    const allGitLinks = allLinks.filter((l) => l.provider.type === EProvider.git)
-    if (gitProviderLinks.length === 0 && allGitLinks.length > 0) {
-      logger.info(
-        `[Sandbox] ${allGitLinks.length} git provider(s) skipped for sandbox ${sandboxId} — no matching projectId`
-      )
-    }
+    const dockerProviderLinks = (sandbox.providerLinks || [])
+      .filter((l) => l.provider.type === EProvider.docker)
+      .map((l) => ({ provider: l.provider, priority: l.priority ?? 0 }))
+
+    const gitProviderLinks = projectId ? sandbox.getGitProviders(projectId) : []
 
     const secrets = new SecretResolver(this.db)
 
@@ -442,44 +436,96 @@ export class SandboxService {
     return this.sessions.get(podName) || []
   }
 
+  getInstanceSessions(sandboxId: string): Map<string, TSandboxSession[]> {
+    const result = new Map<string, TSandboxSession[]>()
+    for (const [podName, sessions] of this.sessions.entries()) {
+      const sandboxSessions = sessions.filter((s) => s.sandboxId === sandboxId)
+      if (sandboxSessions.length > 0) result.set(podName, sandboxSessions)
+    }
+    return result
+  }
+
   updateActivity(podName: string): void {
     this.podActivity.set(podName, Date.now())
   }
 
-  async findRunningPod(sandboxId: string, orgId: string): Promise<string | undefined> {
+  async findRunningPod(
+    podName: string,
+    orgId: string,
+    sandboxId?: string
+  ): Promise<string | undefined> {
     const pods = await this.listPods({ orgId, state: EContainerState.Running })
     const match = pods.find(
       (p) =>
-        p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId &&
-        !p.metadata?.deletionTimestamp
+        p.metadata?.name === podName &&
+        !p.metadata?.deletionTimestamp &&
+        (!sandboxId || p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId)
     )
     return match?.metadata?.name
   }
 
-  async findActivePod(sandboxId: string, orgId: string): Promise<string | undefined> {
+  async findRunningPods(sandboxId: string, orgId: string): Promise<string[]> {
+    const pods = await this.listPods({ orgId, state: EContainerState.Running })
+    return pods
+      .filter(
+        (p) =>
+          p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId &&
+          !p.metadata?.deletionTimestamp
+      )
+      .filter((p) => p.metadata?.name)
+      .map((p) => p.metadata!.name!)
+  }
+
+  async findActivePod(
+    podName: string,
+    orgId: string,
+    sandboxId?: string
+  ): Promise<string | undefined> {
     const pods = await this.listPods({ orgId })
     const match = pods.find((p) => {
       const phase = p.status?.phase
-      const id = p.metadata?.labels?.[PodLabelKeys.sandboxId]
       return (
-        id === sandboxId &&
+        p.metadata?.name === podName &&
         !p.metadata?.deletionTimestamp &&
-        (phase === EContainerState.Running || phase === EContainerState.Pending)
+        (phase === EContainerState.Running || phase === EContainerState.Pending) &&
+        (!sandboxId || p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId)
       )
     })
     return match?.metadata?.name
   }
 
+  async findActivePods(sandboxId: string, orgId: string): Promise<string[]> {
+    const pods = await this.listPods({ orgId })
+    return pods
+      .filter((p) => {
+        const phase = p.status?.phase
+        const id = p.metadata?.labels?.[PodLabelKeys.sandboxId]
+        return (
+          id === sandboxId &&
+          !p.metadata?.deletionTimestamp &&
+          (phase === EContainerState.Running || phase === EContainerState.Pending)
+        )
+      })
+      .filter((p) => p.metadata?.name)
+      .map((p) => p.metadata!.name!)
+  }
+
   isStarting(sandboxId: string): boolean {
-    return this.startingPods.has(sandboxId)
+    return (this.startingPods.get(sandboxId) ?? 0) > 0
+  }
+
+  countStarting(sandboxId: string): number {
+    return this.startingPods.get(sandboxId) ?? 0
   }
 
   markStarting(sandboxId: string): void {
-    this.startingPods.add(sandboxId)
+    this.startingPods.set(sandboxId, (this.startingPods.get(sandboxId) ?? 0) + 1)
   }
 
   clearStarting(sandboxId: string): void {
-    this.startingPods.delete(sandboxId)
+    const count = this.startingPods.get(sandboxId) ?? 0
+    if (count <= 1) this.startingPods.delete(sandboxId)
+    else this.startingPods.set(sandboxId, count - 1)
   }
 
   private rollbackDockerSecrets(names: string[]): void {

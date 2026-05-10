@@ -342,10 +342,10 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
   test('connect endpoint response includes shellToken string', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Re-connect to the already-running pod — should return a fresh shellToken
+    // Re-connect to the already-running pod — must specify podName for multi-instance support
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      {}
+      { podName }
     )
 
     expect(res.status).toBe(200)

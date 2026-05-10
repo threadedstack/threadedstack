@@ -11,7 +11,7 @@ import { classifySessions } from '@TTH/actions/sessions'
 import { Terminal, ChevronRight } from '@mui/icons-material'
 import { useSandboxMode } from '@TTH/hooks/sandbox/useSandboxMode'
 import { useUser, useBackendSessions } from '@TTH/state/selectors'
-import { NavSessionItem } from '@TTH/components/Sidebar/NavSessionItem'
+import { NavInstanceItem } from '@TTH/components/Sidebar/NavInstanceItem'
 import { Box, Typography, Collapse, Chip, useTheme } from '@mui/material'
 import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
 import { useSandboxHasSession } from '@TTH/hooks/sandbox/useSandboxHasSession'
@@ -72,6 +72,20 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
     () => classifySessions(backendSessions, localSessions, user?.id),
     [backendSessions, localSessions, user?.id]
   )
+
+  const instanceGroups = useMemo(() => {
+    const groups = new Map<string, typeof classifiedSessions>()
+    const sessionPodMap = new Map<string, string>()
+    for (const bs of backendSessions) {
+      if (bs.podName) sessionPodMap.set(bs.sessionId, bs.podName)
+    }
+    for (const cs of classifiedSessions) {
+      const podName = sessionPodMap.get(cs.sessionId) || `unknown`
+      if (!groups.has(podName)) groups.set(podName, [])
+      groups.get(podName)!.push(cs)
+    }
+    return groups
+  }, [classifiedSessions, backendSessions])
 
   const loadSessions = useCallback(() => {
     if (!orgId || !resolvedProjectId) return
@@ -217,14 +231,16 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
           >
             Loading...
           </Typography>
-        ) : classifiedSessions.length > 0 ? (
-          classifiedSessions.map((cs) => (
-            <NavSessionItem
-              session={cs}
+        ) : instanceGroups.size > 0 ? (
+          Array.from(instanceGroups.entries()).map(([podName, podSessions], idx) => (
+            <NavInstanceItem
+              key={podName}
               orgId={orgId}
-              key={cs.sessionId}
+              index={idx + 1}
+              podName={podName}
               indent={indent + 24}
               sandboxId={sandbox.id}
+              sessions={podSessions}
               projectId={resolvedProjectId}
             />
           ))
@@ -239,7 +255,7 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
               color: loadError ? theme.palette.error.main : colors.grey[500],
             }}
           >
-            {loadError ? `Failed to load` : `No sessions`}
+            {loadError ? `Failed to load` : `No instances`}
           </Typography>
         )}
       </Collapse>

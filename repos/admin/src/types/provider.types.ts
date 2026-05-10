@@ -3,6 +3,7 @@ export type TProviderLinkItem = {
   name: string
   brand: string
   model?: string | null
+  branch?: string | null
 }
 
 export type TProviderLabel = {

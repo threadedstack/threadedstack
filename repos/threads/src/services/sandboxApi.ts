@@ -1,5 +1,9 @@
 import type { TApiRes, TApiCacheKeys } from '@TTH/types'
-import type { TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
+import type {
+  TSandboxConnectResponse,
+  TSandboxSession,
+  TSandboxInstancesResponse,
+} from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
 import { BaseApi } from '@TTH/services/api'
@@ -54,11 +58,12 @@ export class SandboxApi extends BaseApi {
   async connect(
     orgId: string,
     projectId: string,
-    id: string
+    id: string,
+    opts?: { podName?: string; newInstance?: boolean }
   ): Promise<TApiRes<TSandboxConnectResponse>> {
     const resp = await this.api.post<TSandboxConnectResponse>({
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
-      data: {},
+      data: opts ?? {},
     })
     resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))
     return resp
@@ -77,15 +82,29 @@ export class SandboxApi extends BaseApi {
     return resp
   }
 
+  async listInstances(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<TSandboxInstancesResponse>> {
+    const resp = await this.api.get<TSandboxInstancesResponse>({
+      path: `${this.#path(orgId, projectId)}/${id}/instances`,
+      queryKey: [...this.cache.detail(id), `instances`],
+    })
+    resp.error && (await this._onError(resp.error, `Failed to load instances`))
+    return resp
+  }
+
   async stop(
     orgId: string,
     projectId: string,
     id: string,
     podName: string,
-    force?: boolean
+    force?: boolean,
+    stopAll?: boolean
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      data: { podName, force },
+      data: { podName, force, stopAll },
       path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
     if (resp.error?.status !== 409) {

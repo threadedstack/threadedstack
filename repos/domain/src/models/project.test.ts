@@ -13,13 +13,11 @@ describe(`Project model`, () => {
             provider: { id: `p1`, type: EProvider.ai } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
           {
             provider: { id: `p2`, type: EProvider.git } as any,
             priority: 1,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -59,7 +57,6 @@ describe(`Project model`, () => {
             provider: { id: `p1`, type: EProvider.ai } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
           {
             provider: {
@@ -69,13 +66,11 @@ describe(`Project model`, () => {
             } as any,
             priority: 1,
             model: null,
-            projectId: null,
           },
           {
             provider: { id: `p3`, type: EProvider.docker } as any,
             priority: 2,
             model: null,
-            projectId: null,
           },
           {
             provider: {
@@ -85,7 +80,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 3,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -105,13 +99,11 @@ describe(`Project model`, () => {
             provider: { id: `p1`, type: EProvider.ai } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
           {
             provider: { id: `p2`, type: EProvider.docker } as any,
             priority: 1,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -139,7 +131,6 @@ describe(`Project model`, () => {
             provider: { id: `p1`, type: EProvider.ai } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
           {
             provider: {
@@ -149,7 +140,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 1,
             model: null,
-            projectId: null,
           },
           {
             provider: {
@@ -159,7 +149,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 2,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -178,7 +167,6 @@ describe(`Project model`, () => {
             provider: { id: `p1`, type: EProvider.ai } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -210,7 +198,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -240,7 +227,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -268,7 +254,6 @@ describe(`Project model`, () => {
             } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })

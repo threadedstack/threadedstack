@@ -73,6 +73,18 @@ export const SandboxConfigAccordion = (props: TSandboxConfigAccordionProps) => {
             onChange={(e) => form.setIdleTimeoutMinutes(Number(e.target.value))}
           />
 
+          <TextInput
+            fullWidth
+            type='number'
+            placeholder='1'
+            label='Max Instances'
+            disabled={form.loading}
+            id='sandbox-max-instances'
+            value={String(form.maxInstances)}
+            onChange={(e) => form.setMaxInstances(Math.max(1, Number(e.target.value)))}
+            helperText='Maximum concurrent pod instances for this sandbox'
+          />
+
           <Box>
             <Typography
               variant='caption'

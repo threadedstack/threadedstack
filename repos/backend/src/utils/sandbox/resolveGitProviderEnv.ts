@@ -5,6 +5,7 @@ import { PhTokenPrefix } from '@TBE/constants/values'
 
 type TGitProviderLink = {
   priority: number
+  branch?: string | null
   provider: {
     id: string
     brand?: string | null
@@ -28,7 +29,8 @@ export const resolveGitProviderEnv = async (
   const placeholders: TPlaceholderMap = {}
 
   let validCount = 0
-  for (const { provider } of sorted) {
+  for (const link of sorted) {
+    const { provider } = link
     const repoUrl = provider.options?.repoUrl as string | undefined
 
     if (!repoUrl) {
@@ -39,7 +41,7 @@ export const resolveGitProviderEnv = async (
     }
 
     const prefix = `TDSK_GIT_${validCount}`
-    const branch = (provider.options?.branch as string) || `main`
+    const branch = link.branch || (provider.options?.branch as string) || `main`
 
     extraEnv[`${prefix}_REPO`] = repoUrl
     extraEnv[`${prefix}_BRANCH`] = branch

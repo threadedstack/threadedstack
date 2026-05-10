@@ -1,7 +1,7 @@
 import type { TProviderLinkItem } from '@TAF/types'
 
 import { useState } from 'react'
-import { SelectInput } from '@tdsk/components'
+import { SelectInput, TextInput } from '@tdsk/components'
 import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
 import {
   Box,
@@ -33,6 +33,7 @@ export type TProviderLinkListProps = {
   availableProviders: TProviderLinkItem[]
   onAdd: (provider: TProviderLinkItem) => void
   onModelChange?: (id: string, model: string) => void
+  onBranchChange?: (id: string, branch: string) => void
   onReorder?: (providers: TProviderLinkItem[]) => void
 }
 
@@ -49,6 +50,7 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
     onCreateNew,
     emptyMessage,
     onModelChange,
+    onBranchChange,
     availableProviders,
     addLabel = `Add Provider`,
     createLabel = `Create New`,
@@ -171,6 +173,19 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                     brand={provider.brand}
                     model={provider.model || ''}
                     onChange={(model) => onModelChange(provider.id, model)}
+                  />
+                </Box>
+              )}
+              {onBranchChange && (
+                <Box sx={{ mt: 1, mb: 0.5 }}>
+                  <TextInput
+                    size='small'
+                    label='Branch'
+                    disabled={isDisabled}
+                    id={`branch-${provider.id}`}
+                    placeholder={provider.branch || 'main'}
+                    value={provider.branch || ''}
+                    onChange={(e) => onBranchChange(provider.id, e.target.value)}
                   />
                 </Box>
               )}

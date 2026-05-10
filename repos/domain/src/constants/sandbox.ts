@@ -6,6 +6,8 @@ import type {
 
 import { EImagePullPolicy, ESandboxRuntime, ERuntimeBrand } from '@TDM/types'
 
+export const DefaultMaxInstances = 1
+
 export const SBImagePullPolicyOptions = [
   { value: EImagePullPolicy.Never, label: EImagePullPolicy.Never },
   { value: EImagePullPolicy.Always, label: EImagePullPolicy.Always },

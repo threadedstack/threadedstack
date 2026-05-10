@@ -22,8 +22,8 @@ import { sandboxes } from '@TDB/schemas/sandboxes'
 import { eq, and, sql, notInArray } from 'drizzle-orm'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
-import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import {
   slugify,
   isValidSandboxAlias,
@@ -182,7 +182,7 @@ export class Sandbox extends Base<
   }
 
   #relations = async (opts: TSandboxRelations) => {
-    const { id, sandboxName, projects, providerInputs, gitProviderInputs } = opts
+    const { id, projects, sandboxName, providerInputs, gitProviderInputs } = opts
 
     if (projects?.length) {
       const valid = projects.filter((p) => p?.id)
@@ -218,9 +218,14 @@ export class Sandbox extends Base<
 
     if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs)
 
-    if (gitProviderInputs?.length) {
+    if (gitProviderInputs !== undefined) {
       for (const entry of gitProviderInputs) {
-        await this.setGitProjectProviders(id, entry.projectId, entry.providers)
+        const { error } = await this.setGitProjectProviders(
+          id,
+          entry.projectId,
+          entry.providers
+        )
+        if (error) throw error
       }
     }
   }
@@ -263,15 +268,19 @@ export class Sandbox extends Base<
   }
 
   async create(data: TSandboxInsertOpts | (TDBSandboxInsert & Record<string, any>)) {
-    const { projects, providerLinks, providerInputs, ...sandboxData } =
+    const { projects, providerInputs, gitProviderInputs, ...sandboxData } =
       data as TSandboxInsertOpts
     const result = await super.create(sandboxData as TDBSandboxInsert)
 
-    if (result.data && (projects?.length || providerInputs?.length)) {
+    if (
+      result.data &&
+      (projects?.length || providerInputs?.length || gitProviderInputs?.length)
+    ) {
       try {
         await this.#relations({
           projects,
           providerInputs,
+          gitProviderInputs,
           id: result.data.id,
           sandboxName: result.data.name,
         })
@@ -297,16 +306,20 @@ export class Sandbox extends Base<
   }
 
   async update(data: TDBUpdate<TSandboxInsertOpts>) {
-    const { projects, providerInputs, providerLinks, ...sandboxData } = data
+    const { projects, providerInputs, gitProviderInputs, ...sandboxData } = data
 
     if (!sandboxData.id)
       return { data: null, error: new DBError(`Sandbox ID is required for update`) }
 
     const result = await super.update(sandboxData)
 
-    if (result.data && (projects !== undefined || providerInputs !== undefined)) {
+    if (
+      result.data &&
+      (projects !== undefined ||
+        providerInputs !== undefined ||
+        gitProviderInputs !== undefined)
+    ) {
       try {
-        // Projects use delete+re-insert
         if (projects !== undefined)
           await this.db
             .delete(sandboxProjects)
@@ -315,6 +328,7 @@ export class Sandbox extends Base<
         await this.#relations({
           projects,
           providerInputs,
+          gitProviderInputs,
           id: sandboxData.id,
           sandboxName: result.data.name,
         })
@@ -541,31 +555,35 @@ export class Sandbox extends Base<
     projectId: string,
     inputs: TGitProviderInput[]
   ) {
-    const rows = (inputs || [])
-      .filter((p) => p.id)
-      .map((p, i) => ({
-        sandboxId,
-        projectId,
-        providerId: p.id,
-        priority: i,
-        branch: p.branch ?? null,
-      }))
+    try {
+      const rows = (inputs || [])
+        .filter((p) => p.id)
+        .map((p, i) => ({
+          sandboxId,
+          projectId,
+          priority: i,
+          providerId: p.id,
+          branch: p.branch ?? null,
+        }))
 
-    await this.db.transaction(async (tx) => {
-      await tx
-        .delete(sandboxProjectProviders)
-        .where(
-          and(
-            eq(sandboxProjectProviders.sandboxId, sandboxId),
-            eq(sandboxProjectProviders.projectId, projectId)
+      await this.db.transaction(async (tx) => {
+        await tx
+          .delete(sandboxProjectProviders)
+          .where(
+            and(
+              eq(sandboxProjectProviders.sandboxId, sandboxId),
+              eq(sandboxProjectProviders.projectId, projectId)
+            )
           )
-        )
 
-      if (rows.length)
-        await tx.insert(sandboxProjectProviders).values(rows).onConflictDoNothing()
-    })
+        if (rows.length)
+          await tx.insert(sandboxProjectProviders).values(rows).onConflictDoNothing()
+      })
 
-    return { data: null, error: null }
+      return { data: null, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
   }
 
   async addGitProjectProvider(
@@ -598,16 +616,20 @@ export class Sandbox extends Base<
     projectId: string,
     providerId: string
   ) {
-    await this.db
-      .delete(sandboxProjectProviders)
-      .where(
-        and(
-          eq(sandboxProjectProviders.sandboxId, sandboxId),
-          eq(sandboxProjectProviders.projectId, projectId),
-          eq(sandboxProjectProviders.providerId, providerId)
+    try {
+      await this.db
+        .delete(sandboxProjectProviders)
+        .where(
+          and(
+            eq(sandboxProjectProviders.sandboxId, sandboxId),
+            eq(sandboxProjectProviders.projectId, projectId),
+            eq(sandboxProjectProviders.providerId, providerId)
+          )
         )
-      )
 
-    return { data: null, error: null }
+      return { data: null, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
   }
 }

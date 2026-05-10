@@ -383,5 +383,77 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     // --- Validation ---
 
+    test('POST with idleTimeoutMinutes < 1 returns 400', async () => {
+      const res = await post(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-bad-idle'),
+          config: { ...baseCfg, idleTimeoutMinutes: 0 },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
+
+    test('PUT with idleTimeoutMinutes < 1 returns 400', async () => {
+      if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
+
+      const res = await put(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`,
+        { config: { ...baseCfg, idleTimeoutMinutes: -5 } }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
+
+    test('POST creates sandbox with maxInstances', async () => {
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-max-inst'),
+          config: { ...baseCfg, maxInstances: 3 },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.config.maxInstances).toBe(3)
+      createdSandboxIds.push(res.data.id)
+    })
+
+    test('maxInstances is floored to positive integer', async () => {
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-max-floor'),
+          config: { ...baseCfg, maxInstances: 2.7 },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.config.maxInstances).toBe(2)
+      createdSandboxIds.push(res.data.id)
+    })
+
+    // --- Response shape ---
+
+    test('GET sandbox includes providerLinks and gitProviderLinks arrays', async () => {
+      if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
+
+      const res = await get<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`
+      )
+
+      expect(res.status).toBe(200)
+      expect(Array.isArray(res.data.providerLinks)).toBe(true)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+    })
+
   })
 })

@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { validateGitProviderInputs } from '@TBE/utils/sandbox/validateGitProviderInputs'
 
 /**
  * PUT /_/sandboxes/:id - Update a sandbox
@@ -20,16 +21,25 @@ export const updateSandbox: TEndpointConfig = {
 
     const existing = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
-    const { name, config, projectIds, providerInputs } = req.body
+    const { name, config, projectIds, providerInputs, gitProviderInputs } = req.body
 
     if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
 
+    if (config?.maxInstances != null)
+      config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
+
     const pins = await db.services.provider.validate({
       orgId: existing.orgId,
       inputs: providerInputs,
-      type: [EProvider.ai, EProvider.docker, EProvider.git],
+      type: [EProvider.ai, EProvider.docker],
     })
+
+    const validatedGitInputs = await validateGitProviderInputs(
+      db,
+      existing.orgId,
+      gitProviderInputs
+    )
 
     const { data: projects, error: projErr } = projectIds?.length
       ? await db.services.project.list({
@@ -55,6 +65,7 @@ export const updateSandbox: TEndpointConfig = {
       ...(config !== undefined && { config }),
       ...(pins !== undefined && { providerInputs: pins }),
       ...(projectIds !== undefined ? { projects: projects || [] } : {}),
+      ...(validatedGitInputs !== undefined && { gitProviderInputs: validatedGitInputs }),
     })
     if (error) throw new Exception(500, error.message)
 

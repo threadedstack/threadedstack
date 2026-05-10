@@ -116,15 +116,24 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
               id: p.id,
               name: p.name || p.id,
               brand: p.brand,
+              branch: form.gitBranchOverrides[p.id] ?? null,
             }))}
             availableProviders={form.availableGitProviders.map((p) => ({
               id: p.id,
               name: p.name || p.id,
               brand: p.brand,
             }))}
-            onRemove={(id) =>
-              form.setGitProviderIds((prev) => prev.filter((gid) => gid !== id))
+            onBranchChange={(id, branch) =>
+              form.setGitBranchOverrides((prev) => ({ ...prev, [id]: branch }))
             }
+            onRemove={(id) => {
+              form.setGitProviderIds((prev) => prev.filter((gid) => gid !== id))
+              form.setGitBranchOverrides((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }}
             onProviderCreated={(providerId) => {
               if (providerId) form.setGitProviderIds((prev) => [...prev, providerId])
             }}

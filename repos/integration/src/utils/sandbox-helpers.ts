@@ -16,11 +16,14 @@ type TSandboxResult = {
 
 type TSandboxConnectResult = {
   podName: string
+  workdir: string
   password: string
   port: number
   sandboxId: string
   command: string
   shellToken: string
+  alias?: string
+  initError?: string
 }
 
 type TSandboxSessionResult = {
@@ -32,6 +35,7 @@ type TSandboxSessionResult = {
   connectedAt: string
   visibility: string
   projectId?: string
+  hasShellSession?: boolean
 }
 
 type TSandboxSetup = {

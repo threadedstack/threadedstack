@@ -54,6 +54,7 @@ import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
 import { listSessions } from '@TBE/endpoints/sandboxes/listSessions'
 import { startSandbox } from '@TBE/endpoints/sandboxes/startSandbox'
 import { getSBPConfig } from '@TBE/endpoints/sandboxes/getSBPConfig'
+import { listInstances } from '@TBE/endpoints/sandboxes/listInstances'
 import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
 import { execInSandbox } from '@TBE/endpoints/sandboxes/execInSandbox'
 import { createSandbox } from '@TBE/endpoints/sandboxes/createSandbox'
@@ -179,6 +180,7 @@ const projectSandboxes: TEndpointConfig = {
     execInSandbox,
     connectSandbox,
     listSessions,
+    listInstances,
     getSandboxStatus,
     listSandboxThreads,
     projectSandboxConfig,

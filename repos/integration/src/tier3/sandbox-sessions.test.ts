@@ -75,6 +75,19 @@ describe('Tier 3: Sandbox Sessions', () => {
     expect(res.ok).toBe(false)
   })
 
+  test('session items include hasShellSession field', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await getSessions(ctx.orgId, projectId, sandboxId)
+
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.data)).toBe(true)
+
+    for (const session of res.data) {
+      expect(typeof session.hasShellSession).toBe('boolean')
+    }
+  })
+
   test('GET /:id/sessions for sandbox with no running pod returns empty array', async () => {
     // Create a sandbox config but never start a pod for it
     const sbRes = await post<Record<string, any>>(

@@ -64,7 +64,7 @@ export type TGitProviderLink = {
   priority: number
   provider: Provider
   projectId: string
-  branch?: string | null
+  branch: string | null
 }
 
 /**

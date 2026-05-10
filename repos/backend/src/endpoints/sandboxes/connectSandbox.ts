@@ -12,6 +12,7 @@ import {
   EPermResource,
   EContainerState,
   DefaultWorkdir,
+  DefaultMaxInstances,
 } from '@tdsk/domain'
 
 export const connectSandbox: TEndpointConfig = {
@@ -21,6 +22,7 @@ export const connectSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals
+    const { podName: requestedPod, newInstance } = req.body
 
     const { projectId } = req.params
     if (!projectId)
@@ -29,24 +31,44 @@ export const connectSandbox: TEndpointConfig = {
     const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
     const workdir = sandbox.config.workdir || DefaultWorkdir
     const sandboxId = sandbox.id
+    const maxInstances = sandbox.config.maxInstances ?? DefaultMaxInstances
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    // Check for already-running or starting pod (prevents duplicate pod race)
-    let podName = await sb.findRunningPod(sandboxId, sandbox.orgId)
+    let podName: string | undefined
 
-    if (!podName) {
-      // Also check Pending pods and in-progress starts
-      const activePod = await sb.findActivePod(sandboxId, sandbox.orgId)
-      if (activePod) {
-        podName = activePod
-      } else if (sb.isStarting(sandboxId)) {
-        throw new Exception(409, `Sandbox is already starting`)
-      }
+    if (requestedPod) {
+      const validated = await sb.findActivePod(requestedPod, sandbox.orgId, sandboxId)
+      if (!validated)
+        throw new Exception(
+          404,
+          `Pod ${requestedPod} is not an active instance of this sandbox`
+        )
+      podName = validated
+    } else {
+      const runningPods = await sb.findRunningPods(sandboxId, sandbox.orgId)
+
+      if (!newInstance && runningPods.length > 0)
+        throw new Exception(
+          400,
+          `podName or newInstance required when instances exist`,
+          `INSTANCE_SELECTION_REQUIRED`,
+          runningPods.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+        )
     }
 
     if (!podName) {
+      const activePods = await sb.findActivePods(sandboxId, sandbox.orgId)
+      const activeCount = activePods.length + sb.countStarting(sandboxId)
+      if (activeCount >= maxInstances)
+        throw new Exception(
+          409,
+          `Instance limit reached (${activeCount}/${maxInstances})`,
+          `INSTANCE_LIMIT_REACHED`,
+          activePods.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+        )
+
       sb.markStarting(sandboxId)
       try {
         podName = await sb.startPod({
@@ -96,7 +118,6 @@ export const connectSandbox: TEndpointConfig = {
           throw new Exception(504, `Pod did not reach Running state within timeout`)
         }
       } catch (err) {
-        // Clean up failed/timed-out pod
         try {
           await sb.stopPod(podName)
         } catch (cleanupErr) {
@@ -110,7 +131,6 @@ export const connectSandbox: TEndpointConfig = {
       }
     }
 
-    // Check for initScript failure inside the pod (K8s Exec API, not host shell)
     let initError: string | undefined
     try {
       const sbInstance = await sb.getSandbox(podName)

@@ -75,18 +75,23 @@ describe('Tier 1: Sandbox Git Provider Flow', () => {
     createdProjectIds.push(projectId)
   })
 
-  describe('create sandbox with git providers', () => {
-    test('POST /sandboxes with git providerInputs includes them in response', async () => {
+  describe('create sandbox with gitProviderInputs', () => {
+    test('POST /sandboxes with gitProviderInputs links git providers', async () => {
       if (!gitProvider1Id || !projectId) return
 
       const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
         name: uniqueName('Sandbox With Git'),
         orgId: ctx.orgId,
-        projectId,
+        projectIds: [projectId],
         config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
-        providerInputs: [
-          { id: gitProvider1Id, projectId },
-          { id: gitProvider2Id, projectId },
+        gitProviderInputs: [
+          {
+            projectId,
+            providers: [
+              { id: gitProvider1Id },
+              { id: gitProvider2Id },
+            ],
+          },
         ],
       })
 
@@ -94,54 +99,56 @@ describe('Tier 1: Sandbox Git Provider Flow', () => {
       expect(res.data.id).toBeTruthy()
       createdSandboxIds.push(res.data.id)
 
-      const gitLinks = (res.data.providerLinks || []).filter(
-        (l: any) => l.provider.type === 'git'
-      )
-      expect(gitLinks).toHaveLength(2)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+      expect(res.data.gitProviderLinks.length).toBe(2)
 
-      const gitProviderIds = gitLinks.map((l: any) => l.provider.id)
+      const gitProviderIds = res.data.gitProviderLinks.map((l: any) => l.provider.id)
       expect(gitProviderIds).toContain(gitProvider1Id)
       expect(gitProviderIds).toContain(gitProvider2Id)
     })
 
-    test('POST /sandboxes with git type in providerInputs validates correctly', async () => {
+    test('POST /sandboxes with git provider in providerInputs rejects with 400', async () => {
       if (!gitProvider1Id) return
 
       const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
-        name: uniqueName('Sandbox Git Valid'),
+        name: uniqueName('Sandbox Git Reject'),
         orgId: ctx.orgId,
         config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
         providerInputs: [{ id: gitProvider1Id }],
       })
 
-      expect(res.status).toBe(201)
-      createdSandboxIds.push(res.data.id)
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
     })
   })
 
-  describe('sandbox with multiple git providers', () => {
-    test('sandbox selects 2 of 3 project git providers', async () => {
+  describe('sandbox with multiple git providers per project', () => {
+    test('sandbox links 2 of 3 project git providers via gitProviderInputs', async () => {
       if (!gitProvider1Id || !gitProvider2Id || !projectId) return
 
       const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
         name: uniqueName('Sandbox Select 2of3'),
         orgId: ctx.orgId,
-        projectId,
+        projectIds: [projectId],
         config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
-        providerInputs: [
-          { id: gitProvider1Id, projectId },
-          { id: gitProvider2Id, projectId },
+        gitProviderInputs: [
+          {
+            projectId,
+            providers: [
+              { id: gitProvider1Id },
+              { id: gitProvider2Id },
+            ],
+          },
         ],
       })
 
       expect(res.status).toBe(201)
       createdSandboxIds.push(res.data.id)
 
-      const allLinks = res.data.providerLinks || []
-      const gitLinks = allLinks.filter((l: any) => l.provider.type === 'git')
-      expect(gitLinks).toHaveLength(2)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+      expect(res.data.gitProviderLinks.length).toBe(2)
 
-      const gitProviderIds = gitLinks.map((l: any) => l.provider.id)
+      const gitProviderIds = res.data.gitProviderLinks.map((l: any) => l.provider.id)
       expect(gitProviderIds).not.toContain(gitProvider3Id)
     })
   })
@@ -155,9 +162,14 @@ describe('Tier 1: Sandbox Git Provider Flow', () => {
       const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
         name: uniqueName('Sandbox Update Git'),
         orgId: ctx.orgId,
-        projectId,
+        projectIds: [projectId],
         config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
-        providerInputs: [{ id: gitProvider1Id, projectId }],
+        gitProviderInputs: [
+          {
+            projectId,
+            providers: [{ id: gitProvider1Id }],
+          },
+        ],
       })
       expect(res.status).toBe(201)
       sandboxId = res.data.id
@@ -170,22 +182,60 @@ describe('Tier 1: Sandbox Git Provider Flow', () => {
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
         {
-          providerInputs: [
-            { id: gitProvider2Id, projectId },
-            { id: gitProvider3Id, projectId },
+          gitProviderInputs: [
+            {
+              projectId,
+              providers: [
+                { id: gitProvider2Id },
+                { id: gitProvider3Id },
+              ],
+            },
           ],
         }
       )
 
       expect(res.status).toBe(200)
 
-      const gitLinks = (res.data.providerLinks || []).filter(
-        (l: any) => l.provider.type === 'git'
-      )
-      const gitProviderIds = gitLinks.map((l: any) => l.provider.id)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+      const gitProviderIds = res.data.gitProviderLinks.map((l: any) => l.provider.id)
       expect(gitProviderIds).toContain(gitProvider2Id)
       expect(gitProviderIds).toContain(gitProvider3Id)
       expect(gitProviderIds).not.toContain(gitProvider1Id)
+    })
+
+    test('GET /sandboxes/:id includes updated gitProviderLinks', async () => {
+      if (!sandboxId) return
+
+      const res = await get<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`
+      )
+
+      expect(res.status).toBe(200)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+      expect(res.data.gitProviderLinks.length).toBe(2)
+
+      for (const link of res.data.gitProviderLinks) {
+        expect(link.provider).toBeDefined()
+        expect(link.provider.type).toBe('git')
+        expect(typeof link.priority).toBe('number')
+      }
+    })
+
+    test('PUT /sandboxes/:id with empty gitProviderInputs clears git providers', async () => {
+      if (!sandboxId) return
+
+      const res = await put<Record<string, any>>(
+        `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+        {
+          gitProviderInputs: [
+            { projectId, providers: [] },
+          ],
+        }
+      )
+
+      expect(res.status).toBe(200)
+      expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+      expect(res.data.gitProviderLinks.length).toBe(0)
     })
   })
 
@@ -202,6 +252,68 @@ describe('Tier 1: Sandbox Git Provider Flow', () => {
       expect(res.data.brand).toBe('github')
       expect(res.data.options.repoUrl).toBe('https://github.com/test/app.git')
       expect(res.data.options.branch).toBe('main')
+    })
+  })
+
+  describe('gitProviderInputs validation', () => {
+    test('gitProviderInputs with missing projectId returns 400', async () => {
+      if (!gitProvider1Id) return
+
+      const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
+        name: uniqueName('Sandbox Git NoProjId'),
+        orgId: ctx.orgId,
+        config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
+        gitProviderInputs: [
+          { providers: [{ id: gitProvider1Id }] },
+        ],
+      })
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
+
+    test('gitProviderInputs with non-git provider returns 400', async () => {
+      if (!projectId) return
+
+      const aiProv = await post<Record<string, any>>(`/orgs/${ctx.orgId}/providers`, {
+        name: uniqueName('SbGit AI Provider'),
+        type: 'ai',
+        orgId: ctx.orgId,
+        brand: 'anthropic',
+      })
+
+      if (!aiProv.ok) return
+      createdProviderIds.push(aiProv.data.id)
+
+      const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
+        name: uniqueName('Sandbox Git Wrong Type'),
+        orgId: ctx.orgId,
+        projectIds: [projectId],
+        config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
+        gitProviderInputs: [
+          { projectId, providers: [{ id: aiProv.data.id }] },
+        ],
+      })
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
+
+    test('gitProviderInputs with nonexistent provider returns 404', async () => {
+      if (!projectId) return
+
+      const res = await post<Record<string, any>>(`/orgs/${ctx.orgId}/sandboxes`, {
+        name: uniqueName('Sandbox Git NotFound'),
+        orgId: ctx.orgId,
+        projectIds: [projectId],
+        config: { image: 'ghcr.io/threadedstack/tdsk-sandbox' },
+        gitProviderInputs: [
+          { projectId, providers: [{ id: '00000000-0000-0000-0000-000000000001' }] },
+        ],
+      })
+
+      expect(res.status).toBe(404)
+      expect(res.ok).toBe(false)
     })
   })
 })

@@ -34,6 +34,7 @@ export type TSandboxProviderAccordionProps = {
   onProviderCreated?: (providerId?: string) => void
   onModelChange?: (id: string, model: string) => void
   onReorder?: (providers: TProviderLinkItem[]) => void
+  onBranchChange?: (id: string, branch: string) => void
 }
 
 export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) => {
@@ -53,6 +54,7 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
     reorderable,
     emptyMessage,
     onModelChange,
+    onBranchChange,
     providersLoaded,
     onProviderCreated,
     availableProviders,
@@ -101,6 +103,7 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
               createLabel={createLabel}
               loading={!providersLoaded}
               onModelChange={onModelChange}
+              onBranchChange={onBranchChange}
               availableProviders={availableProviders}
               onCreateNew={() => setDrawerOpen(true)}
             />

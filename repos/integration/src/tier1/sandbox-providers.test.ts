@@ -82,6 +82,9 @@ describe('Tier 1: Sandbox Provider Linking', () => {
     expect(linked?.provider.name).toBe(providerName)
     expect(linked?.priority).toBe(0)
 
+    expect(Array.isArray(res.data.gitProviderLinks)).toBe(true)
+    expect(res.data.gitProviderLinks.length).toBe(0)
+
     sandboxId = res.data.id
     createdSandboxIds.push(sandboxId)
   })

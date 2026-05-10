@@ -62,9 +62,9 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   const [command, setCommand] = useState(``)
 
   // Runtime (AI tool runtime)
-  const [runtime, setRuntime] = useState<TSandboxRuntimeId>(ESandboxRuntime.claudeCode)
-  const [runtimeCommand, setRuntimeCommand] = useState(``)
   const [initScript, setInitScript] = useState(``)
+  const [runtimeCommand, setRuntimeCommand] = useState(``)
+  const [runtime, setRuntime] = useState<TSandboxRuntimeId>(ESandboxRuntime.claudeCode)
 
   // Resources
   const [cpuLimit, setCpuLimit] = useState(``)
@@ -73,6 +73,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   const [memoryRequest, setMemoryRequest] = useState(``)
 
   // Config extras
+  const [maxInstances, setMaxInstances] = useState(1)
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState(30)
 
   // Key-value editors
@@ -115,9 +116,10 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   // Provider linking
   const [providersMap] = useProviders()
   const [providerIds, setProviderIds] = useState<string[]>([])
-  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
-  const [dockerProviderIds, setDockerProviderIds] = useState<string[]>([])
   const [gitProviderIds, setGitProviderIds] = useState<string[]>([])
+  const [dockerProviderIds, setDockerProviderIds] = useState<string[]>([])
+  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
+  const [gitBranchOverrides, setGitBranchOverrides] = useState<Record<string, string>>({})
 
   const orgProviders = useMemo(() => {
     if (!providersMap) return []
@@ -259,6 +261,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setProviderModels({})
     setDockerProviderIds([])
     setGitProviderIds([])
+    setGitBranchOverrides({})
     setCpuLimit(``)
     setCpuRequest(``)
     setMemoryLimit(``)
@@ -266,6 +269,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setBaseSandboxId(null)
     setSelectedProjectIds([])
     setIdleTimeoutMinutes(30)
+    setMaxInstances(1)
     setImagePullPolicy(EImagePullPolicy.IfNotPresent)
     setRuntime(ESandboxRuntime.claudeCode)
     setRuntimeCommand(``)
@@ -285,6 +289,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setCpuLimit(config.resources?.limits?.cpu || ``)
     setCpuRequest(config.resources?.requests?.cpu || ``)
     setIdleTimeoutMinutes(config.idleTimeoutMinutes ?? 30)
+    setMaxInstances(config.maxInstances ?? 1)
     setMemoryLimit(config.resources?.limits?.memory || ``)
     setMemoryRequest(config.resources?.requests?.memory || ``)
     setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
@@ -295,9 +300,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     const allLinks = source.providerLinks || []
     setProviderIds(
       allLinks
-        .filter(
-          (l) => l.provider.type !== EProvider.docker && l.provider.type !== EProvider.git
-        )
+        .filter((l) => l.provider.type !== EProvider.docker)
         .map((l) => l.provider.id)
     )
     setDockerProviderIds(
@@ -305,11 +308,17 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         .filter((l) => l.provider.type === EProvider.docker)
         .map((l) => l.provider.id)
     )
-    setGitProviderIds(
-      allLinks
-        .filter((l) => l.provider.type === EProvider.git && l.projectId === projectId)
-        .map((l) => l.provider.id)
+
+    const gitLinks = (source.gitProviderLinks || []).filter(
+      (l) => l.projectId === projectId
     )
+    setGitProviderIds(gitLinks.map((l) => l.provider.id))
+    const branches: Record<string, string> = {}
+    for (const l of gitLinks) {
+      if (l.branch) branches[l.provider.id] = l.branch
+    }
+    setGitBranchOverrides(branches)
+
     const models: Record<string, string> = {}
     for (const link of allLinks) {
       if (link.model) models[link.provider.id] = link.model
@@ -413,10 +422,23 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
       providerInputs: [
         ...providerIds.map((id) => ({ id, model: providerModels[id] || null })),
         ...dockerProviderIds.map((id) => ({ id })),
-        ...gitProviderIds.map((id) => ({ id, projectId: projectId || null })),
       ],
+      ...(projectId
+        ? {
+            gitProviderInputs: [
+              {
+                projectId,
+                providers: gitProviderIds.map((id) => ({
+                  id,
+                  branch: gitBranchOverrides[id] || null,
+                })),
+              },
+            ],
+          }
+        : {}),
       config: {
         runtime,
+        maxInstances,
         idleTimeoutMinutes,
         image: image.trim(),
         imagePullPolicy: imagePullPolicy as TImagePullPolicy,
@@ -463,11 +485,11 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
 
     // Basic info
     name,
-    setName,
     image,
-    setImage,
     alias,
+    setName,
     setAlias,
+    setImage,
     imagePullPolicy,
     setImagePullPolicy,
 
@@ -475,39 +497,41 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     args,
     setArgs,
     workdir,
-    setWorkdir,
     command,
+    setWorkdir,
     setCommand,
 
     // Runtime
     runtime,
     setRuntime,
-    runtimeCommand,
-    setRuntimeCommand,
     initScript,
     setInitScript,
+    runtimeCommand,
+    setRuntimeCommand,
     resolvedRuntimeCmd,
     resolvedInitScript,
 
     // Resources
     cpuLimit,
-    setCpuLimit,
     cpuRequest,
-    setCpuRequest,
+    setCpuLimit,
     memoryLimit,
+    setCpuRequest,
     setMemoryLimit,
     memoryRequest,
     setMemoryRequest,
 
     // Config
+    maxInstances,
+    setMaxInstances,
     idleTimeoutMinutes,
     setIdleTimeoutMinutes,
 
     // Key-value editors
-    envVars,
-    setEnvVars,
     ports,
+    envVars,
     setPorts,
+    setEnvVars,
 
     // Secrets
     allSecrets,
@@ -515,37 +539,39 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
 
     // Projects
     orgProjects,
-    selectedProjectIds,
-    setSelectedProjectIds,
-    projectSandboxList,
     baseSandboxId,
+    projectSandboxList,
+    selectedProjectIds,
     onSelectBaseSandbox,
+    setSelectedProjectIds,
 
     // Providers
+    providerIds,
     providersMap,
     orgProviders,
-    providerIds,
+    onAddProvider,
     setProviderIds,
     providerModels,
-    setProviderModels,
     linkedProviders,
-    availableProviders,
-    onAddProvider,
     onRemoveProvider,
     compatibleBrands,
+    setProviderModels,
+    availableProviders,
 
     // Docker providers
-    orgDockerProviders,
     dockerProviderIds,
+    orgDockerProviders,
     setDockerProviderIds,
     linkedDockerProviders,
     availableDockerProviders,
 
     // Git providers
-    orgGitProviders,
     gitProviderIds,
+    orgGitProviders,
     setGitProviderIds,
     linkedGitProviders,
+    gitBranchOverrides,
+    setGitBranchOverrides,
     availableGitProviders,
 
     // Generative UI
@@ -555,8 +581,8 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setSandboxGuiConfig,
 
     // UI state
-    loading,
     error,
+    loading,
     setError,
     dockerDrawerOpen,
     setDockerDrawerOpen,
@@ -564,9 +590,9 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setAiProviderDrawerOpen,
 
     // Actions
-    applyPreset,
     onSave,
     onClose,
     actions,
+    applyPreset,
   }
 }

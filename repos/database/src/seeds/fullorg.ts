@@ -505,8 +505,8 @@ const agents = {
     description: `A coding AI Agent`,
     projects: Object.values(projects),
     providerLinks: [
-      { priority: 0, provider: providers.zai, projectId: null },
-      { priority: 1, provider: providers.openai, projectId: null },
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.openai },
     ],
     systemPrompt: `You are a senior software engineer.`,
     secrets: [secrets.anthropic],
@@ -533,8 +533,8 @@ const agents = {
     description: `Conversational AI`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.zai, projectId: null },
-      { priority: 1, provider: providers.openai, projectId: null },
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.openai },
     ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.anthropic],
@@ -551,9 +551,9 @@ const agents = {
     model: `glm-5`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.zai, projectId: null },
-      { priority: 1, provider: providers.anthropic, projectId: null },
-      { priority: 2, provider: providers.openai, projectId: null },
+      { priority: 0, provider: providers.zai },
+      { priority: 1, provider: providers.anthropic },
+      { priority: 2, provider: providers.openai },
     ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.zaiSecret, secrets.agentEnv],
@@ -576,8 +576,8 @@ const agents = {
     description: `Multi-model routing AI Agent via OpenRouter`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.openrouter, projectId: null },
-      { priority: 1, provider: providers.anthropic, projectId: null },
+      { priority: 0, provider: providers.openrouter },
+      { priority: 1, provider: providers.anthropic },
     ],
     systemPrompt: `You are a helpful AI assistant with access to multiple model backends via OpenRouter.`,
     secrets: [secrets.openrouterKey],
@@ -592,7 +592,7 @@ const agents = {
     name: `Google AI Agent`,
     description: `AI Agent powered by Google Gemini models`,
     projects: [projects.api, projects.web],
-    providerLinks: [{ priority: 0, provider: providers.google, projectId: null }],
+    providerLinks: [{ priority: 0, provider: providers.google }],
     systemPrompt: `You are a helpful AI assistant powered by Google Gemini.`,
     secrets: [secrets.googleKey],
     environment: {
@@ -606,7 +606,7 @@ const agents = {
     name: `Ollama Agent`,
     description: `AI Agent powered by Ollama Cloud hosted models`,
     projects: [projects.api],
-    providerLinks: [{ priority: 0, provider: providers.ollama, projectId: null }],
+    providerLinks: [{ priority: 0, provider: providers.ollama }],
     systemPrompt: `You are a helpful AI assistant running on Ollama Cloud infrastructure.`,
     secrets: [secrets.ollamaKey],
     environment: {

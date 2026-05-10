@@ -1,8 +1,9 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 import type {
-  TSandboxConnectResponse,
   TSandboxSession,
+  TSandboxStopResponse,
   TSandboxProjectConfig,
+  TSandboxConnectResponse,
 } from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
@@ -201,10 +202,10 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    podName: string
-  ): Promise<TApiRes<{ success: boolean }>> {
-    const resp = await this.api.delete<{ success: boolean }>({
-      data: { podName },
+    opts: { podName?: string; stopAll?: boolean; force?: boolean }
+  ): Promise<TApiRes<TSandboxStopResponse>> {
+    const resp = await this.api.delete<TSandboxStopResponse>({
+      data: opts,
       path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
     resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
@@ -214,10 +215,11 @@ export class SandboxApi extends BaseApi {
   async connect(
     orgId: string,
     projectId: string,
-    id: string
+    id: string,
+    opts?: { podName?: string; newInstance?: boolean }
   ): Promise<TApiRes<TSandboxConnectResponse>> {
     const resp = await this.api.post<TSandboxConnectResponse>({
-      data: {},
+      data: opts || {},
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
     })
     resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))

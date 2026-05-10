@@ -550,24 +550,24 @@ describe(`Sandbox service`, () => {
       expect(mocks.transactionFn).not.toHaveBeenCalled()
     })
 
-    it(`should strip providerLinks and providerInputs from sandbox data`, async () => {
+    it(`should strip providerInputs and gitProviderInputs from sandbox data`, async () => {
       const record = { id: `sbx-1`, name: `TestSandbox` }
       mocks.returningFn.mockResolvedValue([record])
 
       await service.create({
         name: `TestSandbox`,
         orgId: `org-1`,
-        providerLinks: [{ provider: { id: `p1` }, model: null, priority: 0 }],
-        providerInputs: [],
+        providerInputs: [{ id: `p1`, model: null }],
+        gitProviderInputs: [],
       } as any)
 
-      // values() should be called with sandbox data, not providerLinks/providerInputs
+      // values() should be called with sandbox data, not providerInputs/gitProviderInputs
       const valuesArg = (mocks.valuesFn.mock.calls as unknown[][])[0][0] as Record<
         string,
         unknown
       >
-      expect(valuesArg.providerLinks).toBeUndefined()
       expect(valuesArg.providerInputs).toBeUndefined()
+      expect(valuesArg.gitProviderInputs).toBeUndefined()
       expect(valuesArg.name).toBe(`TestSandbox`)
     })
 
@@ -694,23 +694,23 @@ describe(`Sandbox service`, () => {
       expect(mocks.transactionFn).not.toHaveBeenCalled()
     })
 
-    it(`should strip providerInputs and providerLinks from update data`, async () => {
+    it(`should strip providerInputs and gitProviderInputs from update data`, async () => {
       const record = { id: `sbx-1`, name: `Updated` }
       mocks.whereReturningFn.mockResolvedValue([record])
 
       await service.update({
         id: `sbx-1`,
         name: `Updated`,
-        providerLinks: [],
+        gitProviderInputs: [],
       } as any)
 
-      // set() should be called with clean sandbox data (no providerLinks/providerInputs)
+      // set() should be called with clean sandbox data (no providerInputs/gitProviderInputs)
       const setArg = (mocks.setFn.mock.calls as unknown[][])[0][0] as Record<
         string,
         unknown
       >
       expect(setArg.providerInputs).toBeUndefined()
-      expect(setArg.providerLinks).toBeUndefined()
+      expect(setArg.gitProviderInputs).toBeUndefined()
       expect(setArg.name).toBe(`Updated`)
     })
   })
@@ -884,7 +884,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
-        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -898,7 +897,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
-        projectId: null,
       })
     })
 
@@ -908,7 +906,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 5,
         model: `claude-4`,
-        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -921,7 +918,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 5,
         model: `claude-4`,
-        projectId: null,
       })
     })
 
@@ -931,7 +927,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
-        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -942,7 +937,6 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
-        projectId: null,
       })
     })
   })
@@ -990,14 +984,12 @@ describe(`Sandbox service`, () => {
           priority: 0,
           sandboxId: `sbx-1`,
           model: `gpt-4`,
-          projectId: null,
         },
         {
           providerId: `prov-2`,
           priority: 1,
           sandboxId: `sbx-1`,
           model: null,
-          projectId: null,
         },
       ])
     })
@@ -1025,7 +1017,6 @@ describe(`Sandbox service`, () => {
           priority: 0,
           sandboxId: `sbx-1`,
           model: `gpt-4`,
-          projectId: null,
         },
       ])
     })
@@ -1043,21 +1034,18 @@ describe(`Sandbox service`, () => {
           priority: 0,
           sandboxId: `sbx-1`,
           model: null,
-          projectId: null,
         },
         {
           providerId: `prov-b`,
           priority: 1,
           sandboxId: `sbx-1`,
           model: null,
-          projectId: null,
         },
         {
           providerId: `prov-c`,
           priority: 2,
           sandboxId: `sbx-1`,
           model: null,
-          projectId: null,
         },
       ])
     })

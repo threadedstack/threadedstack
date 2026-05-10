@@ -22,7 +22,6 @@ describe(`AgentProjectConfig endpoints`, () => {
       {
         priority: 0,
         model: null,
-        projectId: null,
         provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
       },
     ],
@@ -150,7 +149,6 @@ describe(`AgentProjectConfig endpoints`, () => {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
         projects: [{ id: `proj-1`, name: `Project One`, orgId: `org-1` }] as any,
@@ -209,7 +207,6 @@ describe(`AgentProjectConfig endpoints`, () => {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -293,7 +290,6 @@ describe(`AgentProjectConfig endpoints`, () => {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
       })

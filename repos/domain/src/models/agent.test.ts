@@ -40,13 +40,11 @@ describe(`Agent model`, () => {
             provider: { id: `prov-1`, type: `openai` } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
           {
             provider: { id: `prov-2`, type: `anthropic` } as any,
             priority: 1,
             model: null,
-            projectId: null,
           },
         ],
       })
@@ -62,7 +60,7 @@ describe(`Agent model`, () => {
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
-        providerLinks: [{ provider: prov, priority: 0, model: null, projectId: null }],
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
       })
       expect(agent.providerLinks[0]?.provider).toBe(prov)
       expect(agent.providerLinks[0]?.provider).toBeInstanceOf(Provider)
@@ -91,8 +89,8 @@ describe(`Agent model`, () => {
         name: `Test Agent`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, model: null, projectId: null },
-          { provider: prov2, priority: 1, model: `gpt-4o`, projectId: null },
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 1, model: `gpt-4o` },
         ],
       })
       expect(agent.providers).toHaveLength(2)
@@ -107,8 +105,8 @@ describe(`Agent model`, () => {
         name: `Test Agent`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, model: null, projectId: null },
-          { provider: prov2, priority: 1, model: null, projectId: null },
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 1, model: null },
         ],
       })
       expect(agent.primaryProvider).toBe(prov1)
@@ -123,8 +121,8 @@ describe(`Agent model`, () => {
         name: `Test Agent`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, model: null, projectId: null },
-          { provider: prov2, priority: 5, model: `claude-sonnet`, projectId: null },
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 5, model: `claude-sonnet` },
         ],
       })
       expect(agent.providerLinks).toHaveLength(2)
@@ -152,9 +150,7 @@ describe(`Agent model`, () => {
         name: `Test`,
         orgId: `org-1`,
         model: `agent-default`,
-        providerLinks: [
-          { provider: prov, priority: 0, model: `per-provider-model`, projectId: null },
-        ],
+        providerLinks: [{ provider: prov, priority: 0, model: `per-provider-model` }],
       })
       expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`per-provider-model`)
     })
@@ -165,7 +161,7 @@ describe(`Agent model`, () => {
         name: `Test`,
         orgId: `org-1`,
         model: `agent-default`,
-        providerLinks: [{ provider: prov, priority: 0, model: null, projectId: null }],
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
       })
       expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`agent-default`)
     })
@@ -175,7 +171,7 @@ describe(`Agent model`, () => {
       const agent = new Agent({
         name: `Test`,
         orgId: `org-1`,
-        providerLinks: [{ provider: prov, priority: 0, model: null, projectId: null }],
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
       })
       expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`provider-default`)
     })
@@ -276,7 +272,6 @@ describe(`Agent model`, () => {
             provider: { id: `prov-1`, type: `openai` } as any,
             priority: 0,
             model: null,
-            projectId: null,
           },
         ],
         projectConfigs: [

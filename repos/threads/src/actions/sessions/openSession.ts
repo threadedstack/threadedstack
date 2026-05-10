@@ -50,7 +50,11 @@ export const subscribeEngineData = (
 export const openSession = async (opts: TOpenSessionOpts) => {
   const { sandboxId, orgId, projectId, run = true } = opts
 
-  const connectResult = await sandboxApi.connect(orgId, projectId, sandboxId)
+  const connectOpts = {
+    ...(opts.podName ? { podName: opts.podName } : {}),
+    ...(opts.newInstance ? { newInstance: true } : {}),
+  }
+  const connectResult = await sandboxApi.connect(orgId, projectId, sandboxId, connectOpts)
   if (connectResult.error)
     throw new Error(connectResult.error?.message ?? `Failed to connect to sandbox`)
 
@@ -61,6 +65,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
   const wsProto = baseUrl.protocol === `https:` ? `wss:` : `ws:`
   const params = new URLSearchParams({ cols: `80`, rows: `24` })
   if (run) params.set(`run`, `true`)
+  if (podName) params.set(`podName`, podName)
   if (shellToken) params.set(`token`, shellToken)
 
   // Resolve session intent
@@ -121,6 +126,8 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       if (tempKey !== sessionId) {
         connections.delete(tempKey)
         rawBuffers.delete(tempKey)
+        terminalWriters.delete(tempKey)
+        engineWriters.delete(tempKey)
         connections.set(sessionId, ws)
         rawBuffers.set(sessionId, [])
       }
@@ -210,7 +217,14 @@ export const openSession = async (opts: TOpenSessionOpts) => {
           totalBytes -= buf.shift()!.length
         }
       }
-      terminalWriters.get(sessionId)?.forEach((cb) => cb(data))
+
+      const writers = terminalWriters.get(sessionId)
+      if (writers && writers.size > 1)
+        console.warn(
+          `[Session] ${sessionId.slice(0, 6)}: ${writers.size} terminal writers`
+        )
+
+      writers?.forEach((cb) => cb(data))
       const rawBytes = new Uint8Array(event.data)
       engineWriters.get(sessionId)?.forEach((cb) => cb(rawBytes))
     }

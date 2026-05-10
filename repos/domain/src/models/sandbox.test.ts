@@ -45,12 +45,10 @@ describe(`Sandbox model`, () => {
           {
             provider: { id: `prov-1`, brand: `anthropic` } as any,
             priority: 0,
-            projectId: null,
           },
           {
             provider: { id: `prov-2`, brand: `openai` } as any,
             priority: 1,
-            projectId: null,
           },
         ],
       })
@@ -66,7 +64,7 @@ describe(`Sandbox model`, () => {
       const sandbox = new Sandbox({
         name: `Test Sandbox`,
         orgId: `org-1`,
-        providerLinks: [{ provider: prov, priority: 0, projectId: null }],
+        providerLinks: [{ provider: prov, priority: 0 }],
       })
       expect(sandbox.providerLinks[0]?.provider).toBe(prov)
       expect(sandbox.providerLinks[0]?.provider).toBeInstanceOf(Provider)
@@ -102,8 +100,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, projectId: null },
-          { provider: prov2, priority: 1, projectId: null },
+          { provider: prov1, priority: 0 },
+          { provider: prov2, priority: 1 },
         ],
       })
       expect(sandbox.providers).toHaveLength(2)
@@ -118,8 +116,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, projectId: null },
-          { provider: prov2, priority: 1, projectId: null },
+          { provider: prov1, priority: 0 },
+          { provider: prov2, priority: 1 },
         ],
       })
       expect(sandbox.primaryProvider).toBe(prov1)
@@ -142,8 +140,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0, projectId: null },
-          { provider: prov2, priority: 5, projectId: null },
+          { provider: prov1, priority: 0 },
+          { provider: prov2, priority: 5 },
         ],
       })
       expect(sandbox.providerLinks).toHaveLength(2)
@@ -186,7 +184,6 @@ describe(`Sandbox model`, () => {
           {
             provider: { id: `prov-1`, brand: `anthropic` } as any,
             priority: 0,
-            projectId: null,
           },
         ],
       })

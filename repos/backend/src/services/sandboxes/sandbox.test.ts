@@ -13,6 +13,9 @@ const sbx = (data: Record<string, any>) => {
   data.getProjectConfig = function () {
     return undefined
   }
+  data.getGitProviders = function (projectId: string) {
+    return (this.gitProviderLinks || []).filter((l: any) => l.projectId === projectId)
+  }
   return data
 }
 
@@ -361,6 +364,69 @@ describe(`SandboxService`, () => {
       }
     })
 
+    it(`should apply project config overrides to the sandbox before building manifest`, async () => {
+      const overriddenConfig = { image: `custom:latest`, workdir: `/project-a` }
+      const mockSandbox = {
+        id: `sb-1`,
+        config: { image: `node:20`, workdir: `/workspace` },
+        sandboxProviders: [],
+        getEffectiveConfig: vi.fn().mockReturnValue({
+          id: `sb-1`,
+          config: overriddenConfig,
+          providerLinks: [],
+          getEffectiveConfig() {
+            return this
+          },
+          getGitProviders() {
+            return []
+          },
+          getProjectAlias() {
+            return undefined
+          },
+          getProjectConfig() {
+            return undefined
+          },
+        }),
+        getGitProviders() {
+          return []
+        },
+        getProjectAlias() {
+          return undefined
+        },
+        getProjectConfig() {
+          return undefined
+        },
+      }
+      db.services.sandbox.get.mockResolvedValue({ data: mockSandbox, error: null })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod(baseOpts as any)
+
+      expect(mockSandbox.getEffectiveConfig).toHaveBeenCalledWith(`proj-1`)
+      const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+      expect(manifestCall.sandbox.config.image).toBe(`custom:latest`)
+      expect(manifestCall.sandbox.config.workdir).toBe(`/project-a`)
+    })
+
+    it(`should use raw sandbox config when projectId is undefined`, async () => {
+      const mockSandbox = sbx({
+        id: `sb-1`,
+        config: { image: `node:20` },
+        sandboxProviders: [],
+      })
+      const spy = vi.spyOn(mockSandbox, `getEffectiveConfig`)
+      db.services.sandbox.get.mockResolvedValue({ data: mockSandbox, error: null })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod({ ...baseOpts, projectId: undefined } as any)
+
+      expect(spy).not.toHaveBeenCalled()
+      const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+      expect(manifestCall.sandbox.config.image).toBe(`node:20`)
+    })
+
     it(`should throw when createPod returns pod without metadata.name`, async () => {
       db.services.sandbox.get.mockResolvedValue({
         data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
@@ -467,8 +533,9 @@ describe(`SandboxService`, () => {
         data: sbx({
           id: `sb-1`,
           config: { image: `node:20` },
-          providerLinks: [
-            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          providerLinks: [],
+          gitProviderLinks: [
+            { provider: gitProvider, priority: 0, projectId: `proj-1`, branch: null },
           ],
         }),
         error: null,
@@ -504,8 +571,14 @@ describe(`SandboxService`, () => {
         data: sbx({
           id: `sb-1`,
           config: { image: `node:20` },
-          providerLinks: [
-            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          providerLinks: [],
+          gitProviderLinks: [
+            {
+              provider: gitProvider,
+              priority: 0,
+              projectId: `proj-1`,
+              branch: `develop`,
+            },
           ],
         }),
         error: null,
@@ -547,8 +620,9 @@ describe(`SandboxService`, () => {
         data: sbx({
           id: `sb-1`,
           config: { image: `node:20` },
-          providerLinks: [
-            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          providerLinks: [],
+          gitProviderLinks: [
+            { provider: gitProvider, priority: 0, projectId: `proj-1`, branch: null },
           ],
         }),
         error: null,
@@ -569,7 +643,7 @@ describe(`SandboxService`, () => {
       }
     })
 
-    it(`should filter git providers by projectId — only matching, exclude null and other projects`, async () => {
+    it(`should filter git providers by projectId via getGitProviders — only matching project returned`, async () => {
       const gitNoProject = {
         id: `prov-git-org`,
         brand: `github`,
@@ -598,20 +672,25 @@ describe(`SandboxService`, () => {
         data: sbx({
           id: `sb-1`,
           config: { image: `node:20`, runtime: `claude-code` },
-          providerLinks: [
-            { provider: aiGlobal, priority: 0, model: undefined, projectId: null },
-            { provider: gitNoProject, priority: 1, model: undefined, projectId: null },
+          providerLinks: [{ provider: aiGlobal, priority: 0, model: undefined }],
+          gitProviderLinks: [
+            {
+              provider: gitNoProject,
+              priority: 1,
+              projectId: `proj-no-match`,
+              branch: null,
+            },
             {
               provider: gitProjectMatch,
               priority: 2,
-              model: undefined,
               projectId: `proj-1`,
+              branch: null,
             },
             {
               provider: gitProjectOther,
               priority: 3,
-              model: undefined,
               projectId: `proj-other`,
+              branch: null,
             },
           ],
         }),
@@ -1031,6 +1110,46 @@ describe(`SandboxService`, () => {
       expect(kube.deletePod).toHaveBeenCalledWith(`orphan-pod`, 30)
     })
 
+    it(`should use project-scoped idleTimeoutMinutes from effective config`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/sandbox-id`]: `sb-1`,
+            [`tdsk.app/project-id`]: `proj-1`,
+          },
+        },
+      })
+      const mockSandbox = {
+        config: { idleTimeoutMinutes: 60 },
+        getEffectiveConfig: vi.fn().mockReturnValue({
+          config: { idleTimeoutMinutes: 0.001 },
+        }),
+        getProjectAlias() {
+          return undefined
+        },
+        getProjectConfig() {
+          return undefined
+        },
+      }
+      db.services.sandbox.get.mockResolvedValue({ data: mockSandbox, error: null })
+
+      svc.updateActivity(`project-pod`)
+
+      const original = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original, idleInterval: 50 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(mockSandbox.getEffectiveConfig).toHaveBeenCalledWith(`proj-1`)
+      expect(kube.deletePod).toHaveBeenCalledWith(`project-pod`, 30)
+    })
+
     it(`should cleanup pod tracking when getPod returns 404 via statusCode`, async () => {
       const kubeError = Object.assign(new Error(`Not Found`), { statusCode: 404 })
       kube.getPod.mockRejectedValue(kubeError)
@@ -1123,7 +1242,7 @@ describe(`SandboxService`, () => {
   })
 
   describe(`findRunningPod`, () => {
-    it(`should return podName for Running pod without deletionTimestamp`, async () => {
+    it(`should return podName for Running pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1134,12 +1253,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+      const result = await svc.findRunningPod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
 
-    it(`should skip Running pod with deletionTimestamp set`, async () => {
+    it(`should return undefined for pod with deletionTimestamp`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1151,38 +1270,30 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+      const result = await svc.findRunningPod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
 
-    it(`should return non-terminating pod when both exist for same sandboxId`, async () => {
+    it(`should return undefined when podName does not match`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
-            name: `tdsk-sb-test-old1`,
-            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
-            deletionTimestamp: new Date().toISOString(),
-          },
-          status: { phase: `Running` },
-        },
-        {
-          metadata: {
-            name: `tdsk-sb-test-new1`,
+            name: `tdsk-sb-test-aaaa`,
             labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
           },
           status: { phase: `Running` },
         },
       ])
 
-      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+      const result = await svc.findRunningPod(`tdsk-sb-test-other`, `org-1`)
 
-      expect(result).toBe(`tdsk-sb-test-new1`)
+      expect(result).toBeUndefined()
     })
   })
 
   describe(`findActivePod`, () => {
-    it(`should return podName for Running pod without deletionTimestamp`, async () => {
+    it(`should return podName for Running pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1193,12 +1304,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`sb-1`, `org-1`)
+      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
 
-    it(`should return podName for Pending pod without deletionTimestamp`, async () => {
+    it(`should return podName for Pending pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1209,12 +1320,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`sb-1`, `org-1`)
+      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
 
-    it(`should skip Running pod with deletionTimestamp set`, async () => {
+    it(`should return undefined for Running pod with deletionTimestamp`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1226,12 +1337,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`sb-1`, `org-1`)
+      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
 
-    it(`should skip Pending pod with deletionTimestamp set`, async () => {
+    it(`should return undefined for Pending pod with deletionTimestamp`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1243,7 +1354,7 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`sb-1`, `org-1`)
+      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
