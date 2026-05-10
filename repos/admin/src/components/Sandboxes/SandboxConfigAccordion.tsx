@@ -37,11 +37,11 @@ export const SandboxConfigAccordion = (props: TSandboxConfigAccordionProps) => {
       <AccordionDetails>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <SelectInput
-            id='sandbox-preset'
             label='Presets'
+            id='sandbox-preset'
             value={form.runtime}
-            items={SandboxRuntimeOptions}
             disabled={form.loading}
+            items={SandboxRuntimeOptions}
             onChange={(e) => form.applyPreset(e.target.value as TSandboxRuntimeId)}
           />
 

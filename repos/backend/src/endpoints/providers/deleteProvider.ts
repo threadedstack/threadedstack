@@ -17,9 +17,9 @@ export const deleteProvider: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const { data, error } = await db.services.provider.delete(id)
+    const { data, error, status } = await db.services.provider.delete(id)
 
-    if (error) throw new Exception(500, error.message)
+    if (error) throw new Exception(status || 500, error.message)
 
     res.status(200).json({ data: { success: true, id } })
   },

@@ -6,7 +6,6 @@ import { EProvider } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
-import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { Box, Stack, Divider, Typography } from '@mui/material'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
@@ -15,7 +14,7 @@ import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
-import { Drawer, SelectInput, DrawerActions, ConfirmDelete } from '@tdsk/components'
+import { Drawer, AutoInput, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
   useProviders,
   useProjects,
@@ -378,16 +377,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             <>
               <Divider />
 
-              <SelectInput
-                multiple
+              <AutoInput
                 id='agent-projects'
                 disabled={loading}
                 label='Project Assignment'
                 value={selectedProjectIds}
-                selected={selectedProjectIds}
                 placeholder='Select projects...'
-                items={orgProjects.map((p) => ({ value: p.id, label: p.name }))}
-                onChange={(e) => setSelectedProjectIds(ensureArr(e.target.value))}
+                onChange={setSelectedProjectIds}
+                options={orgProjects.map((p) => ({ value: p.id, label: p.name }))}
               />
             </>
           )}

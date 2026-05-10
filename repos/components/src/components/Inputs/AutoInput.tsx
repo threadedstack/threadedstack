@@ -1,42 +1,35 @@
-// **IMPORTANT** - Don't use this component, it still needs work
-
+import type { HTMLAttributes } from 'react'
 import type { IInput } from '@TSC/types'
 
+import { cls } from '@keg-hub/jsutils/cls'
+import Autocomplete from '@mui/material/Autocomplete'
+import useTheme from '@mui/material/styles/useTheme'
+import { InputStateHandler } from './InputStateHandler'
+import { capitalize as caps } from '@keg-hub/jsutils/capitalize'
 import {
   InputText,
   OptionDesc,
   OptionLabel,
   AutoOptionItem,
 } from '@TSC/components/Inputs/Inputs.styles'
-import { capitalize as caps } from '@keg-hub/jsutils/capitalize'
-import { cls } from '@keg-hub/jsutils/cls'
-import { isStr } from '@keg-hub/jsutils/isStr'
-import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete'
-import { InputStateHandler } from './InputStateHandler'
 
-export type TOption = {
+export type TAutoOption = {
   value: string
   label?: string
   description?: string
 }
 
-type TAutoInput = {
+export type TAutoInput = {
   placeholder?: string
-  initial?: string[]
   optionClass?: string
   capitalize?: boolean
-  oneTagPerLine?: boolean
-  values?: TOption[] | string[]
-  itemMap?: Record<string, TOption>
-  setField?(field: string, value: string[], shouldValidate?: boolean): void
-} & IInput &
-  Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'color'>
+  options?: TAutoOption[]
+  value?: string[]
+  onChange?: (value: string[]) => void
+} & IInput
 
-const filterOptions = createFilterOptions<TOption>()
-
-export type TOptionItem = {
-  option: TOption
-  className?: string
+type TOptionItem = HTMLAttributes<HTMLLIElement> & {
+  option: TAutoOption
 }
 
 const OptionItem = ({ option, ...rest }: TOptionItem) => {
@@ -46,7 +39,7 @@ const OptionItem = ({ option, ...rest }: TOptionItem) => {
       className={cls(rest?.className, `tdsk-auto-option-item`)}
     >
       <OptionLabel>{option.label || caps(option.value)}</OptionLabel>
-      <OptionDesc>{option.description}</OptionDesc>
+      {option.description && <OptionDesc>{option.description}</OptionDesc>}
     </AutoOptionItem>
   )
 }
@@ -54,28 +47,26 @@ const OptionItem = ({ option, ...rest }: TOptionItem) => {
 const AutoInput = (props: TAutoInput) => {
   const {
     id,
+    sx,
     label,
-    ignore,
     hidden,
-    values,
-    depends,
-    initial,
     tooltip,
-    itemMap,
+    options = [],
+    value = [],
+    onChange,
     required,
-    multiple,
-    setField,
     hasError,
     disabled,
     className,
     capitalize,
     helperText,
     optionClass,
-    oneTagPerLine,
+    placeholder,
     description = helperText,
-    size = `small`,
-    ...rest
   } = props
+
+  const theme = useTheme()
+  const isDarkMode = theme.palette.mode === `dark`
 
   return (
     <InputStateHandler
@@ -89,7 +80,15 @@ const AutoInput = (props: TAutoInput) => {
       description={description}
     >
       <Autocomplete
+        sx={sx}
+        id={id}
+        multiple
         fullWidth
+        options={options}
+        disabled={disabled}
+        disableCloseOnSelect
+        filterSelectedOptions
+        value={options.filter((o) => value.includes(o.value))}
         className={cls(
           className,
           `tdsk-auto-input`,
@@ -97,49 +96,44 @@ const AutoInput = (props: TAutoInput) => {
           disabled && `disabled`,
           required && `required`
         )}
-        multiple={multiple}
-        options={values as TOption[]}
-        ListboxProps={{
-          style: {
-            display: `flex`,
-            alignItems: `center`,
-            justifyContent: `start`,
-            flexDirection: `column`,
-            maxHeight: `initial`,
-          },
-        }}
-        disableCloseOnSelect
-        filterSelectedOptions
-        filterOptions={filterOptions}
-        getOptionLabel={(option) => {
-          return !isStr(option) ? option.label : itemMap?.[option]?.label || caps(option)
-        }}
-        isOptionEqualToValue={(option, value) => option.value === value.value}
-        renderOption={(props, option) => {
-          const value = !isStr(option)
-            ? option
-            : itemMap?.[option] || { value: option, label: option }
-
-          return (
-            <OptionItem
-              {...props}
-              key={props.key}
-              option={value}
-              className={optionClass}
-            />
-          )
-        }}
-        renderInput={(params) => (
-          <InputText
-            required={required}
-            disabled={disabled}
-            {...params}
+        getOptionLabel={(option) =>
+          capitalize ? caps(option.label || option.value) : option.label || option.value
+        }
+        isOptionEqualToValue={(option, val) => option.value === val.value}
+        onChange={(_, selected) => onChange?.(selected.map((s) => s.value))}
+        renderOption={(props, option) => (
+          <OptionItem
+            {...props}
+            key={option.value}
+            option={option}
+            className={optionClass}
           />
         )}
+        renderInput={(params) => (
+          <InputText
+            {...params}
+            required={required}
+            disabled={disabled}
+            placeholder={!value.length ? placeholder : undefined}
+          />
+        )}
+        slotProps={{
+          paper: {
+            sx: {
+              boxShadow: theme.palette.colors.shadow,
+              border: `1px solid ${theme.palette.divider}`,
+              backgroundColor: isDarkMode ? theme.palette.grey[900] : undefined,
+            },
+          },
+          listbox: {
+            sx: {
+              padding: `4px 0`,
+            },
+          },
+        }}
       />
     </InputStateHandler>
   )
 }
 
 export { AutoInput }
-export type { TAutoInput }

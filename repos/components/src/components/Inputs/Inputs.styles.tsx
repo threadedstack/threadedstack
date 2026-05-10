@@ -4,7 +4,7 @@ import type { InputLabelProps } from '@mui/material/InputLabel'
 import Box from '@mui/material/Box'
 import { dims } from '@TSC/theme/dims'
 import Stack from '@mui/material/Stack'
-import { grey } from '@TSC/theme/colors'
+import { grey, primary } from '@TSC/theme/colors'
 import { gutter } from '@TSC/theme/gutter'
 import { styled } from '@mui/material/styles'
 import { MuiChipsInput } from 'mui-chips-input'
@@ -217,18 +217,36 @@ export const Tags = styled(MuiChipsInput)(({ theme }) => {
 })
 
 export const AutoOptionItem = styled('li')(({ theme }) => {
+  const isDark = theme.palette.mode === `dark`
+
   return `
-    &.tdsk-auto-option-item.MuiAutocomplete-option {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      align-items: start;
-      flex-direction: column;
-      justify-content: center;
-      padding-top: ${gutter.hpx};
-      padding-bottom: ${gutter.hpx};
+    display: flex;
+    width: 100%;
+    font-size: 14px;
+    font-weight: 500;
+    align-items: start;
+    flex-direction: column;
+    justify-content: center;
+    padding: ${gutter.hpx} ${gutter.px};
+    border-radius: 4px;
+    margin: ${gutter.qpx} ${gutter.hpx};
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    color: ${isDark ? grey[300] : grey[700]};
+
+    &:hover {
+      color: ${isDark ? grey[100] : primary.main};
+      background-color: ${isDark ? grey[850] : primary[50]};
     }
 
+    &[aria-selected="true"] {
+      color: ${isDark ? grey[100] : primary[500]};
+      background-color: ${isDark ? grey[800] : primary[50]};
+
+      &:hover {
+        background-color: ${isDark ? grey[825] : primary[100]};
+      }
+    }
   `
 })
 

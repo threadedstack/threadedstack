@@ -60,11 +60,22 @@ export class Base<
   }
 
   private classifyError(error: any): TDBApiRes<any> {
-    const code = error?.code
+    const cause = error?.cause ?? error
+    const code = cause?.code
     if (code === `23505`)
       return { error: new DBError(`Record already exists`), status: 409 }
-    if (code === `23503`)
+    if (code === `23503`) {
+      const detail = (cause?.detail || cause?.message || ``).toLowerCase()
+      if (
+        detail.includes(`is still referenced`) ||
+        detail.includes(`violates foreign key`)
+      )
+        return {
+          error: new DBError(`Cannot delete: record is still in use`),
+          status: 409,
+        }
       return { error: new DBError(`Referenced record not found`), status: 400 }
+    }
     if (code === `23502`)
       return { error: new DBError(`Missing required field`), status: 400 }
     return { error }

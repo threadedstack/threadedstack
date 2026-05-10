@@ -7,7 +7,6 @@ import { grey, primary, gutter } from '@TSC/theme'
 import { cls } from '@keg-hub/jsutils/cls'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import useTheme from '@mui/material/styles/useTheme'
-import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import { SelectListItem } from '@TSC/components/Inputs/SelectListItem'
 import { SelectInputValue } from '@TSC/components/Inputs/SelectInputValue'
@@ -118,24 +117,7 @@ export const SelectInput = (props: TSelectInput) => {
   const theme = useTheme()
   const isDarkMode = theme.palette.mode === `dark`
 
-  const onChangeCB = (evt: any) => {
-    if (!multiple) return onChange?.(evt)
-
-    let updated = [...ensureArr(value)]
-
-    ensureArr(evt?.target?.value).forEach((val) => {
-      if (updated.includes(val)) updated = updated.filter((item) => item !== val)
-      else updated.push(val)
-    })
-
-    onChange({
-      ...evt,
-      target: {
-        ...evt.target,
-        value: updated,
-      },
-    })
-  }
+  const onChangeCB = (evt: any) => onChange?.(evt)
 
   return (
     <InputStateHandler

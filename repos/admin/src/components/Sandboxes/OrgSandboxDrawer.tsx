@@ -1,16 +1,15 @@
 import type { TSandboxDrawer } from '@TAF/types'
 import type { Provider } from '@tdsk/domain'
 
-import { ensureArr } from '@keg-hub/jsutils/ensureArr'
+import { EProvider, SandboxRuntimeOptions } from '@tdsk/domain'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useSandboxForm } from '@TAF/hooks/sandboxes/useSandboxForm'
+import { Drawer, TextInput, AutoInput, DrawerActions } from '@tdsk/components'
 import { SandboxGuiAccordion } from '@TAF/components/Sandboxes/SandboxGuiAccordion'
 import { SandboxConfigAccordion } from '@TAF/components/Sandboxes/SandboxConfigAccordion'
 import { SandboxProviderAccordion } from '@TAF/components/Sandboxes/SandboxProviderAccordion'
 import { SandboxContainerAccordion } from '@TAF/components/Sandboxes/SandboxContainerAccordion'
-import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
-import { EProvider, SandboxRuntimeOptions } from '@tdsk/domain'
 import {
   Box,
   Accordion,
@@ -82,19 +81,17 @@ export const OrgSandboxDrawer = (props: TSandboxDrawer) => {
                 : undefined
             }
           >
-            <SelectInput
-              multiple
+            <AutoInput
               label='Projects'
-              disabled={form.loading}
               id='sandbox-projects'
-              value={form.selectedProjectIds}
-              selected={form.selectedProjectIds}
+              disabled={form.loading}
               placeholder='Select projects...'
-              items={form.orgProjects.map((p) => ({
+              value={form.selectedProjectIds}
+              options={form.orgProjects.map((p) => ({
                 value: p.id,
                 label: p.name,
               }))}
-              onChange={(e) => form.setSelectedProjectIds(ensureArr(e.target.value))}
+              onChange={form.setSelectedProjectIds}
             />
           </SandboxConfigAccordion>
 

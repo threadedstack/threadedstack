@@ -67,11 +67,7 @@ export const Providers = ({ orgId }: TProviders) => {
     if (!deleting) return
 
     setLoading(true)
-    setError(null)
-
-    const result = await deleteProvider({ orgId, id: deleting.id })
-    result.error && setError(result.error)
-
+    await deleteProvider({ orgId, id: deleting.id })
     setLoading(false)
     setDeleting(undefined)
   }
