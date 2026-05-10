@@ -88,6 +88,11 @@ vi.mock(`@tdsk/components`, () => ({
       <select />
     </div>
   ),
+  AutoInput: (props: any) => (
+    <div data-testid={props.id || 'auto-input'}>
+      {props.label && <label>{props.label}</label>}
+    </div>
+  ),
 }))
 
 vi.mock(`@TAF/components/Selectors`, () => ({

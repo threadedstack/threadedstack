@@ -87,6 +87,8 @@ Items are split into separate groups, with the sub repo name as the header.
 * Hide domains in navigation behind a feature flag
 * Add a warning when an AI provider is added to a sandbox and it doesn't have an auth secret and allow the user to select/add one from the same UI
 
+* When a user attempts to delete a provider that still being used, an error toast is shown but that's it. It doesn't give the user any helpful information like what other entity is actually using it, and what they should do to fix it. This is a bad user experience and needs to be fixed. 
+
 ## Threads
 
 * If a user has multiple session opened. And they click the x button in the tab of the currently active session, it closes the tab and session, but does not switch to the next closest tab or navigate back to the sandbox view if no sessions are opened. Instead it shows a spinner and waits on the current screen. Eventually is reconnects back to the session that was just closed and UI updates to show the session. It literally reopens the session the user just closed.
