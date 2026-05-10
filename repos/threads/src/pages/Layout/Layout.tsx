@@ -1,8 +1,7 @@
 import { Box } from '@mui/material'
-import { Outlet } from 'react-router'
 import { nav } from '@TTH/services/nav'
-import { Header } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
+import { Outlet, useLocation } from 'react-router'
 import { Menu as MenuIcon } from '@mui/icons-material'
 import { HeaderSettingsItems } from '@TTH/constants/nav'
 import { Sidebar } from '@TTH/components/Sidebar/Sidebar'
@@ -11,8 +10,9 @@ import { toggleTheme } from '@TTH/actions/theme/toggleTheme'
 import { openSidebar } from '@TTH/actions/sidebar/toggleSidebar'
 import { useTheme, useMediaQuery, IconButton } from '@mui/material'
 import { SessionTabs } from '@TTH/components/SessionTabs/SessionTabs'
-import { useThemeType, useUser, useOpenSessions } from '@TTH/state/selectors'
 import { SignedIn, RedirectToSignIn } from '@neondatabase/neon-js/auth/react'
+import { Header, usePostHogIdentify, usePostHogPageView } from '@tdsk/components'
+import { useThemeType, useUser, useOrgId, useOpenSessions } from '@TTH/state/selectors'
 
 const LayoutContainer = styled(Box)(({ theme }) => {
   return `
@@ -60,10 +60,20 @@ const MobileToggle = styled(IconButton)(({ theme }) => {
 const Layout = (props: any) => {
   const theme = useTheme()
   const [user] = useUser()
+  const [orgId] = useOrgId()
+  const location = useLocation()
   const [themeType] = useThemeType()
   const [openSessions] = useOpenSessions()
   const hasOpenSessions = openSessions.size > 0
   const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
+
+  usePostHogIdentify({
+    orgId,
+    userId: user?.id,
+    email: user?.email,
+    name: user?.displayName,
+  })
+  usePostHogPageView(location.pathname, location.search)
 
   return (
     <>

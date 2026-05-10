@@ -9,10 +9,20 @@ import { ERoleType, isValidRoleType } from '@tdsk/domain'
 import { store } from '@TTH/state/accessors'
 import { createRoot } from 'react-dom/client'
 import { Version } from '@TTH/components/Version'
-import { overlayScrollBody } from '@tdsk/components'
-import { PermissionsProvider } from '@tdsk/components'
 import { AuthProvider } from '@TTH/contexts/AuthProvider'
 import { useUser, useActiveOrgRole } from '@TTH/state/selectors'
+import {
+  TDSK_POSTHOG_KEY,
+  TDSK_POSTHOG_HOST,
+  VITEST,
+  Environment,
+} from '@TTH/constants/envs'
+import {
+  initAnalytics,
+  AnalyticsProvider,
+  overlayScrollBody,
+  PermissionsProvider,
+} from '@tdsk/components'
 
 const ThreadsPermissionsProvider = ({ children }: { children: ReactNode }) => {
   const [user] = useUser()
@@ -29,14 +39,21 @@ const ThreadsPermissionsProvider = ({ children }: { children: ReactNode }) => {
 
 overlayScrollBody()
 init().catch(console.error)
+initAnalytics({
+  key: TDSK_POSTHOG_KEY,
+  host: TDSK_POSTHOG_HOST,
+  disabled: VITEST || Environment === `local`,
+})
 
 createRoot(document.getElementById(`root`)!).render(
   <StrictMode>
     <Provider store={store}>
       <AuthProvider>
         <ThreadsPermissionsProvider>
-          <App />
-          <Version />
+          <AnalyticsProvider>
+            <App />
+            <Version />
+          </AnalyticsProvider>
         </ThreadsPermissionsProvider>
       </AuthProvider>
     </Provider>

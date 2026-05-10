@@ -1,3 +1,4 @@
+import posthog from 'posthog-js'
 import { nav } from '@TAF/services/nav'
 import { auth } from '@TAF/services/auth'
 import { apiService } from '@TAF/services/api'
@@ -9,8 +10,11 @@ export const signout = async () => {
 
   try {
     await auth.signout()
-  } catch {}
+  } catch (err) {
+    console.warn(`[signout] Server signout failed:`, err)
+  }
 
+  posthog.reset()
   apiService.clearBearer()
   reset()
   nav.signin()
