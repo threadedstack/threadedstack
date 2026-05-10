@@ -17,17 +17,24 @@ export const updateProvider: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { name, baseUrl, defaultModel, config, type, brand, secretId } = req.body
+    const {
+      name,
+      config,
+      options,
+      headers,
+      baseUrl,
+      secretId,
+      bodyParams,
+      defaultModel,
+    } = req.body
 
     const existing = await requireResource(db.services.provider, id, `Provider`)
 
     // Merge with existing record so partial updates still validate correctly
-    const effectiveType = type ?? existing.type
-    const effectiveBrand = brand ?? existing.brand
+    const type = req.body.type ?? existing.type
+    const brand = req.body.brand ?? existing.brand
 
-    if (type) db.services.provider.validateType(type)
-    db.services.provider.validateLLM(effectiveType, effectiveBrand)
-    db.services.provider.validateDocker(effectiveType, effectiveBrand)
+    db.services.provider.validType(type, brand)
 
     const { data, error } = await db.services.provider.update({
       id,
@@ -35,7 +42,10 @@ export const updateProvider: TEndpointConfig = {
       ...(type !== undefined && { type }),
       ...(brand !== undefined && { brand }),
       ...(config !== undefined && { config }),
+      ...(options !== undefined && { options }),
+      ...(headers !== undefined && { headers }),
       ...(baseUrl !== undefined && { baseUrl }),
+      ...(bodyParams !== undefined && { bodyParams }),
       ...(defaultModel !== undefined && { defaultModel }),
       ...(secretId !== undefined && secretId !== null && { secretId }),
     })

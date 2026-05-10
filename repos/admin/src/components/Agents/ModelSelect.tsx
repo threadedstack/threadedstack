@@ -1,4 +1,4 @@
-import type { TProviderModel, TLLMProviderBrand } from '@tdsk/domain'
+import type { TProviderModel, TAIProviderBrand } from '@tdsk/domain'
 
 import { TextInput, SelectInput } from '@tdsk/components'
 import { DynamicBrands } from '@TAF/constants/providers'
@@ -13,7 +13,7 @@ export type TModelSelectProps = {
   apiKey?: string
   disabled?: boolean
   size?: 'small' | 'medium'
-  brand: TLLMProviderBrand | string
+  brand: TAIProviderBrand | string
   onChange: (model: string) => void
 }
 
@@ -24,9 +24,9 @@ export const ModelSelect = (props: TModelSelectProps) => {
     apiKey,
     baseUrl,
     disabled,
-    id: idProp,
-    size = 'small',
     onChange,
+    id: idProp,
+    size = `small`,
   } = props
 
   const idSuffix = idProp || brand

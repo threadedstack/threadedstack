@@ -4,3 +4,10 @@ export type TProviderLinkItem = {
   brand: string
   model?: string | null
 }
+
+export type TProviderLabel = {
+  desc: string
+  title: string
+  label: string
+  empty: string
+}

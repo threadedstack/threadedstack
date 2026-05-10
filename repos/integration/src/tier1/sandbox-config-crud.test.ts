@@ -363,29 +363,6 @@ describe('Tier 1: Sandbox Config CRUD', () => {
       createdSandboxIds.push(res.data.id)
     })
 
-    // --- gitRepo / gitBranch ---
-
-    test('POST creates sandbox with gitRepo and gitBranch', async () => {
-      const res = await post<Record<string, any>>(
-        `/orgs/${ctx.orgId}/sandboxes`,
-        {
-          name: uniqueName('sb-git'),
-          config: {
-            ...baseCfg,
-            gitRepo: 'https://github.com/example/repo.git',
-            gitBranch: 'main',
-          },
-          orgId: ctx.orgId,
-        }
-      )
-
-      expect(res.status).toBe(201)
-      expect(res.ok).toBe(true)
-      expect(res.data.config.gitRepo).toBe('https://github.com/example/repo.git')
-      expect(res.data.config.gitBranch).toBe('main')
-      createdSandboxIds.push(res.data.id)
-    })
-
     // --- idleTimeoutMinutes ---
 
     test('POST creates sandbox with idleTimeoutMinutes=60', async () => {
@@ -406,30 +383,5 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     // --- Validation ---
 
-    test('POST with gitBranch but no gitRepo returns 400', async () => {
-      const res = await post(
-        `/orgs/${ctx.orgId}/sandboxes`,
-        {
-          name: uniqueName('sb-bad-git'),
-          config: { ...baseCfg, gitBranch: 'main' },
-          orgId: ctx.orgId,
-        }
-      )
-
-      expect(res.status).toBe(400)
-      expect(res.ok).toBe(false)
-    })
-
-    test('PUT with gitBranch but no gitRepo returns 400', async () => {
-      if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
-
-      const res = await put(
-        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`,
-        { config: { ...baseCfg, gitBranch: 'develop' } }
-      )
-
-      expect(res.status).toBe(400)
-      expect(res.ok).toBe(false)
-    })
   })
 })

@@ -1,7 +1,13 @@
 import { useMemo } from 'react'
 import { EntitySelector, EntitySelectorSingle } from './EntitySelector'
+import {
+  DefProviderLabel,
+  DefProvidersLabel,
+  ProviderTypeLabels,
+} from '@TAF/constants/providers'
 
 export type TProviderSelector = {
+  type?: string
   loading?: boolean
   disabled?: boolean
   required?: boolean
@@ -11,6 +17,7 @@ export type TProviderSelector = {
 }
 
 export type TProviderSelectorSingle = {
+  type?: string
   loading?: boolean
   disabled?: boolean
   required?: boolean
@@ -30,8 +37,11 @@ const useProviderOptions = (providers: TProviderSelector['providers']) =>
   )
 
 export const ProviderSelector = (props: TProviderSelector) => {
-  const { loading, disabled, providers, required, selectedProviderIds, onChange } = props
+  const { type, loading, disabled, required, onChange, providers, selectedProviderIds } =
+    props
+
   const options = useProviderOptions(providers)
+  const labels = ProviderTypeLabels[type || `ai`] || DefProvidersLabel
 
   return (
     <EntitySelector
@@ -39,8 +49,8 @@ export const ProviderSelector = (props: TProviderSelector) => {
       options={options}
       required={required}
       onChange={onChange}
-      title='AI Providers'
-      label='AI Providers'
+      title={labels.title}
+      label={labels.label}
       id='entity-providers'
       value={selectedProviderIds}
       placeholder='Select providers...'
@@ -49,23 +59,25 @@ export const ProviderSelector = (props: TProviderSelector) => {
         loading
           ? 'Loading providers...'
           : providers.length === 0
-            ? 'No AI providers available. Create a provider first.'
-            : 'Select AI providers for this entity'
+            ? labels.empty
+            : labels.desc
       }
     />
   )
 }
 
 export const ProviderSelectorSingle = (props: TProviderSelectorSingle) => {
-  const { loading, disabled, providers, providerId, required, onChange } = props
+  const { type, loading, disabled, required, onChange, providers, providerId } = props
+
   const options = useProviderOptions(providers)
+  const labels = ProviderTypeLabels[type || `ai`] || DefProviderLabel
 
   return (
     <EntitySelectorSingle
       loading={loading}
       options={options}
       disabled={disabled}
-      label='AI Provider'
+      label={labels.label}
       id='entity-provider'
       required={required}
       value={providerId || null}
@@ -75,8 +87,8 @@ export const ProviderSelectorSingle = (props: TProviderSelectorSingle) => {
         loading
           ? 'Loading providers...'
           : providers.length === 0
-            ? 'No AI providers available.'
-            : 'Select an AI provider'
+            ? labels.empty
+            : labels.desc
       }
     />
   )

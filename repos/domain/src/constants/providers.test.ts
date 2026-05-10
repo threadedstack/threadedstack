@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { LLMProviderTemplates, DockerRegistryDefaults } from './providers'
-import { ELLMProviderBrand, EDockerProviderBrand } from '@TDM/types'
+import { AIProviderTemplates, DockerRegistryDefaults } from './providers'
+import { EAIProviderBrand, EDockerProviderBrand } from '@TDM/types'
 
-describe(`LLMProviderTemplates`, () => {
+describe(`AIProviderTemplates`, () => {
   it(`should have templates for configured providers only`, () => {
-    const configuredBrands = Object.keys(LLMProviderTemplates) as ELLMProviderBrand[]
+    const configuredBrands = Object.keys(AIProviderTemplates) as EAIProviderBrand[]
     for (const brand of configuredBrands) {
-      expect(LLMProviderTemplates[brand]).toBeDefined()
-      expect(LLMProviderTemplates[brand]!.id).toBe(brand)
+      expect(AIProviderTemplates[brand]).toBeDefined()
+      expect(AIProviderTemplates[brand]!.id).toBe(brand)
     }
   })
 
   it(`should have 7 provider entries`, () => {
-    expect(Object.keys(LLMProviderTemplates)).toHaveLength(7)
+    expect(Object.keys(AIProviderTemplates)).toHaveLength(7)
   })
 
   it(`should be config-only templates (no models or defaultModel)`, () => {
-    for (const tmpl of Object.values(LLMProviderTemplates)) {
+    for (const tmpl of Object.values(AIProviderTemplates)) {
       expect(tmpl).not.toHaveProperty(`models`)
       expect(tmpl).not.toHaveProperty(`defaultModel`)
       expect(tmpl).toHaveProperty(`id`)
@@ -28,7 +28,7 @@ describe(`LLMProviderTemplates`, () => {
   })
 
   describe(`OpenRouter template`, () => {
-    const tmpl = LLMProviderTemplates[ELLMProviderBrand.openrouter]
+    const tmpl = AIProviderTemplates[EAIProviderBrand.openrouter]
 
     it(`should have correct id and name`, () => {
       expect(tmpl.id).toBe(`openrouter`)
@@ -45,7 +45,7 @@ describe(`LLMProviderTemplates`, () => {
   })
 
   describe(`Ollama template`, () => {
-    const tmpl = LLMProviderTemplates[ELLMProviderBrand.ollama]
+    const tmpl = AIProviderTemplates[EAIProviderBrand.ollama]
 
     it(`should have correct id and name`, () => {
       expect(tmpl.id).toBe(`ollama`)
@@ -63,19 +63,19 @@ describe(`LLMProviderTemplates`, () => {
 
   describe(`Provider baseUrls`, () => {
     it(`should have Anthropic with correct baseUrl`, () => {
-      expect(LLMProviderTemplates[ELLMProviderBrand.anthropic].baseUrl).toBe(
+      expect(AIProviderTemplates[EAIProviderBrand.anthropic].baseUrl).toBe(
         `https://api.anthropic.com`
       )
     })
 
     it(`should have OpenAI with correct baseUrl`, () => {
-      expect(LLMProviderTemplates[ELLMProviderBrand.openai].baseUrl).toBe(
+      expect(AIProviderTemplates[EAIProviderBrand.openai].baseUrl).toBe(
         `https://api.openai.com/v1`
       )
     })
 
     it(`should have Custom with empty baseUrl`, () => {
-      expect(LLMProviderTemplates[ELLMProviderBrand.custom].baseUrl).toBe(``)
+      expect(AIProviderTemplates[EAIProviderBrand.custom].baseUrl).toBe(``)
     })
   })
 })

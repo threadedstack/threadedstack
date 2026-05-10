@@ -45,8 +45,6 @@ describe(`createProject`, () => {
       id: `1`,
       name: `Test Project`,
       orgId: `org1`,
-      branch: `main`,
-      gitUrl: `https://github.com/test/project.git`,
     })
 
     mockProjectsCreate.mockResolvedValueOnce({ data: mockProject })
@@ -54,14 +52,10 @@ describe(`createProject`, () => {
     const result = await createProject({
       name: `Test Project`,
       orgId: `org1`,
-      branch: `main`,
-      gitUrl: `https://github.com/test/project.git`,
     })
 
     expect(mockProjectsCreate).toHaveBeenCalledWith(`org1`, {
       name: `Test Project`,
-      branch: `main`,
-      gitUrl: `https://github.com/test/project.git`,
     })
     expect(mockSetProjects).toHaveBeenCalled()
     expect(query.client.invalidateQueries).toHaveBeenCalled()

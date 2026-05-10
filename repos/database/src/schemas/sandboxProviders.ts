@@ -1,8 +1,9 @@
-import { relations } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { base } from '@TDB/utils/schema/base'
+import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { sandboxes } from '@TDB/schemas/sandboxes'
-import { pgTable, unique, integer, index, varchar, text } from 'drizzle-orm/pg-core'
+import { text, index, pgTable, integer, varchar, uniqueIndex } from 'drizzle-orm/pg-core'
 
 /**
  * Sandbox-Providers junction table
@@ -30,9 +31,19 @@ export const sandboxProviders = pgTable(
 
     /** Priority order: 0 = primary/default provider, 1+ = secondary */
     priority: integer(`priority`).default(0),
+
+    /** Project scope: NULL = applies globally, set = applies only in this project context */
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
   },
   (table) => [
-    unique(`unique_sandbox_provider`).on(table.sandboxId, table.providerId),
+    uniqueIndex(`unique_sandbox_provider_global`)
+      .on(table.sandboxId, table.providerId)
+      .where(sql`${table.projectId} IS NULL`),
+    uniqueIndex(`unique_sandbox_provider_project`)
+      .on(table.sandboxId, table.providerId, table.projectId)
+      .where(sql`${table.projectId} IS NOT NULL`),
     index(`idx_sandbox_provider_sandbox`).on(table.sandboxId),
     index(`idx_sandbox_provider_priority`).on(table.sandboxId, table.priority),
   ]
@@ -46,5 +57,9 @@ export const sandboxProvidersRelations = relations(sandboxProviders, ({ one }) =
   provider: one(providers, {
     references: [providers.id],
     fields: [sandboxProviders.providerId],
+  }),
+  project: one(projects, {
+    references: [projects.id],
+    fields: [sandboxProviders.projectId],
   }),
 }))

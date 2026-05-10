@@ -21,4 +21,8 @@ export const ProviderBrandDomains: Partial<Record<TProviderBrand, string[]>> = {
   [`github-copilot`]: [`api.githubcopilot.com`],
   huggingface: [`api-inference.huggingface.co`],
   [`google-gemini-cli`]: [`generativelanguage.googleapis.com`],
+  github: [`github.com`, `api.github.com`],
+  gitlab: [`gitlab.com`],
+  bitbucket: [`bitbucket.org`, `api.bitbucket.org`],
+  [`azure-devops`]: [`dev.azure.com`],
 }

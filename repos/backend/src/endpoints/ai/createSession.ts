@@ -37,7 +37,7 @@ export const createSession: TEndpointConfig = {
     if (!provider) throw new Exception(404, `Agent has no provider configured`)
 
     // Determine and validate provider type (throws 400 if brand is invalid)
-    const providerType = db.services.provider.resolveLLMBrand(provider)
+    const providerType = db.services.provider.resolveAIBrand(provider)
 
     if (!provider.secretId)
       throw new Exception(

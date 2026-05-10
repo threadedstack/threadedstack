@@ -73,7 +73,7 @@ export const ProjectCard = (props: TProjectCard) => {
 
           <CardInfo>
             <Box sx={{ display: 'flex', gap: 1, mt: 1, mb: 2 }}>
-              {project.branch && (
+              {project.gitUrl && (
                 <Chip
                   label={project.branch}
                   size='small'

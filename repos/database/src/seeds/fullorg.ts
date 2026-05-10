@@ -19,6 +19,7 @@ import {
   Schedule,
   EProvider,
   Invitation,
+  EGitProvider,
   Subscription,
   Organization,
   EFunLanguage,
@@ -27,7 +28,7 @@ import {
   ProxyEndpoint,
   EInviteStatus,
   SandboxPresets,
-  ELLMProviderBrand,
+  EAIProviderBrand,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
@@ -111,8 +112,6 @@ const projects = {
     orgId: org.id,
     id: Ids.project.acmeApi,
     name: `API Backend`,
-    gitUrl: `https://github.com/acme-corp/api-backend`,
-    branch: `master`,
     meta: {
       version: `2.5.0`,
       framework: `express`,
@@ -124,8 +123,6 @@ const projects = {
     orgId: org.id,
     id: Ids.project.acmeMobile,
     name: `Mobile App`,
-    gitUrl: `https://github.com/acme-corp/mobile-app`,
-    branch: `develop`,
     meta: {
       version: `1.8.2`,
       language: `typescript`,
@@ -137,8 +134,6 @@ const projects = {
     orgId: org.id,
     id: Ids.project.acmeWeb,
     name: `Web Dashboard`,
-    gitUrl: `https://github.com/acme-corp/web-dashboard`,
-    branch: `main`,
     meta: {
       version: `3.2.1`,
       framework: `react`,
@@ -237,9 +232,9 @@ const providers = {
   openai: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.openai,
     id: Ids.provider.acmeOpenai,
     name: `OpenAI Provider`,
+    brand: EAIProviderBrand.openai,
     secretId: Ids.secret.acmeApiKey,
     options: {
       temperature: 0.7,
@@ -250,9 +245,9 @@ const providers = {
   anthropic: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.anthropic,
-    id: Ids.provider.acmeAnthropic,
     name: `Anthropic Provider`,
+    id: Ids.provider.acmeAnthropic,
+    brand: EAIProviderBrand.anthropic,
     secretId: Ids.secret.providerAnthropicKey,
     options: {
       model: `claude-3-opus-20240229`,
@@ -262,9 +257,9 @@ const providers = {
   zai: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.zai,
     id: Ids.provider.zai,
     name: `ZAI Provider`,
+    brand: EAIProviderBrand.zai,
     secretId: Ids.secret.zaiKey,
     options: {
       model: `glm-5`,
@@ -275,9 +270,9 @@ const providers = {
   openrouter: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.openrouter,
     id: Ids.provider.openrouter,
     name: `OpenRouter Provider`,
+    brand: EAIProviderBrand.openrouter,
     secretId: Ids.secret.openrouterKey,
     options: {
       model: `anthropic/claude-sonnet-4`,
@@ -287,9 +282,9 @@ const providers = {
   google: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.google,
     id: Ids.provider.google,
     name: `Google AI Provider`,
+    brand: EAIProviderBrand.google,
     secretId: Ids.secret.googleKey,
     options: {
       model: `gemini-2.5-pro`,
@@ -299,14 +294,37 @@ const providers = {
   ollama: new Provider({
     orgId: org.id,
     type: EProvider.ai,
-    brand: ELLMProviderBrand.ollama,
     id: Ids.provider.ollama,
     name: `Ollama Cloud Provider`,
+    brand: EAIProviderBrand.ollama,
     secretId: Ids.secret.ollamaKey,
     options: {
       baseUrl: `https://ollama.com`,
       model: `devstral-small`,
       allowedDomains: [`ollama.com`],
+    },
+  }),
+  gitHub: new Provider({
+    orgId: org.id,
+    type: EProvider.git,
+    id: Ids.provider.gitHub,
+    name: `GitHub`,
+    brand: EGitProvider.github,
+    secretId: Ids.secret.githubToken,
+    options: {
+      repoUrl: `https://github.com/keg-hub/parse-config.git`,
+      branch: `main`,
+    },
+  }),
+  gitLab: new Provider({
+    orgId: org.id,
+    type: EProvider.git,
+    id: Ids.provider.gitLab,
+    name: `GitLab`,
+    brand: EGitProvider.gitlab,
+    options: {
+      repoUrl: `https://gitlab.com/acme-corp/shared-lib`,
+      branch: `main`,
     },
   }),
 }
@@ -487,8 +505,8 @@ const agents = {
     description: `A coding AI Agent`,
     projects: Object.values(projects),
     providerLinks: [
-      { priority: 0, provider: providers.zai },
-      { priority: 1, provider: providers.openai },
+      { priority: 0, provider: providers.zai, projectId: null },
+      { priority: 1, provider: providers.openai, projectId: null },
     ],
     systemPrompt: `You are a senior software engineer.`,
     secrets: [secrets.anthropic],
@@ -515,8 +533,8 @@ const agents = {
     description: `Conversational AI`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.zai },
-      { priority: 1, provider: providers.openai },
+      { priority: 0, provider: providers.zai, projectId: null },
+      { priority: 1, provider: providers.openai, projectId: null },
     ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.anthropic],
@@ -533,9 +551,9 @@ const agents = {
     model: `glm-5`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.zai },
-      { priority: 1, provider: providers.anthropic },
-      { priority: 2, provider: providers.openai },
+      { priority: 0, provider: providers.zai, projectId: null },
+      { priority: 1, provider: providers.anthropic, projectId: null },
+      { priority: 2, provider: providers.openai, projectId: null },
     ],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.zaiSecret, secrets.agentEnv],
@@ -558,8 +576,8 @@ const agents = {
     description: `Multi-model routing AI Agent via OpenRouter`,
     projects: [projects.api, projects.web],
     providerLinks: [
-      { priority: 0, provider: providers.openrouter },
-      { priority: 1, provider: providers.anthropic },
+      { priority: 0, provider: providers.openrouter, projectId: null },
+      { priority: 1, provider: providers.anthropic, projectId: null },
     ],
     systemPrompt: `You are a helpful AI assistant with access to multiple model backends via OpenRouter.`,
     secrets: [secrets.openrouterKey],
@@ -574,7 +592,7 @@ const agents = {
     name: `Google AI Agent`,
     description: `AI Agent powered by Google Gemini models`,
     projects: [projects.api, projects.web],
-    providerLinks: [{ priority: 0, provider: providers.google }],
+    providerLinks: [{ priority: 0, provider: providers.google, projectId: null }],
     systemPrompt: `You are a helpful AI assistant powered by Google Gemini.`,
     secrets: [secrets.googleKey],
     environment: {
@@ -588,7 +606,7 @@ const agents = {
     name: `Ollama Agent`,
     description: `AI Agent powered by Ollama Cloud hosted models`,
     projects: [projects.api],
-    providerLinks: [{ priority: 0, provider: providers.ollama }],
+    providerLinks: [{ priority: 0, provider: providers.ollama, projectId: null }],
     systemPrompt: `You are a helpful AI assistant running on Ollama Cloud infrastructure.`,
     secrets: [secrets.ollamaKey],
     environment: {
@@ -1296,6 +1314,15 @@ const sandboxProviderLinks = [
   // Custom: no providers linked — bring your own
 ]
 
+// --- Project → Provider links (git providers linked to projects) ---
+const projectProviderLinks = [
+  // API Backend: GitHub repo
+  { projectId: Ids.project.acmeApi, providerId: providers.gitHub.id, priority: 0 },
+  // Web Dashboard: GitHub repo + GitLab shared lib
+  { projectId: Ids.project.acmeWeb, providerId: providers.gitHub.id, priority: 0 },
+  { projectId: Ids.project.acmeWeb, providerId: providers.gitLab.id, priority: 1 },
+]
+
 /**
  * Full organization seed data
  * Contains everything needed to create a complete org with all entity types
@@ -1351,4 +1378,5 @@ export const seeds = {
   // Compute
   sandboxes,
   sandboxProviderLinks,
+  projectProviderLinks,
 }

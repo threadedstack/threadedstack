@@ -1,4 +1,4 @@
-import type { TLLMProviderBrand } from '@tdsk/domain'
+import type { TAIProviderBrand } from '@tdsk/domain'
 import type { OnboardingSteps } from '@TAF/constants/onboarding'
 
 export type TOnboardingMode = `auto` | `manual`
@@ -11,11 +11,11 @@ export type TOnboardingState = {
 }
 
 export type TOnboardingProviderData = {
-  apiKey: string
   model: string
+  apiKey: string
   providerUrl: string
   providerName: string
-  providerBrand: TLLMProviderBrand
+  providerBrand: TAIProviderBrand
 }
 
 export type TOnboardingProjectData = {
@@ -84,7 +84,7 @@ export const DefStepData: TOnboardingStepData = {
       model: ``,
       providerUrl: ``,
       providerName: ``,
-      providerBrand: `anthropic` as TLLMProviderBrand,
+      providerBrand: `` as TAIProviderBrand,
     },
   },
   project: { mode: `create`, data: { name: ``, description: `` } },

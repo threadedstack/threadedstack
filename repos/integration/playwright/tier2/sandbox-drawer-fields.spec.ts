@@ -78,37 +78,6 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     expect(errors).toEqual([])
   })
 
-  test('Git Repository accordion shows repo and branch fields', async ({
-    authenticatedPage: page,
-    ctx,
-  }) => {
-    const errors = collectErrors(page)
-    await gotoAndWait(
-      page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
-      PAGE_CLASS
-    )
-
-    // Open create drawer
-    await openDrawer(page, /Create Sandbox/i)
-
-    // Click the "Git Repository" accordion to expand it
-    const gitAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Git Repository' })
-    await expect(gitAccordion).toBeVisible({ timeout: 5_000 })
-    await gitAccordion.click()
-
-    // Verify the git repo input is visible
-    const gitRepoInput = page.locator('#sandbox-git-repo')
-    await expect(gitRepoInput).toBeVisible({ timeout: 5_000 })
-
-    // Verify the git branch input is visible with default value 'main'
-    const gitBranchInput = page.locator('#sandbox-git-branch')
-    await expect(gitBranchInput).toBeVisible({ timeout: 5_000 })
-    await expect(gitBranchInput).toHaveValue('main')
-
-    expect(errors).toEqual([])
-  })
-
   test('Idle timeout field has default 30', async ({
     authenticatedPage: page,
     ctx,
@@ -163,15 +132,6 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     const sshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
     await sshCheckbox.click({ force: true })
 
-    // Expand Git Repository accordion
-    const gitAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Git Repository' })
-    await gitAccordion.click()
-
-    // Fill git repo and branch
-    await fillField(page, 'sandbox-git-repo', 'https://github.com/test/repo.git')
-    const gitBranchInput = page.locator('#sandbox-git-branch')
-    await gitBranchInput.fill('dev')
-
     // Set idle timeout to 60
     const timeoutInput = page.locator('#sandbox-idle-timeout')
     await timeoutInput.fill('60')
@@ -216,18 +176,6 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     // Verify SSH toggle is unchecked (we toggled it off)
     const editSshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
     await expect(editSshCheckbox).not.toBeChecked()
-
-    // Expand Git Repository accordion to verify fields
-    const editGitAccordion = page.locator('.MuiAccordionSummary-root', { hasText: 'Git Repository' })
-    await editGitAccordion.click()
-
-    // Verify git repo
-    const editGitRepo = page.locator('#sandbox-git-repo')
-    await expect(editGitRepo).toHaveValue('https://github.com/test/repo.git')
-
-    // Verify git branch
-    const editGitBranch = page.locator('#sandbox-git-branch')
-    await expect(editGitBranch).toHaveValue('dev')
 
     // Verify idle timeout
     const editTimeout = page.locator('#sandbox-idle-timeout')

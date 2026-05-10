@@ -16,20 +16,16 @@ export type TCreateProjectDrawer = {
 export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
   const { open, onClose: onCloseCB, onSuccess: onSuccessCB } = props
 
+  const [orgId] = useActiveOrgId()
   const [name, setName] = useState(``)
   const [description, setDescription] = useState(``)
-  const [gitUrl, setGitUrl] = useState(``)
-  const [branch, setBranch] = useState(`main`)
   const { loading, error, setError, clearError, run } = useAsyncAction()
-  const [orgId] = useActiveOrgId()
 
   const onClose = () => {
     if (loading) return
 
     setName(``)
     setDescription(``)
-    setGitUrl(``)
-    setBranch(`main`)
     clearError()
     onCloseCB?.()
   }
@@ -46,8 +42,6 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
       createProject({
         orgId,
         name: short,
-        branch: branch.trim() || `main`,
-        gitUrl: gitUrl.trim() || undefined,
         description: description.trim() || undefined,
       })
     )
@@ -110,26 +104,6 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
             id='tdsk-project-description'
             placeholder='Enter project description (optional)'
             onChange={(e) => setDescription(e.target.value)}
-          />
-
-          <TextInput
-            fullWidth
-            label='Git URL'
-            value={gitUrl}
-            disabled={loading}
-            id='tdsk-project-git-url'
-            onChange={(e) => setGitUrl(e.target.value)}
-            placeholder='https://github.com/user/repo.git (optional)'
-          />
-
-          <TextInput
-            fullWidth
-            label='Branch'
-            value={branch}
-            disabled={loading}
-            id='tdsk-project-branch'
-            onChange={(e) => setBranch(e.target.value)}
-            placeholder='Enter git branch name (i.e. main)'
           />
         </Box>
       </form>

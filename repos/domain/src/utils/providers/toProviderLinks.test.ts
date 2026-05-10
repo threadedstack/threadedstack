@@ -37,7 +37,7 @@ describe(`toProviderLinks`, () => {
 
   it(`should preserve existing Provider instances`, () => {
     const existing = new Provider({ id: `p1` })
-    const links = [{ provider: existing, priority: 0, model: null }]
+    const links = [{ provider: existing, priority: 0, model: null, projectId: null }]
 
     const result = toProviderLinks(links)
     expect(result).toHaveLength(1)

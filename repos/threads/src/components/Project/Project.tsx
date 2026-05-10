@@ -1,4 +1,4 @@
-import type { Project as TProject, Sandbox } from '@tdsk/domain'
+import type { Project as TProject, Sandbox, TGitBrand } from '@tdsk/domain'
 
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
@@ -65,6 +65,7 @@ export const Project = () => {
           <GitInfo
             gitUrl={project.gitUrl}
             branch={project.branch || `main`}
+            brand={project.primaryGitProvider?.brand as TGitBrand | undefined}
           />
         )}
       </Box>

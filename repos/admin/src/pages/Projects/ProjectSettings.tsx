@@ -25,15 +25,10 @@ export const ProjectSettings = (props: TProjectSettings) => {
   const [success, setSuccess] = useState<string | null>(null)
 
   const [name, setName] = useState(project?.name || '')
-  const [gitUrl, setGitUrl] = useState(project?.gitUrl || '')
-  const [branch, setBranch] = useState(project?.branch || '')
   const [originalName, setOriginalName] = useState(project?.name || '')
-  const [originalGitUrl, setOriginalGitUrl] = useState(project?.gitUrl || '')
-  const [originalBranch, setOriginalBranch] = useState(project?.branch || '')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const hasChanges =
-    name !== originalName || gitUrl !== originalGitUrl || branch !== originalBranch
+  const hasChanges = name !== originalName
 
   const onSave = async () => {
     if (!projectId || !hasChanges) return
@@ -45,8 +40,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
     const result = await updateProject({
       name,
       orgId,
-      gitUrl,
-      branch,
       id: projectId,
     })
 
@@ -55,8 +48,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
     } else {
       setSuccess('Project updated successfully')
       setOriginalName(name)
-      setOriginalGitUrl(gitUrl)
-      setOriginalBranch(branch)
     }
 
     setSaving(false)
@@ -116,20 +107,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
                 label: 'Project Name',
                 value: name,
                 onChange: setName,
-              },
-              {
-                name: 'gitUrl',
-                label: 'Git URL',
-                value: gitUrl,
-                onChange: setGitUrl,
-                placeholder: 'https://github.com/username/project.git',
-              },
-              {
-                name: 'branch',
-                label: 'Branch',
-                value: branch,
-                onChange: setBranch,
-                placeholder: 'main',
               },
             ]}
             onSave={onSave}

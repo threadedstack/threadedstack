@@ -1,5 +1,5 @@
 import type { Response } from 'express'
-import type { TAuthHeaderObj, TLLMProviderBrand } from '@tdsk/domain'
+import type { TAuthHeaderObj, TAIProviderBrand } from '@tdsk/domain'
 import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 
 import { providers } from './providers'
@@ -40,60 +40,77 @@ describe(`Providers endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
-              validateType: vi.fn((type?: string) => {
+              validType: vi.fn((type?: string, brand?: string | null) => {
                 const validTypes = [`ai`, `git`, `auth`, `storage`, `docker`]
                 if (!type)
                   throw new Error(
                     `Provider type is required, must be one of: ${validTypes.join(`, `)}`
                   )
-                if (validTypes.includes(type)) return true
-                throw new Error(
-                  `Invalid provider type "${type}", must be one of: ${validTypes.join(`, `)}`
-                )
-              }),
-              validateLLM: vi.fn((type?: string, brand?: string | null) => {
-                if (type !== `ai`) return
-                const validBrands = [
-                  `anthropic`,
-                  `openai`,
-                  `google`,
-                  `custom`,
-                  `ollama`,
-                  `zai`,
-                  `xai`,
-                  `groq`,
-                  `deepseek`,
-                  `cerebras`,
-                  `azure-openai`,
-                  `amazon-bedrock`,
-                  `vercel-ai-gateway`,
-                  `google-antigravity`,
-                  `azure-openai-responses`,
-                ]
-                if (!brand || typeof brand !== `string` || !validBrands.includes(brand))
+                if (!validTypes.includes(type))
                   throw new Error(
-                    `AI providers require brand to be one of: ${validBrands.join(`, `)}` +
-                      (brand ? `. Got: "${brand}"` : ``)
+                    `Invalid provider type "${type}", must be one of: ${validTypes.join(`, `)}`
                   )
-              }),
-              validateDocker: vi.fn((type?: string, brand?: string | null) => {
-                if (type !== `docker`) return
-                const validDockerBrands = [
-                  `ghcr`,
-                  `gitlab`,
-                  `quay`,
-                  `dockerhub`,
-                  `custom`,
-                ]
-                if (
-                  !brand ||
-                  typeof brand !== `string` ||
-                  !validDockerBrands.includes(brand)
-                )
-                  throw new Error(
-                    `Docker providers require brand to be one of: ${validDockerBrands.join(`, `)}` +
-                      (brand ? `. Got: "${brand}"` : ``)
+                if (type === `ai`) {
+                  const validBrands = [
+                    `anthropic`,
+                    `openai`,
+                    `google`,
+                    `custom`,
+                    `ollama`,
+                    `zai`,
+                    `xai`,
+                    `groq`,
+                    `deepseek`,
+                    `cerebras`,
+                    `azure-openai`,
+                    `amazon-bedrock`,
+                    `vercel-ai-gateway`,
+                    `google-antigravity`,
+                    `azure-openai-responses`,
+                  ]
+                  if (!brand || typeof brand !== `string` || !validBrands.includes(brand))
+                    throw new Error(
+                      `AI providers require brand to be one of: ${validBrands.join(`, `)}` +
+                        (brand ? `. Got: "${brand}"` : ``)
+                    )
+                }
+                if (type === `docker`) {
+                  const validDockerBrands = [
+                    `ghcr`,
+                    `gitlab`,
+                    `quay`,
+                    `dockerhub`,
+                    `custom`,
+                  ]
+                  if (
+                    !brand ||
+                    typeof brand !== `string` ||
+                    !validDockerBrands.includes(brand)
                   )
+                    throw new Error(
+                      `Docker providers require brand to be one of: ${validDockerBrands.join(`, `)}` +
+                        (brand ? `. Got: "${brand}"` : ``)
+                    )
+                }
+                if (type === `git`) {
+                  const validGitBrands = [
+                    `github`,
+                    `gitlab`,
+                    `bitbucket`,
+                    `azure-devops`,
+                    `gitea`,
+                    `custom`,
+                  ]
+                  if (
+                    !brand ||
+                    typeof brand !== `string` ||
+                    !validGitBrands.includes(brand)
+                  )
+                    throw new Error(
+                      `Git providers require brand to be one of: ${validGitBrands.join(`, `)}` +
+                        (brand ? `. Got: "${brand}"` : ``)
+                    )
+                }
               }),
             },
             role: {
@@ -307,7 +324,7 @@ describe(`Providers endpoints`, () => {
         name: `New Provider`,
         type: `ai` as const,
         orgId: `org-1`,
-        brand: `anthropic` as TLLMProviderBrand,
+        brand: `anthropic` as TAIProviderBrand,
       }
       const createdProvider = new Provider({
         id: `prov-new`,
@@ -340,7 +357,7 @@ describe(`Providers endpoints`, () => {
         name: `Custom Provider`,
         type: `ai` as const,
         orgId: `org-1`,
-        brand: `openai` as TLLMProviderBrand,
+        brand: `openai` as TAIProviderBrand,
         headers: { [`X-Custom`]: `value`, Authorization: `Bearer {{API_KEY}}` },
       }
       const createdProvider = new Provider({
@@ -412,7 +429,12 @@ describe(`Providers endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockGet).toHaveBeenCalledWith(`prov-1`)
-      expect(mockUpdate).toHaveBeenCalledWith({ ...updateData, id: `prov-1` })
+      expect(mockUpdate).toHaveBeenCalledWith({
+        ...updateData,
+        id: `prov-1`,
+        type: `ai`,
+        brand: `anthropic`,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: updatedProvider })
     })
@@ -474,7 +496,12 @@ describe(`Providers endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockUpdate).toHaveBeenCalledWith({ name: `Updated Provider`, id: `prov-1` })
+      expect(mockUpdate).toHaveBeenCalledWith({
+        name: `Updated Provider`,
+        id: `prov-1`,
+        type: `ai`,
+        brand: `anthropic`,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: updatedProvider })
     })
@@ -504,7 +531,12 @@ describe(`Providers endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       // secretId should NOT be in the update call
-      expect(mockUpdate).toHaveBeenCalledWith({ name: `Updated`, id: `prov-1` })
+      expect(mockUpdate).toHaveBeenCalledWith({
+        name: `Updated`,
+        id: `prov-1`,
+        type: `ai`,
+        brand: `anthropic`,
+      })
     })
 
     it(`should return 500 on update error`, async () => {
@@ -582,7 +614,12 @@ describe(`Providers endpoints`, () => {
     })
 
     it(`should accept valid type "git"`, async () => {
-      mockReq.body = { name: `Git Provider`, type: `git`, orgId: `org-1` }
+      mockReq.body = {
+        name: `Git Provider`,
+        type: `git`,
+        orgId: `org-1`,
+        brand: `github`,
+      }
       const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
         typeof vi.fn
       >
@@ -665,7 +702,7 @@ describe(`Providers endpoints`, () => {
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }
-      mockReq.body = { type: `git` }
+      mockReq.body = { type: `git`, brand: `github` }
 
       const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
         typeof vi.fn

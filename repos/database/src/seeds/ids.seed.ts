@@ -53,6 +53,8 @@ export const Ids = {
     openrouter: `pv00000006`,
     google: `pv00000007`,
     ollama: `pv00000008`,
+    gitHub: `pv00000009`,
+    gitLab: `pv00000010`,
   },
   quota: {
     acme202401: `qt00000001`,

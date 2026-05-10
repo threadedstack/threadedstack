@@ -1,10 +1,10 @@
-import type { TLLMProviderBrand, TAgentEnvironment } from '@tdsk/domain'
+import type { TAIProviderBrand, TAgentEnvironment } from '@tdsk/domain'
 
 export type TProviderInfo = {
   id: string
   name: string
   model: string
-  provider: TLLMProviderBrand
+  provider: TAIProviderBrand
 }
 
 export enum EConnectionStatus {
@@ -21,7 +21,7 @@ export type TSessionInfo = {
   maxTokens?: number
   sessionToken: string
   systemPrompt?: string
-  provider: TLLMProviderBrand
+  provider: TAIProviderBrand
   environment?: TAgentEnvironment
 }
 

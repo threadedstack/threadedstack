@@ -49,7 +49,7 @@ export const oaiModels: TEndpointConfig = {
       for (const provider of agent.providers || []) {
         let brand: string
         try {
-          brand = db.services.provider.resolveLLMBrand(provider)
+          brand = db.services.provider.resolveAIBrand(provider)
         } catch (err) {
           logger.warn(`[OAI Models] Cannot resolve provider type`, {
             agentId,

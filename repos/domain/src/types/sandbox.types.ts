@@ -1,27 +1,27 @@
-import type { TSandboxSyncDefaults } from './sync.types'
 import type { TGuiConfig } from './gui.types'
+import type { TSandboxSyncDefaults } from './sync.types'
 
-import { ELLMProviderBrand } from './ai.types'
+import { EAIProviderBrand } from './ai.types'
 
 /**
- * Subset of LLM provider brands that have sandbox env var mappings, plus composite
+ * Subset of AI provider brands that have sandbox env var mappings, plus composite
  * auth-method variants (e.g. amazon-bedrock:bearer). This enum is intentionally a
- * SUBSET of ELLMProviderBrand — only brands with entries in RuntimeProviderEnvMap need
- * to appear here. When adding a new LLM provider to ELLMProviderBrand, also add it here
+ * SUBSET of EAIProviderBrand — only brands with entries in RuntimeProviderEnvMap need
+ * to appear here. When adding a new AI provider to EAIProviderBrand, also add it here
  * if the sandbox should support injecting its credentials.
  */
 export enum ERuntimeBrand {
-  zai = ELLMProviderBrand.zai,
-  custom = ELLMProviderBrand.custom,
-  ollama = ELLMProviderBrand.ollama,
-  openai = ELLMProviderBrand.openai,
-  google = ELLMProviderBrand.google,
-  anthropic = ELLMProviderBrand.anthropic,
-  openrouter = ELLMProviderBrand.openrouter,
-  googleVertex = ELLMProviderBrand.googleVertex,
-  amazonBedrock = ELLMProviderBrand.amazonBedrock,
-  amazonBedrockBearer = `${ELLMProviderBrand.amazonBedrock}:bearer`,
-  ollamaCloud = `${ELLMProviderBrand.ollama}:cloud`,
+  zai = EAIProviderBrand.zai,
+  custom = EAIProviderBrand.custom,
+  ollama = EAIProviderBrand.ollama,
+  openai = EAIProviderBrand.openai,
+  google = EAIProviderBrand.google,
+  anthropic = EAIProviderBrand.anthropic,
+  openrouter = EAIProviderBrand.openrouter,
+  googleVertex = EAIProviderBrand.googleVertex,
+  amazonBedrock = EAIProviderBrand.amazonBedrock,
+  ollamaCloud = `${EAIProviderBrand.ollama}:cloud`,
+  amazonBedrockBearer = `${EAIProviderBrand.amazonBedrock}:bearer`,
 }
 
 export type TEnvVarInjection = `mitm` | `direct` | `file`
@@ -40,7 +40,7 @@ export type TStaticEnvVar = TRuntimeEnvVarBase & { source: `static`; staticValue
 export type TRuntimeEnvVar = TSecretEnvVar | TOptionEnvVar | TStaticEnvVar
 
 /**
- * Brand key can be a plain TLLMProviderBrand or a composite key like 'amazon-bedrock:bearer'
+ * Brand key can be a plain TAIProviderBrand or a composite key like 'amazon-bedrock:bearer'
  * for auth method variants. resolveProviderEnv builds the composite key at runtime.
  */
 export type TRuntimeProviderEnvMap = Record<
@@ -183,9 +183,7 @@ export type TImagePullPolicy = `${EImagePullPolicy}`
 export type TKubeSandboxConfig = {
   image: string
   args?: string[]
-  gitRepo?: string
   workdir?: string
-  gitBranch?: string
   command?: string[]
   sshEnabled?: boolean
   /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
@@ -194,7 +192,6 @@ export type TKubeSandboxConfig = {
   /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */
   runtimeCommand?: string
   defaultRuntime?: string
-  gitTokenSecretId?: string
   idleTimeoutMinutes?: number
   /** Which AI tool runtime to activate (claude-code, codex, opencode, or custom) */
   runtime?: TSandboxRuntimeId

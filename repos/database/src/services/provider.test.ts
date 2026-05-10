@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Provider as ProviderService } from './provider'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the logger to avoid config/db initialization side-effects
 vi.mock(`@TDB/utils/logger`, () => ({
@@ -147,51 +147,51 @@ describe(`Provider service`, () => {
     })
   })
 
-  // ---------- validateLLM ----------
-  describe(`validateLLM`, () => {
+  // ---------- validateAI ----------
+  describe(`validateAI`, () => {
     it(`should return undefined for non-AI type 'git'`, () => {
-      expect(service.validateLLM(`git`, `anthropic`)).toBeUndefined()
+      expect(service.validateAI(`git`, `anthropic`)).toBeUndefined()
     })
 
     it(`should return undefined for non-AI type 'auth'`, () => {
-      expect(service.validateLLM(`auth`)).toBeUndefined()
+      expect(service.validateAI(`auth`)).toBeUndefined()
     })
 
     it(`should return undefined for non-AI type 'storage'`, () => {
-      expect(service.validateLLM(`storage`)).toBeUndefined()
+      expect(service.validateAI(`storage`)).toBeUndefined()
     })
 
     it(`should return undefined for undefined type`, () => {
-      expect(service.validateLLM(undefined)).toBeUndefined()
+      expect(service.validateAI(undefined)).toBeUndefined()
     })
 
     it(`should throw for type='ai' with no brand`, () => {
-      expect(() => service.validateLLM(`ai`)).toThrow()
+      expect(() => service.validateAI(`ai`)).toThrow()
     })
 
     it(`should throw for type='ai' with null brand`, () => {
-      expect(() => service.validateLLM(`ai`, null)).toThrow()
+      expect(() => service.validateAI(`ai`, null)).toThrow()
     })
 
     it(`should throw for type='ai' with invalid brand string`, () => {
-      expect(() => service.validateLLM(`ai`, `not-a-brand`)).toThrow()
+      expect(() => service.validateAI(`ai`, `not-a-brand`)).toThrow()
     })
 
     it(`should not throw for type='ai' with valid brand 'anthropic'`, () => {
-      expect(() => service.validateLLM(`ai`, `anthropic`)).not.toThrow()
+      expect(() => service.validateAI(`ai`, `anthropic`)).not.toThrow()
     })
 
     it(`should not throw for type='ai' with valid brand 'openai'`, () => {
-      expect(() => service.validateLLM(`ai`, `openai`)).not.toThrow()
+      expect(() => service.validateAI(`ai`, `openai`)).not.toThrow()
     })
 
     it(`should include 'Got:' when invalid brand is provided`, () => {
-      expect(() => service.validateLLM(`ai`, `bad-brand`)).toThrow(`Got: "bad-brand"`)
+      expect(() => service.validateAI(`ai`, `bad-brand`)).toThrow(`Got: "bad-brand"`)
     })
 
     it(`should not include 'Got:' when brand is missing`, () => {
       try {
-        service.validateLLM(`ai`)
+        service.validateAI(`ai`)
         expect.unreachable(`should have thrown`)
       } catch (err: any) {
         expect(err.message).not.toContain(`Got:`)
@@ -247,10 +247,59 @@ describe(`Provider service`, () => {
     })
   })
 
-  // ---------- resolveLLMBrand ----------
-  describe(`resolveLLMBrand`, () => {
+  // ---------- validateGit ----------
+  describe(`validateGit`, () => {
+    it(`should return undefined for non-git type 'ai'`, () => {
+      expect(service.validateGit(`ai`, `github`)).toBeUndefined()
+    })
+
+    it(`should return undefined for non-git type 'docker'`, () => {
+      expect(service.validateGit(`docker`)).toBeUndefined()
+    })
+
+    it(`should return undefined for undefined type`, () => {
+      expect(service.validateGit(undefined)).toBeUndefined()
+    })
+
+    it(`should throw for type='git' with no brand`, () => {
+      expect(() => service.validateGit(`git`)).toThrow()
+    })
+
+    it(`should throw for type='git' with null brand`, () => {
+      expect(() => service.validateGit(`git`, null)).toThrow()
+    })
+
+    it(`should throw for type='git' with invalid brand string`, () => {
+      expect(() => service.validateGit(`git`, `svn`)).toThrow()
+    })
+
+    it(`should not throw for valid git brands`, () => {
+      expect(() => service.validateGit(`git`, `github`)).not.toThrow()
+      expect(() => service.validateGit(`git`, `gitlab`)).not.toThrow()
+      expect(() => service.validateGit(`git`, `bitbucket`)).not.toThrow()
+      expect(() => service.validateGit(`git`, `azure-devops`)).not.toThrow()
+      expect(() => service.validateGit(`git`, `gitea`)).not.toThrow()
+      expect(() => service.validateGit(`git`, `custom`)).not.toThrow()
+    })
+
+    it(`should include 'Got:' when invalid brand is provided`, () => {
+      expect(() => service.validateGit(`git`, `invalid`)).toThrow(`Got: "invalid"`)
+    })
+
+    it(`should not include 'Got:' when brand is missing`, () => {
+      try {
+        service.validateGit(`git`)
+        expect.unreachable(`should have thrown`)
+      } catch (err: any) {
+        expect(err.message).not.toContain(`Got:`)
+      }
+    })
+  })
+
+  // ---------- resolveAIBrand ----------
+  describe(`resolveAIBrand`, () => {
     it(`should return brand for valid provider with brand 'anthropic'`, () => {
-      const result = service.resolveLLMBrand({
+      const result = service.resolveAIBrand({
         name: `My Provider`,
         brand: `anthropic` as any,
       })
@@ -258,40 +307,40 @@ describe(`Provider service`, () => {
     })
 
     it(`should return brand for valid provider with brand 'openai'`, () => {
-      const result = service.resolveLLMBrand({ name: `Test`, brand: `openai` as any })
+      const result = service.resolveAIBrand({ name: `Test`, brand: `openai` as any })
       expect(result).toBe(`openai`)
     })
 
     it(`should return brand for valid provider with brand 'google'`, () => {
-      const result = service.resolveLLMBrand({ name: `Test`, brand: `google` as any })
+      const result = service.resolveAIBrand({ name: `Test`, brand: `google` as any })
       expect(result).toBe(`google`)
     })
 
     it(`should throw for provider with no brand`, () => {
-      expect(() => service.resolveLLMBrand({ name: `Test` })).toThrow()
+      expect(() => service.resolveAIBrand({ name: `Test` })).toThrow()
     })
 
     it(`should throw for provider with invalid brand`, () => {
       expect(() =>
-        service.resolveLLMBrand({ name: `Test`, brand: `invalid` as any })
+        service.resolveAIBrand({ name: `Test`, brand: `invalid` as any })
       ).toThrow()
     })
 
     it(`should include provider name in error message`, () => {
       expect(() =>
-        service.resolveLLMBrand({ name: `MyProv`, brand: `bad` as any })
-      ).toThrow(`Cannot determine LLM provider for "MyProv"`)
+        service.resolveAIBrand({ name: `MyProv`, brand: `bad` as any })
+      ).toThrow(`Cannot determine AI provider for "MyProv"`)
     })
 
     it(`should use 'unnamed' when provider has no name`, () => {
-      expect(() => service.resolveLLMBrand({ brand: `bad` as any })).toThrow(
-        `Cannot determine LLM provider for "unnamed"`
+      expect(() => service.resolveAIBrand({ brand: `bad` as any })).toThrow(
+        `Cannot determine AI provider for "unnamed"`
       )
     })
 
     it(`should use 'unnamed' when provider name is null`, () => {
-      expect(() => service.resolveLLMBrand({ name: null, brand: `bad` as any })).toThrow(
-        `Cannot determine LLM provider for "unnamed"`
+      expect(() => service.resolveAIBrand({ name: null, brand: `bad` as any })).toThrow(
+        `Cannot determine AI provider for "unnamed"`
       )
     })
   })

@@ -1,21 +1,21 @@
 import { describe, test, expect, afterAll } from 'vitest'
-import { ELLMProviderBrand } from '@tdsk/domain'
+import { EAIProviderBrand } from '@tdsk/domain'
 import { get, post, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 
-const validBrands = Object.values(ELLMProviderBrand) as string[]
+const validBrands = Object.values(EAIProviderBrand) as string[]
 
 /**
  * Tier 1: Provider LLM Validation Contract Tests
  *
  * Validates that AI-type providers require `brand` to be set
- * to a valid ELLMProviderBrand value (zai, openai, google, anthropic).
+ * to a valid EAIProviderBrand value (zai, openai, google, anthropic).
  *
  * Non-AI providers (git, auth, storage) skip this validation.
  *
- * These tests exercise the validateLLMProvider middleware added to
+ * These tests exercise the validateAI middleware added to
  * createProvider and updateProvider endpoints.
  */
 describe('Tier 1: Provider LLM Validation', () => {
@@ -168,15 +168,16 @@ describe('Tier 1: Provider LLM Validation', () => {
     })
   })
 
-  // ─── Create: Non-AI Providers Skip Validation ──────────────────────
+  // ─── Create: Non-AI Providers ──────────────────────────────────────
 
-  describe('non-AI providers skip brand validation', () => {
-    test('POST /providers type=git without brand returns 201', async () => {
+  describe('non-AI provider brand validation', () => {
+    test('POST /providers type=git with valid brand returns 201', async () => {
       const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation Git'),
           type: 'git',
+          brand: 'github',
           orgId: ctx.orgId,
           options: { repoUrl: 'https://github.com/example/repo' },
         }
@@ -185,8 +186,24 @@ describe('Tier 1: Provider LLM Validation', () => {
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
       expect(res.data.type).toBe('git')
+      expect(res.data.brand).toBe('github')
 
       createdIds.push(res.data.id)
+    })
+
+    test('POST /providers type=git without brand returns 400', async () => {
+      const res = await post<Record<string, any>>(
+        `/orgs/${ctx.orgId}/providers`,
+        {
+          name: uniqueName('LLM Validation Git NoBrand'),
+          type: 'git',
+          orgId: ctx.orgId,
+          options: { repoUrl: 'https://github.com/example/repo' },
+        }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
     })
 
     test('POST /providers type=storage without brand returns 201', async () => {

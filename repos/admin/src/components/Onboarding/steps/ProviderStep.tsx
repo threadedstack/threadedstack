@@ -1,10 +1,10 @@
-import type { TLLMProviderBrand } from '@tdsk/domain'
+import type { TAIProviderBrand } from '@tdsk/domain'
 import type { TOnboardingStepData } from '@TAF/types'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useState, useCallback } from 'react'
-import { LLMProviderTemplates } from '@tdsk/domain'
+import { AIProviderTemplates } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
 import { Text, TextInput } from '@tdsk/components'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
@@ -19,9 +19,9 @@ export type TProviderStep = {
   onUpdate: (data: TOnboardingStepData['provider']) => void
 }
 
-const brands = Object.entries(LLMProviderTemplates) as [
-  TLLMProviderBrand,
-  (typeof LLMProviderTemplates)[keyof typeof LLMProviderTemplates],
+const brands = Object.entries(AIProviderTemplates) as [
+  TAIProviderBrand,
+  (typeof AIProviderTemplates)[keyof typeof AIProviderTemplates],
 ][]
 
 export const ProviderStep = (props: TProviderStep) => {
@@ -45,7 +45,7 @@ export const ProviderStep = (props: TProviderStep) => {
             model: ``,
             providerUrl: ``,
             providerName: ``,
-            providerBrand: `anthropic` as TLLMProviderBrand,
+            providerBrand: `anthropic` as TAIProviderBrand,
           },
         })
       else onUpdate({ mode: `select`, selectedId: ``, selectedName: `` })
@@ -62,7 +62,7 @@ export const ProviderStep = (props: TProviderStep) => {
         model: ``,
         providerUrl: ``,
         providerName: ``,
-        providerBrand: `anthropic` as TLLMProviderBrand,
+        providerBrand: `anthropic` as TAIProviderBrand,
       },
     })
   }, [onUpdate])
@@ -254,8 +254,8 @@ export const ProviderStep = (props: TProviderStep) => {
         type='password'
         label='API Key'
         placeholder={
-          LLMProviderTemplates[
-            stepData.data?.providerBrand as keyof typeof LLMProviderTemplates
+          AIProviderTemplates[
+            stepData.data?.providerBrand as keyof typeof AIProviderTemplates
           ]?.apiKeyPlaceholder || `Enter API key`
         }
         value={stepData.data?.apiKey || ``}

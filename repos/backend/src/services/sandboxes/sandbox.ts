@@ -15,6 +15,7 @@ import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
+import { resolveGitProviderEnv } from '@TBE/utils/sandbox/resolveGitProviderEnv'
 import { resolveDockerPullSecrets } from '@TBE/utils/sandbox/resolveDockerPullSecrets'
 import {
   Exception,
@@ -203,9 +204,12 @@ export class SandboxService {
   async startPod(opts: TStartPodOpts): Promise<string> {
     const { orgId, userId, sandboxId, projectId, egressOpts } = opts
 
-    const { data: sandbox, error } = await this.db.services.sandbox.get(sandboxId)
+    const { data: rawSandbox, error } = await this.db.services.sandbox.get(sandboxId)
     if (error) throw new Error(error.message)
-    if (!sandbox) throw new Error(`Sandbox config not found: ${sandboxId}`)
+    if (!rawSandbox) throw new Error(`Sandbox config not found: ${sandboxId}`)
+
+    const sandbox = projectId ? rawSandbox.getEffectiveConfig(projectId) : rawSandbox
+
     if (!sandbox.config?.image)
       throw new Exception(400, `Sandbox config is missing required "image" field`)
 
@@ -222,36 +226,52 @@ export class SandboxService {
       TDSK_SSH_PASSWORD: sshPassword,
     }
 
-    // Generate placeholder for git auth token if configured
-    if (sandbox.config.gitTokenSecretId) {
-      const gitToken = `${PhTokenPrefix}${nanoid(16)}`
-      placeholders[gitToken] = { secretId: sandbox.config.gitTokenSecretId }
-      extraEnv.TDSK_GIT_TOKEN = gitToken
-    }
-
-    if (sandbox.config.gitRepo) {
-      extraEnv.TDSK_GIT_REPO = sandbox.config.gitRepo
-      if (sandbox.config.gitBranch) extraEnv.TDSK_GIT_BRANCH = sandbox.config.gitBranch
-    }
-
-    // Split provider links by type: env-injected (AI, etc.) vs docker registries
+    // Split provider links by type and project scope
     const allLinks = (sandbox.providerLinks || []).map((link) => ({
       provider: link.provider,
       priority: link.priority ?? 0,
       model: link.model ?? undefined,
+      projectId: link.projectId ?? null,
     }))
-    const envProviderLinks = allLinks.filter((l) => l.provider.type !== EProvider.docker)
-    const dockerProviderLinks = allLinks.filter(
+    const activeLinks = allLinks.filter((l) => {
+      if (l.provider.type === EProvider.git)
+        return l.projectId != null && l.projectId === projectId
+      return l.projectId === null || l.projectId === projectId
+    })
+    const aiProviderLinks = activeLinks.filter((l) => l.provider.type === EProvider.ai)
+    const dockerProviderLinks = activeLinks.filter(
       (l) => l.provider.type === EProvider.docker
     )
+    const gitProviderLinks = activeLinks.filter((l) => l.provider.type === EProvider.git)
+
+    const allGitLinks = allLinks.filter((l) => l.provider.type === EProvider.git)
+    if (gitProviderLinks.length === 0 && allGitLinks.length > 0) {
+      logger.info(
+        `[Sandbox] ${allGitLinks.length} git provider(s) skipped for sandbox ${sandboxId} — no matching projectId`
+      )
+    }
 
     const secrets = new SecretResolver(this.db)
 
-    // Resolve env vars for AI/git providers
-    if (envProviderLinks.length) {
+    // Resolve indexed git provider env vars
+    if (gitProviderLinks.length) {
+      const gitEnv = await resolveGitProviderEnv(gitProviderLinks)
+
+      if (gitEnv.errors.length)
+        throw new Exception(
+          400,
+          `Git provider configuration error: ${gitEnv.errors.join(`, `)}`
+        )
+
+      Object.assign(extraEnv, gitEnv.extraEnv)
+      Object.assign(placeholders, gitEnv.placeholders)
+    }
+
+    // Resolve env vars for AI providers
+    if (aiProviderLinks.length) {
       const providerEnv = await resolveProviderEnv(
         sandbox.config.runtime,
-        envProviderLinks,
+        aiProviderLinks,
         secrets,
         orgId
       )
@@ -332,10 +352,10 @@ export class SandboxService {
     if (dockerSecretNames.length && podName && podUid) {
       const ownerRef = [
         {
-          apiVersion: `v1`,
           kind: `Pod`,
-          name: podName,
           uid: podUid,
+          name: podName,
+          apiVersion: `v1`,
           blockOwnerDeletion: false,
         },
       ]
@@ -540,8 +560,12 @@ export class SandboxService {
             const sandboxId = pod.metadata?.labels?.[PodLabelKeys.sandboxId]
             if (sandboxId) {
               const { data: sb } = await this.db.services.sandbox.get(sandboxId)
-              if (sb?.config?.idleTimeoutMinutes)
-                timeoutMinutes = sb.config.idleTimeoutMinutes
+              if (sb) {
+                const projectId = pod.metadata?.labels?.[PodLabelKeys.projectId]
+                const effective = projectId ? sb.getEffectiveConfig(projectId) : sb
+                if (effective.config?.idleTimeoutMinutes)
+                  timeoutMinutes = effective.config.idleTimeoutMinutes
+              }
             }
           } catch (err) {
             const status =

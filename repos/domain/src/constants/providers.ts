@@ -1,5 +1,5 @@
-import type { TProviderTemplate, TDockerProviderTemplate } from '@TDM/types'
-import { ELLMProviderBrand, EDockerProviderBrand } from '@TDM/types'
+import type { TAIProviderTemplate, TDockerProviderTemplate } from '@TDM/types'
+import { EAIProviderBrand, EDockerProviderBrand } from '@TDM/types'
 
 /**
  * Ollama API URL for live model discovery (user-installed models).
@@ -50,58 +50,58 @@ export const DockerRegistryDefaults: Record<
  * Model catalogs are sourced from pi-mono's registry via the
  * `GET /providers/:brand/models` endpoint.
  */
-export const LLMProviderTemplates: Partial<Record<ELLMProviderBrand, TProviderTemplate>> =
+export const AIProviderTemplates: Partial<Record<EAIProviderBrand, TAIProviderTemplate>> =
   {
-    [ELLMProviderBrand.anthropic]: {
-      id: ELLMProviderBrand.anthropic,
+    [EAIProviderBrand.anthropic]: {
+      id: EAIProviderBrand.anthropic,
       name: `Anthropic`,
       baseUrl: `https://api.anthropic.com`,
       defaultSecretName: `ANTHROPIC_API_KEY`,
       apiKeyPlaceholder: `sk-ant-api03-...`,
       apiKeyPattern: `^sk-ant-`,
     },
-    [ELLMProviderBrand.openai]: {
-      id: ELLMProviderBrand.openai,
+    [EAIProviderBrand.openai]: {
+      id: EAIProviderBrand.openai,
       name: `OpenAI`,
       baseUrl: `https://api.openai.com/v1`,
       defaultSecretName: `OPENAI_API_KEY`,
       apiKeyPlaceholder: `sk-...`,
       apiKeyPattern: `^sk-`,
     },
-    [ELLMProviderBrand.google]: {
-      id: ELLMProviderBrand.google,
+    [EAIProviderBrand.google]: {
+      id: EAIProviderBrand.google,
       name: `Google AI`,
       baseUrl: `https://generativelanguage.googleapis.com/v1`,
       defaultSecretName: `GOOGLE_AI_API_KEY`,
       apiKeyPlaceholder: `AIza...`,
       apiKeyPattern: `^AIza`,
     },
-    [ELLMProviderBrand.zai]: {
-      id: ELLMProviderBrand.zai,
+    [EAIProviderBrand.zai]: {
+      id: EAIProviderBrand.zai,
       name: `Z.AI`,
       baseUrl: `https://api.z.ai/api/paas/v4`,
       defaultSecretName: `ZAI_API_KEY`,
       apiKeyPlaceholder: `Enter your Z.AI API key...`,
       apiKeyPattern: ``,
     },
-    [ELLMProviderBrand.openrouter]: {
-      id: ELLMProviderBrand.openrouter,
+    [EAIProviderBrand.openrouter]: {
+      id: EAIProviderBrand.openrouter,
       name: `OpenRouter`,
       baseUrl: `https://openrouter.ai/api/v1`,
       defaultSecretName: `OPENROUTER_API_KEY`,
       apiKeyPlaceholder: `sk-or-v1-...`,
       apiKeyPattern: `^sk-or-`,
     },
-    [ELLMProviderBrand.ollama]: {
-      id: ELLMProviderBrand.ollama,
+    [EAIProviderBrand.ollama]: {
+      id: EAIProviderBrand.ollama,
       name: `Ollama`,
       baseUrl: `http://localhost:11434/v1`,
       defaultSecretName: `OLLAMA_API_KEY`,
       apiKeyPlaceholder: `Optional — Ollama typically runs without auth`,
       apiKeyPattern: ``,
     },
-    [ELLMProviderBrand.custom]: {
-      id: ELLMProviderBrand.custom,
+    [EAIProviderBrand.custom]: {
+      id: EAIProviderBrand.custom,
       name: `Custom Provider`,
       baseUrl: ``,
       defaultSecretName: `PROVIDER_API_KEY`,

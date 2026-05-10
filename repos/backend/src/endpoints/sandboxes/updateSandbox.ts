@@ -24,13 +24,11 @@ export const updateSandbox: TEndpointConfig = {
 
     if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
-    if (config?.gitBranch && !config?.gitRepo)
-      throw new Exception(400, `gitBranch requires gitRepo to be set`)
 
     const pins = await db.services.provider.validate({
       orgId: existing.orgId,
       inputs: providerInputs,
-      type: [EProvider.ai, EProvider.docker],
+      type: [EProvider.ai, EProvider.docker, EProvider.git],
     })
 
     const { data: projects, error: projErr } = projectIds?.length

@@ -3,6 +3,19 @@ import { Exception, EContainerState, ESandboxSessionVisibility } from '@tdsk/dom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
 
+const sbx = (data: Record<string, any>) => {
+  data.getEffectiveConfig = function () {
+    return this
+  }
+  data.getProjectAlias = function () {
+    return undefined
+  }
+  data.getProjectConfig = function () {
+    return undefined
+  }
+  return data
+}
+
 const mockCreateProxyMiddleware = vi.fn()
 vi.mock(`http-proxy-middleware`, () => ({
   createProxyMiddleware: (...args: any[]) => mockCreateProxyMiddleware(...args),
@@ -11,6 +24,11 @@ vi.mock(`http-proxy-middleware`, () => ({
 const mockResolveProviderEnv = vi.fn()
 vi.mock(`@TBE/utils/sandbox/resolveProviderEnv`, () => ({
   resolveProviderEnv: (...args: any[]) => mockResolveProviderEnv(...args),
+}))
+
+const mockResolveGitProviderEnv = vi.fn()
+vi.mock(`@TBE/utils/sandbox/resolveGitProviderEnv`, () => ({
+  resolveGitProviderEnv: (...args: any[]) => mockResolveGitProviderEnv(...args),
 }))
 
 const mockResolveDockerPullSecrets = vi.fn()
@@ -89,6 +107,11 @@ describe(`SandboxService`, () => {
     kube = makeKube()
     db = makeDb()
     svc = new SandboxService(kube as any, db as any)
+    mockResolveGitProviderEnv.mockResolvedValue({
+      errors: [],
+      extraEnv: {},
+      placeholders: {},
+    })
   })
 
   describe(`validatePodOwnership`, () => {
@@ -244,7 +267,7 @@ describe(`SandboxService`, () => {
 
     it(`should create pod manifest and call kube.createPod, return podName`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -267,11 +290,11 @@ describe(`SandboxService`, () => {
 
     it(`should generate placeholder tokens for each secretId in config`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: {
+        data: sbx({
           id: `sb-1`,
           config: { image: `node:20`, secretIds: [`sec-a`, `sec-b`] },
           sandboxProviders: [],
-        },
+        }),
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -318,7 +341,7 @@ describe(`SandboxService`, () => {
 
     it(`should throw 400 when sandbox config missing image field`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: {} },
+        data: sbx({ id: `sb-1`, config: {} }),
         error: null,
       })
 
@@ -328,7 +351,7 @@ describe(`SandboxService`, () => {
 
       try {
         db.services.sandbox.get.mockResolvedValue({
-          data: { id: `sb-1`, config: {} },
+          data: sbx({ id: `sb-1`, config: {} }),
           error: null,
         })
         await svc.startPod(baseOpts as any)
@@ -340,7 +363,7 @@ describe(`SandboxService`, () => {
 
     it(`should throw when createPod returns pod without metadata.name`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -358,7 +381,7 @@ describe(`SandboxService`, () => {
         certSecretName: `custom-cert`,
       }
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -372,13 +395,18 @@ describe(`SandboxService`, () => {
     })
 
     it(`should pass provider extraEnv and placeholders to buildPodManifest when providers are linked`, async () => {
-      const mockProvider = { id: `prov-1`, brand: `anthropic`, secretId: `sec-1` }
+      const mockProvider = {
+        id: `prov-1`,
+        type: `ai`,
+        brand: `anthropic`,
+        secretId: `sec-1`,
+      }
       db.services.sandbox.get.mockResolvedValue({
-        data: {
+        data: sbx({
           id: `sb-1`,
           config: { image: `node:20`, runtime: `claude-code` },
           providerLinks: [{ provider: mockProvider, priority: 0, model: undefined }],
-        },
+        }),
         error: null,
       })
       mockResolveProviderEnv.mockResolvedValue({
@@ -397,13 +425,18 @@ describe(`SandboxService`, () => {
     })
 
     it(`should throw Exception(400) when provider resolution has errors`, async () => {
-      const mockProvider = { id: `prov-1`, brand: `anthropic`, secretId: `sec-1` }
+      const mockProvider = {
+        id: `prov-1`,
+        type: `ai`,
+        brand: `anthropic`,
+        secretId: `sec-1`,
+      }
       db.services.sandbox.get.mockResolvedValue({
-        data: {
+        data: sbx({
           id: `sb-1`,
           config: { image: `node:20`, runtime: `claude-code` },
           providerLinks: [{ provider: mockProvider, priority: 0, model: undefined }],
-        },
+        }),
         error: null,
       })
       mockResolveProviderEnv.mockResolvedValue({
@@ -422,9 +455,198 @@ describe(`SandboxService`, () => {
       }
     })
 
+    it(`should call resolveGitProviderEnv when git providers are linked`, async () => {
+      const gitProvider = {
+        id: `prov-git`,
+        brand: `github`,
+        type: `git`,
+        secretId: `sec-git`,
+        options: { repoUrl: `https://github.com/org/repo` },
+      }
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20` },
+          providerLinks: [
+            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          ],
+        }),
+        error: null,
+      })
+      mockResolveGitProviderEnv.mockResolvedValue({
+        errors: [],
+        extraEnv: { TDSK_GIT_0_REPO: `https://github.com/org/repo`, TDSK_GIT_COUNT: `1` },
+        placeholders: {},
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod(baseOpts as any)
+
+      expect(mockResolveGitProviderEnv).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            provider: expect.objectContaining({ id: `prov-git`, type: `git` }),
+          }),
+        ])
+      )
+    })
+
+    it(`should merge git env vars into pod manifest`, async () => {
+      const gitProvider = {
+        id: `prov-git`,
+        brand: `github`,
+        type: `git`,
+        secretId: `sec-git`,
+        options: { repoUrl: `https://github.com/org/repo`, branch: `develop` },
+      }
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20` },
+          providerLinks: [
+            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          ],
+        }),
+        error: null,
+      })
+      const gitPlaceholders = { tdsk_ph_git_mock: { secretId: `sec-git` } }
+      mockResolveGitProviderEnv.mockResolvedValue({
+        errors: [],
+        extraEnv: {
+          TDSK_GIT_0_REPO: `https://github.com/org/repo`,
+          TDSK_GIT_0_BRANCH: `develop`,
+          TDSK_GIT_0_BRAND: `github`,
+          TDSK_GIT_0_TOKEN: `tdsk_ph_git_mock`,
+          TDSK_GIT_COUNT: `1`,
+        },
+        placeholders: gitPlaceholders,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod(baseOpts as any)
+
+      const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+      expect(manifestCall.extraEnv.TDSK_GIT_0_REPO).toBe(`https://github.com/org/repo`)
+      expect(manifestCall.extraEnv.TDSK_GIT_0_BRANCH).toBe(`develop`)
+      expect(manifestCall.extraEnv.TDSK_GIT_0_BRAND).toBe(`github`)
+      expect(manifestCall.extraEnv.TDSK_GIT_0_TOKEN).toBe(`tdsk_ph_git_mock`)
+      expect(manifestCall.extraEnv.TDSK_GIT_COUNT).toBe(`1`)
+      expect(manifestCall.placeholders.tdsk_ph_git_mock).toEqual({ secretId: `sec-git` })
+    })
+
+    it(`should throw Exception(400) when git provider resolution has errors`, async () => {
+      const gitProvider = {
+        id: `prov-git`,
+        brand: `github`,
+        type: `git`,
+        options: {},
+      }
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20` },
+          providerLinks: [
+            { provider: gitProvider, priority: 0, model: undefined, projectId: `proj-1` },
+          ],
+        }),
+        error: null,
+      })
+      mockResolveGitProviderEnv.mockResolvedValue({
+        errors: [`Git provider 'github' has no repoUrl configured`],
+        extraEnv: {},
+        placeholders: {},
+      })
+
+      try {
+        await svc.startPod(baseOpts as any)
+        expect.fail(`Expected startPod to throw`)
+      } catch (err) {
+        expect(err).toBeInstanceOf(Exception)
+        expect((err as any).status).toBe(400)
+        expect((err as Error).message).toContain(`Git provider configuration error`)
+      }
+    })
+
+    it(`should filter git providers by projectId — only matching, exclude null and other projects`, async () => {
+      const gitNoProject = {
+        id: `prov-git-org`,
+        brand: `github`,
+        type: `git`,
+        options: { repoUrl: `https://github.com/org/org-repo` },
+      }
+      const gitProjectMatch = {
+        id: `prov-git-proj`,
+        brand: `gitlab`,
+        type: `git`,
+        options: { repoUrl: `https://gitlab.com/org/proj-repo` },
+      }
+      const gitProjectOther = {
+        id: `prov-git-other`,
+        brand: `bitbucket`,
+        type: `git`,
+        options: { repoUrl: `https://bitbucket.org/org/other-repo` },
+      }
+      const aiGlobal = {
+        id: `prov-ai`,
+        brand: `anthropic`,
+        type: `ai`,
+        secretId: `sec-1`,
+      }
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20`, runtime: `claude-code` },
+          providerLinks: [
+            { provider: aiGlobal, priority: 0, model: undefined, projectId: null },
+            { provider: gitNoProject, priority: 1, model: undefined, projectId: null },
+            {
+              provider: gitProjectMatch,
+              priority: 2,
+              model: undefined,
+              projectId: `proj-1`,
+            },
+            {
+              provider: gitProjectOther,
+              priority: 3,
+              model: undefined,
+              projectId: `proj-other`,
+            },
+          ],
+        }),
+        error: null,
+      })
+      mockResolveProviderEnv.mockResolvedValue({
+        errors: [],
+        extraEnv: {},
+        placeholders: {},
+      })
+      mockResolveGitProviderEnv.mockResolvedValue({
+        errors: [],
+        extraEnv: { TDSK_GIT_COUNT: `1` },
+        placeholders: {},
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod(baseOpts as any)
+
+      const gitCall = mockResolveGitProviderEnv.mock.calls[0][0]
+      const gitProviderIds = gitCall.map((l: any) => l.provider.id)
+      expect(gitProviderIds).toContain(`prov-git-proj`)
+      expect(gitProviderIds).not.toContain(`prov-git-org`)
+      expect(gitProviderIds).not.toContain(`prov-git-other`)
+
+      expect(mockResolveProviderEnv).toHaveBeenCalled()
+      const aiCall = mockResolveProviderEnv.mock.calls[0]
+      const aiProviderIds = aiCall[1].map((l: any) => l.provider.id)
+      expect(aiProviderIds).toContain(`prov-ai`)
+    })
+
     it(`should create pod without provider env when sandbox has no linked providers`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` }, providerLinks: [] },
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, providerLinks: [] }),
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -451,7 +673,7 @@ describe(`SandboxService`, () => {
 
       it(`should create K8s secrets and pass imagePullSecrets to manifest`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -491,7 +713,10 @@ describe(`SandboxService`, () => {
             },
           ],
         }
-        db.services.sandbox.get.mockResolvedValue({ data: twoCredSandbox, error: null })
+        db.services.sandbox.get.mockResolvedValue({
+          data: sbx(twoCredSandbox),
+          error: null,
+        })
         mockResolveDockerPullSecrets.mockResolvedValue({
           credentials: [
             { registry: `ghcr.io`, username: `u1`, password: `p1` },
@@ -514,7 +739,7 @@ describe(`SandboxService`, () => {
 
       it(`should roll back docker secrets when createPod fails`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -536,7 +761,7 @@ describe(`SandboxService`, () => {
 
       it(`should roll back docker secrets when createPod returns no metadata.name`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -557,7 +782,7 @@ describe(`SandboxService`, () => {
 
       it(`should store docker secret names in dockerSecrets map`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -581,7 +806,7 @@ describe(`SandboxService`, () => {
 
       it(`should fire patchSecretOwnerReferences after successful pod creation`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -615,7 +840,7 @@ describe(`SandboxService`, () => {
 
       it(`should log error when patchSecretOwnerReferences fails`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -641,7 +866,7 @@ describe(`SandboxService`, () => {
 
       it(`should log error when rollback deleteSecret fails`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -678,7 +903,10 @@ describe(`SandboxService`, () => {
             { provider: dockerProvider, priority: 1, model: undefined },
           ],
         }
-        db.services.sandbox.get.mockResolvedValue({ data: mixedSandbox, error: null })
+        db.services.sandbox.get.mockResolvedValue({
+          data: sbx(mixedSandbox),
+          error: null,
+        })
         mockResolveProviderEnv.mockResolvedValue({
           extraEnv: { ANTHROPIC_API_KEY: `tdsk_ph_mock` },
           placeholders: { tdsk_ph_mock: { secretId: `sec-ai` } },
@@ -708,7 +936,7 @@ describe(`SandboxService`, () => {
 
       it(`should throw Exception(400) when docker resolution has errors`, async () => {
         db.services.sandbox.get.mockResolvedValue({
-          data: sandboxWithDocker,
+          data: sbx(sandboxWithDocker),
           error: null,
         })
         mockResolveDockerPullSecrets.mockResolvedValue({
@@ -781,7 +1009,7 @@ describe(`SandboxService`, () => {
         metadata: { labels: { [`tdsk.app/sandbox-id`]: `sb-1` } },
       })
       db.services.sandbox.get.mockResolvedValue({
-        data: { config: { idleTimeoutMinutes: 0.001 } },
+        data: sbx({ config: { idleTimeoutMinutes: 0.001 } }),
         error: null,
       })
 

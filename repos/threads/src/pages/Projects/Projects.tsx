@@ -74,7 +74,7 @@ const ProjectCardItem = (props: TProjectCardItem) => {
               variant='outlined'
               sx={{ height: 22, fontSize: 11 }}
             />
-            {project.branch && (
+            {project.gitUrl && (
               <Chip
                 label={project.branch}
                 size='small'

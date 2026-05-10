@@ -1,13 +1,13 @@
 import type { Response } from 'express'
 import type { TApp, TRequest, TEndpoint } from '@TBE/types'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { runAgent } from './runAgent'
 import { EPMethod } from '@TBE/types'
-import { ESandboxType, ELLMProviderBrand, Exception } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
+import { ESandboxType, EAIProviderBrand, Exception } from '@tdsk/domain'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
@@ -114,10 +114,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
             },
             provider: {
-              resolveLLMBrand: vi
+              resolveAIBrand: vi
                 .fn()
                 .mockImplementation((prov: { name?: string | null; brand?: string }) => {
-                  const validBrands = Object.values(ELLMProviderBrand) as string[]
+                  const validBrands = Object.values(EAIProviderBrand) as string[]
                   if (typeof prov.brand === `string` && validBrands.includes(prov.brand))
                     return prov.brand
                   throw new Exception(

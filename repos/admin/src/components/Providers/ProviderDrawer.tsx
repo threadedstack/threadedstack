@@ -1,21 +1,14 @@
 import type { TKeyValuePair } from '@TAF/types'
+import type { EDockerProviderBrand } from '@tdsk/domain'
 import type {
   Secret,
   Provider,
   TSecretMode,
   TProviderType,
   TProviderBrand,
-  TLLMProviderBrand,
+  TAIProviderBrand,
 } from '@tdsk/domain'
-import type { EDockerProviderBrand } from '@tdsk/domain'
-import {
-  EProvider,
-  ESecretMode,
-  ELLMProviderBrand,
-  LLMProviderTemplates,
-  ProviderBrandDomains,
-  DockerRegistryDefaults,
-} from '@tdsk/domain'
+
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
@@ -28,8 +21,21 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { fetchProviderSecrets } from '@TAF/actions/secrets/api/fetchProviderSecrets'
-import { ProviderTypes, DockerProviderOptions } from '@TAF/constants/providers'
-
+import {
+  ProviderTypes,
+  DockerProviderOptions,
+  GitProviderOptions,
+} from '@TAF/constants/providers'
+import type { EGitProvider } from '@tdsk/domain'
+import {
+  EProvider,
+  ESecretMode,
+  EAIProviderBrand,
+  AIProviderTemplates,
+  GitProviderTemplates,
+  ProviderBrandDomains,
+  DockerRegistryDefaults,
+} from '@tdsk/domain'
 import {
   Box,
   Chip,
@@ -42,7 +48,7 @@ import {
   AccordionDetails,
 } from '@mui/material'
 
-const LLMProviderOptions = Object.values(ELLMProviderBrand).map((value) => ({
+const AIProviderOptions = Object.values(EAIProviderBrand).map((value) => ({
   value,
   label: value.charAt(0).toUpperCase() + value.slice(1),
 }))
@@ -97,9 +103,16 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
   const [registry, setRegistry] = useState(``)
   const [username, setUsername] = useState(``)
 
+  // Git-specific fields
+  const [repoUrl, setRepoUrl] = useState(``)
+  const [gitBranch, setGitBranch] = useState(`main`)
+
   const isAiType = type === EProvider.ai
   const isDockerType = type === EProvider.docker
-  const template = isAiType && brand ? LLMProviderTemplates[brand] : undefined
+  const isGitType = type === EProvider.git
+  const template = isAiType && brand ? AIProviderTemplates[brand] : undefined
+  const gitTemplate =
+    isGitType && brand ? GitProviderTemplates[brand as EGitProvider] : undefined
 
   const duplicateName = useMemo(() => {
     if (isEditMode || !name.trim() || !providers) return false
@@ -143,6 +156,8 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
       setBrand(provider.brand || ``)
       setRegistry(options.registry || ``)
       setUsername(options.username || ``)
+      setRepoUrl(options.repoUrl || ``)
+      setGitBranch(options.branch || `main`)
       setHeaders(objToKV(provider.headers, `header`))
       setBodyParams(objToKV(provider.bodyParams, `bodyParam`))
       setAllowedDomains(options.allowedDomains || [])
@@ -165,6 +180,8 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
       setBrand(``)
       setRegistry(``)
       setUsername(``)
+      setRepoUrl(``)
+      setGitBranch(`main`)
       setHeaders([])
       setBodyParams([])
       setError(null)
@@ -181,7 +198,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
   useEffect(() => {
     if (isEditMode || !isAiType || !brand) return
 
-    const tpl = LLMProviderTemplates[brand]
+    const tpl = AIProviderTemplates[brand]
     if (!tpl) return
 
     setName(tpl.name)
@@ -205,6 +222,14 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     setName(dockerDefaults?.name || brand)
   }, [brand, isDockerType, isEditMode])
 
+  // Auto-fill name when git brand changes (create mode only)
+  useEffect(() => {
+    if (isEditMode || !isGitType || !brand) return
+    const tpl = GitProviderTemplates[brand as EGitProvider]
+    if (!tpl) return
+    setName(tpl.name)
+  }, [brand, isGitType, isEditMode])
+
   const onClose = () => {
     if (loading) return
 
@@ -214,6 +239,8 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     setBrand(``)
     setRegistry(``)
     setUsername(``)
+    setRepoUrl(``)
+    setGitBranch(`main`)
     setHeaders([])
     setBodyParams([])
     setAllowedDomains([])
@@ -234,6 +261,9 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     if (isAiType && !brand) return setError(`LLM provider is required for AI providers`)
     if (isDockerType && !brand)
       return setError(`Registry brand is required for Docker providers`)
+    if (isGitType && !brand) return setError(`Git provider brand is required`)
+    if (isGitType && !repoUrl.trim())
+      return setError(`Repository URL is required for Git providers`)
     if (isDockerType && !registry.trim()) return setError(`Registry URL is required`)
     if (isDockerType && !username.trim()) return setError(`Username is required`)
     if (secretMode === ESecretMode.new && !apiKeyValue.trim())
@@ -247,12 +277,14 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     const providerData: Partial<Provider> = {
       name: name.trim(),
       type: type as TProviderType,
-      ...((isAiType || isDockerType) && brand ? { brand } : {}),
+      ...((isAiType || isDockerType || isGitType) && brand ? { brand } : {}),
       options: {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
         ...(allowedDomains.length > 0 ? { allowedDomains } : {}),
         ...(isDockerType && registry.trim() ? { registry: registry.trim() } : {}),
         ...(isDockerType && username.trim() ? { username: username.trim() } : {}),
+        ...(isGitType && repoUrl.trim() ? { repoUrl: repoUrl.trim() } : {}),
+        ...(isGitType ? { branch: gitBranch.trim() || `main` } : {}),
       },
       ...(!isDockerType && Object.keys(headersObj).length > 0
         ? { headers: headersObj }
@@ -281,8 +313,11 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
     if (secretMode === `new` && apiKeyValue.trim()) {
       const secretName = isDockerType
         ? `${name.trim().toUpperCase().replace(/\s+/g, '_')}_REGISTRY_TOKEN`
-        : template?.defaultSecretName ||
-          `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
+        : isGitType
+          ? gitTemplate?.defaultSecretName ||
+            `${name.trim().toUpperCase().replace(/\s+/g, '_')}_GIT_TOKEN`
+          : template?.defaultSecretName ||
+            `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
       const providerId = isEditMode ? provider?.id : result.data?.id
       const secretResult = await createSecret({
         orgId,
@@ -358,7 +393,11 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
             items={ProviderTypes}
             onChange={(e) => {
               setType(e.target.value)
-              if (e.target.value !== EProvider.ai && e.target.value !== EProvider.docker)
+              if (
+                e.target.value !== EProvider.ai &&
+                e.target.value !== EProvider.docker &&
+                e.target.value !== EProvider.git
+              )
                 setBrand(``)
             }}
           />
@@ -370,9 +409,9 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
               label='Provider'
               disabled={loading}
               id='provider-brand'
-              items={LLMProviderOptions}
+              items={AIProviderOptions}
               description='The AI service this provider connects to'
-              onChange={(e) => setBrand(e.target.value as TLLMProviderBrand)}
+              onChange={(e) => setBrand(e.target.value as TAIProviderBrand)}
             />
           )}
 
@@ -386,6 +425,19 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
               items={DockerProviderOptions}
               description='The Docker registry this provider connects to'
               onChange={(e) => setBrand(e.target.value as EDockerProviderBrand)}
+            />
+          )}
+
+          {isGitType && (
+            <SelectInput
+              required
+              value={brand}
+              label='Git Provider'
+              disabled={loading}
+              id='provider-git-brand'
+              items={GitProviderOptions}
+              description='The git hosting service this provider connects to'
+              onChange={(e) => setBrand(e.target.value as EGitProvider)}
             />
           )}
 
@@ -407,7 +459,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
             </Alert>
           )}
 
-          {!isDockerType && (
+          {!isDockerType && !isGitType && (
             <TextInput
               fullWidth
               value={baseUrl}
@@ -444,17 +496,42 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
             </>
           )}
 
+          {isGitType && (
+            <>
+              <TextInput
+                fullWidth
+                value={repoUrl}
+                label='Repository URL'
+                disabled={loading}
+                id='provider-repo-url'
+                placeholder='https://github.com/org/repo.git'
+                onChange={(e) => setRepoUrl(e.target.value)}
+              />
+              <TextInput
+                fullWidth
+                value={gitBranch}
+                label='Branch'
+                disabled={loading}
+                id='provider-git-branch'
+                placeholder='main'
+                onChange={(e) => setGitBranch(e.target.value)}
+              />
+            </>
+          )}
+
           {/* Secret section */}
-          {(isAiType || isDockerType) && (
+          {(isAiType || isDockerType || isGitType) && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography
                   fontWeight={500}
                   variant='subtitle1'
                 >
-                  {isDockerType
-                    ? `Registry Authentication`
-                    : `AI Provider Authentication`}
+                  {isGitType
+                    ? `Git Authentication`
+                    : isDockerType
+                      ? `Registry Authentication`
+                      : `AI Provider Authentication`}
                 </Typography>
               </AccordionSummary>
 
@@ -463,7 +540,13 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
                   mode={secretMode}
                   disabled={loading}
                   editing={isEditMode}
-                  label={isDockerType ? `Registry Token` : `AI Provider Secret`}
+                  label={
+                    isGitType
+                      ? `Auth Token`
+                      : isDockerType
+                        ? `Registry Token`
+                        : `AI Provider Secret`
+                  }
                   newSecretValue={apiKeyValue}
                   secretOptions={secretOptions}
                   linkedSecrets={providerSecrets}
@@ -472,12 +555,19 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
                   selectedSecretId={selectedSecretId}
                   onSecretSelect={setSelectedSecretId}
                   editLabel={
-                    isDockerType ? `Change Registry Token` : `Change AI Provider Secret`
+                    isGitType
+                      ? `Change Auth Token`
+                      : isDockerType
+                        ? `Change Registry Token`
+                        : `Change AI Provider Secret`
                   }
                   valuePlaceholder={
-                    isDockerType
-                      ? 'Enter registry password or access token...'
-                      : template?.apiKeyPlaceholder || 'Enter your AI Provider Secret...'
+                    isGitType
+                      ? gitTemplate?.tokenPlaceholder || 'Enter git access token...'
+                      : isDockerType
+                        ? 'Enter registry password or access token...'
+                        : template?.apiKeyPlaceholder ||
+                          'Enter your AI Provider Secret...'
                   }
                   onModeChange={(mode) => {
                     setSecretMode(mode)
@@ -490,7 +580,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
           )}
 
           {/* Allowed Domains (AI only) */}
-          {!isDockerType && (
+          {!isDockerType && !isGitType && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography
@@ -564,7 +654,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
           )}
 
           {/* Custom Headers */}
-          {!isDockerType && (
+          {!isDockerType && !isGitType && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography
@@ -605,7 +695,7 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
           )}
 
           {/* Body Parameters */}
-          {!isDockerType && (
+          {!isDockerType && !isGitType && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Typography

@@ -84,7 +84,7 @@ test.describe.serial('CRUD Projects', () => {
       SETTINGS_PAGE_CLASS
     )
 
-    // The SettingsFormCard renders text inputs for name, gitUrl, branch
+    // The SettingsFormCard renders a text input for name
     // Find the "Project Name" input and update it
     const nameInput = page.locator('input[name="name"]')
     await expect(nameInput).toBeVisible({ timeout: 5_000 })

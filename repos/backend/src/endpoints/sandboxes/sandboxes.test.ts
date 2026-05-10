@@ -270,18 +270,6 @@ describe(`Sandboxes endpoints`, () => {
         `idleTimeoutMinutes must be at least 1`
       )
     })
-
-    it(`should return 400 when gitBranch is set without gitRepo`, async () => {
-      mockReq.body = {
-        orgId: `org-1`,
-        name: `Test Sandbox`,
-        config: { image: `tdsk-sandbox-claude`, gitBranch: `main` },
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `gitBranch requires gitRepo to be set`
-      )
-    })
   })
 
   describe(`PUT /_/sandboxes/:id - Update sandbox`, () => {
@@ -335,6 +323,7 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
+            projectId: null,
           },
         ],
       })
@@ -374,6 +363,7 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
+            projectId: null,
           },
         ],
       })
@@ -419,6 +409,7 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
+            projectId: null,
           },
         ],
       })
@@ -431,6 +422,7 @@ describe(`Sandboxes endpoints`, () => {
           {
             provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
             priority: 0,
+            projectId: null,
           },
         ],
       })

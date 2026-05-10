@@ -11,6 +11,7 @@ import { ESandboxRuntime, ERuntimeBrand, RuntimeProviderEnvMap } from '@tdsk/dom
 type TProviderWithSecret = {
   id: string
   brand: string
+  type?: string
   secretId?: string
   options?: Record<string, unknown>
 }

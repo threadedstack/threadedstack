@@ -17,17 +17,15 @@ export const createProvider: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId: paramOrgId } = req.params
-    const providerData = req.body
-    const orgId = paramOrgId || providerData.orgId
+    const provider = req.body
+    const orgId = paramOrgId || provider.orgId
 
     if (!orgId) throw new Exception(400, `orgId is required`)
 
-    db.services.provider.validateType(providerData.type)
-    db.services.provider.validateLLM(providerData.type, providerData.brand)
-    db.services.provider.validateDocker(providerData.type, providerData.brand)
+    db.services.provider.validType(provider.type, provider.brand)
 
     const { data, error } = await db.services.provider.create({
-      ...providerData,
+      ...provider,
       orgId,
     })
 

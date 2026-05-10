@@ -1,6 +1,6 @@
 import type { Provider } from '@TDM/models/provider'
 import type { TGitBrand } from '@TDM/types/git.types'
-import type { TLLMProviderBrand, TModelCost } from '@TDM/types/ai.types'
+import type { TAIProviderBrand, TModelCost } from '@TDM/types/ai.types'
 
 export enum EProvider {
   ai = `ai`,
@@ -22,17 +22,17 @@ export enum EStorageProviderBrand {
 export type TStorageProviderBrand = `${EStorageProviderBrand}`
 
 export enum EDockerProviderBrand {
+  quay = `quay`,
   ghcr = `ghcr`,
   gitlab = `gitlab`,
-  quay = `quay`,
-  dockerhub = `dockerhub`,
   custom = `custom`,
+  dockerhub = `dockerhub`,
 }
 export type TDockerProviderBrand = `${EDockerProviderBrand}`
 
 export type TProviderBrand =
   | TGitBrand
-  | TLLMProviderBrand
+  | TAIProviderBrand
   | TAuthProviderBrand
   | TDockerProviderBrand
   | TStorageProviderBrand
@@ -57,6 +57,25 @@ export type TProviderInput = {
 }
 
 /**
+ * A git provider linked to a sandbox for a specific project context.
+ * Stored in sandbox_project_providers junction table.
+ */
+export type TGitProviderLink = {
+  priority: number
+  provider: Provider
+  projectId: string
+  branch?: string | null
+}
+
+/**
+ * Input shape for linking git providers to a sandbox in a project context.
+ */
+export type TGitProviderInput = {
+  id: string
+  branch?: string | null
+}
+
+/**
  * Provider model entry — enriched with pi-mono metadata.
  * Only `id` and `name` are required; the rest come from pi-mono's registry.
  */
@@ -67,8 +86,8 @@ export type TProviderModel = {
   maxTokens?: number
   reasoning?: boolean
   description?: string
-  contextWindow?: number
   inputTypes?: string[]
+  contextWindow?: number
 }
 
 /**
@@ -76,10 +95,10 @@ export type TProviderModel = {
  * Models are sourced from pi-mono's registry (via backend endpoint),
  * NOT from hardcoded arrays.
  */
-export type TProviderTemplate = {
+export type TAIProviderTemplate = {
   name: string
   baseUrl: string
-  id: TLLMProviderBrand
+  id: TAIProviderBrand
   apiKeyPattern?: string
   defaultSecretName: string
   apiKeyPlaceholder: string
@@ -89,5 +108,15 @@ export type TDockerProviderTemplate = {
   name: string
   registry: string
   id: TDockerProviderBrand
+  defaultSecretName: string
+}
+
+export type TGitProviderTemplate = {
+  name: string
+  id: TGitBrand
+  gitDomain?: string
+  apiUrlBase?: string
+  tokenPattern?: string
+  tokenPlaceholder: string
   defaultSecretName: string
 }

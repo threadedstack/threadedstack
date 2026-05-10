@@ -4,7 +4,6 @@ import type {
   Sandbox,
   Provider,
   TPortConfig,
-  TSecretMode,
   TGuiConfig,
   TImagePullPolicy,
   TKubeSandboxConfig,
@@ -14,12 +13,10 @@ import type {
 import { useState, useEffect, useMemo } from 'react'
 import { TDSK_SB_IMAGE_FULL } from '@TAF/constants/envs'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
-import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   EProvider,
-  ESecretMode,
   ESandboxRuntime,
   EImagePullPolicy,
   SandboxPresets,
@@ -75,14 +72,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   const [memoryLimit, setMemoryLimit] = useState(``)
   const [memoryRequest, setMemoryRequest] = useState(``)
 
-  // Git auth token secret
-  const [gitTokenSecretId, setGitTokenSecretId] = useState(``)
-  const [newGitTokenValue, setNewGitTokenValue] = useState(``)
-  const [gitTokenMode, setGitTokenMode] = useState<TSecretMode>(ESecretMode.none)
-
-  // SSH & config extras
-  const [gitRepo, setGitRepo] = useState(``)
-  const [gitBranch, setGitBranch] = useState(`main`)
+  // Config extras
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState(30)
 
   // Key-value editors
@@ -127,6 +117,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   const [providerIds, setProviderIds] = useState<string[]>([])
   const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [dockerProviderIds, setDockerProviderIds] = useState<string[]>([])
+  const [gitProviderIds, setGitProviderIds] = useState<string[]>([])
 
   const orgProviders = useMemo(() => {
     if (!providersMap) return []
@@ -136,6 +127,11 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   const orgDockerProviders = useMemo(() => {
     if (!providersMap) return []
     return Object.values(providersMap).filter((p) => p.type === EProvider.docker)
+  }, [providersMap])
+
+  const orgGitProviders = useMemo(() => {
+    if (!providersMap) return []
+    return Object.values(providersMap).filter((p) => p.type === EProvider.git)
   }, [providersMap])
 
   const linkedDockerProviders = useMemo(() => {
@@ -148,6 +144,17 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     const linked = new Set(dockerProviderIds)
     return orgDockerProviders.filter((p) => !linked.has(p.id))
   }, [orgDockerProviders, dockerProviderIds])
+
+  const linkedGitProviders = useMemo(() => {
+    return gitProviderIds
+      .map((id) => orgGitProviders.find((p) => p.id === id))
+      .filter(Boolean) as Provider[]
+  }, [gitProviderIds, orgGitProviders])
+
+  const availableGitProviders = useMemo(() => {
+    const linked = new Set(gitProviderIds)
+    return orgGitProviders.filter((p) => !linked.has(p.id))
+  }, [orgGitProviders, gitProviderIds])
 
   const linkedProviders = useMemo(() => {
     return providerIds
@@ -245,24 +252,20 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setAlias(``)
     setPorts([])
     setEnvVars([])
-    setGitRepo(``)
     setWorkdir(``)
     setCommand(``)
     setError(null)
     setProviderIds([])
     setProviderModels({})
     setDockerProviderIds([])
+    setGitProviderIds([])
     setCpuLimit(``)
     setCpuRequest(``)
     setMemoryLimit(``)
     setMemoryRequest(``)
-    setGitBranch(`main`)
     setBaseSandboxId(null)
-    setNewGitTokenValue(``)
-    setGitTokenSecretId(``)
     setSelectedProjectIds([])
     setIdleTimeoutMinutes(30)
-    setGitTokenMode(ESecretMode.none)
     setImagePullPolicy(EImagePullPolicy.IfNotPresent)
     setRuntime(ESandboxRuntime.claudeCode)
     setRuntimeCommand(``)
@@ -273,13 +276,10 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
 
   const populateFromSandbox = (source: Sandbox) => {
     const config = source.config ?? ({} as TKubeSandboxConfig)
-    setNewGitTokenValue(``)
     setName(source.name || ``)
     setImage(config.image || ``)
     setWorkdir(config.workdir || ``)
-    setGitRepo(config.gitRepo || ``)
     setArgs(config.args?.join(`, `) || ``)
-    setGitBranch(config.gitBranch || `main`)
     setEnvVars(objToKV(config.envVars, `env`))
     setCommand(config.command?.join(`, `) || ``)
     setCpuLimit(config.resources?.limits?.cpu || ``)
@@ -295,7 +295,9 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     const allLinks = source.providerLinks || []
     setProviderIds(
       allLinks
-        .filter((l) => l.provider.type !== EProvider.docker)
+        .filter(
+          (l) => l.provider.type !== EProvider.docker && l.provider.type !== EProvider.git
+        )
         .map((l) => l.provider.id)
     )
     setDockerProviderIds(
@@ -303,19 +305,16 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         .filter((l) => l.provider.type === EProvider.docker)
         .map((l) => l.provider.id)
     )
+    setGitProviderIds(
+      allLinks
+        .filter((l) => l.provider.type === EProvider.git && l.projectId === projectId)
+        .map((l) => l.provider.id)
+    )
     const models: Record<string, string> = {}
     for (const link of allLinks) {
       if (link.model) models[link.provider.id] = link.model
     }
     setProviderModels(models)
-
-    if (config.gitTokenSecretId) {
-      setGitTokenSecretId(config.gitTokenSecretId)
-      setGitTokenMode(ESecretMode.existing)
-    } else {
-      setGitTokenSecretId(``)
-      setGitTokenMode(ESecretMode.none)
-    }
 
     setPorts(
       Object.entries(config.ports || {}).map(([key, val], i) => ({
@@ -377,8 +376,6 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
 
     if (!name.trim()) return setError(`Sandbox name is required`)
     if (!image.trim()) return setError(`Container image is required`)
-    if (gitTokenMode === ESecretMode.new && !newGitTokenValue.trim())
-      return setError(`Secret value is required for new git auth token`)
 
     setLoading(true)
     setError(null)
@@ -401,26 +398,6 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         portsObj[p.key.trim()] = { protocol: (p.value || 'http') as TProto }
     }
 
-    let resolvedGitTokenSecretId: string | undefined
-    if (gitTokenMode === ESecretMode.existing && gitTokenSecretId) {
-      resolvedGitTokenSecretId = gitTokenSecretId
-    } else if (gitTokenMode === ESecretMode.new && newGitTokenValue.trim()) {
-      const tokenSecretName = `${name.trim().toUpperCase().replace(/\s+/g, '_')}_GIT_TOKEN`
-      const tokenResult = await createSecret({
-        orgId,
-        projectId,
-        name: tokenSecretName,
-        value: newGitTokenValue.trim(),
-      })
-      if (tokenResult.error) {
-        setLoading(false)
-        return setError(
-          `Failed to create git auth token secret: ${tokenResult.error.message}`
-        )
-      }
-      resolvedGitTokenSecretId = tokenResult.data?.id
-    }
-
     const commandArr = splitCSV(command)
     const argsArr = splitCSV(args)
     const envVarsObj = kvToObj(envVars, false)
@@ -436,6 +413,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
       providerInputs: [
         ...providerIds.map((id) => ({ id, model: providerModels[id] || null })),
         ...dockerProviderIds.map((id) => ({ id })),
+        ...gitProviderIds.map((id) => ({ id, projectId: projectId || null })),
       ],
       config: {
         runtime,
@@ -445,16 +423,11 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         ...(effectiveRuntimeCmd ? { runtimeCommand: effectiveRuntimeCmd } : {}),
         ...(effectiveInitScript ? { initScript: effectiveInitScript } : {}),
         ...(argsArr.length > 0 ? { args: argsArr } : {}),
-        ...(gitRepo.trim() ? { gitRepo: gitRepo.trim() } : {}),
         ...(workdir.trim() ? { workdir: workdir.trim() } : {}),
         ...(commandArr.length > 0 ? { command: commandArr } : {}),
         ...(Object.keys(resources).length > 0 ? { resources } : {}),
-        ...(gitRepo.trim() && gitBranch.trim() ? { gitBranch: gitBranch.trim() } : {}),
         ...(Object.keys(portsObj).length > 0 ? { ports: portsObj } : {}),
         ...(Object.keys(envVarsObj).length > 0 ? { envVars: envVarsObj } : {}),
-        ...(resolvedGitTokenSecretId
-          ? { gitTokenSecretId: resolvedGitTokenSecretId }
-          : {}),
         ...(guiOverride && sandboxGuiConfig ? { guiConfig: sandboxGuiConfig } : {}),
       },
     }
@@ -526,18 +499,6 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     memoryRequest,
     setMemoryRequest,
 
-    // Git
-    gitRepo,
-    setGitRepo,
-    gitBranch,
-    setGitBranch,
-    gitTokenSecretId,
-    setGitTokenSecretId,
-    newGitTokenValue,
-    setNewGitTokenValue,
-    gitTokenMode,
-    setGitTokenMode,
-
     // Config
     idleTimeoutMinutes,
     setIdleTimeoutMinutes,
@@ -579,6 +540,13 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setDockerProviderIds,
     linkedDockerProviders,
     availableDockerProviders,
+
+    // Git providers
+    orgGitProviders,
+    gitProviderIds,
+    setGitProviderIds,
+    linkedGitProviders,
+    availableGitProviders,
 
     // Generative UI
     guiOverride,

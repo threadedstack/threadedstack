@@ -4,9 +4,10 @@ import { assets } from '@TDB/schemas/assets'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { endpoints } from '@TDB/schemas/endpoints'
-import { providers } from '@TDB/schemas/providers'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
+import { projectProviders } from '@TDB/schemas/projectProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { text, jsonb, uniqueIndex, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const projects = pgTable(
@@ -14,10 +15,8 @@ export const projects = pgTable(
   {
     ...base,
     meta: jsonb(`meta`),
-    gitUrl: text(`git_url`),
     name: text(`name`).notNull(),
     description: text(`description`),
-    branch: text(`branch`).default(`main`),
     orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
@@ -31,10 +30,11 @@ export const projects = pgTable(
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   assets: many(assets),
   secrets: many(secrets),
-  providers: many(providers),
   endpoints: many(endpoints),
   agents: many(agentProjects),
   sandboxes: many(sandboxProjects),
+  providerLinks: many(projectProviders),
+  sandboxProviderLinks: many(sandboxProjectProviders),
   org: one(orgs, {
     fields: [projects.orgId],
     references: [orgs.id],

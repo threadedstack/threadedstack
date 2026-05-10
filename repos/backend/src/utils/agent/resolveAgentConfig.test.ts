@@ -112,7 +112,7 @@ const buildMockDb = (agentOverride?: any) => ({
       get: vi.fn().mockResolvedValue({ data: null }),
     },
     provider: {
-      resolveLLMBrand: vi
+      resolveAIBrand: vi
         .fn()
         .mockImplementation((prov: { brand?: string }) => prov.brand || `anthropic`),
     },

@@ -29,6 +29,9 @@ describe(`Endpoint projects`, () => {
               update: vi.fn(),
               delete: vi.fn(),
             },
+            provider: {
+              validate: vi.fn().mockResolvedValue(undefined),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -89,12 +92,10 @@ describe(`Endpoint projects`, () => {
         {
           id: `1`,
           name: `Get Users`,
-          gitUrl: `https://api.example.com/users`,
         },
         {
           id: `2`,
           name: `Create User`,
-          gitUrl: `https://api.example.com/users`,
         },
       ]
 
@@ -129,7 +130,7 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
-      const mockProjects = [{ id: `1`, name: `Project`, gitUrl: `https://example.com` }]
+      const mockProjects = [{ id: `1`, name: `Project` }]
       mockReq.params = { orgId: `org-1` }
       mockReq.query = { limit: `10`, offset: `5` }
 
@@ -170,7 +171,6 @@ describe(`Endpoint projects`, () => {
       const mockProject = {
         id: `123`,
         name: `Get Users`,
-        gitUrl: `https://api.example.com/users`,
         orgId: `org-1`,
       }
       const mockCounts = { endpoint: 3, function: 2, agent: 1 }
@@ -198,7 +198,6 @@ describe(`Endpoint projects`, () => {
       const mockProject = {
         id: `123`,
         name: `Empty Project`,
-        gitUrl: `https://api.example.com`,
         orgId: `org-1`,
       }
       mockReq.params = { projectId: `123` }
@@ -251,7 +250,6 @@ describe(`Endpoint projects`, () => {
       const newProject = {
         orgId: `org-1`,
         name: `New Project`,
-        gitUrl: `https://api.example.com/new`,
       }
       const createdProject = { id: `456`, ...newProject }
       mockReq.body = newProject
@@ -270,7 +268,6 @@ describe(`Endpoint projects`, () => {
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = {
         orgId: `org-1`,
-        gitUrl: `https://api.example.com`,
       }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -282,7 +279,6 @@ describe(`Endpoint projects`, () => {
       const newProject = {
         orgId: `org-1`,
         name: `New Project`,
-        gitUrl: `https://api.example.com/new`,
         headers: { [`Content-Type`]: `application/json` },
         options: { timeout: 5000 },
       }
@@ -311,8 +307,6 @@ describe(`Endpoint projects`, () => {
       const existingProject = {
         id: `123`,
         name: `Old Name`,
-        gitUrl: `https://old.api.com`,
-
         orgId: `org-1`,
       }
       const updateData = { name: `New Name` }
@@ -358,8 +352,6 @@ describe(`Endpoint projects`, () => {
       const existingProject = {
         id: `123`,
         name: `To Delete`,
-        gitUrl: `https://api.com`,
-
         orgId: `org-1`,
       }
       mockReq.params = { projectId: `123` }

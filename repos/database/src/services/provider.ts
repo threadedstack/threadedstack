@@ -1,28 +1,31 @@
-import type {
-  TProviderBrand,
-  TLLMProviderBrand,
-  TProviderInput,
-  TProviderType,
-} from '@tdsk/domain'
 import type { TServiceOpts, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
+import type {
+  TProviderType,
+  TProviderInput,
+  TProviderBrand,
+  TAIProviderBrand,
+} from '@tdsk/domain'
 
 import { Base } from '@TDB/services/base'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { providers } from '@TDB/schemas/providers'
+import { isProviderType } from '@TDB/utils/schema/isProviderType'
 import {
   Exception,
   EProvider,
-  ELLMProviderBrand,
+  EGitProvider,
+  EAIProviderBrand,
   EDockerProviderBrand,
   Provider as ProviderModel,
 } from '@tdsk/domain'
 
 const validTypes = Object.values(EProvider) as string[]
-const validLLMProviders = Object.values(ELLMProviderBrand) as string[]
+const validGitBrands = Object.values(EGitProvider) as string[]
+const validAIProviders = Object.values(EAIProviderBrand) as string[]
 const validDockerBrands = Object.values(EDockerProviderBrand) as string[]
 
-type TResolveLLProvider = {
+type TResolveAIProvider = {
   name?: string | null
   brand?: TProviderBrand
 }
@@ -46,6 +49,13 @@ export class Provider extends Base<
     return new ProviderModel(data as Partial<ProviderModel>)
   }
 
+  validType = (type?: string, brand?: string | null) => {
+    this.validateType(type)
+    this.validateAI(type, brand)
+    this.validateGit(type, brand)
+    this.validateDocker(type, brand)
+  }
+
   validateType = (type?: string) => {
     if (!type)
       throw new Exception(
@@ -60,45 +70,47 @@ export class Provider extends Base<
   }
 
   /**
-   * Validates that AI-type providers have brand set to a valid ELLMProviderBrand value.
+   * Validates that AI-type providers have brand set to a valid EAIProviderBrand value.
    * Non-AI providers (git, auth, storage) are not validated.
    */
-  validateLLM = (type?: string, brand?: string | null) => {
-    if (type !== EProvider.ai) return
+  validateAI = (type?: string, brand?: string | null) =>
+    isProviderType({
+      type,
+      brand,
+      provider: EProvider.ai,
+      providers: validAIProviders,
+    })
 
-    if (!brand || !isStr(brand) || !validLLMProviders.includes(brand))
-      throw new Exception(
-        400,
-        `AI providers require brand to be one of: ${validLLMProviders.join(`, `)}` +
-          (brand ? `. Got: "${brand}"` : ``)
-      )
-  }
+  validateDocker = (type?: string, brand?: string | null) =>
+    isProviderType({
+      type,
+      brand,
+      provider: EProvider.docker,
+      providers: validDockerBrands,
+    })
 
-  validateDocker = (type?: string, brand?: string | null) => {
-    if (type !== EProvider.docker) return
-
-    if (!brand || !isStr(brand) || !validDockerBrands.includes(brand))
-      throw new Exception(
-        400,
-        `Docker providers require brand to be one of: ${validDockerBrands.join(`, `)}` +
-          (brand ? `. Got: "${brand}"` : ``)
-      )
-  }
+  validateGit = (type?: string, brand?: string | null) =>
+    isProviderType({
+      type,
+      brand,
+      provider: EProvider.git,
+      providers: validGitBrands,
+    })
 
   /**
-   * Resolves the LLM provider type from a provider record.
+   * Resolves the AI provider brand from a provider record.
    *
-   * Reads `provider.brand` which must be a valid ELLMProviderBrand value.
-   * This is enforced at provider creation/update time by validateLLMProvider.
+   * Reads `provider.brand` which must be a valid EAIProviderBrand value.
+   * This is enforced at provider creation/update time by validateAI.
    */
-  resolveLLMBrand = (provider: TResolveLLProvider): TLLMProviderBrand => {
-    if (isStr(provider.brand) && validLLMProviders.includes(provider.brand))
-      return provider.brand as TLLMProviderBrand
+  resolveAIBrand = (provider: TResolveAIProvider): TAIProviderBrand => {
+    if (isStr(provider.brand) && validAIProviders.includes(provider.brand))
+      return provider.brand as TAIProviderBrand
 
-    const supported = validLLMProviders.join(`, `)
+    const supported = validAIProviders.join(`, `)
     throw new Exception(
       400,
-      `Cannot determine LLM provider for "${provider.name || `unnamed`}". ` +
+      `Cannot determine AI provider for "${provider.name || `unnamed`}". ` +
         `Set provider.brand to one of: ${supported}`
     )
   }

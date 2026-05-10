@@ -112,10 +112,10 @@ export type TAgentRunRequest = {
 }
 
 /**
- * Supported LLM providers.
+ * Supported AI providers.
  * Includes all pi-mono KnownProvider values plus platform-specific providers (custom, ollama).
  */
-export enum ELLMProviderBrand {
+export enum EAIProviderBrand {
   zai = `zai`,
   xai = `xai`,
   groq = `groq`,
@@ -142,7 +142,7 @@ export enum ELLMProviderBrand {
   azureOpenaiResponses = `azure-openai-responses`,
 }
 
-export type TLLMProviderBrand = `${ELLMProviderBrand}`
+export type TAIProviderBrand = `${EAIProviderBrand}`
 
 /**
  * Supported web search/fetch providers.
@@ -422,7 +422,7 @@ export type TLLMAdapterConfig = {
   maxTokens?: number
   temperature?: number
   systemPrompt?: string
-  provider: TLLMProviderBrand
+  provider: TAIProviderBrand
   options?: Record<string, unknown>
   headers?: Record<string, string>
   bodyParams?: Record<string, unknown>
@@ -432,7 +432,7 @@ export type TLLMAdapterConfig = {
  * ILLMAdapter interface - implemented by each provider adapter
  */
 export interface ILLMAdapter {
-  readonly provider: TLLMProviderBrand
+  readonly provider: TAIProviderBrand
   stream(
     messages: TAIMessage[],
     tools: TLLMToolDef[],

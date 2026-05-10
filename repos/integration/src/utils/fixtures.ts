@@ -1,4 +1,4 @@
-import type { TLLMProviderBrand } from '@tdsk/domain'
+import type { TAIProviderBrand } from '@tdsk/domain'
 
 import { env } from './env'
 import { uniqueName } from './unique-name'
@@ -13,7 +13,7 @@ export type TFixtureOptions = {
   systemPrompt?: string
   createAgent?: boolean
   createEndpoint?: boolean
-  providerBrand?: TLLMProviderBrand
+  providerBrand?: TAIProviderBrand
 }
 
 export type TFixtureResult = {

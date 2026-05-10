@@ -48,8 +48,6 @@ export const Projects = (props: TProjects) => {
     return orgProjects.filter(
       (project) =>
         project.name?.toLowerCase().includes(query) ||
-        project.gitUrl?.toLowerCase().includes(query) ||
-        project.branch?.toLowerCase().includes(query) ||
         project.id?.toLowerCase().includes(query)
     )
   }, [orgProjects, searchQuery])
@@ -69,7 +67,7 @@ export const Projects = (props: TProjects) => {
       actionDisabled={createDisabled}
       onAction={hasProjects && onCreate}
       actionLabel={hasProjects && 'Create Project'}
-      searchPlaceholder='Search projects by name, URL, or branch...'
+      searchPlaceholder='Search projects by name or ID...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
       {!error && projectsCount === 0 && (

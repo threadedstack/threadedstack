@@ -146,7 +146,7 @@ const seedItem = async (seed: SeedData, item: any) => {
       }
     } else if (seed.name === `agents`) {
       const existing = await seed.service.get(item.id)
-      if (existing.error) {
+      if (existing.error || !existing.data) {
         const result = await seed.service.create(item)
         if (result.error) {
           console.error(`  ❌ Failed to create ${seed.name}:${item.id}`)
@@ -169,7 +169,7 @@ const seedItem = async (seed: SeedData, item: any) => {
       }
     } else {
       const existing = await seed.service.get(item.id)
-      if (existing.error) {
+      if (existing.error || !existing.data) {
         const result = await seed.service.upsert(item)
         if (result.error) {
           console.error(`  ❌ Failed to create ${seed.name}:${item.id}`)
@@ -347,7 +347,10 @@ ife(async () => {
           console.error(
             `  ❌ Failed to link skill:${link.skillId} → agent:${link.agentId}`
           )
-          console.error(`     Error:`, result.error.message)
+          console.error(
+            `     Error:`,
+            result.error.cause?.message || result.error.message
+          )
           totalErrors++
         } else {
           console.log(`  🔗 Linked skill:${link.skillId} → agent:${link.agentId}`)
@@ -355,7 +358,7 @@ ife(async () => {
         }
       } catch (error: any) {
         console.error(`  ❌ Error linking skill:${link.skillId} → agent:${link.agentId}`)
-        console.error(`     Error:`, error.message)
+        console.error(`     Error:`, error.cause?.message || error.message)
         totalErrors++
       }
     }
@@ -376,7 +379,10 @@ ife(async () => {
           console.error(
             `  ❌ Failed to link sandbox:${link.sandboxId} → provider:${link.providerId}`
           )
-          console.error(`     Error:`, result.error.message)
+          console.error(
+            `     Error:`,
+            result.error.cause?.message || result.error.message
+          )
           totalErrors++
         } else {
           console.log(
@@ -388,7 +394,7 @@ ife(async () => {
         console.error(
           `  ❌ Error linking sandbox:${link.sandboxId} → provider:${link.providerId}`
         )
-        console.error(`     Error:`, error.message)
+        console.error(`     Error:`, error.cause?.message || error.message)
         totalErrors++
       }
     }

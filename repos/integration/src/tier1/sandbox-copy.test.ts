@@ -28,8 +28,6 @@ describe('Tier 1: Sandbox Copy Operation', () => {
     initScript: 'echo "copy-test ready"',
     sshEnabled: true,
     idleTimeoutMinutes: 45,
-    gitRepo: 'https://github.com/example/copy-test.git',
-    gitBranch: 'main',
   }
 
   beforeAll(async () => {
@@ -117,8 +115,6 @@ describe('Tier 1: Sandbox Copy Operation', () => {
     expect(cfg.initScript).toBe(sourceConfig.initScript)
     expect(cfg.sshEnabled).toBe(sourceConfig.sshEnabled)
     expect(cfg.idleTimeoutMinutes).toBe(sourceConfig.idleTimeoutMinutes)
-    expect(cfg.gitRepo).toBe(sourceConfig.gitRepo)
-    expect(cfg.gitBranch).toBe(sourceConfig.gitBranch)
   })
 
   test('copied sandbox default name includes "(copy)"', async () => {

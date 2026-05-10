@@ -1,15 +1,31 @@
-import { Box, Typography } from '@mui/material'
+import type { TGitBrand } from '@tdsk/domain'
 
+import { useMemo } from 'react'
+import { EGitProvider } from '@tdsk/domain'
+import { GitlabIcon } from '@tdsk/components'
+import { Box, Typography } from '@mui/material'
 import { LinkOff as GitIcon, GitHub as GitHubIcon } from '@mui/icons-material'
 
 export type TGitInfo = {
   gitUrl: string
   branch: string
+  brand?: TGitBrand
+}
+
+const useGitIcon = (props: TGitInfo) => {
+  return useMemo(() => {
+    if (props.brand === EGitProvider.github || props.gitUrl.includes(`github.com`))
+      return GitHubIcon
+
+    if (props.brand === EGitProvider.gitlab || props.gitUrl.includes(`gitlab.com`))
+      return GitlabIcon
+
+    return GitIcon
+  }, [props.brand, props.gitUrl])
 }
 
 export const GitInfo = (props: TGitInfo) => {
-  const isGitHub = props.gitUrl.includes(`github.com`)
-  const Icon = isGitHub ? GitHubIcon : GitIcon
+  const Icon = useGitIcon(props)
 
   return (
     <Box

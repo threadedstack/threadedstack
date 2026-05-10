@@ -42,8 +42,16 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: { id: `prov-1`, brand: `anthropic` } as any, priority: 0 },
-          { provider: { id: `prov-2`, brand: `openai` } as any, priority: 1 },
+          {
+            provider: { id: `prov-1`, brand: `anthropic` } as any,
+            priority: 0,
+            projectId: null,
+          },
+          {
+            provider: { id: `prov-2`, brand: `openai` } as any,
+            priority: 1,
+            projectId: null,
+          },
         ],
       })
       expect(sandbox.providerLinks).toHaveLength(2)
@@ -58,7 +66,7 @@ describe(`Sandbox model`, () => {
       const sandbox = new Sandbox({
         name: `Test Sandbox`,
         orgId: `org-1`,
-        providerLinks: [{ provider: prov, priority: 0 }],
+        providerLinks: [{ provider: prov, priority: 0, projectId: null }],
       })
       expect(sandbox.providerLinks[0]?.provider).toBe(prov)
       expect(sandbox.providerLinks[0]?.provider).toBeInstanceOf(Provider)
@@ -94,8 +102,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0 },
-          { provider: prov2, priority: 1 },
+          { provider: prov1, priority: 0, projectId: null },
+          { provider: prov2, priority: 1, projectId: null },
         ],
       })
       expect(sandbox.providers).toHaveLength(2)
@@ -110,8 +118,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0 },
-          { provider: prov2, priority: 1 },
+          { provider: prov1, priority: 0, projectId: null },
+          { provider: prov2, priority: 1, projectId: null },
         ],
       })
       expect(sandbox.primaryProvider).toBe(prov1)
@@ -134,8 +142,8 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         providerLinks: [
-          { provider: prov1, priority: 0 },
-          { provider: prov2, priority: 5 },
+          { provider: prov1, priority: 0, projectId: null },
+          { provider: prov2, priority: 5, projectId: null },
         ],
       })
       expect(sandbox.providerLinks).toHaveLength(2)
@@ -175,7 +183,11 @@ describe(`Sandbox model`, () => {
         projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
         projectConfigs: [],
         providerLinks: [
-          { provider: { id: `prov-1`, brand: `anthropic` } as any, priority: 0 },
+          {
+            provider: { id: `prov-1`, brand: `anthropic` } as any,
+            priority: 0,
+            projectId: null,
+          },
         ],
       })
 

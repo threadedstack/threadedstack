@@ -1,8 +1,4 @@
-import type {
-  TProviderInput,
-  TAgentProjectConfig,
-  Project as ProjectModel,
-} from '@tdsk/domain'
+import type { TProviderInput, TAgentProjectConfig } from '@tdsk/domain'
 import type {
   TDBUpdate,
   TServiceOpts,
@@ -24,7 +20,11 @@ import { agentProjects } from '@TDB/schemas/agentProjects'
 import { agentProviders } from '@TDB/schemas/agentProviders'
 import { eq, and, sql, inArray, notInArray } from 'drizzle-orm'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
-import { Agent as AgentModel, Provider as ProviderModel } from '@tdsk/domain'
+import {
+  Agent as AgentModel,
+  Project as ProjectModel,
+  Provider as ProviderModel,
+} from '@tdsk/domain'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
   secretIds?: string[]
@@ -225,7 +225,9 @@ export class Agent extends Base<
 
     const agent = new AgentModel({
       ...rest,
-      projects: projectLinks.map((link) => link.project),
+      projects: projectLinks.map(
+        (link) => new ProjectModel(link.project as Partial<ProjectModel>)
+      ),
       projectConfigs: projectLinks.map((link) => ({
         agentId: link.agentId,
         projectId: link.projectId,
@@ -240,6 +242,7 @@ export class Agent extends Base<
         systemPrompt: link.systemPrompt ?? null,
       })),
       providerLinks: sortedProviders.map((link) => ({
+        projectId: null,
         model: link.model ?? null,
         priority: link.priority ?? 0,
         provider: new ProviderModel(link.provider as Partial<ProviderModel>),

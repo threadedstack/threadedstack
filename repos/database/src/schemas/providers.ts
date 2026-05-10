@@ -6,6 +6,8 @@ import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { agentProviders } from '@TDB/schemas/agentProviders'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { projectProviders } from '@TDB/schemas/projectProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { jsonb, index, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 
 export const providers = pgTable(
@@ -30,7 +32,9 @@ export const providers = pgTable(
 
 export const providersRelations = relations(providers, ({ one, many }) => ({
   agents: many(agentProviders),
+  projects: many(projectProviders),
   sandboxes: many(sandboxProviders),
+  sandboxProjectLinks: many(sandboxProjectProviders),
   org: one(orgs, { fields: [providers.orgId], references: [orgs.id] }),
   secret: one(secrets, { fields: [providers.secretId], references: [secrets.id] }),
 }))

@@ -59,7 +59,7 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
               }),
             },
             provider: {
-              resolveLLMBrand: vi.fn((p: any) => {
+              resolveAIBrand: vi.fn((p: any) => {
                 const validBrands = [
                   `anthropic`,
                   `openai`,

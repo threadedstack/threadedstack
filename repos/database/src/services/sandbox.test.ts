@@ -71,7 +71,11 @@ vi.mock(`@tdsk/domain`, async () => {
  */
 const createMockDb = () => {
   const returningFn = vi.fn()
-  const valuesFn = vi.fn(() => ({ returning: returningFn }))
+  const onConflictDoNothingFn = vi.fn(() => ({ returning: returningFn }))
+  const valuesFn = vi.fn(() => ({
+    returning: returningFn,
+    onConflictDoNothing: onConflictDoNothingFn,
+  }))
   const insertFn = vi.fn(() => ({ values: valuesFn }))
 
   const whereReturningFn = vi.fn()
@@ -79,7 +83,7 @@ const createMockDb = () => {
   const setFn = vi.fn(() => ({ where: whereFn }))
   const updateFn = vi.fn(() => ({ set: setFn }))
 
-  const deleteWhereFn = vi.fn()
+  const deleteWhereFn = vi.fn().mockResolvedValue(undefined)
   const deleteFn = vi.fn(() => ({ where: deleteWhereFn }))
 
   const findFirst = vi.fn()
@@ -89,7 +93,11 @@ const createMockDb = () => {
   const txDeleteWhereFn = vi.fn()
   const txDeleteFn = vi.fn(() => ({ where: txDeleteWhereFn }))
   const txOnConflictFn = vi.fn()
-  const txInsertValuesFn = vi.fn(() => ({ onConflictDoUpdate: txOnConflictFn }))
+  const txOnConflictDoNothingFn = vi.fn()
+  const txInsertValuesFn = vi.fn(() => ({
+    onConflictDoUpdate: txOnConflictFn,
+    onConflictDoNothing: txOnConflictDoNothingFn,
+  }))
   const txInsertFn = vi.fn(() => ({ values: txInsertValuesFn }))
 
   const txMock = {
@@ -876,6 +884,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
+        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -889,6 +898,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
+        projectId: null,
       })
     })
 
@@ -898,6 +908,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 5,
         model: `claude-4`,
+        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -910,6 +921,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 5,
         model: `claude-4`,
+        projectId: null,
       })
     })
 
@@ -919,6 +931,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
+        projectId: null,
       }
       mocks.returningFn.mockResolvedValue([relation])
 
@@ -929,6 +942,7 @@ describe(`Sandbox service`, () => {
         providerId: `prov-1`,
         priority: 0,
         model: null,
+        projectId: null,
       })
     })
   })
@@ -971,8 +985,20 @@ describe(`Sandbox service`, () => {
       // tx.insert called with new rows
       expect(mocks.txInsertFn).toHaveBeenCalledOnce()
       expect(mocks.txInsertValuesFn).toHaveBeenCalledWith([
-        { providerId: `prov-1`, priority: 0, sandboxId: `sbx-1`, model: `gpt-4` },
-        { providerId: `prov-2`, priority: 1, sandboxId: `sbx-1`, model: null },
+        {
+          providerId: `prov-1`,
+          priority: 0,
+          sandboxId: `sbx-1`,
+          model: `gpt-4`,
+          projectId: null,
+        },
+        {
+          providerId: `prov-2`,
+          priority: 1,
+          sandboxId: `sbx-1`,
+          model: null,
+          projectId: null,
+        },
       ])
     })
 
@@ -994,7 +1020,13 @@ describe(`Sandbox service`, () => {
 
       // Only prov-1 has a truthy id
       expect(mocks.txInsertValuesFn).toHaveBeenCalledWith([
-        { providerId: `prov-1`, priority: 0, sandboxId: `sbx-1`, model: `gpt-4` },
+        {
+          providerId: `prov-1`,
+          priority: 0,
+          sandboxId: `sbx-1`,
+          model: `gpt-4`,
+          projectId: null,
+        },
       ])
     })
 
@@ -1006,9 +1038,27 @@ describe(`Sandbox service`, () => {
       ])
 
       expect(mocks.txInsertValuesFn).toHaveBeenCalledWith([
-        { providerId: `prov-a`, priority: 0, sandboxId: `sbx-1`, model: null },
-        { providerId: `prov-b`, priority: 1, sandboxId: `sbx-1`, model: null },
-        { providerId: `prov-c`, priority: 2, sandboxId: `sbx-1`, model: null },
+        {
+          providerId: `prov-a`,
+          priority: 0,
+          sandboxId: `sbx-1`,
+          model: null,
+          projectId: null,
+        },
+        {
+          providerId: `prov-b`,
+          priority: 1,
+          sandboxId: `sbx-1`,
+          model: null,
+          projectId: null,
+        },
+        {
+          providerId: `prov-c`,
+          priority: 2,
+          sandboxId: `sbx-1`,
+          model: null,
+          projectId: null,
+        },
       ])
     })
   })

@@ -1,23 +1,15 @@
-import type { TSandboxDrawer } from '@TAF/types'
 import type { Provider } from '@tdsk/domain'
+import type { TSandboxDrawer } from '@TAF/types'
 
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
+import { Box } from '@mui/material'
+import { EProvider, SandboxRuntimeOptions } from '@tdsk/domain'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useSandboxForm } from '@TAF/hooks/sandboxes/useSandboxForm'
-import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
+import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { SandboxGuiAccordion } from '@TAF/components/Sandboxes/SandboxGuiAccordion'
 import { SandboxConfigAccordion } from '@TAF/components/Sandboxes/SandboxConfigAccordion'
 import { SandboxProviderAccordion } from '@TAF/components/Sandboxes/SandboxProviderAccordion'
 import { SandboxContainerAccordion } from '@TAF/components/Sandboxes/SandboxContainerAccordion'
-import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
-import { EProvider, ESecretMode, SandboxRuntimeOptions } from '@tdsk/domain'
-import {
-  Box,
-  Accordion,
-  Typography,
-  AccordionSummary,
-  AccordionDetails,
-} from '@mui/material'
 
 export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
   const {
@@ -82,9 +74,9 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             id='sandbox-alias'
             value={form.alias}
             disabled={form.loading}
+            onChange={(e) => form.setAlias(e.target.value)}
             placeholder='Auto-generated from name if empty'
             helperText='Used in tsa ssh <alias>. Leave empty for auto-generated.'
-            onChange={(e) => form.setAlias(e.target.value)}
           />
 
           {!form.isEditMode && form.projectSandboxList.length > 0 && (
@@ -107,57 +99,36 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             initScriptHelperText='(appended to org init script)'
           />
 
-          {/* Git Repository */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                fontWeight={500}
-                variant='subtitle1'
-              >
-                Git Repository
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextInput
-                  fullWidth
-                  value={form.gitRepo}
-                  disabled={form.loading}
-                  id='sandbox-git-repo'
-                  label='Git Repository URL'
-                  placeholder='https://github.com/org/repo.git'
-                  onChange={(e) => form.setGitRepo(e.target.value)}
-                />
-                <TextInput
-                  fullWidth
-                  value={form.gitBranch}
-                  disabled={form.loading}
-                  label='Git Branch'
-                  placeholder='main'
-                  id='sandbox-git-branch'
-                  onChange={(e) => form.setGitBranch(e.target.value)}
-                />
-                <SecretSelector
-                  mode={form.gitTokenMode}
-                  disabled={form.loading}
-                  editing={form.isEditMode}
-                  secretOptions={form.secretOptions}
-                  editLabel='Change Auth Token'
-                  newSecretValue={form.newGitTokenValue}
-                  selectedSecretId={form.gitTokenSecretId}
-                  onSecretSelect={form.setGitTokenSecretId}
-                  label='Auth Token (for private repos)'
-                  onNewValueChange={form.setNewGitTokenValue}
-                  valuePlaceholder='Enter git auth token (e.g. GitHub PAT)...'
-                  onModeChange={(mode) => {
-                    form.setGitTokenMode(mode)
-                    form.setNewGitTokenValue(``)
-                    form.setGitTokenSecretId(``)
-                  }}
-                />
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+          {/* Git Repositories */}
+          <SandboxProviderAccordion
+            orgId={orgId}
+            loading={form.loading}
+            disabled={form.loading}
+            title='Git Repositories'
+            defaultType={EProvider.git}
+            addLabel='Add Git Repository'
+            createLabel='Create Git Provider'
+            providersLoaded={!!form.providersMap}
+            infoText='Select which git repos to clone into this sandbox.'
+            emptyMessage='Link a git provider to clone repositories into this sandbox.'
+            onAdd={(p) => form.setGitProviderIds((prev) => [...prev, p.id])}
+            providers={form.linkedGitProviders.map((p) => ({
+              id: p.id,
+              name: p.name || p.id,
+              brand: p.brand,
+            }))}
+            availableProviders={form.availableGitProviders.map((p) => ({
+              id: p.id,
+              name: p.name || p.id,
+              brand: p.brand,
+            }))}
+            onRemove={(id) =>
+              form.setGitProviderIds((prev) => prev.filter((gid) => gid !== id))
+            }
+            onProviderCreated={(providerId) => {
+              if (providerId) form.setGitProviderIds((prev) => [...prev, providerId])
+            }}
+          />
 
           {/* AI Providers */}
           <SandboxProviderAccordion
@@ -165,8 +136,8 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             title='AI Providers'
             loading={form.loading}
             disabled={form.loading}
-            defaultType={EProvider.ai}
             addLabel='Add Provider'
+            defaultType={EProvider.ai}
             createLabel='Create AI Provider'
             reorderable
             providersLoaded={!!form.providersMap}
@@ -212,13 +183,14 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
           {/* Docker Registries */}
           <SandboxProviderAccordion
             orgId={orgId}
-            title='Docker Registries'
             loading={form.loading}
             disabled={form.loading}
-            defaultType={EProvider.docker}
             addLabel='Add Registry'
+            title='Docker Registries'
+            defaultType={EProvider.docker}
             createLabel='Create Docker Provider'
             providersLoaded={!!form.providersMap}
+            infoText='Merged with org-level registries.'
             emptyMessage='Link a Docker registry provider to pull private container images.'
             providers={form.linkedDockerProviders.map((p) => ({
               id: p.id,
@@ -234,7 +206,6 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             onRemove={(id) =>
               form.setDockerProviderIds((prev) => prev.filter((did) => did !== id))
             }
-            infoText='Merged with org-level registries.'
             onProviderCreated={(providerId) => {
               if (providerId) form.setDockerProviderIds((prev) => [...prev, providerId])
             }}
@@ -247,9 +218,9 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
 
           <SandboxContainerAccordion
             form={form}
+            portsLabel='Ports (overrides org by port key)'
             workdirHelperText='Overrides org-level working directory.'
             envVarsLabel='Environment Variables (overrides org by name)'
-            portsLabel='Ports (overrides org by port key)'
           />
         </Box>
       </form>

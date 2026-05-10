@@ -43,7 +43,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
             },
             provider: {
-              resolveLLMBrand: vi.fn((p: any) => {
+              resolveAIBrand: vi.fn((p: any) => {
                 const validBrands = [
                   `anthropic`,
                   `openai`,
@@ -71,7 +71,12 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   const buildAgent = (overrides: Record<string, any> = {}) => {
     const { providers, ...rest } = overrides
     const providerLinks = providers
-      ? providers.map((p: any, i: number) => ({ provider: p, priority: i, model: null }))
+      ? providers.map((p: any, i: number) => ({
+          provider: p,
+          priority: i,
+          model: null,
+          projectId: null,
+        }))
       : [
           {
             provider: {
@@ -85,6 +90,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
             },
             priority: 0,
             model: null,
+            projectId: null,
           },
         ]
     return new Agent({

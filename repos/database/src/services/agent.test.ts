@@ -242,7 +242,11 @@ describe(`Agent service`, () => {
 
       const result = service.model(data)
 
-      expect(result.projects).toEqual([projA, projB])
+      expect(result.projects).toHaveLength(2)
+      expect(result.projects[0].id).toBe(`p1`)
+      expect(result.projects[0].name).toBe(`ProjectA`)
+      expect(result.projects[1].id).toBe(`p2`)
+      expect(result.projects[1].name).toBe(`ProjectB`)
     })
 
     it(`should sanitize secrets by default`, () => {

@@ -5,9 +5,9 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
-import { ELLMProviderBrand, LLMProviderTemplates } from '@tdsk/domain'
+import { EAIProviderBrand, AIProviderTemplates } from '@tdsk/domain'
 
-const validBrands = new Set(Object.values(ELLMProviderBrand))
+const validBrands = new Set(Object.values(EAIProviderBrand))
 
 /**
  * POST /providers/:brand/models
@@ -26,20 +26,19 @@ export const fetchModels: TEndpointConfig = {
     const { brand } = req.params
     const { baseUrl } = req.body || {}
 
-    if (!validBrands.has(brand as ELLMProviderBrand))
+    if (!validBrands.has(brand as EAIProviderBrand))
       throw new Exception(400, `Invalid provider brand "${brand}"`)
 
     try {
       // Custom providers have no model list — user provides model ID manually
-      if (brand === ELLMProviderBrand.custom) {
+      if (brand === EAIProviderBrand.custom) {
         res.status(200).json({ data: [] })
         return
       }
 
       // Ollama: fetch live from local API (user-installed models)
-      if (brand === ELLMProviderBrand.ollama) {
-        const ollamaUrl =
-          baseUrl || LLMProviderTemplates[ELLMProviderBrand.ollama].baseUrl
+      if (brand === EAIProviderBrand.ollama) {
+        const ollamaUrl = baseUrl || AIProviderTemplates[EAIProviderBrand.ollama].baseUrl
         const models = await ModelRegistry.fetchOllamaModels(ollamaUrl)
 
         res.status(200).json({ data: models })
@@ -57,7 +56,7 @@ export const fetchModels: TEndpointConfig = {
       logger.error(`fetchModels error for ${brand}: ${message}`)
 
       // For Ollama failures, throw 502 (server not reachable)
-      if (brand === ELLMProviderBrand.ollama)
+      if (brand === EAIProviderBrand.ollama)
         throw new Exception(502, `Failed to fetch models from ${brand}`)
 
       // For other brands, pi-mono registry is static and shouldn't fail,

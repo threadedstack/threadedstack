@@ -33,3 +33,11 @@ export {
   sandboxProviders,
   sandboxProvidersRelations,
 } from '@TDB/schemas/sandboxProviders'
+export {
+  projectProviders,
+  projectProvidersRelations,
+} from '@TDB/schemas/projectProviders'
+export {
+  sandboxProjectProviders,
+  sandboxProjectProvidersRelations,
+} from '@TDB/schemas/sandboxProjectProviders'

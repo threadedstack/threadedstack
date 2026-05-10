@@ -63,16 +63,12 @@ export const Project = (props: TProject) => {
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
-  const [editGitUrl, setEditGitUrl] = useState('')
-  const [editBranch, setEditBranch] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
   useEffect(() => {
     if (editOpen && project) {
       setEditName(project.name || '')
-      setEditGitUrl(project.gitUrl || '')
-      setEditBranch(project.branch || 'main')
       setEditDescription(project.description || '')
       setEditError(null)
     }
@@ -102,8 +98,6 @@ export const Project = (props: TProject) => {
       orgId,
       id: projectId,
       name: editName.trim(),
-      branch: editBranch.trim() || `main`,
-      gitUrl: editGitUrl.trim() || undefined,
       description: editDescription.trim() || undefined,
     })
     setEditLoading(false)
@@ -410,37 +404,6 @@ export const Project = (props: TProject) => {
             </Typography>
           </Box>
 
-          {project.gitUrl && (
-            <Box sx={{ mb: 2 }}>
-              <Typography
-                variant='subtitle2'
-                color='text.secondary'
-              >
-                Git URL
-              </Typography>
-              <Typography
-                variant='body1'
-                sx={{ wordBreak: 'break-all' }}
-              >
-                {project.gitUrl}
-              </Typography>
-            </Box>
-          )}
-
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant='subtitle2'
-              color='text.secondary'
-            >
-              Branch
-            </Typography>
-            <Chip
-              label={project.branch || 'main'}
-              size='small'
-              sx={{ mt: 0.5 }}
-            />
-          </Box>
-
           <Box sx={{ mb: 2 }}>
             <Typography
               variant='subtitle2'
@@ -560,22 +523,6 @@ export const Project = (props: TProject) => {
             disabled={editLoading}
             placeholder='Enter project description (optional)'
             onChange={(e) => setEditDescription(e.target.value)}
-          />
-          <TextInput
-            fullWidth
-            id='edit-project-git-url'
-            label='Git URL'
-            value={editGitUrl}
-            disabled={editLoading}
-            onChange={(e) => setEditGitUrl(e.target.value)}
-          />
-          <TextInput
-            fullWidth
-            id='edit-project-branch'
-            label='Branch'
-            value={editBranch}
-            disabled={editLoading}
-            onChange={(e) => setEditBranch(e.target.value)}
           />
           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
             <Button
