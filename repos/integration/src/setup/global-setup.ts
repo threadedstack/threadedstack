@@ -1,7 +1,7 @@
 import { env } from '../utils/env'
 import { loadEnvs } from '../utils/loadEnvs'
 import { checkHealth } from '../utils/health'
-import { api, get, post, del } from '../utils/api-client'
+import { api, get, post, put, del } from '../utils/api-client'
 import { writeContext, readContext } from '../utils/test-context'
 
 const cancelAndSuppressTLSWarning = () => {
@@ -75,8 +75,49 @@ const cleanupStaleTestResources = async (orgId: string) => {
     if (isTestResource(secret.name)) await tryDel(`/orgs/${orgId}/secrets/${secret.id}`)
   }
 
-  // Providers (after secrets — secrets may reference providers)
+  // Fetch providers and sandboxes early — needed for junction cleanup
   const providersRes = await get<TResource[]>(`/orgs/${orgId}/providers?limit=200`)
+  const staleProviderIds = new Set(
+    (providersRes.data || []).filter(p => isTestResource(p.name)).map(p => p.id)
+  )
+
+  type TSandboxResource = { id: string; name: string; builtIn?: boolean; projectId?: string }
+  const sandboxesRes = await get<TSandboxResource[]>(`/orgs/${orgId}/sandboxes?limit=200`)
+  const allSandboxes = sandboxesRes.data || []
+  const staleSandboxes = allSandboxes.filter(sb => isTestResource(sb.name))
+
+  // Unlink stale test providers from non-test sandboxes before deleting them.
+  // The sandbox_providers FK uses onDelete:restrict, so junction rows must be
+  // removed before provider deletion can succeed.
+  if (staleProviderIds.size > 0) {
+    const nonTestSandboxes = allSandboxes.filter(sb => !isTestResource(sb.name))
+    for (const sandbox of nonTestSandboxes) {
+      try {
+        const sbRes = await get<Record<string, any>>(`/orgs/${orgId}/sandboxes/${sandbox.id}`)
+        if (!sbRes.ok) continue
+
+        const providerLinks: Array<{ provider?: { id: string }; id?: string }> =
+          sbRes.data?.providerLinks || sbRes.data?.providers || []
+        const hasStaleProvider = providerLinks.some(
+          l => staleProviderIds.has(l.provider?.id || l.id || '')
+        )
+
+        if (hasStaleProvider) {
+          const cleanProviders = providerLinks
+            .filter(l => !staleProviderIds.has(l.provider?.id || l.id || ''))
+            .map(l => ({ id: l.provider?.id || l.id }))
+
+          await put(`/orgs/${orgId}/sandboxes/${sandbox.id}`, {
+            providerInputs: cleanProviders,
+          })
+        }
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
+  // Providers (after secrets and after unlinking from sandboxes)
   for (const provider of (providersRes.data || [])) {
     if (isTestResource(provider.name)) await tryDel(`/orgs/${orgId}/providers/${provider.id}`)
   }
@@ -99,10 +140,6 @@ const cleanupStaleTestResources = async (orgId: string) => {
   for (const org of (orgsRes.data || [])) {
     if (org.id !== orgId && isTestResource(org.name)) await tryDel(`/orgs/${org.id}`)
   }
-
-  type TSandboxResource = { id: string; name: string; projectId?: string }
-  const sandboxesRes = await get<TSandboxResource[]>(`/orgs/${orgId}/sandboxes?limit=200`)
-  const staleSandboxes = (sandboxesRes.data || []).filter(sb => isTestResource(sb.name))
 
   try {
     const { execFileSync } = await import('node:child_process')
@@ -252,7 +289,7 @@ export default async function setup() {
     memberUserId = env.memberUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
-      { name: 'integration-member', scopes: 'member', userId: memberUserId }
+      { name: 'integration-member', scopes: 'read,write', userId: memberUserId }
     )
 
     if (keyRes.ok && keyRes.data) {
@@ -303,6 +340,50 @@ export default async function setup() {
       loadEnvs()
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
       const ctx = readContext()
+
+      // Safety net: remove test-resource links from builtIn sandboxes.
+      // Handles cases where individual test afterAll hooks fail or timeout.
+      try {
+        const sbListRes = await get<Array<{ id: string; name: string; builtIn?: boolean }>>(
+          `/orgs/${ctx.orgId}/sandboxes?limit=200`
+        )
+        for (const sandbox of (sbListRes.data || [])) {
+          if (!sandbox.builtIn) continue
+
+          const sbDetailRes = await get<Record<string, any>>(
+            `/orgs/${ctx.orgId}/sandboxes/${sandbox.id}`
+          )
+          if (!sbDetailRes.ok) continue
+
+          const providerLinks: Array<{ provider?: { id: string; name?: string }; id?: string; name?: string }> =
+            sbDetailRes.data?.providerLinks || sbDetailRes.data?.providers || []
+          const projects: Array<{ id: string; name?: string }> =
+            sbDetailRes.data?.projects || []
+
+          const hasTestProvider = providerLinks.some(l =>
+            isTestResource(l.provider?.name || l.name || '')
+          )
+          const hasTestProject = projects.some(p =>
+            isTestResource(p.name || '')
+          )
+
+          if (hasTestProvider || hasTestProject) {
+            const cleanProviders = providerLinks
+              .filter(l => !isTestResource(l.provider?.name || l.name || ''))
+              .map(l => ({ id: l.provider?.id || l.id }))
+            const cleanProjectIds = projects
+              .filter(p => !isTestResource(p.name || ''))
+              .map(p => p.id)
+
+            await put(`/orgs/${ctx.orgId}/sandboxes/${sandbox.id}`, {
+              providerInputs: cleanProviders,
+              projectIds: cleanProjectIds,
+            }).catch(() => {})
+          }
+        }
+      } catch (err) {
+        console.warn(`[global-teardown] Sandbox restore failed: ${(err as Error).message}`)
+      }
 
       try {
         await cleanupStaleTestResources(ctx.orgId)

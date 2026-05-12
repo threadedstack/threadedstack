@@ -351,6 +351,12 @@ describe('Tier 1: Onboarding Flow', () => {
     let updateProviderId = ''
 
     afterAll(async () => {
+      if (builtInSandboxId) {
+        await put(`/orgs/${ctx.orgId}/sandboxes/${builtInSandboxId}`, {
+          projectIds: [],
+          providerInputs: [],
+        }).catch(() => {})
+      }
       if (updateProjectId) await tryDelete(`/orgs/${ctx.orgId}/projects/${updateProjectId}`)
       if (updateProviderId) await tryDelete(`/orgs/${ctx.orgId}/providers/${updateProviderId}`)
     })

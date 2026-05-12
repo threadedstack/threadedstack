@@ -126,7 +126,7 @@ describe('Tier 1: Role Permission Matrix', () => {
         adminOpts()
       )
       expect(getRes.status).toBe(200)
-      const originalName = getRes.data.name
+      const originalDescription = getRes.data.description || ''
 
       // Update with a temporary description change (non-destructive)
       const tempDesc = `permission-matrix-test-${Date.now()}`
@@ -140,7 +140,7 @@ describe('Tier 1: Role Permission Matrix', () => {
       expect(updateRes.ok).toBe(true)
 
       // Restore original description (use owner key for reliability)
-      await put(`/orgs/${ctx.orgId}`, { name: originalName })
+      await put(`/orgs/${ctx.orgId}`, { description: originalDescription })
     })
 
     test('admin can list org members (read access)', async () => {
@@ -323,10 +323,15 @@ describe('Tier 1: Role Permission Matrix', () => {
     })
 
     test('owner can update the org', async () => {
+      const orgRes = await get<{ id: string; description?: string }>(`/orgs/${ctx.orgId}`)
+      const originalDesc = orgRes.data?.description || ''
+
       const tempDesc = `owner-perm-test-${Date.now()}`
       const res = await put(`/orgs/${ctx.orgId}`, { description: tempDesc })
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
+
+      await put(`/orgs/${ctx.orgId}`, { description: originalDesc })
     })
   })
 
