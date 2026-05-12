@@ -21,7 +21,7 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
 
   const sandboxConfig = {
@@ -56,7 +56,7 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   }, 30_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── POST /:id/start ──────────────────────────────────────────────
@@ -96,45 +96,45 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /:id/start creates pod and returns podName', async () => {
+  test('POST /:id/start creates pod and returns instanceId', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ podName: string }>(
+    const res = await post<{ instanceId: string }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
       {}
     )
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.podName).toBeDefined()
-    expect(res.data.podName).toMatch(/^tdsk-sb-/)
+    expect(res.data.instanceId).toBeDefined()
+    expect(res.data.instanceId).toMatch(/^tdsk-sb-/)
 
-    podName = res.data.podName
+    instanceId = res.data.instanceId
   }, 30_000)
 
   test('pod reaches Running state after start', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const state = await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
+    const state = await waitForPodState(ctx.orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
     expect(state).toBe('Running')
   }, 120_000)
 
   // ─── GET /:id/status ──────────────────────────────────────────────
 
   test('GET /:id/status returns Running for active pod', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
+    const res = await get<{ instanceId: string; state: string }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?instanceId=${instanceId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.podName).toBe(podName)
+    expect(res.data.instanceId).toBe(instanceId)
     expect(res.data.state).toBe('Running')
   })
 
-  test('GET /:id/status without podName query param returns 400', async () => {
+  test('GET /:id/status without instanceId query param returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get(
@@ -146,10 +146,10 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('GET /:id/status without auth returns 401', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await get(
-      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?instanceId=${instanceId}`,
       { noAuth: true }
     )
 
@@ -160,8 +160,8 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   test('GET /:id/status for missing pod returns Failed state', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=nonexistent-pod-name`
+    const res = await get<{ instanceId: string; state: string }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?instanceId=nonexistent-pod-name`
     )
 
     // The endpoint gracefully returns Failed for missing pods instead of 404
@@ -172,9 +172,9 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   // ─── POST /:id/exec ───────────────────────────────────────────────
 
   test('POST /:id/exec runs command and returns output', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'echo lifecycle-test')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'echo lifecycle-test')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
@@ -183,9 +183,9 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('POST /:id/exec with args passes arguments to command', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'ls', ['-la', '/'])
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'ls', ['-la', '/'])
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -193,23 +193,23 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('POST /:id/exec without command returns 400', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await post(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
-      { podName } // no command
+      { instanceId } // no command
     )
 
     expect(res.status).toBe(400)
     expect(res.ok).toBe(false)
   })
 
-  test('POST /:id/exec without podName returns 400', async () => {
+  test('POST /:id/exec without instanceId returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
-      { command: 'echo hello' } // no podName
+      { command: 'echo hello' } // no instanceId
     )
 
     expect(res.status).toBe(400)
@@ -217,11 +217,11 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('POST /:id/exec without auth returns 401', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await post(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
-      { command: 'echo hello', podName },
+      { command: 'echo hello', instanceId },
       { noAuth: true }
     )
 
@@ -231,7 +231,7 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
 
   // ─── DELETE /:id/stop ─────────────────────────────────────────────
 
-  test('DELETE /:id/stop without podName returns 400', async () => {
+  test('DELETE /:id/stop without instanceId returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api(
@@ -244,11 +244,11 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('DELETE /:id/stop without auth returns 401', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await api(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`,
-      { method: 'DELETE', body: { podName }, noAuth: true }
+      { method: 'DELETE', body: { instanceId }, noAuth: true }
     )
 
     expect(res.status).toBe(401)
@@ -256,11 +256,11 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('DELETE /:id/stop stops the running pod', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await api(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`,
-      { method: 'DELETE', body: { podName } }
+      { method: 'DELETE', body: { instanceId } }
     )
 
     expect(res.status).toBe(200)
@@ -269,16 +269,16 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
   })
 
   test('GET /:id/status returns Failed after pod stopped', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     // Poll until the pod is gone (K8s needs time to fully remove it)
-    const stoppedPodName = podName
+    const stoppedPodName = instanceId
     const start = Date.now()
     let lastState = 'Running'
     while (Date.now() - start < 30_000) {
       await new Promise(r => setTimeout(r, 3_000))
-      const res = await get<{ podName: string; state: string }>(
-        `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${stoppedPodName}`
+      const res = await get<{ instanceId: string; state: string }>(
+        `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?instanceId=${stoppedPodName}`
       )
       expect(res.status).toBe(200)
       lastState = res.data.state
@@ -287,7 +287,7 @@ describe('Tier 3: Sandbox Pod Lifecycle (start/stop/status/exec)', () => {
 
     expect(lastState).toBe('Failed')
 
-    // Clear podName so afterAll cleanup doesn't try to stop it again
-    podName = ''
+    // Clear instanceId so afterAll cleanup doesn't try to stop it again
+    instanceId = ''
   }, 60_000)
 })

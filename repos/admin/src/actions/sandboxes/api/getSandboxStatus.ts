@@ -1,10 +1,12 @@
 import { sandboxApi } from '@TAF/services'
 
-export const getSandboxStatus = async (opts: {
+export type TGetSandboxStatus = {
   orgId: string
   projectId: string
   sandboxId: string
-  podName: string
-}) => {
-  return sandboxApi.status(opts.orgId, opts.projectId, opts.sandboxId, opts.podName)
+  instanceId: string
+}
+
+export const getSandboxStatus = async (opts: TGetSandboxStatus) => {
+  return sandboxApi.status(opts.orgId, opts.projectId, opts.sandboxId, opts.instanceId)
 }

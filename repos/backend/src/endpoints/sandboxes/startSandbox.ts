@@ -22,7 +22,7 @@ export const startSandbox: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    const podName = await sb.startPod({
+    const instanceId = await sb.startPod({
       projectId,
       sandboxId: sandbox.id,
       orgId: sandbox.orgId,
@@ -30,6 +30,6 @@ export const startSandbox: TEndpointConfig = {
       egressOpts: config.egress,
     })
 
-    res.status(201).json({ data: { podName } })
+    res.status(201).json({ data: { instanceId } })
   },
 }

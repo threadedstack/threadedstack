@@ -313,24 +313,25 @@ Project-scoped domain endpoints follow the same pattern under `/_/orgs/:orgId/pr
 | POST | `/_/orgs/:orgId/skills/:skillId/agents/:agentId` | Attach a skill to an agent |
 | DELETE | `/_/orgs/:orgId/skills/:skillId/agents/:agentId` | Detach a skill from an agent |
 
-#### Sandboxes (Org-Scoped)
+#### Sandboxes (Project-Scoped)
 
 Every new organization is automatically seeded with four built-in sandbox configs (Claude Code, Codex, OpenCode, Base) with `builtIn: true`. These appear immediately in sandbox list responses.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/_/orgs/:orgId/sandboxes` | List sandboxes for an organization |
-| POST | `/_/orgs/:orgId/sandboxes` | Create a sandbox |
-| GET | `/_/orgs/:orgId/sandboxes/:id` | Get a sandbox by ID |
-| PUT | `/_/orgs/:orgId/sandboxes/:id` | Update a sandbox |
-| DELETE | `/_/orgs/:orgId/sandboxes/:id` | Delete a sandbox |
-| POST | `/_/orgs/:orgId/sandboxes/:id/copy` | Deep-copy a sandbox config (copy has `builtIn: false`) |
-| GET | `/_/orgs/:orgId/sandboxes/:id/status` | Get sandbox status |
-| POST | `/_/orgs/:orgId/sandboxes/:id/start` | Start a sandbox |
-| DELETE | `/_/orgs/:orgId/sandboxes/:id/stop` | Stop a sandbox |
-| POST | `/_/orgs/:orgId/sandboxes/:id/connect` | Start sandbox pod and get SSH credentials |
-| GET | `/_/orgs/:orgId/sandboxes/:id/sessions` | List active SSH sessions |
-| POST | `/_/orgs/:orgId/sandboxes/:id/exec` | Execute a command in a sandbox |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes` | List sandboxes for a project |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes` | Create a sandbox |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id` | Get a sandbox by ID |
+| PUT | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id` | Update a sandbox |
+| DELETE | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id` | Delete a sandbox |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/copy` | Deep-copy a sandbox config (copy has `builtIn: false`) |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/status` | Get instance status (requires `?instanceId=` query param) |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/start` | Start a new sandbox instance (returns instanceId) |
+| DELETE | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/stop` | Stop sandbox instance(s) (supports instanceId, stopAll, force in body) |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/connect` | Connect to a sandbox instance and get SSH credentials (supports instanceId, newInstance in body) |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/sessions` | List active sessions across all instances |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/exec` | Execute a command in a sandbox instance (requires instanceId in body) |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/instances` | List active instances for a sandbox |
 
 **Copy response:** Returns the newly created sandbox config with a new ID and `builtIn: false`. All fields from the source sandbox (image, runtime, secrets, resource limits, init script) are preserved.
 
@@ -349,6 +350,12 @@ Every new organization is automatically seeded with four built-in sandbox config
 | `secretIds` | string[] | Secret IDs for placeholder injection |
 | `resources` | object | CPU/memory limits and requests |
 | `ports` | object | Exposed ports with protocol |
+
+**Instance management fields** (top-level sandbox fields, not inside `config`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `maxInstances` | number | Maximum concurrent running instances allowed (default: 1) |
 
 See [Sandbox Connect](../features/sandbox-connect.md) for details on sandbox configuration, runtimes, and security.
 
@@ -562,6 +569,61 @@ WebSocket messages use the same event type structure as SSE events. Send message
 |------|---------|
 | 4001 | Session token missing or invalid |
 
+### WebSocket -- Sandbox Shell
+
+**Endpoint:** `WS /_/sandboxes/:id/shell`
+
+Interactive terminal session in a sandbox instance. Provides PTY allocation with terminal resizing, session persistence, and cross-user session sharing.
+
+**Query parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `instanceId` | No | Target specific instance; uses first running if omitted |
+| `cols` | No | Terminal width (default: 80) |
+| `rows` | No | Terminal height (default: 24) |
+| `run` | No | Execute runtime command on connect if "true" |
+| `sessionId` | No | Reconnect to existing session |
+| `token` | No | Shell token for browser auth |
+
+**Auth:** `Authorization: Bearer <api-key|shell-token>` header
+
+**Protocol:**
+- Binary frames (client->server): Raw stdin bytes
+- Text frames (client->server): Control messages (resize, signal, visibility)
+- Binary frames (server->client): Raw stdout/stderr bytes
+- Text frames (server->client): Status messages (connected, reconnected, joined, error)
+
+**Connection response (text frame):**
+
+```json
+{
+  "type": "connected",
+  "sessionId": "unique-id",
+  "threadId": "thread-id",
+  "sandboxId": "sandbox-id",
+  "runtime": "node"
+}
+```
+
+### WebSocket -- Sandbox Tunnel
+
+**Endpoint:** `WS /_/sandboxes/:id/tunnel`
+
+Raw TCP bridge to a sandbox pod's SSH port for native SSH client connections. Used by `tsa proxy` as a ProxyCommand transport.
+
+**Query parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `instanceId` | No | Target specific instance |
+
+**Auth:** `Authorization: Bearer <api-key|shell-token>` header (required)
+
+**Protocol:** Binary frames bidirectional -- raw TCP bytes forwarded to/from the pod's SSH port (2222).
+
+Features: rate limiting on fast reconnects, backpressure handling, 30s keepalive pings.
+
 ---
 
 ## Error Format
@@ -594,6 +656,9 @@ The `code` field is present when a specific error code was set. Database errors 
 |------|-------------|
 | `BAD_REQUEST` | Request validation failed |
 | `FORBIDDEN` | Permission denied (role hierarchy violation, seat limit, etc.) |
+| `INSTANCE_SELECTION_REQUIRED` | Multiple sandbox instances running; caller must specify instanceId |
+| `INSTANCE_LIMIT_REACHED` | Cannot start new instance — maxInstances limit exceeded (409) |
+| `ACTIVE_SESSIONS` | Cannot stop instance — other users have active sessions (409) |
 | `Unknown` | Unhandled exception (no specific code assigned) |
 
 ### UUID Validation

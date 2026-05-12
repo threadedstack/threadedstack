@@ -22,7 +22,7 @@ export const connectSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals
-    const { podName: requestedPod, newInstance } = req.body
+    const { newInstance, instanceId: requestedInstance } = req.body
 
     const { projectId } = req.params
     if (!projectId)
@@ -36,42 +36,46 @@ export const connectSandbox: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    let podName: string | undefined
+    let instanceId: string | undefined
 
-    if (requestedPod) {
-      const validated = await sb.findActivePod(requestedPod, sandbox.orgId, sandboxId)
+    if (requestedInstance) {
+      const validated = await sb.findActiveInstance(
+        requestedInstance,
+        sandbox.orgId,
+        sandboxId
+      )
       if (!validated)
         throw new Exception(
           404,
-          `Pod ${requestedPod} is not an active instance of this sandbox`
+          `Instance ${requestedInstance} is not an active instance of this sandbox`
         )
-      podName = validated
+      instanceId = validated
     } else {
-      const runningPods = await sb.findRunningPods(sandboxId, sandbox.orgId)
+      const runningInstances = await sb.findRunningInstances(sandboxId, sandbox.orgId)
 
-      if (!newInstance && runningPods.length > 0)
+      if (!newInstance && runningInstances.length > 0)
         throw new Exception(
           400,
-          `podName or newInstance required when instances exist`,
+          `instanceId or newInstance required when instances exist`,
           `INSTANCE_SELECTION_REQUIRED`,
-          runningPods.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+          runningInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
         )
     }
 
-    if (!podName) {
-      const activePods = await sb.findActivePods(sandboxId, sandbox.orgId)
-      const activeCount = activePods.length + sb.countStarting(sandboxId)
+    if (!instanceId) {
+      const activeInstances = await sb.findActiveInstances(sandboxId, sandbox.orgId)
+      const activeCount = activeInstances.length + sb.countStarting(sandboxId)
       if (activeCount >= maxInstances)
         throw new Exception(
           409,
           `Instance limit reached (${activeCount}/${maxInstances})`,
           `INSTANCE_LIMIT_REACHED`,
-          activePods.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+          activeInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
         )
 
       sb.markStarting(sandboxId)
       try {
-        podName = await sb.startPod({
+        instanceId = await sb.startPod({
           projectId,
           sandboxId,
           orgId: sandbox.orgId,
@@ -88,22 +92,24 @@ export const connectSandbox: TEndpointConfig = {
       let prevState: EContainerState = state
       const maxWait = config.sandbox?.maxWait ?? 120_000
       const pollInterval = config.sandbox?.pollInterval ?? 2_000
-      logger.info(`[Sandbox] Waiting for pod ${podName} to reach Running state...`)
+      logger.info(
+        `[Sandbox] Waiting for instance ${instanceId} to reach Running state...`
+      )
 
       try {
         while (state !== EContainerState.Running && Date.now() - start < maxWait) {
           await new Promise((r) => setTimeout(r, pollInterval))
           try {
-            state = await sb.getPodState(podName)
+            state = await sb.getPodState(instanceId)
           } catch (err) {
             logger.warn(
-              `[Sandbox] Error polling pod ${podName} state:`,
+              `[Sandbox] Error polling instance ${instanceId} state:`,
               (err as Error).message
             )
             continue
           }
           if (state !== prevState) {
-            logger.info(`[Sandbox] Pod ${podName} state: ${prevState} → ${state}`)
+            logger.info(`[Sandbox] Instance ${instanceId} state: ${prevState} → ${state}`)
             prevState = state
           }
           if (state === EContainerState.Failed || state === EContainerState.Terminating) {
@@ -113,17 +119,20 @@ export const connectSandbox: TEndpointConfig = {
 
         if (state !== EContainerState.Running) {
           logger.error(
-            `[Sandbox] Pod ${podName} did not start within ${maxWait}ms (last state: ${state})`
+            `[Sandbox] Instance ${instanceId} did not start within ${maxWait}ms (last state: ${state})`
           )
           throw new Exception(504, `Pod did not reach Running state within timeout`)
         }
       } catch (err) {
         try {
-          await sb.stopPod(podName)
+          await sb.stopPod(instanceId)
         } catch (cleanupErr) {
-          logger.warn(`[Sandbox] Failed to cleanup pod ${podName} after start failure`, {
-            error: (cleanupErr as Error).message,
-          })
+          logger.warn(
+            `[Sandbox] Failed to cleanup instance ${instanceId} after start failure`,
+            {
+              error: (cleanupErr as Error).message,
+            }
+          )
         }
         throw err
       } finally {
@@ -133,21 +142,23 @@ export const connectSandbox: TEndpointConfig = {
 
     let initError: string | undefined
     try {
-      const sbInstance = await sb.getSandbox(podName)
+      const sbInstance = await sb.getSandbox(instanceId)
       const check = await sbInstance.exec(`cat`, [`/tmp/tdsk-init-error.log`])
       if (check.exitCode === 0 && check.output?.trim()) {
         initError = check.output.trim()
-        logger.warn(`[Sandbox] initScript failed for pod ${podName}: ${initError}`)
+        logger.warn(
+          `[Sandbox] initScript failed for instance ${instanceId}: ${initError}`
+        )
       }
     } catch (err) {
       logger.debug(
-        `[Sandbox] initScript error check failed for pod ${podName}:`,
+        `[Sandbox] initScript error check failed for instance ${instanceId}:`,
         (err as Error).message
       )
     }
 
-    let password = sb.getPassword(podName)
-    if (!password) password = await sb.recoverPassword(podName)
+    let password = sb.getPassword(instanceId)
+    if (!password) password = await sb.recoverPassword(instanceId)
     if (!password) throw new Exception(500, `Could not retrieve SSH password for pod`)
 
     const shellToken = signShellToken({
@@ -160,11 +171,11 @@ export const connectSandbox: TEndpointConfig = {
 
     res.status(200).json({
       data: {
-        podName,
         workdir,
         password,
         sandboxId,
         port: 2222,
+        instanceId,
         shellToken,
         command: `tsa ssh ${alias || sandboxId}`,
         ...(alias && { alias }),

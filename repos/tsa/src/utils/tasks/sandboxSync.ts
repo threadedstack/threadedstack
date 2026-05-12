@@ -26,7 +26,8 @@ export const autoStartSync = async (
   syncConfig: TSyncConfig | undefined,
   client: ApiClient,
   orgId: string,
-  sandboxId: string
+  sandboxId: string,
+  instanceId?: string
 ): Promise<void> => {
   if (!syncConfig?.autoStart || !syncConfig?.rules?.length) return
 
@@ -64,7 +65,9 @@ export const autoStartSync = async (
         orgId,
         validRules,
         sandbox?.config?.sync,
-        syncConfig.defaultIgnores
+        syncConfig.defaultIgnores,
+        undefined,
+        instanceId
       )
       if (sessions.length) {
         ctx.started = true
@@ -92,12 +95,13 @@ export const autoStartSync = async (
  */
 export const stopSync = async (
   ctx: { manager: SyncManager; started: boolean },
-  sandboxId: string
+  sandboxId: string,
+  instanceId?: string
 ): Promise<void> => {
   if (!ctx.started) return
 
   try {
-    await ctx.manager.stopAll(sandboxId)
+    await ctx.manager.stopAll(sandboxId, instanceId)
     process.stdout.write(`${themed(`muted`, `File sync stopped`)}\n`)
   } catch (err) {
     process.stderr.write(

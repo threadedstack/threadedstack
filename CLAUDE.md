@@ -199,6 +199,7 @@ Load the relevant skill when working on a specific repo:
 | `skill-builder/SKILL.md` | Create new Claude Code skills with proper structure |
 | `task-validator/SKILL.md` | Validate completed TASKS.md implementations: completeness, code quality, test coverage, cross-repo impact |
 | `todo-triage/SKILL.md` | Triage TODO.md items into detailed TASKS.md entries |
+| `update-docs/SKILL.md` | Detect changes, compare against docs/ and repos/website, update/create documentation to stay in sync |
 | `update-integration-tests/SKILL.md` | Detect changes, update/create integration tests, run full suite, fix all failures until green |
 
 ### Subagents

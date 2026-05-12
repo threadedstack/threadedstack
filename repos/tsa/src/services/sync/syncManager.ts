@@ -1,8 +1,9 @@
 import type {
-  IMutagenClient,
   TSyncRule,
-  TSandboxSyncDefaults,
   TSyncSession,
+  IMutagenClient,
+  TSyncSessionLabels,
+  TSandboxSyncDefaults,
 } from '@tdsk/domain'
 
 import { resolveIgnores } from '@TSA/services/sync/ignoreResolver'
@@ -21,17 +22,19 @@ export class SyncManager {
     rules: TSyncRule[],
     sandboxDefaults: TSandboxSyncDefaults | undefined,
     configDefaultIgnores?: string[],
-    skipDefaults?: boolean
+    skipDefaults?: boolean,
+    instanceId?: string
   ): Promise<TSyncSession[]> {
     await this.#client.ensureDaemon()
 
-    const existing = await this.#client.listSessions({ sandboxId })
+    const filterLabels: Record<string, string> = { sandboxId }
+    if (instanceId) filterLabels.instanceId = instanceId
+    const existing = await this.#client.listSessions(filterLabels)
 
     const sessions: TSyncSession[] = []
+    const sshHost = instanceId ? `${sandboxId}--${instanceId}` : sandboxId
 
     for (const rule of rules) {
-      // listSessions already filters by sandboxId via label selector.
-      // Match by name since session name === rule name.
       const hasExisting = existing.some((s) => s.name === rule.name)
 
       if (hasExisting) continue
@@ -43,14 +46,21 @@ export class SyncManager {
         sandboxIgnores: sandboxDefaults?.ignores,
       })
 
-      const session = await this.#client.createSession({
-        ignores,
+      const labels: TSyncSessionLabels = {
+        orgId,
         sandboxId,
+        ruleName: rule.name,
+        ...(instanceId && { instanceId }),
+      }
+
+      const session = await this.#client.createSession({
+        labels,
+        ignores,
         name: rule.name,
+        sandboxId: sshHost,
         source: rule.source,
         mode: rule.mode || DefSyncMode,
         target: rule.target || DefSyncTarget,
-        labels: { sandboxId, ruleName: rule.name, orgId },
       })
 
       sessions.push(session)
@@ -59,8 +69,10 @@ export class SyncManager {
     return sessions
   }
 
-  async stopAll(sandboxId: string): Promise<void> {
-    const sessions = await this.#client.listSessions({ sandboxId })
+  async stopAll(sandboxId: string, instanceId?: string): Promise<void> {
+    const labels: Record<string, string> = { sandboxId }
+    if (instanceId) labels.instanceId = instanceId
+    const sessions = await this.#client.listSessions(labels)
     const errors: string[] = []
     for (const session of sessions) {
       try {
@@ -76,8 +88,10 @@ export class SyncManager {
     }
   }
 
-  async flushAll(sandboxId: string): Promise<void> {
-    const sessions = await this.#client.listSessions({ sandboxId })
+  async flushAll(sandboxId: string, instanceId?: string): Promise<void> {
+    const labels: Record<string, string> = { sandboxId }
+    if (instanceId) labels.instanceId = instanceId
+    const sessions = await this.#client.listSessions(labels)
     const errors: string[] = []
     for (const session of sessions) {
       try {
@@ -91,8 +105,12 @@ export class SyncManager {
     }
   }
 
-  async status(sandboxId?: string): Promise<TSyncSession[]> {
-    const labels = sandboxId ? { sandboxId } : undefined
+  async status(sandboxId?: string, instanceId?: string): Promise<TSyncSession[]> {
+    const labels: Record<string, string> | undefined = sandboxId
+      ? instanceId
+        ? { sandboxId, instanceId }
+        : { sandboxId }
+      : undefined
     return this.#client.listSessions(labels)
   }
 }

@@ -54,9 +54,9 @@ export type TAgentEnvironment = {
   cacheRetention?: `none` | `short` | `long`
   /** Sandbox provider type. Defaults to local when omitted. */
   sandboxType?: TSandboxType
-  /** K8s-only: explicit pod name to connect to (mutually exclusive with sandboxId) */
-  podName?: string
-  /** K8s-only: sandbox config ID — pod is auto-started via SandboxService (mutually exclusive with podName) */
+  /** K8s-only: explicit instance ID to connect to (mutually exclusive with sandboxId) */
+  instanceId?: string
+  /** K8s-only: sandbox config ID — pod is auto-started via SandboxService (mutually exclusive with instanceId) */
   sandboxId?: string
 }
 

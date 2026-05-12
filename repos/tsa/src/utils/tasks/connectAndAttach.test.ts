@@ -1,5 +1,6 @@
 import type { ApiClient } from '@TSA/services/api'
 import type { AuthManager } from '@TSA/services/auth'
+import { connectAndAttach } from './connectAndAttach'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -13,8 +14,6 @@ vi.mock(`@TSA/utils/tasks/shellWebSocket`, () => ({
   connectShellWebSocket: (...args: any[]) => mockConnectShellWebSocket(...args),
 }))
 
-import { connectAndAttach } from './connectAndAttach'
-
 const makeClient = () => ({ proxyUrl: `https://proxy.test` }) as unknown as ApiClient
 
 const makeAuth = (creds?: { apiKey?: string; token?: string; insecure?: boolean }) =>
@@ -25,7 +24,7 @@ const makeAuth = (creds?: { apiKey?: string; token?: string; insecure?: boolean 
 const defaultConnectResp = {
   sandboxId: `sb-resolved`,
   shellToken: `shell-tok`,
-  podName: `pod-1`,
+  instanceId: `pod-1`,
   workdir: `/workspace`,
 }
 
@@ -71,11 +70,18 @@ describe(`connectAndAttach`, () => {
 
     await run({ client, auth })
 
-    expect(mockSandboxConnectPod).toHaveBeenCalledWith(client, `org-1`, `proj-1`, `sb-1`)
+    expect(mockSandboxConnectPod).toHaveBeenCalledWith(
+      client,
+      `org-1`,
+      `proj-1`,
+      `sb-1`,
+      undefined
+    )
     expect(mockConnectShellWebSocket).toHaveBeenCalledWith({
       proxyUrl: `https://proxy.test`,
       bearerToken: `tdsk_key`,
       sandboxId: `sb-resolved`,
+      instanceId: `pod-1`,
       insecure: false,
       sessionId: undefined,
       run: undefined,
@@ -183,5 +189,31 @@ describe(`connectAndAttach`, () => {
     const call = mockConnectShellWebSocket.mock.calls[0][0]
     expect(call.bearerToken).toBe(`shell-tok`)
     expect(call.insecure).toBe(false)
+  })
+
+  it(`passes instanceOpts through to sandboxConnectPod`, async () => {
+    const client = makeClient()
+    await run({ client, instanceOpts: { instanceId: `custom-inst` } })
+
+    expect(mockSandboxConnectPod).toHaveBeenCalledWith(
+      client,
+      `org-1`,
+      `proj-1`,
+      `sb-1`,
+      { instanceId: `custom-inst` }
+    )
+  })
+
+  it(`passes newInstance through to sandboxConnectPod`, async () => {
+    const client = makeClient()
+    await run({ client, instanceOpts: { newInstance: true } })
+
+    expect(mockSandboxConnectPod).toHaveBeenCalledWith(
+      client,
+      `org-1`,
+      `proj-1`,
+      `sb-1`,
+      { newInstance: true }
+    )
   })
 })

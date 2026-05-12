@@ -295,26 +295,30 @@ export const onShellConnect = async (
           }
         }
 
-        const requestedPod = url.searchParams.get(`podName`)
-        let podName: string | undefined
-        if (requestedPod) {
-          podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+        const requestedInstance = url.searchParams.get(`instanceId`)
+        let instanceId: string | undefined
+        if (requestedInstance) {
+          instanceId = await sbService.findRunningInstance(
+            requestedInstance,
+            orgId,
+            sandboxId
+          )
         } else {
-          const runningPods = await sbService.findRunningPods(sandboxId, orgId)
-          podName = runningPods[0]
+          const runningInstances = await sbService.findRunningInstances(sandboxId, orgId)
+          instanceId = runningInstances[0]
         }
-        if (requestedPod && !podName) {
-          ws.close(4004, `Requested pod is not running`)
+        if (requestedInstance && !instanceId) {
+          ws.close(4004, `Requested instance is not running`)
           return
         }
         let podOwnerUserId = userId
-        if (podName) {
+        if (instanceId) {
           try {
-            const pod = await kube.getPod(podName)
+            const pod = await kube.getPod(instanceId)
             podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? userId
           } catch (err) {
             logger.warn(
-              `[Shell] Failed to get pod labels for ${podName} during reconnect:`,
+              `[Shell] Failed to get pod labels for ${instanceId} during reconnect:`,
               (err as Error).message
             )
           }
@@ -342,7 +346,7 @@ export const onShellConnect = async (
           })
         )
 
-        wireWebSocket(ws, session, sbService, cleanup, podName)
+        wireWebSocket(ws, session, sbService, cleanup, instanceId)
         startPingInterval()
         return
       }
@@ -421,26 +425,30 @@ export const onShellConnect = async (
         }
       }
 
-      const requestedPod = url.searchParams.get(`podName`)
-      let podName: string | undefined
-      if (requestedPod) {
-        podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
+      const requestedInstance = url.searchParams.get(`instanceId`)
+      let instanceId: string | undefined
+      if (requestedInstance) {
+        instanceId = await sbService.findRunningInstance(
+          requestedInstance,
+          orgId,
+          sandboxId
+        )
       } else {
-        const runningPods = await sbService.findRunningPods(sandboxId, orgId)
-        podName = runningPods[0]
+        const runningInstances = await sbService.findRunningInstances(sandboxId, orgId)
+        instanceId = runningInstances[0]
       }
-      if (requestedPod && !podName) {
-        ws.close(4004, `Requested pod is not running`)
+      if (requestedInstance && !instanceId) {
+        ws.close(4004, `Requested instance is not running`)
         return
       }
       let podOwnerUserId = existing.userId
-      if (podName) {
+      if (instanceId) {
         try {
-          const pod = await kube.getPod(podName)
+          const pod = await kube.getPod(instanceId)
           podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? existing.userId
         } catch (err) {
           logger.warn(
-            `[Shell] Failed to get pod labels for ${podName} during join:`,
+            `[Shell] Failed to get pod labels for ${instanceId} during join:`,
             (err as Error).message
           )
         }
@@ -466,35 +474,35 @@ export const onShellConnect = async (
         }
       }
 
-      wireWebSocket(ws, session, sbService, cleanup, podName)
+      wireWebSocket(ws, session, sbService, cleanup, instanceId)
       startPingInterval()
       return
     }
   }
 
-  // 6. Find running pod
-  const requestedPod = url.searchParams.get(`podName`)
-  let podName: string | undefined
-  if (requestedPod) {
-    podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
-    if (!podName) {
-      ws.close(4004, `Requested pod ${requestedPod} is not running`)
+  // 6. Find running instance
+  const requestedInstance = url.searchParams.get(`instanceId`)
+  let instanceId: string | undefined
+  if (requestedInstance) {
+    instanceId = await sbService.findRunningInstance(requestedInstance, orgId, sandboxId)
+    if (!instanceId) {
+      ws.close(4004, `Requested instance ${requestedInstance} is not running`)
       return
     }
   } else {
-    const runningPods = await sbService.findRunningPods(sandboxId, orgId)
-    podName = runningPods[0]
+    const runningInstances = await sbService.findRunningInstances(sandboxId, orgId)
+    instanceId = runningInstances[0]
   }
-  if (!podName) {
-    ws.close(4004, `No running pod for sandbox ${sandboxId}`)
+  if (!instanceId) {
+    ws.close(4004, `No running instance for sandbox ${sandboxId}`)
     return
   }
 
   try {
-    await sbService.validatePodOwnership(podName, orgId)
+    await sbService.validateInstanceOwnership(instanceId, orgId)
   } catch (err) {
     const msg = err instanceof Error ? err.message : `Not authorized`
-    logger.warn(`[Shell] Pod ownership validation failed for ${podName}:`, msg)
+    logger.warn(`[Shell] Instance ownership validation failed for ${instanceId}:`, msg)
     ws.close(4003, `Not authorized`)
     return
   }
@@ -502,10 +510,10 @@ export const onShellConnect = async (
   // 7. Get pod info and verify requesting user is the pod creator
   let podOwnerUserId: string
   try {
-    const pod = await kube.getPod(podName)
+    const pod = await kube.getPod(instanceId)
     podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? ``
   } catch (err) {
-    logger.warn(`[Shell] Failed to get pod ${podName}:`, (err as Error).message)
+    logger.warn(`[Shell] Failed to get pod ${instanceId}:`, (err as Error).message)
     ws.close(4004, `Pod not reachable`)
     return
   }
@@ -588,13 +596,16 @@ export const onShellConnect = async (
 
   let exec: TExecStream
   try {
-    exec = await kube.execStream(podName, [`su`, `-l`, `sandbox`], {
+    exec = await kube.execStream(instanceId, [`su`, `-l`, `sandbox`], {
       tty: true,
       cols,
       rows,
     })
   } catch (err) {
-    logger.error(`[Shell] Exec failed for pod ${podName}:`, (err as Error).message)
+    logger.error(
+      `[Shell] Exec failed for instance ${instanceId}:`,
+      (err as Error).message
+    )
     ws.close(4005, `Shell connection failed`)
     return
   }
@@ -636,10 +647,10 @@ export const onShellConnect = async (
     })
 
   // Register as a pod session too (for idle timeout tracking)
-  sbService.addSession(podName, {
+  sbService.addSession(instanceId, {
     orgId,
     userId,
-    podName,
+    instanceId,
     sessionId,
     sandboxId,
     connectedAt: new Date().toISOString(),
@@ -685,7 +696,7 @@ export const onShellConnect = async (
               exec.stdout.resume()
             } else if (Date.now() - start > SBBackpressureMaxWait) {
               logger.warn(
-                `[Shell] Backpressure timeout for ${podName}, resuming exec stdout`
+                `[Shell] Backpressure timeout for ${instanceId}, resuming exec stdout`
               )
               exec.stdout.resume()
             } else {
@@ -716,7 +727,7 @@ export const onShellConnect = async (
     }
 
     ptyRecorder.destroy()
-    sbService.removeSession(podName, sessionId)
+    sbService.removeSession(instanceId, sessionId)
     cleanup(`Exec stream ended`)
     sbService.removeShellSession(sessionId)
   })
@@ -739,25 +750,25 @@ export const onShellConnect = async (
     }
 
     ptyRecorder.destroy()
-    sbService.removeSession(podName, sessionId)
+    sbService.removeSession(instanceId, sessionId)
     cleanup(`Exec error: ${streamErr.message}`)
     sbService.removeShellSession(sessionId)
   })
 
   exec.stderr.on(`data`, (chunk: Buffer) => {
-    logger.debug(`[Shell] Exec stderr for ${podName}:`, chunk.toString().slice(0, 500))
+    logger.debug(`[Shell] Exec stderr for ${instanceId}:`, chunk.toString().slice(0, 500))
   })
 
   exec.stderr.on(`error`, (err: Error) => {
-    logger.warn(`[Shell] Exec stderr error for ${podName}:`, err.message)
+    logger.warn(`[Shell] Exec stderr error for ${instanceId}:`, err.message)
   })
 
   exec.stdin.on(`error`, (err: Error) => {
-    logger.warn(`[Shell] Exec stdin error for ${podName}:`, err.message)
+    logger.warn(`[Shell] Exec stdin error for ${instanceId}:`, err.message)
     cleanup(`Exec stdin error: ${err.message}`)
   })
 
-  wireWebSocket(ws, session, sbService, cleanup, podName)
+  wireWebSocket(ws, session, sbService, cleanup, instanceId)
   startPingInterval()
 }
 
@@ -766,7 +777,7 @@ function wireWebSocket(
   session: TShellSession,
   sbService: SandboxService,
   cleanup: (reason: string) => void,
-  podName?: string
+  instanceId?: string
 ) {
   ws.on(`message`, (data, isBinary) => {
     if (typeof data === `string` || !isBinary) {
@@ -817,7 +828,7 @@ function wireWebSocket(
 
     // Binary frame: forward raw stdin bytes to exec stream
     if (session.stdin.writable) session.stdin.write(data)
-    if (podName) sbService.updateActivity(podName)
+    if (instanceId) sbService.updateActivity(instanceId)
   })
 
   ws.on(`close`, () => {

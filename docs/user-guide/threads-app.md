@@ -59,7 +59,7 @@ Each thread is scoped to an agent within an organization, and users can only see
 
 ### Sandbox Sessions
 
-The Threads App provides a browser-based terminal for sandbox sessions. Sessions are listed in the sidebar, grouped under their sandbox, with visual indicators for status:
+The Threads App provides a browser-based terminal for sandbox sessions. Sessions are listed in the sidebar, grouped under their sandbox and instance, with visual indicators for status:
 
 - **Green dot** -- Active session (you are currently connected).
 - **Yellow dot** -- Idle session (server-side PTY is alive but no client is attached). Click to reconnect.
@@ -85,6 +85,44 @@ Session owners can make a session public so other org members with sandbox exec 
 - Members without exec permission see shared sessions dimmed with a "View only" label.
 
 The sidebar updates in real-time as sessions are created, destroyed, shared, or joined -- no manual refresh is needed.
+
+#### Instance Navigation
+
+The sidebar displays sandbox instances as expandable sub-items under each sandbox. Each instance shows its state (Running, Pending, etc.) and a count of active sessions. Clicking an instance expands it to reveal the sessions running on that instance.
+
+The sidebar organizes sandboxes and instances in a tree structure:
+
+```
+▼ Claude Code (sandbox)
+  ▸ tdsk-sb-abc-x7k9 (Running) — 2 sessions
+  ▸ tdsk-sb-abc-m3p2 (Running) — 1 session
+▼ Codex (sandbox)
+  ▸ tdsk-sb-def-q8w5 (Running) — 1 session
+▶ OpenCode (sandbox) — no instances
+```
+
+- Green indicator: instance is Running
+- Yellow indicator: instance is Pending
+- Grey indicator: instance is Terminating or Failed
+- Session count badge shows active sessions per instance
+
+Expanding an instance reveals the sessions running on it. Each session row displays a status dot and label matching the session status indicators described above (green for active, yellow for idle, grey for expired) along with the session owner's name. Shared sessions from other users show a people icon. Clicking a session connects to it or reconnects if idle.
+
+```
+▼ Claude Code (sandbox)
+  ▼ tdsk-sb-abc-x7k9 (Running) — 2 sessions
+    ● Session 1 — Active (you)
+    ● Session 2 — Idle
+  ▸ tdsk-sb-abc-m3p2 (Running) — 1 session
+```
+
+#### Instance-Grouped Sessions
+
+Sessions are grouped by the instance they belong to. This makes it clear which pod is hosting each session and helps users target the correct environment when multiple instances of the same sandbox are running concurrently. When you expand a sandbox that has multiple instances, each instance appears as a collapsible group with its own session list, so sessions on different pods are never mixed together.
+
+#### Creating New Instances
+
+Users can start a new instance from the sandbox context menu or when connecting to a sandbox that already has running instances. If multiple instances are available, the UI prompts the user to select which instance to connect to before opening a session.
 
 ## Relationship to Admin UI
 

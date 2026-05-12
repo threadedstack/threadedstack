@@ -51,7 +51,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
   const { sandboxId, orgId, projectId, run = true } = opts
 
   const connectOpts = {
-    ...(opts.podName ? { podName: opts.podName } : {}),
+    ...(opts.instanceId ? { instanceId: opts.instanceId } : {}),
     ...(opts.newInstance ? { newInstance: true } : {}),
   }
   const connectResult = await sandboxApi.connect(orgId, projectId, sandboxId, connectOpts)
@@ -59,13 +59,13 @@ export const openSession = async (opts: TOpenSessionOpts) => {
     throw new Error(connectResult.error?.message ?? `Failed to connect to sandbox`)
 
   const shellToken = connectResult.data?.shellToken
-  const podName = connectResult.data?.podName ?? ``
+  const instanceId = connectResult.data?.instanceId ?? ``
 
   const baseUrl = new URL(apiService.base)
   const wsProto = baseUrl.protocol === `https:` ? `wss:` : `ws:`
   const params = new URLSearchParams({ cols: `80`, rows: `24` })
   if (run) params.set(`run`, `true`)
-  if (podName) params.set(`podName`, podName)
+  if (instanceId) params.set(`instanceId`, instanceId)
   if (shellToken) params.set(`token`, shellToken)
 
   // Resolve session intent
@@ -140,7 +140,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
         threadId: msg.threadId ?? ``,
         runtime,
         projectId,
-        podName: msg.podName ?? podName,
+        instanceId: msg.instanceId ?? instanceId,
         podOwnerUserId: msg.podOwnerUserId ?? ``,
         visibility: (msg.visibility ?? `private`) as ESandboxSessionVisibility,
       })

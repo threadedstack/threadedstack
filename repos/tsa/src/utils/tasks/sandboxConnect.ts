@@ -1,18 +1,16 @@
 import type { TSandboxConnectResponse } from '@tdsk/domain'
 import type { ApiClient } from '@TSA/services/api'
+import type { TInstanceResolution } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 
-/**
- * Connects to a sandbox pod, ensures SSH config, and injects the public key.
- * Throws on any failure so callers can run cleanup in finally blocks.
- */
 export const sandboxConnect = async (
   client: ApiClient,
   orgId: string,
   projectId: string,
-  sandboxIdOrAlias: string
+  sandboxIdOrAlias: string,
+  instanceOpts?: TInstanceResolution
 ): Promise<TSandboxConnectResponse> => {
   process.stdout.write(
     `${themed(`muted`, `Connecting to sandbox "${sandboxIdOrAlias}"...`)}\n`
@@ -21,13 +19,14 @@ export const sandboxConnect = async (
   const { data: connectResp, error } = await client.connectSandbox(
     orgId,
     projectId,
-    sandboxIdOrAlias
+    sandboxIdOrAlias,
+    instanceOpts
   )
   if (error || !connectResp)
     throw new Error(error?.message || `Failed to connect to sandbox`)
 
-  const { podName } = connectResp
-  if (!podName) throw new Error(`No pod name returned from server`)
+  const { instanceId } = connectResp
+  if (!instanceId) throw new Error(`No instance ID returned from server`)
 
   let publicKey: string
   try {
@@ -45,7 +44,7 @@ export const sandboxConnect = async (
     orgId,
     projectId,
     resolvedId,
-    podName,
+    instanceId,
     publicKey
   )
   if (sshError) {

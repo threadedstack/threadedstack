@@ -10,7 +10,7 @@ describe('Tier 3: Sandbox Connect', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
 
   const sandboxConfig = {
@@ -44,7 +44,7 @@ describe('Tier 3: Sandbox Connect', () => {
   }, 30_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // --- Auto-start via connect ---
@@ -59,8 +59,8 @@ describe('Tier 3: Sandbox Connect', () => {
     expect(res.data).toBeDefined()
 
     const conn = res.data
-    expect(conn.podName).toBeDefined()
-    expect(conn.podName).toMatch(/^tdsk-sb-/)
+    expect(conn.instanceId).toBeDefined()
+    expect(conn.instanceId).toMatch(/^tdsk-sb-/)
     expect(typeof conn.password).toBe('string')
     expect(conn.password.length).toBeGreaterThan(0)
     expect(conn.port).toBe(2222)
@@ -71,36 +71,36 @@ describe('Tier 3: Sandbox Connect', () => {
     expect(typeof conn.workdir).toBe('string')
     expect(conn.workdir.length).toBeGreaterThan(0)
 
-    podName = conn.podName
+    instanceId = conn.instanceId
   }, 150_000)
 
   test('pod is Running after connect returns', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
+    const res = await get<{ instanceId: string; state: string }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?instanceId=${instanceId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.data.state).toBe('Running')
   })
 
-  test('POST /:id/connect on already-running pod returns same podName', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+  test('POST /:id/connect on already-running pod returns same instanceId', async () => {
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      { podName }
+      { instanceId }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.podName).toBe(podName)
+    expect(res.data.instanceId).toBe(instanceId)
   })
 
   test('can exec commands in pod started by connect', async () => {
-    if (!podName) return expect(podName).toBeTruthy()
+    if (!instanceId) return expect(instanceId).toBeTruthy()
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'echo hello')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'echo hello')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -161,12 +161,12 @@ describe('Tier 3: Sandbox Connect', () => {
 
       const connRes = await connectSandbox(ctx.orgId, projProjectId, projSandboxId)
       expect(connRes.status).toBe(200)
-      expect(connRes.data.podName).toMatch(/^tdsk-sb-/)
-      projPodName = connRes.data.podName
+      expect(connRes.data.instanceId).toMatch(/^tdsk-sb-/)
+      projPodName = connRes.data.instanceId
     } finally {
       await cleanupSandbox(ctx.orgId, {
         sandboxId: projSandboxId,
-        podName: projPodName,
+        instanceId: projPodName,
         projectId: projProjectId,
       })
     }
@@ -202,15 +202,15 @@ describe('Tier 3: Sandbox Connect', () => {
       expect(successes.length + conflicts.length).toBe(2)
       expect(successes.length).toBeGreaterThanOrEqual(1)
 
-      // All successful responses must return the same podName (no duplicate pods)
-      const podNames = successes.map(r => r.data.podName)
-      const uniquePodNames = [...new Set(podNames)]
+      // All successful responses must return the same instanceId (no duplicate pods)
+      const instanceIds = successes.map(r => r.data.instanceId)
+      const uniquePodNames = [...new Set(instanceIds)]
       expect(uniquePodNames).toHaveLength(1)
       concPodName = uniquePodNames[0]
     } finally {
       await cleanupSandbox(ctx.orgId, {
         sandboxId: concSandboxId,
-        podName: concPodName,
+        instanceId: concPodName,
         projectId: '',
       })
     }

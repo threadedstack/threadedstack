@@ -673,4 +673,103 @@ describe(`ApiClient`, () => {
       )
     })
   })
+
+  describe(`listInstances`, () => {
+    it(`should call GET on instances endpoint`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { maxInstances: 4, instances: [] } }),
+      })
+
+      const { data, ok } = await client.listInstances(`org1`, `proj1`, `sb1`)
+
+      expect(ok).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs/org1/projects/proj1/sandboxes/sb1/instances`,
+        expect.any(Object)
+      )
+      expect(data).toEqual({ maxInstances: 4, instances: [] })
+    })
+  })
+
+  describe(`connectSandbox`, () => {
+    it(`should POST with instance opts`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            sandboxId: `sb1`,
+            instanceId: `inst-1`,
+            workdir: `/workspace`,
+            command: `bash`,
+            password: `pw`,
+          },
+        }),
+      })
+
+      await client.connectSandbox(`org1`, `proj1`, `sb1`, { instanceId: `inst-1` })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs/org1/projects/proj1/sandboxes/sb1/connect`,
+        expect.objectContaining({
+          method: `POST`,
+          body: JSON.stringify({ instanceId: `inst-1` }),
+        })
+      )
+    })
+
+    it(`should POST with empty body when no opts`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            sandboxId: `sb1`,
+            instanceId: `inst-1`,
+            workdir: `/workspace`,
+            command: `bash`,
+            password: `pw`,
+          },
+        }),
+      })
+
+      await client.connectSandbox(`org1`, `proj1`, `sb1`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          method: `POST`,
+          body: JSON.stringify({}),
+        })
+      )
+    })
+
+    it(`should POST with newInstance flag`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            sandboxId: `sb1`,
+            instanceId: `inst-new`,
+            workdir: `/workspace`,
+            command: `bash`,
+            password: `pw`,
+          },
+        }),
+      })
+
+      await client.connectSandbox(`org1`, `proj1`, `sb1`, { newInstance: true })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          method: `POST`,
+          body: JSON.stringify({ newInstance: true }),
+        })
+      )
+    })
+  })
 })

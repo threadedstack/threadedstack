@@ -6,6 +6,7 @@ import { themed } from '@TSA/theme'
 import { createInterface } from 'readline'
 import { DefaultWorkdir } from '@tdsk/domain'
 import { ApiClient } from '@TSA/services/api'
+import { InstanceOptions } from '@TSA/constants/options'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
@@ -13,6 +14,7 @@ import { CliDriver } from '@TSA/services/sync/mutagenClient'
 import { SyncManager } from '@TSA/services/sync/syncManager'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
+import { resolveInstanceId } from '@TSA/utils/tasks/resolveInstanceId'
 import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
 import {
@@ -90,6 +92,7 @@ const stopTask: TTask = {
       description: `Stop all sync sessions`,
       alias: [`a`],
     },
+    ...InstanceOptions,
   },
   action: ensureAuth(async ({ params, auth, options }) => {
     if (params.all) {
@@ -112,8 +115,12 @@ const stopTask: TTask = {
         process.stderr.write(
           `${themed(`warning`, `Warning: could not stop ${errors.length} session(s):`)} ${errors.join(`; `)}\n`
         )
+        process.stdout.write(
+          `${themed(`warning`, `Stopped ${sessions.length - errors.length} of ${sessions.length} sync sessions`)}\n`
+        )
+      } else {
+        process.stdout.write(`${themed(`success`, `All sync sessions stopped`)}\n`)
       }
-      process.stdout.write(`${themed(`success`, `All sync sessions stopped`)}\n`)
       return
     }
 
@@ -133,13 +140,25 @@ const stopTask: TTask = {
       return
     }
 
+    const instanceId = params.instance as string | undefined
     try {
-      await manager.stopAll(sandboxId)
+      const active = await manager.status(sandboxId, instanceId)
+      if (active.length === 0) {
+        const instSuffix = instanceId ? ` for instance ${instanceId}` : ``
+        process.stdout.write(
+          `${themed(`muted`, `No active sync sessions${instSuffix}`)}\n`
+        )
+        return
+      }
+      await manager.stopAll(sandboxId, instanceId)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
     }
-    process.stdout.write(`${themed(`success`, `Sync stopped for ${sandboxId}`)}\n`)
+    const instSuffix = instanceId ? ` (instance: ${instanceId})` : ``
+    process.stdout.write(
+      `${themed(`success`, `Sync stopped for ${sandboxId}${instSuffix}`)}\n`
+    )
   }),
 }
 
@@ -162,26 +181,36 @@ const statusTask: TTask = {
       return
     }
 
-    // Group by sandboxId
-    const grouped = new Map<string, typeof sessions>()
+    const grouped = new Map<string, Map<string, typeof sessions>>()
     for (const s of sessions) {
-      const key = s.labels?.sandboxId || 'unknown'
-      if (!grouped.has(key)) grouped.set(key, [])
-      grouped.get(key)!.push(s)
+      const sbKey = s.labels?.sandboxId || 'unknown'
+      const instKey = s.labels?.instanceId || ``
+      if (!grouped.has(sbKey)) grouped.set(sbKey, new Map())
+      const instMap = grouped.get(sbKey)!
+      if (!instMap.has(instKey)) instMap.set(instKey, [])
+      instMap.get(instKey)!.push(s)
     }
 
-    for (const [sbId, group] of grouped) {
+    for (const [sbId, instMap] of grouped) {
       process.stdout.write(`\n${themed(`bold`, `Sandbox: ${sbId}`)}\n`)
-      for (const s of group) {
-        const icon = s.status === 'errored' || s.status === 'disconnected' ? '!' : '*'
-        const color =
-          s.status === 'errored' || s.status === 'disconnected' ? 'warning' : 'success'
-        const src = s.source || '?'
-        const tgt = s.target || '?'
-        const mode = s.mode || '?'
-        process.stdout.write(
-          `  ${s.name.padEnd(16)} ${src} -> ${tgt}  ${mode.padEnd(18)} ${themed(color as any, `${icon} ${s.status}`)}\n`
-        )
+      for (const [instId, group] of instMap) {
+        if (instId) {
+          process.stdout.write(
+            `  ${themed(`primary`, `Instance:`)} ${instId.slice(-16)}\n`
+          )
+        }
+        for (const s of group) {
+          const icon = s.status === 'errored' || s.status === 'disconnected' ? '!' : '*'
+          const color =
+            s.status === 'errored' || s.status === 'disconnected' ? 'warning' : 'success'
+          const src = s.source || '?'
+          const tgt = s.target || '?'
+          const mode = s.mode || '?'
+          const indent = instId ? `    ` : `  `
+          process.stdout.write(
+            `${indent}${s.name.padEnd(16)} ${src} -> ${tgt}  ${mode.padEnd(18)} ${themed(color as any, `${icon} ${s.status}`)}\n`
+          )
+        }
       }
     }
     process.stdout.write(`\n`)
@@ -192,6 +221,7 @@ const flushTask: TTask = {
   name: `flush`,
   description: `Force immediate sync cycle`,
   example: `tsa sync flush <sandbox-id>`,
+  options: { ...InstanceOptions },
   action: ensureAuth(async ({ options, params }) => {
     let sandboxId: string | null
     try {
@@ -209,13 +239,25 @@ const flushTask: TTask = {
       return
     }
 
+    const instanceId = params.instance as string | undefined
     try {
-      await manager.flushAll(sandboxId)
+      const active = await manager.status(sandboxId, instanceId)
+      if (active.length === 0) {
+        const instSuffix = instanceId ? ` for instance ${instanceId}` : ``
+        process.stdout.write(
+          `${themed(`muted`, `No active sync sessions${instSuffix}`)}\n`
+        )
+        return
+      }
+      await manager.flushAll(sandboxId, instanceId)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
     }
-    process.stdout.write(`${themed(`success`, `Flush triggered for ${sandboxId}`)}\n`)
+    const instSuffix = instanceId ? ` (instance: ${instanceId})` : ``
+    process.stdout.write(
+      `${themed(`success`, `Flush triggered for ${sandboxId}${instSuffix}`)}\n`
+    )
   }),
 }
 
@@ -272,7 +314,7 @@ export const sync: TTask = {
   name: `sync`,
   alias: [`sy`],
   description: `Sync files with a K8s sandbox`,
-  example: `tsa sync <sandbox-id> [--source ./src] [--target /workspace/src]`,
+  example: `tsa sync <sandbox-id> [--source ./src] [--target /workspace/src] [--instance <id>] [--new]`,
   tasks: {
     stop: stopTask,
     status: statusTask,
@@ -298,6 +340,7 @@ export const sync: TTask = {
       description: `Project ID`,
       alias: [`projectId`, `p`],
     },
+    ...InstanceOptions,
     source: {
       description: `Local source path (single-rule shorthand)`,
       alias: [`s`, `src`],
@@ -323,9 +366,9 @@ export const sync: TTask = {
       description: `Skip default ignore patterns`,
       default: false,
     },
-    name: {
+    sessionName: {
       description: `Session name`,
-      alias: [`n`],
+      alias: [`sn`],
     },
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
@@ -367,34 +410,44 @@ export const sync: TTask = {
 
     if (config) saveContext(config, orgId, projectId, sandboxId)
 
-    // Auto-start pod via connect
+    let instanceOpts: { instanceId?: string; newInstance?: boolean } | undefined
+    try {
+      instanceOpts = await resolveInstanceId(client, orgId, projectId, sandboxId, {
+        explicitInstance: params.instance as string | undefined,
+        forceNew: params.new as boolean | undefined,
+      })
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
     process.stdout.write(`${themed(`muted`, `Connecting to sandbox...`)}\n`)
     const { data: connectResp, error: connectError } = await client.connectSandbox(
       orgId as string,
       projectId,
-      sandboxId
+      sandboxId,
+      instanceOpts
     )
     if (connectError || !connectResp) {
       const msg = connectError?.message || `Failed to connect`
       process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
-    const { podName } = connectResp
-    if (!podName) {
+    const { instanceId: resolvedInstanceId } = connectResp
+    if (!resolvedInstanceId) {
       process.stderr.write(
-        `${themed(`error`, `Error: No pod name returned from server`)}\n`
+        `${themed(`error`, `Error: No instance ID returned from server`)}\n`
       )
       process.exit(1)
     }
 
-    // Inject SSH public key into pod for key-based auth
     ensureSshConfig()
     const publicKey = getPublicKey()
     const { error: sshError } = await client.injectSshKey(
       orgId,
       projectId,
       sandboxId,
-      podName,
+      resolvedInstanceId,
       publicKey
     )
     if (sshError) {
@@ -402,7 +455,6 @@ export const sync: TTask = {
       process.exit(1)
     }
 
-    // Fetch sandbox for sync config defaults
     const { data: sandbox, error: sandboxError } = await client.getSandbox(
       orgId as string,
       sandboxId
@@ -415,15 +467,13 @@ export const sync: TTask = {
     }
     const sandboxSync = sandbox?.config?.sync
 
-    // Resolve rules: CLI shorthand or config file
     let rules: TSyncRule[]
     const syncConfig = config?.sync
 
     if (params.source) {
-      // Single-rule shorthand from CLI flags
       rules = [
         {
-          name: (params.name as string) || `cli-sync`,
+          name: (params.sessionName as string) || `cli-sync`,
           source: params.source as string,
           target: (params.target as string) || connectResp?.workdir || DefaultWorkdir,
           mode: (params.mode as TSyncMode) || `one-way-replica`,
@@ -431,7 +481,6 @@ export const sync: TTask = {
         },
       ]
     } else if (syncConfig?.rules?.length) {
-      // Get per-sandbox overrides if they exist
       const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
       const workdir = connectResp?.workdir
 
@@ -453,7 +502,6 @@ export const sync: TTask = {
       process.exit(1)
     }
 
-    // Resolve and validate source paths
     const cwd = process.cwd()
     for (const rule of rules) {
       rule.source = resolveSourcePath(rule.source, cwd)
@@ -465,7 +513,6 @@ export const sync: TTask = {
       }
     }
 
-    // Start sync
     let sessions: Awaited<ReturnType<typeof manager.startAll>>
     try {
       sessions = await manager.startAll(
@@ -474,7 +521,8 @@ export const sync: TTask = {
         rules,
         sandboxSync,
         syncConfig?.defaultIgnores,
-        params.noDefaults as boolean
+        params.noDefaults as boolean,
+        resolvedInstanceId
       )
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
@@ -493,7 +541,6 @@ export const sync: TTask = {
     }
 
     if (params.daemon) {
-      // Daemon mode: print and exit, sessions persist via Mutagen daemon
       for (const s of sessions) {
         process.stdout.write(
           `  ${themed(`muted`, s.name)} ${s.source || `?`} -> ${s.target || `?`}\n`
@@ -505,11 +552,9 @@ export const sync: TTask = {
       return
     }
 
-    // Foreground mode: block until Ctrl+C
     process.stdout.write(`${themed(`muted`, `Press Ctrl+C to stop sync`)}\n\n`)
 
-    // Register for global signal handler fallback
-    registerSyncCleanup(sandboxId, manager)
+    registerSyncCleanup(sandboxId, manager, resolvedInstanceId)
 
     let cleanupRunning = false
     const cleanup = async () => {
@@ -527,7 +572,7 @@ export const sync: TTask = {
         process.exit(1)
       }, 10_000)
       try {
-        await manager.stopAll(sandboxId)
+        await manager.stopAll(sandboxId, resolvedInstanceId)
         clearTimeout(timer)
         process.stdout.write(`${themed(`success`, `File sync stopped`)}\n`)
       } catch (err) {
@@ -543,7 +588,6 @@ export const sync: TTask = {
     process.on(`SIGINT`, cleanup)
     process.on(`SIGTERM`, cleanup)
 
-    // Keep process alive
     await new Promise(() => {})
   }),
 }

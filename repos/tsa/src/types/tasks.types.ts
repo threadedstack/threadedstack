@@ -58,5 +58,10 @@ export type TTask<P extends TTaskPMap = TTaskPMap> = {
 
 export type TTasks = Record<string, TTask>
 
+export type TInstanceResolution = {
+  instanceId?: string
+  newInstance?: boolean
+}
+
 // Re-export TTsaConfig from config.types for backward compatibility
 export type { TTsaConfig } from './config.types'

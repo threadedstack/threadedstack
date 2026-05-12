@@ -121,6 +121,40 @@ flowchart TD
 - **Threads** belong to an org and optionally to an agent and project. They support branching (creating a new thread from a specific message in an existing thread).
 - **Roles** use a 2-way exclusive arc: each role is scoped to either an org or a project, with a unique constraint on user+org and user+project.
 
+### Sandbox Config vs Instance
+
+A **sandbox** is a _configuration_ record stored in the database -- it defines the runtime, Docker image, resource limits, init script, environment variables, and attached secrets. An **instance** is a running Kubernetes pod created from that configuration. One sandbox config can have multiple concurrent instances, each identified by a unique `instanceId`.
+
+| Concept | Persisted | Identifier | Lifecycle |
+|---------|-----------|------------|-----------|
+| **Sandbox (config)** | Yes (database row) | `sandboxId` (UUID) | CRUD via Admin API |
+| **Instance (pod)** | No (runtime only) | `instanceId` (generated) | Created on `connect`/`start`, destroyed on `stop` or idle timeout |
+
+Instances are **runtime entities** -- they are not stored in the database. They exist as Kubernetes pods with labels for `orgId`, `projectId`, `userId`, and `sandboxId`. The backend discovers running instances by querying the Kubernetes API for pods matching those labels.
+
+### Instance Lifecycle
+
+Instances follow a straightforward lifecycle:
+
+1. **Create** -- A `connect` or `start` request provisions a new pod from the sandbox config. The backend generates an `instanceId`, builds the pod manifest, and submits it to the Kubernetes API.
+2. **Running** -- The instance runs independently, hosting its own sessions, file sync connections, and exec commands. Multiple users can connect to the same instance.
+3. **Stop** -- A `stop` request targeting a specific `instanceId` (or all instances of a sandbox) deletes the pod. All sessions on that instance are terminated.
+
+Because instances are ephemeral, stopping an instance discards all in-container state. Persistent work should be synced to the host via the file sync mechanism before stopping.
+
+The following diagram illustrates the relationship between a sandbox config and its instances:
+
+```mermaid
+graph TD
+    SC[Sandbox Config<br/>runtime, image, resources] -->|start/connect| I1[Instance 1<br/>Pod: tdsk-sb-abc-x7k9]
+    SC -->|start/connect| I2[Instance 2<br/>Pod: tdsk-sb-abc-m3p2]
+    SC -->|start/connect| I3[Instance 3<br/>Pod: tdsk-sb-abc-q8w5]
+    I1 -->|sessions| S1[Session A]
+    I1 -->|sessions| S2[Session B]
+    I2 -->|sessions| S3[Session C]
+    I3 -->|sessions| S4[Session D]
+```
+
 ---
 
 ## Subscription Tiers

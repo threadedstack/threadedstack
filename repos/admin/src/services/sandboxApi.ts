@@ -1,6 +1,10 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 import type {
   TSandboxSession,
+  TSandboxStopOpts,
+  TSandboxStartResp,
+  TSandboxStatusResp,
+  TSandboxConnectOpts,
   TSandboxStopResponse,
   TSandboxProjectConfig,
   TSandboxConnectResponse,
@@ -189,8 +193,8 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string
-  ): Promise<TApiRes<{ podName: string }>> {
-    const resp = await this.api.post<{ podName: string }>({
+  ): Promise<TApiRes<TSandboxStartResp>> {
+    const resp = await this.api.post<TSandboxStartResp>({
       data: {},
       path: `${this.#path(orgId, projectId)}/${id}/start`,
     })
@@ -202,7 +206,7 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    opts: { podName?: string; stopAll?: boolean; force?: boolean }
+    opts: TSandboxStopOpts
   ): Promise<TApiRes<TSandboxStopResponse>> {
     const resp = await this.api.delete<TSandboxStopResponse>({
       data: opts,
@@ -216,7 +220,7 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    opts?: { podName?: string; newInstance?: boolean }
+    opts?: TSandboxConnectOpts
   ): Promise<TApiRes<TSandboxConnectResponse>> {
     const resp = await this.api.post<TSandboxConnectResponse>({
       data: opts || {},
@@ -230,10 +234,10 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    podName: string
-  ): Promise<TApiRes<{ podName: string; state: string }>> {
-    const resp = await this.api.get<{ podName: string; state: string }>({
-      path: `${this.#path(orgId, projectId)}/${id}/status?podName=${podName}`,
+    instanceId: string
+  ): Promise<TApiRes<TSandboxStatusResp>> {
+    const resp = await this.api.get<TSandboxStatusResp>({
+      path: `${this.#path(orgId, projectId)}/${id}/status?instanceId=${instanceId}`,
     })
     resp.error && (await this._onError(resp.error, `Failed to get sandbox status`))
     return resp

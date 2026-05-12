@@ -1,14 +1,16 @@
 import type { TTask } from '@TSA/types'
+import type { TSandboxConnectOpts } from '@tdsk/domain'
 
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
-import { SandboxOptions } from '@TSA/constants/options'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveContext } from '@TSA/utils/tasks/resolveContext'
 import { resolveSandboxId } from '@TSA/utils/tasks/resolveSandboxId'
+import { resolveInstanceId } from '@TSA/utils/tasks/resolveInstanceId'
 import { sandboxConnectPod } from '@TSA/utils/tasks/sandboxConnectPod'
 import { connectShellWebSocket } from '@TSA/utils/tasks/shellWebSocket'
+import { SandboxOptions, InstanceOptions } from '@TSA/constants/options'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 import {
   clearSyncCleanup,
@@ -22,19 +24,15 @@ export const sandbox: TTask = {
   name: `sandbox`,
   alias: [`sb`, `run`],
   description: `Start a sandbox, sync files, and launch its configured AI tool`,
-  example: `tsa sandbox [<sandbox>] [--org <id>] [--project <id>] [--no-sync]`,
+  example: `tsa sandbox [<sandbox>] [--org <id>] [--project <id>] [--instance <id>] [--new] [--no-sync]`,
   options: {
     ...SandboxOptions,
+    ...InstanceOptions,
     noSync: {
       example: `--no-sync`,
       description: `Disable automatic file sync`,
       alias: [`nosync`],
       type: `bool`,
-    },
-    new: {
-      alias: [`n`],
-      type: `bool`,
-      description: `Skip session discovery and always create a new session`,
     },
     list: {
       example: `--list`,
@@ -124,21 +122,40 @@ export const sandbox: TTask = {
     }
 
     const runtimeCommand = sandboxData.config?.runtimeCommand as string | undefined
+    const forceNew = params.new as boolean | undefined
+
+    let instanceOpts: TSandboxConnectOpts | undefined
+    try {
+      instanceOpts = await resolveInstanceId(client, orgId, projectId, sandboxId, {
+        explicitInstance: params.instance as string | undefined,
+        forceNew,
+      })
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
 
     let resolvedId: string | undefined
+    let resolvedInstanceId: string | undefined
     let shellToken: string | undefined
     try {
-      const connectResp = await sandboxConnectPod(client, orgId, projectId, sandboxId)
+      const connectResp = await sandboxConnectPod(
+        client,
+        orgId,
+        projectId,
+        sandboxId,
+        instanceOpts
+      )
       if (!connectResp.sandboxId)
         throw new Error(`Server did not return a resolved sandbox ID`)
       resolvedId = connectResp.sandboxId
+      resolvedInstanceId = connectResp.instanceId
       shellToken = connectResp.shellToken
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)
     }
 
-    // Persist sandbox only after confirmed successful connection
     if (config) saveContext(config, orgId, projectId, resolvedId)
 
     const creds = auth.creds()
@@ -152,7 +169,6 @@ export const sandbox: TTask = {
     }
 
     let targetSessionId: string | undefined
-    const forceNew = params.new as boolean | undefined
 
     if (!forceNew && process.stdin.isTTY) {
       try {
@@ -161,7 +177,12 @@ export const sandbox: TTask = {
           projectId,
           resolvedId!
         )
-        const reconnectable = sessions?.filter((s) => s.hasShellSession) || []
+        const reconnectable =
+          sessions?.filter(
+            (s) =>
+              s.hasShellSession &&
+              (!resolvedInstanceId || s.instanceId === resolvedInstanceId)
+          ) || []
 
         if (reconnectable.length > 0) {
           const readline = await import(`readline`)
@@ -214,12 +235,20 @@ export const sandbox: TTask = {
     const syncCtx = createSyncContext()
     if (!skipSync) {
       try {
-        await autoStartSync(syncCtx, config?.sync, client, orgId, resolvedId!)
-        if (syncCtx.started) registerSyncCleanup(resolvedId!, syncCtx.manager)
+        await autoStartSync(
+          syncCtx,
+          config?.sync,
+          client,
+          orgId,
+          resolvedId!,
+          resolvedInstanceId
+        )
+        if (syncCtx.started)
+          registerSyncCleanup(resolvedId!, syncCtx.manager, resolvedInstanceId)
       } catch (err) {
         process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
         try {
-          await stopSync(syncCtx, resolvedId!)
+          await stopSync(syncCtx, resolvedId!, resolvedInstanceId)
         } catch (cleanupErr) {
           process.stderr.write(
             `${themed(`warning`, `Warning:`)} Sync cleanup failed: ${(cleanupErr as Error).message}\n`
@@ -240,6 +269,7 @@ export const sandbox: TTask = {
         proxyUrl: client.proxyUrl,
         sessionId: targetSessionId,
         insecure: !!creds?.insecure,
+        instanceId: resolvedInstanceId,
         run: !targetSessionId && !!runtimeCommand,
       })
     } catch (err) {
@@ -247,7 +277,7 @@ export const sandbox: TTask = {
       process.exitCode = 1
     } finally {
       clearSyncCleanup()
-      if (resolvedId) await stopSync(syncCtx, resolvedId)
+      if (resolvedId) await stopSync(syncCtx, resolvedId, resolvedInstanceId)
     }
   }),
 }

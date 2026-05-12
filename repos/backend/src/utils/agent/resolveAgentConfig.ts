@@ -109,22 +109,25 @@ export const resolveAgentConfig = async (
 
   if (sandboxProvider === ESandboxType.kubernetes) {
     const { config, sandbox } = app.locals
-    const podName = effectiveAgent.environment?.podName as string
-    if (podName) {
-      sandboxConfig.options = { podName }
+    const instanceId = effectiveAgent.environment?.instanceId as string
+    if (instanceId) {
+      sandboxConfig.options = { podName: instanceId }
     } else if (sandbox && effectiveAgent.environment?.sandboxId) {
-      const startedPodName = await sandbox.startPod({
+      const startedInstanceId = await sandbox.startPod({
         userId: userId || ``,
         orgId: agent.orgId,
         egressOpts: config.egress,
         projectId: projectId || ``,
         sandboxId: effectiveAgent.environment.sandboxId as string,
       })
-      sandboxConfig.options = { podName: startedPodName }
+      sandboxConfig.options = { podName: startedInstanceId }
     }
 
     if (!sandboxConfig.options?.podName) {
-      throw new Exception(503, `K8s sandbox not available — no podName or sandbox found`)
+      throw new Exception(
+        503,
+        `K8s sandbox not available — no instanceId or sandbox found`
+      )
     }
   }
 

@@ -7,7 +7,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
   const ctx = readContext()
 
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let projectId = ''
   let setupFailed = false
 
@@ -15,7 +15,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     try {
       const setup = await setupRunningPod(ctx.orgId)
       sandboxId = setup.sandboxId
-      podName = setup.podName
+      instanceId = setup.instanceId
       projectId = setup.projectId
     } catch (err) {
       console.error('[sandbox-execution] Setup failed:', (err as Error).message)
@@ -24,7 +24,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // --- Basic Command Execution ---
@@ -32,7 +32,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('exec simple echo command', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'echo hello')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'echo hello')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -42,7 +42,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('exec command with args', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'echo', ['hello', 'world'])
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'echo', ['hello', 'world'])
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -53,7 +53,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'node -e "for(let i=0;i<5;i++) console.log(i)"'
     )
 
@@ -67,7 +67,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'node -e "console.log(JSON.stringify({a:1,b:2}))"'
     )
 
@@ -83,7 +83,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'node -e "console.error(\'oops\'); process.exit(1)"'
     )
 
@@ -97,7 +97,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'nonexistentcommand_xyz_123'
     )
 
@@ -112,14 +112,14 @@ describe('Tier 3: Sandbox Command Execution', () => {
 
     const res = await post(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
-      { podName }
+      { instanceId }
     )
 
     expect(res.status).toBe(400)
     expect(res.ok).toBe(false)
   })
 
-  test('exec without podName returns 400', async () => {
+  test('exec without instanceId returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post(
@@ -137,13 +137,13 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const writeRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       "printf '%s' 'hello from integration test' > /workspace/test-read.txt"
     )
     expect(writeRes.data.success).toBe(true)
 
     const readRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/test-read.txt'
     )
     expect(readRes.data.success).toBe(true)
@@ -154,13 +154,13 @@ describe('Tier 3: Sandbox Command Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const mkdirRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'mkdir -p /workspace/test-subdir/nested'
     )
     expect(mkdirRes.data.success).toBe(true)
 
     const checkRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'test -d /workspace/test-subdir/nested && echo exists'
     )
     expect(checkRes.data.success).toBe(true)
@@ -170,16 +170,16 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('list directory contents', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    await execInPod(ctx.orgId, projectId, sandboxId, podName, 'mkdir -p /workspace/list-test')
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'mkdir -p /workspace/list-test')
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "printf '%s' 'a' > /workspace/list-test/file-a.txt"
     )
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "printf '%s' 'b' > /workspace/list-test/file-b.txt"
     )
 
     const lsRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'ls -1 /workspace/list-test'
     )
     expect(lsRes.data.success).toBe(true)
@@ -191,21 +191,21 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('delete file and verify gone', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "printf '%s' 'temp' > /workspace/to-delete.txt"
     )
 
-    const existsRes = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const existsRes = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "test -e /workspace/to-delete.txt && echo yes || echo no"
     )
     expect(existsRes.data.output.trim()).toBe('yes')
 
-    const rmRes = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const rmRes = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'rm /workspace/to-delete.txt'
     )
     expect(rmRes.data.success).toBe(true)
 
-    const goneRes = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const goneRes = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "test -e /workspace/to-delete.txt && echo yes || echo no"
     )
     expect(goneRes.data.output.trim()).toBe('no')
@@ -214,7 +214,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('workspace directory exists and is writable', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'test -d /workspace -a -w /workspace && echo ok'
     )
     expect(res.data.success).toBe(true)
@@ -228,11 +228,11 @@ describe('Tier 3: Sandbox Command Execution', () => {
 
     const script = `const result = Array.from({length: 3}, (_, i) => i * 2);\nconsole.log(JSON.stringify(result));`
     const escaped = script.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${escaped}' > /workspace/test-eval.js`
     )
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'node /workspace/test-eval.js'
     )
 
@@ -246,11 +246,11 @@ describe('Tier 3: Sandbox Command Execution', () => {
 
     const json = JSON.stringify({ key: 'value', count: 42 })
     const escaped = json.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${escaped}' > /workspace/test-data.json`
     )
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       "node -e \"const d = require('/workspace/test-data.json'); console.log(d.key, d.count)\""
     )
 
@@ -261,22 +261,22 @@ describe('Tier 3: Sandbox Command Execution', () => {
   test('execute multi-module JavaScript', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'mkdir -p /workspace/mod-test'
     )
     const utilCode = `module.exports = { add: (a, b) => a + b };`
     const utilEscaped = utilCode.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${utilEscaped}' > /workspace/mod-test/util.js`
     )
 
     const mainCode = `const { add } = require('./util'); console.log(add(3, 4));`
     const mainEscaped = mainCode.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${mainEscaped}' > /workspace/mod-test/main.js`
     )
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'node /workspace/mod-test/main.js'
     )
 

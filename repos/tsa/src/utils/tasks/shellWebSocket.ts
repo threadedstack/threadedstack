@@ -4,18 +4,20 @@ import { EShellMsg } from '@tdsk/domain'
 import { ShellConnectMsgs } from '@TSA/constants/shell'
 
 type TShellConnectOptions = {
+  run?: boolean
   proxyUrl: string
-  bearerToken: string
   sandboxId: string
   insecure?: boolean
   sessionId?: string
-  run?: boolean
+  bearerToken: string
+  instanceId?: string
 }
 
 export const connectShellWebSocket = async (
   options: TShellConnectOptions
 ): Promise<string> => {
-  const { proxyUrl, bearerToken, sandboxId, insecure, sessionId, run } = options
+  const { run, proxyUrl, insecure, sandboxId, sessionId, instanceId, bearerToken } =
+    options
 
   const wsBase = proxyUrl.replace(/^https:/, `wss:`).replace(/^http:/, `ws:`)
   const cols = process.stdout.columns || 80
@@ -25,6 +27,7 @@ export const connectShellWebSocket = async (
     cols: String(cols),
     rows: String(rows),
   })
+  if (instanceId) params.set(`instanceId`, instanceId)
   if (sessionId) params.set(`sessionId`, sessionId)
   if (run) params.set(`run`, `true`)
 

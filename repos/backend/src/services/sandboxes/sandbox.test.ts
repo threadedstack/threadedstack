@@ -82,6 +82,7 @@ const makeKube = () => ({
   createPod: vi.fn(),
   deletePod: vi.fn(),
   listPods: vi.fn(),
+  runInPod: vi.fn(),
   deleteSecret: vi.fn(),
   createDockerRegistrySecret: vi.fn(),
   patchSecretOwnerReferences: vi.fn(),
@@ -117,13 +118,15 @@ describe(`SandboxService`, () => {
     })
   })
 
-  describe(`validatePodOwnership`, () => {
+  describe(`validateInstanceOwnership`, () => {
     it(`should pass when pod orgId label matches provided orgId`, async () => {
       kube.getPod.mockResolvedValue({
         metadata: { labels: { [`tdsk.app/org-id`]: `org-1` } },
       })
 
-      await expect(svc.validatePodOwnership(`pod-a`, `org-1`)).resolves.toBeUndefined()
+      await expect(
+        svc.validateInstanceOwnership(`pod-a`, `org-1`)
+      ).resolves.toBeUndefined()
       expect(kube.getPod).toHaveBeenCalledWith(`pod-a`)
     })
 
@@ -132,7 +135,7 @@ describe(`SandboxService`, () => {
         metadata: { labels: { [`tdsk.app/org-id`]: `org-other` } },
       })
 
-      await expect(svc.validatePodOwnership(`pod-a`, `org-1`)).rejects.toThrow(
+      await expect(svc.validateInstanceOwnership(`pod-a`, `org-1`)).rejects.toThrow(
         `Pod does not belong to this organization`
       )
 
@@ -140,7 +143,7 @@ describe(`SandboxService`, () => {
         kube.getPod.mockResolvedValue({
           metadata: { labels: { [`tdsk.app/org-id`]: `org-other` } },
         })
-        await svc.validatePodOwnership(`pod-a`, `org-1`)
+        await svc.validateInstanceOwnership(`pod-a`, `org-1`)
       } catch (err) {
         expect(err).toBeInstanceOf(Exception)
         expect((err as any).status).toBe(403)
@@ -152,7 +155,7 @@ describe(`SandboxService`, () => {
         metadata: { labels: {} },
       })
 
-      await expect(svc.validatePodOwnership(`pod-a`, `org-1`)).rejects.toThrow(
+      await expect(svc.validateInstanceOwnership(`pod-a`, `org-1`)).rejects.toThrow(
         `Pod does not belong to this organization`
       )
     })
@@ -161,7 +164,7 @@ describe(`SandboxService`, () => {
       const kubeError = Object.assign(new Error(`Not Found`), { code: 404 })
       kube.getPod.mockRejectedValue(kubeError)
 
-      await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
+      await expect(svc.validateInstanceOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
         `Pod missing-pod no longer exists`
       )
     })
@@ -170,7 +173,7 @@ describe(`SandboxService`, () => {
       const kubeError = Object.assign(new Error(`Not Found`), { statusCode: 404 })
       kube.getPod.mockRejectedValue(kubeError)
 
-      await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
+      await expect(svc.validateInstanceOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
         `Pod missing-pod no longer exists`
       )
     })
@@ -181,7 +184,7 @@ describe(`SandboxService`, () => {
       })
       kube.getPod.mockRejectedValue(kubeError)
 
-      await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
+      await expect(svc.validateInstanceOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
         `Internal Server Error`
       )
     })
@@ -197,7 +200,7 @@ describe(`SandboxService`, () => {
       })
 
       await expect(
-        svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)
+        svc.validateInstanceOwnership(`pod-a`, `org-1`, `proj-1`)
       ).resolves.toBeUndefined()
     })
 
@@ -211,9 +214,9 @@ describe(`SandboxService`, () => {
         },
       })
 
-      await expect(svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)).rejects.toThrow(
-        `Pod does not belong to this project`
-      )
+      await expect(
+        svc.validateInstanceOwnership(`pod-a`, `org-1`, `proj-1`)
+      ).rejects.toThrow(`Pod does not belong to this project`)
     })
 
     it(`should skip project check when projectId is undefined`, async () => {
@@ -227,7 +230,7 @@ describe(`SandboxService`, () => {
       })
 
       await expect(
-        svc.validatePodOwnership(`pod-a`, `org-1`, undefined)
+        svc.validateInstanceOwnership(`pod-a`, `org-1`, undefined)
       ).resolves.toBeUndefined()
     })
 
@@ -239,7 +242,7 @@ describe(`SandboxService`, () => {
       })
 
       await expect(
-        svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)
+        svc.validateInstanceOwnership(`pod-a`, `org-1`, `proj-1`)
       ).resolves.toBeUndefined()
     })
 
@@ -254,7 +257,7 @@ describe(`SandboxService`, () => {
       })
 
       await expect(
-        svc.validatePodOwnership(`pod-a`, `org-1`, `_TvYOseQjO`)
+        svc.validateInstanceOwnership(`pod-a`, `org-1`, `_TvYOseQjO`)
       ).resolves.toBeUndefined()
     })
   })
@@ -268,7 +271,7 @@ describe(`SandboxService`, () => {
       egressOpts: { serviceName: `egress`, servicePort: 8080, certSecretName: `cert` },
     }
 
-    it(`should create pod manifest and call kube.createPod, return podName`, async () => {
+    it(`should create pod manifest and call kube.createPod, return instanceId`, async () => {
       db.services.sandbox.get.mockResolvedValue({
         data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
         error: null,
@@ -1035,13 +1038,13 @@ describe(`SandboxService`, () => {
     })
   })
 
-  describe(`cleanupPod`, () => {
-    it(`should delete docker secrets for the given pod name`, async () => {
+  describe(`cleanupInstance`, () => {
+    it(`should delete docker secrets for the given instanceId`, async () => {
       const secretNames = [`tdsk-dkr-test-0`, `tdsk-dkr-test-1`]
       ;(svc as any).dockerSecrets.set(`pod-a`, secretNames)
       kube.deleteSecret.mockResolvedValue(undefined)
 
-      svc.cleanupPod(`pod-a`)
+      svc.cleanupInstance(`pod-a`)
 
       await vi.waitFor(() => {
         expect(kube.deleteSecret).toHaveBeenCalledTimes(2)
@@ -1054,7 +1057,7 @@ describe(`SandboxService`, () => {
       ;(svc as any).dockerSecrets.set(`pod-a`, [`tdsk-dkr-fail-0`])
       kube.deleteSecret.mockRejectedValue(new Error(`forbidden`))
 
-      svc.cleanupPod(`pod-a`)
+      svc.cleanupInstance(`pod-a`)
 
       await vi.waitFor(() => {
         expect(logger.error).toHaveBeenCalledWith(
@@ -1068,16 +1071,220 @@ describe(`SandboxService`, () => {
       ;(svc as any).dockerSecrets.set(`pod-a`, [`tdsk-dkr-test-0`])
       kube.deleteSecret.mockResolvedValue(undefined)
 
-      svc.cleanupPod(`pod-a`)
+      svc.cleanupInstance(`pod-a`)
 
       await vi.waitFor(() => {
         expect((svc as any).dockerSecrets.has(`pod-a`)).toBe(false)
       })
     })
 
-    it(`should not call deleteSecret when pod has no docker secrets`, () => {
-      svc.cleanupPod(`pod-no-secrets`)
+    it(`should not call deleteSecret when instance has no docker secrets`, () => {
+      svc.cleanupInstance(`pod-no-secrets`)
       expect(kube.deleteSecret).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`getPassword`, () => {
+    it(`should return the cached password for a known instance`, () => {
+      ;(svc as any).passwords.set(`pod-a`, `secret-pw-123`)
+
+      expect(svc.getPassword(`pod-a`)).toBe(`secret-pw-123`)
+    })
+
+    it(`should return undefined for an unknown instance`, () => {
+      expect(svc.getPassword(`pod-unknown`)).toBeUndefined()
+    })
+
+    it(`should return undefined after the instance is cleaned up`, () => {
+      ;(svc as any).passwords.set(`pod-a`, `secret-pw-123`)
+      svc.cleanupInstance(`pod-a`)
+
+      expect(svc.getPassword(`pod-a`)).toBeUndefined()
+    })
+  })
+
+  describe(`recoverPassword`, () => {
+    it(`should return the cached password without calling kube when already cached`, async () => {
+      ;(svc as any).passwords.set(`pod-a`, `cached-pw`)
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBe(`cached-pw`)
+      expect(kube.runInPod).not.toHaveBeenCalled()
+    })
+
+    it(`should recover password from pod env when not cached`, async () => {
+      kube.runInPod.mockResolvedValue({ success: true, output: `recovered-pw\n` })
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBe(`recovered-pw`)
+      expect(kube.runInPod).toHaveBeenCalledWith(`pod-a`, [
+        `printenv`,
+        `TDSK_SSH_PASSWORD`,
+      ])
+    })
+
+    it(`should cache the recovered password for subsequent calls`, async () => {
+      kube.runInPod.mockResolvedValue({ success: true, output: `recovered-pw\n` })
+
+      await svc.recoverPassword(`pod-a`)
+
+      expect(svc.getPassword(`pod-a`)).toBe(`recovered-pw`)
+    })
+
+    it(`should return undefined when runInPod returns empty password`, async () => {
+      kube.runInPod.mockResolvedValue({ success: true, output: `  \n` })
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBeUndefined()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`TDSK_SSH_PASSWORD is empty`)
+      )
+    })
+
+    it(`should return undefined when runInPod returns non-success`, async () => {
+      kube.runInPod.mockResolvedValue({ success: false, error: `command failed` })
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBeUndefined()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`printenv returned non-success`),
+        `command failed`
+      )
+    })
+
+    it(`should return undefined when runInPod returns success but no output`, async () => {
+      kube.runInPod.mockResolvedValue({ success: true, output: `` })
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBeUndefined()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`printenv returned non-success`),
+        `no output`
+      )
+    })
+
+    it(`should return undefined and log warning when runInPod throws`, async () => {
+      kube.runInPod.mockRejectedValue(new Error(`pod not found`))
+
+      const result = await svc.recoverPassword(`pod-a`)
+
+      expect(result).toBeUndefined()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Failed to recover password`),
+        `pod not found`
+      )
+    })
+  })
+
+  describe(`getInstanceSessions`, () => {
+    it(`should return sessions matching the sandboxId across multiple instances`, () => {
+      svc.addSession(`pod-a`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-a`,
+        sandboxId: `sb-1`,
+        sessionId: `sess-1`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+      svc.addSession(`pod-b`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-b`,
+        sandboxId: `sb-1`,
+        sessionId: `sess-2`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+
+      const result = svc.getInstanceSessions(`sb-1`)
+
+      expect(result.size).toBe(2)
+      expect(result.get(`pod-a`)).toHaveLength(1)
+      expect(result.get(`pod-a`)![0].sessionId).toBe(`sess-1`)
+      expect(result.get(`pod-b`)).toHaveLength(1)
+      expect(result.get(`pod-b`)![0].sessionId).toBe(`sess-2`)
+    })
+
+    it(`should exclude sessions for other sandboxes`, () => {
+      svc.addSession(`pod-a`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-a`,
+        sandboxId: `sb-1`,
+        sessionId: `sess-1`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+      svc.addSession(`pod-a`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-a`,
+        sandboxId: `sb-2`,
+        sessionId: `sess-2`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+
+      const result = svc.getInstanceSessions(`sb-1`)
+
+      expect(result.size).toBe(1)
+      expect(result.get(`pod-a`)).toHaveLength(1)
+      expect(result.get(`pod-a`)![0].sessionId).toBe(`sess-1`)
+    })
+
+    it(`should return an empty map when no sessions match the sandboxId`, () => {
+      svc.addSession(`pod-a`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-a`,
+        sandboxId: `sb-other`,
+        sessionId: `sess-1`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+
+      const result = svc.getInstanceSessions(`sb-1`)
+
+      expect(result.size).toBe(0)
+    })
+
+    it(`should return an empty map when no sessions exist at all`, () => {
+      const result = svc.getInstanceSessions(`sb-1`)
+
+      expect(result.size).toBe(0)
+    })
+
+    it(`should not include instances where all sessions belong to other sandboxes`, () => {
+      svc.addSession(`pod-a`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-a`,
+        sandboxId: `sb-2`,
+        sessionId: `sess-1`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+      svc.addSession(`pod-b`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        instanceId: `pod-b`,
+        sandboxId: `sb-1`,
+        sessionId: `sess-2`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+
+      const result = svc.getInstanceSessions(`sb-1`)
+
+      expect(result.size).toBe(1)
+      expect(result.has(`pod-a`)).toBe(false)
+      expect(result.has(`pod-b`)).toBe(true)
     })
   })
 
@@ -1169,7 +1376,7 @@ describe(`SandboxService`, () => {
       svc.stopIdleTimeout()
 
       expect(kube.deletePod).not.toHaveBeenCalled()
-      expect((svc as any).podActivity.has(`gone-pod`)).toBe(false)
+      expect((svc as any).instanceActivity.has(`gone-pod`)).toBe(false)
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(`gone-pod no longer exists`)
       )
@@ -1194,7 +1401,7 @@ describe(`SandboxService`, () => {
       svc.stopIdleTimeout()
 
       expect(kube.deletePod).not.toHaveBeenCalled()
-      expect((svc as any).podActivity.has(`gone-pod-2`)).toBe(false)
+      expect((svc as any).instanceActivity.has(`gone-pod-2`)).toBe(false)
     })
 
     it(`should not stop pods that have active sessions`, async () => {
@@ -1204,7 +1411,7 @@ describe(`SandboxService`, () => {
       svc.addSession(`active-pod`, {
         orgId: `org-1`,
         userId: `user-1`,
-        podName: `active-pod`,
+        instanceId: `active-pod`,
         sandboxId: `sb-1`,
         sessionId: `sess-1`,
         connectedAt: new Date().toISOString(),
@@ -1241,8 +1448,8 @@ describe(`SandboxService`, () => {
     })
   })
 
-  describe(`findRunningPod`, () => {
-    it(`should return podName for Running pod matching by name`, async () => {
+  describe(`findRunningInstance`, () => {
+    it(`should return instanceId for Running pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1253,7 +1460,7 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findRunningPod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findRunningInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
@@ -1270,12 +1477,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findRunningPod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findRunningInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
 
-    it(`should return undefined when podName does not match`, async () => {
+    it(`should return undefined when instanceId does not match`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1286,14 +1493,14 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findRunningPod(`tdsk-sb-test-other`, `org-1`)
+      const result = await svc.findRunningInstance(`tdsk-sb-test-other`, `org-1`)
 
       expect(result).toBeUndefined()
     })
   })
 
-  describe(`findActivePod`, () => {
-    it(`should return podName for Running pod matching by name`, async () => {
+  describe(`findActiveInstance`, () => {
+    it(`should return instanceId for Running pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1304,12 +1511,12 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findActiveInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
 
-    it(`should return podName for Pending pod matching by name`, async () => {
+    it(`should return instanceId for Pending pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
         {
           metadata: {
@@ -1320,7 +1527,7 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findActiveInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBe(`tdsk-sb-test-aaaa`)
     })
@@ -1337,7 +1544,7 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findActiveInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
@@ -1354,7 +1561,7 @@ describe(`SandboxService`, () => {
         },
       ])
 
-      const result = await svc.findActivePod(`tdsk-sb-test-aaaa`, `org-1`)
+      const result = await svc.findActiveInstance(`tdsk-sb-test-aaaa`, `org-1`)
 
       expect(result).toBeUndefined()
     })
@@ -1663,7 +1870,7 @@ describe(`SandboxService`, () => {
       svc.addSession(`pod1`, {
         orgId: `org1`,
         userId: `u1`,
-        podName: `pod1`,
+        instanceId: `pod1`,
         sandboxId: `sb_aaa`,
         sessionId: `s1`,
         connectedAt: new Date().toISOString(),

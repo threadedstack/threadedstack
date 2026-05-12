@@ -47,7 +47,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
 
   /** Track all WS connections opened during a test for afterEach cleanup */
@@ -92,7 +92,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
       // Connect — starts pod and waits for Running
       const connectRes = await connectSandbox(ctx.orgId, projectId, sandboxId)
       if (!connectRes.ok) { setupFailed = true; return }
-      podName = connectRes.data.podName
+      instanceId = connectRes.data.instanceId
     } catch (err) {
       console.error('[sandbox-tunnel] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -109,7 +109,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
   })
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── Auth ───────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
 
     const session = sessions[0]
     expect(session.sessionId).toBeTruthy()
-    expect(session.podName).toBeTruthy()
+    expect(session.instanceId).toBeTruthy()
     expect(session.connectedAt).toBeTruthy()
 
     ws.close()

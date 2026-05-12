@@ -62,7 +62,7 @@ describe('Tier 3: Tunnel Rate Guard', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
 
   const openConnections: WebSocket[] = []
@@ -111,7 +111,7 @@ describe('Tier 3: Tunnel Rate Guard', () => {
         setupFailed = true
         return
       }
-      podName = connectRes.data.podName
+      instanceId = connectRes.data.instanceId
     } catch (err) {
       console.error('[sandbox-tunnel-ratelimit] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -128,7 +128,7 @@ describe('Tier 3: Tunnel Rate Guard', () => {
   })
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── Rate Guard: Nonexistent Sandbox ─────────────────────────────

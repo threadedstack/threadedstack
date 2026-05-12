@@ -277,6 +277,98 @@ Every sandbox pod is hardened:
 
 Pods are labeled with the organization ID, user ID, sandbox ID, and project ID. Every operation (start, stop, connect, list) validates that the requesting user's organization owns the pod via the `orgId` label. You can only interact with pods that belong to your organization.
 
+### Pod Lifecycle and Naming
+
+Each running sandbox pod is an **instance**. The pod name serves as the `instanceId` and follows the format `tdsk-sb-<sandboxId>-<suffix>`. Multiple pods can exist simultaneously for the same sandbox configuration -- each one is a separate instance.
+
+Pod labels applied to every instance:
+
+| Label | Value | Purpose |
+|-------|-------|---------|
+| `orgId` | Organization ID | Ownership validation |
+| `projectId` | Project ID | Project scoping |
+| `userId` | Creating user's ID | Instance creator tracking |
+| `sandboxId` | Sandbox config ID | Mapping instances to their config |
+
+When a new instance starts, it goes through these states:
+
+1. **Pending** -- Pod is being scheduled and containers are starting.
+2. **Running** -- Container is ready and accepting connections.
+3. **Terminating** -- Pod is being stopped and cleaned up.
+4. **Failed** -- Pod encountered an error during startup.
+5. **Unknown** -- Pod state could not be determined.
+
+The platform polls the pod state after creation and waits for it to reach `Running` before returning connection credentials. If the pod fails to start or does not reach `Running` within the timeout window, it is automatically cleaned up.
+
+---
+
+## Instance Management
+
+A single sandbox configuration can have multiple running instances (pods) at the same time. This allows multiple team members to each have their own isolated environment from the same sandbox config, or lets a single user run parallel workloads.
+
+### Listing Instances
+
+To see all active instances for a sandbox:
+
+```http
+GET /_/orgs/:orgId/projects/:projectId/sandboxes/:id/instances
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "instances": [
+      {
+        "instanceId": "tdsk-sb-abc123-x7k9",
+        "sandboxId": "abc123",
+        "state": "Running",
+        "userId": "user_01",
+        "sessionCount": 2,
+        "sessions": [
+          {
+            "sessionId": "sess_01",
+            "userId": "user_01",
+            "sandboxId": "abc123",
+            "instanceId": "tdsk-sb-abc123-x7k9",
+            "connectedAt": "2026-05-11T10:30:00Z",
+            "hasShellSession": true,
+            "visibility": "private"
+          }
+        ]
+      },
+      {
+        "instanceId": "tdsk-sb-abc123-m2p4",
+        "sandboxId": "abc123",
+        "state": "Running",
+        "userId": "user_02",
+        "sessionCount": 1,
+        "sessions": []
+      }
+    ],
+    "maxInstances": 4
+  }
+}
+```
+
+Each instance object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `instanceId` | string | Unique pod name (Kubernetes pod name) |
+| `sandboxId` | string | Parent sandbox configuration ID |
+| `state` | string | Current pod state: `Running`, `Pending`, `Failed`, `Terminating`, or `Unknown` |
+| `userId` | string | ID of the user who created this instance |
+| `sessionCount` | number | Number of active sessions on this instance |
+| `sessions` | array | Detailed session objects for this instance |
+
+The `maxInstances` field indicates the maximum number of concurrent instances allowed for this sandbox configuration (configurable in sandbox settings, defaults to the platform default).
+
+### Instance Limits
+
+Each sandbox config has a `maxInstances` limit. When the number of active instances (including those currently starting) reaches this limit, new instance creation is rejected with an `INSTANCE_LIMIT_REACHED` error. The error response includes the list of active instances so you can decide which one to connect to or stop.
+
 ---
 
 ## Sandbox Direct Connect
@@ -305,6 +397,35 @@ To specify an organization explicitly:
 ```bash
 tsa ssh <sandbox-id> --org <org-id>
 ```
+
+#### Instance-Aware Connection
+
+When connecting to a sandbox that supports multiple instances, the connect endpoint (`POST /_/orgs/:orgId/projects/:projectId/sandboxes/:id/connect`) uses the following logic:
+
+| Scenario | Behavior |
+|----------|----------|
+| No running instances | A new instance is created automatically |
+| One or more running instances exist, no selection provided | Returns `INSTANCE_SELECTION_REQUIRED` error with the list of running instances |
+| `newInstance: true` in request body | Creates a new instance (if under the instance limit) |
+| `instanceId: "<id>"` in request body | Connects to the specified running instance |
+
+Example -- create a new instance:
+
+```json
+{
+  "newInstance": true
+}
+```
+
+Example -- connect to a specific instance:
+
+```json
+{
+  "instanceId": "tdsk-sb-abc123-x7k9"
+}
+```
+
+<Warning>When multiple instances are running and neither `newInstance` nor `instanceId` is provided, the API returns a 400 error with code `INSTANCE_SELECTION_REQUIRED`. The error response includes the list of running instances and their session counts so you can choose which one to target.</Warning>
 
 #### 4. Sync Files
 
@@ -396,9 +517,118 @@ The security model remains intact during direct SSH access. The network redirect
 You can duplicate any sandbox config — including built-in presets — to create a customized version:
 
 - **Admin UI**: Click the copy button on any sandbox row
-- **API**: `POST /_/orgs/:orgId/sandboxes/:id/copy`
+- **API**: `POST /_/orgs/:orgId/projects/:projectId/sandboxes/:id/copy`
 
 Copies always have `builtIn: false` and get a new ID. All configuration (image, secrets, runtime, resource limits, init script) is preserved.
+
+### Stopping Instances
+
+Stop a running sandbox instance via the stop endpoint:
+
+```http
+DELETE /_/orgs/:orgId/projects/:projectId/sandboxes/:id/stop
+```
+
+The request body controls which instances to stop and how:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `instanceId` | string | Stop a specific instance (required unless `stopAll` is set) |
+| `stopAll` | boolean | Stop all active instances for this sandbox |
+| `force` | boolean | Force stop even if other users have active sessions |
+
+Example -- stop a specific instance:
+
+```json
+{
+  "instanceId": "tdsk-sb-abc123-x7k9"
+}
+```
+
+Example -- stop all instances:
+
+```json
+{
+  "stopAll": true
+}
+```
+
+Example -- force stop (ignoring other users' sessions):
+
+```json
+{
+  "instanceId": "tdsk-sb-abc123-x7k9",
+  "force": true
+}
+```
+
+<Warning>If other users have active sessions on the instance you are trying to stop, the API returns a 409 error with code `ACTIVE_SESSIONS` and includes the list of active sessions. Use `force: true` to override this protection when necessary.</Warning>
+
+When using `stopAll`, the platform attempts to stop every active instance. If some instances fail to stop, the response includes the list of `failedInstances` alongside the `stoppedCount`.
+
+### Executing Commands in an Instance
+
+Execute a command inside a running sandbox instance:
+
+```http
+POST /_/orgs/:orgId/projects/:projectId/sandboxes/:id/exec
+```
+
+The `instanceId` field is required in the request body to specify which running instance should execute the command.
+
+```json
+{
+  "command": "node",
+  "args": ["--version"],
+  "instanceId": "tdsk-sb-abc123-x7k9"
+}
+```
+
+The response contains the command output, exit code, and success status.
+
+### Sessions
+
+Sessions track active connections to sandbox instances. Each session is associated with a specific instance and includes metadata about the connection.
+
+List all active sessions across all running instances of a sandbox:
+
+```http
+GET /_/orgs/:orgId/projects/:projectId/sandboxes/:id/sessions
+```
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "sessionId": "sess_01",
+      "userId": "user_01",
+      "orgId": "org_01",
+      "sandboxId": "abc123",
+      "instanceId": "tdsk-sb-abc123-x7k9",
+      "connectedAt": "2026-05-11T10:30:00Z",
+      "hasShellSession": true,
+      "visibility": "private"
+    }
+  ]
+}
+```
+
+Session fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sessionId` | string | Unique session identifier |
+| `userId` | string | User who owns this session |
+| `orgId` | string | Organization ID |
+| `sandboxId` | string | Parent sandbox config ID |
+| `instanceId` | string | The specific instance this session is connected to |
+| `connectedAt` | string | ISO 8601 timestamp of when the session was established |
+| `hasShellSession` | boolean | Whether this session has an active PTY (interactive terminal) |
+| `visibility` | string | `private` (default) or `public` -- public sessions can be joined by other org members |
+
+<Tip>Sessions are grouped by instance. When viewing sessions for a sandbox with multiple running instances, each session's `instanceId` field tells you which instance it belongs to. The [Instance Management](#instance-management) section's list endpoint also returns sessions nested under each instance.</Tip>
 
 ### CLI Quick Reference
 

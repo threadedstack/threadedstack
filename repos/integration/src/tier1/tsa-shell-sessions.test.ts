@@ -25,7 +25,7 @@ describe('Tier 1: TSA Shell Sessions (live)', () => {
   let projectId = ''
   let sandboxId = ''
   let sandboxName = ''
-  let podName = ''
+  let instanceId = ''
   let podReady = false
 
   // A second sandbox for isolation tests
@@ -45,7 +45,7 @@ describe('Tier 1: TSA Shell Sessions (live)', () => {
       projectId = setup.projectId
       sandboxId = setup.sandboxId
       sandboxName = setup.sandboxName
-      podName = setup.podName
+      instanceId = setup.instanceId
       podReady = true
     } catch (err) {
       console.warn('[tsa-shell-sessions] setupRunningPod failed:', (err as Error)?.message || err)
@@ -83,7 +83,7 @@ describe('Tier 1: TSA Shell Sessions (live)', () => {
 
   afterAll(async () => {
     if (podReady) {
-      await cleanupSandbox(ctx.orgId, { podName, sandboxId, projectId, sandboxName })
+      await cleanupSandbox(ctx.orgId, { instanceId, sandboxId, projectId, sandboxName })
     }
     if (sandbox2Id) await tryDelete(`/orgs/${ctx.orgId}/sandboxes/${sandbox2Id}`)
     if (project2Id) await tryDelete(`/orgs/${ctx.orgId}/projects/${project2Id}`)

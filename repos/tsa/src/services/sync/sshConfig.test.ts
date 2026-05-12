@@ -83,7 +83,8 @@ describe(`ensureSshConfig`, () => {
     const wrapper = wrapperWrites[0][1] as string
     expect(wrapper).toContain(`#!/bin/sh`)
     expect(wrapper).toContain(`exec `)
-    expect(wrapper).toContain(`"$@"`)
+    expect(wrapper).toContain(`SANDBOX_ID`)
+    expect(wrapper).toContain(`INSTANCE_ID`)
     expect(wrapperWrites[0][2]).toEqual({ mode: 0o700 })
   })
 

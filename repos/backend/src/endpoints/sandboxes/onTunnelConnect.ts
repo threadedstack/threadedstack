@@ -165,36 +165,36 @@ export const onTunnelConnect = async (
   }
 
   const url = new URL(req.url || ``, `http://localhost`)
-  const requestedPod = url.searchParams.get(`podName`)
-  let podName: string | undefined
-  if (requestedPod) {
-    podName = await sbService.findRunningPod(requestedPod, orgId, sandboxId)
-    if (!podName) {
-      ws.close(4004, `Requested pod ${requestedPod} is not running`)
+  const requestedInstance = url.searchParams.get(`instanceId`)
+  let instanceId: string | undefined
+  if (requestedInstance) {
+    instanceId = await sbService.findRunningInstance(requestedInstance, orgId, sandboxId)
+    if (!instanceId) {
+      ws.close(4004, `Requested instance ${requestedInstance} is not running`)
       return
     }
   } else {
-    const runningPods = await sbService.findRunningPods(sandboxId, orgId)
-    podName = runningPods[0]
+    const runningInstances = await sbService.findRunningInstances(sandboxId, orgId)
+    instanceId = runningInstances[0]
   }
-  if (!podName) {
-    ws.close(4004, `No running pod for sandbox ${sandboxId}`)
+  if (!instanceId) {
+    ws.close(4004, `No running instance for sandbox ${sandboxId}`)
     return
   }
 
-  // 5. Validate pod ownership
+  // 5. Validate instance ownership
   try {
-    await sbService.validatePodOwnership(podName, orgId)
+    await sbService.validateInstanceOwnership(instanceId, orgId)
   } catch (err) {
     if (err instanceof Exception) {
-      logger.warn(`[Tunnel] Pod validation failed for ${podName}:`, err.message)
+      logger.warn(`[Tunnel] Instance validation failed for ${instanceId}:`, err.message)
       ws.close(err.status === 404 ? 4004 : 4003, err.message)
     } else {
       logger.error(
-        `[Tunnel] Unexpected error validating pod ${podName}:`,
+        `[Tunnel] Unexpected error validating instance ${instanceId}:`,
         (err as Error).message
       )
-      ws.close(4005, `Failed to validate pod access`)
+      ws.close(4005, `Failed to validate instance access`)
     }
     return
   }
@@ -250,11 +250,14 @@ export const onTunnelConnect = async (
   // 7. Look up pod IP
   let podIp: string | undefined
   try {
-    const pod = await kube.getPod(podName)
+    const pod = await kube.getPod(instanceId)
     podIp = pod.status?.podIP
   } catch (err) {
-    logger.error(`[Tunnel] Failed to look up pod ${podName} IP:`, (err as Error).message)
-    ws.close(4004, `Pod ${podName} is no longer reachable`)
+    logger.error(
+      `[Tunnel] Failed to look up instance ${instanceId} IP:`,
+      (err as Error).message
+    )
+    ws.close(4004, `Instance ${instanceId} is no longer reachable`)
     return
   }
   if (!podIp) {
@@ -274,7 +277,7 @@ export const onTunnelConnect = async (
     closed = true
     if (pingInterval) clearInterval(pingInterval)
     try {
-      sbService.removeSession(podName, sessionId)
+      sbService.removeSession(instanceId, sessionId)
     } catch (e) {
       logger.error('[Tunnel] removeSession failed:', (e as Error).message)
     }
@@ -294,15 +297,17 @@ export const onTunnelConnect = async (
 
   // 9. Bridge WebSocket ↔ TCP (session registered on TCP connect, not before)
   tcp.on(`connect`, () => {
-    logger.info(`[Tunnel] Connected to pod ${podName}:2222 (session ${sessionId})`)
+    logger.info(
+      `[Tunnel] Connected to instance ${instanceId}:2222 (session ${sessionId})`
+    )
     tcp.setTimeout(0)
     clearTunnelFailures(sandboxId)
 
     // Register session only after TCP connects successfully
-    sbService.addSession(podName, {
+    sbService.addSession(instanceId, {
       orgId,
       userId,
-      podName,
+      instanceId,
       sessionId,
       sandboxId,
       connectedAt: new Date().toISOString(),
@@ -330,7 +335,7 @@ export const onTunnelConnect = async (
   })
 
   tcp.on(`timeout`, () => {
-    logger.warn(`[Tunnel] TCP connection to ${podName}:2222 timed out`)
+    logger.warn(`[Tunnel] TCP connection to ${instanceId}:2222 timed out`)
     if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
       ws.close(4005, `SSH connection timed out - pod may not be ready`)
     }
@@ -352,7 +357,7 @@ export const onTunnelConnect = async (
           if (ws.bufferedAmount <= SBBackpressureThreshold) {
             tcp.resume()
           } else if (Date.now() - start > SBBackpressureMaxWait) {
-            logger.warn(`[Tunnel] Backpressure timeout for ${podName}, resuming TCP`)
+            logger.warn(`[Tunnel] Backpressure timeout for ${instanceId}, resuming TCP`)
             tcp.resume()
           } else {
             setTimeout(drain, 10)
@@ -372,11 +377,11 @@ export const onTunnelConnect = async (
         tcp.once(`drain`, () => ws.resume())
       }
     }
-    sbService.updateActivity(podName)
+    sbService.updateActivity(instanceId)
   })
 
   tcp.on(`error`, (err) => {
-    logger.error(`[Tunnel] TCP error for ${podName}:`, err.message)
+    logger.error(`[Tunnel] TCP error for ${instanceId}:`, err.message)
     if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
       ws.close(4005, `SSH connection to pod failed`)
     }
@@ -384,17 +389,17 @@ export const onTunnelConnect = async (
   })
 
   tcp.on(`close`, () => {
-    logger.info(`[Tunnel] TCP closed for ${podName} (session ${sessionId})`)
+    logger.info(`[Tunnel] TCP closed for ${instanceId} (session ${sessionId})`)
     cleanup()
   })
 
   ws.on(`close`, () => {
-    logger.info(`[Tunnel] WebSocket closed for ${podName} (session ${sessionId})`)
+    logger.info(`[Tunnel] WebSocket closed for ${instanceId} (session ${sessionId})`)
     cleanup()
   })
 
   ws.on(`error`, (err) => {
-    logger.error(`[Tunnel] WebSocket error for ${podName}:`, err.message)
+    logger.error(`[Tunnel] WebSocket error for ${instanceId}:`, err.message)
     cleanup()
   })
 }

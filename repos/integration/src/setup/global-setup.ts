@@ -115,20 +115,20 @@ const cleanupStaleTestResources = async (orgId: string) => {
     if (podsRaw) {
       const pods = JSON.parse(podsRaw)
       for (const pod of (pods.items || [])) {
-        const podName = pod.metadata?.name
+        const instanceId = pod.metadata?.name
         const sbId = pod.metadata?.labels?.['tdsk.app/sandbox-id']
         const projId = pod.metadata?.labels?.['tdsk.app/project-id']
-        if (!podName || !sbId || !projId) continue
+        if (!instanceId || !sbId || !projId) continue
 
         if (!staleSandboxes.some(sb => sb.id === sbId)) continue
 
         try {
           await api(`/orgs/${orgId}/projects/${projId}/sandboxes/${sbId}/stop`, {
             method: 'DELETE',
-            body: { podName },
+            body: { instanceId },
           })
         } catch (err) {
-          console.warn(`[global-setup] Failed to stop pod ${podName}: ${(err as Error).message}`)
+          console.warn(`[global-setup] Failed to stop pod ${instanceId}: ${(err as Error).message}`)
         }
       }
     }

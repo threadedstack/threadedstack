@@ -10,14 +10,14 @@ export type TNavInstanceItem = {
   index: number
   orgId: string
   indent: number
-  podName: string
+  instanceId: string
   sandboxId: string
   projectId: string
   sessions: TClassifiedSession[]
 }
 
 export const NavInstanceItem = (props: TNavInstanceItem) => {
-  const { index, orgId, indent, podName, sessions, sandboxId, projectId } = props
+  const { index, orgId, indent, sessions, sandboxId, projectId, instanceId } = props
 
   const theme = useTheme()
   const { grey } = theme.palette.colors
@@ -28,7 +28,7 @@ export const NavInstanceItem = (props: TNavInstanceItem) => {
     [sessions]
   )
 
-  const shortPod = podName.slice(-4)
+  const shortPod = instanceId.slice(-4)
 
   return (
     <Box>

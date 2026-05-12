@@ -14,7 +14,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  * Verifies the full agent + K8s sandbox integration:
  * 1. Start sandbox pod manually (we control the pod lifecycle)
  * 2. Create agent via quickstart with real LLM provider key
- * 3. Configure agent's project-level environment with sandboxType: 'kubernetes' + podName
+ * 3. Configure agent's project-level environment with sandboxType: 'kubernetes' + instanceId
  * 4. Run agent via SSE with prompts that trigger sandbox tool calls
  * 5. Verify SSE events and actual pod filesystem effects
  *
@@ -26,7 +26,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
   const ctx = readContext()
 
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let sandboxProjectId = ''
   let agentId = ''
   let agentProjectId = ''
@@ -41,7 +41,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
       // 1. Start sandbox pod
       const setup = await setupRunningPod(ctx.orgId)
       sandboxId = setup.sandboxId
-      podName = setup.podName
+      instanceId = setup.instanceId
       sandboxProjectId = setup.projectId
 
       // 2. Create agent via setupFixtures with real LLM provider key
@@ -66,7 +66,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
         {
           environment: {
             sandboxType: 'kubernetes',
-            podName,
+            instanceId,
           },
         }
       )
@@ -90,7 +90,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
       await cleanupFixtures(ctx.orgId, fixtures)
     }
     // Clean up sandbox pod + config + project
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId: sandboxProjectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId: sandboxProjectId })
   })
 
   // --- SSE Stream ---
@@ -160,7 +160,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     expect(events).toBeDefined()
 
     // Verify the file exists in the pod regardless of whether agent reported success
-    const checkRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, podName,
+    const checkRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, instanceId,
       'cat /workspace/agent-test-file.txt 2>/dev/null || echo __NOT_FOUND__'
     )
 
@@ -179,7 +179,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Verify pod is still running — agent shouldn't stop it
-    const verifyRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, podName, 'echo still-alive')
+    const verifyRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, instanceId, 'echo still-alive')
 
     expect(verifyRes.data.success).toBe(true)
     expect(verifyRes.data.output.trim()).toBe('still-alive')

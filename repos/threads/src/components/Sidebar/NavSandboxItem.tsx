@@ -77,12 +77,12 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
     const groups = new Map<string, typeof classifiedSessions>()
     const sessionPodMap = new Map<string, string>()
     for (const bs of backendSessions) {
-      if (bs.podName) sessionPodMap.set(bs.sessionId, bs.podName)
+      if (bs.instanceId) sessionPodMap.set(bs.sessionId, bs.instanceId)
     }
     for (const cs of classifiedSessions) {
-      const podName = sessionPodMap.get(cs.sessionId) || `unknown`
-      if (!groups.has(podName)) groups.set(podName, [])
-      groups.get(podName)!.push(cs)
+      const instanceId = sessionPodMap.get(cs.sessionId) || `unknown`
+      if (!groups.has(instanceId)) groups.set(instanceId, [])
+      groups.get(instanceId)!.push(cs)
     }
     return groups
   }, [classifiedSessions, backendSessions])
@@ -232,12 +232,12 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
             Loading...
           </Typography>
         ) : instanceGroups.size > 0 ? (
-          Array.from(instanceGroups.entries()).map(([podName, podSessions], idx) => (
+          Array.from(instanceGroups.entries()).map(([instanceId, podSessions], idx) => (
             <NavInstanceItem
-              key={podName}
+              key={instanceId}
               orgId={orgId}
               index={idx + 1}
-              podName={podName}
+              instanceId={instanceId}
               indent={indent + 24}
               sandboxId={sandbox.id}
               sessions={podSessions}

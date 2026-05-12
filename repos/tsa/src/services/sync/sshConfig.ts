@@ -105,14 +105,23 @@ const ensureProxyWrapper = (): void => {
   mkdirSync(TdskBinDir, { recursive: true })
 
   const tsaBin = resolveTsaBin()
-  // The compiled tsa binary requires a CWD with package.json (alias-hq reads
-  // it at startup). When invoked as an SSH ProxyCommand, the CWD may be
-  // arbitrary. The wrapper cd's to the tsa package root (parent of dist/).
   const lastPath = tsaBin.includes(` `) ? tsaBin.split(` `).pop()! : tsaBin
   const pkgRoot = lastPath.includes(`/dist/`)
     ? lastPath.slice(0, lastPath.indexOf(`/dist/`))
     : dirname(lastPath)
-  const wrapper = `#!/bin/sh\ncd "${pkgRoot}" 2>/dev/null\nexec ${tsaBin} proxy "$@"\n`
+  const wrapper = [
+    `#!/bin/sh`,
+    `cd "${pkgRoot}" 2>/dev/null`,
+    `arg="$1"`,
+    `SANDBOX_ID="\${arg%%--*}"`,
+    `if [ "$SANDBOX_ID" = "$arg" ]; then`,
+    `  exec ${tsaBin} proxy "$arg"`,
+    `else`,
+    `  INSTANCE_ID="\${arg#*--}"`,
+    `  exec ${tsaBin} proxy "$SANDBOX_ID" "$INSTANCE_ID"`,
+    `fi`,
+    ``,
+  ].join('\n')
 
   if (existsSync(ProxyWrapperPath)) {
     const current = readFileSync(ProxyWrapperPath, `utf-8`)

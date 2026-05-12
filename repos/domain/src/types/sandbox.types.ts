@@ -249,9 +249,9 @@ export type TRouteMap = Record<string, TRouteMapEntry>
 export type TSandboxSession = {
   orgId: string
   userId: string
-  podName: string
   sandboxId: string
   sessionId: string
+  instanceId: string
   projectId?: string
   connectedAt: string
   hasShellSession?: boolean
@@ -284,23 +284,32 @@ export enum EShellMsg {
 export type TSandboxStopResponse = {
   success: boolean
   stoppedCount?: number
-  failedPods?: string[]
+  failedInstances?: string[]
 }
 
 export type TSandboxConnectResponse = {
   alias?: string
   workdir: string
   command: string
-  podName: string
   password: string
   sandboxId: string
+  instanceId: string
   shellToken?: string
+}
+
+export type TSandboxStatusResp = {
+  state: string
+  instanceId: string
+}
+
+export type TSandboxStartResp = {
+  instanceId: string
 }
 
 export type TSandboxInstance = {
   userId: string
-  podName: string
   sandboxId: string
+  instanceId: string
   state: EContainerState
   sessions: TSandboxSession[]
 }
@@ -328,4 +337,15 @@ export type TSandboxProjectConfig = {
   enabled?: boolean
   alias: string
   config?: Partial<TKubeSandboxConfig> | null
+}
+
+export type TSandboxConnectOpts = {
+  instanceId?: string
+  newInstance?: boolean
+}
+
+export type TSandboxStopOpts = {
+  force?: boolean
+  stopAll?: boolean
+  instanceId?: string
 }

@@ -68,7 +68,8 @@ test.describe('Org Settings Page', () => {
     await expect(page.getByText('Metadata')).toBeVisible()
 
     // ID label and value — the org ID should appear in monospace text
-    await expect(page.getByText('ID')).toBeVisible()
+    // Use .first() since other labels like "Project ID" may also appear on the page
+    await expect(page.getByText('ID').first()).toBeVisible()
     await expect(page.getByText(ctx.orgId)).toBeVisible()
 
     expect(errors).toEqual([])

@@ -28,7 +28,7 @@ describe('Tier 3: Sandbox Proxy Routing', () => {
   const ctx = readContext()
 
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let projectId = ''
   let subdomain = ''
   let setupFailed = false
@@ -99,21 +99,21 @@ server.listen(3000, () => {
     try {
       const setup = await setupRunningPod(ctx.orgId)
       sandboxId = setup.sandboxId
-      podName = setup.podName
+      instanceId = setup.instanceId
       projectId = setup.projectId
 
       // Get subdomain from pod annotations
-      subdomain = getPodSubdomain(podName) || ''
+      subdomain = getPodSubdomain(instanceId) || ''
       if (!subdomain) throw new Error('Pod subdomain not found in annotations')
 
       // Write HTTP server script to pod and start it in background
       const escaped = serverScript.replace(/'/g, "'\\''").trim()
-      await execInPod(ctx.orgId, projectId, sandboxId, podName,
+      await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
         `printf '%s' '${escaped}' > /workspace/server.js`
       )
 
       // Start server in background (nohup + &)
-      await execInPod(ctx.orgId, projectId, sandboxId, podName,
+      await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
         "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'"
       )
 
@@ -130,7 +130,7 @@ server.listen(3000, () => {
         "}).on('error', (e) => { console.error(e.message); process.exit(1); });",
       ].join(' ')
 
-      const verifyRes = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+      const verifyRes = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
         `node -e "${verifyScript}"`
       )
       if (!verifyRes.data.success || verifyRes.data.output.trim() !== '200') {
@@ -157,7 +157,7 @@ server.listen(3000, () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // --- Subdomain Routing ---

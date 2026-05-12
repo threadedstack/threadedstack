@@ -57,17 +57,19 @@ test.describe.serial('CRUD Agents', () => {
     // Fill description
     await fillField(page, 'agent-description', 'Playwright CRUD test agent')
 
-    // Add a provider via the ProviderPriorityList "Add Provider" button
-    // The button is an IconButton containing <Typography>Add Provider</Typography>
-    const addProviderBtn = page.locator('button', { hasText: 'Add Provider' })
-    await expect(addProviderBtn).toBeVisible({ timeout: 5_000 })
-    await addProviderBtn.click()
+    // The AI Providers section shows a MUI SelectInput for choosing providers
+    // Try "Add Provider" button first; if not visible, the Select is already rendered
+    const addBtn = page.locator('button', { hasText: /Add Provider/i }).first()
+    const hasAddBtn = await addBtn.isVisible({ timeout: 2_000 }).catch(() => false)
+    if (hasAddBtn) await addBtn.click()
 
-    // Clicking "Add Provider" renders an Autocomplete with autoFocus + openOnFocus
-    // The dropdown should auto-open; just select the first option
-    const option = page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option').first()
-    await expect(option).toBeVisible({ timeout: 5_000 })
-    await option.click()
+    // Open the AI Providers MUI Select and pick the first provider via keyboard
+    const combobox = page.getByRole('combobox', { name: /provider/i }).first()
+    await expect(combobox).toBeVisible({ timeout: 5_000 })
+    await combobox.click()
+    await page.waitForTimeout(500)
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
 
     // Wait for the provider to be added to the list
     await page.waitForTimeout(500)

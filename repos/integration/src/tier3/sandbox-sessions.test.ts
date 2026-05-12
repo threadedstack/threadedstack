@@ -9,7 +9,7 @@ describe('Tier 3: Sandbox Sessions', () => {
   const ctx = readContext()
 
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let projectId = ''
   let setupFailed = false
 
@@ -28,7 +28,7 @@ describe('Tier 3: Sandbox Sessions', () => {
     try {
       const setup = await setupRunningPod(ctx.orgId)
       sandboxId = setup.sandboxId
-      podName = setup.podName
+      instanceId = setup.instanceId
       projectId = setup.projectId
     } catch (err) {
       console.error('[sandbox-sessions] Setup failed:', (err as Error).message)
@@ -37,7 +37,7 @@ describe('Tier 3: Sandbox Sessions', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
     if (extraSandboxId) await tryDelete(`/orgs/${ctx.orgId}/sandboxes/${extraSandboxId}`)
   })
 

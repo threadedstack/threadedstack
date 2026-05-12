@@ -2,17 +2,17 @@ import { sandboxApi } from '@TAF/services'
 
 export type TConnectSandboxOpts = {
   orgId: string
-  podName?: string
   sandboxId: string
   projectId: string
+  instanceId?: string
   newInstance?: boolean
 }
 
 export const connectSandbox = async (opts: TConnectSandboxOpts) => {
-  const { orgId, podName, projectId, sandboxId, newInstance } = opts
+  const { orgId, instanceId, projectId, sandboxId, newInstance } = opts
 
   return sandboxApi.connect(orgId, projectId, sandboxId, {
     ...(newInstance ? { newInstance } : {}),
-    ...(podName ? { podName } : {}),
+    ...(instanceId ? { instanceId } : {}),
   })
 }

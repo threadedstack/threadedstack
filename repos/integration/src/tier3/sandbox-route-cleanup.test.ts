@@ -34,7 +34,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
   const ctx = readContext()
 
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let projectId = ''
   let subdomain = ''
   let setupFailed = false
@@ -94,16 +94,16 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     try {
       const setup = await setupRunningPod(ctx.orgId)
       sandboxId = setup.sandboxId
-      podName = setup.podName
+      instanceId = setup.instanceId
       projectId = setup.projectId
 
-      subdomain = getPodSubdomain(podName) || ''
+      subdomain = getPodSubdomain(instanceId) || ''
       if (!subdomain) throw new Error('Pod subdomain not found in annotations')
 
       // Write and start HTTP server in the pod
       const escaped = serverScript.replace(/'/g, "'\\''").trim()
-      await execInPod(ctx.orgId, projectId, sandboxId, podName, `printf '%s' '${escaped}' > /workspace/server.js`)
-      await execInPod(ctx.orgId, projectId, sandboxId, podName, "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'")
+      await execInPod(ctx.orgId, projectId, sandboxId, instanceId, `printf '%s' '${escaped}' > /workspace/server.js`)
+      await execInPod(ctx.orgId, projectId, sandboxId, instanceId, "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'")
 
       // Wait for the K8s watcher to hydrate the route and the pod server to start
       const routeHostname = `3000--${subdomain}.local.threadedstack.app`
@@ -122,7 +122,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // --- Pre-condition: route works while pod is Running ---
@@ -146,12 +146,12 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     // Stop the pod
     const stopRes = await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
       method: 'DELETE',
-      body: { podName },
+      body: { instanceId },
     })
     expect(stopRes.status).toBe(200)
 
     // Wait for pod to reach terminal state so the watch event fires
-    await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Failed', 60_000)
+    await waitForPodState(ctx.orgId, projectId, sandboxId, instanceId, 'Failed', 60_000)
 
     // Give the K8s watcher time to process the MODIFIED/DELETED events
     await new Promise(r => setTimeout(r, 3_000))
@@ -162,8 +162,8 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
 
     expect(result.status).toBe(404)
 
-    // Clear podName so afterAll doesn't try to stop it again
-    podName = ''
+    // Clear instanceId so afterAll doesn't try to stop it again
+    instanceId = ''
   }, 90_000)
 
   // --- Verify no stale routes interfere with WS agent streaming ---
@@ -232,12 +232,12 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Start a new pod for the same sandbox
-    const startRes = await post<{ podName: string }>(
+    const startRes = await post<{ instanceId: string }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
       {}
     )
     expect(startRes.status).toBe(201)
-    const newPodName = startRes.data.podName
+    const newPodName = startRes.data.instanceId
 
     try {
       await waitForPodState(ctx.orgId, projectId, sandboxId, newPodName, 'Running', 90_000)
@@ -269,7 +269,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
       expect(newStatus).not.toBe(404)
     } finally {
       // Cleanup the new pod
-      podName = newPodName
+      instanceId = newPodName
     }
   }, 120_000)
 })

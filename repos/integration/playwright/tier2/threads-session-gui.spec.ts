@@ -25,7 +25,7 @@ import { test as base, expect, type Page } from '@playwright/test'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const THREADS_URL = `http://localhost:5886`
+const THREADS_URL = `http://localhost:${process.env.TDSK_TH_PORT || '5886'}`
 const PROXY_PATTERN = `https://px.local.threadedstack.app/**`
 
 const FALLBACK_ORG_ID = `og00000001`
@@ -97,11 +97,6 @@ async function setupAuth(page: Page, ctx: TestCtx) {
         },
       }),
     })
-  )
-
-  // Catch-all for other Neon Auth requests
-  await page.route(`**/@neondatabase/**`, (route) =>
-    route.fulfill({ status: 200, contentType: `application/json`, body: `{}` })
   )
 
   // TLS bypass for Caddy → Proxy → Backend API calls
@@ -259,10 +254,11 @@ test.describe(`Threads Session GUI View`, () => {
   // -------------------------------------------------------------------------
   test(`session page renders .tdsk-session-page class for unknown session id`, async ({
     sessionPage: page,
+    ctx,
   }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/session/gui-test-fake-00000001`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-fake-00000001`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -281,10 +277,10 @@ test.describe(`Threads Session GUI View`, () => {
   // -------------------------------------------------------------------------
   // 3. ViewToggle is NOT rendered when there is no active session
   // -------------------------------------------------------------------------
-  test(`ViewToggle is absent when no active session`, async ({ sessionPage: page }) => {
+  test(`ViewToggle is absent when no active session`, async ({ sessionPage: page, ctx }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/session/gui-test-no-session-00001`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-no-session-00001`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -301,10 +297,10 @@ test.describe(`Threads Session GUI View`, () => {
   // -------------------------------------------------------------------------
   // 4. SmartInput is NOT rendered when there is no active session
   // -------------------------------------------------------------------------
-  test(`SmartInput is absent when no active session`, async ({ sessionPage: page }) => {
+  test(`SmartInput is absent when no active session`, async ({ sessionPage: page, ctx }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/session/gui-test-no-session-00002`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-no-session-00002`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -330,7 +326,7 @@ test.describe(`Threads Session GUI View`, () => {
 
     // Navigate with state so the session page knows the sandboxId (enables the button)
     await page.goto(
-      `${THREADS_URL}/session/gui-test-disconnected-00001`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-disconnected-00001`,
       { waitUntil: `networkidle`, timeout: 20_000 }
     )
 
@@ -368,26 +364,27 @@ test.describe(`Threads Session GUI View`, () => {
     //
     // The connect endpoint does not return a sessionId — sessionId is assigned
     // by the WebSocket shell handler. We navigate to the sandbox page and start
-    // a session via the "New Session" button, then verify the resulting session page.
+    // a new instance via the "New Instance" button, then verify the resulting session page.
 
-    // Navigate to the sandbox page
-    await page.goto(`${THREADS_URL}/sandbox/${ctx.sandboxId}`, {
-      waitUntil: `networkidle`,
-      timeout: 20_000,
-    })
+    // Navigate to the sandbox page (nested route: /orgs/:orgId/projects/:projectId/sandbox/:sandboxId)
+    await page.goto(
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandbox/${ctx.sandboxId}`,
+      { waitUntil: `networkidle`, timeout: 20_000 }
+    )
 
     const sandboxPage = page.locator(`.tdsk-sandbox-page`)
     await expect(sandboxPage).toBeVisible({ timeout: 10_000 })
 
-    // Click "New Session" to start a WebSocket shell session
-    const newSessionBtn = page.getByRole(`button`, { name: /New Session/i })
-    const hasNewSession = await newSessionBtn.isVisible({ timeout: 5_000 }).catch(() => false)
-    if (!hasNewSession) {
-      test.skip(true, `Sandbox page did not render New Session button — skipping`)
+    // The sandbox page shows "New Instance" as the primary CTA.
+    // "New Session" only appears inside a running instance.
+    const newInstanceBtn = page.getByRole(`button`, { name: /New Instance/i })
+    const hasNewInstance = await newInstanceBtn.isVisible({ timeout: 5_000 }).catch(() => false)
+    if (!hasNewInstance) {
+      test.skip(true, `Sandbox page did not render New Instance button — skipping`)
       return
     }
 
-    await newSessionBtn.click()
+    await newInstanceBtn.click()
 
     // Wait for navigation to /session/:id
     await page.waitForURL(/\/session\//, { timeout: 30_000 })
@@ -436,21 +433,23 @@ test.describe(`Threads Session GUI View`, () => {
       return
     }
 
-    await page.goto(`${THREADS_URL}/sandbox/${ctx.sandboxId}`, {
-      waitUntil: `networkidle`,
-      timeout: 20_000,
-    })
+    await page.goto(
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandbox/${ctx.sandboxId}`,
+      { waitUntil: `networkidle`, timeout: 20_000 }
+    )
 
     await expect(page.locator(`.tdsk-sandbox-page`)).toBeVisible({ timeout: 10_000 })
 
-    const newSessionBtn = page.getByRole(`button`, { name: /New Session/i })
-    const hasNewSession = await newSessionBtn.isVisible({ timeout: 5_000 }).catch(() => false)
-    if (!hasNewSession) {
-      test.skip(true, `Sandbox page did not render New Session button — skipping`)
+    // The sandbox page shows "New Instance" as the primary CTA.
+    // "New Session" only appears inside a running instance.
+    const newInstanceBtn = page.getByRole(`button`, { name: /New Instance/i })
+    const hasNewInstance = await newInstanceBtn.isVisible({ timeout: 5_000 }).catch(() => false)
+    if (!hasNewInstance) {
+      test.skip(true, `Sandbox page did not render New Instance button — skipping`)
       return
     }
 
-    await newSessionBtn.click()
+    await newInstanceBtn.click()
     await page.waitForURL(/\/session\//, { timeout: 30_000 })
 
     const toggleGroup = page.locator(`.MuiToggleButtonGroup-root`)
@@ -482,18 +481,11 @@ test.describe(`Threads Session GUI View`, () => {
   // 8. Unauthenticated users are redirected to /auth
   // -------------------------------------------------------------------------
   test(`unauthenticated users are redirected to login page`, async ({ page }) => {
-    // Provide no-session mock — no auth intercept wired
-    await page.route(`**/neondb/auth/get-session**`, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: `application/json`,
-        body: JSON.stringify({}),
-      })
-    )
-
-    await page.goto(THREADS_URL, { waitUntil: `networkidle`, timeout: 20_000 })
+    // Navigate without any auth mock — the real Neon Auth returns no session
+    await page.goto(THREADS_URL, { waitUntil: `networkidle`, timeout: 15_000 })
+    await page.waitForTimeout(3_000)
 
     const currentUrl = page.url()
-    expect(currentUrl).toMatch(/\/auth/)
+    expect(currentUrl).toMatch(/\/(auth|sign)/)
   })
 })

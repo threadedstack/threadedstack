@@ -105,7 +105,7 @@ test.describe.serial('Sandbox Lifecycle', () => {
     expect(errors).toEqual([])
   })
 
-  test('Start button click triggers connect request', async ({
+  test('Start button click triggers start request', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -113,15 +113,15 @@ test.describe.serial('Sandbox Lifecycle', () => {
     test.skip(!testSandboxId, 'Sandbox was not created in setup')
     const errors = collectErrors(page)
 
-    // Intercept the connect API call to avoid actually starting a pod
-    let connectCalled = false
-    await page.route(`**/_/orgs/${ctx.orgId}/sandboxes/${testSandboxId}/connect**`, async (route) => {
-      connectCalled = true
+    // Intercept the start API call to avoid actually starting a pod
+    let startCalled = false
+    await page.route(`**/_/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes/${testSandboxId}/start**`, async (route) => {
+      startCalled = true
       // Return a mock response so the UI doesn't hang
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: { status: 'starting' } }),
+        body: JSON.stringify({ data: { instanceId: 'mock-instance-id', status: 'starting' } }),
       })
     })
 
@@ -136,7 +136,7 @@ test.describe.serial('Sandbox Lifecycle', () => {
     const row = page.locator('tr', { has: page.getByText(testSandboxName, { exact: true }) })
     await expect(row).toBeVisible({ timeout: 10_000 })
 
-    // Click the start button
+    // Click the start button (PlayArrowIcon)
     const startButton = row.locator('button').filter({ has: page.locator('[data-testid="PlayArrowIcon"]') })
     await expect(startButton).toBeVisible({ timeout: 5_000 })
     await startButton.click()
@@ -144,8 +144,8 @@ test.describe.serial('Sandbox Lifecycle', () => {
     // Give a moment for the API call to fire
     await page.waitForTimeout(2_000)
 
-    // The connect endpoint should have been called
-    expect(connectCalled).toBe(true)
+    // The start endpoint should have been called
+    expect(startCalled).toBe(true)
 
     expect(errors).toEqual([])
   })

@@ -28,6 +28,51 @@ flowchart LR
 ```
 
 
+## Multi-Instance Support
+
+Sandboxes support multiple concurrent running instances of the same configuration. Each instance is an independent Kubernetes pod identified by a unique `instanceId` (the pod name). This allows teams to run several copies of a sandbox simultaneously -- for example, multiple developers each working in their own Claude Code session from the same sandbox config.
+
+### How It Works
+
+| Concept | Description |
+|---------|-------------|
+| **Instance** | A single running pod created from a sandbox configuration |
+| **instanceId** | The pod name, returned by `start` and `connect` endpoints |
+| **maxInstances** | Per-sandbox config field that limits how many concurrent instances can exist (default: 1) |
+| **Scoping** | Each instance is scoped to the user who created it and the organization that owns the sandbox |
+
+Each instance has independent sessions, file sync, and lifecycle. Stopping one instance does not affect others. Sessions (SSH, shell, tunnel) are tracked per-instance, so the platform knows which users are connected to which instance.
+
+<Note>When `maxInstances` is 1 (the default), the sandbox behaves as a single-instance resource. The multi-instance machinery is still present but transparent -- `connect` reuses the single running instance without requiring an `instanceId`.</Note>
+
+### Instance Lifecycle
+
+Instances move through the following states:
+
+| State | Description |
+|-------|-------------|
+| `Pending` | Pod created, container starting |
+| `Running` | Container is up and accepting connections |
+| `Failed` | Container exited with an error |
+| `Terminating` | Pod is shutting down |
+| `Unknown` | State could not be determined |
+
+The `connect` endpoint polls for `Running` state before returning connection details. If the pod reaches `Failed` or `Terminating` during startup, the endpoint cleans up the pod and returns an error.
+
+The following diagram illustrates the instance lifecycle state transitions:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: start / connect
+    Pending --> Running: Pod ready
+    Pending --> Failed: Startup error
+    Running --> Terminating: stop
+    Running --> Failed: Runtime crash
+    Terminating --> [*]: Pod removed
+    Failed --> [*]: Pod cleaned up
+```
+
+
 ## Vision
 
 **"Bring your own AI tool, we make it secure and managed."**
@@ -94,7 +139,7 @@ These presets are:
 Any sandbox config can be duplicated using the copy action:
 
 - **Admin UI**: Click the copy button on any sandbox row in the list
-- **API**: `POST /_/orgs/:orgId/sandboxes/:id/copy`
+- **API**: `POST /_/orgs/:orgId/projects/:projectId/sandboxes/:id/copy`
 
 The copy creates a new sandbox config with a new ID. All configuration (image, secrets, runtime, resource limits) is preserved. This is useful for creating customized versions of built-in presets.
 
@@ -117,7 +162,7 @@ All outbound HTTP and HTTPS traffic from sandbox containers is redirected throug
 
 ### Ownership Validation
 
-Every pod operation (start, stop, connect, list) validates that the requesting user's organization owns the pod. No operation can be performed on a sandbox belonging to a different organization.
+Every pod operation (start, stop, connect, list, status) validates that the requesting user's organization owns the pod. No operation can be performed on a sandbox belonging to a different organization. For multi-instance sandboxes, ownership is validated per-instance -- a user in one organization cannot interact with instances belonging to another organization, even if they know the `instanceId`.
 
 
 ## Use Cases
@@ -152,3 +197,240 @@ A new hire joins the team and needs access to AI-assisted development:
 3. The new user runs `tsa login <api-key>` and `tsa run --list` to see available sandboxes
 4. `tsa run <sandbox-id>` starts the sandbox, syncs files, and launches the AI tool
 5. No API keys to request, no environment to configure, no secrets shared over Slack
+
+### Multiple Developers on the Same Sandbox Config
+
+A team of three engineers all need Claude Code with the same secrets and environment, running simultaneously:
+
+1. The org admin sets `maxInstances` to 5 on the shared "Claude Code" sandbox config
+2. Each developer runs `tsa run <sandbox-id>` -- each gets their own isolated instance
+3. All three instances share the same image, secrets, and init script, but run as independent pods
+4. Each developer's file sync and sessions are scoped to their own instance
+5. When a developer finishes, their instance is stopped without affecting the others
+
+
+## Instance API Reference
+
+All sandbox instance endpoints are scoped under `/_/orgs/:orgId/projects/:projectId/sandboxes/:id`. Authentication is required (JWT or API key).
+
+### Start Instance
+
+Creates a new pod and returns immediately without waiting for it to reach `Running` state. Use `GET /:id/status` to poll for readiness.
+
+```http
+POST /:id/start
+```
+
+**Response** (`201 Created`):
+
+```json
+{
+  "data": {
+    "instanceId": "sb-abc123-x7k9m"
+  }
+}
+```
+
+### Connect to Instance
+
+Starts or reuses an instance, waits for it to reach `Running` state, and returns full connection details including SSH credentials and a shell token for WebSocket sessions.
+
+```http
+POST /:id/connect
+Content-Type: application/json
+
+{
+  "instanceId": "sb-abc123-x7k9m",
+  "newInstance": false
+}
+```
+
+**Request body fields** (all optional):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `instanceId` | `string` | Connect to a specific existing instance |
+| `newInstance` | `boolean` | Force creation of a new instance |
+
+**Resolution logic**:
+
+- If `instanceId` is provided, the endpoint validates and connects to that specific instance.
+- If `newInstance` is `true`, a new pod is always created (subject to `maxInstances`).
+- If neither is provided and no instances are running, a new pod is created.
+- If neither is provided and exactly one instance is running, it is reused (single-instance shortcut).
+- If neither is provided and multiple instances are running, the endpoint returns `INSTANCE_SELECTION_REQUIRED` so the caller can choose.
+
+The following diagram illustrates the instance resolution flow:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant K8s
+    
+    Client->>API: POST /:id/connect
+    
+    alt newInstance: true
+        API->>K8s: Create new pod
+        K8s-->>API: instanceId
+    else instanceId provided
+        API->>K8s: Find pod by instanceId
+        K8s-->>API: Pod found
+    else No running instances
+        API->>K8s: Create new pod
+        K8s-->>API: instanceId
+    else One running instance
+        API->>K8s: Reuse existing pod
+        K8s-->>API: Pod details
+    else Multiple running instances
+        API-->>Client: 400 INSTANCE_SELECTION_REQUIRED
+    end
+    
+    API->>K8s: Wait for Running state
+    K8s-->>API: Pod ready
+    API-->>Client: 201 {instanceId, password, shellToken, ...}
+```
+
+**Response** (`200 OK`):
+
+```json
+{
+  "data": {
+    "workdir": "/home/user",
+    "password": "generated-ssh-password",
+    "sandboxId": "uuid",
+    "port": 2222,
+    "instanceId": "sb-abc123-x7k9m",
+    "shellToken": "jwt-token-for-websocket",
+    "command": "tsa ssh my-sandbox",
+    "alias": "my-sandbox"
+  }
+}
+```
+
+### Stop Instance
+
+Stops one or all instances of a sandbox. Protected by session-awareness -- if other users have active sessions on the target instance, the request is rejected unless `force` is set.
+
+```http
+DELETE /:id/stop
+Content-Type: application/json
+
+{
+  "instanceId": "sb-abc123-x7k9m",
+  "force": false,
+  "stopAll": false
+}
+```
+
+**Request body fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `instanceId` | `string` | Stop a specific instance (required unless `stopAll` is set) |
+| `stopAll` | `boolean` | Stop all active instances of this sandbox |
+| `force` | `boolean` | Ignore active sessions from other users |
+
+**Response** (`200 OK`) for single instance:
+
+```json
+{
+  "data": {
+    "success": true
+  }
+}
+```
+
+**Response** (`200 OK`) for `stopAll`:
+
+```json
+{
+  "data": {
+    "success": true,
+    "stoppedCount": 3,
+    "failedInstances": []
+  }
+}
+```
+
+### Get Instance Status
+
+Returns the current state of a specific instance.
+
+```http
+GET /:id/status?instanceId=sb-abc123-x7k9m
+```
+
+**Response** (`200 OK`):
+
+```json
+{
+  "data": {
+    "instanceId": "sb-abc123-x7k9m",
+    "state": "Running"
+  }
+}
+```
+
+If the instance is not found (pod was deleted), the endpoint returns `state: "Failed"` rather than a 404, allowing clients to detect terminated instances without error handling.
+
+### List Instances
+
+Returns all active instances for a sandbox, including their states, sessions, and the `maxInstances` limit.
+
+```http
+GET /:id/instances
+```
+
+**Response** (`200 OK`):
+
+```json
+{
+  "data": {
+    "maxInstances": 3,
+    "instances": [
+      {
+        "instanceId": "sb-abc123-x7k9m",
+        "sandboxId": "uuid",
+        "userId": "user-uuid",
+        "state": "Running",
+        "sessionCount": 1,
+        "sessions": [
+          {
+            "sessionId": "sess-uuid",
+            "userId": "user-uuid",
+            "orgId": "org-uuid",
+            "sandboxId": "uuid",
+            "instanceId": "sb-abc123-x7k9m",
+            "connectedAt": "2026-05-11T10:00:00Z",
+            "hasShellSession": true,
+            "visibility": "private"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+
+## Error Codes
+
+Sandbox endpoints return structured error responses with a `code` field for programmatic handling.
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `INSTANCE_SELECTION_REQUIRED` | `400` | Multiple instances are running and the request did not specify `instanceId` or `newInstance`. The error details include the list of running instances. |
+| `INSTANCE_LIMIT_REACHED` | `409` | The sandbox has reached its `maxInstances` limit. The error details include the list of active instances. |
+| `ACTIVE_SESSIONS` | `409` | The target instance has active sessions from other users. Pass `force: true` to override, or wait for the other users to disconnect. |
+
+**Error response format**:
+
+```json
+{
+  "error": {
+    "message": "instanceId or newInstance required when instances exist",
+    "code": "INSTANCE_SELECTION_REQUIRED"
+  }
+}
+```

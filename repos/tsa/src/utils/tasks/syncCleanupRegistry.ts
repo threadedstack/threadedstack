@@ -1,9 +1,15 @@
 import type { SyncManager } from '@TSA/services/sync/syncManager'
 
-const entries = new Map<string, SyncManager>()
+type TCleanupEntry = { manager: SyncManager; instanceId?: string }
 
-export const registerSyncCleanup = (sandboxId: string, manager: SyncManager): void => {
-  entries.set(sandboxId, manager)
+const entries = new Map<string, TCleanupEntry>()
+
+export const registerSyncCleanup = (
+  sandboxId: string,
+  manager: SyncManager,
+  instanceId?: string
+): void => {
+  entries.set(sandboxId, { manager, instanceId })
 }
 
 export const clearSyncCleanup = (): void => {
@@ -16,9 +22,9 @@ export const runSyncCleanup = async (): Promise<boolean> => {
 
   if (snapshot.length === 0) return false
 
-  for (const [sandboxId, manager] of snapshot) {
+  for (const [sandboxId, { manager, instanceId }] of snapshot) {
     try {
-      await manager.stopAll(sandboxId)
+      await manager.stopAll(sandboxId, instanceId)
     } catch (err) {
       process.stderr.write(
         `Warning: sync cleanup failed for ${sandboxId}: ${(err as Error).message}\n`

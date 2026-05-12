@@ -64,7 +64,6 @@ test.describe.serial('Sandbox Provider Auth', () => {
           providerInputs: providerId ? [{ id: providerId }] : [],
           config: {
             image: 'node:22-slim',
-            sshEnabled: true,
             runtime: 'claude-code',
             runtimeCommand: 'claude',
           },
@@ -79,7 +78,7 @@ test.describe.serial('Sandbox Provider Auth', () => {
     }
   })
 
-  test('Sandbox drawer shows Providers accordion with linked provider', async ({
+  test('Sandbox drawer shows AI Providers accordion with linked provider', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -101,9 +100,9 @@ test.describe.serial('Sandbox Provider Auth', () => {
 
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
-    // Find and expand the Providers accordion
+    // Find and expand the AI Providers accordion
     const provAccordion = page.locator('.MuiAccordionSummary-root', {
-      hasText: 'Providers',
+      hasText: 'AI Providers',
     })
     await expect(provAccordion).toBeVisible({ timeout: 5_000 })
     await provAccordion.click()
@@ -114,15 +113,15 @@ test.describe.serial('Sandbox Provider Auth', () => {
       await expect(linkedItem.first()).toBeVisible({ timeout: 5_000 })
     }
 
-    // Should show compatible brands text
+    // Should show compatible brands text mentioning Claude Code
     await expect(
-      page.getByText('Compatible brands for Claude Code')
+      page.getByText(/Compatible brands for Claude Code/i)
     ).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toEqual([])
   })
 
-  test('Provider dropdown shows available providers', async ({
+  test('AI Providers accordion has Add Provider button', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -140,29 +139,23 @@ test.describe.serial('Sandbox Provider Auth', () => {
     // Open Create drawer (not edit) to test adding a new provider
     await openDrawer(page, /Create Sandbox/i)
 
-    // Expand Providers accordion
+    // Expand AI Providers accordion
     const provAccordion = page.locator('.MuiAccordionSummary-root', {
-      hasText: 'Providers',
+      hasText: 'AI Providers',
     })
     await provAccordion.click()
 
-    // In reorderable mode, click "Add Provider" button to reveal the Autocomplete
-    const addProviderButton = page.getByRole('button', { name: /Add Provider/i })
-    await expect(addProviderButton).toBeVisible({ timeout: 5_000 })
-    await addProviderButton.click()
+    // In reorderable mode, the "Add Provider" button is an IconButton with Typography text
+    const addProviderButton = page.locator('button').filter({ hasText: /Add Provider/i })
+    await expect(addProviderButton.first()).toBeVisible({ timeout: 5_000 })
 
-    // The Autocomplete dropdown should now be visible (scoped to Providers accordion)
-    const provAccordionDetails = provAccordion.locator('xpath=ancestor::div[contains(@class,"MuiAccordion-root")]')
-    const autocomplete = provAccordionDetails.locator('.MuiAutocomplete-root')
-    await expect(autocomplete).toBeVisible({ timeout: 5_000 })
+    // Clicking "Add Provider" reveals a SelectInput (id: add-provider-reorderable)
+    await addProviderButton.first().click()
 
-    // The provider we created should appear as an option
-    const option = page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option', {
-      hasText: providerName,
-    })
-    await expect(option).toBeVisible({ timeout: 5_000 })
+    const addProviderSelect = page.locator('#add-provider-reorderable')
+    await expect(addProviderSelect).toBeAttached({ timeout: 5_000 })
 
-    // Close dropdown
+    // Close by pressing Escape
     await page.keyboard.press('Escape')
 
     expect(errors).toEqual([])
@@ -186,27 +179,33 @@ test.describe.serial('Sandbox Provider Auth', () => {
     // Open Create drawer
     await openDrawer(page, /Create Sandbox/i)
 
-    // Expand Providers accordion
+    // Expand AI Providers accordion
     const provAccordion = page.locator('.MuiAccordionSummary-root', {
-      hasText: 'Providers',
+      hasText: 'AI Providers',
     })
     await provAccordion.click()
 
-    // In reorderable mode, click "Add Provider" button to reveal the Autocomplete
-    const addProviderButton = page.getByRole('button', { name: /Add Provider/i })
-    await expect(addProviderButton).toBeVisible({ timeout: 5_000 })
-    await addProviderButton.click()
+    // In reorderable mode, click "Add Provider" button to reveal the SelectInput
+    const addProviderButton = page.locator('button').filter({ hasText: /Add Provider/i })
+    await expect(addProviderButton.first()).toBeVisible({ timeout: 5_000 })
+    await addProviderButton.first().click()
 
-    // Select the provider from the dropdown (scoped to Providers accordion)
-    const provAccordionDetails = provAccordion.locator('xpath=ancestor::div[contains(@class,"MuiAccordion-root")]')
-    const autocomplete = provAccordionDetails.locator('.MuiAutocomplete-root')
-    await expect(autocomplete).toBeVisible({ timeout: 5_000 })
+    // Use the SelectInput (MUI Select) to choose the provider
+    const addProviderSelect = page.locator('#add-provider-reorderable')
+    await expect(addProviderSelect).toBeAttached({ timeout: 5_000 })
 
-    const option = page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option', {
-      hasText: providerName,
-    })
-    await expect(option).toBeVisible({ timeout: 5_000 })
-    await option.click()
+    // Click the combobox trigger to open the dropdown
+    const combobox = addProviderSelect.locator('xpath=..').locator('[role="combobox"]')
+    if ((await combobox.count()) > 0) {
+      await combobox.click()
+    } else {
+      await addProviderSelect.click()
+    }
+
+    // Select the provider from the MUI menu
+    const option = page.locator('.MuiMenuItem-root', { hasText: providerName })
+    await expect(option.first()).toBeVisible({ timeout: 5_000 })
+    await option.first().click()
 
     // Provider should now appear in the linked list (local state, no API call)
     const linkedItem = page.locator('.MuiListItem-root').filter({ has: page.locator('button') })
@@ -262,7 +261,6 @@ test.describe.serial('Sandbox Provider Auth', () => {
         projectId: ctx.projectId,
         config: {
           image: 'node:22-slim',
-          sshEnabled: true,
           runtime: 'claude-code',
           runtimeCommand: 'claude',
         },
@@ -358,9 +356,9 @@ test.describe.serial('Sandbox Provider Auth', () => {
 
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
-    // Expand Providers accordion
+    // Expand AI Providers accordion
     const provAccordion = page.locator('.MuiAccordionSummary-root', {
-      hasText: 'Providers',
+      hasText: 'AI Providers',
     })
     await provAccordion.click()
 

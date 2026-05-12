@@ -14,7 +14,7 @@ export const stopSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { podName, force, stopAll } = req.body
+    const { instanceId, force, stopAll } = req.body
 
     const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
@@ -25,10 +25,10 @@ export const stopSandbox: TEndpointConfig = {
     if (!userId) throw new Exception(401, `Authenticated user required`)
 
     if (stopAll) {
-      const activePods = await sb.findActivePods(sandbox.id, sandbox.orgId)
+      const activeInstances = await sb.findActiveInstances(sandbox.id, sandbox.orgId)
 
       if (!force) {
-        const otherSessions = activePods.flatMap((p: string) =>
+        const otherSessions = activeInstances.flatMap((p: string) =>
           sb.getSessions(p).filter((s) => s.userId !== userId)
         )
         if (otherSessions.length > 0) {
@@ -44,14 +44,14 @@ export const stopSandbox: TEndpointConfig = {
       }
 
       const results = await Promise.allSettled(
-        activePods.map((p: string) => sb.gracefulStopPod(p, sandbox.id))
+        activeInstances.map((p: string) => sb.gracefulStopPod(p, sandbox.id))
       )
       const failed: string[] = []
       for (let i = 0; i < results.length; i++) {
         if (results[i].status === `rejected`) {
-          failed.push(activePods[i])
+          failed.push(activeInstances[i])
           logger.error(
-            `[Sandbox] stopAll: failed to stop pod ${activePods[i]}:`,
+            `[Sandbox] stopAll: failed to stop instance ${activeInstances[i]}:`,
             (results[i] as PromiseRejectedResult).reason?.message
           )
         }
@@ -60,18 +60,18 @@ export const stopSandbox: TEndpointConfig = {
       res.status(200).json({
         data: {
           success: failed.length === 0,
-          stoppedCount: activePods.length - failed.length,
-          ...(failed.length > 0 && { failedPods: failed }),
+          stoppedCount: activeInstances.length - failed.length,
+          ...(failed.length > 0 && { failedInstances: failed }),
         },
       })
       return
     }
 
-    if (!podName) throw new Exception(400, `podName is required`)
+    if (!instanceId) throw new Exception(400, `instanceId is required`)
 
-    await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
+    await sb.validateInstanceOwnership(instanceId, sandbox.orgId, req.params.projectId)
 
-    const activeSessions = sb.getSessions(podName).filter((s) => s.userId !== userId)
+    const activeSessions = sb.getSessions(instanceId).filter((s) => s.userId !== userId)
     if (activeSessions.length > 0 && !force) {
       res.status(409).json({
         error: { message: `Active sessions exist`, code: `ACTIVE_SESSIONS` },
@@ -80,7 +80,7 @@ export const stopSandbox: TEndpointConfig = {
       return
     }
 
-    await sb.gracefulStopPod(podName, sandbox.id)
+    await sb.gracefulStopPod(instanceId, sandbox.id)
 
     res.status(200).json({ data: { success: true } })
   },

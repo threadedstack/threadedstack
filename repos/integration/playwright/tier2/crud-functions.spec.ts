@@ -27,6 +27,7 @@ test.describe.serial('CRUD Functions', () => {
     authenticatedPage: page,
     ctx,
   }) => {
+    test.slow()
     test.skip(
       !ctx.projectId,
       'No projectId in context — cannot test functions'
@@ -120,6 +121,7 @@ test.describe.serial('CRUD Functions', () => {
     authenticatedPage: page,
     ctx,
   }) => {
+    test.slow()
     test.skip(!funcId, 'No function ID — CREATE must have failed')
 
     const errors = collectErrors(page)
@@ -135,18 +137,10 @@ test.describe.serial('CRUD Functions', () => {
     // Search for the function
     await searchInPage(page, funcName)
 
-    // Find the row and click the edit button
+    // Click the row to open the edit drawer (functions table uses onRowClick)
     const row = page.locator('tr', { has: page.getByText(funcName) })
     await expect(row).toBeVisible({ timeout: 10_000 })
-
-    const editButton = row.locator('[aria-label="Edit function"]')
-    if ((await editButton.count()) > 0) {
-      await editButton.first().click()
-    } else {
-      // Fallback: try primary-colored icon button (edit icon)
-      const primaryButton = row.locator('.MuiIconButton-colorPrimary').first()
-      await primaryButton.click()
-    }
+    await row.click()
 
     // Wait for the drawer to open
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })

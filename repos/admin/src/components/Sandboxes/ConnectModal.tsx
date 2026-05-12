@@ -102,8 +102,8 @@ export const ConnectModal = (props: TConnectModal) => {
           </Alert>
         )}
 
-        {/* Pod Info */}
-        {connectData?.podName && (
+        {/* Instance Info */}
+        {connectData?.instanceId && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <Chip
               label='Running'
@@ -115,7 +115,7 @@ export const ConnectModal = (props: TConnectModal) => {
               variant='caption'
               color='text.secondary'
             >
-              Pod: {connectData.podName}
+              Instance: {connectData.instanceId}
             </Typography>
           </Box>
         )}
@@ -299,7 +299,7 @@ export const ConnectModal = (props: TConnectModal) => {
           color='error'
           onClick={onStop}
           variant='outlined'
-          disabled={stopping || !connectData?.podName}
+          disabled={stopping || !connectData?.instanceId}
           startIcon={stopping ? <CircularProgress size={14} /> : undefined}
         >
           {stopping ? 'Stopping...' : 'Stop Sandbox'}

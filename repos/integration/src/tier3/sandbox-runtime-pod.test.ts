@@ -18,7 +18,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
 
   let customSandboxId = ''
@@ -62,9 +62,9 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
 
       const connRes = await connectSandbox(ctx.orgId, projectId, sandboxId)
       if (!connRes.ok) { setupFailed = true; return }
-      podName = connRes.data.podName
+      instanceId = connRes.data.instanceId
 
-      await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
     } catch (err) {
       console.error('[sandbox-runtime-pod] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -72,9 +72,9 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
-    if (customSandboxId) await cleanupSandbox(ctx.orgId, { sandboxId: customSandboxId, podName: customPodName, projectId })
-    if (noRuntimeSandboxId) await cleanupSandbox(ctx.orgId, { sandboxId: noRuntimeSandboxId, podName: noRuntimePodName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
+    if (customSandboxId) await cleanupSandbox(ctx.orgId, { sandboxId: customSandboxId, instanceId: customPodName, projectId })
+    if (noRuntimeSandboxId) await cleanupSandbox(ctx.orgId, { sandboxId: noRuntimeSandboxId, instanceId: noRuntimePodName, projectId })
   })
 
   // --- Runtime env var injection ---
@@ -82,7 +82,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod has TDSK_RUNTIME env var set', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME"')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'sh -c "echo $TDSK_RUNTIME"')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -92,7 +92,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod has TDSK_RUNTIME_CMD env var set', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME_CMD"')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'sh -c "echo $TDSK_RUNTIME_CMD"')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -102,7 +102,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod environment includes both runtime vars', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'env')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId, 'env')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -144,7 +144,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
 
     const connRes = await connectSandbox(ctx.orgId, projectId, customSandboxId)
     expect(connRes.ok).toBe(true)
-    customPodName = connRes.data.podName
+    customPodName = connRes.data.instanceId
 
     await waitForPodState(ctx.orgId, projectId, customSandboxId, customPodName, 'Running', 90_000)
 
@@ -183,7 +183,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
 
     const connRes = await connectSandbox(ctx.orgId, projectId, noRuntimeSandboxId)
     expect(connRes.ok).toBe(true)
-    noRuntimePodName = connRes.data.podName
+    noRuntimePodName = connRes.data.instanceId
 
     await waitForPodState(ctx.orgId, projectId, noRuntimeSandboxId, noRuntimePodName, 'Running', 90_000)
 

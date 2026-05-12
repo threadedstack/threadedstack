@@ -46,12 +46,12 @@ test.describe('Project Pages', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
 
-    // ProjectWorkspace renders quick actions and sandbox/thread panels
-    await expect(page.getByRole('button', { name: /New Sandbox/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Connect/i })).toBeVisible()
-    await expect(page.getByText('Recent Threads')).toBeVisible()
+    // Project page renders the project name heading and Sandboxes section
+    await expect(page.locator('h1').first()).toBeVisible()
+    await expect(page.getByText('Sandboxes').first()).toBeVisible()
+    await expect(page.getByText('Quick Actions').first()).toBeVisible()
 
     // Verify the page contains project-related content
     expect(page.url()).toContain(`/orgs/${ctx.orgId}/projects/${ctx.projectId}`)

@@ -17,3 +17,17 @@ export const SandboxOptions: TTaskOptions = {
     alias: [`projectId`, `p`],
   },
 }
+
+export const InstanceOptions: TTaskOptions = {
+  instance: {
+    example: `--instance abc123`,
+    alias: [`instanceId`, `inst`],
+    description: `Instance ID or suffix`,
+  },
+  new: {
+    alias: [`n`],
+    type: `bool`,
+    example: `--new`,
+    description: `Start a new instance`,
+  },
+}

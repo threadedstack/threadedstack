@@ -26,26 +26,26 @@ export const listInstances: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    const activePods = await sb.findActivePods(sandbox.id, sandbox.orgId)
+    const activeInstances = await sb.findActiveInstances(sandbox.id, sandbox.orgId)
     const allPods = await sb.listPods({ orgId: sandbox.orgId })
     const podsByName = new Map(allPods.map((p: any) => [p.metadata?.name, p]))
 
     const instances = await Promise.all(
-      activePods.map(async (podName: string) => {
+      activeInstances.map(async (instanceId: string) => {
         let state: EContainerState
         try {
-          state = await sb.getPodState(podName)
+          state = await sb.getPodState(instanceId)
         } catch {
           state = EContainerState.Unknown
         }
-        const sessions = sb.getSessions(podName)
-        const pod = podsByName.get(podName)
+        const sessions = sb.getSessions(instanceId)
+        const pod = podsByName.get(instanceId)
         const userId = pod?.metadata?.labels?.[PodLabelKeys.userId] ?? ``
 
         return {
           state,
           userId,
-          podName,
+          instanceId,
           sandboxId: sandbox.id,
           sessionCount: sessions.length,
           sessions: sessions.map((s: any) => ({

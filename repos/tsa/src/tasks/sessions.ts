@@ -5,13 +5,14 @@ import WebSocket from 'ws'
 import { themed } from '@TSA/theme'
 import { EShellMsg } from '@tdsk/domain'
 import { ApiClient } from '@TSA/services/api'
-import { SandboxOptions } from '@TSA/constants/options'
 import { ShellConnectMsgs } from '@TSA/constants/shell'
 import { ensureAuth } from '@TSA/utils/tasks/ensureAuth'
 import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveContext } from '@TSA/utils/tasks/resolveContext'
 import { resolveSessionId } from '@TSA/utils/tasks/resolveSessionId'
 import { connectAndAttach } from '@TSA/utils/tasks/connectAndAttach'
+import { resolveInstanceId } from '@TSA/utils/tasks/resolveInstanceId'
+import { SandboxOptions, InstanceOptions } from '@TSA/constants/options'
 
 const resolveSessionSandbox = async (
   client: ApiClient,
@@ -63,7 +64,8 @@ const changeVisibility = async (
   const { data: connectData, error: connectErr } = await client.connectSandbox(
     orgId,
     projectId,
-    resolved.sandboxId
+    resolved.sandboxId,
+    { instanceId: resolved.session.instanceId }
   )
   if (connectErr || !connectData?.shellToken) {
     process.stderr.write(
@@ -73,7 +75,7 @@ const changeVisibility = async (
   }
 
   const wsBase = client.proxyUrl.replace(/^https:/, `wss:`).replace(/^http:/, `ws:`)
-  const wsUrl = `${wsBase}/_/sandboxes/${resolved.sandboxId}/shell?sessionId=${sessionId}`
+  const wsUrl = `${wsBase}/_/sandboxes/${resolved.sandboxId}/shell?sessionId=${sessionId}&instanceId=${resolved.session.instanceId}`
   const bearerToken = creds?.apiKey || connectData.shellToken || creds?.token
   if (!bearerToken) {
     process.stderr.write(
@@ -180,25 +182,41 @@ export const sessions: TTask = {
           `\n${themed(`bold`, `Sessions for sandbox ${ctx.sandboxId}`)} (${list.length} active)\n\n`
         )
 
+        const grouped = new Map<string, typeof list>()
+        for (const s of list) {
+          const key = s.instanceId || `unknown`
+          if (!grouped.has(key)) grouped.set(key, [])
+          grouped.get(key)!.push(s)
+        }
+
         const idW = 16
         const ownerW = 20
         const visW = 10
-        process.stdout.write(
-          `  ${'ID'.padEnd(idW)} ${'Owner'.padEnd(ownerW)} ${'Visibility'.padEnd(visW)} Connected\n`
-        )
-        process.stdout.write(
-          `  ${'─'.repeat(idW)} ${'─'.repeat(ownerW)} ${'─'.repeat(visW)} ${'─'.repeat(20)}\n`
-        )
 
-        for (const s of list) {
-          const id = s.sessionId.slice(0, 14).padEnd(idW)
-          const owner = s.userId.slice(0, 18).padEnd(ownerW)
-          const vis = s.visibility.padEnd(visW)
+        for (const [instId, sessions] of grouped) {
+          if (grouped.size > 1) {
+            process.stdout.write(
+              `  ${themed(`primary`, `Instance:`)} ${instId.slice(-16)}\n`
+            )
+          }
+
           process.stdout.write(
-            `  ${themed(`muted`, id)} ${owner} ${vis} ${themed(`muted`, s.connectedAt)}\n`
+            `  ${'ID'.padEnd(idW)} ${'Owner'.padEnd(ownerW)} ${'Visibility'.padEnd(visW)} Connected\n`
           )
+          process.stdout.write(
+            `  ${'─'.repeat(idW)} ${'─'.repeat(ownerW)} ${'─'.repeat(visW)} ${'─'.repeat(20)}\n`
+          )
+
+          for (const s of sessions) {
+            const id = s.sessionId.slice(0, 14).padEnd(idW)
+            const owner = s.userId.slice(0, 18).padEnd(ownerW)
+            const vis = s.visibility.padEnd(visW)
+            process.stdout.write(
+              `  ${themed(`muted`, id)} ${owner} ${vis} ${themed(`muted`, s.connectedAt)}\n`
+            )
+          }
+          process.stdout.write(`\n`)
         }
-        process.stdout.write(`\n`)
       }),
     },
     start: {
@@ -206,7 +224,7 @@ export const sessions: TTask = {
       alias: [`new`],
       description: `Start a new plain shell session`,
       example: `tsa sessions start <sandbox-id>`,
-      options: { ...SandboxOptions },
+      options: { ...SandboxOptions, ...InstanceOptions },
       action: ensureAuth(async ({ params, auth, config, options }) => {
         const sandboxIdInput = (params.sandbox || options?.[0]) as string | undefined
         if (!sandboxIdInput) {
@@ -223,6 +241,23 @@ export const sessions: TTask = {
           explicitSandbox: sandboxIdInput,
         })
 
+        let instanceOpts: { instanceId?: string; newInstance?: boolean } | undefined
+        try {
+          instanceOpts = await resolveInstanceId(
+            client,
+            ctx.orgId,
+            ctx.projectId,
+            ctx.sandboxId,
+            {
+              explicitInstance: params.instance as string | undefined,
+              forceNew: params.new as boolean | undefined,
+            }
+          )
+        } catch (err) {
+          process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+          process.exit(1)
+        }
+
         try {
           await connectAndAttach({
             client,
@@ -230,6 +265,7 @@ export const sessions: TTask = {
             orgId: ctx.orgId,
             projectId: ctx.projectId,
             sandboxId: ctx.sandboxId,
+            instanceOpts,
             run: false,
           })
         } catch (err) {
@@ -261,7 +297,29 @@ export const sessions: TTask = {
         })
 
         let sandboxId = params.sandbox as string | undefined
-        if (!sandboxId) {
+        let sessionInstanceId: string | undefined
+
+        if (sandboxId) {
+          const { data: sessions, error: sessError } = await client.getSandboxSessions(
+            base.orgId,
+            base.projectId,
+            sandboxId
+          )
+          if (sessError) {
+            process.stderr.write(
+              `${themed(`error`, `Error:`)} Failed to fetch sessions for sandbox ${sandboxId}: ${sessError.message}\n`
+            )
+            process.exit(1)
+          }
+          const match = sessions?.find((s) => s.sessionId === sessionId)
+          if (match) {
+            sessionInstanceId = match.instanceId
+          } else {
+            process.stderr.write(
+              `${themed(`warning`, `Warning:`)} Session ${sessionId} not found in sandbox ${sandboxId} — server will pick an instance\n`
+            )
+          }
+        } else {
           const result = await resolveSessionSandbox(
             client,
             base.orgId,
@@ -275,6 +333,7 @@ export const sessions: TTask = {
             process.exit(1)
           }
           sandboxId = result.sandboxId
+          sessionInstanceId = result.session.instanceId
         }
 
         if (config) saveContext(config, base.orgId, base.projectId, sandboxId)
@@ -287,6 +346,7 @@ export const sessions: TTask = {
             projectId: base.projectId,
             sandboxId,
             sessionId,
+            ...(sessionInstanceId && { instanceOpts: { instanceId: sessionInstanceId } }),
           })
         } catch (err) {
           process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)

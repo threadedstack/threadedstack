@@ -9,7 +9,7 @@
     "test": "pnpm test:api",
     "test:all": "pnpm test:api && pnpm test:ui",
     "test:api": "vitest run --config configs/vitest.config.ts",
-    "test:ui": "playwright test --config configs/playwright.config.ts",
+    "test:ui": "NODE_OPTIONS='--experimental-transform-types' playwright test --config configs/playwright.config.ts",
     "types": "tsc --noEmit --pretty"
   },
   "dependencies": {

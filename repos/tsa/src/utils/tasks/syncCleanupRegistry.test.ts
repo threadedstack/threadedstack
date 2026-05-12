@@ -52,6 +52,21 @@ describe(`syncCleanupRegistry`, () => {
     expect(mockClient.terminateSession).toHaveBeenCalledWith(`s1`)
   })
 
+  it(`passes instanceId to stopAll when registered with one`, async () => {
+    registerSyncCleanup(`sb_1`, manager, `inst-42`)
+    await runSyncCleanup()
+    expect(mockClient.listSessions).toHaveBeenCalledWith({
+      sandboxId: `sb_1`,
+      instanceId: `inst-42`,
+    })
+  })
+
+  it(`omits instanceId from stopAll when registered without one`, async () => {
+    registerSyncCleanup(`sb_1`, manager)
+    await runSyncCleanup()
+    expect(mockClient.listSessions).toHaveBeenCalledWith({ sandboxId: `sb_1` })
+  })
+
   it(`clearSyncCleanup prevents subsequent runSyncCleanup from acting`, async () => {
     registerSyncCleanup(`sb_1`, manager)
     clearSyncCleanup()

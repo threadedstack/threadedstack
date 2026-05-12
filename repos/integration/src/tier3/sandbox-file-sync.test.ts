@@ -56,7 +56,7 @@ describe('Tier 3: Sandbox File Sync', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
   let localDir = ''
   let previousTsaConfig: string | null = null
@@ -122,10 +122,10 @@ describe('Tier 3: Sandbox File Sync', () => {
       // Connect — starts pod, returns connection info
       const connectRes = await connectSandbox(ctx.orgId, projectId, sandboxId)
       if (!connectRes.ok) { setupFailed = true; return }
-      podName = connectRes.data.podName
+      instanceId = connectRes.data.instanceId
 
       // Wait for pod to be fully Running
-      await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
 
       // Integration tests use execInPod (test utility) rather than ApiClient.injectSshKey
       // because the test framework authenticates differently. The shell command mirrors
@@ -133,7 +133,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       const publicKey = getPublicKey()
       const escaped = publicKey.replace(/'/g, `'\\''`)
       const sshKeyRes = await execInPod(
-        ctx.orgId, projectId, sandboxId, podName,
+        ctx.orgId, projectId, sandboxId, instanceId,
         `mkdir -p /home/sandbox/.ssh && echo '${escaped}' > /home/sandbox/.ssh/authorized_keys && chmod 700 /home/sandbox/.ssh && chmod 600 /home/sandbox/.ssh/authorized_keys && chown -R sandbox:sandbox /home/sandbox/.ssh`
       )
     } catch (err) {
@@ -157,7 +157,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     }
 
     // Clean up K8s resources
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── SSH Config ─────────────────────────────────────────────────
@@ -241,7 +241,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     await new Promise(r => setTimeout(r, 10_000))
 
     const helloRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/synced/hello.txt'
     )
     expect(helloRes.status).toBe(200)
@@ -249,7 +249,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     expect(helloRes.data.output.trim()).toBe('hello from sync test')
 
     const jsonRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/synced/data.json'
     )
     expect(jsonRes.status).toBe(200)
@@ -257,7 +257,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     expect(JSON.parse(jsonRes.data.output.trim())).toEqual({ key: 'value' })
 
     const nestedRes = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/synced/subdir/nested.txt'
     )
     expect(nestedRes.status).toBe(200)
@@ -269,7 +269,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'test -e /workspace/synced/ignored.tmp && echo exists || echo missing'
     )
     expect(res.status).toBe(200)
@@ -284,7 +284,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     await new Promise(r => setTimeout(r, 10_000))
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/synced/hello.txt'
     )
     expect(res.status).toBe(200)
@@ -300,7 +300,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     await new Promise(r => setTimeout(r, 10_000))
 
     const res = await execInPod(
-      ctx.orgId, projectId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, instanceId,
       'cat /workspace/synced/newfile.txt'
     )
     expect(res.status).toBe(200)

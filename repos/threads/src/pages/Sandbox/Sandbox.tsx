@@ -83,7 +83,7 @@ const Sandbox = () => {
   }, [fetchInstances])
 
   const onStart = useCallback(
-    async (sessionId?: string | null, podName?: string, newInstance?: boolean) => {
+    async (sessionId?: string | null, instanceId?: string, newInstance?: boolean) => {
       if (!sandboxId || !resolvedOrgId || !projectId) return
       setConnecting(true)
       try {
@@ -92,7 +92,7 @@ const Sandbox = () => {
           projectId,
           orgId: resolvedOrgId,
           sessionId: sessionId ?? null,
-          ...(podName ? { podName } : {}),
+          ...(instanceId ? { instanceId } : {}),
           ...(newInstance ? { newInstance: true } : {}),
         })
 
@@ -168,7 +168,9 @@ const Sandbox = () => {
         {instances.length > 0 && (
           <Box sx={{ mb: 3 }}>
             {instances.map((instance, idx) => {
-              const instSessions = sessions.filter((s) => s.podName === instance.podName)
+              const instSessions = sessions.filter(
+                (s) => s.instanceId === instance.instanceId
+              )
               const myInstSessions = instSessions.filter((s) => s.userId === user?.id)
               const sharedInstSessions = instSessions.filter(
                 (s) => s.userId !== user?.id && s.visibility === `public`
@@ -176,7 +178,7 @@ const Sandbox = () => {
 
               return (
                 <Box
-                  key={instance.podName}
+                  key={instance.instanceId}
                   sx={{ mb: 3 }}
                 >
                   <Box sx={{ display: `flex`, alignItems: `center`, gap: 1, mb: 1 }}>
@@ -195,7 +197,7 @@ const Sandbox = () => {
                       variant='caption'
                       color='text.secondary'
                     >
-                      ({instance.podName.slice(-8)})
+                      ({instance.instanceId.slice(-8)})
                     </Typography>
                     <Chip
                       size='small'
@@ -220,7 +222,7 @@ const Sandbox = () => {
                                     state: { sandboxId, projectId },
                                   })
                                 : canExecSandbox
-                                  ? onStart(s.sessionId, instance.podName)
+                                  ? onStart(s.sessionId, instance.instanceId)
                                   : undefined
                             }
                             disabled={!isOpen && !canExecSandbox}
@@ -263,7 +265,7 @@ const Sandbox = () => {
                         <CardActionArea
                           onClick={() =>
                             canExecSandbox
-                              ? onStart(s.sessionId, instance.podName)
+                              ? onStart(s.sessionId, instance.instanceId)
                               : undefined
                           }
                           disabled={!canExecSandbox}
@@ -301,7 +303,7 @@ const Sandbox = () => {
                         size='small'
                         variant='text'
                         startIcon={<Add />}
-                        onClick={() => onStart(null, instance.podName)}
+                        onClick={() => onStart(null, instance.instanceId)}
                       >
                         New Session
                       </Button>

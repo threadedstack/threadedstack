@@ -1,8 +1,8 @@
-import type { TOpenSession, TClassifiedSession } from '@TTH/types'
 import type { TSandboxSession } from '@tdsk/domain'
+import type { TOpenSession, TClassifiedSession } from '@TTH/types'
 
-import { ESandboxSessionVisibility } from '@tdsk/domain'
 import { sandboxApi } from '@TTH/services/sandboxApi'
+import { ESandboxSessionVisibility } from '@tdsk/domain'
 
 export type TLoadSandboxSessionsOpts = {
   orgId: string
@@ -28,7 +28,7 @@ export const classifySessions = (
   for (const s of backendSessions) {
     const isOwn = s.userId === currentUserId
     const isConnected = localIds.has(s.sessionId)
-    const { orgId: _org, podName: _pod, ...fields } = s
+    const { orgId: _org, instanceId: _inst, ...fields } = s
 
     if (isOwn) {
       classified.push({
@@ -48,13 +48,13 @@ export const classifySessions = (
   for (const local of localSessions) {
     if (!backendIds.has(local.sessionId)) {
       classified.push({
-        userId: currentUserId ?? ``,
-        sessionId: local.sessionId,
-        sandboxId: local.sandboxId,
-        connectedAt: new Date().toISOString(),
-        visibility: local.visibility,
         category: `connected`,
         hasShellSession: true,
+        sessionId: local.sessionId,
+        sandboxId: local.sandboxId,
+        userId: currentUserId ?? ``,
+        visibility: local.visibility,
+        connectedAt: new Date().toISOString(),
       })
     }
   }

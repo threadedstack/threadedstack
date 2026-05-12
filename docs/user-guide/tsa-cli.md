@@ -123,19 +123,53 @@ These are invoked from your shell as `tsa <command>`.
 | `tsa sandboxes` | `sb` | List available sandbox configs | Yes |
 | `tsa ssh <sandbox-id>` | — | SSH into a running sandbox (plain shell) | Yes |
 | `tsa sync <sandbox-id>` | `sy` | Start file sync with a sandbox | Yes |
-| `tsa sessions <sandbox-id>` | `session` | List active sessions for a sandbox | Yes |
+| `tsa sync stop <sandbox-id>` | — | Stop file sync for a sandbox instance | Yes |
+| `tsa sync status [sandbox-id]` | — | Show sync status (grouped by instance) | Yes |
+| `tsa sync flush <sandbox-id>` | — | Trigger immediate sync for an instance | Yes |
+| `tsa sessions list <sandbox-id>` | `session` | List active sessions (grouped by instance) | Yes |
+| `tsa sessions start <sandbox-id>` | — | Start a new session on a sandbox instance | Yes |
 | `tsa sessions connect <id>` | `join`, `attach` | Attach to an existing session | Yes |
 | `tsa sessions share [<id>]` | -- | Make a session public | Yes |
 | `tsa sessions unshare [<id>]` | -- | Make a session private | Yes |
+| `tsa proxy <sandbox-id> [instance-id]` | — | Internal SSH ProxyCommand (accepts optional instance ID) | Yes |
 
 **`tsa run` flags:**
 
-| Flag | Description |
-|------|-------------|
-| `--list` | List available sandboxes with name, runtime, and ID |
-| `--no-sync` | Skip automatic file synchronization |
-| `--new` | Skip session discovery and always create a new session |
-| `--org <id>` | Specify organization (auto-detects if only one) |
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--list` | — | List available sandboxes with name, runtime, and ID |
+| `--no-sync` | — | Skip automatic file synchronization |
+| `--new` | `-n` | Force creation of a new instance (skips session discovery) |
+| `--instance <id>` | `--instanceId`, `--inst` | Select a specific running instance |
+| `--org <id>` | — | Specify organization (auto-detects if only one) |
+
+**`tsa ssh` flags:**
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--instance <id>` | `--instanceId`, `--inst` | Select a specific instance for SSH connection |
+| `--new` | `-n` | Start a new instance before connecting |
+
+**`tsa sessions` flags:**
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--instance <id>` | `--instanceId`, `--inst` | Target a specific instance (`start` subcommand) |
+| `--new` | `-n` | Start a new instance for the session (`start` subcommand) |
+
+<Note>
+
+`tsa sessions connect <session-id>` auto-detects the correct instance from session metadata — no `--instance` flag needed.
+
+</Note>
+
+**`tsa sync` flags:**
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--instance <id>` | `--instanceId`, `--inst` | Target a specific instance for sync operations |
+| `--new` | `-n` | Start sync on a new instance |
+| `--all` | — | Stop sync for all instances of a sandbox (`stop` subcommand only) |
 
 **Agent commands:**
 
@@ -169,8 +203,32 @@ tsa run <sandbox-id>
 # Start without file sync
 tsa run <sandbox-id> --no-sync
 
+# Force a new instance (skip instance selection prompt)
+tsa run <sandbox-id> --new
+
+# Connect to a specific instance by ID (suffix match)
+tsa run <sandbox-id> --instance abc123
+
 # SSH into a sandbox without launching the AI tool
 tsa ssh <sandbox-id>
+
+# SSH into a specific instance
+tsa ssh <sandbox-id> --instance abc123
+
+# Start file sync on a new instance
+tsa sync <sandbox-id> --new
+
+# Stop sync for a specific instance
+tsa sync stop <sandbox-id> --instance abc123
+
+# Stop sync for all instances of a sandbox
+tsa sync stop <sandbox-id> --all
+
+# Show sync status grouped by instance
+tsa sync status
+
+# List sessions grouped by instance
+tsa sessions list <sandbox-id>
 
 # List agents in your org
 tsa agents
@@ -188,10 +246,16 @@ Sessions are persistent PTY connections to sandbox pods. Multiple clients (CLI a
 
 ### Reconnecting to sessions
 
-When you run `tsa run <sandbox-id>`, the CLI checks for existing sessions. If it finds one, it prompts you to reconnect rather than creating a new session. Use `--new` to skip the prompt:
+When you run `tsa run <sandbox-id>`, the CLI first resolves the target instance (see [Multi-Instance Support](#multi-instance-support)), then checks for existing sessions on that instance. If it finds one, it prompts you to reconnect rather than creating a new session. Use `--new` to skip the prompt and create a new instance:
 
 ```bash
 tsa run <sandbox-id> --new
+```
+
+To reconnect to a session on a specific instance:
+
+```bash
+tsa run <sandbox-id> --instance <id>
 ```
 
 ### Listing sessions
@@ -200,7 +264,7 @@ tsa run <sandbox-id> --new
 tsa sessions list <sandbox-id>
 ```
 
-Displays each session's ID, owner, visibility (`private` or `public`), and connection time.
+Displays each session's ID, owner, visibility (`private` or `public`), connection time, and instance. Sessions are grouped by instance when multiple instances are running.
 
 ### Joining a shared session
 
@@ -208,7 +272,7 @@ Displays each session's ID, owner, visibility (`private` or `public`), and conne
 tsa sessions connect <session-id>
 ```
 
-The sandbox is auto-resolved. The server validates that the session is public and that you have sandbox exec permission.
+The sandbox and instance are auto-resolved from session metadata. The server validates that the session is public and that you have sandbox exec permission.
 
 ### Sharing and unsharing
 
@@ -230,6 +294,63 @@ Detaching closes your local connection without killing the server-side PTY. Othe
 - **`~.`** -- Type tilde then period immediately after pressing Enter (SSH-style escape sequence).
 
 After detaching, the session enters a 5-minute idle window. If no one reconnects within 5 minutes, the session is cleaned up. The sandbox pod remains running independently.
+
+## Multi-Instance Support
+
+A single sandbox configuration can have multiple running instances simultaneously. Each instance is an independent pod with its own SSH sessions, file sync, and lifecycle. This lets you run parallel workstreams against the same sandbox preset without interference.
+
+### Instance resolution
+
+When you run a sandbox command (`tsa run`, `tsa ssh`, `tsa sync`, `tsa sessions start`), the CLI resolves which instance to target using the following rules:
+
+| Condition | Behavior |
+|-----------|----------|
+| `--new` flag provided | Always creates a new instance |
+| `--instance <id>` provided | Matches by suffix (exact or tail match); errors if the suffix is ambiguous |
+| No instances running | Server creates a default instance automatically |
+| One instance running | Auto-selects it and prints a notification |
+| Multiple instances running (TTY) | Prompts an interactive picker to select an instance or create a new one |
+| Multiple instances running (non-TTY) | Requires explicit `--instance` or `--new`; exits with an error otherwise |
+
+<Tip>
+
+The `--instance` flag supports suffix matching. If your instance ID is `inst_a1b2c3d4e5f6`, you can target it with `--instance e5f6` as long as the suffix is unambiguous across running instances.
+
+</Tip>
+
+### Instance-aware commands
+
+All sandbox commands are instance-aware:
+
+- **`tsa run`** and **`tsa ssh`** resolve a single instance before connecting.
+- **`tsa sessions list`** groups sessions by instance, showing which instance each session belongs to.
+- **`tsa sessions connect`** auto-detects the instance from session metadata — no `--instance` flag required.
+- **`tsa sync start`** and **`tsa sync stop`** target a specific instance. Use `--all` with `stop` to halt sync across every instance of a sandbox.
+- **`tsa sync status`** displays sync state grouped by instance.
+- **`tsa sync flush`** triggers an immediate sync cycle for a specific instance.
+- **`tsa proxy`** accepts an optional positional instance ID (`tsa proxy <sandbox-id> [instance-id]`) for use as an SSH `ProxyCommand`.
+
+### Examples
+
+```bash
+# Start a sandbox — if multiple instances exist, you'll be prompted to pick one
+tsa run sb_abc123
+
+# Force a fresh instance regardless of how many are already running
+tsa run sb_abc123 --new
+
+# Connect to the instance whose ID ends with "d4e5"
+tsa ssh sb_abc123 --instance d4e5
+
+# List all sessions across all instances of a sandbox
+tsa sessions list sb_abc123
+
+# Start sync targeting a specific instance
+tsa sync sb_abc123 --instance d4e5
+
+# Stop sync for every instance of a sandbox
+tsa sync stop sb_abc123 --all
+```
 
 ## Interactive Chat
 

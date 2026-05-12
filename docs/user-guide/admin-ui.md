@@ -337,6 +337,78 @@ The sandbox drawer contains the following fields:
 **Ports**
 - Configure exposed ports with protocol (TCP/UDP)
 
+### Instance Status
+
+The sandbox list and detail views show the number of active instances per sandbox configuration. An instance count badge appears next to each sandbox name when one or more instances are running, giving administrators a quick overview of which sandboxes are in use.
+
+The sandbox list displays an instance count badge next to each sandbox name:
+
+```
+┌─────────────────────────────────────────────────┐
+│ Sandbox          │ Runtime      │ Instances     │
+├─────────────────────────────────────────────────┤
+│ Claude Code      │ claude-code  │ ●● 2 running  │
+│ Codex            │ codex        │ ● 1 running   │
+│ OpenCode         │ opencode     │ — none        │
+│ Base             │ custom       │ — none        │
+└─────────────────────────────────────────────────┘
+```
+
+Sandboxes with running instances show filled dots (one per instance) alongside the count. Sandboxes with no active instances show a dash. The badge updates in real time as instances start or stop.
+
+### Connect Modal
+
+When connecting to a sandbox, a modal dialog appears with the following behavior:
+
+- **No running instances** -- The modal shows a confirmation to start a new instance. Clicking **Connect** creates the instance and opens a session.
+- **One or more running instances** -- The modal lists each running instance with its `instanceId`, state, and session count. The user can select an existing instance to join, or click **New Instance** to start an additional one.
+- **Instance selection is required** when multiple instances are running -- the user must choose which instance to connect to before a session is opened.
+
+The modal layout is organized into three areas:
+
+- **Header** -- Shows the sandbox name and runtime badge at the top of the modal.
+- **Instance list** -- Each running instance appears as a selectable row displaying the truncated `instanceId`, a color-coded state label (green for Running, yellow for Pending), and the number of active sessions. Clicking a row highlights it as the selected instance.
+- **Action bar** -- At the bottom of the modal, a **Connect** button opens a session on the selected instance. A **New Instance** button starts an additional pod. When no instances exist, only a single **Connect** button is shown, which starts a new instance and immediately opens a session.
+
+```
+┌──────────────────────────────────────┐
+│  Connect to: Claude Code             │
+├──────────────────────────────────────┤
+│  ● tdsk-sb-abc-x7k9  Running  2s     │
+│  ● tdsk-sb-abc-m3p2  Running  1s     │
+├──────────────────────────────────────┤
+│  [ New Instance ]       [ Connect ]  │
+└──────────────────────────────────────┘
+```
+
+In the instance list, "2s" and "1s" are shorthand for the active session count on that instance.
+
+The following diagram illustrates the connect modal decision flow:
+
+```mermaid
+flowchart TD
+    A[User clicks Connect] --> B{Running instances?}
+    B -->|None| C[Start new instance]
+    B -->|One| D[Connect to existing]
+    B -->|Multiple| E[Show instance list]
+    E --> F{User choice}
+    F -->|Select instance| D
+    F -->|New instance| G{Under maxInstances?}
+    G -->|Yes| C
+    G -->|No| H[Show limit error]
+    C --> I[Waiting for pod...]
+    D --> I
+    I --> J[Connected - show credentials]
+```
+
+### Stop Controls
+
+Administrators can stop sandbox instances from the sandbox detail view or the connect modal:
+
+- **Stop a single instance** -- Terminates the selected instance's pod and disconnects all sessions on that instance.
+- **Stop all instances** -- Terminates every running instance of the sandbox configuration at once.
+- **Active session protection** -- Stopping is blocked if other users have active sessions on the instance, unless the administrator force-stops the instance. A confirmation dialog warns about affected sessions before a force-stop proceeds.
+
 ### Copying a Sandbox
 
 Click the **copy** button on any sandbox row to create a duplicate. The copy gets a new ID and `builtIn: false`. All configuration is preserved. This is the recommended way to customize built-in presets.

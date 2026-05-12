@@ -95,7 +95,7 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let shellToken = ''
   let setupFailed = false
 
@@ -151,7 +151,7 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
         console.error('[sandbox-shell] Failed to connect:', connectRes.status, (connectRes as any).error)
         setupFailed = true; return
       }
-      podName = connectRes.data.podName
+      instanceId = connectRes.data.instanceId
       shellToken = connectRes.data.shellToken || ''
     } catch (err) {
       console.error('[sandbox-shell] Setup failed:', (err as Error).message)
@@ -169,7 +169,7 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
   })
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── Auth ───────────────────────────────────────────────────────────
@@ -419,10 +419,10 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
   test('connect endpoint returns shellToken in response', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Re-connect to the existing running pod — must specify podName for multi-instance support
+    // Re-connect to the existing running pod — must specify instanceId for multi-instance support
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      { podName }
+      { instanceId }
     )
 
     expect(res.status).toBe(200)

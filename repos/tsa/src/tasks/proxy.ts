@@ -16,8 +16,9 @@ export const proxy: TTask = {
   options: {},
   action: async ({ auth, options }) => {
     const sandboxId = options?.[0]
+    const instanceId = options?.[1] as string | undefined
     if (!sandboxId) {
-      process.stderr.write(`Usage: tsa proxy <sandbox-id>\n`)
+      process.stderr.write(`Usage: tsa proxy <sandbox-id> [instance-id]\n`)
       process.exit(1)
     }
 
@@ -28,7 +29,9 @@ export const proxy: TTask = {
     }
 
     const wsUrl = creds.proxyUrl.replace(/^https:/, `wss:`).replace(/^http:/, `ws:`)
-    const tunnelUrl = `${wsUrl}/_/sandboxes/${sandboxId}/tunnel`
+    const tunnelTarget = new URL(`${wsUrl}/_/sandboxes/${sandboxId}/tunnel`)
+    if (instanceId) tunnelTarget.searchParams.set(`instanceId`, instanceId)
+    const tunnelUrl = tunnelTarget.toString()
     const bearerToken = creds.apiKey || process.env.TDSK_TUNNEL_TOKEN || creds.token
 
     const ws = new WebSocket(tunnelUrl, {

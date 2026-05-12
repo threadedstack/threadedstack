@@ -97,6 +97,54 @@ describe(`SyncManager`, () => {
 
       expect(mockClient.createSession).not.toHaveBeenCalled()
     })
+
+    it(`includes instanceId in labels and compound SSH host when provided`, async () => {
+      ;(mockClient.listSessions as any).mockResolvedValue([])
+      const rules: TSyncRule[] = [
+        { name: `app`, source: `/src`, target: `/workspace/src` },
+      ]
+
+      await manager.startAll(
+        `sb_abc`,
+        `org_1`,
+        rules,
+        undefined,
+        undefined,
+        undefined,
+        `inst-1`
+      )
+
+      const call = (mockClient.createSession as any).mock.calls[0][0]
+      expect(call.labels).toEqual({
+        sandboxId: `sb_abc`,
+        ruleName: `app`,
+        orgId: `org_1`,
+        instanceId: `inst-1`,
+      })
+      expect(call.sandboxId).toBe(`sb_abc--inst-1`)
+    })
+
+    it(`filters existing sessions by instanceId when provided`, async () => {
+      ;(mockClient.listSessions as any).mockResolvedValue([])
+      const rules: TSyncRule[] = [
+        { name: `app`, source: `/src`, target: `/workspace/src` },
+      ]
+
+      await manager.startAll(
+        `sb_abc`,
+        `org_1`,
+        rules,
+        undefined,
+        undefined,
+        undefined,
+        `inst-1`
+      )
+
+      expect(mockClient.listSessions).toHaveBeenCalledWith({
+        sandboxId: `sb_abc`,
+        instanceId: `inst-1`,
+      })
+    })
   })
 
   describe(`stopAll`, () => {
@@ -118,6 +166,24 @@ describe(`SyncManager`, () => {
       ;(mockClient.listSessions as any).mockResolvedValue([])
       await manager.stopAll(`sb_abc`)
       expect(mockClient.terminateSession).not.toHaveBeenCalled()
+    })
+
+    it(`filters by instanceId when provided`, async () => {
+      ;(mockClient.listSessions as any).mockResolvedValue([
+        {
+          id: `sess-1`,
+          name: `app`,
+          labels: { sandboxId: `sb_abc`, instanceId: `inst-1` },
+        },
+      ])
+
+      await manager.stopAll(`sb_abc`, `inst-1`)
+
+      expect(mockClient.listSessions).toHaveBeenCalledWith({
+        sandboxId: `sb_abc`,
+        instanceId: `inst-1`,
+      })
+      expect(mockClient.terminateSession).toHaveBeenCalledWith(`sess-1`)
     })
 
     it(`aggregates errors when some sessions fail to terminate`, async () => {
@@ -164,6 +230,24 @@ describe(`SyncManager`, () => {
       )
       expect(mockClient.flushSession).toHaveBeenCalledTimes(2)
     })
+
+    it(`filters by instanceId when provided`, async () => {
+      ;(mockClient.listSessions as any).mockResolvedValue([
+        {
+          id: `sess-1`,
+          name: `app`,
+          labels: { sandboxId: `sb_abc`, instanceId: `inst-1` },
+        },
+      ])
+
+      await manager.flushAll(`sb_abc`, `inst-1`)
+
+      expect(mockClient.listSessions).toHaveBeenCalledWith({
+        sandboxId: `sb_abc`,
+        instanceId: `inst-1`,
+      })
+      expect(mockClient.flushSession).toHaveBeenCalledWith(`sess-1`)
+    })
   })
 
   describe(`status`, () => {
@@ -177,6 +261,15 @@ describe(`SyncManager`, () => {
       ;(mockClient.listSessions as any).mockResolvedValue([])
       await manager.status()
       expect(mockClient.listSessions).toHaveBeenCalledWith(undefined)
+    })
+
+    it(`filters by both sandboxId and instanceId when provided`, async () => {
+      ;(mockClient.listSessions as any).mockResolvedValue([])
+      await manager.status(`sb_abc`, `inst-1`)
+      expect(mockClient.listSessions).toHaveBeenCalledWith({
+        sandboxId: `sb_abc`,
+        instanceId: `inst-1`,
+      })
     })
   })
 })

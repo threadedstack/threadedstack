@@ -29,7 +29,7 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
   let projectId = ''
   let secretId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let setupFailed = false
   let placeholders: Record<string, { secretId: string; allowedDomains?: string[] }> = {}
 
@@ -71,16 +71,16 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
       if (!sbRes.ok) throw new Error(`Failed to create sandbox: HTTP ${sbRes.status}`)
       sandboxId = sbRes.data.id
 
-      const startRes = await post<{ podName: string }>(
+      const startRes = await post<{ instanceId: string }>(
         `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
         {}
       )
       if (!startRes.ok) throw new Error(`Failed to start pod: HTTP ${startRes.status} ${JSON.stringify((startRes as any).error)}`)
-      podName = startRes.data.podName
+      instanceId = startRes.data.instanceId
 
-      await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
 
-      placeholders = getPodPlaceholders(podName)
+      placeholders = getPodPlaceholders(instanceId)
     } catch (err) {
       console.error('[sandbox-secret-injection] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -88,11 +88,11 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
   }, 120_000)
 
   afterAll(async () => {
-    if (podName && sandboxId) {
+    if (instanceId && sandboxId) {
       try {
         await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
           method: 'DELETE',
-          body: { podName },
+          body: { instanceId },
         })
       } catch { /* best-effort */ }
     }
@@ -155,11 +155,11 @@ req.on('error', (e) => { console.error(e.message); process.exit(1); });
 req.end();
 `
     const escaped = script.replace(/'/g, "'\\''").trim()
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${escaped}' > /tmp/test-secret-inject.js`
     )
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'node /tmp/test-secret-inject.js'
     )
 
@@ -205,11 +205,11 @@ req.on('error', (e) => { console.error(e.message); process.exit(1); });
 req.end();
 `
     const escaped = script.replace(/'/g, "'\\''").trim()
-    await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       `printf '%s' '${escaped}' > /tmp/test-passthrough.js`
     )
 
-    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, instanceId,
       'node /tmp/test-passthrough.js'
     )
 
@@ -302,12 +302,12 @@ req.end();
         domainSandboxId = sbRes.data.id
 
         // Start pod
-        const startRes = await post<{ podName: string }>(
+        const startRes = await post<{ instanceId: string }>(
           `/orgs/${ctx.orgId}/projects/${domainProjectId}/sandboxes/${domainSandboxId}/start`,
           {}
         )
         if (!startRes.ok) throw new Error(`Pod start: HTTP ${startRes.status}`)
-        domainPodName = startRes.data.podName
+        domainPodName = startRes.data.instanceId
 
         await waitForPodState(ctx.orgId, domainProjectId, domainSandboxId, domainPodName, 'Running', 90_000)
         domainPlaceholders = getPodPlaceholders(domainPodName)
@@ -322,7 +322,7 @@ req.end();
         try {
           await api(`/orgs/${ctx.orgId}/projects/${domainProjectId}/sandboxes/${domainSandboxId}/stop`, {
             method: 'DELETE',
-            body: { podName: domainPodName },
+            body: { instanceId: domainPodName },
           })
         } catch { /* best-effort */ }
       }
@@ -465,12 +465,12 @@ req.end();
           if (!sbRes.ok) throw new Error(`Sandbox create: HTTP ${sbRes.status}`)
           blockedSandboxId = sbRes.data.id
 
-          const startRes = await post<{ podName: string }>(
+          const startRes = await post<{ instanceId: string }>(
             `/orgs/${ctx.orgId}/projects/${blockedProjectId}/sandboxes/${blockedSandboxId}/start`,
             {}
           )
           if (!startRes.ok) throw new Error(`Pod start: HTTP ${startRes.status}`)
-          blockedPodName = startRes.data.podName
+          blockedPodName = startRes.data.instanceId
 
           await waitForPodState(ctx.orgId, blockedProjectId, blockedSandboxId, blockedPodName, 'Running', 90_000)
           blockedPlaceholders = getPodPlaceholders(blockedPodName)
@@ -485,7 +485,7 @@ req.end();
           try {
             await api(`/orgs/${ctx.orgId}/projects/${blockedProjectId}/sandboxes/${blockedSandboxId}/stop`, {
               method: 'DELETE',
-              body: { podName: blockedPodName },
+              body: { instanceId: blockedPodName },
             })
           } catch { /* best-effort */ }
         }

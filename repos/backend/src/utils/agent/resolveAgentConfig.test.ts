@@ -382,8 +382,8 @@ describe(`resolveAgentConfig`, () => {
 
   // ── K8s sandbox paths ───────────────────────────────────────────
 
-  it(`should set sandbox podName from environment when provided`, async () => {
-    const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes`, podName: `my-pod` }
+  it(`should set sandbox options from environment instanceId when provided`, async () => {
+    const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes`, instanceId: `my-pod` }
     const agent = buildMockAgent({ environment: k8sEnv })
     const db = buildMockDb(agent)
     mockResolveAgentDeps.mockResolvedValueOnce({
@@ -429,7 +429,7 @@ describe(`resolveAgentConfig`, () => {
     expect(result.sandboxConfig.options).toEqual({ podName: `started-pod-name` })
   })
 
-  it(`should throw 503 when K8s sandbox has no podName and no sandbox service`, async () => {
+  it(`should throw 503 when K8s sandbox has no instanceId and no sandbox service`, async () => {
     const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes` }
     const agent = buildMockAgent({ environment: k8sEnv })
     const db = buildMockDb(agent)

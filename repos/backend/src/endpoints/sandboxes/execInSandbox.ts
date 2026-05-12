@@ -18,18 +18,18 @@ export const execInSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { command, args, podName } = req.body
+    const { command, args, instanceId } = req.body
 
     if (!command) throw new Exception(400, `command is required`)
-    if (!podName) throw new Exception(400, `podName is required`)
+    if (!instanceId) throw new Exception(400, `instanceId is required`)
 
     const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
-    const sbInstance = await sb.getSandbox(podName)
+    await sb.validateInstanceOwnership(instanceId, sandbox.orgId, req.params.projectId)
+    const sbInstance = await sb.getSandbox(instanceId)
     const result = await sbInstance.exec(command, args)
 
     res.status(200).json({ data: result })

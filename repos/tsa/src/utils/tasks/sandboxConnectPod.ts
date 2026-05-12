@@ -1,5 +1,6 @@
 import type { TSandboxConnectResponse } from '@tdsk/domain'
 import type { ApiClient } from '@TSA/services/api'
+import type { TInstanceResolution } from '@TSA/types'
 
 import { themed } from '@TSA/theme'
 
@@ -7,7 +8,8 @@ export const sandboxConnectPod = async (
   client: ApiClient,
   orgId: string,
   projectId: string,
-  sandboxIdOrAlias: string
+  sandboxIdOrAlias: string,
+  instanceOpts?: TInstanceResolution
 ): Promise<TSandboxConnectResponse> => {
   process.stdout.write(
     `${themed(`muted`, `Connecting to sandbox "${sandboxIdOrAlias}"...`)}\n`
@@ -16,12 +18,13 @@ export const sandboxConnectPod = async (
   const { data: connectResp, error } = await client.connectSandbox(
     orgId,
     projectId,
-    sandboxIdOrAlias
+    sandboxIdOrAlias,
+    instanceOpts
   )
   if (error || !connectResp)
     throw new Error(error?.message || `Failed to connect to sandbox`)
 
-  if (!connectResp.podName) throw new Error(`No pod name returned from server`)
+  if (!connectResp.instanceId) throw new Error(`No instance ID returned from server`)
   if (!connectResp.sandboxId)
     throw new Error(`Server did not return a resolved sandbox ID`)
 

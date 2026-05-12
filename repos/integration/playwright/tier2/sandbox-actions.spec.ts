@@ -73,7 +73,7 @@ test.describe.serial('Sandbox Table Actions', () => {
     )
 
     await searchInPage(page, testSandboxName)
-    await expect(page.getByText(testSandboxName)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(testSandboxName).first()).toBeVisible({ timeout: 10_000 })
 
     // Find the row and click the copy button (ContentCopy icon)
     const row = page.locator('tr', { has: page.getByText(testSandboxName, { exact: true }) })
@@ -179,7 +179,7 @@ test.describe.serial('Sandbox Table Actions', () => {
 
     // Drawer should open with correct title and sandbox data
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Edit Sandbox Config')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Edit Project Sandbox')).toBeVisible({ timeout: 5_000 })
     await expect(page.locator('#sandbox-name')).toHaveValue(testSandboxName)
 
     expect(errors).toEqual([])

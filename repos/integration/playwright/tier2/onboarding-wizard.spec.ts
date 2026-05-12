@@ -39,7 +39,8 @@ test.describe('Onboarding Wizard', () => {
     await expect(page.locator('.MuiDialog-root')).toBeVisible()
 
     // The wizard should show "Setup Wizard" title in the stepper panel
-    await expect(page.getByText('Setup Wizard')).toBeVisible()
+    // Scope to the dialog to avoid matching the "Setup Wizard" button on the home page
+    await expect(page.locator('.MuiDialog-root').getByText('Setup Wizard').first()).toBeVisible()
 
     expect(errors).toEqual([])
   })
@@ -66,7 +67,9 @@ test.describe('Onboarding Wizard', () => {
     }
 
     // Step labels: Organization, Provider, Project, Sandbox, Review
-    await expect(page.getByText('Organization', { exact: false })).toBeVisible()
+    // Scope to the dialog to avoid matching other "Organization" text on the page
+    const wizardDialog = page.locator('.MuiDialog-root')
+    await expect(wizardDialog.getByText('Organization', { exact: false }).first()).toBeVisible()
     await expect(page.getByText('Review')).toBeVisible()
 
     expect(errors).toEqual([])
@@ -92,13 +95,13 @@ test.describe('Onboarding Wizard', () => {
       return
     }
 
-    // Back button should be disabled on first step
-    const backButton = page.getByRole('button', { name: /Back/i })
+    const wizardDialog = page.locator('.MuiDialog-root')
+    const backButton = wizardDialog.getByRole('button', { name: /^Back$/i }).last()
     await expect(backButton).toBeVisible()
     await expect(backButton).toBeDisabled()
 
     // Next button should be visible
-    const nextButton = page.getByRole('button', { name: /Next/i })
+    const nextButton = wizardDialog.getByRole('button', { name: /Next/i })
     await expect(nextButton).toBeVisible()
 
     expect(errors).toEqual([])

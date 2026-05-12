@@ -237,7 +237,7 @@ test.describe('Text Rendering - Literal Quotes Detection', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
 
     // Check section headings for literal quotes
     const sandboxesHeading = page.getByText('Sandboxes').first()
@@ -246,17 +246,18 @@ test.describe('Text Rendering - Literal Quotes Detection', () => {
     expect(headingText?.trim()).not.toMatch(/^"/)
     expect(headingText?.trim()).not.toMatch(/"$/)
 
-    const threadsHeading = page.getByText('Recent Threads').first()
-    await expect(threadsHeading).toBeVisible()
-    const threadsText = await threadsHeading.textContent()
-    expect(threadsText?.trim()).not.toMatch(/^"/)
-    expect(threadsText?.trim()).not.toMatch(/"$/)
+    const quickActionsHeading = page.getByText('Quick Actions').first()
+    await expect(quickActionsHeading).toBeVisible()
+    const quickActionsText = await quickActionsHeading.textContent()
+    expect(quickActionsText?.trim()).not.toMatch(/^"/)
+    expect(quickActionsText?.trim()).not.toMatch(/"$/)
 
-    // Check button labels for literal quotes
-    const newSandboxBtn = page.getByRole('button', { name: /New Sandbox/i })
-    await expect(newSandboxBtn).toBeVisible()
-    const btnText = await newSandboxBtn.textContent()
-    expect(btnText?.trim()).not.toMatch(/^"/)
-    expect(btnText?.trim()).not.toMatch(/"$/)
+    // Check button labels for literal quotes — "View All" button in the Sandboxes panel
+    // or any navigation button in the Quick Actions area
+    const projectInfoHeading = page.getByText('Project Information').first()
+    await expect(projectInfoHeading).toBeVisible()
+    const infoText = await projectInfoHeading.textContent()
+    expect(infoText?.trim()).not.toMatch(/^"/)
+    expect(infoText?.trim()).not.toMatch(/"$/)
   })
 })

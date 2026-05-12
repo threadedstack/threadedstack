@@ -13,9 +13,9 @@ export const getSandboxStatus: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const podName = req.query.podName as string
+    const instanceId = req.query.instanceId as string
 
-    if (!podName) throw new Exception(400, `podName query parameter is required`)
+    if (!instanceId) throw new Exception(400, `instanceId query parameter is required`)
 
     const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
@@ -23,17 +23,17 @@ export const getSandboxStatus: TEndpointConfig = {
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
     try {
-      await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
+      await sb.validateInstanceOwnership(instanceId, sandbox.orgId, req.params.projectId)
     } catch (err) {
       if (err instanceof Exception && err.status === 404) {
-        res.status(200).json({ data: { podName, state: EContainerState.Failed } })
+        res.status(200).json({ data: { instanceId, state: EContainerState.Failed } })
         return
       }
       throw err
     }
 
-    const state = await sb.getPodState(podName)
+    const state = await sb.getPodState(instanceId)
 
-    res.status(200).json({ data: { podName, state } })
+    res.status(200).json({ data: { instanceId, state } })
   },
 }

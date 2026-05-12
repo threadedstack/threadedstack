@@ -107,25 +107,22 @@ test.describe('Sub-Navigation', () => {
   test('clicking Project rail section navigates to project root route', async ({
     authenticatedPage: page, ctx,
   }) => {
-    // Start on a nested project page (e.g. endpoints)
+    // Start on a nested project page (e.g. endpoints) where the Project rail item is visible
     await gotoAndWait(
       page,
       `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`,
       'tdsk-project-endpoints-page'
     )
 
-    // First switch to Org section so Project section is not active (Home=0, Org=1, Project=2)
+    // The Project rail section is visible when on a project page (Home=0, Org=1, Project=2)
+    // Click it directly from the project sub-page to navigate to the project root
     const navRail = page.locator('.tdsk-icon-rail')
-    const orgItem = navRail.locator('.tdsk-rail-item').nth(1)
-    await orgItem.click()
-    await expect(page.locator('.tdsk-org-page')).toBeVisible({ timeout: 10000 })
-
-    // Now click the Project section (Home=0, Org=1, Project=2)
     const projectItem = navRail.locator('.tdsk-rail-item').nth(2)
+    await expect(projectItem).toBeVisible({ timeout: 5000 })
     await projectItem.click()
 
     // Should navigate to the project root route
-    await expect(page.locator('.tdsk-project-workspace-page')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('.tdsk-project-page')).toBeVisible({ timeout: 10000 })
     expect(page.url()).toContain(`/orgs/${ctx.orgId}/projects/${ctx.projectId}`)
     // Should be at the project root, not a sub-page
     expect(page.url()).not.toContain('/endpoints')

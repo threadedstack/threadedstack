@@ -14,11 +14,11 @@ import {
 } from '../utils/crud-helpers'
 
 const PAGE_CLASS = 'tdsk-project-sandboxes-page'
-const FORM_ID = 'sandbox-form'
+const FORM_ID = 'project-sandbox-form'
 
 /**
  * Tests for sandbox runtime configuration fields in the SandboxDrawer:
- *   - Runtime dropdown (claude-code, codex, opencode, gemini-cli, custom)
+ *   - Preset dropdown (claude-code, codex, opencode, gemini-cli, custom) — field id: sandbox-preset
  *   - Runtime Command field (disabled for preset, editable for custom)
  *   - Init Script editor (pre-filled for presets, editable for custom)
  *   - Runtime + command persistence in edit mode
@@ -30,7 +30,7 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     test.skip(!ctx.projectId, 'No projectId in context — cannot test sandbox drawer')
   })
 
-  test('Runtime dropdown defaults to claude-code', async ({
+  test('Preset dropdown defaults to claude-code (Claude Code label)', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -44,12 +44,12 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     await openDrawer(page, /Create Sandbox/i)
 
     // MUI SelectInput renders a hidden input with the value
-    const runtimeInput = page.locator('#sandbox-runtime-type')
-    await expect(runtimeInput).toBeAttached({ timeout: 5_000 })
+    const presetInput = page.locator('#sandbox-preset')
+    await expect(presetInput).toBeAttached({ timeout: 5_000 })
 
     // The visible text should show "Claude Code" as the default
-    const runtimeParent = runtimeInput.locator('xpath=..')
-    await expect(runtimeParent).toContainText('Claude Code', { timeout: 5_000 })
+    const presetParent = presetInput.locator('xpath=..')
+    await expect(presetParent).toContainText('Claude Code', { timeout: 5_000 })
 
     expect(errors).toEqual([])
   })
@@ -79,7 +79,7 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     expect(errors).toEqual([])
   })
 
-  test('Selecting custom runtime enables command field', async ({
+  test('Selecting custom preset enables command field', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -92,8 +92,8 @@ test.describe.serial('Sandbox Runtime Fields', () => {
 
     await openDrawer(page, /Create Sandbox/i)
 
-    // Switch to custom runtime
-    await selectOption(page, 'sandbox-runtime-type', 'Custom')
+    // Switch to custom preset
+    await selectOption(page, 'sandbox-preset', 'Custom')
 
     // Runtime command should now be enabled
     const cmdInput = page.locator('#sandbox-runtime-command')
@@ -109,7 +109,7 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     expect(errors).toEqual([])
   })
 
-  test('Init Script section is visible with preset label', async ({
+  test('Init Script section is visible in the Sandbox accordion', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -122,17 +122,17 @@ test.describe.serial('Sandbox Runtime Fields', () => {
 
     await openDrawer(page, /Create Sandbox/i)
 
-    // Init Script label should be visible
+    // Init Script label should be visible within the Sandbox accordion
     const initScriptLabel = page.getByText('Init Script')
     await expect(initScriptLabel.first()).toBeVisible({ timeout: 5_000 })
 
-    // With a preset runtime, should show "pre-filled from X preset"
-    await expect(page.getByText(/pre-filled from/i).first()).toBeVisible({ timeout: 5_000 })
+    // In project context, the helper text says "(appended to org init script)"
+    await expect(page.getByText(/appended to org init script/i).first()).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toEqual([])
   })
 
-  test('Switching runtime changes the helper text', async ({
+  test('Switching preset changes the command field helper text', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -146,14 +146,13 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     await openDrawer(page, /Create Sandbox/i)
 
     // Default is claude-code — the helper text below the command field mentions it
-    // MUI renders helperText as a <p> sibling of the input wrapper
     const cmdField = page.locator('#sandbox-runtime-command')
     await expect(cmdField).toBeAttached({ timeout: 5_000 })
     const helperText = cmdField.locator('xpath=ancestor::div[contains(@class,"MuiFormControl")]').locator('p')
     await expect(helperText).toContainText('Claude Code', { timeout: 5_000 })
 
     // Switch to Codex
-    await selectOption(page, 'sandbox-runtime-type', 'Codex')
+    await selectOption(page, 'sandbox-preset', 'Codex')
 
     // Helper text should now mention Codex
     await expect(helperText).toContainText('Codex', { timeout: 5_000 })
@@ -161,7 +160,7 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     expect(errors).toEqual([])
   })
 
-  test('CREATE with custom runtime persists fields', async ({
+  test('CREATE with custom preset persists fields', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -179,10 +178,14 @@ test.describe.serial('Sandbox Runtime Fields', () => {
 
     // Fill basic fields
     await fillField(page, 'sandbox-name', sandboxName)
-    await fillField(page, 'sandbox-image', 'node:22-slim')
 
-    // Select custom runtime
-    await selectOption(page, 'sandbox-runtime-type', 'Custom')
+    // Select custom preset — enables command field and shows image field
+    await selectOption(page, 'sandbox-preset', 'Custom')
+
+    // Expand Container accordion to fill image field (required for custom)
+    const containerAccordion = page.locator('.MuiAccordionSummary-root', { hasText: /^Container$/ })
+    await containerAccordion.click()
+    await fillField(page, 'sandbox-image', 'node:22-slim')
 
     // Fill custom runtime command
     await fillField(page, 'sandbox-runtime-command', 'my-ai-agent')
@@ -205,9 +208,9 @@ test.describe.serial('Sandbox Runtime Fields', () => {
 
     // Open edit drawer and verify persistence
     await searchInPage(page, sandboxName)
-    await expect(page.getByText(sandboxName)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(sandboxName).first()).toBeVisible({ timeout: 10_000 })
 
-    const row = page.locator('tr', { has: page.getByText(sandboxName) })
+    const row = page.locator('tr', { has: page.getByText(sandboxName).first() })
     const editButton = row.locator('button').filter({ has: page.locator('[data-testid="EditIcon"]') })
     if ((await editButton.count()) > 0) {
       await editButton.first().click()
@@ -216,11 +219,11 @@ test.describe.serial('Sandbox Runtime Fields', () => {
     }
 
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Edit Sandbox Config')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Edit Project Sandbox')).toBeVisible({ timeout: 5_000 })
 
-    // Verify runtime is "Custom"
-    const editRuntimeParent = page.locator('#sandbox-runtime-type').locator('xpath=..')
-    await expect(editRuntimeParent).toContainText('Custom', { timeout: 5_000 })
+    // Verify preset is "Custom"
+    const editPresetParent = page.locator('#sandbox-preset').locator('xpath=..')
+    await expect(editPresetParent).toContainText('Custom', { timeout: 5_000 })
 
     // Verify runtime command is editable and has the value
     const editCmdInput = page.locator('#sandbox-runtime-command')

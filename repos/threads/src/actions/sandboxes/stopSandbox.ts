@@ -19,6 +19,7 @@ export const stopSandbox = async (
 
   if (stopAll) {
     const resp = await sandboxApi.stop(orgId, projectId, sandboxId, ``, force, true)
+
     if (resp.error?.status === 409) {
       const body = resp.error?.details as Record<string, any> | undefined
       return { stopped: false, activeSessions: body?.data?.activeSessions ?? [] }
@@ -29,20 +30,29 @@ export const stopSandbox = async (
 
   const sessions = getSessionsForSandbox(sandboxId)
 
-  let podName = sessions[0]?.podName
-  if (!podName) {
+  let instanceId = sessions[0]?.instanceId
+  if (!instanceId) {
     const { data: remoteSessions, error: sessError } = await sandboxApi.sessions(
       orgId,
       projectId,
       sandboxId
     )
+
     if (sessError)
       throw new Error(`Failed to check sandbox sessions: ${sessError.message}`)
-    podName = remoteSessions?.[0]?.podName
-    if (!podName) return { stopped: false, activeSessions: [] }
+
+    instanceId = remoteSessions?.[0]?.instanceId
+    if (!instanceId) return { stopped: false, activeSessions: [] }
   }
 
-  const resp = await sandboxApi.stop(orgId, projectId, sandboxId, podName, force, stopAll)
+  const resp = await sandboxApi.stop(
+    orgId,
+    projectId,
+    sandboxId,
+    instanceId,
+    force,
+    stopAll
+  )
 
   if (resp.error?.status === 409) {
     const body = resp.error?.details as Record<string, any> | undefined

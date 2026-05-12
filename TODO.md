@@ -108,4 +108,22 @@ Items are split into separate groups, with the sub repo name as the header.
   * Is this an issue? Something that we should be concerned about? How do we fix it?
 
 
+## TSA
+
+* `sshConfig.ts`
+  * The ensureProxyWrapper function is brittle. Need to find a way to improve it
+  * tsa ssh uses a key instead of a password. The key gets injected into the container
+    * Investigate better ways to handle this
+* Calling tsa commands with a session id, but no instance id
+  * Should auto-resolve the instance id with these steps
+    * It could use an existing endpoint, or create a new endpoint in backend
+    * Get a list of all running instances and their current session
+    * Loop through each and find a matching session id
+    * On found match return instance id
+    * **IMPORTANT** - Requires session ids to be unique across all running org instances
+      * If two instances have sessions with the same id, then this process will break
+      * Need to investigate if that's possible
+      * May need to update how instances and session ids are genreated to ensure they are unique
+
+
 ## Multi-Repo

@@ -67,8 +67,8 @@ export class SandboxService {
   private readonly ShellTtlMS = 5 * 60 * 1000
   private readonly RingBufferSize = 1024 * 1024
   private passwords = new Map<string, string>()
-  private podActivity = new Map<string, number>()
-  private startingPods = new Map<string, number>()
+  private instanceActivity = new Map<string, number>()
+  private startingInstances = new Map<string, number>()
   private dockerSecrets = new Map<string, string[]>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
@@ -142,10 +142,10 @@ export class SandboxService {
           SandboxService.removePodProxy(
             `${portEntry.protocol}://${portEntry.host}:${portEntry.port}`
           )
-        entry.meta?.podName && sandbox.cleanupPod(entry.meta.podName)
+        entry.meta?.podName && sandbox.cleanupInstance(entry.meta.podName)
       })
 
-      // Seed podActivity from hydrated pods so the idle timeout loop can
+      // Seed instanceActivity from hydrated pods so the idle timeout loop can
       // clean up pods that survived a backend restart with no active sessions.
       for (const entry of Object.values(kube.routes))
         if (entry.meta?.podName) sandbox.updateActivity(entry.meta.podName)
@@ -174,17 +174,17 @@ export class SandboxService {
     this.config = { ...DefSBConfig, ...config }
   }
 
-  async validatePodOwnership(
-    podName: string,
+  async validateInstanceOwnership(
+    instanceId: string,
     orgId: string,
     projectId?: string
   ): Promise<void> {
     let pod
     try {
-      pod = await this.kube.getPod(podName)
+      pod = await this.kube.getPod(instanceId)
     } catch (err: any) {
       const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode
-      if (code === 404) throw new Exception(404, `Pod ${podName} no longer exists`)
+      if (code === 404) throw new Exception(404, `Pod ${instanceId} no longer exists`)
       throw err
     }
     const podOrgId = pod.metadata?.labels?.[PodLabelKeys.orgId]
@@ -334,21 +334,21 @@ export class SandboxService {
       throw err
     }
 
-    const podName = pod.metadata?.name
-    if (!podName) {
+    const instanceId = pod.metadata?.name
+    if (!instanceId) {
       this.rollbackDockerSecrets(dockerSecretNames)
       throw new Error(`Pod created but metadata.name is missing for sandbox ${sandboxId}`)
     }
 
-    if (dockerSecretNames.length) this.dockerSecrets.set(podName, dockerSecretNames)
+    if (dockerSecretNames.length) this.dockerSecrets.set(instanceId, dockerSecretNames)
 
     const podUid = pod.metadata?.uid
-    if (dockerSecretNames.length && podName && podUid) {
+    if (dockerSecretNames.length && instanceId && podUid) {
       const ownerRef = [
         {
           kind: `Pod`,
           uid: podUid,
-          name: podName,
+          name: instanceId,
           apiVersion: `v1`,
           blockOwnerDeletion: false,
         },
@@ -376,95 +376,98 @@ export class SandboxService {
         )
     }
 
-    this.passwords.set(podName, sshPassword)
-    this.podActivity.set(podName, Date.now())
+    this.passwords.set(instanceId, sshPassword)
+    this.instanceActivity.set(instanceId, Date.now())
 
-    return podName
+    return instanceId
   }
 
-  getPassword(podName: string): string | undefined {
-    return this.passwords.get(podName)
+  getPassword(instanceId: string): string | undefined {
+    return this.passwords.get(instanceId)
   }
 
-  async recoverPassword(podName: string): Promise<string | undefined> {
-    const cached = this.passwords.get(podName)
+  async recoverPassword(instanceId: string): Promise<string | undefined> {
+    const cached = this.passwords.get(instanceId)
     if (cached) return cached
 
     try {
-      const result = await this.kube.runInPod(podName, [`printenv`, `TDSK_SSH_PASSWORD`])
+      const result = await this.kube.runInPod(instanceId, [
+        `printenv`,
+        `TDSK_SSH_PASSWORD`,
+      ])
       if (result.success && result.output) {
         const password = result.output.trim()
         if (!password) {
-          logger.warn(`[Sandbox] TDSK_SSH_PASSWORD is empty for ${podName}`)
+          logger.warn(`[Sandbox] TDSK_SSH_PASSWORD is empty for ${instanceId}`)
           return undefined
         }
-        this.passwords.set(podName, password)
+        this.passwords.set(instanceId, password)
         return password
       }
       logger.warn(
-        `[Sandbox] printenv returned non-success for ${podName}:`,
+        `[Sandbox] printenv returned non-success for ${instanceId}:`,
         result.error || `no output`
       )
     } catch (err) {
       logger.warn(
-        `[Sandbox] Failed to recover password for ${podName}:`,
+        `[Sandbox] Failed to recover password for ${instanceId}:`,
         (err as Error).message
       )
     }
     return undefined
   }
 
-  addSession(podName: string, session: TSandboxSession): void {
-    const list = (this.sessions.get(podName) || []).filter(
+  addSession(instanceId: string, session: TSandboxSession): void {
+    const list = (this.sessions.get(instanceId) || []).filter(
       (s) => s.sessionId !== session.sessionId
     )
     list.push(session)
-    this.sessions.set(podName, list)
-    this.podActivity.set(podName, Date.now())
+    this.sessions.set(instanceId, list)
+    this.instanceActivity.set(instanceId, Date.now())
   }
 
-  removeSession(podName: string, sessionId: string): void {
-    const list = this.sessions.get(podName) || []
+  removeSession(instanceId: string, sessionId: string): void {
+    const list = this.sessions.get(instanceId) || []
     this.sessions.set(
-      podName,
+      instanceId,
       list.filter((s) => s.sessionId !== sessionId)
     )
-    this.podActivity.set(podName, Date.now())
+    this.instanceActivity.set(instanceId, Date.now())
   }
 
-  getSessions(podName: string): TSandboxSession[] {
-    return this.sessions.get(podName) || []
+  getSessions(instanceId: string): TSandboxSession[] {
+    return this.sessions.get(instanceId) || []
   }
 
   getInstanceSessions(sandboxId: string): Map<string, TSandboxSession[]> {
     const result = new Map<string, TSandboxSession[]>()
-    for (const [podName, sessions] of this.sessions.entries()) {
+    for (const [instanceId, sessions] of this.sessions.entries()) {
       const sandboxSessions = sessions.filter((s) => s.sandboxId === sandboxId)
-      if (sandboxSessions.length > 0) result.set(podName, sandboxSessions)
+      if (sandboxSessions.length > 0) result.set(instanceId, sandboxSessions)
     }
     return result
   }
 
-  updateActivity(podName: string): void {
-    this.podActivity.set(podName, Date.now())
+  updateActivity(instanceId: string): void {
+    this.instanceActivity.set(instanceId, Date.now())
   }
 
-  async findRunningPod(
-    podName: string,
+  async findRunningInstance(
+    instanceId: string,
     orgId: string,
     sandboxId?: string
   ): Promise<string | undefined> {
     const pods = await this.listPods({ orgId, state: EContainerState.Running })
     const match = pods.find(
       (p) =>
-        p.metadata?.name === podName &&
+        p.metadata?.name === instanceId &&
         !p.metadata?.deletionTimestamp &&
         (!sandboxId || p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId)
     )
     return match?.metadata?.name
   }
 
-  async findRunningPods(sandboxId: string, orgId: string): Promise<string[]> {
+  async findRunningInstances(sandboxId: string, orgId: string): Promise<string[]> {
     const pods = await this.listPods({ orgId, state: EContainerState.Running })
     return pods
       .filter(
@@ -476,8 +479,8 @@ export class SandboxService {
       .map((p) => p.metadata!.name!)
   }
 
-  async findActivePod(
-    podName: string,
+  async findActiveInstance(
+    instanceId: string,
     orgId: string,
     sandboxId?: string
   ): Promise<string | undefined> {
@@ -485,7 +488,7 @@ export class SandboxService {
     const match = pods.find((p) => {
       const phase = p.status?.phase
       return (
-        p.metadata?.name === podName &&
+        p.metadata?.name === instanceId &&
         !p.metadata?.deletionTimestamp &&
         (phase === EContainerState.Running || phase === EContainerState.Pending) &&
         (!sandboxId || p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId)
@@ -494,7 +497,7 @@ export class SandboxService {
     return match?.metadata?.name
   }
 
-  async findActivePods(sandboxId: string, orgId: string): Promise<string[]> {
+  async findActiveInstances(sandboxId: string, orgId: string): Promise<string[]> {
     const pods = await this.listPods({ orgId })
     return pods
       .filter((p) => {
@@ -511,21 +514,24 @@ export class SandboxService {
   }
 
   isStarting(sandboxId: string): boolean {
-    return (this.startingPods.get(sandboxId) ?? 0) > 0
+    return (this.startingInstances.get(sandboxId) ?? 0) > 0
   }
 
   countStarting(sandboxId: string): number {
-    return this.startingPods.get(sandboxId) ?? 0
+    return this.startingInstances.get(sandboxId) ?? 0
   }
 
   markStarting(sandboxId: string): void {
-    this.startingPods.set(sandboxId, (this.startingPods.get(sandboxId) ?? 0) + 1)
+    this.startingInstances.set(
+      sandboxId,
+      (this.startingInstances.get(sandboxId) ?? 0) + 1
+    )
   }
 
   clearStarting(sandboxId: string): void {
-    const count = this.startingPods.get(sandboxId) ?? 0
-    if (count <= 1) this.startingPods.delete(sandboxId)
-    else this.startingPods.set(sandboxId, count - 1)
+    const count = this.startingInstances.get(sandboxId) ?? 0
+    if (count <= 1) this.startingInstances.delete(sandboxId)
+    else this.startingInstances.set(sandboxId, count - 1)
   }
 
   private rollbackDockerSecrets(names: string[]): void {
@@ -541,9 +547,9 @@ export class SandboxService {
     }
   }
 
-  cleanupPod(podName: string): void {
-    const podSessions = this.sessions.get(podName) || []
-    const sandboxIds = new Set(podSessions.map((s) => s.sandboxId))
+  cleanupInstance(instanceId: string): void {
+    const instanceSessions = this.sessions.get(instanceId) || []
+    const sandboxIds = new Set(instanceSessions.map((s) => s.sandboxId))
 
     for (const sandboxId of sandboxIds) {
       for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
@@ -551,7 +557,7 @@ export class SandboxService {
       }
     }
 
-    const dkrSecrets = this.dockerSecrets.get(podName)
+    const dkrSecrets = this.dockerSecrets.get(instanceId)
     if (dkrSecrets?.length) {
       Promise.allSettled(dkrSecrets.map((name) => this.kube.deleteSecret(name)))
         .then((results) => {
@@ -570,13 +576,13 @@ export class SandboxService {
           )
         )
         .finally(() => {
-          this.dockerSecrets.delete(podName)
+          this.dockerSecrets.delete(instanceId)
         })
     }
 
-    this.passwords.delete(podName)
-    this.sessions.delete(podName)
-    this.podActivity.delete(podName)
+    this.passwords.delete(instanceId)
+    this.sessions.delete(instanceId)
+    this.instanceActivity.delete(instanceId)
   }
 
   stopIdleTimeout(): void {
@@ -595,14 +601,14 @@ export class SandboxService {
       running = true
 
       try {
-        const entries = [...this.podActivity.entries()]
-        for (const [podName, lastActivity] of entries) {
-          const sessions = this.getSessions(podName)
+        const entries = [...this.instanceActivity.entries()]
+        for (const [instanceId, lastActivity] of entries) {
+          const sessions = this.getSessions(instanceId)
           if (sessions.length > 0) continue
 
           let timeoutMinutes = this.config.timeoutMin
           try {
-            const pod = await this.kube.getPod(podName)
+            const pod = await this.kube.getPod(instanceId)
             const sandboxId = pod.metadata?.labels?.[PodLabelKeys.sandboxId]
             if (sandboxId) {
               const { data: sb } = await this.db.services.sandbox.get(sandboxId)
@@ -620,21 +626,21 @@ export class SandboxService {
               (err as any)?.code
             if (status === 404) {
               logger.info(
-                `[Sandbox] Pod ${podName} no longer exists, cleaning up tracking`
+                `[Sandbox] Pod ${instanceId} no longer exists, cleaning up tracking`
               )
               try {
-                this.cleanupPod(podName)
+                this.cleanupInstance(instanceId)
               } catch (cleanupErr) {
                 logger.error(
-                  `[Sandbox] cleanupPod failed for pod ${podName}:`,
+                  `[Sandbox] cleanupInstance failed for pod ${instanceId}:`,
                   (cleanupErr as Error).message
                 )
-                this.podActivity.delete(podName)
+                this.instanceActivity.delete(instanceId)
               }
               continue
             }
             logger.warn(
-              `[Sandbox] Failed to resolve idle timeout config for pod ${podName}:`,
+              `[Sandbox] Failed to resolve idle timeout config for pod ${instanceId}:`,
               (err as Error).message
             )
           }
@@ -644,16 +650,16 @@ export class SandboxService {
 
           if (idleMs > timeoutMs) {
             logger.info(
-              `[Sandbox] Stopping idle pod: ${podName} (idle ${Math.round(idleMs / 60000)}m)`
+              `[Sandbox] Stopping idle pod: ${instanceId} (idle ${Math.round(idleMs / 60000)}m)`
             )
             try {
-              await this.stopPod(podName)
+              await this.stopPod(instanceId)
             } catch (err) {
               logger.warn(
-                `[Sandbox] Failed to stop idle pod ${podName}:`,
+                `[Sandbox] Failed to stop idle pod ${instanceId}:`,
                 (err as Error).message
               )
-              this.cleanupPod(podName)
+              this.cleanupInstance(instanceId)
             }
           }
         }
@@ -666,12 +672,12 @@ export class SandboxService {
   /**
    * Stop a pod (delete it from K8s)
    */
-  async stopPod(podName: string): Promise<void> {
-    await this.kube.deletePod(podName, 30)
-    this.cleanupPod(podName)
+  async stopPod(instanceId: string): Promise<void> {
+    await this.kube.deletePod(instanceId, 30)
+    this.cleanupInstance(instanceId)
   }
 
-  async gracefulStopPod(podName: string, sandboxId: string): Promise<void> {
+  async gracefulStopPod(instanceId: string, sandboxId: string): Promise<void> {
     try {
       this.notifyShellClients(sandboxId, { type: `sandbox-stopping`, sandboxId })
     } catch (err) {
@@ -680,16 +686,16 @@ export class SandboxService {
         (err as Error).message
       )
     }
-    await this.stopPod(podName)
+    await this.stopPod(instanceId)
   }
 
   /**
    * Get pod state from K8s.
    * Returns Failed for 404 (pod deleted/gone) to distinguish from truly unknown state.
    */
-  async getPodState(podName: string): Promise<EContainerState> {
+  async getPodState(instanceId: string): Promise<EContainerState> {
     try {
-      const pod = await this.kube.getPod(podName)
+      const pod = await this.kube.getPod(instanceId)
       if (pod.metadata?.deletionTimestamp) return EContainerState.Terminating
       return toContainerState(pod.status?.phase)
     } catch (err: any) {
@@ -704,13 +710,13 @@ export class SandboxService {
    * Get an ISandbox instance connected to an existing running pod
    * Used by AgentRunner for tool bridging
    */
-  async getSandbox(podName: string): Promise<ISandbox> {
-    const state = await this.getPodState(podName)
+  async getSandbox(instanceId: string): Promise<ISandbox> {
+    const state = await this.getPodState(instanceId)
     if (state !== EContainerState.Running) {
-      throw new Error(`Pod ${podName} is not running (state: ${state})`)
+      throw new Error(`Pod ${instanceId} is not running (state: ${state})`)
     }
 
-    return new KubeSandbox(this.kube, podName)
+    return new KubeSandbox(this.kube, instanceId)
   }
 
   /**
@@ -756,7 +762,7 @@ export class SandboxService {
 
     shell.visibility = visibility
 
-    for (const [podName, sessions] of this.sessions.entries()) {
+    for (const [instanceId, sessions] of this.sessions.entries()) {
       const match = sessions.find((s) => s.sessionId === sessionId)
       if (match) {
         match.visibility = visibility

@@ -3,13 +3,12 @@ import { spawn } from 'child_process'
 /**
  * Builds the ProxyCommand string for SSH to tunnel through `tsa proxy`.
  */
-export const buildProxyCommand = (sandboxId: string): string => {
+export const buildProxyCommand = (sandboxId: string, instanceId?: string): string => {
   const tsaBin = process.argv[0] || `tsa`
   const tsaScript = process.argv[1] || ``
+  const args = instanceId ? `${sandboxId} ${instanceId}` : sandboxId
 
-  return tsaScript
-    ? `${tsaBin} ${tsaScript} proxy ${sandboxId}`
-    : `${tsaBin} proxy ${sandboxId}`
+  return tsaScript ? `${tsaBin} ${tsaScript} proxy ${args}` : `${tsaBin} proxy ${args}`
 }
 
 /**
@@ -28,9 +27,10 @@ export const spawnSsh = async (
   sandboxId: string,
   remoteCommand?: string,
   shellToken?: string,
-  workdir?: string
+  workdir?: string,
+  instanceId?: string
 ): Promise<void> => {
-  const proxyCmd = buildProxyCommand(sandboxId)
+  const proxyCmd = buildProxyCommand(sandboxId, instanceId)
 
   const sshArgs = [
     `-o`,

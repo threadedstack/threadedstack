@@ -176,14 +176,11 @@ test.describe('Project workspace dashboard', () => {
   test('should display sandbox and thread panels on project workspace page', async ({
     authenticatedPage: page, ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
 
-    // ProjectWorkspace renders quick action buttons
-    await expect(page.getByRole('button', { name: /New Sandbox/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Connect/i })).toBeVisible()
-
-    // Recent Threads panel should be visible
-    await expect(page.getByText('Recent Threads')).toBeVisible()
+    // Project page renders quick actions and sandboxes section
+    await expect(page.getByText('Quick Actions').first()).toBeVisible()
+    await expect(page.getByText('Sandboxes').first()).toBeVisible()
   })
 })
 

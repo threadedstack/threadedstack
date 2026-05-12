@@ -19,8 +19,10 @@ export const listSessions: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    const runningPods = await sb.findRunningPods(sandbox.id, sandbox.orgId)
-    const sessions = runningPods.flatMap((podName: string) => sb.getSessions(podName))
+    const runningInstances = await sb.findRunningInstances(sandbox.id, sandbox.orgId)
+    const sessions = runningInstances.flatMap((instanceId: string) =>
+      sb.getSessions(instanceId)
+    )
 
     const enriched = sessions.map((s) => ({
       ...s,

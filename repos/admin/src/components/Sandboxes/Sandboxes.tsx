@@ -56,8 +56,8 @@ const styles = {
   },
 }
 
-type TPodStates = Record<string, TPodState[]>
-type TPodState = { podName: string; state: ESBState }
+type TInstanceStates = Record<string, TInstanceState[]>
+type TInstanceState = { instanceId: string; state: ESBState }
 
 export const Sandboxes = (props: TSandboxes) => {
   const { orgId, projectId } = props
@@ -69,7 +69,7 @@ export const Sandboxes = (props: TSandboxes) => {
   const [deleting, setDeleting] = useState<Sandbox>()
   const [error, setError] = useState<Error | null>(null)
   const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
-  const [podStates, setPodStates] = useState<TPodStates>({})
+  const [podStates, setPodStates] = useState<TInstanceStates>({})
   const [busySandboxes, setBusySandboxes] = useState<Set<string>>(new Set())
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
   const [connectSessions, setConnectSessions] = useState<TSandboxSession[]>([])
@@ -112,7 +112,7 @@ export const Sandboxes = (props: TSandboxes) => {
       ...prev,
       [sandbox.id]: [
         ...(prev[sandbox.id] || []),
-        { podName: ``, state: ESBState.Starting },
+        { instanceId: ``, state: ESBState.Starting },
       ],
     }))
 
@@ -126,18 +126,18 @@ export const Sandboxes = (props: TSandboxes) => {
     if (result.error) {
       setPodStates((prev) => ({
         ...prev,
-        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.podName !== ``),
+        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.instanceId !== ``),
       }))
       toast.error(`Failed to start sandbox: ${result.error.message}`)
       return
     }
 
-    const podName = result.data?.podName || ``
+    const instanceId = result.data?.instanceId || ``
     setPodStates((prev) => ({
       ...prev,
       [sandbox.id]: (prev[sandbox.id] || [])
-        .filter((p) => p.podName !== ``)
-        .concat({ podName, state: ESBState.Running }),
+        .filter((p) => p.instanceId !== ``)
+        .concat({ instanceId, state: ESBState.Running }),
     }))
     toast.success(`Sandbox "${sandbox.name}" started`)
   }
@@ -185,7 +185,7 @@ export const Sandboxes = (props: TSandboxes) => {
       ...prev,
       [sandbox.id]: [
         ...(prev[sandbox.id] || []),
-        { podName: ``, state: ESBState.Starting },
+        { instanceId: ``, state: ESBState.Starting },
       ],
     }))
 
@@ -200,26 +200,26 @@ export const Sandboxes = (props: TSandboxes) => {
     if (result.error) {
       setPodStates((prev) => ({
         ...prev,
-        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.podName !== ``),
+        [sandbox.id]: (prev[sandbox.id] || []).filter((p) => p.instanceId !== ``),
       }))
       toast.error(`Failed to connect to sandbox: ${result.error.message}`)
       return
     }
 
     const data = result.data || null
-    if (data?.podName) {
+    if (data?.instanceId) {
       setPodStates((prev) => {
         const existing = prev[sandbox.id] || []
-        const already = existing.some((p) => p.podName === data.podName)
+        const already = existing.some((p) => p.instanceId === data.instanceId)
         return {
           ...prev,
           [sandbox.id]: already
             ? existing.map((p) =>
-                p.podName === data.podName ? { ...p, state: ESBState.Running } : p
+                p.instanceId === data.instanceId ? { ...p, state: ESBState.Running } : p
               )
             : existing
-                .filter((p) => p.podName !== ``)
-                .concat({ podName: data.podName, state: ESBState.Running }),
+                .filter((p) => p.instanceId !== ``)
+                .concat({ instanceId: data.instanceId, state: ESBState.Running }),
         }
       })
     }
@@ -242,14 +242,14 @@ export const Sandboxes = (props: TSandboxes) => {
   }
 
   const onConnectModalStop = async () => {
-    if (!connectModalSandbox || !connectData?.podName || !projectId) return
+    if (!connectModalSandbox || !connectData?.instanceId || !projectId) return
 
     setBusy(connectModalSandbox.id, true)
     const result = await stopSandbox({
       orgId,
       projectId,
       sandboxId: connectModalSandbox.id,
-      podName: connectData.podName,
+      instanceId: connectData.instanceId,
     })
     setBusy(connectModalSandbox.id, false)
 
@@ -261,7 +261,7 @@ export const Sandboxes = (props: TSandboxes) => {
     setPodStates((prev) => ({
       ...prev,
       [connectModalSandbox.id]: (prev[connectModalSandbox.id] || []).filter(
-        (p) => p.podName !== connectData.podName
+        (p) => p.instanceId !== connectData.instanceId
       ),
     }))
     toast.success(`Sandbox "${connectModalSandbox.name}" stopped`)

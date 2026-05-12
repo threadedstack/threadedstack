@@ -1,6 +1,13 @@
 import type { AuthManager } from '@TSA/services/auth'
-import type { TApiRequest, TApiResponse, TSandboxSession } from '@tdsk/domain'
 import type { TSessionInfo, TProviderInfo, TCliSessionKeyResult } from '@TSA/types'
+import type {
+  TApiRequest,
+  TApiResponse,
+  TSandboxSession,
+  TSandboxConnectOpts,
+  TSandboxConnectResponse,
+  TSandboxInstancesResponse,
+} from '@tdsk/domain'
 
 import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TSA/constants'
@@ -223,11 +230,22 @@ export class ApiClient extends ApiService {
   async connectSandbox(
     orgId: string,
     projectId: string,
-    sandboxId: string
-  ): Promise<TApiResponse<any>> {
-    return this.post<any>({
+    sandboxId: string,
+    opts?: TSandboxConnectOpts
+  ): Promise<TApiResponse<TSandboxConnectResponse>> {
+    return this.post<TSandboxConnectResponse>({
       path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      data: {},
+      data: opts ?? {},
+    })
+  }
+
+  async listInstances(
+    orgId: string,
+    projectId: string,
+    sandboxId: string
+  ): Promise<TApiResponse<TSandboxInstancesResponse>> {
+    return this.get<TSandboxInstancesResponse>({
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/instances`,
     })
   }
 
@@ -256,12 +274,12 @@ export class ApiClient extends ApiService {
     orgId: string,
     projectId: string,
     sandboxId: string,
-    podName: string,
+    instanceId: string,
     command: string
   ): Promise<TApiResponse<any>> {
     return this.post<any>({
       path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
-      data: { command, podName },
+      data: { command, instanceId },
     })
   }
 
@@ -269,7 +287,7 @@ export class ApiClient extends ApiService {
     orgId: string,
     projectId: string,
     sandboxId: string,
-    podName: string,
+    instanceId: string,
     publicKey: string
   ): Promise<TApiResponse> {
     if (!/^ssh-\S+ \S+/.test(publicKey)) {
@@ -284,7 +302,7 @@ export class ApiClient extends ApiService {
       orgId,
       projectId,
       sandboxId,
-      podName,
+      instanceId,
       [
         `mkdir -p /home/sandbox/.ssh`,
         `echo '${escaped}' > /home/sandbox/.ssh/authorized_keys`,
@@ -295,7 +313,7 @@ export class ApiClient extends ApiService {
     )
 
     if (!result.ok || !result.data?.success) {
-      const msg = `SSH key injection failed in pod ${podName}: ${result.data?.output || result.data?.error || result.error?.message || `unknown error`}`
+      const msg = `SSH key injection failed in instance ${instanceId}: ${result.data?.output || result.data?.error || result.error?.message || `unknown error`}`
       return {
         ok: false,
         status: result.status,

@@ -1,7 +1,8 @@
 import type { TApiRes, TApiCacheKeys } from '@TTH/types'
 import type {
-  TSandboxConnectResponse,
   TSandboxSession,
+  TSandboxConnectOpts,
+  TSandboxConnectResponse,
   TSandboxInstancesResponse,
 } from '@tdsk/domain'
 
@@ -59,7 +60,7 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    opts?: { podName?: string; newInstance?: boolean }
+    opts?: TSandboxConnectOpts
   ): Promise<TApiRes<TSandboxConnectResponse>> {
     const resp = await this.api.post<TSandboxConnectResponse>({
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
@@ -99,12 +100,12 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    podName: string,
+    instanceId: string,
     force?: boolean,
     stopAll?: boolean
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      data: { podName, force, stopAll },
+      data: { instanceId, force, stopAll },
       path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
     if (resp.error?.status !== 409) {

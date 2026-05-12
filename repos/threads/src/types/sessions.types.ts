@@ -19,11 +19,11 @@ export type TSessionCommandsProps = {
 
 export type TOpenSession = {
   runtime: string
-  podName: string
   threadId: string
   sandboxId: string
   sessionId: string
   projectId: string
+  instanceId: string
   podOwnerUserId: string
   visibility: ESandboxSessionVisibility
 }
@@ -33,14 +33,14 @@ export type TOpenSessionOpts = {
   run?: boolean
   sandboxId: string
   projectId: string
-  podName?: string
+  instanceId?: string
   newInstance?: boolean
   sessionId?: string | null
 }
 
 export type TSessionCategory = `connected` | `disconnected` | `shared`
 
-export type TClassifiedSession = Omit<TSandboxSession, `orgId` | `podName`> & {
+export type TClassifiedSession = Omit<TSandboxSession, `orgId` | `instanceId`> & {
   category: TSessionCategory
   hasShellSession: boolean
 }

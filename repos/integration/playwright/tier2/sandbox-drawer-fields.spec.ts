@@ -24,7 +24,7 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     test.skip(!ctx.projectId, 'No projectId in context — cannot test sandbox drawer')
   })
 
-  test('SSH Enabled toggle defaults to checked', async ({
+  test('Preset dropdown defaults to Claude Code', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -38,9 +38,13 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     // Open create drawer
     await openDrawer(page, /Create Sandbox/i)
 
-    // SwitchInput renders label and checkbox as siblings via InputStateHandler
-    const sshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
-    await expect(sshCheckbox).toBeChecked()
+    // The preset dropdown should default to Claude Code
+    const presetInput = page.locator('#sandbox-preset')
+    await expect(presetInput).toBeAttached({ timeout: 5_000 })
+
+    // The visible selected text should show "Claude Code"
+    const presetParent = presetInput.locator('xpath=..')
+    await expect(presetParent).toContainText('Claude Code', { timeout: 5_000 })
 
     expect(errors).toEqual([])
   })
@@ -100,6 +104,28 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     expect(errors).toEqual([])
   })
 
+  test('Max Instances field has default 1', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    const errors = collectErrors(page)
+    await gotoAndWait(
+      page,
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/sandboxes`,
+      PAGE_CLASS
+    )
+
+    // Open create drawer
+    await openDrawer(page, /Create Sandbox/i)
+
+    // Verify the max instances input has default value '1'
+    const maxInstancesInput = page.locator('#sandbox-max-instances')
+    await expect(maxInstancesInput).toBeVisible({ timeout: 5_000 })
+    await expect(maxInstancesInput).toHaveValue('1')
+
+    expect(errors).toEqual([])
+  })
+
   test('CREATE with all new fields persists correctly', async ({
     authenticatedPage: page,
     ctx,
@@ -128,13 +154,13 @@ test.describe.serial('Sandbox Drawer Fields', () => {
 
     await fillField(page, 'sandbox-image', 'node:22-slim')
 
-    // Toggle SSH off — click the switch input directly (SwitchInput separates label from checkbox)
-    const sshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
-    await sshCheckbox.click({ force: true })
-
     // Set idle timeout to 60
     const timeoutInput = page.locator('#sandbox-idle-timeout')
     await timeoutInput.fill('60')
+
+    // Set max instances to 2
+    const maxInstancesInput = page.locator('#sandbox-max-instances')
+    await maxInstancesInput.fill('2')
 
     // Submit form
     await submitForm(page, FORM_ID)
@@ -173,13 +199,13 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
     await expect(page.getByText('Edit Project Sandbox')).toBeVisible({ timeout: 5_000 })
 
-    // Verify SSH toggle is unchecked (we toggled it off)
-    const editSshCheckbox = page.locator('input[type="checkbox"][name="sandbox-ssh-enabled"]')
-    await expect(editSshCheckbox).not.toBeChecked()
-
     // Verify idle timeout
     const editTimeout = page.locator('#sandbox-idle-timeout')
     await expect(editTimeout).toHaveValue('60')
+
+    // Verify max instances
+    const editMaxInstances = page.locator('#sandbox-max-instances')
+    await expect(editMaxInstances).toHaveValue('2')
 
     expect(errors).toEqual([])
   })

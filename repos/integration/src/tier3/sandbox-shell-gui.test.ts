@@ -135,7 +135,7 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
 
   let projectId = ''
   let sandboxId = ''
-  let podName = ''
+  let instanceId = ''
   let shellToken = ''
   let setupFailed = false
 
@@ -196,7 +196,7 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
         setupFailed = true
         return
       }
-      podName = connectRes.data.podName
+      instanceId = connectRes.data.instanceId
       shellToken = connectRes.data.shellToken || ''
     } catch (err) {
       console.error('[sandbox-shell-gui] Setup error:', (err as Error).message)
@@ -214,7 +214,7 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
   })
 
   afterAll(async () => {
-    await cleanupSandbox(ctx.orgId, { sandboxId, podName, projectId })
+    await cleanupSandbox(ctx.orgId, { sandboxId, instanceId, projectId })
   })
 
   // ─── 1. Connected message fields ─────────────────────────────────────────
@@ -342,16 +342,16 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
   test('connect endpoint response includes shellToken string', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Re-connect to the already-running pod — must specify podName for multi-instance support
+    // Re-connect to the already-running pod — must specify instanceId for multi-instance support
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
-      { podName }
+      { instanceId }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
     expect(typeof res.data.shellToken).toBe('string')
     expect(res.data.shellToken.length).toBeGreaterThan(0)
-    expect(typeof res.data.podName).toBe('string')
+    expect(typeof res.data.instanceId).toBe('string')
   })
 })
