@@ -1,4 +1,10 @@
-import type { TServiceOpts, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
+import type {
+  TServiceOpts,
+  TDBWithRecord,
+  TDBSecretSelect,
+  TDBProviderSelect,
+  TDBProviderInsert,
+} from '@TDB/types'
 import type {
   TProviderType,
   TProviderInput,
@@ -17,8 +23,13 @@ import {
   EGitProvider,
   EAIProviderBrand,
   EDockerProviderBrand,
+  Secret as SecretModel,
   Provider as ProviderModel,
 } from '@tdsk/domain'
+
+type TProviderSelectOpts = TDBProviderSelect & {
+  secret?: TDBSecretSelect | null
+}
 
 const validTypes = Object.values(EProvider) as string[]
 const validGitBrands = Object.values(EGitProvider) as string[]
@@ -38,15 +49,28 @@ export type TProviderValidate = {
 
 export class Provider extends Base<
   typeof providers,
-  TDBProviderSelect,
+  TProviderSelectOpts,
   TDBProviderInsert,
   ProviderModel
 > {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: providers })
   }
-  model = (data: TDBProviderSelect) => {
-    return new ProviderModel(data as Partial<ProviderModel>)
+
+  with = (opts: TDBWithRecord) => {
+    return {
+      secret: true,
+      ...opts,
+    } as TDBWithRecord
+  }
+
+  model = (data: TProviderSelectOpts) => {
+    const { secret, ...rest } = data
+    const provider = new ProviderModel(rest as Partial<ProviderModel>)
+    if (secret) {
+      provider.secret = new SecretModel(secret as Partial<SecretModel>).sanitize()
+    }
+    return provider
   }
 
   validType = (type?: string, brand?: string | null) => {

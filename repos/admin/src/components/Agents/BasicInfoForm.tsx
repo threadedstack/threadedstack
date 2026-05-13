@@ -43,6 +43,7 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
                 id,
                 name: ap.name,
                 brand: ap.brand,
+                baseUrl: ap.baseUrl,
                 model: providerModels[id] ?? null,
               }
         })
@@ -54,7 +55,7 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
     () =>
       aiProviders
         .filter((p) => !providerIds.includes(p.id))
-        .map((p) => ({ id: p.id, name: p.name, brand: p.brand })),
+        .map((p) => ({ id: p.id, name: p.name, brand: p.brand, baseUrl: p.baseUrl })),
     [aiProviders, providerIds]
   )
 

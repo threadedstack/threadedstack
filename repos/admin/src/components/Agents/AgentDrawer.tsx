@@ -66,7 +66,12 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     if (!providersMap) return []
     return Object.values(providersMap)
       .filter((p) => p.type === EProvider.ai)
-      .map((p) => ({ id: p.id, name: p.name || p.id, brand: p.brand || '' }))
+      .map((p) => ({
+        id: p.id,
+        name: p.name || p.id,
+        brand: p.brand || '',
+        baseUrl: p.options?.baseUrl,
+      }))
   }, [providersMap])
 
   const secretsList = useMemo(() => {

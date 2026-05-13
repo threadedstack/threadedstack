@@ -1,10 +1,11 @@
 import type { TProviderModel, TAIProviderBrand } from '@tdsk/domain'
 
-import { TextInput, SelectInput } from '@tdsk/components'
+import { EAIProviderBrand } from '@tdsk/domain'
 import { DynamicBrands } from '@TAF/constants/providers'
+import { TextInput, SelectInput } from '@tdsk/components'
 import { fetchProviderModels } from '@TAF/actions/providers'
-import { Box, Typography, CircularProgress } from '@mui/material'
 import { useMemo, useState, useEffect, useCallback } from 'react'
+import { Alert, Box, Typography, CircularProgress } from '@mui/material'
 
 export type TModelSelectProps = {
   id?: string
@@ -48,6 +49,11 @@ export const ModelSelect = (props: TModelSelectProps) => {
         setModels([])
         return
       }
+
+      if (providerBrand === EAIProviderBrand.ollama && !baseUrl) {
+        setModels([])
+        return
+      }
       setFetching(true)
       try {
         const resp = await fetchProviderModels({
@@ -56,7 +62,8 @@ export const ModelSelect = (props: TModelSelectProps) => {
           ...(apiKey && { providerKey: apiKey }),
         })
         setModels(resp.data || [])
-      } catch {
+      } catch (err) {
+        console.warn(`[ModelSelect] Failed to fetch models for ${providerBrand}:`, err)
         setModels([])
       }
       setFetching(false)
@@ -97,17 +104,26 @@ export const ModelSelect = (props: TModelSelectProps) => {
     )
   }
 
-  // TODO: Should remove this. Want to enforce only specific models can be used
   return (
-    <TextInput
-      fullWidth
-      size={size}
-      label='Model'
-      value={model}
-      disabled={disabled}
-      id={`model-input-${idSuffix}`}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder='e.g., gpt-4o, claude-sonnet-4-20250514'
-    />
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <TextInput
+        fullWidth
+        size={size}
+        label='Model'
+        value={model}
+        disabled={disabled}
+        id={`model-input-${idSuffix}`}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='e.g., gpt-4o, claude-sonnet-4-20250514'
+      />
+      {brand === EAIProviderBrand.ollama && !baseUrl && (
+        <Alert
+          severity='info'
+          sx={{ fontSize: '0.8rem', py: 0, '& .MuiAlert-message': { py: 0.5 } }}
+        >
+          Set a Base URL on the Ollama provider to enable model selection
+        </Alert>
+      )}
+    </Box>
   )
 }

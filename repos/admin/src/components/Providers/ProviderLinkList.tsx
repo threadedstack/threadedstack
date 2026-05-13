@@ -171,6 +171,7 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                     id={provider.id}
                     disabled={isDisabled}
                     brand={provider.brand}
+                    baseUrl={provider.baseUrl}
                     model={provider.model || ''}
                     onChange={(model) => onModelChange(provider.id, model)}
                   />

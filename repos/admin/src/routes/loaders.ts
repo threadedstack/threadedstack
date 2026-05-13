@@ -119,7 +119,9 @@ export const orgProvidersLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getProviders()) await safeFetch(() => fetchProviders({ orgId }))
+  if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
+  if (!getOrgSecrets()) safeFetch(() => fetchSecrets({ orgId }))
+
   return null
 }
 
