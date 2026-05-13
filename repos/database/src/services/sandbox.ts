@@ -546,7 +546,16 @@ export class Sandbox extends Base<
       }
 
       if (rows.length)
-        await tx.insert(sandboxProviders).values(rows).onConflictDoNothing()
+        await tx
+          .insert(sandboxProviders)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [sandboxProviders.sandboxId, sandboxProviders.providerId],
+            set: {
+              model: sql`excluded.model`,
+              priority: sql`excluded.priority`,
+            },
+          })
     })
   }
 

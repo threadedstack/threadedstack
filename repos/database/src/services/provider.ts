@@ -12,11 +12,15 @@ import type {
   TAIProviderBrand,
 } from '@tdsk/domain'
 
+import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { providers } from '@TDB/schemas/providers'
 import { isProviderType } from '@TDB/utils/schema/isProviderType'
+import { projectProviders } from '@TDB/schemas/projectProviders'
+import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import {
   Exception,
   EProvider,
@@ -137,6 +141,42 @@ export class Provider extends Base<
       `Cannot determine AI provider for "${provider.name || `unnamed`}". ` +
         `Set provider.brand to one of: ${supported}`
     )
+  }
+
+  async checkReferences(id: string): Promise<{
+    sandboxes: Array<{ id: string; name: string | null }>
+    projects: Array<{ id: string; name: string | null }>
+    sandboxProjects: Array<{
+      sandbox: { id: string; name: string | null }
+      project: { id: string; name: string | null }
+    }>
+  }> {
+    const [sbLinks, projLinks, sbProjLinks] = await Promise.all([
+      this.db.query.sandboxProviders.findMany({
+        where: eq(sandboxProviders.providerId, id),
+        with: { sandbox: { columns: { id: true, name: true } } },
+      }),
+      this.db.query.projectProviders.findMany({
+        where: eq(projectProviders.providerId, id),
+        with: { project: { columns: { id: true, name: true } } },
+      }),
+      this.db.query.sandboxProjectProviders.findMany({
+        where: eq(sandboxProjectProviders.providerId, id),
+        with: {
+          sandbox: { columns: { id: true, name: true } },
+          project: { columns: { id: true, name: true } },
+        },
+      }),
+    ])
+
+    return {
+      sandboxes: sbLinks.map((l) => l.sandbox as { id: string; name: string | null }),
+      projects: projLinks.map((l) => l.project as { id: string; name: string | null }),
+      sandboxProjects: sbProjLinks.map((l) => ({
+        sandbox: l.sandbox as { id: string; name: string | null },
+        project: l.project as { id: string; name: string | null },
+      })),
+    }
   }
 
   /**

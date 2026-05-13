@@ -87,7 +87,6 @@ Items are split into separate groups, with the sub repo name as the header.
 * Hide domains in navigation behind a feature flag
 * Add a warning when an AI provider is added to a sandbox and it doesn't have an auth secret and allow the user to select/add one from the same UI
 
-* When a user attempts to delete a provider that still being used, an error toast is shown but that's it. It doesn't give the user any helpful information like what other entity is actually using it, and what they should do to fix it. This is a bad user experience and needs to be fixed. 
 
 ## Threads
 

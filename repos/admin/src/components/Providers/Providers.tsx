@@ -67,9 +67,19 @@ export const Providers = ({ orgId }: TProviders) => {
     if (!deleting) return
 
     setLoading(true)
-    await deleteProvider({ orgId, id: deleting.id })
+    setError(null)
+
+    const result = await deleteProvider({ orgId, id: deleting.id })
+
     setLoading(false)
     setDeleting(undefined)
+
+    if (result.error) {
+      const details = (result.error as any)?.details
+      const msg =
+        typeof details?.error === `string` ? details.error : result.error.message
+      setError(new Error(msg))
+    }
   }
 
   const filteredProviders = useMemo(() => {

@@ -40,6 +40,7 @@ describe(`Providers endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
+              checkReferences: vi.fn(),
               validType: vi.fn((type?: string, brand?: string | null) => {
                 const validTypes = [`ai`, `git`, `auth`, `storage`, `docker`]
                 if (!type)
@@ -721,35 +722,120 @@ describe(`Providers endpoints`, () => {
   describe(`DELETE /_/providers/:id - Delete Provider`, () => {
     const ep = getEndpointCfg(providers.endpoints?.deleteProvider)
 
+    const emptyRefs = { sandboxes: [], projects: [], sandboxProjects: [] }
+
     it(`should return 200 with success on delete`, async () => {
       mockReq.params = { id: `prov-1` }
 
-      const mockDelete = mockReq.app?.locals.db.services.provider.delete as ReturnType<
-        typeof vi.fn
-      >
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+      const mockCheckRefs = svc.checkReferences as ReturnType<typeof vi.fn>
+      const mockDelete = svc.delete as ReturnType<typeof vi.fn>
 
+      mockGet.mockResolvedValue({ data: new Provider({ id: `prov-1`, name: `Test` }) })
+      mockCheckRefs.mockResolvedValue(emptyRefs)
       mockDelete.mockResolvedValue({ data: true })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
+      expect(mockCheckRefs).toHaveBeenCalledWith(`prov-1`)
       expect(mockDelete).toHaveBeenCalledWith(`prov-1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: { success: true, id: `prov-1` } })
     })
 
+    it(`should return 404 when provider not found`, async () => {
+      mockReq.params = { id: `prov-999` }
+
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+    })
+
+    it(`should return 409 when provider is used by sandboxes`, async () => {
+      mockReq.params = { id: `prov-1` }
+
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+      const mockCheckRefs = svc.checkReferences as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({ data: new Provider({ id: `prov-1`, name: `OpenAI` }) })
+      mockCheckRefs.mockResolvedValue({
+        ...emptyRefs,
+        sandboxes: [{ id: `sb-1`, name: `My Sandbox` }],
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Cannot delete provider "OpenAI".*1 sandbox.*My Sandbox/
+      )
+    })
+
+    it(`should return 409 when provider is used by projects`, async () => {
+      mockReq.params = { id: `prov-1` }
+
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+      const mockCheckRefs = svc.checkReferences as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({ data: new Provider({ id: `prov-1`, name: `GitHub` }) })
+      mockCheckRefs.mockResolvedValue({
+        ...emptyRefs,
+        projects: [
+          { id: `proj-1`, name: `Project A` },
+          { id: `proj-2`, name: `Project B` },
+        ],
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Cannot delete provider "GitHub".*2 projects.*Project A.*Project B/
+      )
+    })
+
+    it(`should return 409 with deduplicated names from sandboxProjects`, async () => {
+      mockReq.params = { id: `prov-1` }
+
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+      const mockCheckRefs = svc.checkReferences as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({ data: new Provider({ id: `prov-1`, name: `GitLab` }) })
+      mockCheckRefs.mockResolvedValue({
+        sandboxes: [{ id: `sb-1`, name: `Sandbox A` }],
+        projects: [],
+        sandboxProjects: [
+          {
+            sandbox: { id: `sb-1`, name: `Sandbox A` },
+            project: { id: `proj-1`, name: `Project X` },
+          },
+        ],
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Cannot delete provider "GitLab".*1 sandbox.*Sandbox A.*1 project.*Project X/
+      )
+    })
+
     it(`should return 500 on delete error`, async () => {
       mockReq.params = { id: `prov-1` }
 
-      const mockDelete = mockReq.app?.locals.db.services.provider.delete as ReturnType<
-        typeof vi.fn
-      >
+      const svc = mockReq.app?.locals.db.services.provider
+      const mockGet = svc.get as ReturnType<typeof vi.fn>
+      const mockCheckRefs = svc.checkReferences as ReturnType<typeof vi.fn>
+      const mockDelete = svc.delete as ReturnType<typeof vi.fn>
 
+      mockGet.mockResolvedValue({ data: new Provider({ id: `prov-1`, name: `Test` }) })
+      mockCheckRefs.mockResolvedValue(emptyRefs)
       mockDelete.mockResolvedValue({ error: new Error(`Delete failed`) })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Delete failed`
       )
-      expect(mockDelete).toHaveBeenCalledWith(`prov-1`)
     })
   })
 })

@@ -386,7 +386,7 @@ deployments:
           podSelector:
             tdsk.app/managed: "true"
           egressSelector:
-            app: tdsk-backend
+            app.kubernetes.io/component: tdsk-backend
           egressPorts:
             - port: ${TDSK_BE_EGRESS_PORT}
         serviceAccountName: tdsk-backend-sa

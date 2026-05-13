@@ -76,7 +76,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
-      ...(runtimeClassName && { runtimeClassName }),
+      ...(runtimeClassName && { runtimeClassName, dnsPolicy: `Default` }),
       ...(imagePullSecrets?.length && {
         imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
       }),
