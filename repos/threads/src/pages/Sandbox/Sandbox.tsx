@@ -8,6 +8,7 @@ import { Page } from '@TTH/pages/Page/Page'
 import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
 import { sandboxApi } from '@TTH/services/sandboxApi'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { ArrowBack, PlayArrow, Login, Add, Dns } from '@mui/icons-material'
@@ -87,9 +88,12 @@ const Sandbox = () => {
       if (!sandboxId || !resolvedOrgId || !projectId) return
       setConnecting(true)
       try {
+        const { cols, rows } = estimateTerminalDimensions()
         const newSessionId = await openSession({
           sandboxId,
           projectId,
+          cols,
+          rows,
           orgId: resolvedOrgId,
           sessionId: sessionId ?? null,
           ...(instanceId ? { instanceId } : {}),

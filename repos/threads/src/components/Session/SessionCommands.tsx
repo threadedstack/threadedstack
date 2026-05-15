@@ -15,6 +15,7 @@ import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import {
   sendControl,
   openSession,
@@ -112,11 +113,15 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   const onNewSession = useCallback(async () => {
     if (!orgId) return
     try {
+      const { cols, rows } = estimateTerminalDimensions()
       const newSessionId = await openSession({
         sandboxId,
         orgId,
+        cols,
+        rows,
         projectId,
         sessionId: null,
+        instanceId: session?.instanceId,
       })
       nav.session(orgId, projectId, newSessionId, {
         replace: true,

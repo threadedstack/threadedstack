@@ -31,6 +31,8 @@ export type TOpenSession = {
 export type TOpenSessionOpts = {
   orgId: string
   run?: boolean
+  cols?: number
+  rows?: number
   sandboxId: string
   projectId: string
   instanceId?: string

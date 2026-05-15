@@ -11,6 +11,7 @@ import { useParams, useLocation } from 'react-router'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { SessionContext } from '@TTH/contexts/SessionContext'
 import { findSandboxForSession } from '@TTH/utils/sessionStorage'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { useUser, useOrgId, useSandboxes, useOpenSessions } from '@TTH/state/selectors'
 
 export type TSessionProvider = {
@@ -106,7 +107,8 @@ export const SessionProvider = (props: TSessionProvider) => {
     let mounted = true
     setConnecting(true)
 
-    openSession({ sandboxId, orgId, projectId, sessionId })
+    const { cols, rows } = estimateTerminalDimensions()
+    openSession({ sandboxId, orgId, projectId, sessionId, cols, rows })
       .then((newSessionId) => {
         if (!mounted) return
         if (!newSessionId) {

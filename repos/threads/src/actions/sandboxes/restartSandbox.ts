@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { getSessionsForSandbox } from '@TTH/state/accessors'
 import { openSession } from '@TTH/actions/sessions'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 
 export type TRestartSandboxOpts = {
   sandboxId: string
@@ -16,9 +17,10 @@ export const restartSandbox = async (opts: TRestartSandboxOpts): Promise<void> =
 
   await stopSandbox({ sandboxId, orgId, projectId, force: true })
 
+  const { cols, rows } = estimateTerminalDimensions()
   for (const _sid of sessionIds) {
     try {
-      await openSession({ sandboxId, orgId, projectId, sessionId: null })
+      await openSession({ sandboxId, orgId, projectId, sessionId: null, cols, rows })
     } catch (err) {
       toast.error(`Failed to reopen session after restart`, {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,

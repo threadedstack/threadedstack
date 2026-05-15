@@ -21,6 +21,7 @@ import { useSessionEngine } from '@TTH/hooks/session/useSessionEngine'
 import { SessionCommands } from '@TTH/components/Session/SessionCommands'
 import { Box, Chip, Card, Button, IconButton, Typography } from '@mui/material'
 import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSettings'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
 
 const SessionContainer = styled(Box)`
@@ -122,8 +123,11 @@ const SessionInner = () => {
   const handleConnect = useCallback(async () => {
     if (!sandboxId || !orgId || !projectId) return
     try {
+      const { cols, rows } = estimateTerminalDimensions()
       const newSessionId = await openSession({
         orgId,
+        cols,
+        rows,
         sandboxId,
         projectId,
         sessionId: null,

@@ -130,6 +130,7 @@ export const NavInstanceItem = (props: TNavInstanceItem) => {
               indent={indent + 20}
               sandboxId={sandboxId}
               projectId={projectId}
+              instanceId={instanceId}
             />
           ))
         ) : (

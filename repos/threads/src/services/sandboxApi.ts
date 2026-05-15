@@ -66,7 +66,6 @@ export class SandboxApi extends BaseApi {
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
       data: opts ?? {},
     })
-    resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))
     return resp
   }
 
