@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { requireProjectAccess } from '@TBE/utils/auth/requireProjectAccess'
 import { Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -14,11 +15,12 @@ export const updateProject: TEndpointConfig = {
   method: EPMethod.Put,
   middleware: [authorize(EPermAction.update, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { projectId } = req.params
+    const { projectId, orgId } = req.params
     const { db } = req.app.locals
     const { name, description, providerInputs } = req.body
 
-    // First get the project to find its orgId
+    if (orgId && projectId) await requireProjectAccess(req, projectId, orgId)
+
     const { data: existing, error: getError } = await db.services.project.get(projectId)
 
     if (getError) throw new Exception(500, getError.message)

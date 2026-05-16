@@ -7,6 +7,7 @@ import { AuthHeaders } from '@TDM/constants/values'
 type TClientReq = {
   [key: string]: any
   setHeader?: (key: string, value?: string) => any
+  removeHeader?: (key: string) => void
 }
 
 type TReq = {
@@ -15,6 +16,7 @@ type TReq = {
 
 export const setAuthHeaders = (pxReq: TClientReq, req: Record<string, any>) => {
   Object.entries(AuthHeaders).forEach(([loc, key]) => {
+    pxReq?.removeHeader?.(key)
     const val = get(req, loc)
     exists(val) && pxReq?.setHeader?.(key, val)
   })

@@ -77,7 +77,7 @@ describe(`validateApiKeyAuth`, () => {
     const mockReq = {
       path: `/_/orgs`,
       headers: { authorization: `Bearer tdsk_test` },
-      user: { userId: `user-123`, email: `test@test.com`, role: `admin` },
+      user: { userId: `user-123`, email: `test@test.com` },
     } as unknown as Request
 
     const middleware = validateApiKeyAuth(mockApp)
@@ -243,7 +243,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-456`,
       email: ``,
-      role: `member`,
       apiKeyId: `key-4`,
     })
     expect(mockNext).toHaveBeenCalled()
@@ -251,7 +250,7 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockDb.services.apiKey.touchLastUsed).toHaveBeenCalledWith(`key-4`)
   })
 
-  it(`should map admin scope to admin role`, async () => {
+  it(`should authenticate admin-scoped API key`, async () => {
     const adminKey = new ApiKey({
       id: `key-5`,
       name: `Admin Key`,
@@ -271,13 +270,12 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-789`,
       email: ``,
-      role: `admin`,
       apiKeyId: `key-5`,
     })
     expect(mockNext).toHaveBeenCalled()
   })
 
-  it(`should map read scope to viewer role`, async () => {
+  it(`should authenticate read-scoped API key`, async () => {
     const readKey = new ApiKey({
       id: `key-6`,
       name: `Read Key`,
@@ -297,12 +295,11 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-101`,
       email: ``,
-      role: `viewer`,
       apiKeyId: `key-6`,
     })
   })
 
-  it(`should map write scope to member role`, async () => {
+  it(`should authenticate write-scoped API key`, async () => {
     const writeKey = new ApiKey({
       id: `key-7`,
       name: `Write Key`,
@@ -322,7 +319,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-102`,
       email: ``,
-      role: `member`,
       apiKeyId: `key-7`,
     })
   })
@@ -404,7 +400,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-proxy-1`,
       email: ``,
-      role: `member`,
       orgId: `org-proxy-1`,
       apiKeyId: `key-proxy`,
     })
@@ -460,7 +455,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-300`,
       email: ``,
-      role: `admin`,
       orgId: `org-123`,
       apiKeyId: `key-org`,
     })
@@ -488,7 +482,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-400`,
       email: ``,
-      role: `member`,
       projectId: `proj-456`,
       apiKeyId: `key-proj`,
     })
@@ -515,11 +508,86 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-500`,
       email: ``,
-      role: `viewer`,
       apiKeyId: `key-bare`,
     })
     expect(mockReq.user).not.toHaveProperty(`orgId`)
     expect(mockReq.user).not.toHaveProperty(`projectId`)
+    expect(mockNext).toHaveBeenCalled()
+  })
+
+  it(`should include apiKeyRole in req.user when key has a role`, async () => {
+    const roleKey = new ApiKey({
+      id: `key-role`,
+      name: `Role Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_role`,
+      active: true,
+      scopes: `read`,
+      role: `member`,
+      userId: `user-role-1`,
+      orgId: `org-role-1`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_role_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: roleKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).toEqual({
+      userId: `user-role-1`,
+      email: ``,
+      orgId: `org-role-1`,
+      apiKeyId: `key-role`,
+      apiKeyRole: `member`,
+    })
+    expect(mockNext).toHaveBeenCalled()
+  })
+
+  it(`should reject API key with invalid role value`, async () => {
+    const badRoleKey = new ApiKey({
+      id: `key-bad-role`,
+      name: `Bad Role Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_badr`,
+      active: true,
+      scopes: `read`,
+      role: `owner`,
+      userId: `user-bad-role`,
+      orgId: `org-bad-role`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_bad_role_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: badRoleKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+    expect(mockRes.json).toHaveBeenCalledWith({
+      error: `Invalid API key configuration`,
+    })
+    expect(mockNext).not.toHaveBeenCalled()
+  })
+
+  it(`should not include apiKeyRole when key has no role set`, async () => {
+    const noRoleKey = new ApiKey({
+      id: `key-no-role`,
+      name: `No Role Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_noro`,
+      active: true,
+      scopes: `read`,
+      userId: `user-no-role`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_no_role_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: noRoleKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).not.toHaveProperty(`apiKeyRole`)
     expect(mockNext).toHaveBeenCalled()
   })
 
@@ -546,7 +614,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-200`,
       email: ``,
-      role: `viewer`,
       apiKeyId: `key-8`,
     })
   })

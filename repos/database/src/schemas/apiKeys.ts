@@ -1,9 +1,10 @@
+import { sql } from 'drizzle-orm'
 import { relations } from 'drizzle-orm'
+import { ERoleType } from '@tdsk/domain'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
-import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
-import { sql } from 'drizzle-orm'
+import { projects } from '@TDB/schemas/projects'
 import {
   uuid,
   text,
@@ -28,6 +29,7 @@ export const apiKeys = pgTable(
     rateLimit: integer(`rate_limit`).default(100),
     keyHash: text(`key_hash`).notNull().unique(),
     keyPrefix: varchar(`key_prefix`, { length: 12 }).notNull(),
+    role: varchar(`role`, { length: 10 }).default(ERoleType.viewer).notNull(),
     orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
       onDelete: `cascade`,
     }),
@@ -49,6 +51,7 @@ export const apiKeys = pgTable(
     OR (${table.orgId} IS NULL AND ${table.projectId} IS NULL)
   `
     ),
+    check(`api_key_role_check`, sql`${table.role} IN ('admin', 'member', 'viewer')`),
   ]
 )
 

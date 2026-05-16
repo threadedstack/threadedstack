@@ -1,17 +1,19 @@
+import '@xterm/xterm/css/xterm.css'
 import { Box } from '@mui/material'
 import { Terminal } from '@xterm/xterm'
+import { EShellMsg } from '@tdsk/domain'
 import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
-import { useTerminalSettings } from '@TTH/state/selectors'
 import { useRef, useEffect, useCallback } from 'react'
+import { useTerminalSettings } from '@TTH/state/selectors'
 import {
   sendInput,
   sendControl,
+  getTerminal,
+  setTerminal,
   getRawBuffer,
+  deleteTerminal,
   subscribeTerminalData,
 } from '@TTH/actions/sessions'
-
-const terminals = new Map<string, { term: Terminal; fitAddon: FitAddon }>()
 
 export type TTerminalView = {
   active: boolean
@@ -35,7 +37,7 @@ export const TerminalView = (props: TTerminalView) => {
 
   const onResize = useCallback(
     (dims: { cols: number; rows: number }) => {
-      sendControl(sessionId, { type: `resize`, cols: dims.cols, rows: dims.rows })
+      sendControl(sessionId, { type: EShellMsg.Resize, cols: dims.cols, rows: dims.rows })
     },
     [sessionId]
   )
@@ -44,7 +46,7 @@ export const TerminalView = (props: TTerminalView) => {
     const container = containerRef.current
     if (!container) return
 
-    let entry = terminals.get(sessionId)
+    let entry = getTerminal(sessionId)
 
     if (!entry) {
       try {
@@ -69,7 +71,7 @@ export const TerminalView = (props: TTerminalView) => {
         }
 
         entry = { term, fitAddon }
-        terminals.set(sessionId, entry)
+        setTerminal(sessionId, entry)
       } catch (err) {
         console.error(
           `[TerminalView] Failed to create terminal for session ${sessionId}`,
@@ -82,7 +84,7 @@ export const TerminalView = (props: TTerminalView) => {
         console.warn(
           `[TerminalView] Terminal for session ${sessionId} lost its DOM element`
         )
-        terminals.delete(sessionId)
+        deleteTerminal(sessionId)
         return
       }
       container.replaceChildren()
@@ -115,17 +117,17 @@ export const TerminalView = (props: TTerminalView) => {
   }, [sessionId, onData, onResize])
 
   useEffect(() => {
-    const entry = terminals.get(sessionId)
+    const entry = getTerminal(sessionId)
     if (!entry) return
 
     const { term } = entry
 
     try {
       term.options.fontSize = settings.fontSize
+      term.options.scrollback = settings.scrollback
       term.options.fontFamily = settings.fontFamily
       term.options.cursorStyle = settings.cursorStyle
       term.options.cursorBlink = settings.cursorBlink
-      term.options.scrollback = settings.scrollback
       term.options.allowTransparency = settings.allowTransparency
       term.options.smoothScrollDuration = settings.smoothScrollDuration
       term.options.theme = { ...settings.theme }
@@ -136,6 +138,7 @@ export const TerminalView = (props: TTerminalView) => {
     tryFit(entry.fitAddon)
   }, [
     sessionId,
+    settings.theme,
     settings.fontSize,
     settings.fontFamily,
     settings.cursorStyle,
@@ -143,12 +146,11 @@ export const TerminalView = (props: TTerminalView) => {
     settings.scrollback,
     settings.allowTransparency,
     settings.smoothScrollDuration,
-    settings.theme,
   ])
 
   useEffect(() => {
     if (!active) return
-    const entry = terminals.get(sessionId)
+    const entry = getTerminal(sessionId)
     if (!entry) return
     tryFit(entry.fitAddon)
   }, [active, sessionId])
@@ -166,38 +168,4 @@ export const TerminalView = (props: TTerminalView) => {
       }}
     />
   )
-}
-
-export function disposeTerminal(sessionId: string) {
-  const entry = terminals.get(sessionId)
-  if (!entry) return
-  try {
-    entry.fitAddon.dispose()
-  } catch {
-    /* already disposed */
-  }
-  try {
-    entry.term.dispose()
-  } catch {
-    /* already disposed */
-  }
-  terminals.delete(sessionId)
-}
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    for (const entry of terminals.values()) {
-      try {
-        entry.fitAddon.dispose()
-      } catch {
-        /* already disposed */
-      }
-      try {
-        entry.term.dispose()
-      } catch {
-        /* already disposed */
-      }
-    }
-    terminals.clear()
-  })
 }

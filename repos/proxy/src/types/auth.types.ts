@@ -8,7 +8,6 @@ export type TTokenPayload = {
   userId: string
   email: string
   orgId?: string
-  role?: string
   iat?: number
   exp?: number
 }

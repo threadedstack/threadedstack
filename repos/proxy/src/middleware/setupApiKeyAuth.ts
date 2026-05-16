@@ -2,18 +2,8 @@ import type { TProxyApp } from '@TPX/types'
 import type { Request, Response, NextFunction } from 'express'
 
 import { logger } from '@TPX/utils/logger'
-import { hashKey, ApiKeyPrefix, EApiKeyScope, ERoleType } from '@tdsk/domain'
-
-/**
- * Map API key scopes to backend-compatible roles
- */
-const scopeToRole = (scopes?: string): string => {
-  if (!scopes) return ERoleType.viewer
-  const scopeList = scopes.split(`,`).map((s) => s.trim())
-  if (scopeList.includes(EApiKeyScope.admin)) return ERoleType.admin
-  if (scopeList.includes(EApiKeyScope.write)) return ERoleType.member
-  return ERoleType.viewer
-}
+import type { ERoleType } from '@tdsk/domain'
+import { hashKey, ApiKeyPrefix, ApiKeyAllowedRoles } from '@tdsk/domain'
 
 /**
  * API Key Authentication middleware
@@ -77,11 +67,17 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
         return
       }
 
+      if (apiKey.role && !ApiKeyAllowedRoles.includes(apiKey.role as ERoleType)) {
+        logger.error(`API key ${apiKey.id} has invalid role: ${apiKey.role}`)
+        res.status(401).json({ error: `Invalid API key configuration` })
+        return
+      }
+
       req.user = {
         email: ``,
         userId: apiKey.userId,
-        role: scopeToRole(apiKey.scopes),
         ...(apiKey.orgId && { orgId: apiKey.orgId }),
+        ...(apiKey.role && { apiKeyRole: apiKey.role }),
         ...(apiKey.projectId && { projectId: apiKey.projectId }),
         apiKeyId: apiKey.id,
       }

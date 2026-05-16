@@ -11,10 +11,15 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
-import { useApiKeys, useActiveOrgId, useOrgUsers } from '@TAF/state/selectors'
 import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  useApiKeys,
+  useActiveOrgId,
+  useOrgUsers,
+  useActiveOrgRole,
+} from '@TAF/state/selectors'
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
@@ -28,6 +33,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [orgUsersMap] = useOrgUsers()
+  const [activeOrgRole] = useActiveOrgRole()
   const { canCreate, canDelete } = usePermissions()
   const createDisabled = !canCreate(EPermResource.apiKey)
   const deleteDisabled = !canDelete(EPermResource.apiKey)
@@ -243,6 +249,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
           <CreateApiKeyDrawer
             orgId={orgId}
             users={orgUsers}
+            maxRole={activeOrgRole}
             open={createDialogOpen}
             onClose={onDialogClose}
           />

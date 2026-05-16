@@ -35,6 +35,7 @@ describe(`Users endpoints`, () => {
             isOrgMember: vi.fn().mockResolvedValue({ data: true }),
             getOrgMembers: vi.fn().mockResolvedValue({ data: [] }),
             getUserOrgs: vi.fn().mockResolvedValue({ data: [{ id: 'org-1' }] }),
+            getUserRoles: vi.fn().mockResolvedValue({ data: [] }),
             create: vi.fn().mockResolvedValue({ data: { id: 'role-123' } }),
             removeFromOrg: vi.fn().mockResolvedValue({ data: { success: true } }),
           },

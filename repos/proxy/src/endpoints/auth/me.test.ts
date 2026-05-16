@@ -17,7 +17,7 @@ const mockRes = () => {
 describe(`GET /auth/me`, () => {
   it(`should return user data when req.user is present`, async () => {
     const req = {
-      user: { userId: `u1`, role: `admin`, email: `a@b.com` },
+      user: { userId: `u1`, email: `a@b.com` },
     } as unknown as Request
     const res = mockRes()
 
@@ -26,7 +26,7 @@ describe(`GET /auth/me`, () => {
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
       data: {
-        user: { id: `u1`, role: `admin`, email: `a@b.com` },
+        user: { id: `u1`, email: `a@b.com` },
       },
     })
   })

@@ -1,14 +1,17 @@
 export { closeSession } from './closeSession'
-export { closeAllSessions } from './closeAllSessions'
 export { activateSession } from './activateSession'
+export { closeAllSessions } from './closeAllSessions'
 export { disconnectSession } from './disconnectSession'
-export { classifySessions } from './loadSandboxSessions'
 export { sendInput, sendControl, approvePermission, denyPermission } from './sendInput'
 export {
   openSession,
+  getTerminal,
+  setTerminal,
   getRawBuffer,
   getConnection,
-  closeAllConnections,
+  deleteTerminal,
   subscribeEngineData,
   subscribeTerminalData,
+  findSandboxForSession,
+  clearStoredSessionsForSandbox,
 } from './openSession'

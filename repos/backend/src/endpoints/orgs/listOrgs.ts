@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { parsePagination } from '@TBE/utils/pagination'
-import { isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
+import { ERoleType, Exception, isSuperAdmin } from '@tdsk/domain'
 
 /**
  * GET /orgs - List all orgs
@@ -19,9 +19,6 @@ export const listOrgs: TEndpointConfig = {
 
     if (!userId) throw new Exception(401, `Authentication required`)
 
-    const isSuper = isSuperAdmin((req.user?.role ?? ``) as ERoleType)
-
-    // Get all user roles to map orgId -> role type
     const { data: userRoles, error: rolesError } =
       await db.services.role.getUserRoles(userId)
 
@@ -34,6 +31,8 @@ export const listOrgs: TEndpointConfig = {
         orgRoleMap.set(role.orgId, role.type as ERoleType)
       }
     })
+
+    const isSuper = userRoles?.some((r) => isSuperAdmin(r.type as ERoleType)) ?? false
 
     const { limit, offset } = parsePagination(req)
 

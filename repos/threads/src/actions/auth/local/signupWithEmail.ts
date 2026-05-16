@@ -10,7 +10,9 @@ export const signupWithEmail = async (email: string, password: string) => {
   if (resp.user) {
     try {
       await apiService.bearer(resp)
-    } catch {}
+    } catch (err) {
+      console.warn(`[signupWithEmail] Failed to set bearer token:`, err)
+    }
     setUser(resp.user)
     resetInit()
   }

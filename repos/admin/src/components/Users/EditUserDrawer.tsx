@@ -1,13 +1,13 @@
 import type { User, TRoleType, ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useApiKeys } from '@TAF/state/selectors'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useApiKeys, useActiveOrgRole } from '@TAF/state/selectors'
 import { updateOrgRole } from '@TAF/actions/users/api/updateOrgRole'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -72,6 +72,7 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
   } = props
 
   const { canManageMembers } = usePermissions()
+  const [activeOrgRole] = useActiveOrgRole()
   const [activeTab, setActiveTab] = useState<TActiveTab>(initialTab)
 
   // Role tab state
@@ -399,6 +400,7 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
         userId={user.id}
         open={createOpen}
         userName={userName}
+        maxRole={activeOrgRole}
         onSuccess={onCreateSuccess}
         onClose={() => setCreateOpen(false)}
       />

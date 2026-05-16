@@ -17,6 +17,10 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
   checkPermission: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock(`@TBE/utils/auth/requireAgentAccess`, () => ({
+  requireAgentAccess: vi.fn().mockResolvedValue(undefined),
+}))
+
 const { mockResolveAgentConfig } = vi.hoisted(() => ({
   mockResolveAgentConfig: vi.fn(),
 }))
@@ -87,7 +91,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           services: {
             agent: {
               list: vi.fn(),
-              get: vi.fn(),
+              get: vi.fn().mockResolvedValue({
+                data: { id: `agent-1`, orgId: `org-1`, projects: [] },
+              }),
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),

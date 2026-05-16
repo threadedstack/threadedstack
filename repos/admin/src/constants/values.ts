@@ -10,6 +10,7 @@ import {
   EApiKeyExpire,
   EEndpointType,
   EEPCredential,
+  ApiKeyAllowedRoles,
 } from '@tdsk/domain'
 
 export const NavRailWidth = 60
@@ -35,6 +36,17 @@ export const ApiKeyScopeDesc = {
   [EApiKeyScope.admin]: `Full administrative access`,
   [EApiKeyScope.write]: `Create and update resources`,
   [EApiKeyScope.read]: `Read-only access to resources`,
+}
+
+export const ApiKeyRoles = ApiKeyAllowedRoles.map((role) => ({
+  value: role,
+  label: capitalize(role),
+}))
+
+export const ApiKeyRoleDesc: Record<string, string> = {
+  [ERoleType.admin]: `Full administrative access — manage members, settings, and resources`,
+  [ERoleType.member]: `Standard access — create, read, and update resources`,
+  [ERoleType.viewer]: `Read-only access — view resources only`,
 }
 
 export const AllAuthRoles = [

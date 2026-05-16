@@ -25,7 +25,6 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: {
           id: user.userId,
-          role: user.role,
           email: user.email,
         },
       },

@@ -1,11 +1,10 @@
-import { openSession } from '@TTH/actions/sessions'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
-import { clearStoredSessionsForSandbox } from '@TTH/utils/sessionStorage'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
+import { openSession, clearStoredSessionsForSandbox } from '@TTH/actions/sessions'
 
 export type TRecreateSandboxOpts = {
-  sandboxId: string
   orgId: string
+  sandboxId: string
   projectId: string
 }
 

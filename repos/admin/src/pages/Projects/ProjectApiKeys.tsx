@@ -15,6 +15,7 @@ import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconBut
 import {
   useApiKeys,
   useActiveOrgId,
+  useActiveOrgRole,
   useProjectMembers,
   useActiveProjectId,
 } from '@TAF/state/selectors'
@@ -32,6 +33,7 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [activeOrgRole] = useActiveOrgRole()
   const [loading, setLoading] = useState(false)
   const [projectMembersMap] = useProjectMembers()
   const [searchQuery, setSearchQuery] = useState('')
@@ -245,6 +247,7 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
             orgId={orgId}
             users={projectUsers}
             projectId={projectId}
+            maxRole={activeOrgRole}
             open={createDialogOpen}
             onClose={onDialogClose}
           />

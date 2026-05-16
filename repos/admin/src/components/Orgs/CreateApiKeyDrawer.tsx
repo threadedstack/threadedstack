@@ -1,17 +1,11 @@
-import type { TApiKeyScope } from '@tdsk/domain'
-
 import { useState } from 'react'
-import { EApiKeyScope } from '@tdsk/domain'
 import { createApiKey } from '@TAF/actions/apiKeys'
-import { capitalize } from '@keg-hub/jsutils/capitalize'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import LocalPoliceIcon from '@mui/icons-material/LocalPolice'
+import { ERoleType, RoleHierarchy } from '@tdsk/domain'
 import { Box, Paper, Alert, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { UserSelectorSingle } from '@TAF/components/Selectors/UserSelector'
-import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
-import { ApiKeyScopes, ApiKeysExpire, ApiKeyScopeDesc } from '@TAF/constants/values'
+import { ApiKeyRoles, ApiKeyRoleDesc, ApiKeysExpire } from '@TAF/constants/values'
 import {
   Drawer,
   Button,
@@ -20,7 +14,6 @@ import {
   SelectInput,
   ClipboardCopy,
   DrawerActions,
-  CheckboxInput,
 } from '@tdsk/components'
 
 export type TCreateApiKeyDrawer = {
@@ -29,22 +22,10 @@ export type TCreateApiKeyDrawer = {
   userId?: string
   userName?: string
   users?: Array<{ id: string; name: string; email?: string }>
-  maxScope?: TApiKeyScope
+  maxRole?: string
   open: boolean
   onClose: () => void
   onSuccess?: () => void
-}
-
-const ScopeLevel: Record<string, number> = {
-  [EApiKeyScope.read]: 1,
-  [EApiKeyScope.write]: 2,
-  [EApiKeyScope.admin]: 3,
-}
-
-const ScopeIcons = {
-  [EApiKeyScope.read]: VisibilityIcon,
-  [EApiKeyScope.admin]: LocalPoliceIcon,
-  [EApiKeyScope.write]: DriveFileRenameOutlineIcon,
 }
 
 export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
@@ -55,30 +36,25 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     userId,
     userName,
     users,
-    maxScope,
+    maxRole,
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
 
-  const maxScopeLevel = maxScope ? (ScopeLevel[maxScope] ?? 3) : 3
+  const maxRoleLevel = maxRole
+    ? RoleHierarchy.indexOf(maxRole as ERoleType)
+    : RoleHierarchy.indexOf(ERoleType.admin)
 
   const [name, setName] = useState('')
-  const [scopes, setScopes] = useState<TApiKeyScope[]>([`read`])
+  const [role, setRole] = useState<string>(ERoleType.viewer)
   const [expiresIn, setExpiresIn] = useState<string>(`none`)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generatedKey, setGeneratedKey] = useState<string | null>()
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
-  const onScopeChange = (scope: TApiKeyScope) =>
-    setScopes((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
-    )
-
   const onSave = async () => {
     if (!name.trim()) return setError(`API key name is required`)
-
-    if (scopes.length === 0) return setError(`At least one scope is required`)
 
     setLoading(true)
     setError(null)
@@ -93,10 +69,10 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     const result = await createApiKey({
       orgId,
       data: {
+        role,
         projectId,
         expiresAt,
         name: name.trim(),
-        scopes: scopes.join(','),
         userId: userId || selectedUserId || undefined,
       },
     })
@@ -108,11 +84,9 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   }
 
   const onClose = () => {
-    // Only allow closing if we haven't generated a key yet
-    // or if the user has explicitly acknowledged the key
     generatedKey && onSuccessCB?.()
     setName(``)
-    setScopes([`read`])
+    setRole(ERoleType.viewer)
     setExpiresIn(`none`)
     setError(null)
     setGeneratedKey(null)
@@ -129,6 +103,12 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     onSuccessCB?.()
     onClose()
   }
+
+  const roleItems = ApiKeyRoles.map((r) => {
+    const roleLevel = RoleHierarchy.indexOf(r.value as ERoleType)
+    const disabled = roleLevel > maxRoleLevel || roleLevel < 0
+    return { ...r, disabled }
+  })
 
   return (
     <Drawer
@@ -151,7 +131,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
             loading={loading}
             form='api-key-form'
             cancelDisabled={false}
-            disabled={!name.trim() || scopes.length === 0}
+            disabled={!name.trim()}
           />
         )
       }
@@ -255,34 +235,23 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
           />
 
           <Box sx={{ mt: 2 }}>
-            <InputLabel>Scopes</InputLabel>
-            {ApiKeyScopes.map((scope) => {
-              const Icon = ScopeIcons[scope]
-              const scopeDisabled = (ScopeLevel[scope] ?? 0) > maxScopeLevel
-
-              return (
-                <Box
-                  key={scope}
-                  sx={{ mt: 1, display: `flex`, alignItems: `center` }}
-                >
-                  <CheckboxInput
-                    id={scope}
-                    sx={{ ml: 0.5 }}
-                    label={capitalize(scope)}
-                    disabled={scopeDisabled}
-                    checked={scopes.includes(scope)}
-                    onChange={() => onScopeChange(scope)}
-                  />
-                  <Typography
-                    color='text.secondary'
-                    sx={{ fontSize: `12px` }}
-                  >
-                    {ApiKeyScopeDesc[scope]}
-                    {scopeDisabled && ` (requires higher project role)`}
-                  </Typography>
-                </Box>
-              )
-            })}
+            <SelectInput
+              label='Role'
+              value={role}
+              disabled={loading}
+              items={roleItems}
+              id='tdsk-api-key-role'
+              onChange={(e) => setRole(e.target.value)}
+            />
+            {ApiKeyRoleDesc[role] && (
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                sx={{ display: 'block', mt: 0.5 }}
+              >
+                {ApiKeyRoleDesc[role]}
+              </Typography>
+            )}
           </Box>
         </form>
       )}

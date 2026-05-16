@@ -4,7 +4,7 @@ import StopIcon from '@mui/icons-material/Stop'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 
-export const ShellSessionsStorageKey = `shell_sessions`
+export const CategoryOrder = { connected: 0, disconnected: 1, shared: 2 } as const
 
 export const CommandConfig: Record<
   TCommand,

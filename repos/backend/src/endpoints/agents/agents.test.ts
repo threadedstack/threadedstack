@@ -8,6 +8,10 @@ import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
+vi.mock(`@TBE/utils/auth/requireAgentAccess`, () => ({
+  requireAgentAccess: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe(`Agents endpoints`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>

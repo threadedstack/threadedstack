@@ -2,8 +2,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
-import type { ERoleType } from '@tdsk/domain'
-import { Exception, isSuperAdmin } from '@tdsk/domain'
+import { Exception } from '@tdsk/domain'
+import { isPlatformSuperAdmin } from '@TBE/utils/auth/isPlatformSuperAdmin'
 
 /**
  * GET /users/:id - Get user by ID
@@ -18,12 +18,11 @@ export const getUser: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
     const currentUserId = req.user?.id
+    if (!currentUserId) throw new Exception(401, `Authentication required`)
 
-    // Users can always view themselves
     const isOwnProfile = currentUserId === id
 
-    // Check if super admin
-    const isSuper = isSuperAdmin((req.user?.role ?? '') as ERoleType)
+    const isSuper = await isPlatformSuperAdmin(req)
 
     if (!isOwnProfile && !isSuper) {
       // Check if they share an org

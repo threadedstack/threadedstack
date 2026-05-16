@@ -10,7 +10,7 @@ import { openSession } from '@TTH/actions/sessions'
 import { useParams, useLocation } from 'react-router'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { SessionContext } from '@TTH/contexts/SessionContext'
-import { findSandboxForSession } from '@TTH/utils/sessionStorage'
+import { findSandboxForSession } from '@TTH/actions/sessions'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { useUser, useOrgId, useSandboxes, useOpenSessions } from '@TTH/state/selectors'
 

@@ -16,6 +16,10 @@ vi.mock(`@TBE/services/providers/modelRegistry`, () => ({
   },
 }))
 
+vi.mock(`@TBE/utils/auth/requireAgentAccess`, () => ({
+  requireAgentAccess: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock(`@TBE/services/openai/responseAdapter`, () => ({
   formatOAIError: vi.fn().mockReturnValue({
     status: 500,
@@ -359,7 +363,7 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
     await ep.action(mockReq as TRequest, mockRes as Response)
 
     const mockGet = app.locals.db.services.agent.get as ReturnType<typeof vi.fn>
-    expect(mockGet).toHaveBeenCalledWith(`agent-1`, { sanitize: true })
+    expect(mockGet).toHaveBeenCalledWith(`agent-1`, { sanitize: false })
   })
 
   it(`should log error and skip provider when ModelRegistry.getModels throws`, async () => {

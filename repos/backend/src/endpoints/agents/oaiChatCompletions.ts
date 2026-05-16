@@ -6,6 +6,7 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import {
@@ -42,6 +43,30 @@ export const oaiChatCompletions: TEndpointConfig = {
     const body = req.body
 
     if (!userId) throw new Exception(401, `Authentication required`)
+
+    const { data: agentData, error: agentFetchErr } = await db.services.agent.get(agentId)
+    if (agentFetchErr) {
+      const { status, body: errBody } = formatOAIError(
+        new Exception(500, agentFetchErr.message)
+      )
+      res.status(status).json(errBody)
+      return
+    }
+    if (!agentData) {
+      const { status, body: errBody } = formatOAIError(
+        new Exception(404, `Agent not found`)
+      )
+      res.status(status).json(errBody)
+      return
+    }
+
+    try {
+      await requireAgentAccess(req, agentId, agentData.orgId, agentData)
+    } catch (err) {
+      const { status, body: errBody } = formatOAIError(err)
+      res.status(status).json(errBody)
+      return
+    }
 
     if (!body.messages?.length) {
       const { status, body: errBody } = formatOAIError(

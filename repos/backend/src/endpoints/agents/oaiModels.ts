@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 import { formatOAIError } from '@TBE/services/openai/responseAdapter'
 
@@ -28,7 +29,7 @@ export const oaiModels: TEndpointConfig = {
 
     try {
       const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
-        sanitize: true,
+        sanitize: false,
       })
 
       if (agentErr) {
@@ -39,6 +40,14 @@ export const oaiModels: TEndpointConfig = {
 
       if (!agent) {
         const { status, body } = formatOAIError(new Exception(404, `Agent not found`))
+        res.status(status).json(body)
+        return
+      }
+
+      try {
+        await requireAgentAccess(req, agentId, agent.orgId, agent)
+      } catch (err) {
+        const { status, body } = formatOAIError(err)
         res.status(status).json(body)
         return
       }

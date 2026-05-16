@@ -22,11 +22,11 @@ export const DomainRegex =
 
 export const AuthHeaders = Object.freeze({
   [`user.userId`]: `X-User-Id`,
-  [`user.role`]: `X-User-Role`,
   [`user.email`]: `X-User-Email`,
   [`user.orgId`]: `X-User-Org-Id`,
   [`user.projectId`]: `X-User-Project-Id`,
   [`user.apiKeyId`]: `X-User-Api-Key-Id`,
+  [`user.apiKeyRole`]: `X-Api-Key-Role`,
 })
 
 /**
@@ -39,6 +39,12 @@ export const RoleHierarchy: ERoleType[] = [
   ERoleType.admin,
   ERoleType.owner,
   ERoleType.super,
+]
+
+export const ApiKeyAllowedRoles: ERoleType[] = [
+  ERoleType.viewer,
+  ERoleType.member,
+  ERoleType.admin,
 ]
 
 /**

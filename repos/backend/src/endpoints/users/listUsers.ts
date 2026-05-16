@@ -1,10 +1,10 @@
-import type { ERoleType } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest, TResponse } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { Exception, EPermAction, isSuperAdmin, EPermResource } from '@tdsk/domain'
+import { isPlatformSuperAdmin } from '@TBE/utils/auth/isPlatformSuperAdmin'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /users - List all users
@@ -20,8 +20,7 @@ export const listUsers: TEndpointConfig = {
     const { db, auth } = req.app.locals
     const orgId = req.query.orgId || auth.orgId
 
-    // Check if user is super admin
-    const isSuper = isSuperAdmin((req.user?.role ?? '') as ERoleType)
+    const isSuper = await isPlatformSuperAdmin(req)
 
     const { limit, offset } = parsePagination(req)
 

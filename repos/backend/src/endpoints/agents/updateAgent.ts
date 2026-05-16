@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -37,6 +38,8 @@ export const updateAgent: TEndpointConfig = {
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
     if (getError) throw new Exception(500, getError.message)
     if (!existingAgent) throw new Exception(404, `Agent not found`)
+
+    await requireAgentAccess(req, id, existingAgent.orgId, existingAgent)
 
     // Project context: update project-level overrides, not the base agent
     const { projectId } = req.params

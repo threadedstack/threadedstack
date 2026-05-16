@@ -6,6 +6,7 @@ import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 export class ApiKey extends Base {
   key?: string
   name: string
+  role?: string
   orgId?: string
   userId?: string
   keyHash: string

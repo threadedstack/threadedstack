@@ -38,12 +38,7 @@ export class ApiService extends DomainApiService {
       auth = data as TAuthData
     }
 
-    if (!auth?.session?.token) {
-      this.clearBearer()
-      return
-    }
-
-    this.setBearer(auth.session.token)
+    auth?.session?.token ? this.setBearer(auth.session.token) : this.clearBearer()
   }
 
   configure = (cfg: TApiService = {}) => {

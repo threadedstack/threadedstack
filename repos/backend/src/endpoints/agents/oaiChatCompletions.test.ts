@@ -16,6 +16,11 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
+const mockRequireAgentAccess = vi.fn().mockResolvedValue(undefined)
+vi.mock(`@TBE/utils/auth/requireAgentAccess`, () => ({
+  requireAgentAccess: (...args: any[]) => mockRequireAgentAccess(...args),
+}))
+
 const mockRunHeadless = vi.fn().mockResolvedValue({ threadId: `thread-1` })
 vi.mock(`@TBE/services/endpoints/agentEndpoint`, () => ({
   AgentEndpoint: vi.fn().mockImplementation(() => ({
@@ -106,6 +111,11 @@ const buildApp = () =>
     locals: {
       db: {
         services: {
+          agent: {
+            get: vi.fn().mockResolvedValue({
+              data: { id: `agent-1`, orgId: `org-1`, projects: [] },
+            }),
+          },
           thread: { create: vi.fn().mockResolvedValue({ data: { id: `thread-1` } }) },
           message: { create: vi.fn().mockResolvedValue({ data: {} }) },
         },
@@ -680,6 +690,38 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
       error: {
         message: `Agent not found`,
         type: `invalid_request_error`,
+        param: null,
+        code: null,
+      },
+    })
+    expect(mockRunHeadless).not.toHaveBeenCalled()
+  })
+
+  it(`should return OAI-formatted 403 when requireAgentAccess denies`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    const accessError = { status: 403, message: `Access denied: not a project member` }
+    mockRequireAgentAccess.mockRejectedValueOnce(accessError)
+
+    mockFormatOAIError.mockReturnValueOnce({
+      status: 403,
+      body: {
+        error: {
+          message: `Access denied: not a project member`,
+          type: `server_error`,
+          param: null,
+          code: null,
+        },
+      },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockFormatOAIError).toHaveBeenCalledWith(accessError)
+    expect(mockStatus).toHaveBeenCalledWith(403)
+    expect(mockJson).toHaveBeenCalledWith({
+      error: {
+        message: `Access denied: not a project member`,
+        type: `server_error`,
         param: null,
         code: null,
       },

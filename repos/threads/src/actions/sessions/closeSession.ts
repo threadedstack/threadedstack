@@ -1,22 +1,12 @@
+import { sessionService } from '@TTH/services/sessionService'
 import {
-  getOpenSessions,
   removeOpenSession,
   getActiveSession,
   setActiveSession,
 } from '@TTH/state/accessors'
-import { removeStoredSession } from '@TTH/utils/sessionStorage'
-import { getConnection } from './openSession'
-import { disposeTerminal } from '@TTH/components/Terminal/TerminalView'
 
 export const closeSession = (sessionId: string, opts?: { preserveStorage?: boolean }) => {
-  const ws = getConnection(sessionId)
-  if (ws) ws.close()
-
-  const session = getOpenSessions().get(sessionId)
+  sessionService.close(sessionId, opts)
   removeOpenSession(sessionId)
-  disposeTerminal(sessionId)
   if (getActiveSession() === sessionId) setActiveSession(null)
-  if (!opts?.preserveStorage && session) {
-    removeStoredSession(session.sandboxId, sessionId)
-  }
 }

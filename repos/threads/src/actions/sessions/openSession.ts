@@ -1,17 +1,7 @@
-import type { TOpenSessionOpts } from '@TTH/types'
-import type { ESandboxSessionVisibility } from '@tdsk/domain'
+import type { TOpenSessionOpts, TTerminalEntry } from '@TTH/types'
 
 import { toast } from 'sonner'
-import { EShellMsg } from '@tdsk/domain'
-import { apiService } from '@TTH/services/api'
-import { sandboxApi } from '@TTH/services/sandboxApi'
-import { disposeTerminal } from '@TTH/components/Terminal/TerminalView'
-import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
-import {
-  storeSession,
-  getStoredSessions,
-  removeStoredSession,
-} from '@TTH/utils/sessionStorage'
+import { sessionService } from '@TTH/services/sessionService'
 import {
   setOpenSession,
   getOpenSessions,
@@ -21,276 +11,51 @@ import {
   setBackendSessions,
 } from '@TTH/state/accessors'
 
-let rawBuffers = new Map<string, string[]>()
-let connections = new Map<string, WebSocket>()
-let terminalWriters = new Map<string, Set<(data: string) => void>>()
-let engineWriters = new Map<string, Set<(data: Uint8Array) => void>>()
+export const getRawBuffer = (sessionId: string) => sessionService.getRawBuffer(sessionId)
+export const getConnection = (sessionId: string) =>
+  sessionService.getConnection(sessionId)
 
-export const getConnection = (sessionId: string) => connections.get(sessionId)
-export const getRawBuffer = (sessionId: string) => rawBuffers.get(sessionId) ?? []
+export const subscribeTerminalData = (sessionId: string, cb: (data: string) => void) =>
+  sessionService.subscribeTerminalData(sessionId, cb)
 
-export const subscribeTerminalData = (sessionId: string, cb: (data: string) => void) => {
-  if (!terminalWriters.has(sessionId)) terminalWriters.set(sessionId, new Set())
-  terminalWriters.get(sessionId)!.add(cb)
-  return () => {
-    terminalWriters.get(sessionId)?.delete(cb)
-  }
-}
+export const subscribeEngineData = (sessionId: string, cb: (data: Uint8Array) => void) =>
+  sessionService.subscribeEngineData(sessionId, cb)
 
-export const subscribeEngineData = (
-  sessionId: string,
-  cb: (data: Uint8Array) => void
-) => {
-  if (!engineWriters.has(sessionId)) engineWriters.set(sessionId, new Set())
-  engineWriters.get(sessionId)!.add(cb)
-  return () => {
-    engineWriters.get(sessionId)?.delete(cb)
-  }
-}
+export const getTerminal = (sessionId: string) => sessionService.getTerminal(sessionId)
+export const setTerminal = (sessionId: string, entry: TTerminalEntry) =>
+  sessionService.setTerminal(sessionId, entry)
+export const deleteTerminal = (sessionId: string) =>
+  sessionService.deleteTerminal(sessionId)
+
+export const findSandboxForSession = (sessionId: string) =>
+  sessionService.findSandboxForSession(sessionId)
+
+export const clearStoredSessionsForSandbox = (sandboxId: string) =>
+  sessionService.clearStoredSessionsForSandbox(sandboxId)
 
 export const openSession = async (opts: TOpenSessionOpts) => {
-  const { sandboxId, orgId, projectId, run = true } = opts
-
-  const connectOpts = {
-    ...(opts.instanceId ? { instanceId: opts.instanceId } : {}),
-    ...(opts.newInstance ? { newInstance: true } : {}),
-  }
-  const connectResult = await sandboxApi.connect(orgId, projectId, sandboxId, connectOpts)
-  if (connectResult.error)
-    throw new Error(connectResult.error?.message ?? `Failed to connect to sandbox`)
-
-  const shellToken = connectResult.data?.shellToken
-  const instanceId = connectResult.data?.instanceId ?? ``
-
-  const baseUrl = new URL(apiService.base)
-  const wsProto = baseUrl.protocol === `https:` ? `wss:` : `ws:`
-  const cols = opts.cols ?? 80
-  const rows = opts.rows ?? 24
-  const params = new URLSearchParams({ cols: String(cols), rows: String(rows) })
-  if (run) params.set(`run`, `true`)
-  if (instanceId) params.set(`instanceId`, instanceId)
-  if (shellToken) params.set(`token`, shellToken)
-
-  // Resolve session intent
-  let targetSessionId: string | undefined
-  if (opts.sessionId === null) {
-    targetSessionId = undefined
-  } else if (opts.sessionId) {
-    targetSessionId = opts.sessionId
-  } else {
-    const stored = getStoredSessions(sandboxId)
-    targetSessionId = stored[0]
-  }
-  if (targetSessionId) params.set(`sessionId`, targetSessionId)
-
-  const wsUrl = `${wsProto}//${baseUrl.host}/_/sandboxes/${sandboxId}/shell?${params}`
-
-  const tempKey = targetSessionId ?? `pending_${sandboxId}_${Date.now()}`
-
-  const existingWs = connections.get(tempKey)
-  if (existingWs) {
-    if (existingWs.readyState === WebSocket.OPEN) {
-      setActiveSession(tempKey)
-      storeSession(sandboxId, tempKey)
-      return Promise.resolve(tempKey)
-    }
-    try {
-      existingWs.close()
-    } catch {
-      /* already closed */
-    }
-    connections.delete(tempKey)
-    rawBuffers.delete(tempKey)
-    terminalWriters.delete(tempKey)
-    engineWriters.delete(tempKey)
-  }
-
-  const ws = new WebSocket(wsUrl)
-  connections.set(tempKey, ws)
-  rawBuffers.set(tempKey, [])
-
-  return new Promise<string>((resolve, reject) => {
-    let settled = false
-    let sessionId = tempKey
-    ws.binaryType = `arraybuffer`
-
-    const timeoutId = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        ws.close()
-        reject(new Error(`Connection timeout`))
-      }
-    }, ConnectionTimeout)
-
-    const setupSession = (msg: Record<string, any>) => {
-      sessionId = msg.sessionId
-
-      // Migrate from temp key to real sessionId
-      if (tempKey !== sessionId) {
-        connections.delete(tempKey)
-        rawBuffers.delete(tempKey)
-        terminalWriters.delete(tempKey)
-        engineWriters.delete(tempKey)
-        connections.set(sessionId, ws)
-        rawBuffers.set(sessionId, [])
-      }
-
-      const runtime = msg.runtime ?? `custom`
-
-      setOpenSession(sessionId, {
-        sandboxId,
-        sessionId,
-        threadId: msg.threadId ?? ``,
-        runtime,
-        projectId,
-        instanceId: msg.instanceId ?? instanceId,
-        podOwnerUserId: msg.podOwnerUserId ?? ``,
-        visibility: (msg.visibility ?? `private`) as ESandboxSessionVisibility,
-      })
-      setActiveSession(sessionId)
-      storeSession(sandboxId, sessionId)
-    }
-
-    ws.onmessage = (event) => {
-      if (typeof event.data === `string`) {
-        let msg: Record<string, any>
-        try {
-          msg = JSON.parse(event.data)
-        } catch {
-          console.warn(`[Session] Non-JSON text from server:`, event.data.slice(0, 200))
-          return
-        }
-
-        try {
-          if (msg.type === EShellMsg.Connected || msg.type === EShellMsg.Joined) {
-            setupSession(msg)
-            settled = true
-            clearTimeout(timeoutId)
-            resolve(sessionId)
-          } else if (msg.type === EShellMsg.Reconnected) {
-            setupSession(msg)
-            settled = true
-            clearTimeout(timeoutId)
-            resolve(sessionId)
-          } else if (msg.type === EShellMsg.Visibility) {
-            const current = getOpenSessions()
-            const existing = current.get(msg.sessionId)
-            if (existing) {
-              setOpenSession(msg.sessionId, {
-                ...existing,
-                visibility: msg.visibility,
-              })
-            }
-          } else if (msg.type === EShellMsg.UserJoined) {
-            toast.info(`User joined your session`, { duration: 3000 })
-          } else if (msg.type === EShellMsg.UserLeft) {
-            toast.info(`User left your session`, { duration: 3000 })
-          } else if (msg.type === EShellMsg.SandboxStopping) {
-            toast.info(`Sandbox is being stopped by another user`, { duration: 5000 })
-          } else if (msg.type === EShellMsg.SessionsUpdated) {
-            if (
-              msg.sandboxId &&
-              Array.isArray(msg.sessions) &&
-              msg.sessions.every(
-                (s: any) =>
-                  s && typeof s.sessionId === `string` && typeof s.sandboxId === `string`
-              )
-            )
-              setBackendSessions(msg.sandboxId as string, msg.sessions)
-          } else if (msg.type === EShellMsg.Error) {
-            clearTimeout(timeoutId)
-            settled = true
-            reject(new Error(msg.message))
-          }
-        } catch (err) {
-          clearTimeout(timeoutId)
-          settled = true
-          reject(err instanceof Error ? err : new Error(`Session setup failed`))
-        }
-        return
-      }
-
-      const data = new TextDecoder().decode(event.data)
-      const buf = rawBuffers.get(sessionId)
-      if (buf) {
-        buf.push(data)
-        let totalBytes = 0
-        for (const chunk of buf) totalBytes += chunk.length
-        while (totalBytes > RawBufferMaxBytes && buf.length > 1) {
-          totalBytes -= buf.shift()!.length
-        }
-      }
-
-      const writers = terminalWriters.get(sessionId)
-      if (writers && writers.size > 1)
-        console.warn(
-          `[Session] ${sessionId.slice(0, 6)}: ${writers.size} terminal writers`
-        )
-
-      writers?.forEach((cb) => cb(data))
-      const rawBytes = new Uint8Array(event.data)
-      engineWriters.get(sessionId)?.forEach((cb) => cb(rawBytes))
-    }
-
-    ws.onclose = (event: CloseEvent) => {
-      clearTimeout(timeoutId)
-      if (connections.get(sessionId) !== ws) return
-      connections.delete(sessionId)
-      rawBuffers.delete(sessionId)
-      terminalWriters.delete(sessionId)
-      engineWriters.delete(sessionId)
-
-      // Also clean temp key if still present
-      if (tempKey !== sessionId) {
-        connections.delete(tempKey)
-        rawBuffers.delete(tempKey)
-      }
-
-      const session = getOpenSessions().get(sessionId)
-      if (session) {
-        removeOpenSession(sessionId)
-        removeStoredSession(sandboxId, sessionId)
-        disposeTerminal(sessionId)
-      }
-      if (getActiveSession() === sessionId) {
-        setActiveSession(null)
-      }
-      if (!settled) {
-        settled = true
-        reject(new Error(event.reason || `Connection closed (code ${event.code})`))
-        return
-      }
-      if (event.code >= 4000) {
-        toast.error(`Session disconnected`, {
-          description: event.reason || `Connection closed (code ${event.code})`,
-        })
-      }
-    }
-
-    ws.onerror = () => {
-      clearTimeout(timeoutId)
-      if (!settled) {
-        settled = true
-        reject(new Error(`WebSocket connection failed`))
-      }
-    }
+  const sessionId = await sessionService.open(opts, {
+    onSetup: (data) => {
+      setOpenSession(data.sessionId, data)
+    },
+    onVisibilityChange: (sid, visibility) => {
+      const existing = getOpenSessions().get(sid)
+      if (existing) setOpenSession(sid, { ...existing, visibility })
+    },
+    onSessionsUpdated: (sandboxId, sessions) => {
+      setBackendSessions(sandboxId, sessions)
+    },
+    onUserJoined: () => toast.info(`User joined your session`, { duration: 3000 }),
+    onUserLeft: () => toast.info(`User left your session`, { duration: 3000 }),
+    onSandboxStopping: () =>
+      toast.info(`Sandbox is being stopped by another user`, { duration: 5000 }),
+    onClose: (sid) => {
+      const session = getOpenSessions().get(sid)
+      if (session) removeOpenSession(sid)
+      if (getActiveSession() === sid) setActiveSession(null)
+    },
   })
-}
 
-export const closeAllConnections = () => {
-  for (const ws of connections.values()) {
-    try {
-      ws.close()
-    } catch {
-      /* already closed */
-    }
-  }
-  rawBuffers = new Map()
-  connections = new Map()
-  terminalWriters = new Map()
-  engineWriters = new Map()
-}
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => closeAllConnections())
+  setActiveSession(sessionId)
+  return sessionId
 }

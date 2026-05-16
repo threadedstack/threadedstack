@@ -3,19 +3,19 @@ import type { TSandboxSession } from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { nav } from '@TTH/services/nav'
-import { EPermResource } from '@tdsk/domain'
 import AddIcon from '@mui/icons-material/Add'
 import { useState, useCallback } from 'react'
 import ShareIcon from '@mui/icons-material/Share'
-import LinkOffIcon from '@mui/icons-material/LinkOff'
 import LogoutIcon from '@mui/icons-material/Logout'
+import LinkOffIcon from '@mui/icons-material/LinkOff'
 import { CommandConfig } from '@TTH/constants/sessions'
 import { usePermissions } from '@TTH/hooks/permissions'
+import { EShellMsg, EPermResource } from '@tdsk/domain'
 import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
-import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import {
   sendControl,
   openSession,
@@ -136,7 +136,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
 
   const onToggleShare = useCallback(() => {
     const newVisibility = isPublic ? `private` : `public`
-    sendControl(sessionId, { type: `visibility`, visibility: newVisibility })
+    sendControl(sessionId, { type: EShellMsg.Visibility, visibility: newVisibility })
   }, [sessionId, isPublic])
 
   const onDisconnect = useCallback(() => {

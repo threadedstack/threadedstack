@@ -263,7 +263,7 @@ export default async function setup() {
     adminUserId = env.adminUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
-      { name: 'integration-admin', scopes: 'admin', userId: adminUserId }
+      { name: 'integration-admin', role: 'admin', scopes: 'admin', userId: adminUserId }
     )
 
     if (keyRes.ok && keyRes.data) {
@@ -289,7 +289,7 @@ export default async function setup() {
     memberUserId = env.memberUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
-      { name: 'integration-member', scopes: 'read,write', userId: memberUserId }
+      { name: 'integration-member', role: 'member', scopes: 'read,write', userId: memberUserId }
     )
 
     if (keyRes.ok && keyRes.data) {

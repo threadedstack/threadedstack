@@ -16,7 +16,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const listInvitations: TEndpointConfig = {
   path: `/org/:orgId`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.role)],
+  middleware: [authorize(EPermAction.read, EPermResource.invitation)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params

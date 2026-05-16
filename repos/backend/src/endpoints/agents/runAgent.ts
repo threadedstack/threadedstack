@@ -2,7 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 
 /**
@@ -17,6 +19,7 @@ import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 export const runAgent: TEndpointConfig = {
   path: `/:id/run`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.exec, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const agentId = req.params.id
@@ -27,8 +30,14 @@ export const runAgent: TEndpointConfig = {
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!prompt) throw new Exception(400, `prompt is required`)
 
-    const agent = new AgentEndpoint()
-    await agent.run(req, res, db, {
+    const { data: agentData, error: agentErr } = await db.services.agent.get(agentId)
+    if (agentErr) throw new Exception(500, agentErr.message)
+    if (!agentData) throw new Exception(404, `Agent not found`)
+
+    await requireAgentAccess(req, agentId, agentData.orgId, agentData)
+
+    const agentEndpoint = new AgentEndpoint()
+    await agentEndpoint.run(req, res, db, {
       agentId,
       prompt,
       userId,

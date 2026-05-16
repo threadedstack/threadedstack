@@ -1,16 +1,20 @@
 import type { TRequest } from '@TBE/types'
-import type {
-  ERoleType,
-  EPermAction,
-  EPermResource,
-  TPermissionContext,
+import type { EPermAction, EPermResource, TPermissionContext } from '@tdsk/domain'
+import type { ERoleType } from '@tdsk/domain'
+import {
+  Exception,
+  canPerform,
+  isSuperAdmin,
+  getHighestRole,
+  getAuthHeader,
+  RoleHierarchy,
+  ApiKeyAllowedRoles,
 } from '@tdsk/domain'
-
-import { Exception, canPerform, isSuperAdmin, getHighestRole } from '@tdsk/domain'
 
 /**
  * Get user`s effective role for the given context
  * Checks org-level and project-level roles, returns highest
+ * Caps by API key role when request is made via API key
  * Returns null for non-members (no role found)
  * Throws on DB errors to prevent silent permission denials
  */
@@ -45,7 +49,21 @@ export const getUserRole = async (
     if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
 
-  return roles.length > 0 ? getHighestRole(roles) : null
+  const userDbRole = roles.length > 0 ? getHighestRole(roles) : null
+
+  if (!userDbRole) return null
+
+  const apiKeyRole = getAuthHeader(req, `apiKeyRole`) as ERoleType | undefined
+  if (apiKeyRole) {
+    if (!ApiKeyAllowedRoles.includes(apiKeyRole))
+      throw new Exception(403, `Invalid API key role: ${apiKeyRole}`, `FORBIDDEN`)
+
+    const dbLevel = RoleHierarchy.indexOf(userDbRole)
+    const keyLevel = RoleHierarchy.indexOf(apiKeyRole)
+    if (keyLevel < dbLevel) return apiKeyRole
+  }
+
+  return userDbRole
 }
 
 /**

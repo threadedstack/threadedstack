@@ -178,7 +178,6 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-123`,
       email: `user@example.com`,
-      role: `admin`,
     })
     expect(mockNext).toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
@@ -203,12 +202,11 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-789`,
       email: `fallback@example.com`,
-      role: `user`,
     })
     expect(mockNext).toHaveBeenCalled()
   })
 
-  it(`should default email to empty string and role to user when not in payload`, async () => {
+  it(`should default email to empty string when not in payload`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
     mockAuth.extract.mockReturnValue(`valid-token`)
     mockAuth.initialized.mockReturnValue(true)
@@ -226,7 +224,6 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-minimal`,
       email: ``,
-      role: `user`,
     })
   })
 
@@ -342,7 +339,6 @@ describe(`validateAuth`, () => {
       expect(mockReq.user).toEqual({
         userId: `user-123`,
         email: `user@example.com`,
-        role: `admin`,
       })
       expect(mockNext).toHaveBeenCalled()
     })

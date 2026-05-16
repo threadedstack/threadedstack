@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -19,6 +20,8 @@ export const deleteAgent: TEndpointConfig = {
     const { data: agent, error: getError } = await db.services.agent.get(id)
     if (getError) throw new Exception(500, getError.message)
     if (!agent) throw new Exception(404, `Agent not found`)
+
+    await requireAgentAccess(req, id, agent.orgId, agent)
 
     // Project context: unlink agent from project (don't delete the org-level agent)
     const { projectId } = req.params

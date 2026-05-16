@@ -75,7 +75,6 @@ export const validateAuth = (app: TProxyApp) => {
 
       req.user = {
         email: result.payload.email || ``,
-        role: result.payload.role || `user`,
         userId: result.payload.sub || result.payload.userId || ``,
       }
 

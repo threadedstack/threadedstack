@@ -1,9 +1,8 @@
 import { query } from '@TTH/services/query'
 import { storage } from '@TTH/services/storage'
 import { resetInit } from '@TTH/actions/init'
+import { sessionService } from '@TTH/services/sessionService'
 import { destroyAllEngines } from '@TTH/actions/gui/destroyAllEngines'
-import { closeAllSessions } from '@TTH/actions/sessions/closeAllSessions'
-import { clearAllStoredSessions } from '@TTH/utils/sessionStorage'
 import {
   StorageKeyPrefix,
   SettingsStorageKey,
@@ -20,15 +19,16 @@ import {
   resetSidebarOpen,
   resetOpenSessions,
   resetActiveOrgRole,
+  resetActiveSession,
   resetBackendSessions,
   resetActiveProjectId,
 } from '@TTH/state/accessors'
 
 export const reset = () => {
   try {
-    closeAllSessions()
+    sessionService.reset()
   } catch (err) {
-    console.warn(`[reset] closeAllSessions failed:`, err)
+    console.warn(`[reset] sessionService.reset failed:`, err)
   }
   try {
     destroyAllEngines()
@@ -42,22 +42,21 @@ export const reset = () => {
   }
 
   resetInit()
-  resetUser?.()
-  resetOrgs?.()
-  resetOrgId?.()
-  resetProjects?.()
-  resetSandboxes?.()
-  resetThemeType?.()
-  resetSidebarOpen?.()
-  resetActiveOrgRole?.()
-  resetActiveProjectId?.()
-  resetOpenSessions?.()
-  resetBackendSessions?.()
+  resetUser()
+  resetOrgs()
+  resetOrgId()
+  resetProjects()
+  resetSandboxes()
+  resetThemeType()
+  resetSidebarOpen()
+  resetActiveOrgRole()
+  resetActiveProjectId()
+  resetActiveSession()
+  resetOpenSessions()
+  resetBackendSessions()
 
   storage.remove(ActiveOrgIdStorageKey)
   storage.remove(SettingsStorageKey)
   storage.remove(ApiHeadersStorageKey)
   storage.removeByPrefix(StorageKeyPrefix)
-
-  clearAllStoredSessions()
 }
