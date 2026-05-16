@@ -1,4 +1,4 @@
-import type { ITheme } from 'ghostty-web'
+import type { ITheme } from '@xterm/xterm'
 import type { TTerminalThemePreset } from '@TTH/types'
 
 import { useState, useCallback } from 'react'

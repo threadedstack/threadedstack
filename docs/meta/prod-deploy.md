@@ -159,13 +159,25 @@ tdsk doc build -c sandbox --push    # Sandbox image changes
 tdsk doc build -c init --push       # Init image changes
 ```
 
-### 2.2 Deploy
+### 2.2 Push Database Schema Changes (if needed)
+
+If any database schema files changed (`repos/database/src/schema/`), push the updated schema before deploying the new backend image:
+
+```sh
+tdsk db push --env production
+```
+
+This is interactive — Drizzle will show the pending changes and prompt for confirmation if any are destructive (e.g. dropping columns or tables). Additive changes (new tables, new columns with defaults) apply without confirmation.
+
+> **Tip:** Always push schema changes _before_ deploying the backend. The new backend code expects the updated schema, so deploying first can cause runtime errors.
+
+### 2.3 Deploy
 
 ```sh
 tdsk deploy apply --env production
 ```
 
-### 2.3 Restart Pods (if needed)
+### 2.4 Restart Pods (if needed)
 
 If the deployment spec didn't change (e.g. same image tag `latest`), K8s may not roll the pods. Force a restart by deleting the old pods — K8s will automatically create new ones that pull the latest image (production profile sets `imagePullPolicy: Always`).
 
@@ -176,7 +188,7 @@ tdsk kube remove --context caddy --env production
 tdsk kube remove --context backend --env production
 ```
 
-### 2.4 Verify
+### 2.5 Verify
 
 ```sh
 # Check all pods are running
@@ -187,7 +199,7 @@ curl -sf https://px.threadedstack.app/health
 curl -sf https://px.threadedstack.app/_/health
 ```
 
-### 2.5 Dry Run (Optional)
+### 2.6 Dry Run (Optional)
 
 Preview what will be deployed without applying:
 

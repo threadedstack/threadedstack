@@ -251,26 +251,43 @@ describe('loaders', () => {
   // orgProvidersLoader (representative org page loader)
   // ---------------------------------------------------------------------------
   describe('orgProvidersLoader', () => {
-    it('should skip fetch when providers already loaded', async () => {
+    it('should skip fetch when providers and secrets already loaded', async () => {
       mockGetProviders.mockReturnValue({ prov1: {} })
+      mockGetOrgSecrets.mockReturnValue({ s1: {} })
 
       const result = await orgProvidersLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(result).toBeNull()
       expect(mockFetchProviders).not.toHaveBeenCalled()
+      expect(mockFetchSecrets).not.toHaveBeenCalled()
     })
 
-    it('should call fetchProviders when not loaded', async () => {
+    it('should call fetchProviders and fetchSecrets when not loaded', async () => {
       mockGetProviders.mockReturnValue(undefined)
+      mockGetOrgSecrets.mockReturnValue(undefined)
       mockFetchProviders.mockResolvedValue({ data: {} })
+      mockFetchSecrets.mockResolvedValue({ data: {} })
 
       await orgProvidersLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchProviders).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockFetchSecrets).toHaveBeenCalledWith({ orgId: 'org-1' })
+    })
+
+    it('should fetch only secrets when providers already loaded', async () => {
+      mockGetProviders.mockReturnValue({ prov1: {} })
+      mockGetOrgSecrets.mockReturnValue(undefined)
+      mockFetchSecrets.mockResolvedValue({ data: {} })
+
+      await orgProvidersLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchProviders).not.toHaveBeenCalled()
+      expect(mockFetchSecrets).toHaveBeenCalledWith({ orgId: 'org-1' })
     })
 
     it('should complete gracefully when fetchProviders returns error', async () => {
       mockGetProviders.mockReturnValue(undefined)
+      mockGetOrgSecrets.mockReturnValue({ s1: {} })
       const error = new Error('Providers fetch failed')
       mockFetchProviders.mockResolvedValue({ error })
 

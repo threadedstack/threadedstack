@@ -8,6 +8,7 @@ import { openSession } from '@TTH/actions/sessions'
 import { colors, cmx, dims } from '@tdsk/components'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { useState, useCallback, useRef } from 'react'
+import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { PeopleOutline, VisibilityOutlined } from '@mui/icons-material'
 import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
 
@@ -16,6 +17,7 @@ export type TNavSessionItem = {
   indent?: number
   sandboxId: string
   projectId: string
+  instanceId?: string
   session: TClassifiedSession
 }
 
@@ -59,7 +61,7 @@ const categoryLabel = (session: TClassifiedSession) => {
 }
 
 export const NavSessionItem = (props: TNavSessionItem) => {
-  const { session, sandboxId, projectId, orgId, indent = 48 } = props
+  const { session, sandboxId, projectId, orgId, instanceId, indent = 48 } = props
 
   const location = useLocation()
   const theme = useTheme()
@@ -87,10 +89,14 @@ export const NavSessionItem = (props: TNavSessionItem) => {
     setConnecting(true)
 
     try {
+      const { cols, rows } = estimateTerminalDimensions()
       const resolvedId = await openSession({
         orgId,
+        cols,
+        rows,
         sandboxId,
         projectId,
+        instanceId,
         sessionId: session.sessionId,
       })
       nav.session(orgId, projectId, resolvedId, {

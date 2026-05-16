@@ -1,4 +1,10 @@
-import type { TServiceOpts, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
+import type {
+  TServiceOpts,
+  TDBWithRecord,
+  TDBSecretSelect,
+  TDBProviderSelect,
+  TDBProviderInsert,
+} from '@TDB/types'
 import type {
   TProviderType,
   TProviderInput,
@@ -6,19 +12,28 @@ import type {
   TAIProviderBrand,
 } from '@tdsk/domain'
 
+import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { providers } from '@TDB/schemas/providers'
 import { isProviderType } from '@TDB/utils/schema/isProviderType'
+import { projectProviders } from '@TDB/schemas/projectProviders'
+import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import {
   Exception,
   EProvider,
   EGitProvider,
   EAIProviderBrand,
   EDockerProviderBrand,
+  Secret as SecretModel,
   Provider as ProviderModel,
 } from '@tdsk/domain'
+
+type TProviderSelectOpts = TDBProviderSelect & {
+  secret?: TDBSecretSelect | null
+}
 
 const validTypes = Object.values(EProvider) as string[]
 const validGitBrands = Object.values(EGitProvider) as string[]
@@ -38,15 +53,28 @@ export type TProviderValidate = {
 
 export class Provider extends Base<
   typeof providers,
-  TDBProviderSelect,
+  TProviderSelectOpts,
   TDBProviderInsert,
   ProviderModel
 > {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: providers })
   }
-  model = (data: TDBProviderSelect) => {
-    return new ProviderModel(data as Partial<ProviderModel>)
+
+  with = (opts: TDBWithRecord) => {
+    return {
+      secret: true,
+      ...opts,
+    } as TDBWithRecord
+  }
+
+  model = (data: TProviderSelectOpts) => {
+    const { secret, ...rest } = data
+    const provider = new ProviderModel(rest as Partial<ProviderModel>)
+    if (secret) {
+      provider.secret = new SecretModel(secret as Partial<SecretModel>).sanitize()
+    }
+    return provider
   }
 
   validType = (type?: string, brand?: string | null) => {
@@ -113,6 +141,42 @@ export class Provider extends Base<
       `Cannot determine AI provider for "${provider.name || `unnamed`}". ` +
         `Set provider.brand to one of: ${supported}`
     )
+  }
+
+  async checkReferences(id: string): Promise<{
+    sandboxes: Array<{ id: string; name: string | null }>
+    projects: Array<{ id: string; name: string | null }>
+    sandboxProjects: Array<{
+      sandbox: { id: string; name: string | null }
+      project: { id: string; name: string | null }
+    }>
+  }> {
+    const [sbLinks, projLinks, sbProjLinks] = await Promise.all([
+      this.db.query.sandboxProviders.findMany({
+        where: eq(sandboxProviders.providerId, id),
+        with: { sandbox: { columns: { id: true, name: true } } },
+      }),
+      this.db.query.projectProviders.findMany({
+        where: eq(projectProviders.providerId, id),
+        with: { project: { columns: { id: true, name: true } } },
+      }),
+      this.db.query.sandboxProjectProviders.findMany({
+        where: eq(sandboxProjectProviders.providerId, id),
+        with: {
+          sandbox: { columns: { id: true, name: true } },
+          project: { columns: { id: true, name: true } },
+        },
+      }),
+    ])
+
+    return {
+      sandboxes: sbLinks.map((l) => l.sandbox as { id: string; name: string | null }),
+      projects: projLinks.map((l) => l.project as { id: string; name: string | null }),
+      sandboxProjects: sbProjLinks.map((l) => ({
+        sandbox: l.sandbox as { id: string; name: string | null },
+        project: l.project as { id: string; name: string | null },
+      })),
+    }
   }
 
   /**

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { sandboxApi } from '@TTH/services/sandboxApi'
+import { disposeTerminal } from '@TTH/components/Terminal/TerminalView'
 import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
 import {
   storeSession,
@@ -63,7 +64,9 @@ export const openSession = async (opts: TOpenSessionOpts) => {
 
   const baseUrl = new URL(apiService.base)
   const wsProto = baseUrl.protocol === `https:` ? `wss:` : `ws:`
-  const params = new URLSearchParams({ cols: `80`, rows: `24` })
+  const cols = opts.cols ?? 80
+  const rows = opts.rows ?? 24
+  const params = new URLSearchParams({ cols: String(cols), rows: String(rows) })
   if (run) params.set(`run`, `true`)
   if (instanceId) params.set(`instanceId`, instanceId)
   if (shellToken) params.set(`token`, shellToken)
@@ -247,15 +250,14 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       if (session) {
         removeOpenSession(sessionId)
         removeStoredSession(sandboxId, sessionId)
+        disposeTerminal(sessionId)
       }
       if (getActiveSession() === sessionId) {
         setActiveSession(null)
       }
       if (!settled) {
         settled = true
-        const reason = event.reason || `Connection closed (code ${event.code})`
-        toast.error(`Session failed`, { description: reason })
-        reject(new Error(reason))
+        reject(new Error(event.reason || `Connection closed (code ${event.code})`))
         return
       }
       if (event.code >= 4000) {
@@ -269,9 +271,6 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       clearTimeout(timeoutId)
       if (!settled) {
         settled = true
-        toast.error(`Session failed`, {
-          description: `Could not connect to ${baseUrl.host}`,
-        })
         reject(new Error(`WebSocket connection failed`))
       }
     }

@@ -87,16 +87,90 @@ Items are split into separate groups, with the sub repo name as the header.
 * Hide domains in navigation behind a feature flag
 * Add a warning when an AI provider is added to a sandbox and it doesn't have an auth secret and allow the user to select/add one from the same UI
 
-* When a user attempts to delete a provider that still being used, an error toast is shown but that's it. It doesn't give the user any helpful information like what other entity is actually using it, and what they should do to fix it. This is a bad user experience and needs to be fixed. 
 
 ## Threads
 
-* If a user has multiple session opened. And they click the x button in the tab of the currently active session, it closes the tab and session, but does not switch to the next closest tab or navigate back to the sandbox view if no sessions are opened. Instead it shows a spinner and waits on the current screen. Eventually is reconnects back to the session that was just closed and UI updates to show the session. It literally reopens the session the user just closed.
 
-* Using the sidebar to navigate to a sandbox page, in the main content area, a list of running sandboxes should be displayed, but currently it does not display. If I refresh the browser, then it displays as expected
-* Sidebar nav: sessions sometimes don't appear under their parent sandbox even when they exist on the backend. Something in the nav items is not being updated when switching between a running session and its parent sandbox.
+### Overall
 
 * Remove duplicate components / styles, refactor so they can be shared
+* Not clearing local-storage / store data when a user logs out
+  * Logging in as a different user auto-select existing organization
+* Double toast messages on every toast call
+  * Top right and bottom right at same time?
+
+
+### Tabs
+
+* There's some navigation issues with the session tabs
+  * **Problems**
+    * If a user has multiple session opened. And they click the x button in the tab of the currently active session, it closes the tab and session, but does not switch to the next closest tab or navigate back to the sandbox view if no sessions are opened. Instead it shows a spinner and waits on the current screen. Eventually is reconnects back to the session that was just closed and UI updates to show the session. It literally reopens the session the user just closed.
+  * **Fixes**
+    * When a user closes a tab, it should close the tab **AND** session and switch to the next opened tab. Even if it's the currently active tab, it should navigate away from it to another tab
+    * If no other tabs are open, it should navigate to the instance view, where a new session can be created.
+
+
+### Side Nav
+
+* Should be though of as a quick navigation to jump between sections
+  * Switch between projects, sandboxes, instances, and sessions
+  * Current UI is good, but nav items don't always navigate properly
+    * Clicking on any nav item should navigate to that specific item, 
+    * For example:
+      * click sandbox -> nav to instance page view of the sandbox
+      * click instance -> nav to instance page view of the instance
+      * click a session -> nav to instance page view of the session
+
+* **MUST BE REAL-TIME** - Should update in realtime
+  * **Problems**
+    * Using the sidebar to navigate to a sandbox page, in the main content area, a list of running sandboxes should be displayed, but currently it does not display. If I refresh the browser, then it displays as expected
+    * Sidebar nav: sessions sometimes don't appear under their parent sandbox even when they exist on the backend. Something in the nav items is not being updated when switching between a running session and its parent sandbox.
+  * **Fixes**
+    * If new entities are added, created, removed the sidebar should update automatically
+    * Should NOT depend on navigation clicks to refresh data
+    * Use websocket event or some other method to ensure it's always up-to-date!
+    * Ensure it accounts from what entities that current user has access to
+    * Must display **ONLY** items the user has permissions to access
+    * **HARD REQUIREMENT** - There is no alternative!
+
+
+### Threads Pages
+
+#### Organization Select
+
+* Shows a list of organizations the user has access to
+* When a user selects an org, that becomes their default org and is saved in local storage
+* On next visit the organization is auto selected for the user 
+
+#### Projects
+
+* Shows a list of projects the user has access to within that organization
+* When a user selects a project, that becomes their default project and is saved in local storage
+* On next visit the project is auto selected for the user
+
+
+#### Sandbox view
+
+* Show read-only sandbox configuration and metadata
+  * Should be a styled, visually appealing display
+* Should show a clickable instances to navigate to the instance view
+
+#### Instance view
+
+* There should be a seperate instance view, that shows all sessions of a specific instance
+  * It should also show actions a user can perform on the instance based on their permissions
+  * 
+
+#### Terminal page
+
+* Actions at top over terminal should be Session specific only. Actions should not impact the instance
+  * The stop button stops the instance and should not be displayed here, move it to the instance view
+* Add gutter around the terminal view, clean up styles
+
+* Teminal row/col tracked server side
+  * When two users connected to the same session, the terminal resizes for all session when any connected sessions changes
+    * Last update wins, so one uses rows and columns will affect all other connected users terminal rows and columns
+
 
 
 ## Sandbox
@@ -125,5 +199,10 @@ Items are split into separate groups, with the sub repo name as the header.
       * Need to investigate if that's possible
       * May need to update how instances and session ids are genreated to ensure they are unique
 
+
+## Database
+
+* Add passwords to seed users so we can authenticate with them
+* 
 
 ## Multi-Repo

@@ -1,10 +1,9 @@
 /**
- * GhosttyVT constants — duplicated from @tdsk/domain/constants/parser
+ * VT constants — duplicated from @tdsk/domain/constants/parser
  * to avoid cross-package runtime dependency that breaks Vite's browser
  * module resolution (domain's parser barrel imports node:fs/promises).
  */
-export const GhosttyVTCellSize = 16
-export const GhosttyVTConfigSize = 80
+export const VTCellSize = 16
 
 // --- Cell Flags bitmask constants ---
 export const CellFlags = {

@@ -4,3 +4,6 @@ export const SidebarWidthClosed = 60
 export const WasmMaxBackoffMs = 30_000
 export const ConnectionTimeout = 30_000
 export const RawBufferMaxBytes = 1024 * 1024
+export const FontLoadTimeoutMs = 2000
+export const DefaultCellWidth = 8.4
+export const DefaultCellHeight = 17

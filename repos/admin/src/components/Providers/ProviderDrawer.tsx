@@ -123,10 +123,23 @@ export const ProviderDrawer = (props: TProviderDrawer) => {
   // Provider-linked secrets (fetched by providerId in edit mode)
   const [providerSecrets, setProviderSecrets] = useState<Secret[]>([])
 
-  const secretOptions = orgSecrets.map((s) => ({
-    value: s.id,
-    label: s.name || s.hashKey || s.id,
-  }))
+  const secretOptions = useMemo(() => {
+    const options = orgSecrets.map((s) => ({
+      value: s.id,
+      label: s.name || s.hashKey || s.id,
+    }))
+    if (
+      provider?.secret &&
+      provider.secretId &&
+      !options.some((o) => o.value === provider.secretId)
+    ) {
+      options.unshift({
+        value: provider.secretId,
+        label: provider.secret.name || provider.secret.hashKey || provider.secretId,
+      })
+    }
+    return options
+  }, [orgSecrets, provider?.secret, provider?.secretId])
 
   // Load provider-linked secrets in edit mode
   const loadProviderSecrets = useCallback(async () => {

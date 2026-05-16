@@ -1,7 +1,9 @@
 import { Box } from '@mui/material'
-import { Terminal, FitAddon } from 'ghostty-web'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
 import { useTerminalSettings } from '@TTH/state/selectors'
-import { useRef, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import {
   sendInput,
   sendControl,
@@ -9,136 +11,147 @@ import {
   subscribeTerminalData,
 } from '@TTH/actions/sessions'
 
+const terminals = new Map<string, { term: Terminal; fitAddon: FitAddon }>()
+
 export type TTerminalView = {
   active: boolean
   sessionId: string
 }
 
+function tryFit(fitAddon: FitAddon) {
+  try {
+    fitAddon.fit()
+  } catch {
+    /* terminal disposed or container detached */
+  }
+}
+
 export const TerminalView = (props: TTerminalView) => {
   const { sessionId, active } = props
   const [settings] = useTerminalSettings()
-  const termRef = useRef<Terminal | null>(null)
-  const fitAddonRef = useRef<FitAddon | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  // Theme changes require terminal recreation because ghostty-web bakes palette
-  // colors into cell RGB values at write time via the WASM layer. Changing the
-  // renderer theme only affects line backgrounds, selection, and cursor — not
-  // existing cell text/bg colors. A stable key that changes on theme change
-  // triggers the construction effect to destroy and recreate the terminal.
-  const themeKey = useMemo(() => JSON.stringify(settings.theme), [settings.theme])
 
   const onData = useCallback((data: string) => sendInput(sessionId, data), [sessionId])
 
   const onResize = useCallback(
-    (dims: { cols: number; rows: number }) =>
-      sendControl(sessionId, { type: `resize`, cols: dims.cols, rows: dims.rows }),
+    (dims: { cols: number; rows: number }) => {
+      sendControl(sessionId, { type: `resize`, cols: dims.cols, rows: dims.rows })
+    },
     [sessionId]
   )
 
-  // Create terminal — rebuilds on session change or theme change
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    container.replaceChildren()
+    let entry = terminals.get(sessionId)
 
-    let term: Terminal
-    let fitAddon: FitAddon
-    try {
-      term = new Terminal({
-        theme: settings.theme,
-        fontSize: settings.fontSize,
-        fontFamily: settings.fontFamily,
-        scrollback: settings.scrollback,
-        cursorBlink: settings.cursorBlink,
-        cursorStyle: settings.cursorStyle,
-        allowTransparency: settings.allowTransparency,
-        smoothScrollDuration: settings.smoothScrollDuration,
-      })
+    if (!entry) {
+      try {
+        const term = new Terminal({
+          theme: settings.theme,
+          fontSize: settings.fontSize,
+          fontFamily: settings.fontFamily,
+          scrollback: settings.scrollback,
+          cursorBlink: settings.cursorBlink,
+          cursorStyle: settings.cursorStyle,
+          allowTransparency: settings.allowTransparency,
+          smoothScrollDuration: settings.smoothScrollDuration,
+        })
 
-      fitAddon = new FitAddon()
-      term.loadAddon(fitAddon)
-      term.open(container)
-      fitAddon.observeResize()
-    } catch (err) {
-      console.error(
-        `[TerminalView] Failed to create terminal for session ${sessionId}`,
-        err
-      )
-      return
+        const fitAddon = new FitAddon()
+        term.loadAddon(fitAddon)
+        term.open(container)
+
+        const buffer = getRawBuffer(sessionId).slice()
+        for (const chunk of buffer) {
+          term.write(chunk)
+        }
+
+        entry = { term, fitAddon }
+        terminals.set(sessionId, entry)
+      } catch (err) {
+        console.error(
+          `[TerminalView] Failed to create terminal for session ${sessionId}`,
+          err
+        )
+        return
+      }
+    } else {
+      if (!entry.term.element) {
+        console.warn(
+          `[TerminalView] Terminal for session ${sessionId} lost its DOM element`
+        )
+        terminals.delete(sessionId)
+        return
+      }
+      container.replaceChildren()
+      container.appendChild(entry.term.element)
+      entry.term.focus()
     }
 
-    let alive = true
-    let unsubscribe: (() => void) | undefined
-
-    termRef.current = term
-    fitAddonRef.current = fitAddon
+    const { term, fitAddon } = entry
 
     const dataDisposable = term.onData(onData)
     const resizeDisposable = term.onResize(onResize)
 
-    // Defer buffer replay + subscription to after fit() so content is written
-    // at the final grid dimensions.  ghostty-web's render loop only partial-
-    // redraws dirty rows — writing at 80×24 then resizing to the container
-    // causes garbled rendering because dirty flags are cleared before the
-    // resize triggers its full redraw.
-    const rafId = requestAnimationFrame(() => {
-      if (!alive) return
-      fitAddon.fit()
-
-      const buffer = getRawBuffer(sessionId).slice()
-      for (const chunk of buffer) {
-        term.write(chunk)
-      }
-
-      unsubscribe = subscribeTerminalData(sessionId, (data: string) => {
-        if (alive) term.write(data)
-      })
+    const unsubscribe = subscribeTerminalData(sessionId, (data: string) => {
+      term.write(data)
     })
 
+    const resizeObserver = new ResizeObserver(() => {
+      tryFit(fitAddon)
+    })
+    resizeObserver.observe(container)
+
+    tryFit(fitAddon)
+
     return () => {
-      alive = false
-      cancelAnimationFrame(rafId)
       dataDisposable.dispose()
       resizeDisposable.dispose()
-      unsubscribe?.()
-      fitAddon.dispose()
-      term.dispose()
-      termRef.current = null
-      fitAddonRef.current = null
+      unsubscribe()
+      resizeObserver.disconnect()
     }
-  }, [sessionId, themeKey, onData, onResize])
+  }, [sessionId, onData, onResize])
 
-  // Apply non-theme runtime setting changes without recreating the terminal
   useEffect(() => {
-    const term = termRef.current
-    if (!term) return
+    const entry = terminals.get(sessionId)
+    if (!entry) return
+
+    const { term } = entry
 
     try {
       term.options.fontSize = settings.fontSize
       term.options.fontFamily = settings.fontFamily
       term.options.cursorStyle = settings.cursorStyle
       term.options.cursorBlink = settings.cursorBlink
+      term.options.scrollback = settings.scrollback
       term.options.allowTransparency = settings.allowTransparency
       term.options.smoothScrollDuration = settings.smoothScrollDuration
+      term.options.theme = { ...settings.theme }
     } catch (err) {
       console.error(`[TerminalView] Failed to apply terminal settings`, err)
     }
 
-    fitAddonRef.current?.fit()
+    tryFit(entry.fitAddon)
   }, [
+    sessionId,
     settings.fontSize,
     settings.fontFamily,
     settings.cursorStyle,
     settings.cursorBlink,
+    settings.scrollback,
     settings.allowTransparency,
     settings.smoothScrollDuration,
+    settings.theme,
   ])
 
   useEffect(() => {
-    active && fitAddonRef?.current?.fit?.()
-  }, [active])
+    if (!active) return
+    const entry = terminals.get(sessionId)
+    if (!entry) return
+    tryFit(entry.fitAddon)
+  }, [active, sessionId])
 
   return (
     <Box
@@ -147,10 +160,44 @@ export const TerminalView = (props: TTerminalView) => {
         width: `100%`,
         height: `100%`,
         display: active ? `block` : `none`,
-        '& canvas': {
-          outline: `none`,
+        '& .xterm': {
+          height: `100%`,
         },
       }}
     />
   )
+}
+
+export function disposeTerminal(sessionId: string) {
+  const entry = terminals.get(sessionId)
+  if (!entry) return
+  try {
+    entry.fitAddon.dispose()
+  } catch {
+    /* already disposed */
+  }
+  try {
+    entry.term.dispose()
+  } catch {
+    /* already disposed */
+  }
+  terminals.delete(sessionId)
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    for (const entry of terminals.values()) {
+      try {
+        entry.fitAddon.dispose()
+      } catch {
+        /* already disposed */
+      }
+      try {
+        entry.term.dispose()
+      } catch {
+        /* already disposed */
+      }
+    }
+    terminals.clear()
+  })
 }

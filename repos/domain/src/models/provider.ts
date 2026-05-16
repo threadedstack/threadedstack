@@ -1,3 +1,4 @@
+import type { Secret } from '@TDM/models/secret'
 import type { TProviderType, TProviderBrand } from '@TDM/types'
 
 import { Base } from '@TDM/models/base'
@@ -5,6 +6,7 @@ import { Base } from '@TDM/models/base'
 export class Provider extends Base {
   name?: string
   orgId: string
+  secret?: Secret
   secretId?: string
   type: TProviderType
   brand: TProviderBrand

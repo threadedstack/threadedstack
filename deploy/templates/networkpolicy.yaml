@@ -32,13 +32,10 @@ spec:
           protocol: {{ .protocol }}
           {{- end }}
       {{- end }}
-    # Allow DNS resolution
-    - to:
-        - namespaceSelector: {}
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
+    # Allow DNS resolution (unrestricted destination — kata VMs cannot reach ClusterIP)
+    - ports:
         - port: 53
           protocol: UDP
+        - port: 53
+          protocol: TCP
 {{- end }}

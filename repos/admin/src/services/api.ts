@@ -142,7 +142,13 @@ export class BaseApi {
 
   _onError = async (error?: Error | string, title?: string) => {
     if (!error) return
-    const message = isStr(error) ? error : (error as Error)?.message
+    const details = !isStr(error) ? (error as any)?.details : undefined
+    const message = isStr(error)
+      ? error
+      : isStr(details?.error)
+        ? details.error
+        : (error as Error)?.message
+    // TODO: investigate if this should be kept?
     toast.error(title || `API Error`, { description: message })
     console.warn(message)
   }

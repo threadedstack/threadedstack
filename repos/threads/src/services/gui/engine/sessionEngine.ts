@@ -55,11 +55,8 @@ export class SessionEngine {
     }, 1000)
   }
 
-  static async create(
-    sessionId: string,
-    callbacks: TEngineCallbacks
-  ): Promise<SessionEngine> {
-    const terminal = await createBrowserTerminal(80, 24)
+  static create(sessionId: string, callbacks: TEngineCallbacks): SessionEngine {
+    const terminal = createBrowserTerminal(80, 24)
     return new SessionEngine(sessionId, terminal, callbacks)
   }
 

@@ -30,6 +30,7 @@ export type TAiProviderOption = {
   id: string
   name: string
   brand: string
+  baseUrl?: string
 }
 
 /** API payload shape for creating/updating agents */

@@ -1,4 +1,3 @@
-import { resetWasmCache } from '@TTH/services/gui/engine/wasmBridge'
 import {
   setGuiAsts,
   setGuiFeeds,
@@ -25,6 +24,5 @@ export const destroyAllEngines = () => {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     destroyAllEngines()
-    resetWasmCache()
   })
 }

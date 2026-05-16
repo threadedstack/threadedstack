@@ -157,14 +157,16 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             }
             providers={form.linkedProviders.map((p) => ({
               id: p.id,
-              name: p.name || p.id,
               brand: p.brand,
+              name: p.name || p.id,
+              baseUrl: p.options?.baseUrl,
               model: form.providerModels[p.id] ?? null,
             }))}
             availableProviders={form.availableProviders.map((p) => ({
               id: p.id,
-              name: p.name || p.id,
               brand: p.brand,
+              name: p.name || p.id,
+              baseUrl: p.options?.baseUrl,
             }))}
             onAdd={(p) =>
               form.onAddProvider({

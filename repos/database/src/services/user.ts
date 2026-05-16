@@ -8,7 +8,6 @@ import type {
 import { Base } from '@TDB/services/base'
 import { users } from '@TDB/schemas/users'
 import { eq, inArray } from 'drizzle-orm'
-import { DBError } from '@TDB/utils/error/error'
 import { User as UserModel } from '@tdsk/domain'
 
 type TUserResp = TDBApiResType<UserModel>

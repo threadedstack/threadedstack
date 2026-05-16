@@ -157,6 +157,119 @@ describe('Tier 1: Sandbox Provider Linking', () => {
     expect(res.data.providerLinks[1].model).toBe('claude-sonnet-4-20250514')
   })
 
+  test('PUT update existing provider model persists the change', async () => {
+    if (!sandboxId || !providerId) return expect(sandboxId && providerId).toBeTruthy()
+
+    // Re-add the original provider with a specific model
+    const addRes = await put<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+      {
+        providerInputs: [{ id: providerId, model: 'claude-sonnet-4-20250514' }],
+      }
+    )
+
+    expect(addRes.status).toBe(200)
+    expect(addRes.ok).toBe(true)
+    const addedLink = addRes.data.providerLinks.find(
+      (l: any) => l.provider.id === providerId
+    )
+    expect(addedLink?.model).toBe('claude-sonnet-4-20250514')
+
+    // Update the SAME provider to a DIFFERENT model
+    const updateRes = await put<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+      {
+        providerInputs: [{ id: providerId, model: 'claude-opus-4-20250514' }],
+      }
+    )
+
+    expect(updateRes.status).toBe(200)
+    expect(updateRes.ok).toBe(true)
+    const updatedLink = updateRes.data.providerLinks.find(
+      (l: any) => l.provider.id === providerId
+    )
+    expect(updatedLink?.model).toBe('claude-opus-4-20250514')
+
+    // GET to verify persistence
+    const getRes = await get<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`
+    )
+
+    expect(getRes.status).toBe(200)
+    const persistedLink = getRes.data.providerLinks.find(
+      (l: any) => l.provider.id === providerId
+    )
+    expect(persistedLink?.model).toBe('claude-opus-4-20250514')
+  })
+
+  test('PUT clearing model to null persists the change', async () => {
+    if (!sandboxId || !providerId) return expect(sandboxId && providerId).toBeTruthy()
+
+    // Provider currently has model 'claude-opus-4-20250514' from previous test
+    // Clear model by setting to null
+    const res = await put<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+      {
+        providerInputs: [{ id: providerId, model: null }],
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.ok).toBe(true)
+    const link = res.data.providerLinks.find(
+      (l: any) => l.provider.id === providerId
+    )
+    expect(link?.model).toBeNull()
+
+    // GET to verify persistence
+    const getRes = await get<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`
+    )
+
+    expect(getRes.status).toBe(200)
+    const persistedLink = getRes.data.providerLinks.find(
+      (l: any) => l.provider.id === providerId
+    )
+    expect(persistedLink?.model).toBeNull()
+  })
+
+  test('PUT re-ordering providers updates priority', async () => {
+    if (!sandboxId || !providerId) return expect(sandboxId && providerId).toBeTruthy()
+
+    // Find second provider from earlier test
+    const providerIds = createdProviderIds.filter((id) => id !== providerId)
+    if (!providerIds.length) return expect(providerIds.length).toBeGreaterThan(0)
+    const prov2Id = providerIds[0]
+
+    // Link both providers in order: [providerId, prov2Id]
+    const setupRes = await put<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+      {
+        providerInputs: [{ id: providerId }, { id: prov2Id }],
+      }
+    )
+
+    expect(setupRes.status).toBe(200)
+    expect(setupRes.data.providerLinks[0].provider.id).toBe(providerId)
+    expect(setupRes.data.providerLinks[0].priority).toBe(0)
+    expect(setupRes.data.providerLinks[1].provider.id).toBe(prov2Id)
+    expect(setupRes.data.providerLinks[1].priority).toBe(1)
+
+    // Reverse order: [prov2Id, providerId]
+    const res = await put<Record<string, any>>(
+      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
+      {
+        providerInputs: [{ id: prov2Id }, { id: providerId }],
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data.providerLinks[0].provider.id).toBe(prov2Id)
+    expect(res.data.providerLinks[0].priority).toBe(0)
+    expect(res.data.providerLinks[1].provider.id).toBe(providerId)
+    expect(res.data.providerLinks[1].priority).toBe(1)
+  })
+
   test('PUT update sandbox with empty providerInputs removes all providers', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 

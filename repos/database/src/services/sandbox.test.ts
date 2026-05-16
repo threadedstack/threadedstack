@@ -992,6 +992,7 @@ describe(`Sandbox service`, () => {
           model: null,
         },
       ])
+      expect(mocks.txOnConflictFn).toHaveBeenCalledOnce()
     })
 
     it(`should only delete when inputs array is empty`, async () => {
