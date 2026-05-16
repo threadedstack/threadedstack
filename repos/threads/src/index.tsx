@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import App from '@TTH/App'
 import { Provider } from 'jotai'
 import { StrictMode } from 'react'
-import { init } from 'ghostty-web'
 import { ERoleType, isValidRoleType } from '@tdsk/domain'
 import { store } from '@TTH/state/accessors'
 import { createRoot } from 'react-dom/client'
@@ -38,7 +37,6 @@ const ThreadsPermissionsProvider = ({ children }: { children: ReactNode }) => {
 }
 
 overlayScrollBody()
-init().catch(console.error)
 initAnalytics({
   key: TDSK_POSTHOG_KEY,
   host: TDSK_POSTHOG_HOST,

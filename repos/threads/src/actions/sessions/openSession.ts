@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { sandboxApi } from '@TTH/services/sandboxApi'
+import { disposeTerminal } from '@TTH/components/Terminal/TerminalView'
 import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
 import {
   storeSession,
@@ -249,6 +250,7 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       if (session) {
         removeOpenSession(sessionId)
         removeStoredSession(sandboxId, sessionId)
+        disposeTerminal(sessionId)
       }
       if (getActiveSession() === sessionId) {
         setActiveSession(null)

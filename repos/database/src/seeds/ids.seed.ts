@@ -185,3 +185,5 @@ export const SkillIds = Ids.skill
 export const ScheduleIds = Ids.schedule
 export const SandboxIds = Ids.sandbox
 export const UserIds = Ids.user
+
+export const SeedPassword = `TdskSeed123!`

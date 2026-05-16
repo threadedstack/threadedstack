@@ -1,256 +1,212 @@
-/**
- * Browser-compatible WASM bridge for ghostty-vt.
- *
- * Mirrors the Node.js GhosttyVT class in @tdsk/domain but uses browser
- * fetch + WebAssembly.compileStreaming instead of fs.readFile.
- * The compiled module is cached as a singleton so all terminals share it.
- */
 import type { TBrowserVTerminal } from '@TTH/types'
 
-import { WasmMaxBackoffMs } from '@TTH/constants/values'
-import { GhosttyVTCellSize, GhosttyVTConfigSize } from '@TTH/constants/tokenizer'
+import { Terminal } from '@xterm/headless'
+import { VTCellSize, CellFlags } from '@TTH/constants/tokenizer'
 
-// Vite resolves `?url` imports to a hashed asset URL at build time.
-import ghosttyWasmUrl from 'ghostty-web/ghostty-vt.wasm?url'
+const Ansi256Palette: ReadonlyArray<readonly [number, number, number]> =
+  buildAnsi256Palette()
 
-// ---------------------------------------------------------------------------
-// Internal types
-// ---------------------------------------------------------------------------
+function buildAnsi256Palette(): Array<[number, number, number]> {
+  const palette: Array<[number, number, number]> = []
 
-type WasmExports = {
-  memory: WebAssembly.Memory
-  ghostty_terminal_free: (handle: number) => void
-  ghostty_wasm_alloc_u8_array: (len: number) => number
-  ghostty_render_state_update: (handle: number) => number
-  ghostty_render_state_mark_clean: (handle: number) => void
-  ghostty_render_state_get_cursor_x: (handle: number) => number
-  ghostty_render_state_get_cursor_y: (handle: number) => number
-  ghostty_wasm_free_u8_array: (ptr: number, len: number) => void
-  ghostty_terminal_is_alternate_screen: (handle: number) => number
-  ghostty_render_state_get_cursor_visible: (handle: number) => number
-  ghostty_terminal_write: (handle: number, ptr: number, len: number) => void
-  ghostty_terminal_resize: (handle: number, cols: number, rows: number) => void
-  ghostty_render_state_is_row_dirty: (handle: number, row: number) => boolean
-  ghostty_terminal_new_with_config: (
-    cols: number,
-    rows: number,
-    configPtr: number
-  ) => number
-  ghostty_render_state_get_viewport: (
-    handle: number,
-    bufPtr: number,
-    cellCount: number
-  ) => number
-}
+  const standard: Array<[number, number, number]> = [
+    [0, 0, 0],
+    [128, 0, 0],
+    [0, 128, 0],
+    [128, 128, 0],
+    [0, 0, 128],
+    [128, 0, 128],
+    [0, 128, 128],
+    [192, 192, 192],
+  ]
+  palette.push(...standard)
 
-// ---------------------------------------------------------------------------
-// Module singleton
-// ---------------------------------------------------------------------------
+  const bright: Array<[number, number, number]> = [
+    [128, 128, 128],
+    [255, 0, 0],
+    [0, 255, 0],
+    [255, 255, 0],
+    [0, 0, 255],
+    [255, 0, 255],
+    [0, 255, 255],
+    [255, 255, 255],
+  ]
+  palette.push(...bright)
 
-let compiledModule: WebAssembly.Module | null = null
-let compilePromise: Promise<WebAssembly.Module> | null = null
-
-let retryCount = 0
-let lastAttemptTime = 0
-
-export function resetWasmCache() {
-  compiledModule = null
-  compilePromise = null
-  retryCount = 0
-  lastAttemptTime = 0
-}
-
-function getBackoffMs(attempt: number): number {
-  return Math.min(1000 * 2 ** (attempt - 1), WasmMaxBackoffMs)
-}
-
-async function getCompiledModule(): Promise<WebAssembly.Module> {
-  if (compiledModule) return compiledModule
-  if (compilePromise) return compilePromise
-
-  // Enforce backoff after previous failures
-  if (retryCount > 0) {
-    const elapsed = Date.now() - lastAttemptTime
-    const backoff = getBackoffMs(retryCount)
-    if (elapsed < backoff) {
-      return Promise.reject(
-        new Error(`WASM load backoff: retry in ${backoff - elapsed}ms`)
-      )
+  for (let r = 0; r < 6; r++) {
+    for (let g = 0; g < 6; g++) {
+      for (let b = 0; b < 6; b++) {
+        palette.push([r ? r * 40 + 55 : 0, g ? g * 40 + 55 : 0, b ? b * 40 + 55 : 0])
+      }
     }
   }
 
-  lastAttemptTime = Date.now()
+  for (let i = 0; i < 24; i++) {
+    const v = i * 10 + 8
+    palette.push([v, v, v])
+  }
 
-  compilePromise = WebAssembly.compileStreaming(fetch(ghosttyWasmUrl))
-    .then((mod) => {
-      compiledModule = mod
-      retryCount = 0
-      return mod
-    })
-    .catch((err) => {
-      compilePromise = null
-      retryCount++
-      lastAttemptTime = Date.now()
-      throw err
-    })
-
-  return compilePromise
+  return palette
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+function resolveColor(
+  color: number,
+  isRGB: boolean,
+  isPalette: boolean,
+  defaultR: number,
+  defaultG: number,
+  defaultB: number
+): [number, number, number] {
+  if (isRGB) {
+    return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff]
+  }
+  if (isPalette) {
+    const entry = Ansi256Palette[color]
+    return entry ? [entry[0], entry[1], entry[2]] : [defaultR, defaultG, defaultB]
+  }
+  return [defaultR, defaultG, defaultB]
+}
 
-/**
- * Initialise the WASM module (fetches + compiles once) then create a headless
- * terminal with the given dimensions.
- *
- * This is intentionally a standalone function, not a class, so callers don't
- * need to manage a singleton object themselves.
- */
-export async function createBrowserTerminal(
-  cols = 80,
-  rows = 24
-): Promise<TBrowserVTerminal> {
-  const mod = await getCompiledModule()
+export function createBrowserTerminal(cols = 80, rows = 24): TBrowserVTerminal {
+  const term = new Terminal({ cols, rows, scrollback: 0 })
 
-  // We need a reference inside the env.log closure before the instance exists,
-  // so we use a late-binding wrapper.
-  let _exports: WasmExports | null = null
-
-  const instance = await WebAssembly.instantiate(mod, {
-    env: {
-      log: (ptr: number, len: number) => {
-        if (!_exports) return
-        const buf = new Uint8Array(_exports.memory.buffer, ptr, len)
-        console.debug('[ghostty-vt]', new TextDecoder().decode(buf))
-      },
-    },
-  })
-
-  _exports = instance.exports as unknown as WasmExports
-  const exports = _exports
-  const memory = exports.memory
-  const encoder = new TextEncoder()
-
-  // Allocate + zero config buffer, create terminal, free config buffer.
-  const configPtr = exports.ghostty_wasm_alloc_u8_array(GhosttyVTConfigSize)
-  new Uint8Array(memory.buffer).fill(0, configPtr, configPtr + GhosttyVTConfigSize)
-  const handle = exports.ghostty_terminal_new_with_config(cols, rows, configPtr)
-  exports.ghostty_wasm_free_u8_array(configPtr, GhosttyVTConfigSize)
-
-  if (!handle) throw new Error(`ghostty_terminal_new_with_config returned null handle`)
-
-  // Clear screen to initialise all cells (prevents stale WASM allocator data).
-  const clearBytes = encoder.encode(`\x1b[2J\x1b[H`)
-  const clearPtr = exports.ghostty_wasm_alloc_u8_array(clearBytes.length)
-  new Uint8Array(memory.buffer).set(clearBytes, clearPtr)
-  exports.ghostty_terminal_write(handle, clearPtr, clearBytes.length)
-  exports.ghostty_wasm_free_u8_array(clearPtr, clearBytes.length)
-
-  // Mutable dimensions (updated on resize).
-  let _cols = cols
-  let _rows = rows
+  let _allDirty = false
   let _freed = false
-
-  // Viewport buffer — reused across calls when size is unchanged.
-  let _viewportBufPtr = 0
+  let _viewportBuf: ArrayBuffer | null = null
   let _viewportBufSize = 0
-
-  const allocViewport = () => {
-    const cellCount = _cols * _rows
-    const bufSize = cellCount * GhosttyVTCellSize
-    if (_viewportBufPtr && _viewportBufSize !== bufSize) {
-      exports.ghostty_wasm_free_u8_array(_viewportBufPtr, _viewportBufSize)
-      _viewportBufPtr = 0
-    }
-    if (!_viewportBufPtr) {
-      _viewportBufPtr = exports.ghostty_wasm_alloc_u8_array(bufSize)
-      _viewportBufSize = bufSize
-    }
-    return { bufPtr: _viewportBufPtr, bufSize, cellCount }
-  }
 
   const terminal: TBrowserVTerminal = {
     get cols() {
-      return _cols
+      return term.cols
     },
     get rows() {
-      return _rows
+      return term.rows
     },
 
     write(data: string | Uint8Array) {
       if (_freed) throw new Error(`Terminal has been freed`)
-      const bytes = typeof data === `string` ? encoder.encode(data) : data
-      const ptr = exports.ghostty_wasm_alloc_u8_array(bytes.length)
-      new Uint8Array(memory.buffer).set(bytes, ptr)
-      exports.ghostty_terminal_write(handle, ptr, bytes.length)
-      exports.ghostty_wasm_free_u8_array(ptr, bytes.length)
+      term.write(data, () => {
+        _allDirty = true
+      })
     },
 
     resize(newCols: number, newRows: number) {
       if (_freed) throw new Error(`Terminal has been freed`)
-      _cols = newCols
-      _rows = newRows
-      exports.ghostty_terminal_resize(handle, newCols, newRows)
+      term.resize(newCols, newRows)
+      _allDirty = true
     },
 
     getDirtyRows(): number[] {
       if (_freed) throw new Error(`Terminal has been freed`)
-      exports.ghostty_render_state_update(handle)
-      const dirty: number[] = []
-      for (let r = 0; r < _rows; r++) {
-        if (exports.ghostty_render_state_is_row_dirty(handle, r)) dirty.push(r)
-      }
-      return dirty
+      if (!_allDirty) return []
+      const rows: number[] = []
+      for (let r = 0; r < term.rows; r++) rows.push(r)
+      return rows
     },
 
     getViewport(): DataView {
       if (_freed) throw new Error(`Terminal has been freed`)
-      exports.ghostty_render_state_update(handle)
-      const { bufPtr, bufSize, cellCount } = allocViewport()
-      new Uint8Array(memory.buffer).fill(0, bufPtr, bufPtr + bufSize)
-      exports.ghostty_render_state_get_viewport(handle, bufPtr, cellCount)
-      return new DataView(memory.buffer, bufPtr, bufSize)
+      const c = term.cols
+      const r = term.rows
+      const totalBytes = c * r * VTCellSize
+
+      if (!_viewportBuf || _viewportBufSize !== totalBytes) {
+        _viewportBuf = new ArrayBuffer(totalBytes)
+        _viewportBufSize = totalBytes
+      } else {
+        new Uint8Array(_viewportBuf).fill(0)
+      }
+
+      const view = new DataView(_viewportBuf)
+      const buf = term.buffer.active
+      const cell = buf.getNullCell()
+
+      for (let row = 0; row < r; row++) {
+        const line = buf.getLine(buf.baseY + row)
+        if (!line) continue
+
+        for (let col = 0; col < c; col++) {
+          line.getCell(col, cell)
+          const offset = (row * c + col) * VTCellSize
+
+          const codepoint = cell.getCode()
+          view.setUint32(offset, codepoint, true)
+
+          const [fgR, fgG, fgB] = resolveColor(
+            cell.getFgColor(),
+            cell.isFgRGB(),
+            cell.isFgPalette(),
+            255,
+            255,
+            255
+          )
+          view.setUint8(offset + 4, fgR)
+          view.setUint8(offset + 5, fgG)
+          view.setUint8(offset + 6, fgB)
+
+          const [bgR, bgG, bgB] = resolveColor(
+            cell.getBgColor(),
+            cell.isBgRGB(),
+            cell.isBgPalette(),
+            0,
+            0,
+            0
+          )
+          view.setUint8(offset + 7, bgR)
+          view.setUint8(offset + 8, bgG)
+          view.setUint8(offset + 9, bgB)
+
+          let flags = 0
+          if (cell.isBold()) flags |= CellFlags.BOLD
+          if (cell.isItalic()) flags |= CellFlags.ITALIC
+          if (cell.isUnderline()) flags |= CellFlags.UNDERLINE
+          if (cell.isStrikethrough()) flags |= CellFlags.STRIKETHROUGH
+          if (cell.isInverse()) flags |= CellFlags.INVERSE
+          if (cell.isInvisible()) flags |= CellFlags.INVISIBLE
+          if (cell.isBlink()) flags |= CellFlags.BLINK
+          if (cell.isDim()) flags |= CellFlags.FAINT
+          view.setUint8(offset + 10, flags)
+
+          view.setUint8(offset + 11, cell.getWidth())
+
+          view.setUint16(offset + 12, 0, true)
+
+          const chars = cell.getChars()
+          view.setUint8(offset + 14, chars.length)
+        }
+      }
+
+      return view
     },
 
     getCursor() {
       if (_freed) throw new Error(`Terminal has been freed`)
-      exports.ghostty_render_state_update(handle)
+      const buf = term.buffer.active
       return {
-        x: exports.ghostty_render_state_get_cursor_x(handle),
-        y: exports.ghostty_render_state_get_cursor_y(handle),
-        visible: !!exports.ghostty_render_state_get_cursor_visible(handle),
+        x: buf.cursorX,
+        y: buf.cursorY,
+        visible: buf.type !== `alternate`,
       }
     },
 
     isAlternateScreen() {
       if (_freed) throw new Error(`Terminal has been freed`)
-      return !!exports.ghostty_terminal_is_alternate_screen(handle)
+      return term.buffer.active.type === `alternate`
     },
 
     markClean() {
       if (_freed) throw new Error(`Terminal has been freed`)
-      exports.ghostty_render_state_mark_clean(handle)
+      _allDirty = false
     },
 
     free() {
       if (_freed) return
       _freed = true
-      if (_viewportBufPtr) {
-        exports.ghostty_wasm_free_u8_array(_viewportBufPtr, _viewportBufSize)
-        _viewportBufPtr = 0
-        _viewportBufSize = 0
-      }
-      exports.ghostty_terminal_free(handle)
+      _viewportBuf = null
+      _viewportBufSize = 0
+      term.dispose()
     },
   }
 
   return terminal
-}
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    resetWasmCache()
-  })
 }

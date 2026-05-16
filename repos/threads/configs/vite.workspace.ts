@@ -35,9 +35,18 @@ export const config = {
     entries: [`hoist-non-react-statics`],
   },
   resolve: {
-    alias: Object.entries(aliases)
-      .sort(([a], [b]) => b.length - a.length)
-      .map(([find, replacement]) => ({ find, replacement: replacement as string })),
+    alias: [
+      ...Object.entries(aliases)
+        .sort(([a], [b]) => b.length - a.length)
+        .map(([find, replacement]) => ({ find, replacement: replacement as string })),
+      {
+        find: `@xterm/headless`,
+        replacement: path.join(
+          rootDir,
+          `node_modules/@xterm/headless/lib-headless/xterm-headless.mjs`
+        ),
+      },
+    ],
   },
   plugins: [
     react(),

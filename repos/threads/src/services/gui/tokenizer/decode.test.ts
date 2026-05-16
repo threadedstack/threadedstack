@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { GhosttyVTCellSize, CellFlags } from '@TTH/constants/tokenizer'
+import { VTCellSize, CellFlags } from '@TTH/constants/tokenizer'
 import { decodeCell, resolveColors, cellOffset, buildTestViewport } from './decode'
 
 describe(`decodeCell`, () => {
   it(`decodes a cell with known ASCII char and RGB colors`, () => {
-    const buffer = new ArrayBuffer(GhosttyVTCellSize)
+    const buffer = new ArrayBuffer(VTCellSize)
     const view = new DataView(buffer)
     // codepoint: 'A' = 65
     view.setUint32(0, 65, true)
@@ -35,7 +35,7 @@ describe(`decodeCell`, () => {
   })
 
   it(`decodes a cell with a hyperlink id`, () => {
-    const buffer = new ArrayBuffer(GhosttyVTCellSize)
+    const buffer = new ArrayBuffer(VTCellSize)
     const view = new DataView(buffer)
     view.setUint32(0, 104, true) // 'h'
     view.setUint8(4, 0)
@@ -55,7 +55,7 @@ describe(`decodeCell`, () => {
   })
 
   it(`decodes an empty cell (all zeros)`, () => {
-    const buffer = new ArrayBuffer(GhosttyVTCellSize)
+    const buffer = new ArrayBuffer(VTCellSize)
     const view = new DataView(buffer)
     // all bytes are 0 by default
 
@@ -69,9 +69,9 @@ describe(`decodeCell`, () => {
   })
 
   it(`decodes at a non-zero offset`, () => {
-    const buffer = new ArrayBuffer(GhosttyVTCellSize * 3)
+    const buffer = new ArrayBuffer(VTCellSize * 3)
     const view = new DataView(buffer)
-    const offset = GhosttyVTCellSize * 2
+    const offset = VTCellSize * 2
     view.setUint32(offset, 90, true) // 'Z'
     view.setUint8(offset + 4, 1)
     view.setUint8(offset + 5, 2)
@@ -142,15 +142,15 @@ describe(`cellOffset`, () => {
   })
 
   it(`computes correct offset for col 1 in a 80-col grid`, () => {
-    expect(cellOffset(0, 1, 80)).toBe(GhosttyVTCellSize)
+    expect(cellOffset(0, 1, 80)).toBe(VTCellSize)
   })
 
   it(`computes correct offset for row 1 in a 80-col grid`, () => {
-    expect(cellOffset(1, 0, 80)).toBe(80 * GhosttyVTCellSize)
+    expect(cellOffset(1, 0, 80)).toBe(80 * VTCellSize)
   })
 
   it(`computes correct offset for row 2, col 5 in a 40-col grid`, () => {
-    expect(cellOffset(2, 5, 40)).toBe((2 * 40 + 5) * GhosttyVTCellSize)
+    expect(cellOffset(2, 5, 40)).toBe((2 * 40 + 5) * VTCellSize)
   })
 })
 
@@ -159,7 +159,7 @@ describe(`buildTestViewport`, () => {
     const { view, cols, rows } = buildTestViewport(10, 5)
     expect(cols).toBe(10)
     expect(rows).toBe(5)
-    expect(view.byteLength).toBe(10 * 5 * GhosttyVTCellSize)
+    expect(view.byteLength).toBe(10 * 5 * VTCellSize)
     // All bytes should be 0
     for (let i = 0; i < view.byteLength; i++) {
       expect(view.getUint8(i)).toBe(0)

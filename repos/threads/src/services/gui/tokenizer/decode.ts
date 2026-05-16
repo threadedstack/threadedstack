@@ -1,5 +1,5 @@
 import type { RGB, TTestViewport, TDecodedCell, TViewportFill } from '@TTH/types'
-import { CellFlags, GhosttyVTCellSize } from '@TTH/constants/tokenizer'
+import { CellFlags, VTCellSize } from '@TTH/constants/tokenizer'
 
 /**
  * Byte layout (16 bytes, little-endian):
@@ -52,7 +52,7 @@ export function resolveColors(cell: TDecodedCell): { fg: RGB; bg: RGB } {
 }
 
 export function cellOffset(row: number, col: number, cols: number): number {
-  return (row * cols + col) * GhosttyVTCellSize
+  return (row * cols + col) * VTCellSize
 }
 
 export function buildTestViewport(
@@ -60,7 +60,7 @@ export function buildTestViewport(
   rows: number,
   fills?: TViewportFill[]
 ): TTestViewport {
-  const totalBytes = cols * rows * GhosttyVTCellSize
+  const totalBytes = cols * rows * VTCellSize
   const buffer = new ArrayBuffer(totalBytes)
   const view = new DataView(buffer)
 

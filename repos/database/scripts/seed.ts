@@ -1,6 +1,26 @@
+import { Pool } from 'pg'
 import { database } from '@TDB/database'
-import { ife } from '@keg-hub/jsutils/ife'
 import { loadEnvs } from '@tdsk/domain'
+import { ife } from '@keg-hub/jsutils/ife'
+import { config } from '@TDB/configs/db.config'
+import { scrypt, randomBytes } from 'node:crypto'
+import { SeedPassword } from '@TDB/seeds/ids.seed'
+
+const hashSeedPassword = (password: string): Promise<string> => {
+  const salt = randomBytes(16).toString(`hex`)
+  return new Promise((resolve, reject) => {
+    scrypt(
+      password.normalize(`NFKC`),
+      salt,
+      64,
+      { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 },
+      (err, key) => {
+        if (err) reject(err)
+        else resolve(salt + `:` + key.toString(`hex`))
+      }
+    )
+  })
+}
 
 const nodeEnv = process.env.NODE_ENV || `local`
 
@@ -32,6 +52,161 @@ const db = database()
  * 16. messages, 17. assets, 18. quotas, 19. sandboxes,
  * 20. schedules (after threads), 21. domains
  */
+
+type TSeedUser = {
+  id: string
+  email: string
+  name: string
+}
+
+const registerSeedUsers = async (seedUsers: TSeedUser[]) => {
+  const authUrl = process.env.TDSK_AUTH_URL
+  if (!authUrl) {
+    console.log(`  ⚠️  TDSK_AUTH_URL not set — skipping seed user credential registration`)
+    console.log(``)
+    return
+  }
+
+  const authHeaders = {
+    'Content-Type': `application/json`,
+    Origin: `http://localhost:5887`,
+  }
+
+  const pool = new Pool({ connectionString: config.url })
+
+  try {
+    for (const user of seedUsers) {
+      try {
+        const res = await fetch(`${authUrl}/sign-up/email`, {
+          method: `POST`,
+          headers: authHeaders,
+          body: JSON.stringify({
+            name: user.name,
+            email: user.email,
+            password: SeedPassword,
+          }),
+        })
+
+        if (res.ok) {
+          const data = (await res.json()) as { user?: { id?: string } }
+          const neonUserId = data?.user?.id
+
+          if (!neonUserId) {
+            console.error(
+              `  ❌ Sign-up succeeded for ${user.email} but response missing user ID`
+            )
+            continue
+          }
+
+          if (neonUserId !== user.id) {
+            await pool.query(`BEGIN`)
+            try {
+              await pool.query(`UPDATE neon_auth."user" SET id = $1 WHERE id = $2`, [
+                user.id,
+                neonUserId,
+              ])
+              await pool.query(
+                `UPDATE neon_auth.account SET "userId" = $1, "accountId" = $1 WHERE "userId" = $2`,
+                [user.id, neonUserId]
+              )
+              await pool.query(
+                `UPDATE neon_auth.session SET "userId" = $1 WHERE "userId" = $2`,
+                [user.id, neonUserId]
+              )
+              await pool.query(`COMMIT`)
+              console.log(`  ✅ Registered ${user.email} (UUID reconciled)`)
+            } catch (err: any) {
+              try {
+                await pool.query(`ROLLBACK`)
+              } catch {}
+              console.error(
+                `  ❌ UUID reconciliation failed for ${user.email}: ${err.message}`
+              )
+            }
+          } else {
+            console.log(`  ✅ Registered ${user.email}`)
+          }
+        } else if (res.status === 422) {
+          const signUpBody = (await res.json().catch(() => ({}))) as Record<string, any>
+          const isUserExists =
+            signUpBody?.code === `USER_ALREADY_EXISTS` ||
+            String(signUpBody?.message || ``)
+              .toLowerCase()
+              .includes(`already exists`)
+
+          if (!isUserExists) {
+            console.warn(
+              `  ⚠️  Sign-up validation error for ${user.email}: ${JSON.stringify(signUpBody).slice(0, 200)}`
+            )
+            continue
+          }
+
+          const signInRes = await fetch(`${authUrl}/sign-in/email`, {
+            method: `POST`,
+            headers: authHeaders,
+            body: JSON.stringify({ email: user.email, password: SeedPassword }),
+          })
+
+          if (signInRes.ok) {
+            await signInRes.text()
+            console.log(`  ✅ ${user.email} already registered with correct password`)
+          } else {
+            const signInStatus = signInRes.status
+            await signInRes.text()
+
+            if (signInStatus === 429 || signInStatus >= 500) {
+              console.warn(
+                `  ⚠️  Sign-in check returned ${signInStatus} for ${user.email} — skipping password update`
+              )
+              continue
+            }
+
+            try {
+              const hash = await hashSeedPassword(SeedPassword)
+              const updated = await pool.query(
+                `UPDATE neon_auth.account SET password = $1, "updatedAt" = now() WHERE "userId" = $2::uuid AND "providerId" = 'credential'`,
+                [hash, user.id]
+              )
+              if (updated.rowCount === 0) {
+                const userExists = await pool.query(
+                  `SELECT id FROM neon_auth."user" WHERE id = $1::uuid`,
+                  [user.id]
+                )
+                if (userExists.rowCount === 0) {
+                  console.warn(
+                    `  ⚠️  No Neon Auth user record for ${user.email} — skipping credential insert`
+                  )
+                } else {
+                  await pool.query(
+                    `INSERT INTO neon_auth.account (id, "userId", "providerId", "accountId", password, "createdAt", "updatedAt")
+                     VALUES (gen_random_uuid(), $1::uuid, 'credential', $1, $2, now(), now())`,
+                    [user.id, hash]
+                  )
+                }
+              }
+              console.log(`  🔑 Updated password for ${user.email}`)
+            } catch (err: any) {
+              console.error(
+                `  ❌ Failed to update password for ${user.email}: ${err.message}`
+              )
+            }
+          }
+        } else {
+          const body = await res.text().catch(() => ``)
+          console.warn(
+            `  ⚠️  Sign-up failed for ${user.email} (${res.status}): ${body.slice(0, 200)}`
+          )
+        }
+      } catch (err: any) {
+        console.warn(`  ⚠️  Could not register ${user.email}: ${err.message}`)
+      }
+    }
+  } finally {
+    await pool.end()
+  }
+
+  console.log(``)
+}
 
 type SeedData = {
   name: string
@@ -204,6 +379,15 @@ ife(async () => {
 
   // Dynamic import because fullorg.ts uses top-level await
   const { seeds } = await import('@TDB/seeds/fullorg')
+
+  // Register seed user credentials with Neon Auth (email/password sign-up)
+  console.log(`🔐 Registering seed user credentials...`)
+  const seedUsers = Object.values(seeds.users).map((u: any) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+  }))
+  await registerSeedUsers(seedUsers)
 
   // Split secrets: agent-scoped secrets must come AFTER agents (FK dependency)
   const allSecrets = Object.values(seeds.secrets) as any[]

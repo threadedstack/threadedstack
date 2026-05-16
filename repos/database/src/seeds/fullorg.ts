@@ -52,19 +52,19 @@ const users = {
   admin: new User({
     id: Ids.user.admin,
     name: `Test Admin`,
-    emailVerified: false,
+    emailVerified: true,
     email: `lancetipton04+tdsk-admin@gmail.com`,
   }),
   member: new User({
     id: Ids.user.member,
     name: `Test Member`,
-    emailVerified: false,
+    emailVerified: true,
     email: `lancetipton04+tdsk-member@gmail.com`,
   }),
   viewer: new User({
     id: Ids.user.viewer,
     name: `Test Viewer`,
-    emailVerified: false,
+    emailVerified: true,
     email: `lancetipton04+tdsk-viewer@gmail.com`,
   }),
 }

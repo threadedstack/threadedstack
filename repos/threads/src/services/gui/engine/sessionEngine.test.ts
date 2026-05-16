@@ -31,7 +31,7 @@ const fakeTerminal: TBrowserVTerminal = {
 // Mocks
 // ---------------------------------------------------------------------------
 vi.mock(`@TTH/services/gui/engine/wasmBridge`, () => ({
-  createBrowserTerminal: vi.fn(async () => ({
+  createBrowserTerminal: vi.fn(() => ({
     ...fakeTerminal,
     write: vi.fn(),
     resize: vi.fn(),
@@ -106,7 +106,7 @@ describe(`SessionEngine`, () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
 
-    const engine = await SessionEngine.create(`sess-1`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-1`, { onAST, onFeedEvents })
 
     expect(engine).toBeInstanceOf(SessionEngine)
     expect(engine.sessionId).toBe(`sess-1`)
@@ -121,11 +121,11 @@ describe(`SessionEngine`, () => {
   it(`write() calls terminal.write and schedules RAF`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-2`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-2`, { onAST, onFeedEvents })
 
     // Get the actual terminal instance the engine holds (from the mock)
     const mockCreateBT = vi.mocked(createBrowserTerminal)
-    const terminal = await mockCreateBT.mock.results[0].value
+    const terminal = mockCreateBT.mock.results[0].value
 
     engine.write(`hello`)
 
@@ -141,7 +141,7 @@ describe(`SessionEngine`, () => {
   it(`onAST is invoked after write + RAF tick`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-3`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-3`, { onAST, onFeedEvents })
 
     engine.write(`data`)
 
@@ -162,10 +162,10 @@ describe(`SessionEngine`, () => {
   it(`resize() triggers immediate process`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-4`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-4`, { onAST, onFeedEvents })
 
     const mockCreateBT = vi.mocked(createBrowserTerminal)
-    const terminal = await mockCreateBT.mock.results[0].value
+    const terminal = mockCreateBT.mock.results[0].value
 
     engine.resize(120, 40)
 
@@ -182,10 +182,10 @@ describe(`SessionEngine`, () => {
   it(`destroy() clears timers and calls terminal.free`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-5`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-5`, { onAST, onFeedEvents })
 
     const mockCreateBT = vi.mocked(createBrowserTerminal)
-    const terminal = await mockCreateBT.mock.results[0].value
+    const terminal = mockCreateBT.mock.results[0].value
 
     engine.destroy()
 
@@ -198,10 +198,10 @@ describe(`SessionEngine`, () => {
   it(`after destroy, write() is a no-op`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-6`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-6`, { onAST, onFeedEvents })
 
     const mockCreateBT = vi.mocked(createBrowserTerminal)
-    const terminal = await mockCreateBT.mock.results[0].value
+    const terminal = mockCreateBT.mock.results[0].value
 
     engine.destroy()
     vi.clearAllMocks()
@@ -218,7 +218,7 @@ describe(`SessionEngine`, () => {
   it(`emits error output event on 3rd consecutive failure`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-7`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-7`, { onAST, onFeedEvents })
 
     const mockTokenize = vi.mocked(tokenize)
     mockTokenize.mockImplementation(() => {
@@ -253,7 +253,7 @@ describe(`SessionEngine`, () => {
   it(`error counter resets after successful process`, async () => {
     const onAST = vi.fn()
     const onFeedEvents = vi.fn()
-    const engine = await SessionEngine.create(`sess-8`, { onAST, onFeedEvents })
+    const engine = SessionEngine.create(`sess-8`, { onAST, onFeedEvents })
 
     const mockTokenize = vi.mocked(tokenize)
     const consoleSpy = vi.spyOn(console, `error`).mockImplementation(() => {})
