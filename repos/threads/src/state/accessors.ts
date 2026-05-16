@@ -70,6 +70,7 @@ export const resetUser = () => store.set(userState, undefined)
 export const setUser = (user: User) => store.set(userState, user)
 
 export const getOpenSessions = () => store.get(openSessionsAtom)
+export const resetOpenSessions = () => store.set(openSessionsAtom, new Map())
 export const setOpenSession = (sessionId: string, session: TOpenSession) => {
   const map = new Map(store.get(openSessionsAtom))
   map.set(sessionId, session)
@@ -82,6 +83,7 @@ export const removeOpenSession = (sessionId: string) => {
 }
 
 export const getActiveSession = () => store.get(activeSessionAtom)
+export const resetActiveSession = () => store.set(activeSessionAtom, null)
 export const setActiveSession = (sessionId: string | null) =>
   store.set(activeSessionAtom, sessionId)
 
@@ -95,12 +97,15 @@ export const getSessionsForSandbox = (sandboxId: string): TOpenSession[] => {
 }
 
 export const getSandboxes = () => store.get(sandboxesAtom)
+export const resetSandboxes = () => store.set(sandboxesAtom, [])
 export const setSandboxes = (sandboxes: Sandbox[]) => store.set(sandboxesAtom, sandboxes)
 
 export const getOrgs = () => store.get(orgsAtom)
+export const resetOrgs = () => store.set(orgsAtom, [])
 export const setOrgs = (orgs: Organization[]) => store.set(orgsAtom, orgs)
 
 export const getProjects = () => store.get(projectsAtom)
+export const resetProjects = () => store.set(projectsAtom, [])
 export const setProjects = (projects: Project[]) => store.set(projectsAtom, projects)
 
 export const getActiveProjectId = () => store.get(activeProjectIdState)
@@ -121,18 +126,23 @@ export const setTerminalSettings = (settings: TTerminalSettings) => {
 }
 
 export const getGuiAsts = () => store.get(guiASTState)
+export const resetGuiAsts = () => store.set(guiASTState, new Map())
 export const setGuiAsts = (asts: Map<string, TDocument>) => store.set(guiASTState, asts)
 export const getGuiFeeds = () => store.get(guiFeedState)
+export const resetGuiFeeds = () => store.set(guiFeedState, new Map())
 export const setGuiFeeds = (feeds: Map<string, TFeedEvent[]>) =>
   store.set(guiFeedState, feeds)
 export const getGuiModes = () => store.get(guiModeState)
+export const resetGuiModes = () => store.set(guiModeState, new Map())
 export const setGuiModes = (modes: Map<string, TViewportMode>) =>
   store.set(guiModeState, modes)
 export const getGuiEngines = () => store.get(guiEngineState)
+export const resetGuiEngines = () => store.set(guiEngineState, new Map())
 export const setGuiEngines = (engines: Map<string, SessionEngine>) =>
   store.set(guiEngineState, engines)
 
 export const getBackendSessions = () => store.get(backendSessionsAtom)
+export const resetBackendSessions = () => store.set(backendSessionsAtom, new Map())
 export const setBackendSessions = (sandboxId: string, sessions: TSandboxSession[]) => {
   const map = new Map(store.get(backendSessionsAtom))
   map.set(sandboxId, sessions)

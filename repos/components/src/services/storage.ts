@@ -43,6 +43,16 @@ export class Storage {
     }
   }
 
+  removeByPrefix = (prefix: string) => {
+    if (!prefix) return
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const name = localStorage.key(i)
+      if (name?.startsWith(prefix)) keysToRemove.push(name)
+    }
+    for (const key of keysToRemove) this.remove(key)
+  }
+
   find = (key: string) => {
     if (!key)
       return console.error(`A key is required to a local storage value; got "${key}"`)

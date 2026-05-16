@@ -129,7 +129,10 @@
       "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && grep -A 5 \"afterAll\\\\|afterEach\" {} | head -15')",
       "Bash(sed *)",
       "Bash(sort -t: -k2 -n)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "mcp__playwright__browser_network_request",
+      "mcp__playwright__browser_run_code_unsafe",
+      "Bash(diffstat)"
     ]
   },
   "sandbox": {

@@ -38,6 +38,7 @@ describe(`Endpoint projects`, () => {
               getUserOrgs: vi
                 .fn()
                 .mockResolvedValue({ data: [{ id: `org-1`, name: `Org 1` }] }),
+              getUserProjects: vi.fn().mockResolvedValue({ data: [`project-1`] }),
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
               isProjectMember: vi.fn().mockResolvedValue({ data: true }),
             },
@@ -87,17 +88,8 @@ describe(`Endpoint projects`, () => {
   describe(`GET /_/Projects - List Projects`, () => {
     const ep = getEndpointCfg(projects.endpoints?.listProjects)
 
-    it(`should return 200 with Project data on success`, async () => {
-      const mockProjects = [
-        {
-          id: `1`,
-          name: `Get Users`,
-        },
-        {
-          id: `2`,
-          name: `Create User`,
-        },
-      ]
+    it(`should return 200 with Project data filtered by project roles`, async () => {
+      const mockProjects = [{ id: `project-1`, name: `My Project` }]
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
@@ -105,12 +97,58 @@ describe(`Endpoint projects`, () => {
       mockList.mockResolvedValue({ data: mockProjects })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockList).toHaveBeenCalledOnce()
+      expect(mockList).toHaveBeenCalledWith({
+        where: { id: [`project-1`] },
+        limit: 50,
+        offset: 0,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: mockProjects, limit: 50, offset: 0 })
     })
 
-    it(`should filter by orgId when provided`, async () => {
+    it(`should return all projects when user has super org role`, async () => {
+      const mockProjects = [
+        { id: `1`, name: `Project A` },
+        { id: `2`, name: `Project B` },
+      ]
+      mockReq.params = { orgId: `org-1` }
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `super` } })
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockProjects })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects, limit: 50, offset: 0 })
+    })
+
+    it(`should return empty array when user has no project roles`, async () => {
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [] })
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).not.toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
+    })
+
+    it(`should filter by orgId and project roles when provided`, async () => {
       const mockProjects = []
       mockReq.params = { orgId: `org-1` }
 
@@ -121,7 +159,7 @@ describe(`Endpoint projects`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1` },
+        where: { orgId: `org-1`, id: [`project-1`] },
         limit: 50,
         offset: 0,
       })
@@ -141,7 +179,7 @@ describe(`Endpoint projects`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1` },
+        where: { orgId: `org-1`, id: [`project-1`] },
         limit: 10,
         offset: 5,
       })

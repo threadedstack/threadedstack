@@ -60,6 +60,10 @@ const initOnce = async () => {
   if (projectResult.data) setProjects(projectResult.data)
 }
 
+export const resetInit = () => {
+  initPromise = null
+}
+
 export const init = () => {
   if (!initPromise)
     initPromise = initOnce().catch((err) => {

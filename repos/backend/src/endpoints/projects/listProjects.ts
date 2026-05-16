@@ -2,9 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { parsePagination } from '@TBE/utils/pagination'
 import type { ERoleType } from '@tdsk/domain'
 import { isSuperAdmin, Exception } from '@tdsk/domain'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /Projects - List all Projects
@@ -21,37 +21,38 @@ export const listProjects: TEndpointConfig = {
 
     if (!userId) throw new Exception(401, `Authentication required`)
 
-    const isSuper = isSuperAdmin((req.user?.role ?? ``) as ERoleType)
-
     const { limit, offset } = parsePagination(req)
 
-    // Note: Super admins intentionally see all projects across all orgs.
-    // This is by design for platform administration. Regular users
-    // are filtered to only see projects in their member orgs.
-    if (isSuper) {
-      const { data, error } = orgId
-        ? await db.services.project.list({
-            where: { orgId },
-            limit,
-            offset,
-          })
-        : await db.services.project.list({ limit, offset })
+    if (orgId) {
+      const { data: orgRole } = await db.services.role.getOrgRole(userId, orgId)
 
-      if (error) throw new Exception(500, error.message)
-
-      res.status(200).json({ data: data || [], limit, offset })
-      return
+      // Note: Super admins intentionally see all projects across all orgs.
+      // This is by design for platform administration. Regular users
+      // are filtered to only see projects in their member orgs.
+      if (orgRole && isSuperAdmin(orgRole.type as ERoleType)) {
+        const { data, error } = await db.services.project.list({
+          limit,
+          offset,
+          where: { orgId },
+        })
+        if (error) throw new Exception(500, error.message)
+        res.status(200).json({ data: data || [], limit, offset })
+        return
+      }
     }
 
-    // Regular users: get their orgs and filter projects at DB level
-    const { data: userOrgIds } = await db.services.role.getUserOrgs(userId)
+    const { error: roleError, data: userProjectIds } =
+      await db.services.role.getUserProjects(userId)
 
-    if (!userOrgIds || userOrgIds.length === 0) {
+    if (roleError) throw new Exception(500, roleError.message)
+
+    if (!userProjectIds?.length) {
       res.status(200).json({ data: [], limit, offset })
       return
     }
 
-    const whereClause = orgId ? { orgId: orgId } : { orgId: userOrgIds }
+    const whereClause = orgId ? { orgId, id: userProjectIds } : { id: userProjectIds }
+
     const { data, error } = await db.services.project.list({
       limit,
       offset,

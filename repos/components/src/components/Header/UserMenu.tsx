@@ -1,5 +1,6 @@
 import type { THeaderMenuItem, TAnyCB } from '@TSC/types'
 
+import Box from '@mui/material/Box'
 import Link from '@mui/material/Link'
 import { dims } from '@TSC/theme/dims'
 import Avatar from '@mui/material/Avatar'
@@ -121,7 +122,7 @@ export const UserMenu = (props: TUserMenu) => {
       </IconButton>
       <HeaderMenu
         elevation={0}
-        sx={{ mt: '6px' }}
+        sx={{ mt: '-4px', ml: '8px' }}
         id='tdsk-account-menu'
         anchorEl={anchorEl}
         anchorOrigin={{
@@ -136,6 +137,37 @@ export const UserMenu = (props: TUserMenu) => {
         open={Boolean(anchorEl)}
         onClose={onClose}
       >
+        {(user?.name || user?.email) && (
+          <>
+            <Box
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                display: `flex`,
+                flexDirection: `column`,
+                gap: 0.5,
+              }}
+            >
+              <Typography
+                variant='subtitle2'
+                sx={{ lineHeight: 1.2 }}
+                noWrap
+              >
+                {user?.name || user?.email?.split?.(`@`)[0] || `Anon User`}
+              </Typography>
+              {user?.email && (
+                <Typography
+                  variant='caption'
+                  noWrap
+                  sx={{ color: `text.secondary`, lineHeight: 1.2 }}
+                >
+                  {user.email}
+                </Typography>
+              )}
+            </Box>
+            <Divider />
+          </>
+        )}
         {menuItems.map((item) => (
           <MenuItemRow
             onClose={onClose}

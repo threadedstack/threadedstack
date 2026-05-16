@@ -42,6 +42,10 @@ export function clearStoredSessionsForSandbox(sandboxId: string): void {
   writeMap(map)
 }
 
+export function clearAllStoredSessions(): void {
+  sessionStorage.removeItem(ShellSessionsStorageKey)
+}
+
 export function findSandboxForSession(sessionId: string): string | undefined {
   const map = readMap()
   for (const [sandboxId, sessions] of Object.entries(map)) {

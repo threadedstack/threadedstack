@@ -1,9 +1,16 @@
 import posthog from 'posthog-js'
 import { nav } from '@TAF/services/nav'
 import { auth } from '@TAF/services/auth'
+import { query } from '@TAF/services/query'
+import { storage } from '@TAF/services/storage'
 import { apiService } from '@TAF/services/api'
 import { reset } from '@TAF/actions/auth/local/reset'
 import { tokenRefresh } from '@TAF/services/tokenRefresh'
+import {
+  StorageKeyPrefix,
+  SettingsStorageKey,
+  ApiHeadersStorageKey,
+} from '@TAF/constants/storage'
 
 export const signout = async () => {
   tokenRefresh.stop()
@@ -16,6 +23,24 @@ export const signout = async () => {
 
   posthog.reset()
   apiService.clearBearer()
-  reset()
+
+  try {
+    query.reset()
+  } catch (err) {
+    console.warn(`[signout] query.reset failed:`, err)
+  }
+  try {
+    reset()
+  } catch (err) {
+    console.warn(`[signout] state reset failed:`, err)
+  }
+  try {
+    storage.remove(SettingsStorageKey)
+    storage.remove(ApiHeadersStorageKey)
+    storage.removeByPrefix(StorageKeyPrefix)
+  } catch (err) {
+    console.warn(`[signout] storage cleanup failed:`, err)
+  }
+
   nav.signin()
 }

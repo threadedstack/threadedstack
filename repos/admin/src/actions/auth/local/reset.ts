@@ -3,48 +3,58 @@ import {
   resetOrgs,
   resetAssets,
   resetAgents,
+  resetSkills,
   resetApiKeys,
   resetThreads,
   resetSecrets,
   resetDomains,
+  resetInvoices,
   resetOrgUsers,
   resetProjects,
   resetMessages,
   resetOrgQuota,
+  resetSchedules,
   resetEndpoints,
   resetFunctions,
   resetOrgLimits,
   resetProviders,
   resetThemeType,
+  resetSandboxes,
   resetSidebarOpen,
   resetActiveOrgId,
   resetSubscription,
   resetPaymentPlans,
   resetActiveAssetId,
   resetActiveAgentId,
+  resetActiveSkillId,
   resetFaasFormState,
   resetActiveThreadId,
   resetActiveSecretId,
   resetActiveDomainId,
   resetAgentFormState,
+  resetProjectMembers,
   resetProxyFormState,
   resetOnboardingState,
   resetActiveMessageId,
   resetActiveProjectId,
+  resetActiveScheduleId,
   resetActiveFunctionId,
   resetActiveEndpointId,
   resetActiveOrgSecretId,
+  resetActiveRailSection,
 } from '@TAF/state/accessors'
 
 export const reset = () => {
   resetUser?.()
   resetOrgs?.()
+  resetSkills?.()
   resetAssets?.()
   resetAgents?.()
   resetApiKeys?.()
   resetThreads?.()
   resetSecrets?.()
   resetDomains?.()
+  resetInvoices?.()
   resetOrgUsers?.()
   resetProjects?.()
   resetMessages?.()
@@ -54,22 +64,28 @@ export const reset = () => {
   resetOrgLimits?.()
   resetProviders?.()
   resetThemeType?.()
+  resetSandboxes?.()
+  resetSchedules?.()
   resetSidebarOpen?.()
   resetActiveOrgId?.()
   resetSubscription?.()
   resetPaymentPlans?.()
   resetActiveAssetId?.()
   resetActiveAgentId?.()
+  resetActiveSkillId?.()
   resetFaasFormState?.()
   resetActiveThreadId?.()
   resetActiveSecretId?.()
   resetActiveDomainId?.()
   resetAgentFormState?.()
   resetProxyFormState?.()
+  resetProjectMembers?.()
   resetOnboardingState?.()
   resetActiveMessageId?.()
   resetActiveProjectId?.()
+  resetActiveScheduleId?.()
   resetActiveFunctionId?.()
   resetActiveEndpointId?.()
   resetActiveOrgSecretId?.()
+  resetActiveRailSection?.()
 }

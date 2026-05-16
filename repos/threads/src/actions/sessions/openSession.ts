@@ -277,18 +277,20 @@ export const openSession = async (opts: TOpenSessionOpts) => {
   })
 }
 
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    for (const ws of connections.values()) {
-      try {
-        ws.close()
-      } catch {
-        /* already closed */
-      }
+export const closeAllConnections = () => {
+  for (const ws of connections.values()) {
+    try {
+      ws.close()
+    } catch {
+      /* already closed */
     }
-    rawBuffers = new Map()
-    connections = new Map()
-    engineWriters = new Map()
-    terminalWriters = new Map()
-  })
+  }
+  rawBuffers = new Map()
+  connections = new Map()
+  terminalWriters = new Map()
+  engineWriters = new Map()
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => closeAllConnections())
 }
