@@ -495,15 +495,15 @@ describe(`API Keys endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
-    it(`should return 403 when non-owner tries to specify userId`, async () => {
+    it(`should return 403 when non-admin tries to specify userId`, async () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
 
       mockReq.body = { name: `Delegated Key`, orgId: `org-123`, userId: `other-user-id` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Only owners and super admins can create API keys for other users`
+        `Only admins can create API keys for other users`
       )
     })
 

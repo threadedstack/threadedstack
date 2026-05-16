@@ -25,11 +25,12 @@ describe('Tier 1: Project-Scoped API Keys', () => {
     }
     localProjectId = projRes.data.id
 
-    // Create a project-scoped API key
+    // Create a project-scoped API key with admin role for access boundary tests
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${ctx.orgId}/api-keys`,
       {
         name: uniqueName('ProjKey Test Key'),
+        role: 'admin',
         scopes: 'read,write',
         projectId: localProjectId,
       }

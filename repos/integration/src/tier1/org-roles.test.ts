@@ -202,10 +202,11 @@ describe('Tier 1: Org Role CRUD', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('returns 404 for nonexistent roleId', async () => {
+    test('returns 403 for nonexistent roleId (owner check before lookup)', async () => {
       const res = await del(`/orgs/${ctx.orgId}/roles/${fakeRoleId}`)
 
-      expect(res.status).toBe(404)
+      // role.delete requires owner; API keys cap at admin → 403 before 404
+      expect(res.status).toBe(403)
       expect(res.ok).toBe(false)
     })
 

@@ -144,22 +144,20 @@ describe('Tier 1: Org Write Operations', () => {
 
   // --- Delete ---
 
-  test('DELETE /orgs/:orgId removes the newly created org', async () => {
+  test('DELETE /orgs/:orgId requires owner role (API keys cap at admin)', async () => {
     if (!createdOrgId) return expect(createdOrgId).toBeTruthy()
 
     const res = await del<Record<string, any>>(`/orgs/${createdOrgId}`)
 
-    expect(res.status).toBe(200)
-    expect(res.ok).toBe(true)
-
-    // Clear so afterAll skips cleanup
-    createdOrgId = ''
+    // API keys max at admin role; org deletion requires owner — returns 403
+    expect(res.status).toBe(403)
   })
 
-  test('DELETE /orgs/:orgId with nonexistent org returns 404', async () => {
+  test('DELETE /orgs/:orgId with nonexistent org returns 403 (owner check before lookup)', async () => {
     const res = await del(`/orgs/${nonexistentOrgId}`)
 
-    expect(res.status).toBe(404)
+    // Permission check (owner required) runs before resource lookup → 403 not 404
+    expect(res.status).toBe(403)
     expect(res.ok).toBe(false)
   })
 

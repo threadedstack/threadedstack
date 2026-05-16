@@ -14,7 +14,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const revokeInvitation: TEndpointConfig = {
   path: `/:invitationId`,
   method: EPMethod.Delete,
-  middleware: [authorize(EPermAction.delete, EPermResource.role)],
+  middleware: [authorize(EPermAction.delete, EPermResource.invitation)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { invitationId } = req.params
