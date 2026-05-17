@@ -3,7 +3,7 @@ import type WebSocket from 'ws'
 import type { IncomingMessage } from 'http'
 import type { TApp } from '@TBE/types'
 
-import { ERoleType } from '@tdsk/domain'
+import { ERoleType, ApiKeyPrefix, hashKey } from '@tdsk/domain'
 
 vi.mock(`@TBE/services/sessionToken`, () => ({
   verifyShellToken: vi.fn(),
@@ -42,7 +42,8 @@ const buildMockWs = () => {
   } as unknown as WebSocket & { _handlers: Record<string, Function> }
 }
 
-const buildMockReq = (url: string) => ({ url, headers: {} }) as unknown as IncomingMessage
+const buildMockReq = (url: string, headers: Record<string, string> = {}) =>
+  ({ url, headers }) as unknown as IncomingMessage
 
 const buildMockApp = (overrides: Record<string, any> = {}) => {
   const sandboxService = {
@@ -69,6 +70,10 @@ const buildMockApp = (overrides: Record<string, any> = {}) => {
             }),
             ...overrides.role,
           },
+          apiKey: {
+            getByHash: vi.fn().mockResolvedValue({ data: null }),
+            ...overrides.apiKey,
+          },
         },
       },
       sandbox: sandboxService,
@@ -84,10 +89,40 @@ describe(`onMonitorConnect`, () => {
   })
 
   describe(`authorization`, () => {
-    it(`closes with 4001 when no token provided`, async () => {
+    it(`closes with 4001 when no auth provided`, async () => {
       const ws = buildMockWs()
       await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor`), buildMockApp())
-      expect(ws.close).toHaveBeenCalledWith(4001, `Token required`)
+      expect(ws.close).toHaveBeenCalledWith(4001, `Authentication required`)
+    })
+
+    it(`authenticates with valid API key`, async () => {
+      const ws = buildMockWs()
+      const testKey = `${ApiKeyPrefix}test-key-123`
+      const app = buildMockApp({
+        apiKey: {
+          getByHash: vi.fn().mockResolvedValue({
+            data: { orgId: ORG_ID, userId: USER_ID, isValid: () => true },
+          }),
+        },
+      })
+      await onMonitorConnect(
+        ws,
+        buildMockReq(`/_/sandboxes/monitor`, { authorization: `Bearer ${testKey}` }),
+        app
+      )
+      expect(ws.close).not.toHaveBeenCalledWith(4001, expect.any(String))
+      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(ORG_ID, ws, null)
+    })
+
+    it(`closes with 4001 for invalid API key`, async () => {
+      const ws = buildMockWs()
+      const testKey = `${ApiKeyPrefix}bad-key`
+      await onMonitorConnect(
+        ws,
+        buildMockReq(`/_/sandboxes/monitor`, { authorization: `Bearer ${testKey}` }),
+        buildMockApp()
+      )
+      expect(ws.close).toHaveBeenCalledWith(4001, `Invalid or expired API key`)
     })
 
     it(`closes with 4001 for invalid token`, async () => {
@@ -146,7 +181,7 @@ describe(`onMonitorConnect`, () => {
       expect(sent.sessions).toHaveLength(1)
     })
 
-    it(`skips sandboxes with no active sessions`, async () => {
+    it(`sends empty sessions snapshot for sandboxes with no active sessions`, async () => {
       const ws = buildMockWs()
       const app = buildMockApp({
         sandboxDb: {
@@ -160,7 +195,17 @@ describe(`onMonitorConnect`, () => {
       await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor?token=valid`), app)
 
       expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(ORG_ID, ws, null)
-      expect(ws.send).not.toHaveBeenCalled()
+      expect(ws.send).toHaveBeenCalledTimes(2)
+
+      const sent1 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0])
+      expect(sent1.type).toBe(`sessions-updated`)
+      expect(sent1.sandboxId).toBe(`sb-1`)
+      expect(sent1.sessions).toHaveLength(0)
+
+      const sent2 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[1][0])
+      expect(sent2.type).toBe(`sessions-updated`)
+      expect(sent2.sandboxId).toBe(`sb-2`)
+      expect(sent2.sessions).toHaveLength(0)
     })
 
     it(`enriches sessions with hasShellSession flag`, async () => {

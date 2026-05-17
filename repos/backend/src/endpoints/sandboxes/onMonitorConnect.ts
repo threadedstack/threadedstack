@@ -7,10 +7,12 @@ import { logger } from '@TBE/utils/logger'
 import { WsPingInterval } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 import {
+  hashKey,
   EShellMsg,
   hasMinRole,
   canPerform,
   ERoleType,
+  ApiKeyPrefix,
   EPermAction,
   EPermResource,
 } from '@tdsk/domain'
@@ -24,18 +26,48 @@ const monitorConnected = async (
 
   const url = new URL(req.url || ``, `http://localhost`)
   const queryToken = url.searchParams.get(`token`)
-  if (!queryToken) {
-    ws.close(4001, `Token required`)
+  const authHeader = req.headers.authorization
+
+  let orgId: string
+  let userId: string
+
+  if (authHeader?.startsWith(`Bearer `)) {
+    const token = authHeader.slice(7)
+
+    if (token.startsWith(ApiKeyPrefix)) {
+      const keyHash = hashKey(token)
+      const { data: apiKey, error: keyErr } = await db.services.apiKey.getByHash(keyHash)
+      if (keyErr || !apiKey || !apiKey.isValid()) {
+        ws.close(4001, `Invalid or expired API key`)
+        return
+      }
+      if (!apiKey.orgId || !apiKey.userId) {
+        ws.close(4001, `API key missing org or user scope`)
+        return
+      }
+      orgId = apiKey.orgId
+      userId = apiKey.userId
+    } else {
+      const payload = verifyShellToken(token)
+      if (!payload) {
+        ws.close(4001, `Invalid or expired token`)
+        return
+      }
+      orgId = payload.orgId
+      userId = payload.userId
+    }
+  } else if (queryToken) {
+    const payload = verifyShellToken(queryToken)
+    if (!payload) {
+      ws.close(4001, `Invalid or expired token`)
+      return
+    }
+    orgId = payload.orgId
+    userId = payload.userId
+  } else {
+    ws.close(4001, `Authentication required`)
     return
   }
-
-  const payload = verifyShellToken(queryToken)
-  if (!payload) {
-    ws.close(4001, `Invalid or expired token`)
-    return
-  }
-
-  const { orgId, userId } = payload
 
   const { data: userOrgRole } = await db.services.role.getOrgRole(userId, orgId)
   const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
@@ -71,7 +103,6 @@ const monitorConnected = async (
 
   for (const sbId of accessibleIds ?? allSandboxIds) {
     const sessions = sbService.getSessionsForSandbox(sbId)
-    if (sessions.length === 0) continue
 
     const enriched = sessions.map((s) => ({
       ...s,

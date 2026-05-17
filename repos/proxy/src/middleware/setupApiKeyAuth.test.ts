@@ -552,7 +552,7 @@ describe(`validateApiKeyAuth`, () => {
       keyPrefix: `tdsk_badr`,
       active: true,
       scopes: `read`,
-      role: `owner`,
+      role: `super`,
       userId: `user-bad-role`,
       orgId: `org-bad-role`,
     })

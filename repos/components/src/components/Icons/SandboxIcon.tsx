@@ -1,4 +1,6 @@
-import { Icon, TIconProps } from './Icon'
+import type { TIconProps } from './Icon'
+
+import { Icon } from './Icon'
 import { forwardRef } from 'react'
 
 export const SandboxIcon = forwardRef((props: TIconProps, ref) => {
