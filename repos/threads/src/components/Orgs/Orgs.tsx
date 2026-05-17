@@ -1,11 +1,12 @@
 import { useCallback } from 'react'
 import { nav } from '@TTH/services/nav'
 
+import { OrgIcon } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
 import { selectOrg } from '@TTH/actions/orgs'
 import { Box, Typography } from '@mui/material'
+import { EmptyState } from '@TTH/components/EmptyState'
 import { useOrgs, useOrgId } from '@TTH/state/selectors'
-import { EmptyState } from '@TTH/components/Orgs/EmptyState'
 import { OrgCardItem } from '@TTH/components/Orgs/OrgCardItem'
 
 const PageRoot = styled(Box)`
@@ -41,7 +42,10 @@ export const Orgs = () => {
       </Box>
 
       {orgs.length === 0 ? (
-        <EmptyState />
+        <EmptyState
+          icon={<OrgIcon />}
+          title='No organizations found'
+        />
       ) : (
         <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5 }}>
           {orgs.map((org) => (

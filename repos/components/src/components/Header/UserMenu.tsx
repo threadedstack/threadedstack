@@ -31,7 +31,6 @@ const MenuItemRow = (props: THeaderMenuItemRow) => {
   const {
     Icon,
     path,
-    divider,
     label,
     onClick,
     onClose,
@@ -50,34 +49,31 @@ const MenuItemRow = (props: THeaderMenuItemRow) => {
   )
 
   return (
-    <>
-      {divider && <Divider />}
-      <MuiMenuItem
-        onClick={onMenuClose}
-        autoFocus
-        {...itemProps}
-      >
-        <ListItemIcon>
-          <Icon
-            fontSize='small'
-            {...iconProps}
-          />
-        </ListItemIcon>
-        <ListItemText>
-          {onClick ? (
+    <MuiMenuItem
+      onClick={onMenuClose}
+      autoFocus
+      {...itemProps}
+    >
+      <ListItemIcon>
+        <Icon
+          fontSize='small'
+          {...iconProps}
+        />
+      </ListItemIcon>
+      <ListItemText>
+        {onClick ? (
+          <Typography {...textProps}>{label}</Typography>
+        ) : (
+          <Link
+            underline='none'
+            href={`/${(path || label || ``).toLowerCase()}`}
+            {...linkProps}
+          >
             <Typography {...textProps}>{label}</Typography>
-          ) : (
-            <Link
-              underline='none'
-              href={`/${(path || label || ``).toLowerCase()}`}
-              {...linkProps}
-            >
-              <Typography {...textProps}>{label}</Typography>
-            </Link>
-          )}
-        </ListItemText>
-      </MuiMenuItem>
-    </>
+          </Link>
+        )}
+      </ListItemText>
+    </MuiMenuItem>
   )
 }
 
@@ -137,44 +133,49 @@ export const UserMenu = (props: TUserMenu) => {
         open={Boolean(anchorEl)}
         onClose={onClose}
       >
-        {(user?.name || user?.email) && (
-          <>
-            <Box
-              sx={{
-                px: 2.5,
-                py: 1.5,
-                display: `flex`,
-                flexDirection: `column`,
-                gap: 0.5,
-              }}
-            >
-              <Typography
-                variant='subtitle2'
-                sx={{ lineHeight: 1.2 }}
-                noWrap
+        {user?.name || user?.email
+          ? [
+              <Box
+                key='user-info'
+                sx={{
+                  px: 2.5,
+                  py: 1.5,
+                  display: `flex`,
+                  flexDirection: `column`,
+                  gap: 0.5,
+                }}
               >
-                {user?.name || user?.email?.split?.(`@`)[0] || `Anon User`}
-              </Typography>
-              {user?.email && (
                 <Typography
-                  variant='caption'
+                  variant='subtitle2'
+                  sx={{ lineHeight: 1.2 }}
                   noWrap
-                  sx={{ color: `text.secondary`, lineHeight: 1.2 }}
                 >
-                  {user.email}
+                  {user?.name || user?.email?.split?.(`@`)[0] || `Anon User`}
                 </Typography>
-              )}
-            </Box>
-            <Divider />
-          </>
-        )}
-        {menuItems.map((item) => (
-          <MenuItemRow
-            onClose={onClose}
-            key={item.id || item.label || item.path}
-            {...item}
-          />
-        ))}
+                {user?.email && (
+                  <Typography
+                    variant='caption'
+                    noWrap
+                    sx={{ color: `text.secondary`, lineHeight: 1.2 }}
+                  >
+                    {user.email}
+                  </Typography>
+                )}
+              </Box>,
+              <Divider key='user-divider' />,
+            ]
+          : null}
+        {menuItems.flatMap((item) => {
+          const key = item.id || item.label || item.path
+          const row = (
+            <MenuItemRow
+              onClose={onClose}
+              key={key}
+              {...item}
+            />
+          )
+          return item.divider ? [<Divider key={`${key}-div`} />, row] : [row]
+        })}
       </HeaderMenu>
     </SettingsContainer>
   )

@@ -3,10 +3,11 @@ import type { Project as TProject, Sandbox, TGitBrand } from '@tdsk/domain'
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
 import { styled } from '@mui/material/styles'
+import { SandboxIcon } from '@tdsk/components'
 import { Box, Typography } from '@mui/material'
+import { EmptyState } from '@TTH/components/EmptyState'
 import { GitInfo } from '@TTH/components/Project/GitInfo'
 import { NotFound } from '@TTH/components/Project/NotFound'
-import { EmptyState } from '@TTH/components/Project/EmptyState'
 import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
 import { ProjectSandboxCard } from '@TTH/components/Project/ProjectSandboxCard'
 
@@ -74,7 +75,10 @@ export const Project = () => {
         <SectionLabel>Sandboxes ({projectSandboxes.length})</SectionLabel>
 
         {projectSandboxes.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            icon={<SandboxIcon />}
+            title='No sandboxes configured for this project'
+          />
         ) : (
           <Box
             sx={{

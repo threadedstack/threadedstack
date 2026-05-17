@@ -6,6 +6,7 @@ import { Navigate, createBrowserRouter } from 'react-router'
 import {
   rootLoader,
   sandboxLoader,
+  instanceLoader,
   orgScopeLoader,
   projectScopeLoader,
 } from '@TTH/routes/loaders'
@@ -17,6 +18,7 @@ const Login = lazy(() => import('@TTH/pages/Login/Login'))
 const Project = lazy(() => import('@TTH/pages/Project/Project'))
 const Session = lazy(() => import('@TTH/pages/Session/Session'))
 const Sandbox = lazy(() => import('@TTH/pages/Sandbox/Sandbox'))
+const Instance = lazy(() => import('@TTH/pages/Instance/Instance'))
 const CliAuth = lazy(() => import('@TTH/pages/CliAuth/CliAuth'))
 const Settings = lazy(() => import('@TTH/pages/Settings/Settings'))
 const Projects = lazy(() => import('@TTH/pages/Projects/Projects'))
@@ -88,6 +90,11 @@ export const Routes = createBrowserRouter([
                 loader: sandboxLoader,
                 path: ERoutePath.Sandbox,
                 Component: () => <SuspensePage Component={Sandbox} />,
+              },
+              {
+                loader: instanceLoader,
+                path: ERoutePath.Instance,
+                Component: () => <SuspensePage Component={Instance} />,
               },
               {
                 path: ERoutePath.Session,

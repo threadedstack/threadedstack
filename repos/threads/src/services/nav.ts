@@ -1,14 +1,11 @@
+import type { TSessionLocationState } from '@TTH/types'
+
 import { ERoutePath } from '@TTH/types'
 import { getOrgId } from '@TTH/state/accessors'
 
-export type TNavState = {
-  sandboxId?: string
-  projectId?: string
-}
-
-export type TNavOptions = {
+type TNavOptions = {
   replace?: boolean
-  state?: TNavState
+  state?: TSessionLocationState
 }
 
 export class NavService {
@@ -21,6 +18,8 @@ export class NavService {
     project: (orgId: string, projectId: string) => `/orgs/${orgId}/projects/${projectId}`,
     sandbox: (orgId: string, projectId: string, sandboxId: string) =>
       `/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`,
+    instance: (orgId: string, projectId: string, sandboxId: string, instanceId: string) =>
+      `/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}/instance/${instanceId}`,
     session: (orgId: string, projectId: string, sessionId: string) =>
       `/orgs/${orgId}/projects/${projectId}/session/${sessionId}`,
     settings: () => `/settings`,
@@ -78,6 +77,14 @@ export class NavService {
 
   sandbox = (orgId: string, projectId: string, sandboxId: string, opts?: TNavOptions) =>
     this.to(this.path.sandbox(orgId, projectId, sandboxId), opts)
+
+  instance = (
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    instanceId: string,
+    opts?: TNavOptions
+  ) => this.to(this.path.instance(orgId, projectId, sandboxId, instanceId), opts)
 
   session = (orgId: string, projectId: string, sessionId: string, opts?: TNavOptions) =>
     this.to(this.path.session(orgId, projectId, sessionId), opts)

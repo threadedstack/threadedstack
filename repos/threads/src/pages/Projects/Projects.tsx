@@ -8,6 +8,7 @@ import { useMemo, useCallback } from 'react'
 import { styled } from '@mui/material/styles'
 import { useProjects, useSandboxes } from '@TTH/state/selectors'
 import { selectProject } from '@TTH/actions/projects/selectProject'
+import { EmptyState } from '@TTH/components/EmptyState'
 import { FolderOutlined, Terminal, ChevronRight } from '@mui/icons-material'
 import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material'
 
@@ -90,25 +91,11 @@ const ProjectCardItem = (props: TProjectCardItem) => {
   )
 }
 
-const EmptyState = () => (
-  <Box
-    sx={{
-      display: `flex`,
-      flexDirection: `column`,
-      alignItems: `center`,
-      justifyContent: `center`,
-      py: 8,
-      gap: 2,
-    }}
-  >
-    <FolderOutlined sx={{ fontSize: 48, color: `text.disabled` }} />
-    <Typography
-      variant='body1'
-      color='text.secondary'
-    >
-      No projects found for this organization
-    </Typography>
-  </Box>
+const ProjectsEmptyState = () => (
+  <EmptyState
+    icon={<FolderOutlined />}
+    title='No projects found for this organization'
+  />
 )
 
 const sandboxCountByProject = (sandboxes: Sandbox[]): Map<string, number> => {
@@ -160,7 +147,7 @@ const Projects = () => {
         </Box>
 
         {projects.length === 0 ? (
-          <EmptyState />
+          <ProjectsEmptyState />
         ) : (
           <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5 }}>
             {projects.map((project) => (

@@ -1,6 +1,5 @@
 import type { TTerminalEntry, TOpenSessionOpts, TSessionEventHandlers } from '@TTH/types'
 
-import { toast } from 'sonner'
 import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { sandboxApi } from '@TTH/services/sandboxApi'
@@ -250,9 +249,10 @@ export class SessionService {
         }
 
         if (event.code >= 4000)
-          toast.error(`Session disconnected`, {
-            description: event.reason || `Connection closed (code ${event.code})`,
-          })
+          handlers.onDisconnect?.(
+            sessionId,
+            event.reason || `Connection closed (code ${event.code})`
+          )
       }
 
       ws.onerror = () => {

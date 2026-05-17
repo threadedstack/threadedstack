@@ -1,24 +1,28 @@
-import type { TStopSandboxResult } from '@TTH/types'
+import type { TStopSandboxResult, TSandboxActionOpts } from '@TTH/types'
 
 import { closeSession } from '@TTH/actions/sessions'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { getSessionsForSandbox } from '@TTH/state/accessors'
 
-type TStopSandboxOpts = {
-  orgId: string
+type TStopSandboxOpts = TSandboxActionOpts & {
   force?: boolean
-  sandboxId: string
-  projectId: string
   stopAll?: boolean
 }
 
 export const stopSandbox = async (
   opts: TStopSandboxOpts
 ): Promise<TStopSandboxResult> => {
-  const { orgId, force, stopAll, projectId, sandboxId } = opts
+  const { orgId, force, stopAll, projectId, sandboxId, instanceId: inId } = opts
 
   if (stopAll) {
-    const resp = await sandboxApi.stop(orgId, projectId, sandboxId, ``, force, true)
+    const resp = await sandboxApi.stop(
+      orgId,
+      projectId,
+      sandboxId,
+      undefined,
+      force,
+      true
+    )
 
     if (resp.error?.status === 409) {
       const body = resp.error?.details as Record<string, any> | undefined
@@ -30,7 +34,7 @@ export const stopSandbox = async (
 
   const sessions = getSessionsForSandbox(sandboxId)
 
-  let instanceId = sessions[0]?.instanceId
+  let instanceId = inId || sessions[0]?.instanceId
   if (!instanceId) {
     const { data: remoteSessions, error: sessError } = await sandboxApi.sessions(
       orgId,

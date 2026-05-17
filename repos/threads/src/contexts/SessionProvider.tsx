@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { TSessionCtx } from '@TTH/contexts/SessionContext'
-import type { TPendingOp, TSessionLocationState } from '@TTH/types'
+import type { TSessionLocationState } from '@TTH/types'
 
 import { toast } from 'sonner'
 import { nav } from '@TTH/services/nav'
@@ -28,7 +28,6 @@ export const SessionProvider = (props: TSessionProvider) => {
   const [openSessions] = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
   const { sessionId } = useParams<{ sessionId: string }>()
-  const [pendingOp, setPendingOp] = useState<TPendingOp>(null)
 
   const session = sessionId ? openSessions.get(sessionId) : undefined
   const hasSession = !!session
@@ -85,6 +84,7 @@ export const SessionProvider = (props: TSessionProvider) => {
     }
   }, [sessionId])
 
+  // Prevents auto-reconnect after intentional disconnect (e.g. stop/restart from Instance page)
   useEffect(() => {
     if (hasSession) hadSession.current = true
   }, [hasSession])
@@ -93,7 +93,6 @@ export const SessionProvider = (props: TSessionProvider) => {
     if (
       hasSession ||
       connecting ||
-      pendingOp ||
       reconnectAttempted.current ||
       hadSession.current ||
       !sessionId ||
@@ -138,7 +137,7 @@ export const SessionProvider = (props: TSessionProvider) => {
     return () => {
       mounted = false
     }
-  }, [orgId, projectId, pendingOp, sessionId, sandboxId, hasSession, connecting])
+  }, [orgId, projectId, sessionId, sandboxId, hasSession, connecting])
 
   const ctx = useMemo<TSessionCtx>(
     () => ({
@@ -146,11 +145,9 @@ export const SessionProvider = (props: TSessionProvider) => {
       isOwner,
       sandboxId,
       projectId,
-      pendingOp,
       connecting,
-      setPendingOp,
     }),
-    [session, isOwner, sandboxId, projectId, pendingOp, connecting]
+    [session, isOwner, sandboxId, projectId, connecting]
   )
 
   return (

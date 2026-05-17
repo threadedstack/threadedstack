@@ -49,6 +49,8 @@ export const openSession = async (opts: TOpenSessionOpts) => {
     onUserLeft: () => toast.info(`User left your session`, { duration: 3000 }),
     onSandboxStopping: () =>
       toast.info(`Sandbox is being stopped by another user`, { duration: 5000 }),
+    onDisconnect: (_sid, reason) =>
+      toast.error(`Session disconnected`, { description: reason }),
     onClose: (sid) => {
       const session = getOpenSessions().get(sid)
       if (session) removeOpenSession(sid)

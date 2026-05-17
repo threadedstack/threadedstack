@@ -6,10 +6,10 @@ import { useParams } from 'react-router'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { styled } from '@mui/material/styles'
-import { ArrowBack } from '@mui/icons-material'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { ViewToggle } from '@TTH/components/ViewToggle'
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowBack, Dns } from '@mui/icons-material'
 import { useOrgId, useSandboxes } from '@TTH/state/selectors'
 import { isFeatureEnabled, EPermResource } from '@tdsk/domain'
 import { SessionGUIView } from '@TTH/components/SessionGUIView'
@@ -20,9 +20,10 @@ import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
 import { TerminalView } from '@TTH/components/Terminal/TerminalView'
 import { useSessionEngine } from '@TTH/hooks/session/useSessionEngine'
 import { SessionCommands } from '@TTH/components/Session/SessionCommands'
-import { Box, Chip, Card, Button, IconButton, Typography } from '@mui/material'
+import { ConfigRow, ConfigValue } from '@TTH/components/ConfigRow/ConfigRow'
 import { TerminalQuickSettings } from '@TTH/components/Terminal/TerminalQuickSettings'
 import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
+import { Box, Chip, Card, Button, IconButton, Typography, Tooltip } from '@mui/material'
 
 const SessionContainer = styled(Box)`
   width: 100%;
@@ -40,85 +41,49 @@ const SessionHeader = styled(Box)(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
 }))
 
-const ContentArea = styled(Box)`
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  position: relative;
-  flex-direction: column;
-`
-
-const monoFont = `'JetBrains Mono', monospace`
-
-const ConfigLabel = styled(Typography)(({ theme }) => ({
-  fontSize: 13,
-  fontWeight: 600,
-  letterSpacing: `0.05em`,
-  color: theme.palette.text.secondary,
-  textTransform: `uppercase` as const,
+const ContentArea = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: `flex`,
+  overflow: `hidden`,
+  position: `relative`,
+  flexDirection: `column`,
+  padding: theme.spacing(1),
 }))
-
-const ConfigValue = styled(Typography)({
-  fontSize: 14,
-  fontFamily: monoFont,
-})
-
-const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <Box
-    sx={{
-      py: 0.75,
-      display: `flex`,
-      alignItems: `center`,
-      justifyContent: `space-between`,
-    }}
-  >
-    <ConfigLabel>{label}</ConfigLabel>
-    {typeof value === `string` || typeof value === `number` ? (
-      <ConfigValue>{value}</ConfigValue>
-    ) : (
-      value
-    )}
-  </Box>
-)
 
 const SessionInner = () => {
   const [orgId] = useOrgId()
   const [sandboxes] = useSandboxes()
   const { sessionId } = useParams<{ sessionId: string }>()
-  const { session, isOwner, sandboxId, projectId, pendingOp, connecting, setPendingOp } =
-    useSessionContext()
+  const { session, isOwner, sandboxId, projectId, connecting } = useSessionContext()
 
   const hasSession = !!session
   const activeSessionId = hasSession ? sessionId : null
-  const engine = useSessionEngine(activeSessionId ?? null)
 
-  const [viewMode, setViewMode] = useState<TViewMode>(
-    isFeatureEnabled(`terminalGui`) ? `gui` : `terminal`
-  )
+  const guiEnabled = isFeatureEnabled(`terminalGui`)
+  const [viewMode, setViewMode] = useState<TViewMode>(guiEnabled ? `gui` : `terminal`)
+
+  const engineSessionId = guiEnabled ? activeSessionId : null
+  const engine = useSessionEngine(engineSessionId ?? null)
+
   const { canExec } = usePermissions()
   const canExecSandbox = canExec(EPermResource.sandbox)
 
   const sandbox = sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined
 
-  // Subscribe engine to terminal data
   useEffect(() => {
-    if (!activeSessionId || !engine) return
+    if (!activeSessionId || !engine || !guiEnabled) return
     const buffer = getRawBuffer(activeSessionId)
     for (const chunk of buffer) {
       engine.write(chunk)
     }
     const unsub = subscribeEngineData(activeSessionId, (data) => engine.write(data))
     return unsub
-  }, [activeSessionId, engine])
+  }, [activeSessionId, engine, guiEnabled])
 
   const onBack = useCallback(() => {
     if (sandboxId && orgId && projectId) nav.sandbox(orgId, projectId, sandboxId)
     else orgId ? nav.projects(orgId) : nav.orgs()
   }, [sandboxId, orgId, projectId])
-
-  const onViewChange = useCallback((value: TViewMode) => {
-    setViewMode(value)
-  }, [])
 
   const handleConnect = useCallback(async () => {
     if (!sandboxId || !orgId || !projectId) return
@@ -173,26 +138,37 @@ const SessionInner = () => {
           >
             {session?.runtime || sandbox?.name || sessionId}
           </Typography>
-          {hasSession && sandboxId && (
+          {hasSession && sandboxId && sessionId && projectId && (
             <>
               <SessionCommands
                 isOwner={isOwner}
                 sandboxId={sandboxId}
                 sessionId={sessionId}
                 projectId={projectId}
-                onPendingOp={setPendingOp}
               />
-              {isFeatureEnabled('terminalGui') && (
+              {session?.instanceId && orgId && sandboxId && projectId && (
+                <Tooltip title='Instance'>
+                  <IconButton
+                    size='small'
+                    onClick={() =>
+                      nav.instance(orgId, projectId, sandboxId, session.instanceId)
+                    }
+                  >
+                    <Dns sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {guiEnabled && (
                 <ViewToggle
                   value={viewMode}
-                  onChange={onViewChange}
+                  onChange={setViewMode}
                 />
               )}
             </>
           )}
           {hasSession && <TerminalQuickSettings />}
         </SessionHeader>
-        <ContentArea>
+        <ContentArea className='tth-session-content-area'>
           {!hasSession ? (
             <Box
               sx={{
@@ -207,15 +183,9 @@ const SessionInner = () => {
                 justifyContent: `center`,
               }}
             >
-              {connecting || pendingOp ? (
+              {connecting ? (
                 <Loading
-                  message={
-                    pendingOp === `recreate`
-                      ? `Recreating session...`
-                      : pendingOp === `restart`
-                        ? `Restarting session...`
-                        : `Connecting...`
-                  }
+                  message='Connecting...'
                   messageSx={{ color: `text.primary` }}
                 />
               ) : (
@@ -364,7 +334,7 @@ const SessionInner = () => {
                 </Box>
               )}
             </Box>
-          ) : viewMode === `gui` && isFeatureEnabled('terminalGui') ? (
+          ) : viewMode === `gui` && guiEnabled ? (
             <SessionGUIView sessionId={sessionId} />
           ) : (
             <TerminalView
@@ -374,7 +344,7 @@ const SessionInner = () => {
             />
           )}
         </ContentArea>
-        {hasSession && viewMode === `gui` && isFeatureEnabled('terminalGui') && (
+        {hasSession && viewMode === `gui` && guiEnabled && (
           <SmartInput sessionId={sessionId} />
         )}
       </SessionContainer>

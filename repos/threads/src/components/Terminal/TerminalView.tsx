@@ -5,6 +5,7 @@ import { EShellMsg } from '@tdsk/domain'
 import { FitAddon } from '@xterm/addon-fit'
 import { useRef, useEffect, useCallback } from 'react'
 import { useTerminalSettings } from '@TTH/state/selectors'
+import { useSessionContext } from '@TTH/contexts/SessionContext'
 import {
   sendInput,
   sendControl,
@@ -31,18 +32,37 @@ function tryFit(fitAddon: FitAddon) {
 export const TerminalView = (props: TTerminalView) => {
   const { sessionId, active } = props
   const [settings] = useTerminalSettings()
+  const { isOwner } = useSessionContext()
   const containerRef = useRef<HTMLDivElement>(null)
 
   const onData = useCallback((data: string) => sendInput(sessionId, data), [sessionId])
 
+  const resizeFailCount = useRef(0)
   const onResize = useCallback(
     (dims: { cols: number; rows: number }) => {
-      sendControl(sessionId, { type: EShellMsg.Resize, cols: dims.cols, rows: dims.rows })
+      if (!isOwner) return
+
+      const sent = sendControl(sessionId, {
+        type: EShellMsg.Resize,
+        cols: dims.cols,
+        rows: dims.rows,
+      })
+
+      if (!sent) {
+        resizeFailCount.current++
+        if (resizeFailCount.current === 1)
+          console.warn(
+            `[TerminalView] Resize failed for session ${sessionId} — connection may be lost`
+          )
+      } else {
+        resizeFailCount.current = 0
+      }
     },
-    [sessionId]
+    [sessionId, isOwner]
   )
 
   useEffect(() => {
+    resizeFailCount.current = 0
     const container = containerRef.current
     if (!container) return
 
@@ -140,10 +160,10 @@ export const TerminalView = (props: TTerminalView) => {
     sessionId,
     settings.theme,
     settings.fontSize,
+    settings.scrollback,
     settings.fontFamily,
     settings.cursorStyle,
     settings.cursorBlink,
-    settings.scrollback,
     settings.allowTransparency,
     settings.smoothScrollDuration,
   ])
@@ -158,6 +178,7 @@ export const TerminalView = (props: TTerminalView) => {
   return (
     <Box
       ref={containerRef}
+      className='tth-terminal-box'
       sx={{
         width: `100%`,
         height: `100%`,

@@ -1,12 +1,13 @@
 import type { TClassifiedSession } from '@TTH/types'
 
 import { cmx } from '@tdsk/components'
-import { useMemo, useState } from 'react'
+import { nav } from '@TTH/services/nav'
+import { useMemo, useState, useCallback } from 'react'
 import { Dns, ChevronRight } from '@mui/icons-material'
+import { Box, Typography, Collapse, useTheme } from '@mui/material'
 import { NavSessionItem } from '@TTH/components/Sidebar/NavSessionItem'
-import { Box, Typography, Collapse, Chip, useTheme } from '@mui/material'
 
-export type TNavInstanceItem = {
+type TNavInstanceItem = {
   index: number
   orgId: string
   indent: number
@@ -29,6 +30,14 @@ export const NavInstanceItem = (props: TNavInstanceItem) => {
   )
 
   const shortPod = instanceId.slice(-4)
+
+  const onNavigate = useCallback(
+    (evt: React.MouseEvent) => {
+      evt.stopPropagation()
+      nav.instance(orgId, projectId, sandboxId, instanceId)
+    },
+    [orgId, projectId, sandboxId, instanceId]
+  )
 
   return (
     <Box>
@@ -61,33 +70,31 @@ export const NavInstanceItem = (props: TNavInstanceItem) => {
           }}
         />
 
-        <Dns sx={{ fontSize: 14, flexShrink: 0, color: grey[500] }} />
+        <Dns
+          onClick={onNavigate}
+          sx={{
+            fontSize: 14,
+            flexShrink: 0,
+            color: grey[500],
+            cursor: `pointer`,
+          }}
+        />
 
         <Typography
           noWrap
+          onClick={onNavigate}
           sx={{
             flex: 1,
             fontSize: `12px`,
             fontWeight: 400,
             lineHeight: 1.4,
+            cursor: `pointer`,
             color: `text.secondary`,
+            '&:hover': { textDecoration: `underline` },
           }}
         >
           Instance {index} ({shortPod})
         </Typography>
-
-        <Chip
-          size='small'
-          variant='outlined'
-          label={sessions.length}
-          sx={{
-            height: 16,
-            flexShrink: 0,
-            fontSize: `10px`,
-            minWidth: 20,
-            '& .MuiChip-label': { px: `4px` },
-          }}
-        />
 
         <Box
           sx={{

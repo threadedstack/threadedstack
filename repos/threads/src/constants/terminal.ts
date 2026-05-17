@@ -1,6 +1,12 @@
 import type { ITheme } from '@xterm/xterm'
 import type { TTerminalSettings, TTerminalThemePreset } from '@TTH/types/terminal.types'
 
+export const HeaderHeight = 50
+export const TabBarHeight = 40
+export const ContentPadding = 16
+export const SessionHeaderHeight = 48
+export const PagePadding = 64 + ContentPadding
+
 export const TerminalFontOptions = [
   { label: `JetBrains Mono`, value: `'JetBrains Mono', monospace` },
   { label: `Fira Code`, value: `'Fira Code', monospace` },

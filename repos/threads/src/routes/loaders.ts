@@ -4,7 +4,7 @@ import type { TOrgWithRole } from '@tdsk/domain'
 import { toast } from 'sonner'
 import { init } from '@TTH/actions/init'
 import { storage } from '@TTH/services/storage'
-import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
+import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import { fetchSandboxSessions } from '@TTH/actions/sandboxes/fetchSandboxSessions'
@@ -20,18 +20,11 @@ import {
   resetActiveProjectId,
 } from '@TTH/state/accessors'
 
-/**
- * Best-effort fetch for page/detail loaders.
- * Fires the fetch without awaiting — navigation completes immediately and
- * data loads in the background.
- * Components read from Jotai and re-render when data arrives.
- */
-const safeFetch = (fn: () => Promise<any>) => {
+const safeFetch = (fn: () => Promise<any>, context?: string) => {
   fn()?.catch((err: unknown) => {
-    console.warn(
-      `[Loader] Background fetch failed:`,
-      err instanceof Error ? err.message : err
-    )
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[Loader] Background fetch failed:`, msg)
+    toast.error(`Failed to load ${context || `data`}`, { id: context, description: msg })
   })
 }
 
@@ -51,7 +44,8 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) return null
 
-  // Set org state
+  await init()
+
   const currentOrgId = getOrgId()
   if (currentOrgId !== orgId) {
     setOrgId(orgId)
@@ -65,6 +59,7 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
     setSandboxes([])
     setProjects([])
     resetActiveProjectId()
+    storage.remove(ActiveProjectIdStorageKey)
   }
 
   // Fetch projects and sandboxes if not loaded
@@ -76,7 +71,7 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
       ])
       if (sandboxResult.data) setSandboxes(sandboxResult.data)
       if (projectResult.data) setProjects(projectResult.data)
-    })
+    }, `projects`)
   }
 
   return null
@@ -87,6 +82,7 @@ export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!projectId) return null
 
   setActiveProjectId(projectId)
+  storage.set(ActiveProjectIdStorageKey, projectId)
   return null
 }
 
@@ -94,6 +90,16 @@ export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, sandboxId, projectId } = params
   if (!sandboxId || !orgId || !projectId) return null
 
-  safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }))
+  await init()
+  safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }), `sessions`)
+  return null
+}
+
+export const instanceLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, sandboxId, projectId, instanceId } = params
+  if (!sandboxId || !orgId || !projectId || !instanceId) return null
+
+  await init()
+  safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }), `sessions`)
   return null
 }

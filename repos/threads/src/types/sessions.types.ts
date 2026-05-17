@@ -4,11 +4,10 @@ import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
 export type TViewMode = `gui` | `terminal`
 export type TCommand = `stop` | `restart` | `recreate`
-export type TPendingOp = `restart` | `recreate` | null
 
 export type TSessionLocationState = {
-  sandboxId?: string
-  projectId?: string
+  sandboxId: string
+  projectId: string
 }
 
 export type TSessionCommandsProps = {
@@ -16,7 +15,6 @@ export type TSessionCommandsProps = {
   sandboxId: string
   sessionId: string
   projectId: string
-  onPendingOp: (op: TPendingOp) => void
 }
 
 export type TOpenSession = {
@@ -49,6 +47,13 @@ export type TClassifiedSession = Omit<TSandboxSession, `orgId` | `instanceId`> &
   hasShellSession: boolean
 }
 
+export type TSandboxActionOpts = {
+  orgId: string
+  sandboxId: string
+  projectId: string
+  instanceId?: string
+}
+
 export type TStopSandboxResult =
   | { stopped: true }
   | { stopped: false; activeSessions: TSandboxSession[] }
@@ -64,6 +69,7 @@ export type TSessionEventHandlers = {
   onSandboxStopping?: () => void
   onSetup: (data: TOpenSession) => void
   onClose?: (sessionId: string, sandboxId: string) => void
+  onDisconnect?: (sessionId: string, reason: string) => void
   onSessionsUpdated?: (sandboxId: string, sessions: TSandboxSession[]) => void
   onVisibilityChange?: (sessionId: string, visibility: ESandboxSessionVisibility) => void
 }

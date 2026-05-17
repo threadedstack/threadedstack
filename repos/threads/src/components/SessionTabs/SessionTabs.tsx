@@ -164,7 +164,11 @@ export const SessionTabs = (props: TSessionTabs) => {
   const onSelect = useCallback(
     (sessionId: string) => {
       const session = openSessions.get(sessionId)
-      if (!session?.projectId || !orgId) return
+      if (!session?.projectId) return
+      if (!orgId) {
+        nav.orgs()
+        return
+      }
       activateSession(sessionId)
       nav.session(orgId, session.projectId, sessionId, {
         state: { sandboxId: session.sandboxId, projectId: session.projectId },
@@ -173,9 +177,43 @@ export const SessionTabs = (props: TSessionTabs) => {
     [openSessions, orgId]
   )
 
-  const onClose = useCallback((sessionId: string) => {
-    closeSession(sessionId)
-  }, [])
+  const onClose = useCallback(
+    (sessionId: string) => {
+      const isActive = activeSession === sessionId
+      const entries = Array.from(openSessions.entries())
+      const closingSession = openSessions.get(sessionId)
+
+      closeSession(sessionId)
+
+      if (!isActive) return
+
+      if (!orgId) {
+        nav.orgs()
+        return
+      }
+
+      const idx = entries.findIndex(([id]) => id === sessionId)
+      const remaining = entries.filter(([id]) => id !== sessionId)
+
+      if (remaining.length > 0) {
+        const nextIdx = Math.min(Math.max(0, idx), remaining.length - 1)
+        const [nextSessionId, nextSession] = remaining[nextIdx]
+        if (!nextSession?.projectId) {
+          nav.projects(orgId)
+          return
+        }
+        activateSession(nextSessionId)
+        nav.session(orgId, nextSession.projectId, nextSessionId, {
+          state: { sandboxId: nextSession.sandboxId, projectId: nextSession.projectId },
+        })
+      } else if (closingSession?.projectId && closingSession?.sandboxId) {
+        nav.sandbox(orgId, closingSession.projectId, closingSession.sandboxId)
+      } else {
+        nav.projects(orgId)
+      }
+    },
+    [activeSession, openSessions, orgId]
+  )
 
   if (!sessions.length) return null
 
