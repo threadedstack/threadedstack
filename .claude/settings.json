@@ -43,6 +43,10 @@
           {
             "type": "command",
             "command": "case \"$CLAUDE_FILE_PATH\" in *pnpm-lock.yaml|*.env|*.env.*|*values.production.yaml) echo 'BLOCK: Protected file - do not edit lock files, .env files, or production values directly' >&2; exit 2;; esac"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-lazy-patterns.sh"
           }
         ]
       }

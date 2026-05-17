@@ -9,6 +9,49 @@
 - **The user handles all commits manually. No exceptions. Ever.**
 - This rule applies to ALL subagents — include it in EVERY subagent prompt.
 
+## 🚨🚨🚨 ABSOLUTE #2 RULE: ZERO LAZINESS, ZERO DEFERRAL, ZERO SILENT INCOMPLETION 🚨🚨🚨
+
+### Banned Deferral Patterns
+Claude must **NEVER** use these phrases or patterns to avoid doing work:
+- "we can handle this later" / "as a follow-up" / "in a future session"
+- "for now" (when used to justify incomplete work)
+- "as a separate effort" / "out of scope for this task"
+- "a nice-to-have would be" / "we could also" (when you know it should be done)
+- "this should work" / "this looks correct" (without actually running it)
+- "I believe this will" / "this is likely" (assumptions presented as facts)
+
+If you catch yourself reaching for deferral language, STOP — either do the work or explicitly tell the user what remains and why you cannot do it right now.
+
+### Completion Means Verified
+"Done" is not "code written." "Done" means ALL of:
+1. Code written and saved
+2. Type checks pass (`pnpm types` for affected repos)
+3. Unit tests pass (`pnpm test` for affected repos)
+4. Integration tests pass (if the change touches API behavior)
+5. No silent gaps — everything the user asked for is delivered or explicitly flagged as incomplete
+
+If you skip ANY verification step, you MUST say which step you skipped and why. Silence is not acceptable.
+
+### Mandatory Pre-Completion Self-Audit
+Before reporting ANY task as complete, answer these questions in your response:
+1. **What was asked?** — Enumerate every deliverable from the user's request
+2. **What was delivered?** — Match each ask to what you actually did
+3. **What was verified?** — Which checks did you run? Paste the output.
+4. **What's incomplete?** — If ANY deliverable is missing, say so **at the TOP of your response**, not buried at the bottom
+5. **What else did you notice?** — Bugs, missing tests, wrong types, broken imports you saw but didn't fix? Say so.
+
+### Do The Right Thing (Proactive Engineering)
+- If you see a bug adjacent to your task — **FIX IT** or **TELL THE USER** about it
+- If you know a better approach than what was asked — **PROPOSE IT** before implementing the lesser version
+- If a test is missing — **WRITE IT**, don't note its absence and move on
+- If an import is wrong, a type is missing, or an edge case is unhandled — **FIX IT NOW**
+- You are not a task-completion machine. You are a senior engineer. Act like one.
+- **NEVER** add TODO/FIXME/HACK comments — implement it fully or explain why you can't
+- **NEVER** write stub functions or placeholder implementations
+
+### This Rule Applies to ALL Subagents
+Include anti-deferral and completion requirements in EVERY subagent prompt. Subagents do not get to be lazy either.
+
 ## 🚨 CRITICAL: CONCURRENT EXECUTION & FILE MANAGEMENT
 
 **ABSOLUTE RULES**:
@@ -67,7 +110,7 @@ The platform solves three key problems:
 3. **Context management** - Built-in RAG and memory management for LLM applications
 4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Stripe with usage quota tracking for 12 resource types
 
-**Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature. Orgs get 4 built-in sandbox presets on creation. Agents remain functional but are deprioritized in UI/UX. The `tsa sandbox` CLI command (aliased as `tsa run`) is the hero entry point for launching AI tool runtimes in sandboxes.
+**Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature.
 
 ### important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
@@ -201,6 +244,7 @@ Load the relevant skill when working on a specific repo:
 | `todo-triage/SKILL.md` | Triage TODO.md items into detailed TASKS.md entries |
 | `update-docs/SKILL.md` | Detect changes, compare against docs/ and repos/website, update/create documentation to stay in sync |
 | `update-integration-tests/SKILL.md` | Detect changes, update/create integration tests, run full suite, fix all failures until green |
+| `verify-completion/SKILL.md` | Mandatory pre-completion verification: enumerate deliverables, run type checks, run tests, scan for deferred work, audit adjacent issues |
 
 ### Subagents
 
@@ -209,6 +253,7 @@ Custom subagents live in `.claude/agents/`:
 |------------|---------|
 | `security-reviewer.md` | Security-focused code review for auth, secrets, payments, proxy changes |
 | `task-reviewer.md` | Task implementation review for completeness, code quality, and test coverage validation |
+| `accountability-reviewer.md` | Adversarial reviewer that catches skipped, deferred, or half-done work — run after every implementation |
 
 ### Database & Authentication
 
@@ -380,21 +425,23 @@ pnpm --filter @tdsk/admin build      # depends on domain, components
 ## Autonomous Development Loop
 
 ```
-1. UNDERSTAND  — Load skill file, explore codebase
-2. IMPLEMENT   — Write/Edit code
-3. BUILD       — pnpm build (dependency order: domain → database → logger → rest)
-4. TEST        — pnpm test (unit tests, no network needed)
-5. DEPLOY      — tdsk dev start --clean (k8s services)
-5b. FRONTEND   — cd repos/admin && pnpm start (local Vite)
-6. VALIDATE    — curl health checks + Playwright UI
-7. DEBUG       — tdsk dev log --context <svc> --follow
-8. FIX         — Iterate on errors
-9. COMMIT      — Only when user requests
+1.  UNDERSTAND  — Load skill file, explore codebase
+2.  IMPLEMENT   — Write/Edit code
+3.  BUILD       — pnpm build (dependency order: domain → database → logger → rest)
+4.  TEST        — pnpm test (unit tests, no network needed)
+5.  DEPLOY      — tdsk dev start --clean (k8s services)
+5b. FRONTEND    — cd repos/admin && pnpm start (local Vite)
+6.  VALIDATE    — curl health checks + Playwright UI
+7.  DEBUG       — tdsk dev log --context <svc> --follow
+8.  FIX         — Iterate on errors
+9.  VERIFY      — Run verify-completion skill (MANDATORY before reporting done)
+10. REVIEW      — Spawn accountability-reviewer agent (catches skipped/deferred work)
+11. COMMIT      — Only when user requests
 ```
 
 ### Commands Notes
 
-* Linting and formatting are automatically, so `lint` and `format` command should be ignored.
+* Linting and formatting are automatic, so `lint` and `format` command should be ignored.
 * **NEVER save to root folder. Use these directories:**
   - `/src` - Source code files
   - `/tests` - Test files
