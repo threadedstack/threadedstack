@@ -1,7 +1,7 @@
 /**
- * VT constants — duplicated from @tdsk/domain/constants/parser
- * to avoid cross-package runtime dependency that breaks Vite's browser
- * module resolution (domain's parser barrel imports node:fs/promises).
+ * TODO: VALIDATE THIS - Should be able to import from `@tdsk/domain`
+ * VT constants — duplicated from @tdsk/domain to avoid cross-package
+ * runtime dependency that breaks Vite's browser module resolution.
  */
 export const VTCellSize = 16
 

@@ -1,2 +1,2 @@
-export { createBrowserTerminal } from './wasmBridge'
+export { createBrowserTerminal } from './xtermBridge'
 export { SessionEngine } from './sessionEngine'

@@ -348,12 +348,15 @@ export class EgressProxy {
       })
 
       try {
-        this.proxy.listen({ port: 0, host: `127.0.0.1`, sslCaDir: this.sslCaDir }, () => {
-          started = true
-          this.mitmPort = (this.proxy as any).httpPort
-          logger.debug(`[EgressProxy] MITM proxy on internal port ${this.mitmPort}`)
-          resolve()
-        })
+        this.proxy.listen(
+          { port: 0, host: `127.0.0.1`, sslCaDir: this.sslCaDir, forceSNI: true },
+          () => {
+            started = true
+            this.mitmPort = (this.proxy as any).httpPort
+            logger.debug(`[EgressProxy] MITM proxy on internal port ${this.mitmPort}`)
+            resolve()
+          }
+        )
       } catch (err) {
         reject(err as Error)
       }

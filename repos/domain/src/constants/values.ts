@@ -45,6 +45,7 @@ export const ApiKeyAllowedRoles: ERoleType[] = [
   ERoleType.viewer,
   ERoleType.member,
   ERoleType.admin,
+  ERoleType.owner,
 ]
 
 /**

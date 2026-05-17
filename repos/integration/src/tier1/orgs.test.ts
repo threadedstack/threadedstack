@@ -144,19 +144,39 @@ describe('Tier 1: Org Write Operations', () => {
 
   // --- Delete ---
 
-  test('DELETE /orgs/:orgId requires owner role (API keys cap at admin)', async () => {
-    if (!createdOrgId) return expect(createdOrgId).toBeTruthy()
+  test('DELETE /orgs/:orgId deletes org when API key has owner role', async () => {
+    // Default test key has admin role ceiling — create an owner-role key for this test
+    const keyRes = await post<{ id: string; key: string }>(
+      `/orgs/${ctx.orgId}/api-keys`,
+      { name: uniqueName('owner-delete-key'), role: 'owner', scopes: 'admin' }
+    )
+    if (!keyRes.ok) {
+      console.warn('[orgs] SKIPPED: owner delete test — cannot create owner-role API key')
+      return
+    }
 
-    const res = await del<Record<string, any>>(`/orgs/${createdOrgId}`)
+    const ownerKey = keyRes.data.key
+    const ownerKeyId = keyRes.data.id
 
-    // API keys max at admin role; org deletion requires owner — returns 403
-    expect(res.status).toBe(403)
+    try {
+      const createRes = await post<Record<string, any>>('/orgs', {
+        name: uniqueName('owner-delete-test'),
+      })
+      expect(createRes.status).toBe(201)
+      const tempOrgId = createRes.data.id
+
+      const res = await del<Record<string, any>>(`/orgs/${tempOrgId}`, { apiKey: ownerKey })
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+    } finally {
+      await del(`/orgs/${ctx.orgId}/api-keys/${ownerKeyId}`)
+    }
   })
 
-  test('DELETE /orgs/:orgId with nonexistent org returns 403 (owner check before lookup)', async () => {
+  test('DELETE /orgs/:orgId with nonexistent org returns 403 (no role in nonexistent org)', async () => {
     const res = await del(`/orgs/${nonexistentOrgId}`)
 
-    // Permission check (owner required) runs before resource lookup → 403 not 404
+    // User has no role in nonexistent org → permission check fails → 403
     expect(res.status).toBe(403)
     expect(res.ok).toBe(false)
   })

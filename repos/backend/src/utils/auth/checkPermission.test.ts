@@ -302,19 +302,37 @@ describe(`checkPermission`, () => {
       }
     })
 
-    it(`should throw 403 for owner API key role values`, async () => {
+    it(`should cap owner DB role to owner when API key role is owner`, async () => {
+      const req = buildReqWithApiKeyRole(ERoleType.owner)
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.owner } })
+
+      const role = await getUserRole(req, { orgId: `org-1` })
+      expect(role).toBe(ERoleType.owner)
+    })
+
+    it(`should cap admin DB role to admin when API key role is owner`, async () => {
       const req = buildReqWithApiKeyRole(ERoleType.owner)
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
       >
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
 
-      try {
-        await getUserRole(req, { orgId: `org-1` })
-        expect.unreachable(`Should have thrown`)
-      } catch (err: any) {
-        expect(err.status).toBe(403)
-      }
+      const role = await getUserRole(req, { orgId: `org-1` })
+      expect(role).toBe(ERoleType.admin)
+    })
+
+    it(`should cap super DB role to owner when API key role is owner`, async () => {
+      const req = buildReqWithApiKeyRole(ERoleType.owner)
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.super } })
+
+      const role = await getUserRole(req, { orgId: `org-1` })
+      expect(role).toBe(ERoleType.owner)
     })
 
     it(`should throw 403 for super API key role values`, async () => {

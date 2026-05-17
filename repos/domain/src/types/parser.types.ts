@@ -1,3 +1,14 @@
+export type TCellData = {
+  codepoint: number
+  raw: [number, number, number]
+}
+
+export type TTextSegment = {
+  text: string
+  bold: boolean
+  italic: boolean
+}
+
 export type TToolName =
   | 'Read'
   | 'Edit'

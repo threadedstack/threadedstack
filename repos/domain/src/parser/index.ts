@@ -1,2 +1,1 @@
-export { GhosttyVT } from './ghosttyVT'
-export type { VTerminal } from './ghosttyVT'
+export { segmentsToMarkdown, hasFormatting } from './markdownFormatter'

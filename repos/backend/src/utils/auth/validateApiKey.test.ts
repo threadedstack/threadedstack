@@ -43,18 +43,38 @@ describe(`validateApiKeyRole`, () => {
     expect(result.valid).toBe(false)
   })
 
-  it(`should allow owner caller to create admin key (capped at admin)`, () => {
+  it(`should allow owner caller to create owner key`, () => {
+    expect(validateApiKeyRole(`owner`, ERoleType.owner)).toEqual({ valid: true })
+  })
+
+  it(`should allow owner caller to create admin key`, () => {
     expect(validateApiKeyRole(`admin`, ERoleType.owner)).toEqual({ valid: true })
   })
 
-  it(`should allow super caller to create admin key (capped at admin)`, () => {
+  it(`should allow super caller to create owner key (capped at owner)`, () => {
+    expect(validateApiKeyRole(`owner`, ERoleType.super)).toEqual({ valid: true })
+  })
+
+  it(`should allow super caller to create admin key`, () => {
     expect(validateApiKeyRole(`admin`, ERoleType.super)).toEqual({ valid: true })
   })
 
-  it(`should reject owner as a requested role`, () => {
-    const result = validateApiKeyRole(`owner`, ERoleType.owner)
+  it(`should reject admin caller creating owner key`, () => {
+    const result = validateApiKeyRole(`owner`, ERoleType.admin)
     expect(result.valid).toBe(false)
-    expect(result.error).toContain(`Invalid API key role`)
+    expect(result.error).toContain(`admin`)
+  })
+
+  it(`should reject member caller creating owner key`, () => {
+    const result = validateApiKeyRole(`owner`, ERoleType.member)
+    expect(result.valid).toBe(false)
+    expect(result.error).toContain(`member`)
+  })
+
+  it(`should reject viewer caller creating owner key`, () => {
+    const result = validateApiKeyRole(`owner`, ERoleType.viewer)
+    expect(result.valid).toBe(false)
+    expect(result.error).toContain(`viewer`)
   })
 
   it(`should reject super as a requested role`, () => {

@@ -12,7 +12,7 @@ type TValidateProjKeyPerm = {
 
 /**
  * Validates that the requested API key role does not exceed the caller's effective role.
- * Owner/super callers are capped at creating admin-role keys (no owner/super keys).
+ * Super callers are capped at creating owner-role keys (no super keys via API key).
  */
 export const validateApiKeyRole = (
   role: string,
@@ -29,8 +29,8 @@ export const validateApiKeyRole = (
     return { valid: false, error: `Cannot determine caller role for key creation` }
 
   const callerLevel = RoleHierarchy.indexOf(callerRole)
-  const adminLevel = RoleHierarchy.indexOf(ERoleType.admin)
-  const effectiveCallerCeiling = Math.min(callerLevel, adminLevel)
+  const ownerLevel = RoleHierarchy.indexOf(ERoleType.owner)
+  const effectiveCallerCeiling = Math.min(callerLevel, ownerLevel)
   const requestedLevel = RoleHierarchy.indexOf(role as ERoleType)
 
   if (requestedLevel > effectiveCallerCeiling)

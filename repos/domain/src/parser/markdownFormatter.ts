@@ -1,4 +1,4 @@
-import type { TTextSegment } from '@TDM/parser/ghosttyVT'
+import type { TTextSegment } from '@TDM/types'
 
 /**
  * Convert a line's attributed text segments into a markdown-formatted string.

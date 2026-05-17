@@ -9,7 +9,4 @@ export * from './utils'
 export * from './models'
 export * from './services'
 export * from './constants'
-// GhosttyVT uses node:fs/promises — NOT safe for web.
-// Browser code uses repos/threads/src/engine/wasmBridge.ts instead.
-export type { VTerminal } from './parser'
 export * from './error/exception'

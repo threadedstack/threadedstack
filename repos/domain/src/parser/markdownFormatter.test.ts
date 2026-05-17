@@ -1,122 +1,90 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
-import { GhosttyVT } from './ghosttyVT'
-import type { VTerminal } from './ghosttyVT'
+import type { TTextSegment } from '@TDM/types'
+import { describe, it, expect } from 'vitest'
 import { segmentsToMarkdown, hasFormatting } from './markdownFormatter'
 
+const seg = (text: string, bold = false, italic = false): TTextSegment => ({
+  text,
+  bold,
+  italic,
+})
+
 describe('markdownFormatter', () => {
-  beforeAll(async () => {
-    await GhosttyVT.init()
-  })
-
-  let term: VTerminal
-
-  afterEach(() => {
-    term?.free()
-  })
-
   describe('segmentsToMarkdown', () => {
     it('wraps bold text in **', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Normal \x1b[1mbold text\x1b[0m end\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('Normal **bold text** end')
+      const segments = [seg('Normal '), seg('bold text', true), seg(' end')]
+      expect(segmentsToMarkdown(segments)).toBe('Normal **bold text** end')
     })
 
     it('wraps italic text in _', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Normal \x1b[3mitalic\x1b[0m end\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('Normal _italic_ end')
+      const segments = [seg('Normal '), seg('italic', false, true), seg(' end')]
+      expect(segmentsToMarkdown(segments)).toBe('Normal _italic_ end')
     })
 
     it('wraps bold+italic in **_ _**', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Normal \x1b[1;3mboth\x1b[0m end\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('Normal **_both_** end')
+      const segments = [seg('Normal '), seg('both', true, true), seg(' end')]
+      expect(segmentsToMarkdown(segments)).toBe('Normal **_both_** end')
     })
 
     it('formats standalone bold line as heading', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('\x1b[1mCode\x1b[0m\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('## Code')
+      const segments = [seg('Code', true)]
+      expect(segmentsToMarkdown(segments)).toBe('## Code')
     })
 
     it('does NOT heading-format bold line with other segments', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Prefix \x1b[1mbold\x1b[0m\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('Prefix **bold**')
+      const segments = [seg('Prefix '), seg('bold', true)]
+      expect(segmentsToMarkdown(segments)).toBe('Prefix **bold**')
     })
 
     it('returns plain text when no formatting', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Just plain text\r\n')
-      const segments = term.getLineSegments(0)
-      const md = segmentsToMarkdown(segments)
-      expect(md).toBe('Just plain text')
+      const segments = [seg('Just plain text')]
+      expect(segmentsToMarkdown(segments)).toBe('Just plain text')
     })
 
     it('handles empty segments', () => {
       expect(segmentsToMarkdown([])).toBe('')
     })
+
+    it('does not wrap whitespace-only segments in formatting', () => {
+      const segments = [seg('hello'), seg('   ', true), seg('world')]
+      expect(segmentsToMarkdown(segments)).toBe('hello   world')
+    })
+
+    it('does not heading-format bold lines longer than 80 chars', () => {
+      const longText = 'A'.repeat(81)
+      const segments = [seg(longText, true)]
+      expect(segmentsToMarkdown(segments)).toBe(`**${longText}**`)
+    })
+
+    it('does not heading-format bold+italic lines', () => {
+      const segments = [seg('Title', true, true)]
+      expect(segmentsToMarkdown(segments)).toBe('**_Title_**')
+    })
+
+    it('does not heading-format bold lines with leading spaces', () => {
+      const segments = [seg(' Indented', true)]
+      expect(segmentsToMarkdown(segments)).toBe('** Indented**')
+    })
   })
 
   describe('hasFormatting', () => {
     it('returns true for bold text', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('\x1b[1mBold\x1b[0m\r\n')
-      expect(hasFormatting(term.getLineSegments(0))).toBe(true)
+      expect(hasFormatting([seg('Bold', true)])).toBe(true)
+    })
+
+    it('returns true for italic text', () => {
+      expect(hasFormatting([seg('Italic', false, true)])).toBe(true)
     })
 
     it('returns false for plain text', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Plain text\r\n')
-      expect(hasFormatting(term.getLineSegments(0))).toBe(false)
+      expect(hasFormatting([seg('Plain text')])).toBe(false)
     })
 
     it('returns false for empty segments', () => {
       expect(hasFormatting([])).toBe(false)
     })
-  })
 
-  describe('getLineSegments integration', () => {
-    it('produces correct segments for mixed formatting', () => {
-      term = GhosttyVT.createTerminal(60, 5)
-      term.write('A\x1b[1mB\x1b[0mC\x1b[3mD\x1b[0mE\r\n')
-      const segments = term.getLineSegments(0)
-
-      expect(segments.length).toBe(5)
-      expect(segments[0]).toEqual({ text: 'A', bold: false, italic: false })
-      expect(segments[1]).toEqual({ text: 'B', bold: true, italic: false })
-      expect(segments[2]).toEqual({ text: 'C', bold: false, italic: false })
-      expect(segments[3]).toEqual({ text: 'D', bold: false, italic: true })
-      expect(segments[4]).toEqual({ text: 'E', bold: false, italic: false })
-    })
-
-    it('trims trailing whitespace from last segment', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('Hello\r\n')
-      const segments = term.getLineSegments(0)
-      const lastText = segments[segments.length - 1].text
-      expect(lastText).toBe('Hello')
-      expect(lastText.endsWith(' ')).toBe(false)
-    })
-
-    it('returns empty array for blank lines', () => {
-      term = GhosttyVT.createTerminal(40, 5)
-      term.write('\r\n')
-      // Row 0 now has content from the cursor initialization,
-      // but after clear screen + newline, row 0 should be blank.
-      // Actually row 0 text might be empty after scrolling.
-      const segments = term.getLineSegments(0)
-      expect(segments.every((s) => s.text.trim() === '')).toBe(true)
+    it('returns false for whitespace-only bold segments', () => {
+      expect(hasFormatting([seg('   ', true)])).toBe(false)
     })
   })
 })

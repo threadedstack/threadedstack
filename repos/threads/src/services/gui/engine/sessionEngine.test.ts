@@ -9,7 +9,7 @@ import { SessionEngine } from './sessionEngine'
 import { parse } from '@TTH/services/gui/parser'
 import { tokenize } from '@TTH/services/gui/tokenizer'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createBrowserTerminal } from '@TTH/services/gui/engine/wasmBridge'
+import { createBrowserTerminal } from '@TTH/services/gui/engine/xtermBridge'
 
 // ---------------------------------------------------------------------------
 // Fake terminal that satisfies TBrowserVTerminal
@@ -30,7 +30,7 @@ const fakeTerminal: TBrowserVTerminal = {
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
-vi.mock(`@TTH/services/gui/engine/wasmBridge`, () => ({
+vi.mock(`@TTH/services/gui/engine/xtermBridge`, () => ({
   createBrowserTerminal: vi.fn(() => ({
     ...fakeTerminal,
     write: vi.fn(),

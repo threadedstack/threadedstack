@@ -667,7 +667,12 @@ describe(`EgressProxy`, () => {
 
       // MITM proxy listens on random internal port with sslCaDir
       expect(mockProxy.listen).toHaveBeenCalledWith(
-        { port: 0, host: `127.0.0.1`, sslCaDir: `/tmp/tdsk-egress-ca-test123` },
+        {
+          port: 0,
+          host: `127.0.0.1`,
+          sslCaDir: `/tmp/tdsk-egress-ca-test123`,
+          forceSNI: true,
+        },
         expect.any(Function)
       )
 

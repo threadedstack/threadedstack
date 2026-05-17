@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import { VTCellSize as BrowserCellSize } from '@TTH/constants/tokenizer'
 
-import { GhosttyVTCellSize as DomainCellSize } from '@tdsk/domain'
+import { VTCellSize as DomainCellSize } from '@tdsk/domain'
 
 describe(`tokenizer constant drift guard`, () => {
   it(`VTCellSize matches domain`, () => {

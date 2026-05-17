@@ -44,6 +44,7 @@ export const ApiKeyRoles = ApiKeyAllowedRoles.map((role) => ({
 }))
 
 export const ApiKeyRoleDesc: Record<string, string> = {
+  [ERoleType.owner]: `Full org ownership — delete orgs, manage all resources and members`,
   [ERoleType.admin]: `Full administrative access — manage members, settings, and resources`,
   [ERoleType.member]: `Standard access — create, read, and update resources`,
   [ERoleType.viewer]: `Read-only access — view resources only`,

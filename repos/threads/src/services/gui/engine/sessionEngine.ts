@@ -6,7 +6,7 @@ import type { TDocument, TFeedEvent } from '@TTH/types/ast.types'
 import { parse } from '@TTH/services/gui/parser'
 import { tokenize } from '@TTH/services/gui/tokenizer'
 import { diffToFeedEvents } from '@TTH/services/gui/visitors'
-import { createBrowserTerminal } from '@TTH/services/gui/engine/wasmBridge'
+import { createBrowserTerminal } from '@TTH/services/gui/engine/xtermBridge'
 
 type TEngineCallbacks = {
   onAST: (doc: TDocument) => void

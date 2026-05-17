@@ -1,6 +1,4 @@
-// GhosttyVT constants
-export const GhosttyVTCellSize = 16
-export const GhosttyVTConfigSize = 80 // scrollback(4) + fg(4) + bg(4) + cursor(4) + palette(16×4)
+export const VTCellSize = 16
 
 // Claude Code matcher patterns — used by matchers/claudeCode.ts
 
