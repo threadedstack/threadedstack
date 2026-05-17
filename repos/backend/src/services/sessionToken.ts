@@ -15,7 +15,7 @@ export type TSessionTokenPayload = {
 export type TShellTokenPayload = {
   orgId: string
   userId: string
-  sandboxId: string
+  sandboxId?: string
 }
 
 let signingKey: Buffer | undefined
@@ -111,17 +111,15 @@ export const verifyShellToken = (token: string): TShellTokenPayload | null => {
       logger.warn(`Shell token rejected: wrong kind="${decoded.kind}", expected "shell"`)
       return null
     }
-    if (!decoded.userId || !decoded.orgId || !decoded.sandboxId) {
-      logger.warn(
-        `Shell token rejected: missing required claims (userId/orgId/sandboxId)`
-      )
+    if (!decoded.userId || !decoded.orgId) {
+      logger.warn(`Shell token rejected: missing required claims (userId/orgId)`)
       return null
     }
 
     return {
       orgId: decoded.orgId,
       userId: decoded.userId,
-      sandboxId: decoded.sandboxId,
+      ...(decoded.sandboxId && { sandboxId: decoded.sandboxId }),
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

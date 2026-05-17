@@ -1,10 +1,16 @@
+import type { WebSocket } from 'ws'
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { TShellSession } from '@TBE/types'
 import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
-import type { ISandbox, TPlaceholderMap, TSandboxSession } from '@tdsk/domain'
+import type {
+  ISandbox,
+  TPlaceholderMap,
+  TSandboxSession,
+  TMonitorMessage,
+} from '@tdsk/domain'
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
@@ -18,6 +24,7 @@ import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
 import { resolveGitProviderEnv } from '@TBE/utils/sandbox/resolveGitProviderEnv'
 import { resolveDockerPullSecrets } from '@TBE/utils/sandbox/resolveDockerPullSecrets'
 import {
+  EShellMsg,
   Exception,
   EProvider,
   EContainerState,
@@ -70,6 +77,8 @@ export class SandboxService {
   private instanceActivity = new Map<string, number>()
   private startingInstances = new Map<string, number>()
   private dockerSecrets = new Map<string, string[]>()
+  private orgMonitors = new Map<string, Set<WebSocket>>()
+  private monitorAccess = new WeakMap<WebSocket, Set<string>>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
   private eventBatches = new Map<string, TParsedEvent[]>()
@@ -448,6 +457,16 @@ export class SandboxService {
     return result
   }
 
+  getSessionsForSandbox(sandboxId: string): TSandboxSession[] {
+    const result: TSandboxSession[] = []
+    for (const podSessions of this.sessions.values()) {
+      for (const s of podSessions) {
+        if (s.sandboxId === sandboxId) result.push(s)
+      }
+    }
+    return result
+  }
+
   updateActivity(instanceId: string): void {
     this.instanceActivity.set(instanceId, Date.now())
   }
@@ -791,9 +810,9 @@ export class SandboxService {
     }))
 
     this.notifyShellClients(sandboxId, {
-      type: `sessions-updated`,
       sandboxId,
       sessions: enriched,
+      type: EShellMsg.SessionsUpdated,
     })
   }
 
@@ -820,7 +839,9 @@ export class SandboxService {
 
   notifyShellClients(sandboxId: string, message: Record<string, any>): void {
     const payload = JSON.stringify(message)
-    for (const session of this.getShellSessionsForSandbox(sandboxId)) {
+    const sessions = this.getShellSessionsForSandbox(sandboxId)
+
+    for (const session of sessions) {
       for (const ws of session.attachments) {
         if (ws.readyState === 1) {
           try {
@@ -831,6 +852,45 @@ export class SandboxService {
         }
       }
     }
+
+    const orgId = this.getSessionsForSandbox(sandboxId)[0]?.orgId
+    if (orgId) {
+      const orgSet = this.orgMonitors.get(orgId)
+      if (orgSet?.size) {
+        for (const ws of orgSet) {
+          if (ws.readyState !== 1) continue
+          const allowed = this.monitorAccess.get(ws)
+          if (allowed && !allowed.has(sandboxId)) continue
+          try {
+            ws.send(payload)
+          } catch (err) {
+            logger.warn(`[Monitor] Failed to notify org monitor:`, (err as Error).message)
+          }
+        }
+      }
+    }
+  }
+
+  addOrgMonitor(
+    orgId: string,
+    ws: import('ws').WebSocket,
+    sandboxIds: Set<string> | null
+  ): void {
+    let set = this.orgMonitors.get(orgId)
+    if (!set) {
+      set = new Set()
+      this.orgMonitors.set(orgId, set)
+    }
+    set.add(ws)
+    if (sandboxIds) this.monitorAccess.set(ws, sandboxIds)
+  }
+
+  removeOrgMonitor(orgId: string, ws: import('ws').WebSocket): void {
+    const set = this.orgMonitors.get(orgId)
+    if (!set) return
+    set.delete(ws)
+    if (set.size === 0) this.orgMonitors.delete(orgId)
+    this.monitorAccess.delete(ws)
   }
 
   attachToShellSession(

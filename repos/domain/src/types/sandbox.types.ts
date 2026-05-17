@@ -349,3 +349,9 @@ export type TSandboxStopOpts = {
   stopAll?: boolean
   instanceId?: string
 }
+
+export type TMonitorMessage = {
+  sandboxId: string
+  sessions: TSandboxSession[]
+  type: EShellMsg.SessionsUpdated
+}

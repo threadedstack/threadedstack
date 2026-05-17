@@ -1,11 +1,13 @@
 import type { TOrgWithRole } from '@tdsk/domain'
 
 import { auth } from '@TTH/services/auth'
+import { apiService } from '@TTH/services/api'
 import { orgsApi } from '@TTH/services/orgsApi'
 import { storage } from '@TTH/services/storage'
-import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
+import { monitorService } from '@TTH/services/monitorService'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
+import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import {
   setOrgs,
   setUser,
@@ -13,6 +15,7 @@ import {
   setProjects,
   setSandboxes,
   setActiveOrgRole,
+  setActiveProjectId,
 } from '@TTH/state/accessors'
 
 let initPromise: Promise<void> | null = null
@@ -27,6 +30,7 @@ const initOnce = async () => {
   }
   if (!resp?.user) return
 
+  await apiService.bearer(resp)
   setUser(resp.user)
 
   // Fetch org list
@@ -57,7 +61,16 @@ const initOnce = async () => {
   ])
 
   if (sandboxResult.data) setSandboxes(sandboxResult.data)
-  if (projectResult.data) setProjects(projectResult.data)
+  if (projectResult.data) {
+    setProjects(projectResult.data)
+
+    const savedProjectId = storage.get<string>(ActiveProjectIdStorageKey)
+    if (savedProjectId && projectResult.data.some((p) => p.id === savedProjectId))
+      setActiveProjectId(savedProjectId)
+    else if (savedProjectId) storage.remove(ActiveProjectIdStorageKey)
+  }
+
+  monitorService.connect(orgId)
 }
 
 export const resetInit = () => {

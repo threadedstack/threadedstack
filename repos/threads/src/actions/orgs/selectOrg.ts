@@ -1,9 +1,10 @@
 import type { TOrgWithRole } from '@tdsk/domain'
 
 import { storage } from '@TTH/services/storage'
-import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
+import { monitorService } from '@TTH/services/monitorService'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
+import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import {
   getOrgs,
   setOrgId,
@@ -19,6 +20,7 @@ export const selectOrg = async (orgId: string) => {
   setSandboxes([])
   setProjects([])
   resetActiveProjectId()
+  storage.remove(ActiveProjectIdStorageKey)
 
   // Set the user's role for the newly selected org
   const orgs = getOrgs()
@@ -32,4 +34,6 @@ export const selectOrg = async (orgId: string) => {
 
   if (sandboxResult.data) setSandboxes(sandboxResult.data)
   if (projectResult.data) setProjects(projectResult.data)
+
+  monitorService.connect(orgId)
 }

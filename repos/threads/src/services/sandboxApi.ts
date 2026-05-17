@@ -99,17 +99,25 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    instanceId: string,
+    instanceId?: string,
     force?: boolean,
     stopAll?: boolean
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      data: { instanceId, force, stopAll },
+      data: { instanceId: instanceId || undefined, force, stopAll },
       path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
     if (resp.error?.status !== 409) {
       resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
     }
+    return resp
+  }
+
+  async monitorToken(orgId: string): Promise<TApiRes<{ token: string }>> {
+    const resp = await this.api.post<{ token: string }>({
+      path: `${this.#path(orgId)}/monitor/token`,
+      data: {},
+    })
     return resp
   }
 }

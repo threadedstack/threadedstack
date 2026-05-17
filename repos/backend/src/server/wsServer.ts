@@ -7,9 +7,10 @@ import { WebSocketServer } from 'ws'
 import { logger } from '@TBE/utils/logger'
 import { onWSConnect } from '@TBE/endpoints/ai/onWSConnect'
 import { WsMaxConnectionsPerIp } from '@TBE/constants/values'
-import { SBTunnelPattern, SBShellPattern } from '@TBE/constants/sandbox'
 import { onShellConnect } from '@TBE/endpoints/sandboxes/onShellConnect'
 import { onTunnelConnect } from '@TBE/endpoints/sandboxes/onTunnelConnect'
+import { onMonitorConnect } from '@TBE/endpoints/sandboxes/onMonitorConnect'
+import { SBTunnelPattern, SBShellPattern, SBMonitorPattern } from '@TBE/constants/sandbox'
 
 type TWsHandler = (ws: WebSocket, req: IncomingMessage, app: TApp) => Promise<void>
 
@@ -56,6 +57,22 @@ export const createWSServer = (app: TApp) => {
         trackConnection(ws, clientIp)
         staticHandler(ws, req, app).catch((err) => {
           logger.error(`WS connect error on ${pathname}`, {
+            error: err instanceof Error ? err.message : err,
+          })
+          ws.close(1011, `Internal error`)
+        })
+      })
+      return
+    }
+
+    // Dynamic route: sandbox monitor (lightweight session event subscription)
+    // Must be checked before tunnel/shell patterns to avoid false match
+    const monitorMatch = pathname.match(SBMonitorPattern)
+    if (monitorMatch) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        trackConnection(ws, clientIp)
+        onMonitorConnect(ws, req, app).catch((err) => {
+          logger.error(`WS monitor error`, {
             error: err instanceof Error ? err.message : err,
           })
           ws.close(1011, `Internal error`)
