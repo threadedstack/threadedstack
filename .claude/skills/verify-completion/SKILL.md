@@ -119,7 +119,7 @@ If this finds ANY matches in lines YOU added (lines starting with `+`):
 
 ## Step 7: Adjacent Issues Audit
 
-Quickly review the files you touched. For each file:
+Thoroughly review the files you touched. For each file:
 - Are there broken imports?
 - Are there missing error handlers that neighboring code has?
 - Are there type issues you introduced?

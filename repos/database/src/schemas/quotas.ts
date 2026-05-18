@@ -1,12 +1,15 @@
-import { base } from '@TDB/utils/schema/base'
-import { orgs } from '@TDB/schemas/orgs'
 import { relations } from 'drizzle-orm'
+import { orgs } from '@TDB/schemas/orgs'
+import { QuotaIdPrefix } from '@tdsk/domain'
+import { base } from '@TDB/utils/schema/base'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { pgTable, text, integer, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
 
 export const quotas = pgTable(
   `quotas`,
   {
     ...base,
+    id: entityId(QuotaIdPrefix),
     orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),

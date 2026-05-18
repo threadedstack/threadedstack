@@ -1,4 +1,4 @@
-import { SandboxIdPrefix } from '@TDM/constants/values'
+import { SandboxIdPrefix } from '@TDM/constants/prefixes'
 
 export const SandboxAliasMaxLength = 63
 

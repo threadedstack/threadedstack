@@ -1,11 +1,14 @@
-import { base } from '@TDB/utils/schema/base'
-import { users } from '@TDB/schemas/users'
 import { relations } from 'drizzle-orm'
+import { users } from '@TDB/schemas/users'
+import { base } from '@TDB/utils/schema/base'
+import { SubscriptionIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { pgTable, text, timestamp, boolean, uuid, integer } from 'drizzle-orm/pg-core'
 
-export const subscriptions = pgTable('subscriptions', {
+export const subscriptions = pgTable(`subscriptions`, {
   ...base,
-  userId: uuid('user_id')
+  id: entityId(SubscriptionIdPrefix),
+  userId: uuid(`user_id`)
     .references(() => users.id, { onDelete: `cascade` })
     .notNull()
     .unique(),

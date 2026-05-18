@@ -3,13 +3,16 @@ import { orgs } from '@TDB/schemas/orgs'
 import { assets } from '@TDB/schemas/assets'
 import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
+import { MessageIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { text, jsonb, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const messages = pgTable(
   `messages`,
   {
     ...base,
+    id: entityId(MessageIdPrefix),
     meta: jsonb(`meta`),
     type: text(`type`).notNull(),
     content: jsonb(`content`).notNull(),

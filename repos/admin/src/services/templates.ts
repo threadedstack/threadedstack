@@ -1,3 +1,5 @@
+import { SecretRefPattern } from '@tdsk/domain'
+
 type TTemplateRegex = {
   open: string
   close: string
@@ -18,7 +20,7 @@ export class Templates {
     check: /\{\{[^}]+\}\}/,
     match: /\{\{([^}]*)$/,
     extract: /\{\{([^}]+)\}\}/,
-    extractId: /\{\{\s*(.+?):([A-Za-z0-9_-]{10})\s*\}\}/,
+    extractId: new RegExp(SecretRefPattern.source),
   }
 
   constructor(opts?: TTemplates) {

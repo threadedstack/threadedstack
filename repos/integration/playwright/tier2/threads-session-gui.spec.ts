@@ -28,9 +28,9 @@ import { test as base, expect, type Page } from '@playwright/test'
 const THREADS_URL = `http://localhost:${process.env.TDSK_TH_PORT || '5886'}`
 const PROXY_PATTERN = `https://px.local.threadedstack.app/**`
 
-const FALLBACK_ORG_ID = `og00000001`
+const FALLBACK_ORG_ID = `og_0000001`
 const FALLBACK_API_KEY = `tdsk_QIWTcVwFP32X29BDYUigq_G8_gpl0x0swGDxa__BXF0`
-const FALLBACK_PROJECT_ID = `pj00000001`
+const FALLBACK_PROJECT_ID = `pj_0000001`
 const FALLBACK_USER_ID = `00000000-0000-0000-0000-000000000000`
 const FALLBACK_SANDBOX_ID = `bx00000001`
 

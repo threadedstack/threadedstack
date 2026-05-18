@@ -1,10 +1,13 @@
-import { base } from '@TDB/utils/schema/base'
-import { users } from '@TDB/schemas/users'
 import { relations } from 'drizzle-orm'
+import { users } from '@TDB/schemas/users'
+import { base } from '@TDB/utils/schema/base'
+import { InvoiceIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { pgTable, text, integer, uuid } from 'drizzle-orm/pg-core'
 
 export const invoices = pgTable(`invoices`, {
   ...base,
+  id: entityId(InvoiceIdPrefix),
   userId: uuid(`user_id`)
     .references(() => users.id, { onDelete: `cascade` })
     .notNull(),

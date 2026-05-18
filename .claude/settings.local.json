@@ -132,7 +132,11 @@
       "Bash(wait)",
       "mcp__playwright__browser_network_request",
       "mcp__playwright__browser_run_code_unsafe",
-      "Bash(diffstat)"
+      "Bash(diffstat)",
+      "Bash(gunzip design.gz)",
+      "Bash(tar tf *)",
+      "Bash(tar xf *)",
+      "Bash(grep *)"
     ]
   },
   "sandbox": {

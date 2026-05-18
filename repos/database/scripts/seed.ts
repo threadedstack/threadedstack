@@ -22,6 +22,52 @@ const hashSeedPassword = (password: string): Promise<string> => {
   })
 }
 
+const reconcileUUID = async (
+  pool: Pool,
+  email: string,
+  seedId: string,
+  actualId: string
+): Promise<boolean> => {
+  await pool.query(`BEGIN`)
+  try {
+    await pool.query(
+      `UPDATE neon_auth."user" SET email = email || '_SEED_SWAP' WHERE id = $1::uuid`,
+      [actualId]
+    )
+    await pool.query(
+      `INSERT INTO neon_auth."user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt", role, banned, "banReason", "banExpires")
+       SELECT $1::uuid, name, replace(email, '_SEED_SWAP', ''), "emailVerified", image, "createdAt", "updatedAt", role, banned, "banReason", "banExpires"
+       FROM neon_auth."user" WHERE id = $2::uuid`,
+      [seedId, actualId]
+    )
+    await pool.query(
+      `UPDATE neon_auth.account SET "userId" = $1::uuid, "accountId" = $1 WHERE "userId" = $2::uuid`,
+      [seedId, actualId]
+    )
+    await pool.query(
+      `UPDATE neon_auth.session SET "userId" = $1::uuid WHERE "userId" = $2::uuid`,
+      [seedId, actualId]
+    )
+    await pool.query(
+      `UPDATE neon_auth.member SET "userId" = $1::uuid WHERE "userId" = $2::uuid`,
+      [seedId, actualId]
+    )
+    await pool.query(
+      `UPDATE neon_auth.invitation SET "inviterId" = $1::uuid WHERE "inviterId" = $2::uuid`,
+      [seedId, actualId]
+    )
+    await pool.query(`DELETE FROM neon_auth."user" WHERE id = $1::uuid`, [actualId])
+    await pool.query(`COMMIT`)
+    return true
+  } catch (err: any) {
+    try {
+      await pool.query(`ROLLBACK`)
+    } catch {}
+    console.error(`  ❌ UUID reconciliation failed for ${email}: ${err.message}`)
+    return false
+  }
+}
+
 const nodeEnv = process.env.NODE_ENV || `local`
 
 /*
@@ -99,30 +145,8 @@ const registerSeedUsers = async (seedUsers: TSeedUser[]) => {
           }
 
           if (neonUserId !== user.id) {
-            await pool.query(`BEGIN`)
-            try {
-              await pool.query(`UPDATE neon_auth."user" SET id = $1 WHERE id = $2`, [
-                user.id,
-                neonUserId,
-              ])
-              await pool.query(
-                `UPDATE neon_auth.account SET "userId" = $1, "accountId" = $1 WHERE "userId" = $2`,
-                [user.id, neonUserId]
-              )
-              await pool.query(
-                `UPDATE neon_auth.session SET "userId" = $1 WHERE "userId" = $2`,
-                [user.id, neonUserId]
-              )
-              await pool.query(`COMMIT`)
-              console.log(`  ✅ Registered ${user.email} (UUID reconciled)`)
-            } catch (err: any) {
-              try {
-                await pool.query(`ROLLBACK`)
-              } catch {}
-              console.error(
-                `  ❌ UUID reconciliation failed for ${user.email}: ${err.message}`
-              )
-            }
+            const ok = await reconcileUUID(pool, user.email, user.id, neonUserId)
+            if (ok) console.log(`  ✅ Registered ${user.email} (UUID reconciled)`)
           } else {
             console.log(`  ✅ Registered ${user.email}`)
           }
@@ -139,6 +163,21 @@ const registerSeedUsers = async (seedUsers: TSeedUser[]) => {
               `  ⚠️  Sign-up validation error for ${user.email}: ${JSON.stringify(signUpBody).slice(0, 200)}`
             )
             continue
+          }
+
+          try {
+            const existing = await pool.query(
+              `SELECT id FROM neon_auth."user" WHERE email = $1`,
+              [user.email]
+            )
+            const actualId = existing.rows[0]?.id
+            if (actualId && actualId !== user.id) {
+              const ok = await reconcileUUID(pool, user.email, user.id, actualId)
+              if (ok)
+                console.log(`  ✅ ${user.email} already registered (UUID reconciled)`)
+            }
+          } catch (err: any) {
+            console.warn(`  ⚠️  Could not check UUID for ${user.email}: ${err.message}`)
           }
 
           const signInRes = await fetch(`${authUrl}/sign-in/email`, {

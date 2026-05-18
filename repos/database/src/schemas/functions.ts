@@ -1,16 +1,18 @@
 import type { TFunctionParam } from '@tdsk/domain'
 
 import { relations } from 'drizzle-orm'
-import { EFunLanguage } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { endpoints } from '@TDB/schemas/endpoints'
+import { entityId } from '@TDB/utils/schema/entityId'
+import { EFunLanguage, FunctionIdPrefix } from '@tdsk/domain'
 import { text, jsonb, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(
   `functions`,
   {
     ...base,
+    id: entityId(FunctionIdPrefix),
     name: text(`name`).notNull(),
     description: text(`description`),
     content: text(`content`).notNull(),

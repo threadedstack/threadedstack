@@ -1,14 +1,17 @@
-import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
-import { projects } from '@TDB/schemas/projects'
+import { RoleIdPrefix } from '@tdsk/domain'
+import { sql, relations } from 'drizzle-orm'
 import { base } from '@TDB/utils/schema/base'
+import { projects } from '@TDB/schemas/projects'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { uuid, text, check, uniqueIndex, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const roles = pgTable(
   `roles`,
   {
     ...base,
+    id: entityId(RoleIdPrefix),
     name: text(`name`),
     type: text(`type`).notNull(),
     orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {

@@ -1,17 +1,20 @@
-import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
+import { sql, relations } from 'drizzle-orm'
+import { AssetIdPrefix } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { uuid, text, jsonb, check, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const assets = pgTable(
   `assets`,
   {
     ...base,
+    id: entityId(AssetIdPrefix),
     url: text(`url`),
     meta: jsonb(`meta`),
     content: jsonb(`content`),

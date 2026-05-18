@@ -1,14 +1,16 @@
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
-import { base } from '@TDB/utils/schema/base'
 import { agents } from '@TDB/schemas/agents'
+import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
+import { ScheduleIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import {
   text,
+  index,
   boolean,
   integer,
   varchar,
-  index,
   pgTable,
   timestamp,
 } from 'drizzle-orm/pg-core'
@@ -17,6 +19,7 @@ export const schedules = pgTable(
   `schedules`,
   {
     ...base,
+    id: entityId(ScheduleIdPrefix),
     agentId: varchar(`agent_id`, { length: 10 })
       .references(() => agents.id, { onDelete: `cascade` })
       .notNull(),

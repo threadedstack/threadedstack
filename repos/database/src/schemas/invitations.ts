@@ -2,7 +2,8 @@ import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
-import { EInviteStatus } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
+import { EInviteStatus, InvitationIdPrefix } from '@tdsk/domain'
 import { uuid, text, timestamp, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 /**
@@ -22,6 +23,7 @@ export const invitations = pgTable(
   `invitations`,
   {
     ...base,
+    id: entityId(InvitationIdPrefix),
 
     // Who is being invited (email is required, userId is null for new users)
     email: text(`email`).notNull(),

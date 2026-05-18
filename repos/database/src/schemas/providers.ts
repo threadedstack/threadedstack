@@ -4,16 +4,19 @@ import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
+import { ProviderIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { agentProviders } from '@TDB/schemas/agentProviders'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { projectProviders } from '@TDB/schemas/projectProviders'
-import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { jsonb, index, pgTable, text, varchar } from 'drizzle-orm/pg-core'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 
 export const providers = pgTable(
   `providers`,
   {
     ...base,
+    id: entityId(ProviderIdPrefix),
     name: text(`name`),
     brand: text(`brand`).$type<TProviderBrand>(),
     type: text(`type`).notNull().$type<EProvider>(),

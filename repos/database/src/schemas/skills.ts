@@ -1,13 +1,16 @@
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
+import { SkillIdPrefix } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { agentSkills } from '@TDB/schemas/agentSkills'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { text, jsonb, boolean, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const skills = pgTable(
   `skills`,
   {
     ...base,
+    id: entityId(SkillIdPrefix),
     name: text(`name`).notNull(),
     description: text(`description`).notNull(),
     instructions: text(`instructions`).notNull(),

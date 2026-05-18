@@ -1,16 +1,18 @@
-import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
+import { sql, relations } from 'drizzle-orm'
+import { DomainIdPrefix } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { certificates } from '@TDB/schemas/certificates'
 import {
-  uniqueIndex,
-  pgTable,
   text,
-  timestamp,
-  boolean,
   check,
+  boolean,
   varchar,
+  pgTable,
+  timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
 /**
@@ -24,6 +26,7 @@ export const domains = pgTable(
   `domains`,
   {
     ...base,
+    id: entityId(DomainIdPrefix),
 
     // Domain name (e.g., 'app.example.com')
     domain: text(`domain`).notNull().unique(),

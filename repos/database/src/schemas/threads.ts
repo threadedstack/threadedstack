@@ -1,20 +1,22 @@
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
-import { base } from '@TDB/utils/schema/base'
 import { agents } from '@TDB/schemas/agents'
+import { ThreadIdPrefix } from '@tdsk/domain'
+import { base } from '@TDB/utils/schema/base'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { sandboxes } from '@TDB/schemas/sandboxes'
+import { entityId } from '@TDB/utils/schema/entityId'
 import {
   uuid,
   text,
   jsonb,
-  boolean,
   index,
   pgTable,
   varchar,
+  boolean,
   customType,
 } from 'drizzle-orm/pg-core'
 
@@ -32,6 +34,7 @@ export const threads = pgTable(
   `threads`,
   {
     ...base,
+    id: entityId(ThreadIdPrefix),
     name: text(`name`),
     meta: jsonb(`meta`),
     public: boolean(`public`).default(false),

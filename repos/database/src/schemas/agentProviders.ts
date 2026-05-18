@@ -2,6 +2,8 @@ import { relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
 import { base } from '@TDB/utils/schema/base'
 import { providers } from '@TDB/schemas/providers'
+import { AgentProviderIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { pgTable, unique, integer, index, varchar, text } from 'drizzle-orm/pg-core'
 
 /**
@@ -15,6 +17,7 @@ export const agentProviders = pgTable(
   `agent_providers`,
   {
     ...base,
+    id: entityId(AgentProviderIdPrefix),
     /** Agent reference */
     agentId: varchar(`agent_id`, { length: 10 })
       .references(() => agents.id, { onDelete: `cascade` })

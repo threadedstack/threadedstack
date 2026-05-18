@@ -3,6 +3,8 @@ import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { sandboxes } from '@TDB/schemas/sandboxes'
+import { entityId } from '@TDB/utils/schema/entityId'
+import { SandboxProjectProviderIdPrefix } from '@tdsk/domain'
 import { text, index, pgTable, integer, varchar, uniqueIndex } from 'drizzle-orm/pg-core'
 
 /**
@@ -15,6 +17,7 @@ export const sandboxProjectProviders = pgTable(
   `sandbox_project_providers`,
   {
     ...base,
+    id: entityId(SandboxProjectProviderIdPrefix),
     sandboxId: varchar(`sandbox_id`, { length: 10 })
       .references(() => sandboxes.id, { onDelete: `cascade` })
       .notNull(),

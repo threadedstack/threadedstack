@@ -2,12 +2,15 @@ import { relations } from 'drizzle-orm'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
+import { ProjectProviderIdPrefix } from '@tdsk/domain'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { pgTable, unique, integer, index, varchar } from 'drizzle-orm/pg-core'
 
 export const projectProviders = pgTable(
   `project_providers`,
   {
     ...base,
+    id: entityId(ProjectProviderIdPrefix),
     projectId: varchar(`project_id`, { length: 10 })
       .references(() => projects.id, { onDelete: `cascade` })
       .notNull(),

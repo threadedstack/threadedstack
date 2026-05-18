@@ -1,13 +1,16 @@
 import { relations } from 'drizzle-orm'
-import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
+import { EndpointIdPrefix } from '@tdsk/domain'
+import { projects } from '@TDB/schemas/projects'
 import { functions } from '@TDB/schemas/functions'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { text, jsonb, varchar, boolean, uniqueIndex, pgTable } from 'drizzle-orm/pg-core'
 
 export const endpoints = pgTable(
   `endpoints`,
   {
     ...base,
+    id: entityId(EndpointIdPrefix),
     name: text(`name`),
     headers: jsonb(`headers`),
     options: jsonb(`options`),

@@ -10,6 +10,13 @@ describe(`isValidId`, () => {
     expect(isValidId(`xK9-B2nQ_p`)).toBe(true)
   })
 
+  it(`should accept prefixed entity IDs`, () => {
+    expect(isValidId(`ag_0000001`)).toBe(true)
+    expect(isValidId(`sc_abc1234`)).toBe(true)
+    expect(isValidId(`sb_xyz9876`)).toBe(true)
+    expect(isValidId(`og_Kx9B2nQ`)).toBe(true)
+  })
+
   it(`should reject strings shorter than 10 chars (non-UUID)`, () => {
     expect(isValidId(`abc`)).toBe(false)
   })
@@ -37,6 +44,17 @@ describe(`validateIdParams`, () => {
 
   it(`should call next for valid sid params`, () => {
     const req = { params: { orgId: `V1StGXR8_Z` } } as any
+    validateIdParams(req, mockRes, mockNext)
+    expect(mockNext).toHaveBeenCalledOnce()
+  })
+
+  it(`should call next for prefixed entity ID params`, () => {
+    const req = {
+      params: {
+        orgId: `og_Kx9B2nQ`,
+        agentId: `ag_abc1234`,
+      },
+    } as any
     validateIdParams(req, mockRes, mockNext)
     expect(mockNext).toHaveBeenCalledOnce()
   })

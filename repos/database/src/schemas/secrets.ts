@@ -1,15 +1,18 @@
 import { orgs } from '@TDB/schemas/orgs'
-import { base } from '@TDB/utils/schema/base'
 import { sql, relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
+import { SecretIdPrefix } from '@tdsk/domain'
+import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { text, check, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const secrets = pgTable(
   `secrets`,
   {
     ...base,
+    id: entityId(SecretIdPrefix),
     name: text(`name`).notNull(),
     description: text(`description`),
     hashKey: text(`hash_key`).notNull(),

@@ -29,11 +29,11 @@ const THREADS_URL = `http://localhost:${process.env.TDSK_TH_PORT || '5886'}`
 // Hardcoded fallback context for when the integration context.json is absent
 // (e.g. running the threads app in isolation without the full integration setup)
 // ---------------------------------------------------------------------------
-const FALLBACK_ORG_ID = 'og00000001'
-const FALLBACK_API_KEY = 'tdsk_QIWTcVwFP32X29BDYUigq_G8_gpl0x0swGDxa__BXF0'
-const FALLBACK_PROJECT_ID = 'pj00000001'
-const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
-const FALLBACK_SANDBOX_ID = 'bx00000001'
+const FALLBACK_ORG_ID = `og_0000001`
+const FALLBACK_PROJECT_ID = `pj_0000001`
+const FALLBACK_SANDBOX_ID = `bx00000001`
+const FALLBACK_USER_ID = `00000000-0000-0000-0000-000000000000`
+const FALLBACK_API_KEY = `tdsk_QIWTcVwFP32X29BDYUigq_G8_gpl0x0swGDxa__BXF0`
 
 interface ThreadsTestContext {
   orgId: string

@@ -1,10 +1,11 @@
 import { sql } from 'drizzle-orm'
 import { relations } from 'drizzle-orm'
-import { ERoleType } from '@tdsk/domain'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
+import { entityId } from '@TDB/utils/schema/entityId'
+import { ERoleType, ApiKeyIdPrefix } from '@tdsk/domain'
 import {
   uuid,
   text,
@@ -21,6 +22,7 @@ export const apiKeys = pgTable(
   `api_keys`,
   {
     ...base,
+    id: entityId(ApiKeyIdPrefix),
     name: text(`name`).notNull(),
     expiresAt: timestamp(`expires_at`),
     lastUsedAt: timestamp(`last_used_at`),

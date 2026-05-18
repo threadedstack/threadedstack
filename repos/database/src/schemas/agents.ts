@@ -2,13 +2,15 @@ import type { TAgentEnvironment } from '@tdsk/domain'
 
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
+import { AgentIdPrefix } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { threads } from '@TDB/schemas/threads'
-import { agentProjects } from '@TDB/schemas/agentProjects'
-import { agentSkills } from '@TDB/schemas/agentSkills'
-import { agentProviders } from '@TDB/schemas/agentProviders'
 import { schedules } from '@TDB/schemas/schedules'
+import { entityId } from '@TDB/utils/schema/entityId'
+import { agentSkills } from '@TDB/schemas/agentSkills'
+import { agentProjects } from '@TDB/schemas/agentProjects'
+import { agentProviders } from '@TDB/schemas/agentProviders'
 import { text, jsonb, boolean, pgTable, integer, varchar } from 'drizzle-orm/pg-core'
 
 /**
@@ -19,6 +21,7 @@ import { text, jsonb, boolean, pgTable, integer, varchar } from 'drizzle-orm/pg-
  */
 export const agents = pgTable(`agents`, {
   ...base,
+  id: entityId(AgentIdPrefix),
   name: text(`name`).notNull(),
   description: text(`description`),
 

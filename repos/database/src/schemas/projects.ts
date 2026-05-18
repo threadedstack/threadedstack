@@ -2,8 +2,10 @@ import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { assets } from '@TDB/schemas/assets'
 import { base } from '@TDB/utils/schema/base'
+import { ProjectIdPrefix } from '@tdsk/domain'
 import { secrets } from '@TDB/schemas/secrets'
 import { endpoints } from '@TDB/schemas/endpoints'
+import { entityId } from '@TDB/utils/schema/entityId'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { projectProviders } from '@TDB/schemas/projectProviders'
@@ -14,6 +16,7 @@ export const projects = pgTable(
   `projects`,
   {
     ...base,
+    id: entityId(ProjectIdPrefix),
     meta: jsonb(`meta`),
     name: text(`name`).notNull(),
     description: text(`description`),
