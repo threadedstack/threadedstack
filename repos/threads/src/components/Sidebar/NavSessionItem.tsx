@@ -6,9 +6,14 @@ import { useLocation } from 'react-router'
 import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
 import { colors, cmx, dims } from '@tdsk/components'
-import { usePermissions } from '@TTH/hooks/permissions'
 import { useState, useCallback, useRef } from 'react'
+import { SidebarNavIndent } from '@TTH/constants/nav'
+import { usePermissions } from '@TTH/hooks/permissions'
+import { formatRelativeDate } from '@TTH/utils/formatDate'
+import { categoryLabel } from '@TTH/utils/nav/categoryLabel'
+import { shortId as formatShortId } from '@TTH/utils/shortId'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
+import { categoryDotColor } from '@TTH/utils/nav/categoryDotColor'
 import { PeopleOutline, VisibilityOutlined } from '@mui/icons-material'
 import { Box, Typography, CircularProgress, useTheme } from '@mui/material'
 
@@ -21,60 +26,29 @@ export type TNavSessionItem = {
   session: TClassifiedSession
 }
 
-const formatTimestamp = (date?: string): string => {
-  if (!date) return ``
-  const d = new Date(date)
-  const diffMs = Date.now() - d.getTime()
-  const diffMin = Math.floor(diffMs / 60_000)
-  if (diffMin < 1) return `just now`
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return `${diffHr}h ago`
-  return d.toLocaleDateString(undefined, { month: `short`, day: `numeric` })
-}
-
-type PaletteColor = { main: string }
-
-const categoryDotColor = (
-  session: TClassifiedSession,
-  palette: { success: PaletteColor; warning: PaletteColor; info: PaletteColor }
-) => {
-  switch (session.category) {
-    case `connected`:
-      return palette.success.main
-    case `disconnected`:
-      return session.hasShellSession ? palette.warning.main : colors.grey[600]
-    case `shared`:
-      return palette.info.main
-  }
-}
-
-const categoryLabel = (session: TClassifiedSession) => {
-  switch (session.category) {
-    case `connected`:
-      return `Active`
-    case `disconnected`:
-      return session.hasShellSession ? `Idle` : `Expired`
-    case `shared`:
-      return `Shared`
-  }
-}
-
 export const NavSessionItem = (props: TNavSessionItem) => {
-  const { session, sandboxId, projectId, orgId, instanceId, indent = 48 } = props
+  const {
+    orgId,
+    session,
+    sandboxId,
+    projectId,
+    instanceId,
+    indent = SidebarNavIndent,
+  } = props
 
-  const location = useLocation()
   const theme = useTheme()
+  const location = useLocation()
+  const connectingRef = useRef(false)
   const { canExec } = usePermissions()
   const canExecSandbox = canExec(EPermResource.sandbox)
   const [connecting, setConnecting] = useState(false)
-  const connectingRef = useRef(false)
 
   const isSharedViewOnly = session.category === `shared` && !canExecSandbox
   const isActive =
     location.pathname === nav.path.session(orgId, projectId, session.sessionId)
-  const shortId = session.sessionId.slice(0, 6)
-  const timestamp = formatTimestamp(session.connectedAt)
+
+  const sid = formatShortId(session.sessionId)
+  const timestamp = formatRelativeDate(session.connectedAt)
 
   const onClick = useCallback(async () => {
     if (session.category === `connected`) {
@@ -175,7 +149,7 @@ export const NavSessionItem = (props: TNavSessionItem) => {
             color: isActive ? colors.primary.main : `text.primary`,
           }}
         >
-          {categoryLabel(session)} · {shortId}
+          {categoryLabel(session)} · {sid}
         </Typography>
         {timestamp && (
           <Typography

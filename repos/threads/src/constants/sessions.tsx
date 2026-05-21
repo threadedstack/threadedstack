@@ -6,6 +6,17 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 
 export const CategoryOrder = { connected: 0, disconnected: 1, shared: 2 } as const
 
+export const ValidStatuses = new Set<string>([
+  `idle`,
+  `failed`,
+  `active`,
+  `closed`,
+  `running`,
+  `pending`,
+  `stopped`,
+  `building`,
+])
+
 export const CommandConfig: Record<
   TCommand,
   {

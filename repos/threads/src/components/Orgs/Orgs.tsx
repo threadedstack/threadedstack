@@ -1,19 +1,14 @@
 import { useCallback } from 'react'
 import { nav } from '@TTH/services/nav'
 
+import Box from '@mui/material/Box'
 import { OrgIcon } from '@tdsk/components'
-import { styled } from '@mui/material/styles'
 import { selectOrg } from '@TTH/actions/orgs'
-import { Box, Typography } from '@mui/material'
+import { GridView } from '@mui/icons-material'
 import { EmptyState } from '@TTH/components/EmptyState'
 import { useOrgs, useOrgId } from '@TTH/state/selectors'
+import { PageHeader } from '@TTH/components/PagePrimitives'
 import { OrgCardItem } from '@TTH/components/Orgs/OrgCardItem'
-
-const PageRoot = styled(Box)`
-  width: 100%;
-  margin: 0 auto;
-  max-width: 700px;
-`
 
 export const Orgs = () => {
   const [orgs] = useOrgs()
@@ -24,22 +19,13 @@ export const Orgs = () => {
   }, [])
 
   return (
-    <PageRoot>
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant='h5'
-          sx={{ fontWeight: 600 }}
-        >
-          Organizations
-        </Typography>
-        <Typography
-          variant='body2'
-          color='text.secondary'
-          sx={{ mt: 0.5 }}
-        >
-          Choose an organization to continue
-        </Typography>
-      </Box>
+    <Box sx={{ width: `100%`, margin: `0 auto`, maxWidth: 700 }}>
+      <PageHeader
+        eyebrow='Organizations'
+        eyebrowIcon={<GridView />}
+        title='Your Organizations'
+        subtitle='Choose an organization to continue'
+      />
 
       {orgs.length === 0 ? (
         <EmptyState
@@ -58,7 +44,7 @@ export const Orgs = () => {
           ))}
         </Box>
       )}
-    </PageRoot>
+    </Box>
   )
 }
 

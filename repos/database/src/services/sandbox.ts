@@ -2,6 +2,7 @@ import type {
   TProviderInput,
   TGitProviderInput,
   TKubeSandboxConfig,
+  TSandboxSkillLink,
   TSandboxProjectConfig,
 } from '@tdsk/domain'
 import type {
@@ -13,15 +14,17 @@ import type {
   TDBSandboxInsert,
   TDBProjectSelect,
   TDBProviderSelect,
+  TDBSkillSelect,
 } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { logger } from '@TDB/utils/logger'
 import { DBError } from '@TDB/utils/error/error'
 import { sandboxes } from '@TDB/schemas/sandboxes'
-import { eq, and, sql, notInArray } from 'drizzle-orm'
+import { sandboxSkills } from '@TDB/schemas/sandboxSkills'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { or, eq, and, sql, isNull, notInArray } from 'drizzle-orm'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import {
@@ -55,6 +58,14 @@ export type TSandboxSelectOpts = TDBSandboxSelect & {
     providerId: string
     model?: string | null
     provider: TDBProviderSelect
+  }[]
+  skills?: {
+    id: string
+    skillId: string
+    priority: number
+    sandboxId: string
+    skill: TDBSkillSelect
+    projectId?: string | null
   }[]
   gitProjectProviders?: {
     sandboxId: string
@@ -119,6 +130,11 @@ export class Sandbox extends Base<
           provider: true,
         },
       },
+      skills: {
+        with: {
+          skill: true,
+        },
+      },
       gitProjectProviders: {
         with: {
           provider: true,
@@ -128,7 +144,13 @@ export class Sandbox extends Base<
   }
 
   model = (data: TSandboxSelectOpts) => {
-    const { providers, gitProjectProviders, projects: projectLinksRaw, ...rest } = data
+    const {
+      skills: skillLinksRaw,
+      providers,
+      gitProjectProviders,
+      projects: projectLinksRaw,
+      ...rest
+    } = data
 
     const projectLinks = projectLinksRaw || []
 
@@ -151,6 +173,16 @@ export class Sandbox extends Base<
           priority: link.priority ?? 0,
           provider: new ProviderModel(link.provider as Partial<ProviderModel>),
         })),
+      skillLinks: (skillLinksRaw || [])
+        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+        .map((link) => ({
+          id: link.id,
+          skill: link.skill,
+          skillId: link.skillId,
+          sandboxId: link.sandboxId,
+          priority: link.priority ?? 0,
+          projectId: link.projectId ?? null,
+        })) as TSandboxSkillLink[],
       gitProviderLinks: (gitProjectProviders || [])
         .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
         .map((link) => ({
@@ -635,6 +667,107 @@ export class Sandbox extends Base<
             eq(sandboxProjectProviders.providerId, providerId)
           )
         )
+
+      return { data: null, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  async addSkill(sandboxId: string, skillId: string, projectId?: string) {
+    try {
+      const [result] = await this.db
+        .insert(sandboxSkills)
+        .values({
+          sandboxId,
+          skillId,
+          projectId: projectId ?? null,
+          priority: 0,
+        })
+        .onConflictDoNothing()
+        .returning()
+
+      return { data: result ?? { sandboxId, skillId, projectId }, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  async removeSkill(sandboxId: string, skillId: string, projectId?: string) {
+    try {
+      const conditions = [
+        eq(sandboxSkills.sandboxId, sandboxId),
+        eq(sandboxSkills.skillId, skillId),
+      ]
+
+      if (projectId) conditions.push(eq(sandboxSkills.projectId, projectId))
+      else conditions.push(isNull(sandboxSkills.projectId))
+
+      await this.db.delete(sandboxSkills).where(and(...conditions))
+
+      return { data: null, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  async listSkillsForSandbox(sandboxId: string, projectId?: string) {
+    try {
+      const conditions = [eq(sandboxSkills.sandboxId, sandboxId)]
+
+      if (projectId) {
+        conditions.push(
+          or(isNull(sandboxSkills.projectId), eq(sandboxSkills.projectId, projectId))!
+        )
+      } else {
+        conditions.push(isNull(sandboxSkills.projectId))
+      }
+
+      const rows = await this.db.query.sandboxSkills.findMany({
+        where: and(...conditions),
+        with: { skill: true },
+      })
+
+      return {
+        data: rows.map((r) => ({
+          id: r.id,
+          skill: r.skill,
+          skillId: r.skillId,
+          sandboxId: r.sandboxId,
+          priority: r.priority ?? 0,
+          projectId: r.projectId ?? null,
+        })) as TSandboxSkillLink[],
+      }
+    } catch (error: any) {
+      return { data: [] as TSandboxSkillLink[], error }
+    }
+  }
+
+  async setSkills(
+    sandboxId: string,
+    inputs: Array<{ id: string; projectId?: string }>,
+    projectId?: string
+  ) {
+    try {
+      const rows = inputs
+        .filter((s) => s.id)
+        .map((s, i) => ({
+          skillId: s.id,
+          sandboxId,
+          projectId: s.projectId ?? projectId ?? null,
+          priority: i,
+        }))
+
+      await this.db.transaction(async (tx) => {
+        const deleteConditions = [eq(sandboxSkills.sandboxId, sandboxId)]
+
+        if (projectId) deleteConditions.push(eq(sandboxSkills.projectId, projectId))
+        else deleteConditions.push(isNull(sandboxSkills.projectId))
+
+        await tx.delete(sandboxSkills).where(and(...deleteConditions))
+
+        if (rows.length) await tx.insert(sandboxSkills).values(rows)
+      })
 
       return { data: null, error: null }
     } catch (error: any) {

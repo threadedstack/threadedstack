@@ -161,6 +161,47 @@ export class KubeClient {
     }
   }
 
+  // --- ConfigMap CRUD ---
+
+  async createConfigMap(
+    name: string,
+    data: Record<string, string>
+  ): Promise<k8s.V1ConfigMap> {
+    return await this.coreApi.createNamespacedConfigMap({
+      namespace: this.namespace,
+      body: {
+        data,
+        apiVersion: `v1`,
+        kind: `ConfigMap`,
+        metadata: { name },
+      },
+    })
+  }
+
+  async patchConfigMapOwnerReferences(
+    name: string,
+    ownerReferences: k8s.V1OwnerReference[]
+  ): Promise<void> {
+    await this.coreApi.patchNamespacedConfigMap({
+      name,
+      namespace: this.namespace,
+      body: { metadata: { ownerReferences } },
+    })
+  }
+
+  async deleteConfigMap(name: string): Promise<void> {
+    try {
+      await this.coreApi.deleteNamespacedConfigMap({
+        name,
+        namespace: this.namespace,
+      })
+    } catch (err: any) {
+      const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode
+      if (code === 404) return
+      throw err
+    }
+  }
+
   /**
    * Run a command inside a pod container via K8s API exec.
    * Uses K8s Exec API (not child_process) — the command array is sent directly to the container without host shell interpretation.

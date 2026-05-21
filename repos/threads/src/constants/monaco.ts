@@ -11,3 +11,5 @@ export const MonacoOptions = {
   scrollBeyondLastLine: false,
   renderLineHighlight: `all` as const,
 }
+
+export const DefaultLines = [`// No content available for this file`]

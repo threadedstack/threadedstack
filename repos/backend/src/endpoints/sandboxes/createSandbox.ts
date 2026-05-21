@@ -21,10 +21,11 @@ export const createSandbox: TEndpointConfig = {
     const {
       name,
       config,
-      projectIds: bodyProjectIds,
-      projectId: bodyProjectId,
+      skillInputs,
       providerInputs,
       gitProviderInputs,
+      projectId: bodyProjectId,
+      projectIds: bodyProjectIds,
     } = req.body
     const orgId = req.params.orgId || req.body.orgId
 
@@ -47,6 +48,15 @@ export const createSandbox: TEndpointConfig = {
 
     if (config?.maxInstances != null)
       config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
+
+    if (skillInputs !== undefined) {
+      if (!Array.isArray(skillInputs))
+        throw new Exception(400, `skillInputs must be an array`)
+      for (const input of skillInputs) {
+        if (!input?.id || typeof input.id !== `string`)
+          throw new Exception(400, `Each skillInput must have a string "id" field`)
+      }
+    }
 
     const pins = await db.services.provider.validate({
       orgId,
@@ -91,6 +101,21 @@ export const createSandbox: TEndpointConfig = {
       ...(projects?.length ? { projects } : {}),
     })
     if (error) throw new Exception(500, error.message)
+
+    if (data && skillInputs?.length) {
+      const { error: skillErr } = await db.services.sandbox.setSkills(
+        data.id,
+        skillInputs
+      )
+      if (skillErr)
+        throw new Exception(
+          500,
+          `Sandbox created but skill association failed: ${(skillErr as Error).message}`
+        )
+      const { data: refreshed } = await db.services.sandbox.get(data.id)
+      res.status(201).json({ data: refreshed ?? data })
+      return
+    }
 
     res.status(201).json({ data })
   },

@@ -4,17 +4,17 @@ import type { ReactNode } from 'react'
 import App from '@TTH/App'
 import { Provider } from 'jotai'
 import { StrictMode } from 'react'
-import { ERoleType, isValidRoleType } from '@tdsk/domain'
 import { store } from '@TTH/state/accessors'
 import { createRoot } from 'react-dom/client'
 import { Version } from '@TTH/components/Version'
 import { AuthProvider } from '@TTH/contexts/AuthProvider'
+import { ERoleType, isValidRoleType } from '@tdsk/domain'
 import { useUser, useActiveOrgRole } from '@TTH/state/selectors'
 import {
-  TDSK_POSTHOG_KEY,
-  TDSK_POSTHOG_HOST,
   VITEST,
   Environment,
+  TDSK_POSTHOG_KEY,
+  TDSK_POSTHOG_HOST,
 } from '@TTH/constants/envs'
 import {
   initAnalytics,
@@ -43,7 +43,14 @@ initAnalytics({
   disabled: VITEST || Environment === `local`,
 })
 
-createRoot(document.getElementById(`root`)!).render(
+/**
+ * TODO: figure out why this is even needed
+ * The threads app is crashing without it when developing locally, but it should not be needed
+ */
+const container = document.getElementById(`root`)!
+const root = (container as any).__reactRoot ?? createRoot(container)
+;(container as any).__reactRoot = root
+root.render(
   <StrictMode>
     <Provider store={store}>
       <AuthProvider>

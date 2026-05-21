@@ -21,13 +21,23 @@ export const updateSandbox: TEndpointConfig = {
 
     const existing = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 
-    const { name, config, projectIds, providerInputs, gitProviderInputs } = req.body
+    const { name, config, projectIds, skillInputs, providerInputs, gitProviderInputs } =
+      req.body
 
     if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
 
     if (config?.maxInstances != null)
       config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
+
+    if (skillInputs !== undefined) {
+      if (!Array.isArray(skillInputs))
+        throw new Exception(400, `skillInputs must be an array`)
+      for (const input of skillInputs) {
+        if (!input?.id || typeof input.id !== `string`)
+          throw new Exception(400, `Each skillInput must have a string "id" field`)
+      }
+    }
 
     const pins = await db.services.provider.validate({
       orgId: existing.orgId,
@@ -68,6 +78,23 @@ export const updateSandbox: TEndpointConfig = {
       ...(validatedGitInputs !== undefined && { gitProviderInputs: validatedGitInputs }),
     })
     if (error) throw new Exception(500, error.message)
+
+    if (skillInputs !== undefined) {
+      const projectId = req.params.projectId
+      const { error: skillErr } = await db.services.sandbox.setSkills(
+        existing.id,
+        skillInputs,
+        projectId
+      )
+      if (skillErr)
+        throw new Exception(
+          500,
+          `Failed to update sandbox skills: ${(skillErr as Error).message}`
+        )
+      const { data: refreshed } = await db.services.sandbox.get(existing.id)
+      res.status(200).json({ data: refreshed ?? data })
+      return
+    }
 
     res.status(200).json({ data })
   },

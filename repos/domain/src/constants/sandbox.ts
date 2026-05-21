@@ -1,6 +1,7 @@
 import type {
   TSandboxRuntimeId,
   TKubeSandboxConfig,
+  TRuntimeSkillConfig,
   TRuntimeProviderEnvMap,
 } from '@TDM/types'
 
@@ -179,6 +180,37 @@ export const SandboxPresets: Record<
     },
   },
 }
+
+/**
+ * TODO: Reuse this constant across the other repose where the home path is used
+ * Will ensure it's consistent and doesn't drift
+ */
+export const SandboxHomePath = `/home/sandbox`
+
+export const RuntimeSkillPathMap: Record<TSandboxRuntimeId, TRuntimeSkillConfig | null> =
+  {
+    [ESandboxRuntime.claudeCode]: {
+      fileLayout: `nested`,
+      fileName: `SKILL.md`,
+      basePath: `${SandboxHomePath}/.claude/skills`,
+    },
+    [ESandboxRuntime.codex]: {
+      fileName: `.md`,
+      fileLayout: `flat`,
+      basePath: `${SandboxHomePath}/.codex/skills`,
+    },
+    [ESandboxRuntime.openCode]: {
+      fileName: `.md`,
+      fileLayout: `flat`,
+      basePath: `${SandboxHomePath}/.opencode/prompts`,
+    },
+    [ESandboxRuntime.geminiCli]: {
+      fileName: `.md`,
+      fileLayout: `flat`,
+      basePath: `${SandboxHomePath}/.gemini/skills`,
+    },
+    [ESandboxRuntime.custom]: null,
+  }
 
 export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
   [ESandboxRuntime.claudeCode]: {

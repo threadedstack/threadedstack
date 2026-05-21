@@ -2,6 +2,7 @@ import type { Provider } from '@TDM/models/provider'
 import type {
   TProviderLink,
   TGitProviderLink,
+  TSandboxSkillLink,
   TKubeSandboxConfig,
   TSandboxProjectConfig,
 } from '@TDM/types'
@@ -20,16 +21,25 @@ export class Sandbox extends Base {
   projects: Project[] = []
   config: TKubeSandboxConfig
   providerLinks: TProviderLink[] = []
+  skillLinks: TSandboxSkillLink[] = []
   gitProviderLinks: TGitProviderLink[] = []
   projectConfigs: TSandboxProjectConfig[] = []
 
   constructor(data: TSandboxData) {
     super()
 
-    const { projects, providerLinks, projectConfigs, gitProviderLinks, ...rest } = data
+    const {
+      projects,
+      skillLinks,
+      providerLinks,
+      projectConfigs,
+      gitProviderLinks,
+      ...rest
+    } = data
 
     Object.assign(this, {
       ...rest,
+      skillLinks: skillLinks || [],
       projectConfigs: projectConfigs || [],
       gitProviderLinks: gitProviderLinks || [],
       providerLinks: toProviderLinks(providerLinks),
@@ -72,6 +82,7 @@ export class Sandbox extends Base {
       ...this,
       ...(pc.alias != null && { name: pc.alias }),
       projects: this.projects,
+      skillLinks: this.skillLinks,
       providerLinks: this.providerLinks,
       projectConfigs: this.projectConfigs,
       gitProviderLinks: this.gitProviderLinks,

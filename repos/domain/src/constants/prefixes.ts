@@ -20,6 +20,7 @@ export const AgentSkillIdPrefix = `al_`
 export const InvitationIdPrefix = `iv_`
 export const SubscriptionIdPrefix = `su_`
 export const AgentProjectIdPrefix = `ap_`
+export const SandboxSkillIdPrefix = `ss_`
 export const AgentProviderIdPrefix = `av_`
 export const SandboxProjectIdPrefix = `sp_`
 export const SandboxProviderIdPrefix = `sv_`

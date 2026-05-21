@@ -2,10 +2,12 @@ import type { THeaderMenuItem } from '@tdsk/components'
 
 import { nav } from '@TTH/services/nav'
 import { ERoutePath } from '@TTH/types'
-import { signout } from '@TTH/actions/auth/local/signout'
 import PersonIcon from '@mui/icons-material/Person'
-import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
+import SettingsIcon from '@mui/icons-material/Settings'
+import { signout } from '@TTH/actions/auth/local/signout'
+
+export const SidebarNavIndent = 48
 
 export const HeaderSettingsItems: THeaderMenuItem[] = [
   {

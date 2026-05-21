@@ -7,6 +7,7 @@ import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useSandboxForm } from '@TAF/hooks/sandboxes/useSandboxForm'
 import { Drawer, TextInput, AutoInput, DrawerActions } from '@tdsk/components'
 import { SandboxGuiAccordion } from '@TAF/components/Sandboxes/SandboxGuiAccordion'
+import { SandboxSkillsAccordion } from '@TAF/components/Sandboxes/SandboxSkillsAccordion'
 import { SandboxConfigAccordion } from '@TAF/components/Sandboxes/SandboxConfigAccordion'
 import { SandboxProviderAccordion } from '@TAF/components/Sandboxes/SandboxProviderAccordion'
 import { SandboxContainerAccordion } from '@TAF/components/Sandboxes/SandboxContainerAccordion'
@@ -175,6 +176,20 @@ export const OrgSandboxDrawer = (props: TSandboxDrawer) => {
             onProviderCreated={(providerId) => {
               if (providerId) form.setDockerProviderIds((prev) => [...prev, providerId])
             }}
+          />
+
+          {/* Skills */}
+          <SandboxSkillsAccordion
+            orgId={orgId}
+            loading={form.loading}
+            disabled={form.loading}
+            orgSkills={form.linkedOrgSkills}
+            projectSkills={[]}
+            availableSkills={form.availableSkills}
+            onAddSkill={(s) => form.setSkillIds((prev) => [...prev, s.id])}
+            onRemoveSkill={(id) =>
+              form.setSkillIds((prev) => prev.filter((sid) => sid !== id))
+            }
           />
 
           <SandboxGuiAccordion

@@ -140,9 +140,3 @@ class MonitorService {
 }
 
 export const monitorService = new MonitorService()
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    monitorService.disconnect()
-  })
-}

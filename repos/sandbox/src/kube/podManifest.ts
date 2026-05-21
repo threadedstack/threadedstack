@@ -1,15 +1,27 @@
 import type { TKubeSandboxConfig } from '@tdsk/domain'
-import type { TBuildPodOpts, TBuildPodMeta, TPodEgressOpts } from '@TSB/types'
+import type {
+  TBuildPodOpts,
+  TBuildPodMeta,
+  TPodEgressOpts,
+  TSkillsVolumeOpts,
+} from '@TSB/types'
 import type {
   V1Pod,
   V1EnvVar,
+  V1Volume,
   V1Container,
+  V1VolumeMount,
   V1ContainerPort,
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
-import { EnvProfilePath, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
 import { DefaultWorkdir, ESandboxRuntime, SandboxRuntimeConfigs } from '@tdsk/domain'
+import {
+  EnvProfilePath,
+  VolumeMountName,
+  CACertMountPath,
+  SkillsVolumeName,
+} from '@TSB/constants/values'
 import {
   KubeSBPrefix,
   PodLabelKeys,
@@ -52,6 +64,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     projectId,
     egressOpts,
     placeholders,
+    skillsVolume,
     runtimeClassName,
     imagePullSecrets,
   } = opts
@@ -59,6 +72,19 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
   const config = sandbox.config
   const podName = buildPodName(sandbox.id)
   const subdomain = podName.replace(`tdsk-`, ``)
+
+  const volumes: V1Volume[] = [
+    {
+      name: VolumeMountName,
+      secret: { secretName: egressOpts.certSecretName },
+    },
+  ]
+
+  if (skillsVolume)
+    volumes.push({
+      name: SkillsVolumeName,
+      configMap: { name: skillsVolume.configMapName },
+    })
 
   return {
     kind: `Pod`,
@@ -81,13 +107,8 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
         imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
       }),
       initContainers: [buildInitContainer(egressOpts)],
-      containers: [buildSandboxContainer(config, extraEnv)],
-      volumes: [
-        {
-          name: VolumeMountName,
-          secret: { secretName: egressOpts.certSecretName },
-        },
-      ],
+      containers: [buildSandboxContainer(config, extraEnv, skillsVolume)],
+      volumes,
     },
   }
 }
@@ -139,7 +160,8 @@ const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
 
 const buildSandboxContainer = (
   config: TKubeSandboxConfig,
-  extraEnv?: Record<string, string>
+  extraEnv?: Record<string, string>,
+  skillsVolume?: TSkillsVolumeOpts
 ): V1Container => {
   const env: V1EnvVar[] = [
     { name: `TERM`, value: `xterm-256color` },
@@ -155,9 +177,27 @@ const buildSandboxContainer = (
 
   const ports = buildPorts(config.ports)
 
+  const volumeMounts: V1VolumeMount[] = [
+    {
+      subPath: `tls.crt`,
+      name: VolumeMountName,
+      mountPath: CACertMountPath,
+    },
+  ]
+
+  if (skillsVolume)
+    for (const file of skillsVolume.files) {
+      volumeMounts.push({
+        subPath: file.key,
+        name: SkillsVolumeName,
+        mountPath: `${skillsVolume.mountPath}/${file.path}`,
+      })
+    }
+
   const container: V1Container = {
     env,
     ports,
+    volumeMounts,
     name: `sandbox`,
     image: config.image,
     resources: config.resources || {},
@@ -172,13 +212,6 @@ const buildSandboxContainer = (
         },
       },
     },
-    volumeMounts: [
-      {
-        subPath: `tls.crt`,
-        name: VolumeMountName,
-        mountPath: CACertMountPath,
-      },
-    ],
   }
 
   // Resolve container start command based on runtime
@@ -212,7 +245,7 @@ const buildSandboxContainer = (
 }
 
 const buildPostStartScript = (env: V1EnvVar[], initScript?: string): string => {
-  const exports = env
+  const mapped = env
     .filter((e) => e.value != null)
     .map((e) => `export ${e.name}='${(e.value ?? ``).replace(/'/g, `'\\''`)}'`)
     .join(`\n`)
@@ -220,20 +253,19 @@ const buildPostStartScript = (env: V1EnvVar[], initScript?: string): string => {
   const parts = [
     `mkdir -p /etc/profile.d`,
     `cat > ${EnvProfilePath} << 'TDSK_ENV_EOF'`,
-    exports,
+    mapped,
     `TDSK_ENV_EOF`,
     `. ${EnvProfilePath}`,
   ]
 
-  if (initScript) {
-    // K8s kills the container if postStart exits non-zero — catch failures and log instead
+  // K8s kills the container if postStart exits non-zero — catch failures and log instead
+  if (initScript)
     parts.push(
       `sh -c '${initScript.replace(/'/g, `'\\''`)}'; _rc=$?`,
       `if [ $_rc -ne 0 ]; then`,
       `  echo "[tdsk] initScript failed (exit $_rc)" >> /tmp/tdsk-init-error.log`,
       `fi`
     )
-  }
 
   return parts.join(`\n`)
 }

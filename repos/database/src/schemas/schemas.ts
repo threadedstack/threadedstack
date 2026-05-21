@@ -30,6 +30,10 @@ export { subscriptions, subscriptionsRelations } from '@TDB/schemas/subscription
 export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProviders'
 export { sandboxProjects, sandboxProjectsRelations } from '@TDB/schemas/sandboxProjects'
 export {
+  sandboxSkills,
+  sandboxSkillsRelations,
+} from '@TDB/schemas/sandboxSkills'
+export {
   sandboxProviders,
   sandboxProvidersRelations,
 } from '@TDB/schemas/sandboxProviders'

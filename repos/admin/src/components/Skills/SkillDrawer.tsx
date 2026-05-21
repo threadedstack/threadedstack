@@ -1,13 +1,14 @@
 import type { Skill } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
-import { useState, useEffect } from 'react'
-import { cleanColl } from '@keg-hub/jsutils/cleanColl'
+import { Code } from '@TAF/components/Code/Code'
+import { MonacoOptions } from '@TAF/constants/monaco'
+import { useState, useEffect, useCallback } from 'react'
 import { createSkill } from '@TAF/actions/skills/api/createSkill'
 import { updateSkill } from '@TAF/actions/skills/api/updateSkill'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
 
 export type TSkillDrawer = {
   open: boolean
@@ -15,15 +16,13 @@ export type TSkillDrawer = {
   onClose: () => void
   skill?: Skill | null
   onRemove?: (skill: Skill) => void
+  onCreated?: (skillId: string) => void
 }
 
-type TTempSkill = {
-  name?: string
-  description?: string
-  instructions?: string
-  tools?: string
-  triggerKeywords?: string
-  alwaysActive?: boolean
+const editorOpts = {
+  ...MonacoOptions,
+  lineNumbers: `off` as const,
+  folding: false,
 }
 
 export const SkillDrawer = ({
@@ -31,70 +30,57 @@ export const SkillDrawer = ({
   orgId,
   skill,
   onRemove,
+  onCreated,
   onClose: onCloseCB,
 }: TSkillDrawer) => {
   const isEditMode = !!skill
   const [loading, setLoading] = useState(false)
-  const [temp, setTemp] = useState<TTempSkill>({})
+  const [name, setName] = useState(``)
+  const [content, setContent] = useState(``)
   const [error, setError] = useState<string | null>(null)
-
-  const updateTemp = (update: Partial<TTempSkill>) => setTemp({ ...temp, ...update })
 
   useEffect(() => {
     setError(null)
     if (skill) {
-      setTemp({
-        name: skill.name,
-        description: skill.description,
-        instructions: skill.instructions,
-        tools: skill.tools?.join(', ') || '',
-        triggerKeywords: skill.triggerKeywords?.join(', ') || '',
-        alwaysActive: skill.alwaysActive ?? false,
-      })
+      setName(skill.name)
+      setContent(skill.instructions || ``)
     } else {
-      setTemp({})
+      setName(``)
+      setContent(``)
     }
   }, [skill])
 
   const onClose = () => {
     if (loading) return
-
     onCloseCB?.()
     setError(null)
-    setTemp({})
+    setName(``)
+    setContent(``)
   }
+
+  const onEditorChange = useCallback((val?: string) => {
+    setContent(val || ``)
+  }, [])
 
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!temp.name?.trim()) return setError(`Skill name is required`)
+    if (!name.trim()) return setError(`Skill name is required`)
     if (!orgId) return setError(`Organization is required`)
 
     setLoading(true)
     setError(null)
 
-    const tools =
-      temp.tools
-        ?.split(',')
-        .map((t) => t.trim())
-        .filter(Boolean) || []
+    const data = {
+      name: name.trim(),
+      instructions: content,
+      description: ``,
+      tools: [] as string[],
+      triggerKeywords: [] as string[],
+      alwaysActive: false,
+    }
 
-    const triggerKeywords =
-      temp.triggerKeywords
-        ?.split(',')
-        .map((k) => k.trim())
-        .filter(Boolean) || []
-
-    const data = cleanColl({
-      name: temp.name,
-      description: temp.description,
-      instructions: temp.instructions,
-      tools,
-      triggerKeywords,
-      alwaysActive: temp.alwaysActive,
-    })
-
-    let result: { error?: Error } | undefined
+    let result: { data?: any; error?: Error } | undefined
 
     if (isEditMode && skill) {
       result = await updateSkill(orgId, skill.id, data)
@@ -109,6 +95,7 @@ export const SkillDrawer = ({
       const msg = result.error?.message || `Please try again.`
       setError(`Failed to ${action} skill. ${msg}`)
     } else {
+      if (!isEditMode && result?.data?.id) onCreated?.(result.data.id)
       onClose()
     }
   }
@@ -129,8 +116,8 @@ export const SkillDrawer = ({
           form='skill-form'
           actions={actions}
           loading={loading}
-          editing={isEditMode}
           disabled={loading}
+          editing={isEditMode}
         />
       }
     >
@@ -147,64 +134,24 @@ export const SkillDrawer = ({
             required
             fullWidth
             autoFocus
+            value={name}
             disabled={loading}
             label='Skill Name'
-            value={temp?.name || ``}
             id='tdsk-skill-name-input'
             placeholder='Enter skill name'
-            onChange={(e) => updateTemp({ name: e.target.value })}
+            onChange={(e) => setName(e.target.value)}
           />
 
-          <TextInput
-            textarea
-            fullWidth
-            minRows={3}
+          <Code
+            height='400px'
+            value={content}
             disabled={loading}
-            label='Description'
-            value={temp?.description || ``}
-            id='tdsk-skill-description-input'
-            placeholder='Enter description (optional)'
-            onChange={(e) => updateTemp({ description: e.target.value })}
-          />
-
-          <TextInput
-            textarea
-            fullWidth
-            minRows={6}
-            disabled={loading}
-            label='Instructions'
-            value={temp?.instructions || ``}
-            id='tdsk-skill-instructions-input'
-            placeholder='Enter skill instructions (optional)'
-            onChange={(e) => updateTemp({ instructions: e.target.value })}
-          />
-
-          <TextInput
-            fullWidth
-            disabled={loading}
-            label='Tools'
-            value={temp?.tools || ``}
-            id='tdsk-skill-tools-input'
-            placeholder='Comma-separated tool names (optional)'
-            onChange={(e) => updateTemp({ tools: e.target.value })}
-          />
-
-          <TextInput
-            fullWidth
-            disabled={loading}
-            label='Trigger Keywords'
-            value={temp?.triggerKeywords || ``}
-            id='tdsk-skill-trigger-keywords-input'
-            placeholder='Comma-separated keywords (optional)'
-            onChange={(e) => updateTemp({ triggerKeywords: e.target.value })}
-          />
-
-          <SwitchInput
-            id='skill-active'
-            disabled={loading}
-            label='Always Active'
-            checked={temp?.alwaysActive ?? false}
-            onChange={(e) => updateTemp({ alwaysActive: e.target.checked })}
+            language='markdown'
+            options={editorOpts}
+            label='Skill Content'
+            id='tdsk-skill-editor'
+            onChange={onEditorChange}
+            placeholder='Enter skill instructions in markdown...'
           />
         </Box>
       </form>

@@ -435,7 +435,3 @@ export class SessionService {
 }
 
 export const sessionService = new SessionService()
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => sessionService.reset())
-}

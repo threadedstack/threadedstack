@@ -86,6 +86,16 @@ export const dims = {
       height: `20vh`,
     },
   },
+  navRail: {
+    width: 60,
+    wpx: '60px',
+    expandedWidth: 280,
+    expandedWpx: '280px',
+  },
+  contextPanel: {
+    width: 320,
+    wpx: '320px',
+  },
   rightDrawer: {
     width: rightDrawerW,
     wpx: `${rightDrawerW}px`,

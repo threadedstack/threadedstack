@@ -1,45 +1,53 @@
 import type { TSandboxInstance } from '@tdsk/domain'
+import type { TSandboxStatus } from '@TTH/types'
 
 import { toast } from 'sonner'
+import Box from '@mui/material/Box'
 import { nav } from '@TTH/services/nav'
 import { useParams } from 'react-router'
-import { Loading } from '@tdsk/components'
+import Button from '@mui/material/Button'
 import { Page } from '@TTH/pages/Page/Page'
 import { EPermResource } from '@tdsk/domain'
+import { MonoFont } from '@TTH/constants/values'
+import Typography from '@mui/material/Typography'
+import IconButton from '@mui/material/IconButton'
 import { openSession } from '@TTH/actions/sessions'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { usePermissions } from '@TTH/hooks/permissions'
+import { ValidStatuses } from '@TTH/constants/sessions'
+import { useOrgId, useSandboxes } from '@TTH/state/selectors'
+import { Loading, Avatar as TdskAvatar } from '@tdsk/components'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { formatDate, formatTimestamp } from '@TTH/utils/formatDate'
+import {
+  RowList,
+  StatStrip,
+  StatusChip,
+  PageHeader,
+  SectionHeader,
+} from '@TTH/components/PagePrimitives'
 import {
   Add,
-  Dns,
-  Code,
-  Timer,
-  VpnKey,
+  Link,
+  Public,
+  Dataset,
   Memory,
-  Folder,
-  Terminal,
-  ArrowBack,
-  PlayArrow,
+  Settings,
+  MoreHoriz,
+  RocketLaunch,
 } from '@mui/icons-material'
-import { useOrgId, useSandboxes } from '@TTH/state/selectors'
-import { ConfigRow, ConfigValue } from '@TTH/components/ConfigRow/ConfigRow'
-import {
-  Box,
-  Chip,
-  Card,
-  Button,
-  Typography,
-  IconButton,
-  CardActionArea,
-} from '@mui/material'
 
 type TSandboxParams = {
   orgId: string
   projectId: string
   sandboxId: string
 }
+
+const toSandboxStatus = (state: string): TSandboxStatus =>
+  ValidStatuses.has(state.toLowerCase())
+    ? (state.toLowerCase() as TSandboxStatus)
+    : `stopped`
 
 const Sandbox = () => {
   const [orgId] = useOrgId()
@@ -104,18 +112,22 @@ const Sandbox = () => {
     try {
       const { cols, rows } = estimateTerminalDimensions()
       const newSessionId = await openSession({
-        sandboxId,
-        projectId,
         cols,
         rows,
-        orgId: resolvedOrgId,
+        projectId,
+        sandboxId,
         sessionId: null,
         newInstance: true,
+        orgId: resolvedOrgId,
       })
 
       if (newSessionId)
         nav.session(resolvedOrgId, projectId, newSessionId, {
           state: { sandboxId, projectId },
+        })
+      else
+        toast.error(`Failed to start session`, {
+          description: `No session was created. Try again or check sandbox status.`,
         })
     } catch (err) {
       console.error(`[Sandbox] connect failed:`, err)
@@ -127,8 +139,6 @@ const Sandbox = () => {
       fetchInstances()
     }
   }, [sandboxId, resolvedOrgId, projectId, fetchInstances])
-
-  const onBack = () => nav.project(resolvedOrgId, projectId)
 
   if (!sandboxId) {
     return (
@@ -154,106 +164,115 @@ const Sandbox = () => {
     )
 
   const config = sandbox?.config
+  const runtime = config?.runtime || `custom`
+  const cpu = config?.resources?.limits?.cpu || config?.resources?.requests?.cpu || `-`
+  const mem =
+    config?.resources?.limits?.memory || config?.resources?.requests?.memory || `-`
+  const specs = `${cpu} x ${mem}`
+  const runningCount = instances.filter((i) => i.state === `Running`).length
+
+  const project = sandbox?.projects?.find((p) => p.id === projectId)
+  const eyebrowText = project ? `${project.name} · Sandbox` : `Sandbox`
+
+  const columns = [
+    { label: `Instance`, width: `1.6fr` },
+    { label: `Status`, width: `100px` },
+    { label: `Spec`, width: `110px` },
+    { label: `Owner`, width: `120px` },
+    { label: `Started`, width: `130px` },
+    { label: `Sessions`, width: `70px` },
+    { label: ``, width: `32px` },
+  ]
 
   return (
     <Page className='tdsk-sandbox-page'>
-      <Box sx={{ maxWidth: 700, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
-        <Box sx={{ display: `flex`, alignItems: `center`, gap: 1, mb: 3 }}>
-          <IconButton
-            size='small'
-            onClick={onBack}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography
-            variant='h5'
-            sx={{ flex: 1 }}
-          >
-            {sandbox?.name || sandboxId}
-          </Typography>
-          {config?.runtime && (
-            <Chip
-              size='small'
-              color='primary'
-              variant='outlined'
-              label={config.runtime}
-            />
-          )}
-        </Box>
+      <Box sx={{ maxWidth: 960, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
+        <PageHeader
+          eyebrow={eyebrowText}
+          eyebrowIcon={<Dataset />}
+          title={sandbox?.name || sandboxId}
+          titleMono
+          statusChip={<StatusChip status={runningCount > 0 ? `running` : `stopped`} />}
+          actions={
+            <>
+              <Button
+                disabled
+                size='small'
+                variant='outlined'
+                title='Coming soon'
+                startIcon={<Link />}
+              >
+                Attach
+              </Button>
+              <Button
+                disabled
+                size='small'
+                variant='outlined'
+                title='Coming soon'
+                startIcon={<Settings />}
+              >
+                Configure
+              </Button>
+              {canExecSandbox && (
+                <Button
+                  size='small'
+                  variant='contained'
+                  startIcon={<Add />}
+                  onClick={onNewInstance}
+                  disabled={
+                    !resolvedOrgId || !projectId || instances.length >= maxInstances
+                  }
+                >
+                  Deploy
+                </Button>
+              )}
+            </>
+          }
+        />
 
-        {config && (
-          <Card
-            variant='outlined'
-            sx={{ mb: 3, p: 2.5 }}
-          >
-            <Typography
-              variant='subtitle2'
-              sx={{ mb: 1.5, fontWeight: 700 }}
-            >
-              Configuration
-            </Typography>
-            <Box sx={{ display: `flex`, flexDirection: `column`, gap: 0.5 }}>
-              {config.image && (
-                <ConfigRow
-                  icon={<Memory sx={{ fontSize: 18 }} />}
-                  label='Image'
-                  value={
-                    <ConfigValue
-                      noWrap
-                      sx={{ maxWidth: 350 }}
-                      title={config.image}
-                    >
-                      {config.image}
-                    </ConfigValue>
-                  }
-                />
-              )}
-              {config.runtime && (
-                <ConfigRow
-                  icon={<Terminal sx={{ fontSize: 18 }} />}
-                  label='Runtime'
-                  value={config.runtime}
-                />
-              )}
-              {config.workdir && (
-                <ConfigRow
-                  icon={<Folder sx={{ fontSize: 18 }} />}
-                  label='Working Dir'
-                  value={config.workdir}
-                />
-              )}
-              <ConfigRow
-                icon={<VpnKey sx={{ fontSize: 18 }} />}
-                label='SSH'
-                value={config.sshEnabled ? `Enabled` : `Disabled`}
-              />
-              {config.idleTimeoutMinutes != null && (
-                <ConfigRow
-                  icon={<Timer sx={{ fontSize: 18 }} />}
-                  label='Idle Timeout'
-                  value={`${config.idleTimeoutMinutes} min`}
-                />
-              )}
-              {config.initScript && (
-                <ConfigRow
-                  icon={<Code sx={{ fontSize: 18 }} />}
-                  label='Init Script'
-                  value={
-                    <ConfigValue
-                      noWrap
-                      sx={{ maxWidth: 350, opacity: 0.8 }}
-                      title={config.initScript}
-                    >
-                      {config.initScript.length > 60
-                        ? `${config.initScript.slice(0, 60)}...`
-                        : config.initScript}
-                    </ConfigValue>
-                  }
-                />
-              )}
-            </Box>
-          </Card>
-        )}
+        <StatStrip
+          cells={[
+            {
+              label: `Runtime`,
+              value: runtime,
+              icon: <RocketLaunch sx={{ fontSize: 14, color: `text.secondary` }} />,
+            },
+            { label: `Resources`, value: specs, help: `vCPU × RAM`, sans: true },
+            {
+              label: `Region`,
+              value: `default`,
+              sans: true,
+              icon: <Public sx={{ fontSize: 14, color: `text.secondary` }} />,
+            },
+            {
+              label: `Instances`,
+              value: `${runningCount} / ${instances.length}`,
+              help: `running / total`,
+            },
+            { label: `Uptime`, value: `-`, sans: true },
+            { label: `Last deploy`, value: formatDate(sandbox?.updatedAt), sans: true },
+          ]}
+        />
+
+        <SectionHeader
+          title='Instances'
+          count={instances.length}
+          actions={
+            canExecSandbox ? (
+              <Button
+                size='small'
+                variant='outlined'
+                startIcon={<Add />}
+                onClick={onNewInstance}
+                disabled={
+                  !resolvedOrgId || !projectId || instances.length >= maxInstances
+                }
+              >
+                Spin up
+              </Button>
+            ) : undefined
+          }
+        />
 
         {loadingInstances ? (
           <Loading
@@ -261,73 +280,121 @@ const Sandbox = () => {
             messageSx={{ color: `text.primary` }}
           />
         ) : instances.length > 0 ? (
-          <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5, mb: 3 }}>
-            <Typography
-              variant='subtitle2'
-              sx={{ fontWeight: 700, letterSpacing: 0.5, textTransform: `uppercase` }}
-            >
-              Instances
-            </Typography>
+          <RowList columns={columns}>
             {instances.map((instance, idx) => (
-              <Card
+              <RowList.Row
                 key={instance.instanceId}
-                variant='outlined'
-                sx={{
-                  transition: `border-color 0.2s ease, box-shadow 0.2s ease`,
-                  '&:hover': {
-                    borderColor: `primary.main`,
-                    boxShadow: 1,
-                  },
-                }}
+                isLast={idx === instances.length - 1}
+                onClick={() =>
+                  nav.instance(resolvedOrgId, projectId, sandboxId, instance.instanceId)
+                }
               >
-                <CardActionArea
-                  onClick={() =>
-                    nav.instance(resolvedOrgId, projectId, sandboxId, instance.instanceId)
-                  }
-                  sx={{
-                    p: 2,
-                    display: `flex`,
-                    alignItems: `center`,
-                    justifyContent: `space-between`,
-                  }}
-                >
-                  <Box sx={{ display: `flex`, alignItems: `center`, gap: 1.5 }}>
-                    <Dns sx={{ fontSize: 20, color: `text.secondary` }} />
-                    <Box>
-                      <Typography
-                        variant='body2'
-                        sx={{ fontWeight: 600 }}
-                      >
-                        Instance {idx + 1}
-                      </Typography>
-                      <Typography
-                        variant='caption'
-                        color='text.secondary'
-                      >
-                        {instance.instanceId.slice(-8)}
-                      </Typography>
-                    </Box>
+                {/* Instance */}
+                <Box sx={{ display: `flex`, alignItems: `center`, gap: `10px` }}>
+                  <Memory sx={{ fontSize: 18, color: `text.secondary` }} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontSize: `13px`,
+                        fontWeight: 600,
+                        overflow: `hidden`,
+                        whiteSpace: `nowrap`,
+                        fontFamily: MonoFont,
+                        textOverflow: `ellipsis`,
+                      }}
+                    >
+                      Instance {idx + 1}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: `11px`,
+                        color: `text.secondary`,
+                        overflow: `hidden`,
+                        textOverflow: `ellipsis`,
+                        whiteSpace: `nowrap`,
+                      }}
+                    >
+                      {instance.instanceId.slice(-12)}
+                    </Typography>
                   </Box>
-                  <Box sx={{ display: `flex`, alignItems: `center`, gap: 1.5 }}>
-                    <Chip
-                      size='small'
-                      variant='outlined'
-                      label={`${instance.sessions.length} sessions`}
-                      sx={{ height: 22, fontSize: `11px` }}
-                    />
-                    <Chip
-                      size='small'
-                      color={instance.state === `Running` ? `success` : `warning`}
-                      label={instance.state}
-                      sx={{ height: 22, fontSize: `11px` }}
-                    />
-                  </Box>
-                </CardActionArea>
-              </Card>
+                </Box>
+
+                {/* Status */}
+                <Box sx={{ display: `flex`, alignItems: `center` }}>
+                  <StatusChip
+                    status={toSandboxStatus(instance.state)}
+                    size='sm'
+                  />
+                </Box>
+
+                {/* Spec */}
+                <Box sx={{ display: `flex`, alignItems: `center` }}>
+                  <Typography
+                    sx={{
+                      fontSize: `12px`,
+                      fontFamily: MonoFont,
+                      color: `text.secondary`,
+                    }}
+                  >
+                    {specs}
+                  </Typography>
+                </Box>
+
+                {/* Owner */}
+                <Box sx={{ display: `flex`, alignItems: `center`, gap: `6px` }}>
+                  <TdskAvatar
+                    name={instance.userId || `?`}
+                    size='sm'
+                  />
+                  <Typography
+                    noWrap
+                    sx={{ fontSize: `12px` }}
+                  >
+                    {instance.userId ? instance.userId.slice(0, 8) : `-`}
+                  </Typography>
+                </Box>
+
+                {/* Started */}
+                <Box sx={{ display: `flex`, alignItems: `center` }}>
+                  <Typography sx={{ fontSize: `12px`, color: `text.secondary` }}>
+                    {instance.sessions?.[0]?.connectedAt
+                      ? formatTimestamp(instance.sessions[0].connectedAt)
+                      : `-`}
+                  </Typography>
+                </Box>
+
+                {/* Sessions */}
+                <Box sx={{ display: `flex`, alignItems: `center` }}>
+                  <Typography sx={{ fontSize: `13px`, fontWeight: 500 }}>
+                    {instance.sessions.length}
+                  </Typography>
+                </Box>
+
+                {/* Actions */}
+                <Box sx={{ display: `flex`, alignItems: `center` }}>
+                  <IconButton
+                    disabled
+                    size='small'
+                    title='Coming soon'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHoriz sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Box>
+              </RowList.Row>
             ))}
-          </Box>
+          </RowList>
         ) : (
-          <Box sx={{ textAlign: `center`, py: 4 }}>
+          <Box
+            sx={{
+              py: 6,
+              border: 1,
+              borderRadius: `8px`,
+              textAlign: `center`,
+              borderColor: `divider`,
+              bgcolor: `background.paper`,
+            }}
+          >
             <Typography
               color='text.secondary'
               sx={{ mb: 2 }}
@@ -336,29 +403,15 @@ const Sandbox = () => {
             </Typography>
             {canExecSandbox && (
               <Button
-                size='large'
+                size='small'
                 variant='contained'
-                startIcon={<PlayArrow />}
+                startIcon={<Add />}
                 onClick={onNewInstance}
                 disabled={!resolvedOrgId || !projectId}
               >
-                Start Session
+                Start Instance
               </Button>
             )}
-          </Box>
-        )}
-
-        {canExecSandbox && instances.length > 0 && (
-          <Box sx={{ display: `flex`, justifyContent: `center`, mt: 2 }}>
-            <Button
-              size='large'
-              variant='contained'
-              startIcon={<Add />}
-              onClick={onNewInstance}
-              disabled={!resolvedOrgId || !projectId || instances.length >= maxInstances}
-            >
-              New Instance
-            </Button>
           </Box>
         )}
       </Box>

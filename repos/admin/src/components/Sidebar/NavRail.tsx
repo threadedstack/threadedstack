@@ -67,9 +67,6 @@ const IconRailBox = styled(Box)(({ theme }) => ({
       visibility: `visible`,
     },
   },
-  [`& .tdsk-rail-item`]: {
-    paddingLeft: theme.gutter.rpx,
-  },
   [`& .tdsk-rail-item-text`]: {
     opacity: 0,
     visibility: `hidden`,

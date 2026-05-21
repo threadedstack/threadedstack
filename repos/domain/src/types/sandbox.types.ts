@@ -1,7 +1,8 @@
-import type { TGuiConfig } from './gui.types'
-import type { TSandboxSyncDefaults } from './sync.types'
+import type { TGuiConfig } from '@TDM/types/gui.types'
+import type { TAgentSkill } from '@TDM/types/skill.types'
+import type { TSandboxSyncDefaults } from '@TDM/types/sync.types'
 
-import { EAIProviderBrand } from './ai.types'
+import { EAIProviderBrand } from '@TDM/types/ai.types'
 
 /**
  * Subset of AI provider brands that have sandbox env var mappings, plus composite
@@ -47,6 +48,21 @@ export type TRuntimeProviderEnvMap = Record<
   TSandboxRuntimeId,
   Partial<Record<ERuntimeBrand, TRuntimeEnvVar[]>>
 >
+
+export type TRuntimeSkillConfig = {
+  basePath: string
+  fileLayout: `flat` | `nested`
+  fileName: string
+}
+
+export type TSandboxSkillLink = {
+  id: string
+  skillId: string
+  sandboxId: string
+  projectId?: string | null
+  priority: number
+  skill: TAgentSkill
+}
 
 /**
  * Sandbox provider types for modular sandbox integration
@@ -205,6 +221,8 @@ export type TKubeSandboxConfig = {
     limits?: { cpu?: string; memory?: string }
     requests?: { cpu?: string; memory?: string }
   }
+  /** Override the default skill installation path for this runtime */
+  skillPath?: string
   /** Sandbox-level generative UI config override (overrides org-level guiConfig when set) */
   guiConfig?: TGuiConfig
 }

@@ -17,13 +17,14 @@ import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   EProvider,
+  SandboxPresets,
   ESandboxRuntime,
   EImagePullPolicy,
-  SandboxPresets,
   SandboxRuntimeConfigs,
   RuntimeProviderEnvMap,
 } from '@tdsk/domain'
 import {
+  useSkills,
   useProjects,
   useProviders,
   useOrgSecrets,
@@ -164,6 +165,49 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
       .filter(Boolean) as Provider[]
   }, [providerIds, orgProviders])
 
+  // Skills
+  const [skillsMap] = useSkills()
+  const [skillIds, setSkillIds] = useState<string[]>([])
+  const [projectSkillIds, setProjectSkillIds] = useState<string[]>([])
+
+  const orgSkillsList = useMemo(() => Object.values(skillsMap || {}), [skillsMap])
+
+  const linkedOrgSkills = useMemo(() => {
+    return skillIds
+      .map((id) => orgSkillsList.find((s) => s.id === id))
+      .filter(Boolean)
+      .map((s) => ({
+        id: s!.id,
+        name: s!.name,
+        description: s!.description,
+        alwaysActive: s!.alwaysActive,
+      }))
+  }, [skillIds, orgSkillsList])
+
+  const linkedProjectSkills = useMemo(() => {
+    return projectSkillIds
+      .map((id) => orgSkillsList.find((s) => s.id === id))
+      .filter(Boolean)
+      .map((s) => ({
+        id: s!.id,
+        name: s!.name,
+        description: s!.description,
+        alwaysActive: s!.alwaysActive,
+      }))
+  }, [projectSkillIds, orgSkillsList])
+
+  const availableSkills = useMemo(() => {
+    const assigned = new Set([...skillIds, ...projectSkillIds])
+    return orgSkillsList
+      .filter((s) => !assigned.has(s.id))
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        alwaysActive: s.alwaysActive,
+      }))
+  }, [orgSkillsList, skillIds, projectSkillIds])
+
   // Generative UI config override
   const [guiOverride, setGuiOverride] = useState(false)
   const [sandboxGuiConfig, setSandboxGuiConfig] = useState<TGuiConfig | undefined>(
@@ -266,6 +310,8 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setCpuRequest(``)
     setMemoryLimit(``)
     setMemoryRequest(``)
+    setSkillIds([])
+    setProjectSkillIds([])
     setBaseSandboxId(null)
     setSelectedProjectIds([])
     setIdleTimeoutMinutes(30)
@@ -336,6 +382,22 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     if (projectId) {
       const pc = source.projectConfigs?.find((pc) => pc.projectId === projectId)
       setAlias(pc?.alias || ``)
+    }
+
+    const skillLinksData = (source as any).skillLinks || []
+    setSkillIds(
+      skillLinksData
+        .filter((l: any) => !l.projectId)
+        .map((l: any) => l.skillId || l.skill?.id)
+        .filter(Boolean)
+    )
+    if (projectId) {
+      setProjectSkillIds(
+        skillLinksData
+          .filter((l: any) => l.projectId === projectId)
+          .map((l: any) => l.skillId || l.skill?.id)
+          .filter(Boolean)
+      )
     }
 
     if (config.guiConfig) {
@@ -416,9 +478,15 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
       ? initScript
       : initScript || resolvedInitScript
 
+    const skillInputs = [
+      ...skillIds.map((id) => ({ id })),
+      ...(projectId ? projectSkillIds.map((id) => ({ id, projectId })) : []),
+    ]
+
     const sandboxData = {
       name: name.trim(),
       ...(!isProjectContext && { projectIds: selectedProjectIds }),
+      ...(skillInputs.length ? { skillInputs } : {}),
       providerInputs: [
         ...providerIds.map((id) => ({ id, model: providerModels[id] || null })),
         ...dockerProviderIds.map((id) => ({ id })),
@@ -573,6 +641,15 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     gitBranchOverrides,
     setGitBranchOverrides,
     availableGitProviders,
+
+    // Skills
+    skillIds,
+    setSkillIds,
+    linkedOrgSkills,
+    availableSkills,
+    projectSkillIds,
+    setProjectSkillIds,
+    linkedProjectSkills,
 
     // Generative UI
     guiOverride,

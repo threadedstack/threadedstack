@@ -20,6 +20,7 @@ import { DefSBConfig } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
+import { resolveSkillFiles } from '@TBE/utils/sandbox/resolveSkillFiles'
 import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
 import { resolveGitProviderEnv } from '@TBE/utils/sandbox/resolveGitProviderEnv'
 import { resolveDockerPullSecrets } from '@TBE/utils/sandbox/resolveDockerPullSecrets'
@@ -323,6 +324,45 @@ export class SandboxService {
       }
     }
 
+    // Resolve skills ConfigMap
+    let skillsConfigMapName: string | undefined
+    let skillsVolume: Parameters<typeof buildPodManifest>[0]['skillsVolume']
+
+    const { data: skillLinks, error: skillFetchErr } =
+      await this.db.services.sandbox.listSkillsForSandbox(sandboxId, projectId)
+
+    if (skillFetchErr) {
+      logger.error(
+        `[Sandbox] Failed to load skills for sandbox ${sandboxId}:`,
+        (skillFetchErr as Error).message
+      )
+      this.rollbackDockerSecrets(dockerSecretNames)
+      throw new Error(`Failed to load skill configuration for sandbox ${sandboxId}`)
+    }
+
+    if (skillLinks?.length && sandbox.config.runtime) {
+      const skillRes = resolveSkillFiles(
+        sandbox.config.runtime,
+        skillLinks,
+        sandbox.config.skillPath
+      )
+      if (skillRes) {
+        const slug = sanitizeLabel(sandboxId).slice(0, 8)
+        skillsConfigMapName = `tdsk-skills-${slug}-${nanoid(4)}`
+        try {
+          await this.kube.createConfigMap(skillsConfigMapName, skillRes.configMapData)
+        } catch (err) {
+          this.rollbackDockerSecrets(dockerSecretNames)
+          throw err
+        }
+        skillsVolume = {
+          configMapName: skillsConfigMapName,
+          mountPath: skillRes.mountPath,
+          files: skillRes.files,
+        }
+      }
+    }
+
     const manifest = buildPodManifest({
       orgId,
       userId,
@@ -331,6 +371,7 @@ export class SandboxService {
       projectId,
       egressOpts,
       placeholders,
+      skillsVolume,
       runtimeClassName: this.config.runtimeClassName,
       imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
@@ -339,12 +380,32 @@ export class SandboxService {
     try {
       pod = await this.kube.createPod(manifest)
     } catch (err) {
+      if (skillsConfigMapName) {
+        this.kube
+          .deleteConfigMap(skillsConfigMapName)
+          .catch((cmErr) =>
+            logger.error(
+              `[Sandbox] Rollback: failed to delete skills ConfigMap ${skillsConfigMapName}, resource may be leaked:`,
+              (cmErr as Error).message
+            )
+          )
+      }
       this.rollbackDockerSecrets(dockerSecretNames)
       throw err
     }
 
     const instanceId = pod.metadata?.name
     if (!instanceId) {
+      if (skillsConfigMapName) {
+        this.kube
+          .deleteConfigMap(skillsConfigMapName)
+          .catch((cmErr) =>
+            logger.error(
+              `[Sandbox] Rollback: failed to delete skills ConfigMap ${skillsConfigMapName}:`,
+              (cmErr as Error).message
+            )
+          )
+      }
       this.rollbackDockerSecrets(dockerSecretNames)
       throw new Error(`Pod created but metadata.name is missing for sandbox ${sandboxId}`)
     }
@@ -380,6 +441,32 @@ export class SandboxService {
         .catch((err) =>
           logger.error(
             `[Sandbox] ownerReference patch handler failed:`,
+            (err as Error).message
+          )
+        )
+    }
+
+    if (skillsConfigMapName && !podUid) {
+      logger.warn(
+        `[Sandbox] Pod ${instanceId} has no UID — ConfigMap ${skillsConfigMapName} ownerReference not set, may leak`
+      )
+    }
+
+    if (skillsConfigMapName && podUid) {
+      const ownerRef = [
+        {
+          kind: `Pod`,
+          uid: podUid,
+          name: instanceId,
+          apiVersion: `v1`,
+          blockOwnerDeletion: false,
+        },
+      ]
+      this.kube
+        .patchConfigMapOwnerReferences(skillsConfigMapName, ownerRef)
+        .catch((err) =>
+          logger.error(
+            `[Sandbox] Failed to set ownerReference on ConfigMap ${skillsConfigMapName}:`,
             (err as Error).message
           )
         )

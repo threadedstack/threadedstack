@@ -1,21 +1,14 @@
 import type { Sandbox } from '@tdsk/domain'
 
 import { useCallback } from 'react'
-import { dims } from '@tdsk/components'
+import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
 import { nav } from '@TTH/services/nav'
-import { styled } from '@mui/material/styles'
-import { StatusChip } from '@TTH/components/Project/StatusChip'
-import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material'
+import { MonoFont } from '@TTH/constants/values'
+import Typography from '@mui/material/Typography'
+import { Dataset, Public, Dns, Schedule } from '@mui/icons-material'
 import { useSandboxHasSession } from '@TTH/hooks/sandbox/useSandboxHasSession'
-
-const SandboxCardRoot = styled(Card)(({ theme }) => ({
-  borderRadius: dims.border.mdpx,
-  transition: `box-shadow 200ms ease, border-color 200ms ease`,
-  '&:hover': {
-    boxShadow: theme.shadows[3],
-    borderColor: theme.palette.primary.main,
-  },
-}))
+import { PillMono, StatusChip, ResourceCard } from '@TTH/components/PagePrimitives'
 
 export type TProjectSandboxCard = {
   sandbox: Sandbox
@@ -26,67 +19,124 @@ export type TProjectSandboxCard = {
 export const ProjectSandboxCard = (props: TProjectSandboxCard) => {
   const { sandbox, orgId, projectId } = props
   const running = useSandboxHasSession(sandbox.id)
-  const runtime = sandbox.config?.runtime || `custom`
+  const config = sandbox.config
+  const runtime = config?.runtime || `custom`
+  const status = running ? `running` : `stopped`
+
+  const cpu = config?.resources?.limits?.cpu || config?.resources?.requests?.cpu
+  const memory = config?.resources?.limits?.memory || config?.resources?.requests?.memory
+  const specs = cpu || memory ? `${cpu || `-`} / ${memory || `-`}` : undefined
 
   const handleClick = useCallback(() => {
     nav.sandbox(orgId, projectId, sandbox.id)
   }, [orgId, projectId, sandbox.id])
 
   return (
-    <SandboxCardRoot variant='outlined'>
-      <CardActionArea
-        onClick={handleClick}
+    <ResourceCard onClick={handleClick}>
+      {/* Row 1: Icon + Name + Built-in chip */}
+      <Box
         sx={{
-          p: 2,
-          gap: 1,
+          gap: `8px`,
+          width: `100%`,
           display: `flex`,
-          flexDirection: `column`,
-          alignItems: `flex-start`,
+          alignItems: `center`,
         }}
       >
-        <Box
+        <Dataset sx={{ fontSize: 18, color: `text.secondary` }} />
+        <Typography
+          noWrap
           sx={{
-            gap: 1,
-            width: `100%`,
-            display: `flex`,
-            alignItems: `center`,
+            flex: 1,
+            fontSize: `14px`,
+            fontWeight: 600,
+            fontFamily: MonoFont,
           }}
         >
-          <Typography
-            noWrap
-            variant='subtitle1'
-            sx={{ flex: 1, fontWeight: 500 }}
-          >
-            {sandbox.name}
-          </Typography>
-          {sandbox.builtIn && (
-            <Chip
-              size='small'
-              color='info'
-              label='Built-in'
-              variant='outlined'
-              sx={{ height: 20, fontSize: 10 }}
-            />
-          )}
-        </Box>
-        <Box
-          sx={{
-            gap: 1,
-            width: `100%`,
-            display: `flex`,
-            alignItems: `center`,
-          }}
-        >
+          {sandbox.name}
+        </Typography>
+        {sandbox.builtIn && (
           <Chip
             size='small'
-            label={runtime}
+            color='info'
+            label='Built-in'
             variant='outlined'
-            sx={{ height: 22, fontSize: 11 }}
+            sx={{ height: 20, fontSize: 10 }}
           />
-          <Box sx={{ flex: 1 }} />
-          <StatusChip running={running} />
+        )}
+      </Box>
+
+      {/* Row 2: Description (if available) */}
+      {config?.image && (
+        <Typography
+          noWrap
+          sx={{
+            fontSize: `12px`,
+            color: `text.secondary`,
+            maxWidth: `100%`,
+          }}
+          title={config.image}
+        >
+          {config.image}
+        </Typography>
+      )}
+
+      {/* Row 3: Specs grid */}
+      <Box
+        sx={{
+          display: `grid`,
+          gridTemplateColumns: `1fr 1fr`,
+          gap: `4px 12px`,
+          width: `100%`,
+        }}
+      >
+        {specs && (
+          <Box sx={{ display: `flex`, alignItems: `center`, gap: `4px` }}>
+            <Dns sx={{ fontSize: 12, color: `text.secondary` }} />
+            <Typography sx={{ fontSize: `11px`, color: `text.secondary` }}>
+              {specs}
+            </Typography>
+          </Box>
+        )}
+        <Box sx={{ display: `flex`, alignItems: `center`, gap: `4px` }}>
+          <Public sx={{ fontSize: 12, color: `text.secondary` }} />
+          <Typography sx={{ fontSize: `11px`, color: `text.secondary` }}>
+            {`default`}
+          </Typography>
         </Box>
-      </CardActionArea>
-    </SandboxCardRoot>
+        <Box sx={{ display: `flex`, alignItems: `center`, gap: `4px` }}>
+          <Dataset sx={{ fontSize: 12, color: `text.secondary` }} />
+          <Typography sx={{ fontSize: `11px`, color: `text.secondary` }}>
+            {config?.maxInstances ?? 1} max
+          </Typography>
+        </Box>
+        {config?.idleTimeoutMinutes != null && (
+          <Box sx={{ display: `flex`, alignItems: `center`, gap: `4px` }}>
+            <Schedule sx={{ fontSize: 12, color: `text.secondary` }} />
+            <Typography sx={{ fontSize: `11px`, color: `text.secondary` }}>
+              {config.idleTimeoutMinutes}m idle
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Row 4: Runtime + Status */}
+      <Box
+        sx={{
+          display: `flex`,
+          alignItems: `center`,
+          width: `100%`,
+          pt: `8px`,
+          borderTop: `1px solid`,
+          borderColor: `divider`,
+        }}
+      >
+        <PillMono>{runtime}</PillMono>
+        <Box sx={{ flex: 1 }} />
+        <StatusChip
+          status={status}
+          size='sm'
+        />
+      </Box>
+    </ResourceCard>
   )
 }

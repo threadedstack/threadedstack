@@ -8,6 +8,12 @@ export type TPodEgressOpts = {
   certSecretName: string
 }
 
+export type TSkillsVolumeOpts = {
+  mountPath: string
+  configMapName: string
+  files: Array<{ key: string; path: string }>
+}
+
 export type TBuildPodOpts = {
   orgId: string
   userId: string
@@ -18,6 +24,7 @@ export type TBuildPodOpts = {
   egressOpts: TPodEgressOpts
   imagePullSecrets?: string[]
   placeholders: TPlaceholderMap
+  skillsVolume?: TSkillsVolumeOpts
   extraEnv?: Record<string, string>
 }
 

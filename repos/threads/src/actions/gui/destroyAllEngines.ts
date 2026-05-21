@@ -20,9 +20,3 @@ export const destroyAllEngines = () => {
   setGuiFeeds(new Map())
   setGuiModes(new Map())
 }
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    destroyAllEngines()
-  })
-}

@@ -18,6 +18,7 @@ import type {
   ProviderIdPrefix,
   ScheduleIdPrefix,
   AgentSkillIdPrefix,
+  SandboxSkillIdPrefix,
   InvitationIdPrefix,
   SubscriptionIdPrefix,
   AgentProjectIdPrefix,
@@ -49,6 +50,7 @@ export type TEntityPrefix =
   | typeof ScheduleIdPrefix
   | typeof AgentSkillIdPrefix
   | typeof InvitationIdPrefix
+  | typeof SandboxSkillIdPrefix
   | typeof SubscriptionIdPrefix
   | typeof AgentProjectIdPrefix
   | typeof AgentProviderIdPrefix
