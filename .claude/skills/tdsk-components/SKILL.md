@@ -17,15 +17,15 @@ tags: ["react", "mui", "components", "hooks", "frontend", "shared-library"]
 ```
 repos/components/
 ├── src/
-│   ├── components/       # 37 React UI component directories
-│   ├── hooks/            # 39 custom hooks across 9 categories
+│   ├── components/       # 40 React UI component directories (incl. Avatar, Chip, NavRail)
+│   ├── hooks/            # 41 custom hooks across 10 categories (incl. analytics/)
 │   ├── contexts/         # CacheContext provider
 │   ├── hocs/             # TooltipHoc, OverlayScroll
 │   ├── services/         # storage, clipboard, cacheService, eventEmitter, overlayScrollBody
 │   ├── theme/            # colors, theme factory, helpers, dims, gutter
-│   ├── types/            # TypeScript type definitions (13 files)
-│   ├── utils/            # omit, date, inputs, helpers, customEvt, isValidFuncComp, overlayScrollOpts
-│   ├── constants/        # values, monaco, events, elements
+│   ├── types/            # TypeScript type definitions (17 files)
+│   ├── utils/            # omit, date, inputs, helpers, customEvt, isValidFuncComp, overlayScrollOpts, getAvatarColor, fetcher
+│   ├── constants/        # values, monaco, events, elements, auth
 │   └── index.ts          # Main export barrel
 ├── configs/              # biome.json, vitest.config.ts, aliases.ts
 ├── scripts/              # getEntries, setupTests, loadEnvs, addToProcess
@@ -54,7 +54,7 @@ Several items are NOT re-exported from their parent `index.ts` barrels and must 
 | **Dialogs** | Dialog, DialogActions, DraggableDialog |
 | **Drawer** | Drawer (right-anchored, header/title/close/content/actions), DrawerActions (save/create/cancel/delete) |
 | **Monaco** | Monaco, MonacoActions, LangSelect |
-| **Icons** | Icon + 27 named SVG icons (Anthropic, OpenAI, Ollama, ZAI, MCP, etc.) |
+| **Icons** | Icon + 28+ named SVG icons (Anthropic, OpenAI, Ollama, ZAI, MCP, Sandbox, Gitlab, etc.) |
 | **Layout** | Accordion (+Action/Actions/InfoAction), Card, Section (+Actions), Tabs, List (+Item), Menu (+Items/Multilevel/IconMenuItem/Back/Header/Context), Collapse, Resize |
 | **Selectors** | SelectorButton, SelectorMenu |
 | **Auth/Access** | FeatureGate, Login, Permissions |

@@ -1,7 +1,7 @@
 ---
 name: "tdsk-threads"
 description: "Knowledge base for the user-facing threads SPA — sandbox session management and interaction"
-tags: ["react", "vite", "mui", "jotai", "threads", "auth", "neon", "spa", "sandbox", "session", "websocket", "terminal", "ghostty", "ast", "gui-engine"]
+tags: ["react", "vite", "mui", "jotai", "threads", "auth", "neon", "spa", "sandbox", "session", "websocket", "terminal", "xterm", "ast", "gui-engine"]
 ---
 # Threads Repo Skill
 
@@ -13,7 +13,7 @@ The **Threads** repo (`repos/threads`, `@tdsk/threads`) is the user-facing SPA f
 - **Architecture**: Mirrors admin repo -- Jotai 3-layer state, ApiService + TanStack Query, Neon Auth, lazy-loaded routes, MUI 6 theming via shared `makeTheme()`
 - **Path Aliases**: `@TTH/*` prefix via `alias-hq`
 - **Features**: Dual GUI/terminal views, AST-based GUI engine, real-time WebSocket streaming, hierarchical org/project/sandbox/session navigation
-- **Terminal**: Ghostty-based emulator via `ghostty-web`
+- **Terminal**: xterm-based emulator via `@xterm/headless` Terminal (migrated from ghostty Wasm)
 
 ## Directory Structure
 
@@ -25,29 +25,32 @@ repos/threads/
 ├── src/
 │   ├── index.tsx           # Bootstrap: Jotai Provider -> AuthProvider -> App
 │   ├── App.tsx             # ThemeProvider -> GlobalStyles -> RouterProvider
-│   ├── actions/            # init, auth/, gui/, orgs/, projects/, sandboxes/, sessions/, sidebar/, terminal/, theme/, threads/
+│   ├── actions/            # init, auth/, editor/, gui/, orgs/, projects/, sandboxes/, sessions/, sidebar/, terminal/, theme/, threads/
 │   ├── components/
 │   │   ├── ActivityFeed/   # ActionCard, ActivityFeed, IdleMarker, OutputCard, PromptCard, TUICard, UserInputCard
 │   │   ├── ASTNodes/       # 15 node components (NodeActionTarget, NodeConfirm, NodeDiffBlock, NodeGroup, NodeLink, NodePanel, NodeSelectItem, NodeSelectList, NodeSeparator, NodeSpan, NodeStatusBar, NodeTable, NodeTableRow, NodeTextInput, NodeTextLine)
-│   │   ├── Breadcrumbs/    # Breadcrumbs, OrgSelector, ProjectSelector
+│   │   ├── Breadcrumbs/    # Breadcrumbs, OrgSelector, ProjectSelector, InstanceCrumb, SandboxCrumb, SessionCrumb
 │   │   ├── ChatView/       # GenerativeUIRenderer + registry/ (GuiSelect, GuiConfirm, GuiTextInput, GuiAlert, GuiProgressBar)
+│   │   ├── ConfigRow/      # ConfigRow (settings row layout)
+│   │   ├── Editor/         # EditorPane, EditorStatusBar, EditorTabs, mockContent
+│   │   ├── FileTree/       # FileTree, FileTreeItem, FileTree.styles, mockFiles
 │   │   ├── Orgs/           # OrgCardItem, Orgs, EmptyState
-│   │   ├── OrgSelector/    # OrgSelector
+│   │   ├── PagePrimitives/ # PageHeader, PillMono, ResourceCard, RowList, SectionHeader, StatStrip, StatusChip
 │   │   ├── Project/        # ProjectSandboxCard, GitInfo, StatusChip, NotFound, EmptyState
 │   │   ├── Session/        # SessionCommands
 │   │   ├── SessionGUIView/ # SessionGUIView (top-level AST engine output renderer)
-│   │   ├── SessionTabs/    # SessionTabs + OpenSessionStrip
-│   │   ├── Sidebar/        # Sidebar, DesktopSidebar, MobileSidebar, NavTree, NavProjectItem, NavSandboxItem, NavSessionItem, NavThreadItem, SBLogo
+│   │   ├── SessionLayout/  # ContextPanel, SessionHeader, SessionLayout, TerminalPane
+│   │   ├── Sidebar/        # Sidebar, SidebarHeader, SidebarFooter, SidebarTree, MobileSidebar, NavTree, NavProjectItem, NavSandboxItem, NavSessionItem, NavInstanceItem
 │   │   ├── SmartInput/     # Context-aware input
 │   │   ├── Terminal/       # TerminalView, TerminalCursorSettings, TerminalFontSettings, TerminalQuickSettings, TerminalScrollSettings, TerminalSettingsCard, TerminalTabPanels, TerminalThemeSettings
 │   │   ├── Version/        # Version display
 │   │   └── ViewToggle/     # ViewToggle (GUI/Terminal toggle)
-│   ├── constants/          # envs, monaco, nav, query, sessions, storage, terminal, tokenizer, values
+│   ├── constants/          # envs, monaco, nav.tsx, options, query, sessions.tsx, storage, terminal, tokenizer, values
 │   ├── contexts/           # AuthContext, AuthProvider, InteractionContext, SessionContext, SessionProvider
 │   ├── hooks/              # activity/ (useActivityFeed), permissions/ (usePermissions), sandbox/ (useSandboxHasSession, useSandboxMode, useSandboxSessions), session/ (useSessionEngine, useSessionMode), theme/ (useMakeTheme, useTheme)
-│   ├── pages/              # CliAuth, Home, Layout, Login, Orgs, Page, Project, Projects, Sandbox, Session, Settings
+│   ├── pages/              # CliAuth, Home, Instance, Layout, Login, Orgs, Page, Project, Projects, Sandbox, Session, Settings
 │   ├── routes/             # Routes.tsx, loaders.ts (rootLoader, orgScopeLoader, projectScopeLoader, sandboxLoader)
-│   ├── services/           # api, auth, gui/ (ast/, engine/, parser/, tokenizer/, visitors/), nav, orgsApi, projectsApi, query, sandboxApi, storage, threadsApi, tokenRefresh
+│   ├── services/           # api, auth, gui/ (ast/, engine/, parser/, tokenizer/, visitors/), monitorService, nav, orgsApi, projectsApi, query, sandboxApi, sessionService, storage, threadsApi, tokenRefresh
 │   ├── state/              # atoms (app, gui, sessions, terminal, theme, user), accessors, selectors
 │   ├── theme/              # GlobalStyles
 │   ├── types/              # api, ast, contexts, engine, parser, query, routes, sandbox, sessions, terminal, theme, tokenizer
@@ -134,7 +137,7 @@ Module-scoped state (not Jotai): `connections` (Map of WebSocket instances), `ra
 
 The threads app uses an AST-based pipeline to render structured terminal output as interactive GUI components:
 
-**Pipeline**: Raw terminal data -> **Tokenizer** (classify, decode, palette, runs, blocks, borders) -> **Parser** (flatParser, modeDetector, scopeParser) -> **AST** (node tree) -> **Engine** (SessionEngine, wasmBridge) -> **Visitors** (accessibilityVisitor, feedVisitor, interactionVisitor, renderVisitor)
+**Pipeline**: Raw terminal data -> **Tokenizer** (classify, decode, palette, runs, blocks, borders) -> **Parser** (flatParser, modeDetector, scopeParser) -> **AST** (node tree) -> **Engine** (SessionEngine, xtermBridge) -> **Visitors** (accessibilityVisitor, feedVisitor, interactionVisitor, renderVisitor)
 
 ### Tokenizer (`services/gui/tokenizer/`)
 
@@ -165,8 +168,8 @@ Creates typed AST node tree from parsed output. Node types include: `Document`, 
 
 Per-session engine managing the full pipeline:
 
-- `SessionEngine` -- class that owns a WASM-backed virtual terminal (`wasmBridge`), processes incoming data through tokenize -> parse -> diff, emits AST documents and feed events via callbacks. Uses `requestAnimationFrame` for batched processing with idle-check interval for mode transitions.
-- `wasmBridge` -- creates browser-side ghostty virtual terminal (`TBrowserVTerminal`) for VT parsing without a visible terminal element. Provides `write`, `resize`, `getDirtyRows`, `getCursor`, `getViewport`, `isAlternateScreen`, `markClean`, `free`.
+- `SessionEngine` -- class that owns a WASM-backed virtual terminal (`xtermBridge`), processes incoming data through tokenize -> parse -> diff, emits AST documents and feed events via callbacks. Uses `requestAnimationFrame` for batched processing with idle-check interval for mode transitions.
+- `xtermBridge` -- creates browser-side ghostty virtual terminal (`TBrowserVTerminal`) for VT parsing without a visible terminal element. Provides `write`, `resize`, `getDirtyRows`, `getCursor`, `getViewport`, `isAlternateScreen`, `markClean`, `free`.
 
 ### Visitors (`services/gui/visitors/`)
 

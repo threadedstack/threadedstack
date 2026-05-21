@@ -11,7 +11,7 @@ The **Agent** repo (`repos/agent`, `@tdsk/agent`) is a headless AI agent orchest
 
 - **Instance-based `AgentRunner`** with `init()` / `runTurn()` / `updateConfig()` / `destroy()` lifecycle, plus static `AgentRunner.run()` for one-shot SSE use
 - **Wraps pi-mono** (`@mariozechner/pi-agent-core` Agent class) for multi-turn ReAct loops with streaming, automatic context management (prune/compact), and transient error retries
-- **12 tools**: 9 sandbox tools (fs, shell, code, artifact) + 2 web tools (search, fetch via Jina) + custom function tools from `FunctionModel[]`
+- **11 runtime tools** (defined in `tools/tools.ts`): 9 sandbox tools (fs, shell, code, artifact) + 2 web tools (search, fetch via Jina), plus variable custom function tools from `FunctionModel[]`. Note: `tools/definitions/` is legacy/unused
 - **Supports all pi-mono LLM providers** (Anthropic, OpenAI, Google, etc.) via `getModel()`, extended thinking via `thinkingLevel`, and custom message roles (artifact, notification, systemEvent) filtered before LLM calls
 - **Pluggable persistence** via `IAgentRunnerDB` interface -- backend uses direct DB, TSA delegates to backend API
 

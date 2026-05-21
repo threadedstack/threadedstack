@@ -37,6 +37,8 @@ repos/tsa/
 │   │   ├── paths.ts       # ConfigDir, ConfigPath, HistoryDir, ProjectDir, etc.
 │   │   ├── sync.ts        # MutagenNpmVersion, SSH paths, PrivateKeyPath, ProxyWrapperPath
 │   │   ├── values.ts      # ApiKeyPrefix, defaults, ConnectionColors, ToolDisplayNames, SpinnerFrames, PreAuthCommands
+│   │   ├── options.ts      # SandboxOptions, InstanceOptions task option definitions
+│   │   ├── shell.ts        # Shell connection constants
 │   │   └── version.ts     # Build-time version injection
 │   ├── types/             # Types for client, commands, config, context, session, tasks, theme, tools
 │   ├── tasks/             # 12 CLI task definitions
@@ -116,7 +118,7 @@ Invoked from terminal. Use `@keg-hub/args-parse` for argument parsing. Task acti
 | `sandboxSync.ts` | Auto-start/stop Mutagen file sync lifecycle |
 | `spawnSsh.ts` | SSH process spawning with optional remote command + PTY support |
 | `saveContext.ts` | Save resolved orgId/projectId back to config |
-| `requireAuth.ts` | Ensures auth before running a task action |
+| `ensureAuth.ts` | Ensures auth before running a task action |
 | `addDefaults.ts` | Merge config defaults into task option definitions |
 | `config.ts` | Load and merge global + project config |
 | `find.ts` | Find task by name or alias in registry |
@@ -164,6 +166,8 @@ The `TSlashCommandContext` provides: orgId, agentId, threadId, projectId, connec
 | **AuthManager** | `services/auth.ts` | Persistent login — API key + proxy URL stored via ConfigService. Default proxy: `https://px.local.threadedstack.app`. Validates key against `/_/orgs`. Requires `tdsk_` prefix |
 | **ApiClient** | `services/api.ts` | Extends `ApiService` from `@tdsk/domain` — auto retry (3 attempts, delays [1000, 3000, 9000]ms on ECONNREFUSED, ETIMEDOUT, ENOTFOUND, 429, 5xx), auth injection via `#ensureAuth()`. Returns `TApiResponse<T>` (`{ ok, status, data?, error? }`) |
 | **Executor** | `services/executor.ts` | WebSocket agent execution — session caching (55-min TTL, server expires at 60), creates threads if none exists, prepends context as `<context>` XML blocks, connects to `/ai/ws?token=<sessionToken>` |
+| **BrowserAuth** | `services/browserAuth.ts` | Browser-based auth flow for `tsa login --browser` |
+| **TokenRefresh** | `services/tokenRefresh.ts` | `TokenRefreshService` class for proactive JWT refresh |
 | **ConfigService** | `services/config.ts` | YAML config management — `loadGlobal()`, `saveGlobal()` (chmod 0600, mkdir 0700), `loadProject()`, `merge()` |
 | **ContextLoader** | `services/context.ts` | Auto-detects `AGENTS.md` + `.tdsk/context/` files. Returns `TContextFile` (path, name, source: auto/manual, content, sizeBytes) |
 | **HooksService** | `services/hooks.ts` | Lifecycle shell commands via `/bin/sh -c`. 10s timeout, errors swallowed. Hooks: onSessionStart/End, onToolCall/Result, onError, onMessage |
@@ -312,7 +316,7 @@ All API requests route through proxy at configured URL (default: `https://px.loc
 
 ## Adding New Tasks/Commands
 
-- **CLI task**: Create `src/tasks/<name>.ts`, add to `src/tasks/index.ts`. Use `requireAuth()` wrapper if auth needed. Use `resolveOrgId()`/`resolveProjectId()` for org/project resolution.
+- **CLI task**: Create `src/tasks/<name>.ts`, add to `src/tasks/index.ts`. Use `ensureAuth()` wrapper if auth needed. Use `resolveOrgId()`/`resolveProjectId()` for org/project resolution.
 - **Slash command**: Create `src/commands/<name>.ts`, add to `registeredCommands[]` in `src/commands/registry.ts`. Add to `PreAuthCommands` in `src/constants/values.ts` if needed before auth.
 - **Renderer component**: Implement pi-tui `Component` interface with `render(width): string[]` and `invalidate()`. Wire to ChatLogic via callbacks.
 - **Sync feature**: Add to `src/services/sync/`. Use `CliDriver` for Mutagen operations, `SyncManager` for lifecycle.

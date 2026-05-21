@@ -107,5 +107,5 @@ Five config sections: `server` (port, SSL, origins, certs), `backend` (url, admi
 ```bash
 pnpm start    # Dev with watch
 pnpm build    # Production build
-pnpm test     # Vitest tests (154 tests, 14 files)
+pnpm test     # Vitest tests (13 test files)
 ```

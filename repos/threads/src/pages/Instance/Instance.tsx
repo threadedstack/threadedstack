@@ -10,12 +10,23 @@ import { openSession } from '@TTH/actions/sessions'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { CommandConfig } from '@TTH/constants/sessions'
+import { MonoFont } from '@TTH/constants/values'
+import { formatTimestamp, formatRelativeDate } from '@TTH/utils/formatDate'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
+import {
+  Add,
+  Memory,
+  Terminal,
+  MoreHoriz,
+  PlayCircle,
+  StopCircle,
+  RestartAlt,
+  DeleteOutline,
+} from '@mui/icons-material'
 import {
   useUser,
   useOrgId,
@@ -23,27 +34,45 @@ import {
   useOpenSessions,
   useBackendSessions,
 } from '@TTH/state/selectors'
+import Box from '@mui/material/Box'
+import List from '@mui/material/List'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import { Avatar as TdskAvatar, Chip as TdskChip } from '@tdsk/components'
+import ListItem from '@mui/material/ListItem'
+import Typography from '@mui/material/Typography'
+import IconButton from '@mui/material/IconButton'
+import DialogTitle from '@mui/material/DialogTitle'
+import ListItemText from '@mui/material/ListItemText'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import CircularProgress from '@mui/material/CircularProgress'
+import DialogContentText from '@mui/material/DialogContentText'
 import {
-  Box,
-  Chip,
-  Card,
-  List,
-  Button,
-  Dialog,
-  ListItem,
-  Typography,
-  IconButton,
-  DialogTitle,
-  ListItemText,
-  DialogContent,
-  DialogActions,
-  CardActionArea,
-  CircularProgress,
-  DialogContentText,
-} from '@mui/material'
+  PageHeader,
+  StatStrip,
+  SectionHeader,
+  StatusChip,
+  RowList,
+} from '@TTH/components/PagePrimitives'
 
-import type { TCommand } from '@TTH/types'
+import type { TCommand, TSandboxStatus } from '@TTH/types'
 import type { TSandboxSession } from '@tdsk/domain'
+
+const ValidStatuses = new Set<string>([
+  `running`,
+  `active`,
+  `pending`,
+  `building`,
+  `stopped`,
+  `idle`,
+  `closed`,
+  `failed`,
+])
+const toSandboxStatus = (state: string): TSandboxStatus =>
+  ValidStatuses.has(state.toLowerCase())
+    ? (state.toLowerCase() as TSandboxStatus)
+    : `stopped`
 
 type TInstanceParams = {
   orgId: string
@@ -51,6 +80,32 @@ type TInstanceParams = {
   sandboxId: string
   instanceId: string
 }
+
+const formatUptime = (date?: string | Date): string => {
+  if (!date) return `-`
+  const d = typeof date === `string` ? new Date(date) : date
+  if (Number.isNaN(d.getTime())) return `-`
+  const diffMs = Date.now() - d.getTime()
+  const totalMin = Math.floor(diffMs / 60_000)
+  if (totalMin < 1) return `< 1m`
+  if (totalMin < 60) return `${totalMin}m`
+  const hrs = Math.floor(totalMin / 60)
+  const mins = totalMin % 60
+  if (hrs < 24) return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
+  const days = Math.floor(hrs / 24)
+  const remHrs = hrs % 24
+  return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`
+}
+
+const SessionColumns = [
+  { label: `Session`, width: `1.7fr` },
+  { label: `Status`, width: `90px` },
+  { label: `Shell`, width: `100px` },
+  { label: `User`, width: `110px` },
+  { label: `Started`, width: `110px` },
+  { label: `Last input`, width: `130px` },
+  { label: ``, width: `32px` },
+]
 
 const Instance = () => {
   const [user] = useUser()
@@ -103,6 +158,14 @@ const Instance = () => {
     [instanceSessions, user?.id]
   )
 
+  const allVisibleSessions = useMemo(
+    () => [...mySessions, ...sharedSessions],
+    [mySessions, sharedSessions]
+  )
+
+  const isOwner = instance?.userId === user?.id
+  const isRunning = instance?.state === `Running`
+
   const fetchInstance = useCallback(() => {
     if (!sandboxId || !resolvedOrgId || !projectId) return
     setLoadingInstance(true)
@@ -154,6 +217,10 @@ const Instance = () => {
           nav.session(resolvedOrgId, projectId, newSessionId, {
             state: { sandboxId, projectId },
           })
+        else
+          toast.error(`Failed to start session`, {
+            description: `No session was created. Try again or check instance status.`,
+          })
       } catch (err) {
         console.error(`[Instance] connect failed:`, err)
         toast.error(`Failed to connect`, {
@@ -202,10 +269,18 @@ const Instance = () => {
           projectId,
           instanceId,
         })
-        if (result.opened < result.total) {
+        if (result.opened === 0) {
+          toast.warning(`Restart completed`, {
+            description: `No sessions were reopened`,
+          })
+        } else if (result.opened < result.total) {
           toast.warning(
             `Partial restart: ${result.opened} of ${result.total} sessions reopened`
           )
+        } else {
+          toast.success(`Restarted`, {
+            description: `${result.opened} session(s) reopened`,
+          })
         }
       } else if (action === `recreate`) {
         await recreateSandbox({ sandboxId, orgId: resolvedOrgId, projectId, instanceId })
@@ -244,13 +319,6 @@ const Instance = () => {
     }
   }, [sandboxId, resolvedOrgId, projectId, instanceId])
 
-  const onBack = () => {
-    if (resolvedOrgId && projectId && sandboxId)
-      nav.sandbox(resolvedOrgId, projectId, sandboxId)
-    else if (resolvedOrgId) nav.projects(resolvedOrgId)
-    else nav.orgs()
-  }
-
   if (!sandboxId || !instanceId) {
     return (
       <Page className='tdsk-instance-page'>
@@ -275,174 +343,375 @@ const Instance = () => {
     )
 
   const config = confirmAction ? CommandConfig[confirmAction] : null
+  const sbConfig = sandbox?.config
+  const cpu =
+    sbConfig?.resources?.limits?.cpu || sbConfig?.resources?.requests?.cpu || `-`
+  const mem =
+    sbConfig?.resources?.limits?.memory || sbConfig?.resources?.requests?.memory || `-`
+  const specs = `${cpu} x ${mem}`
+
+  const instanceName = instance ? instanceId.slice(-12) : instanceId?.slice(-12) || `-`
+
+  const eyebrowText = sandbox?.name ? `${sandbox.name} · Instance` : `Instance`
 
   return (
     <Page className='tdsk-instance-page'>
-      <Box sx={{ maxWidth: 700, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
-        <Box sx={{ display: `flex`, alignItems: `center`, gap: 1, mb: 3 }}>
-          <IconButton
-            size='small'
-            onClick={onBack}
-          >
-            <ArrowBack />
-          </IconButton>
-          <Typography
-            variant='h5'
-            sx={{ flex: 1 }}
-          >
-            {sandbox?.name || sandboxId}
-          </Typography>
-          {instance && (
-            <Chip
-              size='small'
-              color={instance.state === `Running` ? `success` : `warning`}
-              label={instance.state}
-            />
-          )}
-          <Typography
-            variant='caption'
-            color='text.secondary'
-          >
-            {instanceId.slice(-8)}
-          </Typography>
-        </Box>
-
+      <Box sx={{ maxWidth: 960, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
         {loadingInstance ? (
           <Loading
             message='Loading instance...'
             messageSx={{ color: `text.primary` }}
           />
         ) : !instance ? (
-          <Typography
-            color='text.secondary'
-            sx={{ textAlign: `center`, py: 4 }}
-          >
-            Instance not found or has been stopped.
-          </Typography>
+          <>
+            <PageHeader
+              eyebrow={eyebrowText}
+              eyebrowIcon={<Memory />}
+              title={instanceName}
+              titleMono
+              statusChip={<StatusChip status='stopped' />}
+            />
+            <Typography
+              color='text.secondary'
+              sx={{ textAlign: `center`, py: 4 }}
+            >
+              Instance not found or has been stopped.
+            </Typography>
+          </>
         ) : (
           <>
-            {canExecSandbox && (
-              <Box sx={{ display: `flex`, gap: 0.5, mb: 3 }}>
-                {(Object.keys(CommandConfig) as TCommand[]).map((cmd) => {
-                  const cfg = CommandConfig[cmd]
-                  return (
-                    <Button
-                      key={cmd}
-                      size='small'
-                      color={cfg.color}
-                      variant='outlined'
-                      disabled={executing !== null}
-                      onClick={() => setConfirmAction(cmd)}
-                      sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
-                      startIcon={
-                        executing === cmd ? <CircularProgress size={14} /> : cfg.icon
-                      }
-                    >
-                      {cfg.label}
-                    </Button>
-                  )
-                })}
-              </Box>
-            )}
-
-            <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
-              {mySessions.map((s) => {
-                const isOpen = openSessions.has(s.sessionId)
-                return (
-                  <Card
-                    key={s.sessionId}
-                    variant='outlined'
-                  >
-                    <CardActionArea
-                      onClick={() =>
-                        isOpen
-                          ? nav.session(resolvedOrgId, projectId, s.sessionId, {
-                              state: { sandboxId, projectId },
-                            })
-                          : canExecSandbox
-                            ? onStart(s.sessionId)
-                            : undefined
-                      }
-                      disabled={!isOpen && !canExecSandbox}
-                      sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
-                    >
-                      <Box>
-                        <Typography variant='body2'>
-                          Session {s.sessionId.slice(0, 8)}
-                        </Typography>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
+            <PageHeader
+              eyebrow={eyebrowText}
+              eyebrowIcon={<Memory />}
+              title={instanceName}
+              titleMono
+              statusChip={<StatusChip status={toSandboxStatus(instance.state)} />}
+              actions={
+                canExecSandbox ? (
+                  <>
+                    {isOwner && (
+                      <>
+                        {isRunning ? (
+                          <Button
+                            size='small'
+                            variant='outlined'
+                            disabled={executing !== null}
+                            onClick={() => setConfirmAction(`stop`)}
+                            startIcon={
+                              executing === `stop` ? (
+                                <CircularProgress size={14} />
+                              ) : (
+                                <StopCircle />
+                              )
+                            }
+                            sx={{ textTransform: `none` }}
+                          >
+                            Stop
+                          </Button>
+                        ) : (
+                          <Button
+                            size='small'
+                            variant='outlined'
+                            disabled={executing !== null}
+                            onClick={() => onStart(null)}
+                            startIcon={<PlayCircle />}
+                            sx={{ textTransform: `none` }}
+                          >
+                            Start
+                          </Button>
+                        )}
+                        <Button
+                          size='small'
+                          variant='outlined'
+                          disabled={executing !== null}
+                          onClick={() => setConfirmAction(`restart`)}
+                          startIcon={
+                            executing === `restart` ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              <RestartAlt />
+                            )
+                          }
+                          sx={{ textTransform: `none` }}
                         >
-                          Connected {new Date(s.connectedAt).toLocaleTimeString()}
-                        </Typography>
-                      </Box>
+                          Restart
+                        </Button>
+                      </>
+                    )}
+                    {isRunning && (
                       <Button
                         size='small'
-                        component='span'
-                        variant='outlined'
-                        disabled={!isOpen && !canExecSandbox}
-                        color={isOpen ? `primary` : `inherit`}
-                        startIcon={isOpen ? <Login /> : <PlayArrow />}
+                        variant='contained'
+                        startIcon={<Add />}
+                        onClick={() => onStart(null)}
+                        sx={{ textTransform: `none` }}
                       >
-                        {isOpen ? `Open` : `Reconnect`}
+                        New session
                       </Button>
-                    </CardActionArea>
-                  </Card>
-                )
-              })}
-              {sharedSessions.map((s) => (
-                <Card
-                  key={s.sessionId}
-                  variant='outlined'
-                >
-                  <CardActionArea
-                    onClick={() => (canExecSandbox ? onStart(s.sessionId) : undefined)}
-                    disabled={!canExecSandbox}
-                    sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
-                  >
-                    <Box>
-                      <Typography variant='body2'>
-                        Session {s.sessionId.slice(0, 8)}
-                      </Typography>
-                      <Typography
-                        variant='caption'
-                        color='text.secondary'
+                    )}
+                    {isOwner && (
+                      <Button
+                        size='small'
+                        variant='outlined'
+                        color='error'
+                        disabled={executing !== null}
+                        onClick={() => setConfirmAction(`recreate`)}
+                        startIcon={
+                          executing === `recreate` ? (
+                            <CircularProgress size={14} />
+                          ) : (
+                            <DeleteOutline />
+                          )
+                        }
+                        sx={{ textTransform: `none` }}
                       >
-                        Owner: {s.userId?.slice(0, 8)} &middot;{` `}
-                        {new Date(s.connectedAt).toLocaleTimeString()}
-                      </Typography>
-                    </Box>
-                    <Button
-                      size='small'
-                      component='span'
-                      variant='outlined'
-                      startIcon={<Login />}
-                      disabled={!canExecSandbox}
-                    >
-                      Join
-                    </Button>
-                  </CardActionArea>
-                </Card>
-              ))}
-            </Box>
+                        Delete
+                      </Button>
+                    )}
+                  </>
+                ) : isRunning ? (
+                  <Button
+                    size='small'
+                    variant='contained'
+                    startIcon={<Add />}
+                    onClick={() => onStart(null)}
+                    sx={{ textTransform: `none` }}
+                  >
+                    New session
+                  </Button>
+                ) : undefined
+              }
+            />
 
-            {canExecSandbox && instance.state === `Running` && (
-              <Box sx={{ display: `flex`, justifyContent: `flex-start`, mt: 2 }}>
-                <Button
-                  size='small'
-                  variant='text'
-                  startIcon={<Add />}
-                  onClick={() => onStart(null)}
+            <StatStrip
+              cells={[
+                {
+                  label: `Status`,
+                  value: (
+                    <StatusChip
+                      status={toSandboxStatus(instance.state)}
+                      size='sm'
+                    />
+                  ),
+                },
+                { label: `Spec`, value: specs, sans: true },
+                {
+                  label: `IP`,
+                  value: `-`,
+                  sans: true,
+                },
+                { label: `Region`, value: `default`, sans: true },
+                {
+                  label: `Started`,
+                  value:
+                    instance.sessions.length > 0
+                      ? formatTimestamp(instance.sessions[0]?.connectedAt)
+                      : `-`,
+                  sans: true,
+                },
+                {
+                  label: `Uptime`,
+                  value:
+                    instance.sessions.length > 0
+                      ? formatUptime(instance.sessions[0]?.connectedAt)
+                      : `-`,
+                  sans: true,
+                },
+              ]}
+            />
+
+            <SectionHeader
+              title='Sessions'
+              count={allVisibleSessions.length}
+              actions={
+                canExecSandbox && isRunning ? (
+                  <Button
+                    size='small'
+                    variant='outlined'
+                    startIcon={<Add />}
+                    onClick={() => onStart(null)}
+                  >
+                    New session
+                  </Button>
+                ) : undefined
+              }
+            />
+
+            {allVisibleSessions.length > 0 ? (
+              <RowList columns={SessionColumns}>
+                {allVisibleSessions.map((s, idx) => {
+                  const isMine = s.userId === user?.id
+                  const isOpen = openSessions.has(s.sessionId)
+                  const sessionStatus = isOpen ? `active` : `closed`
+
+                  return (
+                    <RowList.Row
+                      key={s.sessionId}
+                      isLast={idx === allVisibleSessions.length - 1}
+                      onClick={() => {
+                        if (isOpen) {
+                          nav.session(resolvedOrgId, projectId, s.sessionId, {
+                            state: { sandboxId, projectId },
+                          })
+                        } else if (canExecSandbox) {
+                          onStart(s.sessionId)
+                        }
+                      }}
+                    >
+                      {/* Session */}
+                      <Box sx={{ display: `flex`, alignItems: `center`, gap: `10px` }}>
+                        <Terminal sx={{ fontSize: 18, color: `text.secondary` }} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Box
+                            sx={{
+                              display: `flex`,
+                              alignItems: `center`,
+                              gap: `6px`,
+                            }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: `13px`,
+                                fontWeight: 600,
+                                overflow: `hidden`,
+                                textOverflow: `ellipsis`,
+                                whiteSpace: `nowrap`,
+                              }}
+                            >
+                              Session {s.sessionId.slice(0, 8)}
+                            </Typography>
+                            {isMine && (
+                              <TdskChip
+                                label='You'
+                                variant='tint'
+                                tone='primary'
+                                size='sm'
+                              />
+                            )}
+                          </Box>
+                          <Typography
+                            sx={{
+                              fontSize: `10px`,
+                              color: `text.secondary`,
+                              fontFamily: MonoFont,
+                              overflow: `hidden`,
+                              textOverflow: `ellipsis`,
+                              whiteSpace: `nowrap`,
+                            }}
+                          >
+                            {s.sessionId}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Status */}
+                      <Box sx={{ display: `flex`, alignItems: `center` }}>
+                        <StatusChip
+                          status={sessionStatus}
+                          size='sm'
+                        />
+                      </Box>
+
+                      {/* Shell */}
+                      <Box sx={{ display: `flex`, alignItems: `center` }}>
+                        <Typography
+                          sx={{
+                            fontSize: `12px`,
+                            fontFamily: MonoFont,
+                            color: `text.secondary`,
+                          }}
+                        >
+                          {s.hasShellSession ? `zsh` : `-`}
+                        </Typography>
+                      </Box>
+
+                      {/* User */}
+                      <Box
+                        sx={{
+                          display: `flex`,
+                          alignItems: `center`,
+                          gap: `6px`,
+                        }}
+                      >
+                        <TdskAvatar
+                          name={isMine ? `Me` : s.userId || `?`}
+                          size='sm'
+                        />
+                        <Typography
+                          sx={{
+                            fontSize: `12px`,
+                            overflow: `hidden`,
+                            textOverflow: `ellipsis`,
+                            whiteSpace: `nowrap`,
+                          }}
+                        >
+                          {isMine ? `You` : s.userId?.slice(0, 8) || `Unknown`}
+                        </Typography>
+                      </Box>
+
+                      {/* Started */}
+                      <Box sx={{ display: `flex`, alignItems: `center` }}>
+                        <Typography sx={{ fontSize: `12px`, color: `text.secondary` }}>
+                          {formatTimestamp(s.connectedAt)}
+                        </Typography>
+                      </Box>
+
+                      {/* Last input */}
+                      <Box sx={{ display: `flex`, alignItems: `center` }}>
+                        <Typography sx={{ fontSize: `12px`, color: `text.secondary` }}>
+                          {formatRelativeDate(s.connectedAt)}
+                        </Typography>
+                      </Box>
+
+                      {/* Actions */}
+                      <Box sx={{ display: `flex`, alignItems: `center` }}>
+                        <IconButton
+                          disabled
+                          size='small'
+                          title='Coming soon'
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHoriz sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Box>
+                    </RowList.Row>
+                  )
+                })}
+              </RowList>
+            ) : (
+              <Box
+                sx={{
+                  textAlign: `center`,
+                  py: 6,
+                  bgcolor: `background.paper`,
+                  border: 1,
+                  borderColor: `divider`,
+                  borderRadius: `8px`,
+                }}
+              >
+                <Typography
+                  color='text.secondary'
+                  sx={{ mb: 2 }}
                 >
-                  New Session
-                </Button>
+                  No sessions
+                </Typography>
+                {canExecSandbox && isRunning && (
+                  <Button
+                    size='small'
+                    variant='contained'
+                    startIcon={<Add />}
+                    onClick={() => onStart(null)}
+                  >
+                    Start a session
+                  </Button>
+                )}
               </Box>
             )}
           </>
         )}
       </Box>
 
+      {/* Confirmation dialog for stop/restart/recreate */}
       <Dialog
         open={confirmAction !== null}
         onClose={() => setConfirmAction(null)}
@@ -464,6 +733,7 @@ const Instance = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Force stop dialog when active sessions exist */}
       <Dialog
         open={forceStopSessions !== null}
         onClose={() => setForceStopSessions(null)}

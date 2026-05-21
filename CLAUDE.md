@@ -108,7 +108,7 @@ The platform solves three key problems:
 1. **Fragmented stacks** - Replaces stitching together Vercel + Lambda + LangChain + Vault
 2. **Security gaps** - Secrets are injected server-side; AI never sees API keys
 3. **Context management** - Built-in RAG and memory management for LLM applications
-4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Stripe with usage quota tracking for 12 resource types
+4. **Billing & Quotas** - Tiered subscription plans (free/solo/pro/team) via Stripe with usage quota tracking for 12 resource types
 
 **Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature.
 
@@ -218,12 +218,12 @@ Load the relevant skill when working on a specific repo:
 | Skill File | Contents |
 |------------|----------|
 | `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state (23 atoms), MUI theming, React Router v7 loaders, 48 component dirs, 22 action domains, Skills/Schedules UI, Billing, Quota tracking |
-| `tdsk-agent/SKILL.md` | Instance-based multi-turn agent orchestration (init/runTurn/updateConfig/destroy), skill resolver, context manager, web tools (Jina), artifact tool, thinking support, 12 sandbox+web tools |
-| `tdsk-backend/SKILL.md` | Express 5 API, Skills/Schedules/Shell endpoints, OpenAI-compatible chat completions, InterpreterService (generative UI), Scheduler (cron), EgressProxy (MITM), enforceQuota/projectAccessGuard/featureGate/rateLimit middleware, sandbox lifecycle |
-| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), 6 contexts (app/proxy/backend/admin/caddy/sandbox), 6 task groups (db/deploy/devspace/docker/kube/web) |
-| `tdsk-components/SKILL.md` | 37 React component dirs (incl. ArtifactRenderer, ChatComponents, FeatureGate, Header), 28 icons, 9 hook categories, Monaco editor, theming |
-| `tdsk-database/SKILL.md` | Drizzle ORM, 27 tables (incl. skills, schedules, sandboxProjects, sandboxProviders junctions), 21 services, quotas/subscriptions/sandboxes/invoices |
-| `tdsk-domain/SKILL.md` | 23 model classes (incl. Skill, Schedule, Invoice, Sandbox), 27 type files, terminal parser module, GUI types, sync types, 24+ LLM provider brands, crypto, permissions, provider templates |
+| `tdsk-agent/SKILL.md` | Instance-based multi-turn agent orchestration (init/runTurn/updateConfig/destroy), skill resolver, context manager, web tools (Jina), artifact tool, thinking support, 11 sandbox+web tools (9 sandbox + 2 web) |
+| `tdsk-backend/SKILL.md` | Express 5 API, Skills/Schedules/Shell/Monitor endpoints, OpenAI-compatible chat completions, InterpreterService (generative UI), Scheduler (cron), EgressProxy (MITM), enforceQuota/projectAccessGuard/projectMemberGuard/featureGate/rateLimit middleware, sandbox lifecycle |
+| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), 7 contexts (app/proxy/backend/admin/caddy/sandbox/init), 7 task groups (db/deploy/devspace/docker/kube/web/npm) |
+| `tdsk-components/SKILL.md` | 40 React component dirs (incl. ArtifactRenderer, ChatComponents, FeatureGate, Header, Avatar, Chip, NavRail), 28 icons, 10 hook categories, Monaco editor, theming |
+| `tdsk-database/SKILL.md` | Drizzle ORM, 31 tables (incl. skills, schedules, sandboxProjects, sandboxProviders, sandboxSkills, projectProviders, sandboxProjectProviders junctions), 21 services, quotas/subscriptions/sandboxes/invoices |
+| `tdsk-domain/SKILL.md` | 23 model classes (incl. Skill, Schedule, Invoice, Sandbox), 28 type files, terminal parser module, GUI types, sync types, 24+ LLM provider brands, crypto, permissions, provider templates |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching, loadEnvs scripts |
 | `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, rate limiting (11 middleware), dual-proxy (backend + sandbox subdomain), WebSocket upgrade dispatch |
 | `tdsk-tsa/SKILL.md` | Pi-TUI terminal CLI, tsa binary, 12 CLI tasks (incl. sandbox/sync/sessions/ssh) + 19 slash commands, Mutagen file sync, thread branching, config system, session-based LLM proxy |
@@ -267,9 +267,9 @@ Custom subagents live in `.claude/agents/`:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables (27 total, 25 Drizzle-managed + 2 external): `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`, `sandboxes`, `invoices`, `skills`, `schedules`
+Key tables (31 total, 29 Drizzle-managed + 2 external): `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`, `sandboxes`, `invoices`, `skills`, `schedules`
 
-Junction tables: `agent_projects`, `agent_functions`, `agent_providers`, `agent_skills`, `sandbox_projects`, `sandbox_providers`
+Junction tables: `agent_projects`, `agent_functions`, `agent_providers`, `agent_skills`, `sandbox_projects`, `sandbox_providers`, `sandbox_skills`, `project_providers`, `sandbox_project_providers`
 
 Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Agent OR Project OR Provider (exactly one of four, not multiple).
 - `quotas` - Org resource usage tracking (6 resource types: projects, compute, threads, messages, endpoints, secrets)

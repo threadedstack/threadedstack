@@ -9,7 +9,7 @@ tags: ["typescript", "types", "models", "domain", "shared", "utilities", "paymen
 
 The `@tdsk/domain` repo (`repos/domain`) is the shared foundation for the Threaded Stack monorepo.
 
-- **27 type definition files** for Express APIs, auth, providers, AI/LLM configs, sandboxes, permissions, payments, GUI, shell events, sync, WebSocket, and helpers
+- **28 type definition files** for Express APIs, auth, providers, AI/LLM configs, sandboxes, permissions, payments, GUI, shell events, sync, WebSocket, prefixes, and helpers
 - **23 model classes** for core entities (all extend `Base` with `id`, `createdAt?`, `updatedAt?`)
 - **Utility functions** for crypto (AES-256-GCM encryption, hashing, key derivation), permissions, time, async, data manipulation
 - **API helpers** for Express routing, CORS, auth headers, and error handling via `Exception` class
@@ -20,11 +20,12 @@ The `@tdsk/domain` repo (`repos/domain`) is the shared foundation for the Thread
 ```
 repos/domain/src/
 ├── api/           # Express utilities: adminPath, authHeaders, behindLBProxy, checkAuthHeader, inKube
-├── constants/     # 8 constant files: featureFlags, gui, parser, plans, providerDomains, providers, sandbox, values
+├── constants/     # 10 constant files: featureFlags, gitProviders, gui, parser, plans, prefixes, providerDomains, providers, sandbox, values
 ├── crypto/        # AES-256-GCM encryption/decryption, hashing, key generation
 ├── models/        # 23 domain model classes
-├── types/         # 27 type definition files
-├── utils/         # Permissions, payments, cleanSplit, isDomain, shortId, time
+├── services/      # Shared services (api/apiService.ts — ApiService base class)
+├── types/         # 28 type definition files (includes prefixs.types.ts for entity ID prefixes)
+├── utils/         # Permissions, payments, cleanSplit, isDomain, shortId, time, sandbox/slugify, providers/toProviderLinks, buildFallbackModel
 ├── error/         # Exception class with HTTP status codes
 ├── environment/   # loadEnvs, addToProcess
 ├── parser/        # Terminal output parser (AST nodes, GUI types)

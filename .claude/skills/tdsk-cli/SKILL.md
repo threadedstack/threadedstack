@@ -10,10 +10,11 @@ tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
 The CLI repo (`@tdsk/cli`) is a developer CLI for managing the Threaded Stack monorepo.
 
 - **Docker**: Build, pull, push, run, exec containerized applications (supports sandbox image type variants)
-- **Kubernetes**: Secrets (6 presets: tdsk, docker, database, payments, email, egress), namespaces, ingress, pod inspection
+- **Kubernetes**: Secrets (7 presets: tdsk, docker, database, payments, email, egress + list), namespaces, logs, pod inspection
 - **DevSpace**: Development environment start, clean, log, enter, render, attach, use
 - **Web UI**: Start admin UI in dev mode
-- **Hierarchical tasks**: Built on `@keg-hub/args-parse` with nested commands (3 levels deep), aliases, and options across 6 task groups
+- **NPM**: Package management (pack, publish) with alias `pkg`
+- **Hierarchical tasks**: Built on `@keg-hub/args-parse` with nested commands (3 levels deep), aliases, and options across 7 task groups
 
 ## Directory Structure
 
@@ -31,7 +32,8 @@ repos/cli/
 │   │   ├── db/           # certs, check, cleanup, db, dbExport, dk, drop, dup, generate, introspect, migrate, purge, push, reset, rmf, seed, studio
 │   │   ├── deploy/       # apply, deploy, status
 │   │   ├── docker/       # build, run, exec, pull, push, login
-│   │   ├── kube/         # set, pod, secret, remove, ingress, namespace
+│   │   ├── kube/         # set, pod, secret, remove, logs, namespace
+│   │   ├── npm/          # pack, publish (alias: pkg)
 │   │   │   └── secret/   # Presets: tdsk, docker, database, payments, email, egress
 │   │   ├── devspace/     # start, clean, log, enter, render, attach, use
 │   │   └── web/          # start
@@ -94,7 +96,8 @@ Six contexts map to repos/services. `getCtx()` resolves a context name (with ali
 | **deploy** | apply, deploy, status | — | --context, --env, --namespace |
 | **web** | start | ui | --context (default: admin) |
 | **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port, --type, --push, --cache, --arm, --platforms, --login |
-| **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
+| **kube** | set, pod, secret, remove, logs, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
+| **npm** | pack, publish | pkg | --context, --tag |
 | **kube secret** | tdsk, docker, database, payments, email, egress | egress-ca, eca | --cert, --key, --log, --name, --file, --keyvalue, --secrets |
 | **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector, --purge, --deploy |
 

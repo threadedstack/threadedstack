@@ -1,3 +1,4 @@
+import type { TAvatarSize } from '@TSC/types'
 import { ERepeatType } from '@TSC/types'
 
 export const ElRenderMap: Record<string, string> = {
@@ -15,3 +16,17 @@ export const RepeatOpts = [
   { label: `Monthly`, value: ERepeatType.monthly },
   { label: `Yearly`, value: ERepeatType.yearly },
 ]
+
+export const SizeMap: Record<TAvatarSize, number> = {
+  sm: 20,
+  md: 32,
+  lg: 40,
+  xl: 48,
+}
+
+export const FontSizeMap: Record<TAvatarSize, number> = {
+  sm: 9,
+  md: 12,
+  lg: 14,
+  xl: 16,
+}

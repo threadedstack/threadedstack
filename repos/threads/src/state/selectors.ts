@@ -9,9 +9,13 @@ import {
   orgIdState,
   activeOrgState,
   sidebarOpenState,
+  fileTreeOpenState,
   activeProjectState,
   activeOrgRoleState,
   activeProjectIdState,
+  openEditorFilesState,
+  activeEditorFileState,
+  contextPanelOpenState,
 } from '@TTH/state/app'
 import {
   orgsAtom,
@@ -31,7 +35,11 @@ export const useUser = () => useReadOnly(userState)
 export const useOrgId = () => useReadOnly(orgIdState)
 export const useThemeType = () => useReadOnly(themeTypeState)
 export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
+export const useFileTreeOpen = () => useReadOnly(fileTreeOpenState)
 export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
+export const useOpenEditorFiles = () => useReadOnly(openEditorFilesState)
+export const useContextPanelOpen = () => useReadOnly(contextPanelOpenState)
+export const useActiveEditorFile = () => useReadOnly(activeEditorFileState)
 
 export const useOrgs = () => useReadOnly(orgsAtom)
 export const useProjects = () => useReadOnly(projectsAtom)
@@ -40,8 +48,8 @@ export const useOpenSessions = () => useReadOnly(openSessionsAtom)
 export const useActiveSession = () => useReadOnly(activeSessionAtom)
 
 export const useActiveOrg = () => useReadOnly(activeOrgState)
-export const useActiveProjectId = () => useReadOnly(activeProjectIdState)
 export const useActiveProject = () => useReadOnly(activeProjectState)
+export const useActiveProjectId = () => useReadOnly(activeProjectIdState)
 
 export const useGuiAst = () => useReadOnly(guiASTState)
 export const useGuiFeed = () => useReadOnly(guiFeedState)

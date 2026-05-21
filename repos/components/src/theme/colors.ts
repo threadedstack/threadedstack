@@ -1,3 +1,16 @@
+export const AvatarColors = [
+  `#3370DE`,
+  `#059669`,
+  `#D97706`,
+  `#DC2626`,
+  `#7C3AED`,
+  `#0891B2`,
+  `#C2410C`,
+  `#4F46E5`,
+  `#BE185D`,
+  `#0D9488`,
+]
+
 export const white = `#FFFFFF`
 
 export const grey = {

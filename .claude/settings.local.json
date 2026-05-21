@@ -136,7 +136,9 @@
       "Bash(gunzip design.gz)",
       "Bash(tar tf *)",
       "Bash(tar xf *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Skill(hookify:hookify)",
+      "Bash(npm root *)"
     ]
   },
   "sandbox": {

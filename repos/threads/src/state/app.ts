@@ -22,6 +22,18 @@ export const activeOrgState = atom<Organization | undefined>((get) => {
   return orgId ? orgs.find((o) => o.id === orgId) : undefined
 })
 
+export const defContextPanelOpen = true
+export const contextPanelOpenState = atomWithReset<boolean>(defContextPanelOpen)
+
+export const defFileTreeOpen = false
+export const fileTreeOpenState = atomWithReset<boolean>(defFileTreeOpen)
+
+export const defOpenEditorFiles: string[] = []
+export const openEditorFilesState = atomWithReset<string[]>(defOpenEditorFiles)
+
+export const defActiveEditorFile: string | null = null
+export const activeEditorFileState = atomWithReset<string | null>(defActiveEditorFile)
+
 export const activeProjectState = atom<Project | undefined>((get) => {
   const projectId = get(activeProjectIdState)
   const projects = get(projectsAtom)

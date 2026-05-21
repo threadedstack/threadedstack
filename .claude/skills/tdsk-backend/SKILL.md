@@ -31,7 +31,8 @@ repos/backend/
 │   │   ├── agents/          # CRUD + runAgent (SSE) + oaiChatCompletions + oaiModels
 │   │   ├── ai/              # sessions + streamChat (SSE LLM proxy)
 │   │   ├── orgs/            # CRUD + members + roles + quickstart + nested resources
-│   │   ├── sandboxes/       # CRUD + connect, tunnel, shell, exec, sessions, threads, copy
+│   │   ├── sandboxes/       # CRUD + connect, start, stop, tunnel, shell, exec, sessions, instances, threads, copy, monitor, SBP config
+│   │   ├── cli/             # CLI session key management (createSessionKey, revokeSessionKey)
 │   │   ├── proxy/           # Proxy endpoint routing via endpoint type services
 │   │   ├── accounts.ts      # Main /_/* routes — auth + enforceQuota middleware applied here
 │   │   └── endpoints.ts     # Endpoint registry (proxy, accounts)
@@ -39,17 +40,22 @@ repos/backend/
 │   │   ├── authorize.ts     # Role-based authorization
 │   │   ├── enforceQuota.ts  # Tier-based POST route quota limits
 │   │   ├── projectAccessGuard.ts # Project-scoped API key boundaries
+│   │   ├── projectMemberGuard.ts # Project membership enforcement
+│   │   ├── rateLimit.ts     # Rate limiting (setupRateLimit)
 │   │   ├── sandboxProxy.ts  # Caddy wildcard subdomain → pod IP proxy
 │   │   ├── setupAuth.ts     # JWT authentication (authenticate function)
 │   │   ├── setupDatabase.ts # Database connection with validation
 │   │   ├── setupEndpoints.ts # Dynamic route builder with param auto-validation
+│   │   ├── setupErrorHandler.ts # Error response formatting
+│   │   ├── setupLogger.ts   # Winston request/error logging
+│   │   ├── setupProxy.ts    # Reverse proxy to API service (TDSK_BE_REMOTE)
 │   │   ├── setupSandbox.ts  # SandboxService + EgressProxy initialization
 │   │   ├── setupSubscription.ts # Auto-create free tier subscription
 │   │   └── setupServer.ts   # CORS, base setup
 │   ├── server/              # Express app, router, HTTP server, WebSocket server
 │   ├── services/            # Service layer (see Services)
-│   ├── types/               # shellSession.types.ts, oai.types.ts
-│   ├── utils/               # Auth, validation, provider, proxy, pagination utilities
+│   ├── types/               # 17 type files (see Types section)
+│   ├── utils/               # Auth, validation, provider, proxy, pagination, sandbox, shell utilities
 │   ├── start.ts             # Loads config and calls main(config)
 │   └── main.ts              # Orchestrates middleware setup and server init
 └── package.json
@@ -72,8 +78,9 @@ Other endpoint dirs follow standard CRUD pattern: `apiKeys/`, `assets/`, `auth/`
 
 1. **Logger** — Winston request/error logging (from `@tdsk/logger`)
 2. **Server Setup** — CORS, disables `x-powered-by`, router mount
-3. **Database** — DB connection with validation and error handling
-4. **Sandbox** — `SandboxService` (KubeClient, pod watcher) + `EgressProxy` (MITM for outbound traffic)
+3. **Rate Limit** — `setupRateLimit` for auth and general API rate limiting
+4. **Database** — DB connection with validation and error handling
+5. **Sandbox** — `SandboxService` (KubeClient, pod watcher) + `EgressProxy` (MITM for outbound traffic)
 5. **Sandbox Proxy** — Sandbox subdomain (`*.sb.local.threadedstack.app`) -> pod IP proxy
 6. **Endpoints** — Dynamic route registration from `endpoints/` directory
    - `accounts` routes get `express.json()` (with raw body capture), `authenticate`, `setupSubscription`, `enforceQuota` middleware
@@ -90,6 +97,7 @@ Auth, subscription, and quota enforcement are applied in `accounts.ts`, not glob
 | `setupSubscription` | `setupSubscription.ts` | Auto-create free tier subscription for new users |
 | `enforceQuota` | `enforceQuota.ts` | Map POST routes to quota resource keys (projects, endpoints, secrets, threads, messages, organizations), check tier limits from `PlanLimits`, return 403 `quota_exceeded` when over limit. For POST /orgs uses user-scoped owned org count. Fails closed (blocks on error) |
 | `projectAccessGuard` | `projectAccessGuard.ts` | Enforce project-level access for project-scoped API keys. Org-scoped keys and JWT auth pass through. 403 otherwise |
+| `projectMemberGuard` | `projectMemberGuard.ts` | Enforce project membership — verifies user is a member of the project before allowing access |
 | `sandboxProxy` | `sandboxProxy.ts` | Intercept sandbox subdomain requests, parse hostname to extract port+subdomain, look up in-memory route map, proxy to pod IP:port |
 | `featureGate` | `featureGate.ts` | Feature flag enforcement — gates routes behind `isFeatureEnabled(flag)`, returns 404 when flag is disabled |
 | `rateLimit` | `rateLimit.ts` | Rate limiting via `express-rate-limit` — auth routes (20/min) and general API routes (200/min) with draft-7 headers |
@@ -111,7 +119,10 @@ Auth, subscription, and quota enforcement are applied in `accounts.ts`, not glob
 | EmailService | `services/email/email.ts` | Strategy pattern: Resend / Mailgun / Console. Templates via Handlebars from `public/templates/` |
 | PaymentsService | `services/payments/payments.ts` | Strategy pattern: Stripe / Console |
 | SessionStore | `services/sessionStore.ts` | In-memory LLM session store, 1h TTL, 5min cleanup interval |
-| SandboxService | `services/sandboxes/sandbox.ts` | K8s pod lifecycle, session tracking, idle timeout, shell session management, subdomain proxy routing (see below) |
+| InMemoryRateLimiter | `services/rateLimiter.ts` | In-memory rate limiter implementing `TRateLimiterBackend`, used for tunnel rate-limiting |
+| InviteService | `services/invite.ts` | Invitation email logic — token generation, expiration, email dispatch |
+| SessionTokenService | `services/sessionToken.ts` | `signSessionToken`, `verifySessionToken`, `signShellToken`, `verifyShellToken` — session/shell token signing and verification |
+| SandboxService | `services/sandboxes/sandbox.ts` | K8s pod lifecycle, session tracking, idle timeout, shell session management, subdomain proxy routing, monitor WebSocket management (see below) |
 | Websocket | `services/websocket/websocket.ts` | Persistent AI WebSocket handler (see below) |
 
 ### Endpoint Type Services (`services/endpoints/`)
@@ -152,26 +163,32 @@ Transparent MITM proxy for sandbox pod outbound HTTP/HTTPS traffic:
 ### SandboxService (`services/sandboxes/sandbox.ts`)
 
 **State:**
-- `sessions: Map<podName, TSandboxSession[]>` — active SSH sessions per pod
-- `passwords: Map<podName, password>` — SSH password cache
-- `podActivity: Map<podName, timestamp>` — last activity for idle detection
-- `startingPods: Set<sandboxId>` — prevents startup races
+- `sessions: Map<instanceId, TSandboxSession[]>` — active SSH sessions per instance
+- `passwords: Map<instanceId, password>` — SSH password cache
+- `instanceActivity: Map<instanceId, timestamp>` — last activity for idle detection
+- `startingInstances: Map<sandboxId, number>` — prevents startup races (tracks count)
+- `orgMonitors: Map<orgId, Set<WebSocket>>` — monitor WebSocket clients per org
+- `monitorAccess: WeakMap<WebSocket, Set<sandboxId>>` — per-socket sandbox ID access filter
 - Shell sessions: persistent `TShellSession` objects indexed by session ID
 
 **Key Methods:**
 - `startPod(sandbox, orgId, projectId?)` — generate SSH password, create K8s pod with env vars
-- `stopPod(sandbox, orgId)` — delete pod, clean up routes and sessions
+- `stopPod(sandbox, orgId)` / `cleanupInstance(instanceId)` — delete pod, clean up routes and sessions
 - `findRunningPod/findActivePod(sandboxId, orgId)` — find Running or Running/Pending pod
-- `validatePodOwnership(podName, orgId)` — verify pod belongs to org
-- `addSession/removeSession/getSessions(podName)` — session tracking
-- `getPassword/recoverPassword(podName)` — SSH password management (recovery via `printenv`)
+- `validatePodOwnership(instanceId, orgId)` — verify pod belongs to org
+- `addSession/removeSession/getSessions(instanceId)` — session tracking
+- `getPassword/recoverPassword(instanceId)` — SSH password management (recovery via `printenv`)
+- `startIdleTimeout()` — initialize idle timeout checking interval
 - `addShellSession/getShellSession/removeShellSession(sessionId)` — persistent shell session lifecycle
 - `attachToShellSession/detachFromShellSession(sessionId, ws)` — WebSocket attachment for reconnect/join
 - `updateSessionVisibility(sessionId, visibility)` — toggle private/public
 - `getOrgShellSessionCount(orgId)` — count active per org for plan limits
 - `queueEventForPersistence/flushEventBatch(sessionId)` — batched event persistence to DB
-- `updateActivity(podName)` — touch timestamp for idle timeout
+- `updateActivity(instanceId)` — touch timestamp for idle timeout
 - `getPodProxy(target)` — static, returns `createProxyMiddleware` for subdomain proxying
+- `broadcastMonitor(orgId, event)` — broadcast event to all org monitor WebSocket clients
+- `addMonitor(orgId, ws, sandboxIds)` — register monitor WebSocket client for org
+- `removeMonitor(orgId, ws)` — unregister monitor WebSocket client
 
 **Idle Timeout:** checks every 60s, stops pods with no active sessions after 30min (configurable per sandbox via `idleTimeoutMinutes`).
 
@@ -190,6 +207,7 @@ Multi-path dispatch using `noServer: true` mode:
 - Static: `/ai/ws` -> `onWSConnect` (AI agent execution)
 - Dynamic: `/_/sandboxes/:id/tunnel` (matched by `SBTunnelPattern`) -> `onTunnelConnect`
 - Dynamic: `/_/sandboxes/:id/shell` (matched by `SBShellPattern`) -> `onShellConnect`
+- Static: `/_/sandboxes/monitor` (matched by `SBMonitorPattern`) -> `onMonitorConnect` (org-level real-time sandbox event subscription)
 
 HTTP upgrade listener filters by pathname and routes to correct handler. Unmatched upgrades destroy socket. Centralized error logging for connection failures.
 
@@ -222,13 +240,22 @@ Endpoints are defined as `TEndpointConfig` objects (static) or `TEndpointBuilder
 | POST | `/_/orgs` | Create org (auto-seeds 4 sandbox presets with `builtIn: true`) | JWT/API key |
 | POST | `/_/ai/sessions` | Create LLM session, resolve API key server-side, return token | JWT/API key |
 | WS | `/ai/ws` | AI agent WebSocket execution (session config cached) | Session token (`?token=`) |
-| POST | `/_/sandboxes/:id/connect` | Start pod, poll until Running (max 120s), return SSH creds | JWT/API key |
-| POST | `/_/sandboxes/:id/copy` | Deep-copy sandbox config (forces `builtIn: false`, validates org ownership) | JWT/API key |
-| POST | `/_/sandboxes/:id/exec` | Execute command in pod via K8s Exec API (body: `command`, `args?`, `podName`) | JWT/API key |
-| GET | `/_/sandboxes/:id/sessions` | List active SSH sessions | JWT/API key |
-| GET | `/_/sandboxes/:id/threads` | List threads for sandbox | JWT/API key |
+| POST | `/_/orgs/:orgId/sandboxes/:id/connect` | Start pod, poll until Running (max 120s), return SSH creds | JWT/API key |
+| POST | `/_/orgs/:orgId/sandboxes/:id/copy` | Deep-copy sandbox config (forces `builtIn: false`, validates org ownership) | JWT/API key |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/start` | Start sandbox pod explicitly | JWT/API key |
+| DELETE | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/stop` | Stop sandbox pod (body: instanceId, force, stopAll) | JWT/API key |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/status` | Get container state (query: instanceId) | JWT/API key |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/instances` | List running pod instances for sandbox | JWT/API key |
+| POST | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/exec` | Execute command in pod via K8s Exec API | JWT/API key |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/sessions` | List active SSH sessions | JWT/API key |
+| GET | `/_/orgs/:orgId/projects/:projectId/sandboxes/:id/threads` | List threads for sandbox | JWT/API key |
+| POST | `/_/orgs/:orgId/sandboxes/monitor/token` | Generate monitor WebSocket token for org | JWT/API key |
+| GET/PUT/DELETE | `/_/orgs/:orgId/projects/:sandboxId/config` | Sandbox Project (SBP) config overrides | JWT/API key |
+| POST | `/_/orgs/:orgId/cli/createSessionKey` | Create CLI session key | JWT/API key |
+| POST | `/_/orgs/:orgId/cli/revokeSessionKey` | Revoke CLI session key | JWT/API key |
 | WS | `/_/sandboxes/:id/tunnel` | WebSocket SSH tunnel — raw TCP bidirectional relay with backpressure (64KB) | API key |
 | WS | `/_/sandboxes/:id/shell` | Interactive shell with PTY, parser, event persistence, generative UI | API key or shell token |
+| WS | `/_/sandboxes/monitor` | Org-level sandbox event subscription (real-time instance state) | API key or session token |
 | POST | `/_/orgs/:orgId/skills/:id/attach` | Attach skill to agent | JWT/API key |
 | POST | `/_/orgs/:orgId/skills/:id/detach` | Detach skill from agent | JWT/API key |
 | POST | `/_/orgs/:orgId/schedules/:id/trigger` | Manually trigger schedule (executes agent, marks next cron time) | JWT/API key |
@@ -343,6 +370,8 @@ Under `/_/orgs/:orgId/schedules`: standard CRUD plus:
 
 ## Types
 
+Type files in `src/types/`: `agent.types.ts`, `api.types.ts`, `backend.types.ts`, `email.types.ts`, `endpoints.types.ts`, `errors.types.ts`, `limiter.types.ts`, `oai.types.ts`, `pay.types.ts`, `request.types.ts`, `retry.types.ts`, `secrets.types.ts`, `session.types.ts`, `shellSession.types.ts`, `simple-oauth2.d.ts`, `token.types.ts`
+
 ### `shellSession.types.ts`
 - `TShellSession` — persistent state: SSH client/stream, parser, ring buffer, attachments set, tool state, visibility, thread/sandbox/org/project IDs
 - `TShellControlMsg` — client control: resize, signal, visibility, permission-response
@@ -363,7 +392,7 @@ Under `/_/orgs/:orgId/schedules`: standard CRUD plus:
 | Retry | `AllowedRetryCodes` = `[408, 429, 500, 502, 503, 504]`; `DefRetryCfg` (3 retries, 1s initial, 30s max, 2x backoff) |
 | Pagination | `DBPaging` = `{ max: 200, default: 50 }` |
 | Files | `FileMaxSize` = 25MB; `MaxExtractedLength` = 50K chars; `MaxOutputBytes` = 1MB; `RequestBodyMaxSize` = 1MB; `DefaultTimeoutMS` = 30s |
-| Sandbox | `SBTcpTimeout` = 10s; `SBBackpressureThreshold` = 64KB; `SBBackpressureMaxWait` = 30s; `SBTunnelPattern`/`SBShellPattern` (regex); `DefSBConfig` (30min timeout, 120s max wait, 2s poll, 60s idle interval) |
+| Sandbox | `SBTcpTimeout` = 10s; `SBBackpressureThreshold` = 64KB; `SBBackpressureMaxWait` = 30s; `SBTunnelPattern`/`SBShellPattern`/`SBMonitorPattern` (regex); `DefSBConfig` (30min timeout, 120s max wait, 2s poll, 60s idle interval); `WsPingInterval` = 30s (tunnel/shell/monitor ping) |
 | Egress | `PhTokenPrefix` = `tdsk_ph_`; `CACertPath`/`CAKeyPath` at `/etc/tdsk/ca/`; `RealIpHeader` = `x-tdsk-real-ip` |
 | WebSocket | `WsPingIntervalMS` = 25s; `SessionTtlSec` = 3600; `ClientMsgTypes` (steer, prompt, cancel, followUp, file_upload, updateConfig, workspace_manifest) |
 
@@ -385,10 +414,17 @@ Under `/_/orgs/:orgId/schedules`: standard CRUD plus:
 | `extractSNI` | `utils/proxy/` | Extract SNI hostname from TLS ClientHello for egress routing |
 | `generateInvitationToken` | `utils/auth/` | Generate invitation token |
 | `getBillingPeriod` | `utils/auth/` | Calculate billing period start/end dates |
+| `resolveSandbox` | `utils/sandbox/resolveSandbox.ts` | Resolve sandbox by ID or project-scoped alias |
+| `resolveProviderEnv` | `utils/sandbox/resolveProviderEnv.ts` | Resolve provider env vars for pod injection |
+| `resolveGitProviderEnv` | `utils/sandbox/resolveGitProviderEnv.ts` | Resolve git provider env vars for pod injection |
+| `resolveDockerPullSecrets` | `utils/sandbox/resolveDockerPullSecrets.ts` | Resolve Docker pull secrets for pod images |
+| `resolveSkillFiles` | `utils/sandbox/resolveSkillFiles.ts` | Resolve skill files for sandbox pod injection |
+| `validateGitProviderInputs` | `utils/sandbox/validateGitProviderInputs.ts` | Validate git provider configuration inputs |
+| `parseControlMsg` | `utils/shell/parseControlMsg.ts` | Parse shell WebSocket control messages |
 
 ## Integration Points
 
-- **`@tdsk/domain`** — shared types, models (`TApp`, `TRequest`, `TResponse`, `TABConfig`), `TerminalParser`, `GhosttyVT`, `PlanLimits`, `SandboxPresets`, `ESandboxSessionVisibility`, `TGuiConfig`, `TToolState`
+- **`@tdsk/domain`** — shared types, models (`TApp`, `TRequest`, `TResponse`, `TABConfig`), `TerminalParser`, `PlanLimits`, `SandboxPresets`, `ESandboxSessionVisibility`, `TGuiConfig`, `TToolState`
 - **`@tdsk/database`** — Drizzle ORM and services; stored on `app.locals.db`
 - **`@tdsk/logger`** — Winston logging service
 - **`@tdsk/agent`** — `AgentRunner` for persistent multi-turn execution with tool use

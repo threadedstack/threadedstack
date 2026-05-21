@@ -8,7 +8,7 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 ## Overview
 
 - **ORM layer** for Threaded Stack using **Drizzle ORM** + **PostgreSQL (Neon.com)**
-- 25 Drizzle-managed tables + 2 external (Neon Auth `users`, Caddy `certificates`), 8 junction tables
+- 29 Drizzle-managed tables + 2 external (Neon Auth `users`, Caddy `certificates`), 9 junction tables
 - 21 service classes with CRUD, domain model conversion, and polymorphic "Exclusive Arc" relationships
 - Database singleton via `pg.Pool`; all services auto-initialized on first `database()` call
 - **Path Alias:** `@TDB/*`
@@ -24,7 +24,7 @@ repos/database/
 │   ├── index.ts           # Main export (types + database)
 │   ├── database.ts        # Database singleton factory + disconnectDatabase
 │   ├── constants/         # DefDBProto constant
-│   ├── schemas/           # 27 Drizzle table schemas
+│   ├── schemas/           # 31 Drizzle table schemas (29 managed + junction tables)
 │   ├── seeds/             # ids.seed.ts, fullorg.ts
 │   ├── services/          # 21 service classes + base + tests
 │   ├── types/             # db.types.ts, schema.types.ts, helper.types.ts, service.types.ts
@@ -89,6 +89,9 @@ repos/database/
 | `agentSkills` | agents <-> skills | agentId, skillId | Unique: `(agentId, skillId)` |
 | `sandboxProjects` | sandboxes <-> projects | sandboxId, projectId, alias, enabled, config (jsonb `Partial<TKubeSandboxConfig>`) | Per-project config deep-merged (project wins) |
 | `sandboxProviders` | sandboxes <-> providers | sandboxId, providerId, model, priority (default 0) | onDelete restrict for providerId |
+| `sandboxSkills` | sandboxes <-> skills | sandboxId, skillId, projectId? | Optional projectId scope, conditional unique indexes |
+| `projectProviders` | projects <-> providers (git) | projectId, providerId, priority | Git providers first-class; unique (projectId, providerId) |
+| `sandboxProjectProviders` | sandboxes <-> projects <-> providers | sandboxId, projectId, providerId, branch? | 3-way junction for per-project git provider assignment |
 
 ## Architecture
 
@@ -132,7 +135,7 @@ Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables 
 
 **Agent service** is the most complex (~578 lines). Auto-loads secrets, projects, functions, providers, and skills. Sorts providers by priority. `create`/`update`/`upsert` handle junction tables automatically. Pass `opts.sanitize = false` to skip secret sanitization.
 
-**Sandbox service** auto-loads projects (via sandboxProjects) and providers (via sandboxProviders). The `model()` method maps junction data to `SandboxModel` with `projects`, `projectConfigs`, and `providerLinks` arrays.
+**Sandbox service** auto-loads projects (via sandboxProjects), providers (via sandboxProviders), and skills (via sandboxSkills). The `model()` method maps junction data to `SandboxModel` with `projects`, `projectConfigs`, `providerLinks`, and `skillLinks` arrays. Additional methods: `addSkill`, `removeSkill`, `listSkillsForSandbox`.
 
 **Quota service** uses atomic SQL: `increment` does `INSERT ... ON CONFLICT DO UPDATE` with `column + amount`; `decrement` uses `GREATEST(column - amount, 0)`.
 

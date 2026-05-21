@@ -24,16 +24,16 @@ repos/admin/
     ├── App.tsx                 # ThemeProvider > GlobalStyles > RouterProvider
     ├── actions/                # ~256 files across 22 domains (api/ + local/ subdirs)
     ├── components/             # 48 directories, 210+ files
-    ├── constants/              # endpoints.ts, envs.ts, monaco.ts, nav.tsx, providers.ts, query.ts, storage.ts, tools.ts, values.ts
+    ├── constants/              # endpoints.ts, envs.ts, monaco.ts, nav.tsx, onboarding.ts, providers.ts, query.ts, storage.ts, tools.ts, values.ts
     ├── contexts/               # AuthContext/Provider (Neon Auth)
-    ├── hooks/                  # 29 files: chat/, components/, endpoints/, nav/, org/, permissions/, project/, theme/
-    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Projects/*, Providers, Settings
+    ├── hooks/                  # 43 files: chat/, components/, endpoints/, nav/, org/, permissions/, project/, sandboxes/, theme/
+    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Profile, Projects/*, Providers, Settings
     ├── routes/                 # Routes.tsx (createBrowserRouter + lazy loading), loaders.ts (26 loaders)
     ├── services/               # 29 service files (singleton classes)
     ├── state/                  # 23 Jotai atom files + accessors.ts + selectors.ts + index.ts
     ├── theme/                  # GlobalStyles.tsx
-    ├── types/                  # 16 type definition files (includes routes.types.ts with ERoutePath enum)
-    └── utils/                  # api/, endpoints/, errors/, nav/, sandbox/, text/, transforms/, user/
+    ├── types/                  # 18 type definition files (includes routes.types.ts with ERoutePath enum, sandbox.types.ts)
+    └── utils/                  # api/, endpoints/, errors/, nav/, permissions/, sandbox/, text/, transforms/, user/
 ```
 
 ## Routing
@@ -54,6 +54,9 @@ repos/admin/
 │       ├── (index) > ProjectWorkspace
 │       ├── /endpoints, /secrets, /domains, /functions, /agents, /sandboxes, /api-keys, /settings, /members
 │       ├── /endpoints/:endpointId > EndpointLayout (index, /config, /test)
+│       ├── /threads > ProjectThreads
+│       │   ├── /:threadId > Thread detail
+│       │   └── /:threadId/chat > Thread chat
 │       └── /agents/:agentId > AgentLayout
 │           ├── (index) > AgentDetailTab
 │           ├── /threads, /chat, /skills, /schedules
@@ -86,7 +89,7 @@ Three-layer design:
 2. **BaseApi** -- Adds `_onError()` toast notification via Sonner
 3. **Domain APIs** -- 29 entity-specific service classes extending BaseApi, all exported as singletons
 
-Key services (29 total): `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (CRUD + lifecycle: start, stop, connect, status, sessions), `AgentWSService` (WebSocket sessions), `SkillsApi`, `SchedulesApi`, `QuickstartApi`, `ProjectMembersApi`.
+Key services (29 total): `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (CRUD + lifecycle: start, stop, connect, status, sessions), `AgentWSService` (WebSocket sessions), `SkillsApi`, `SchedulesApi`, `FilesApi`, `TokenRefresh`, `ProjectMembersApi`.
 
 **Cache key pattern**: `all: [path]`, `list: [path, 'list']`, `detail: [path, 'detail', id]`. TanStack defaults: staleTime 5 min, gcTime 30 min, no retry, refetchOnWindowFocus off.
 
@@ -115,7 +118,7 @@ Key services (29 total): `OrgsApi`, `AgentsApi` (+ SSE `.run()`), `SandboxApi` (
 
 ## Key Components
 
-**SandboxDrawer**: Runtime dropdown (Claude Code, Codex, OpenCode, Custom), runtimeCommand field (read-only for built-in), initScript Monaco editor, custom command/args for Custom runtime. Built-in sandboxes have restricted editing.
+**Sandboxes**: Split into `OrgSandboxDrawer` (org-level management) and `ProjectSandboxDrawer` (project-level management) with accordion sub-components: `SandboxConfigAccordion`, `SandboxContainerAccordion`, `SandboxGuiAccordion`, `SandboxProviderAccordion`, `SandboxSkillsAccordion`. `ConnectModal` for SSH credentials + session management. Built-in sandboxes have restricted editing.
 
 **ProjectWorkspace**: Project landing page with Quick Actions bar (Sandboxes, Endpoints, Functions, Agents), Sandboxes panel with runtime badges, Recent Threads placeholder.
 

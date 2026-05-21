@@ -30,11 +30,19 @@ import {
   defOrgId,
   orgIdState,
   defSidebarOpen,
+  defFileTreeOpen,
   sidebarOpenState,
   defActiveOrgRole,
+  fileTreeOpenState,
   defActiveProjectId,
+  defOpenEditorFiles,
   activeOrgRoleState,
+  defContextPanelOpen,
+  defActiveEditorFile,
+  openEditorFilesState,
   activeProjectIdState,
+  activeEditorFileState,
+  contextPanelOpenState,
 } from '@TTH/state/app'
 
 import {
@@ -64,6 +72,12 @@ export const getActiveOrgRole = () => store.get(activeOrgRoleState)
 export const resetActiveOrgRole = () => store.set(activeOrgRoleState, defActiveOrgRole)
 export const setActiveOrgRole = (role: TRoleType | null) =>
   store.set(activeOrgRoleState, role)
+
+export const getContextPanelOpen = () => store.get(contextPanelOpenState)
+export const resetContextPanelOpen = () =>
+  store.set(contextPanelOpenState, defContextPanelOpen)
+export const setContextPanelOpen = (open: boolean) =>
+  store.set(contextPanelOpenState, open)
 
 export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
@@ -140,6 +154,22 @@ export const getGuiEngines = () => store.get(guiEngineState)
 export const resetGuiEngines = () => store.set(guiEngineState, new Map())
 export const setGuiEngines = (engines: Map<string, SessionEngine>) =>
   store.set(guiEngineState, engines)
+
+export const getFileTreeOpen = () => store.get(fileTreeOpenState)
+export const resetFileTreeOpen = () => store.set(fileTreeOpenState, defFileTreeOpen)
+export const setFileTreeOpen = (open: boolean) => store.set(fileTreeOpenState, open)
+
+export const getOpenEditorFiles = () => store.get(openEditorFilesState)
+export const resetOpenEditorFiles = () =>
+  store.set(openEditorFilesState, defOpenEditorFiles)
+export const setOpenEditorFiles = (files: string[]) =>
+  store.set(openEditorFilesState, files)
+
+export const getActiveEditorFile = () => store.get(activeEditorFileState)
+export const resetActiveEditorFile = () =>
+  store.set(activeEditorFileState, defActiveEditorFile)
+export const setActiveEditorFile = (file: string | null) =>
+  store.set(activeEditorFileState, file)
 
 export const getBackendSessions = () => store.get(backendSessionsAtom)
 export const resetBackendSessions = () => store.set(backendSessionsAtom, new Map())

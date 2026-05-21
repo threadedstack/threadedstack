@@ -55,7 +55,7 @@ repos/logger/
 
 Multi-layer protection via `safeReplacer.ts` and `stdio.ts`:
 - **JSON serialization**: `safeReplacer()` as `JSON.stringify()` replacer
-- **stderr interception**: `stdio.ts` hijacks `process.stderr.write` (stdout redaction currently disabled)
+- **stdout + stderr interception**: `stdio.ts` hijacks both `process.stdout.write` and `process.stderr.write` with the same `replaceUnsafe()` call
 - **Dynamic injection**: `injectKeyValues()` / `injectUnsafe()` add runtime secrets to redaction list
 - **Patterns**: passwords, API keys, tokens, secrets, session IDs, credit cards, authorization headers
 - **Bypass**: `STL_FORCE_DISABLE_SAFE=true` disables stderr redaction

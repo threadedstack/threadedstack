@@ -13,6 +13,7 @@ import { AppHeader, HeaderToolbar, ToggleThemeAction } from './Header.styled'
 const iconStyle = { height: `20px`, width: `20px` }
 
 export type THeader = {
+  actions?: ReactNode
   breadcrumbs?: ReactNode
   user?: { name?: string; email?: string; image?: string }
   menuItems?: THeaderMenuItem[]
@@ -23,11 +24,12 @@ export type THeader = {
 
 export const Header = (props: THeader) => {
   const {
-    breadcrumbs,
     user,
-    menuItems = [],
+    actions,
     themeType,
+    breadcrumbs,
     onThemeToggle,
+    menuItems = [],
     onNavigateHome,
   } = props
 
@@ -49,6 +51,7 @@ export const Header = (props: THeader) => {
         />
         {breadcrumbs}
         <Box flex={1} />
+        {actions}
         {onThemeToggle && (
           <ToggleThemeAction
             onClick={() => onThemeToggle()}
