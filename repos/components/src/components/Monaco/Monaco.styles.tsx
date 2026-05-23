@@ -78,7 +78,36 @@ export const MonacoContainer = styled(Box)(({ theme }) => {
       
     }
 
-    
+
+    &.tdsk-monaco-ide {
+      height: 100%;
+      min-height: 0;
+      border-radius: 0;
+
+      & > section {
+        padding: 0;
+      }
+
+      & .tdsk-editor {
+        height: 100%;
+        min-height: 0;
+        border: none;
+        border-radius: 0;
+
+        &:hover { border-color: transparent; }
+        &:focus-within { border: none; outline: none; }
+
+        & .monaco-editor {
+          min-height: 0;
+          border-radius: 0;
+          & > .overflow-guard {
+            min-height: 0;
+            border-radius: 0;
+            & > .margin { min-height: 0; }
+          }
+        }
+      }
+    }
   `
 })
 

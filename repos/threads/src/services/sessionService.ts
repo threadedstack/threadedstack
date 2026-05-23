@@ -1,10 +1,13 @@
 import type { TTerminalEntry, TOpenSessionOpts, TSessionEventHandlers } from '@TTH/types'
 
-import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { sandboxApi } from '@TTH/services/sandboxApi'
-import { ShellSessionsStorageKey } from '@TTH/constants/storage'
+import { SandboxHomePath, EShellMsg, EContainerState } from '@tdsk/domain'
 import { ConnectionTimeout, RawBufferMaxBytes } from '@TTH/constants/values'
+import {
+  ShellSessionsStorageKey,
+  ShellSessionInstancesStorageKey,
+} from '@TTH/constants/storage'
 
 type TStoredSessions = Record<string, string[]>
 
@@ -44,9 +47,22 @@ export class SessionService {
   async open(opts: TOpenSessionOpts, handlers: TSessionEventHandlers): Promise<string> {
     const { sandboxId, orgId, projectId, run = true } = opts
 
+    let resolvedInstanceId = opts.instanceId
+    if (!resolvedInstanceId && !opts.newInstance && opts.sessionId) {
+      resolvedInstanceId = this.getStoredInstanceId(opts.sessionId)
+      if (!resolvedInstanceId)
+        resolvedInstanceId = await this.#resolveInstanceForSession(
+          orgId,
+          projectId,
+          sandboxId,
+          opts.sessionId
+        )
+    }
+
     const connectOpts = {
-      ...(opts.instanceId ? { instanceId: opts.instanceId } : {}),
+      ...(resolvedInstanceId ? { instanceId: resolvedInstanceId } : {}),
       ...(opts.newInstance ? { newInstance: true } : {}),
+      ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
     }
     const connectResult = await sandboxApi.connect(
       orgId,
@@ -57,8 +73,11 @@ export class SessionService {
     if (connectResult.error)
       throw new Error(connectResult.error?.message ?? `Failed to connect to sandbox`)
 
+    const subdomain = connectResult.data?.subdomain
     const shellToken = connectResult.data?.shellToken
     const instanceId = connectResult.data?.instanceId ?? ``
+    const portUrlTemplate = connectResult.data?.portUrlTemplate
+    const workdir = connectResult.data?.workdir ?? SandboxHomePath
 
     const baseUrl = new URL(apiService.base)
     const wsProto = baseUrl.protocol === `https:` ? `wss:` : `ws:`
@@ -70,14 +89,13 @@ export class SessionService {
     if (instanceId) params.set(`instanceId`, instanceId)
 
     let targetSessionId: string | undefined
-    if (opts.sessionId === null) {
-      targetSessionId = undefined
-    } else if (opts.sessionId) {
-      targetSessionId = opts.sessionId
-    } else {
+    if (opts.sessionId === null) targetSessionId = undefined
+    else if (opts.sessionId) targetSessionId = opts.sessionId
+    else {
       const stored = this.getStoredSessions(sandboxId)
       targetSessionId = stored[0]
     }
+
     if (targetSessionId) params.set(`sessionId`, targetSessionId)
 
     const wsUrl = `${wsProto}//${baseUrl.host}/_/sandboxes/${sandboxId}/shell?${params}`
@@ -129,11 +147,15 @@ export class SessionService {
 
         this.#sessionSandboxMap.set(sessionId, sandboxId)
         this.storeSession(sandboxId, sessionId)
+        this.storeInstanceId(sessionId, msg.instanceId ?? instanceId)
 
         handlers.onSetup({
+          workdir,
           sandboxId,
           sessionId,
           projectId,
+          subdomain,
+          portUrlTemplate,
           threadId: msg.threadId ?? ``,
           runtime: msg.runtime ?? `custom`,
           visibility: msg.visibility ?? `private`,
@@ -216,6 +238,7 @@ export class SessionService {
         }
 
         const writers = this.#terminalWriters.get(sessionId)
+
         if (writers && writers.size > 1)
           console.warn(
             `[SessionService] ${sessionId.slice(0, 6)}: ${writers.size} terminal writers`
@@ -398,16 +421,20 @@ export class SessionService {
     if (list.length === 0) delete map[sandboxId]
     else map[sandboxId] = list
     this.#writeStorageMap(map)
+    this.removeStoredInstanceId(sessionId)
   }
 
   clearStoredSessionsForSandbox(sandboxId: string): void {
     const map = this.#readStorageMap()
+    const sessions = map[sandboxId] ?? []
+    for (const sid of sessions) this.removeStoredInstanceId(sid)
     delete map[sandboxId]
     this.#writeStorageMap(map)
   }
 
   clearAllStoredSessions(): void {
     sessionStorage.removeItem(ShellSessionsStorageKey)
+    sessionStorage.removeItem(ShellSessionInstancesStorageKey)
   }
 
   findSandboxForSession(sessionId: string): string | undefined {
@@ -424,6 +451,64 @@ export class SessionService {
   reset(): void {
     this.closeAll()
     this.clearAllStoredSessions()
+  }
+
+  getStoredInstanceId(sessionId: string): string | undefined {
+    try {
+      const raw = sessionStorage.getItem(ShellSessionInstancesStorageKey)
+      const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+      return map[sessionId]
+    } catch {
+      return undefined
+    }
+  }
+
+  storeInstanceId(sessionId: string, instanceId: string): void {
+    try {
+      const raw = sessionStorage.getItem(ShellSessionInstancesStorageKey)
+      const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+      map[sessionId] = instanceId
+      sessionStorage.setItem(ShellSessionInstancesStorageKey, JSON.stringify(map))
+    } catch (err) {
+      console.warn(`[SessionService] Failed to persist instanceId:`, err)
+    }
+  }
+
+  removeStoredInstanceId(sessionId: string): void {
+    try {
+      const raw = sessionStorage.getItem(ShellSessionInstancesStorageKey)
+      if (!raw) return
+      const map: Record<string, string> = JSON.parse(raw)
+      delete map[sessionId]
+      sessionStorage.setItem(ShellSessionInstancesStorageKey, JSON.stringify(map))
+    } catch (err) {
+      console.warn(`[SessionService] Failed to remove stored instanceId:`, err)
+    }
+  }
+
+  async #resolveInstanceForSession(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    sessionId: string
+  ): Promise<string | undefined> {
+    try {
+      const result = await sandboxApi.listInstances(orgId, projectId, sandboxId)
+      const instances = result.data?.instances
+      if (!instances?.length) return undefined
+
+      const running = instances.filter((i) => i.state === EContainerState.Running)
+      if (!running.length) return undefined
+
+      for (const instance of running) {
+        if (instance.sessions?.some((s) => s.sessionId === sessionId))
+          return instance.instanceId
+      }
+
+      return undefined
+    } catch {
+      return undefined
+    }
   }
 
   #cleanupSession(sessionId: string): void {

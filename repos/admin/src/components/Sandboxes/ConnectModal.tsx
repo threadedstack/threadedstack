@@ -1,4 +1,4 @@
-import type { Sandbox, TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
+import type { Sandbox, TSBConnectResp, TSandboxSession } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { clipboard } from '@tdsk/components'
@@ -41,7 +41,7 @@ export type TConnectModal = {
   onClose: () => void
   sandbox: Sandbox | null
   sessions: TSandboxSession[]
-  connectData: TSandboxConnectResponse | null
+  connectData: TSBConnectResp | null
 }
 
 const relativeTime = (iso: string): string => {

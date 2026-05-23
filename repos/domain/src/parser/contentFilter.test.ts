@@ -4,7 +4,7 @@ import { classifyContent } from './contentFilter'
 describe('contentFilter', () => {
   describe('chrome detection (generic)', () => {
     it('detects pipe-heavy status bar lines', () => {
-      expect(classifyContent('| glm-5 | API Usage Billing | | /home/sandbox |')).toBe(
+      expect(classifyContent('| glm-5 | API Usage Billing | | /home/user |')).toBe(
         'chrome'
       )
       expect(classifyContent('│ Tab1 │ Tab2 │ Tab3 │')).toBe('chrome')

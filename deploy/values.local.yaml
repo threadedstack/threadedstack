@@ -7,6 +7,7 @@ env:
   TDSK_KUBE_NAMESPACE: tdsk-local
   TDSK_KUBE_CONTEXT: docker-desktop
   TDSK_CADDY_PX_HOST: px.local.threadedstack.app
+  TDSK_SB_DOMAIN: sandbox.local.threadedstack.app
 
   # Disable logger hiding
   STL_FORCE_DISABLE_SAFE: true

@@ -1,15 +1,117 @@
-/**
- * Monaco Editor Configuration Constants
- */
+import { CodeLanguages } from '@tdsk/components'
 
 export const MonacoOptions = {
-  fontSize: 14,
+  tabSize: 2,
+  fontSize: 13,
+  folding: true,
+  glyphMargin: false,
   automaticLayout: true,
-  wordWrap: `on` as const,
+  lineNumbersMinChars: 3,
+  wordWrap: `off` as const,
   lineNumbers: `on` as const,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
-  renderLineHighlight: `all` as const,
+  renderLineHighlight: `line` as const,
+  foldingStrategy: `indentation` as const,
+  bracketPairColorization: { enabled: true },
+  guides: { bracketPairs: true, indentation: true },
+  scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
 }
 
-export const DefaultLines = [`// No content available for this file`]
+export const ExtMap = new Map<string, string>([
+  [`tsx`, `typescript`],
+  [`jsx`, `javascript`],
+  [`bash`, `shell`],
+  [`zsh`, `shell`],
+  [`json`, `json`],
+  [`jsonc`, `json`],
+  [`html`, `html`],
+  [`htm`, `html`],
+  [`xml`, `xml`],
+  [`svg`, `xml`],
+  [`css`, `css`],
+  [`scss`, `scss`],
+  [`less`, `less`],
+  [`go`, `go`],
+  [`java`, `java`],
+  [`kt`, `kotlin`],
+  [`swift`, `swift`],
+  [`r`, `r`],
+  [`lua`, `lua`],
+  [`perl`, `perl`],
+  [`pl`, `perl`],
+  [`php`, `php`],
+  [`dockerfile`, `dockerfile`],
+  [`toml`, `ini`],
+  [`ini`, `ini`],
+  [`cfg`, `ini`],
+  [`conf`, `ini`],
+  [`yaml`, `yaml`],
+  [`graphql`, `graphql`],
+  [`gql`, `graphql`],
+  [`diff`, `diff`],
+  [`patch`, `diff`],
+])
+
+export const FilenameMap = new Map<string, string>([
+  [`Dockerfile`, `dockerfile`],
+  [`Makefile`, `makefile`],
+  [`Gemfile`, `ruby`],
+  [`Rakefile`, `ruby`],
+  [`.gitignore`, `ini`],
+  [`.env`, `ini`],
+  [`.editorconfig`, `ini`],
+  [`.dockerignore`, `ini`],
+  [`Caddyfile`, `ini`],
+])
+
+for (const lang of CodeLanguages) {
+  if (!lang.label) continue
+  const exts = (lang as { ext?: string[] }).ext
+  if (exts) {
+    for (const ext of exts) ExtMap.set(ext, lang.label)
+  }
+}
+
+export const BinaryExtensions = new Set([
+  `png`,
+  `jpg`,
+  `jpeg`,
+  `gif`,
+  `bmp`,
+  `ico`,
+  `webp`,
+  `wasm`,
+  `zip`,
+  `gz`,
+  `tar`,
+  `bz2`,
+  `7z`,
+  `rar`,
+  `pdf`,
+  `doc`,
+  `docx`,
+  `xls`,
+  `xlsx`,
+  `ppt`,
+  `pptx`,
+  `exe`,
+  `dll`,
+  `so`,
+  `dylib`,
+  `o`,
+  `a`,
+  `bin`,
+  `dat`,
+  `mp3`,
+  `mp4`,
+  `wav`,
+  `avi`,
+  `mov`,
+  `flv`,
+  `ttf`,
+  `otf`,
+  `woff`,
+  `woff2`,
+  `eot`,
+])

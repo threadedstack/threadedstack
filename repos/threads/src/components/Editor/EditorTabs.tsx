@@ -1,3 +1,5 @@
+import type { TFileCacheEntry } from '@TTH/types'
+
 import { useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Tooltip from '@mui/material/Tooltip'
@@ -5,32 +7,22 @@ import Close from '@mui/icons-material/Close'
 import { MonoFont } from '@TTH/constants/values'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
+import { extColor } from '@TTH/utils/editor/extColor'
+import { fileName } from '@TTH/utils/editor/fileName'
 import CloseFullscreen from '@mui/icons-material/CloseFullscreen'
+import FiberManualRecord from '@mui/icons-material/FiberManualRecord'
 
 export type TEditorTabs = {
   files: string[]
-  activeFile: string | null
-  onSelect: (path: string) => void
-  onClose: (path: string) => void
   onCloseAll: () => void
-}
-
-const extColor = (path: string): string => {
-  if (path.endsWith(`.json`)) return `warning.main`
-  if (path.endsWith(`.md`)) return `secondary.main`
-  if (path.endsWith(`.ts`) || path.endsWith(`.tsx`)) return `primary.main`
-  if (path.endsWith(`.js`) || path.endsWith(`.jsx`)) return `warning.light`
-  if (path.endsWith(`.css`) || path.endsWith(`.scss`)) return `info.main`
-  return `text.secondary`
-}
-
-const fileName = (path: string): string => {
-  const parts = path.split(`/`)
-  return parts[parts.length - 1] || path
+  activeFile: string | null
+  onClose: (path: string) => void
+  onSelect: (path: string) => void
+  contentCache: Map<string, TFileCacheEntry>
 }
 
 export const EditorTabs = (props: TEditorTabs) => {
-  const { files, activeFile, onSelect, onClose, onCloseAll } = props
+  const { files, onClose, onSelect, onCloseAll, activeFile, contentCache } = props
 
   const handleClose = useCallback(
     (evt: React.MouseEvent, path: string) => {
@@ -52,7 +44,6 @@ export const EditorTabs = (props: TEditorTabs) => {
         bgcolor: `background.default`,
       }}
     >
-      {/* Scrollable tab area */}
       <Box
         sx={{
           flex: 1,
@@ -66,6 +57,7 @@ export const EditorTabs = (props: TEditorTabs) => {
       >
         {files.map((path) => {
           const isActive = path === activeFile
+          const isDirty = contentCache.get(path)?.status === `dirty`
           return (
             <Box
               key={path}
@@ -99,7 +91,6 @@ export const EditorTabs = (props: TEditorTabs) => {
                 }),
               }}
             >
-              {/* File type dot */}
               <Box
                 sx={{
                   width: 6,
@@ -119,31 +110,38 @@ export const EditorTabs = (props: TEditorTabs) => {
               >
                 {fileName(path)}
               </Typography>
-              {/* Close button */}
-              <Box
-                onClick={(evt) => handleClose(evt, path)}
-                sx={{
-                  width: 16,
-                  height: 16,
-                  flexShrink: 0,
-                  display: `flex`,
-                  borderRadius: `3px`,
-                  alignItems: `center`,
-                  justifyContent: `center`,
-                  opacity: isActive ? 0.7 : 0,
-                  '&:hover': { opacity: 1, bgcolor: `action.hover` },
-                  // Show on tab hover via parent
-                  '.MuiBox-root:hover > &': { opacity: 0.5 },
-                }}
-              >
-                <Close sx={{ fontSize: 12 }} />
-              </Box>
+              {isDirty ? (
+                <FiberManualRecord
+                  sx={{
+                    fontSize: 8,
+                    flexShrink: 0,
+                    color: `warning.main`,
+                  }}
+                />
+              ) : (
+                <Box
+                  onClick={(evt) => handleClose(evt, path)}
+                  sx={{
+                    width: 16,
+                    height: 16,
+                    flexShrink: 0,
+                    display: `flex`,
+                    borderRadius: `3px`,
+                    alignItems: `center`,
+                    justifyContent: `center`,
+                    opacity: isActive ? 0.7 : 0,
+                    '&:hover': { opacity: 1, bgcolor: `action.hover` },
+                    '.MuiBox-root:hover > &': { opacity: 0.5 },
+                  }}
+                >
+                  <Close sx={{ fontSize: 12 }} />
+                </Box>
+              )}
             </Box>
           )
         })}
       </Box>
 
-      {/* Close All button */}
       {files.length > 0 && (
         <Box
           sx={{

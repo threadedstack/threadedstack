@@ -294,8 +294,11 @@ export enum EShellMsg {
   UserJoined = `user-joined`,
   Reconnected = `reconnected`,
   Disconnected = `disconnected`,
+  PortsChanged = `ports-changed`,
   SandboxStopping = `sandbox-stopping`,
   SessionsUpdated = `sessions-updated`,
+  FileTreeChanged = `file-tree-changed`,
+  InstancesUpdated = `instances-updated`,
   PermissionResponse = `permission-response`,
 }
 
@@ -305,14 +308,15 @@ export type TSandboxStopResponse = {
   failedInstances?: string[]
 }
 
-export type TSandboxConnectResponse = {
+export type TSBConnectResp = {
   alias?: string
   workdir: string
   command: string
-  password: string
   sandboxId: string
   instanceId: string
   shellToken?: string
+  subdomain?: string
+  portUrlTemplate?: string
 }
 
 export type TSandboxStatusResp = {
@@ -332,7 +336,7 @@ export type TSandboxInstance = {
   sessions: TSandboxSession[]
 }
 
-export type TSandboxInstancesResponse = {
+export type TSBInstancesResp = {
   maxInstances: number
   instances: TSandboxInstance[]
 }
@@ -358,6 +362,7 @@ export type TSandboxProjectConfig = {
 }
 
 export type TSandboxConnectOpts = {
+  sessionId?: string
   instanceId?: string
   newInstance?: boolean
 }
@@ -368,8 +373,83 @@ export type TSandboxStopOpts = {
   instanceId?: string
 }
 
-export type TMonitorMessage = {
+export type TSessionsUpdatedMessage = {
   sandboxId: string
   sessions: TSandboxSession[]
   type: EShellMsg.SessionsUpdated
+}
+
+export enum EFileOp {
+  list = `list`,
+  read = `read`,
+  size = `size`,
+  write = `write`,
+  create = `create`,
+  delete = `delete`,
+  exists = `exists`,
+}
+
+export type TMutatingFileOp = EFileOp.create | EFileOp.delete | EFileOp.write
+
+export type TFileOpType = `${EFileOp}`
+
+export type TFileChangeRequest =
+  | { op: EFileOp.list; path: string }
+  | { op: EFileOp.read; path: string }
+  | { op: EFileOp.size; path: string }
+  | { op: EFileOp.exists; path: string }
+  | { op: EFileOp.write; path: string; content: string }
+  | { op: EFileOp.create; path: string; entryType: `file` | `folder` }
+  | { op: EFileOp.delete; path: string; entryType: `file` | `folder` }
+
+export type TFileTreeChangedMessage = {
+  path: string
+  sandboxId: string
+  instanceId: string
+  changeType: TMutatingFileOp
+  entryType: `file` | `folder`
+  type: EShellMsg.FileTreeChanged
+}
+
+export type TPortsChangedMessage = {
+  sandboxId: string
+  instanceId: string
+  detected: TDetectedPort[]
+  type: EShellMsg.PortsChanged
+  exposed: Record<string, TPortConfig>
+}
+
+export type TInstancesUpdatedMessage = TSBInstancesResp & {
+  sandboxId: string
+  type: EShellMsg.InstancesUpdated
+}
+
+export type TMonitorMessage =
+  | TSessionsUpdatedMessage
+  | TFileTreeChangedMessage
+  | TPortsChangedMessage
+  | TInstancesUpdatedMessage
+
+export type TDetectedPort = {
+  port: number
+  protocol: TProto
+}
+
+export type TPortsResponse = {
+  instanceId: string
+  portUrlTemplate?: string
+  detected: TDetectedPort[]
+  exposed: Record<string, TPortConfig>
+}
+
+export type TExposePortRequest = {
+  port: number
+  protocol?: TProto
+  instanceId: string
+}
+
+export type TExposePortResponse = {
+  port: number
+  url?: string
+  protocol: TProto
 }

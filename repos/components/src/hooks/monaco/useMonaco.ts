@@ -97,31 +97,38 @@ const useOnEditorBeforeMount = (props: THMonaco) => {
 }
 
 const useOnEditorMount = (props: THMonaco) => {
-  const { onMount, editorRef, monacoRef, onBlurText, placeholder, onFocusText } = props
+  const { onMount, variant, editorRef, monacoRef, onBlurText, placeholder, onFocusText } =
+    props
 
   const onMountCB: OnMount = (editor, monaco) => {
     editorRef.current = editor
     monacoRef.current = monaco
 
-    let ignoreEvent = false
+    if (variant !== `ide`) {
+      let ignoreEvent = false
 
-    const updateHeight = () => {
-      if (ignoreEvent) return
+      const updateHeight = () => {
+        if (ignoreEvent) return
 
-      const editorDomNode = editor.getDomNode()
-      if (!editorDomNode) return
+        const editorDomNode = editor.getDomNode()
+        if (!editorDomNode) return
 
-      const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight)
-      const lineCount = editor.getModel()?.getLineCount() || 1
-      const height = editor.getTopForLineNumber(lineCount + 1) + lineHeight
+        const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight)
+        const lineCount = editor.getModel()?.getLineCount() || 1
+        const height = editor.getTopForLineNumber(lineCount + 1) + lineHeight
 
-      try {
-        ignoreEvent = true
-        editor.layout({ width: editorDomNode.clientWidth, height: height + gutter.h })
-      } finally {
-        ignoreEvent = false
+        try {
+          ignoreEvent = true
+          editor.layout({ width: editorDomNode.clientWidth, height: height + gutter.h })
+        } finally {
+          ignoreEvent = false
+        }
       }
+
+      editor.onDidContentSizeChange(updateHeight)
+      updateHeight()
     }
+
     ;(placeholder || onFocusText) &&
       editor.onDidFocusEditorText(() => {
         onFocusText?.(editor, monaco)
@@ -135,9 +142,6 @@ const useOnEditorMount = (props: THMonaco) => {
           !Boolean(editor.getValue()?.trim()) &&
           togglePlaceholder(editor, true)
       })
-
-    editor.onDidContentSizeChange(updateHeight)
-    updateHeight()
 
     onMount?.(editor, monaco)
   }

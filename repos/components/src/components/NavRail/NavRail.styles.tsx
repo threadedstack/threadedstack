@@ -10,8 +10,8 @@ const expandedW = dims.navRail.expandedWidth
 
 export const RailWrapper = styled(Box)({
   width: railW,
-  minWidth: railW,
   flexShrink: 0,
+  minWidth: railW,
   position: `relative`,
 })
 
@@ -20,15 +20,15 @@ export const RailBox = styled(Box)(({ theme }) => ({
   top: 0,
   left: 0,
   bottom: 0,
+  width: railW,
   display: `flex`,
   overflowY: `auto`,
   overflowX: `hidden`,
-  width: railW,
   flexDirection: `column`,
   alignItems: `flex-start`,
+  zIndex: theme.zIndex.drawer,
   borderRight: `1px solid ${theme.palette.divider}`,
   backgroundColor: theme.palette.background.header,
-  zIndex: theme.zIndex.drawer,
   transition: theme.transitions.create([`width`, `box-shadow`], {
     easing: theme.transitions.easing.easeInOut,
     duration: 500,
@@ -46,8 +46,8 @@ export const RailBox = styled(Box)(({ theme }) => ({
       visibility: `visible`,
     },
     [`& .tdsk-rail-child-items`]: {
-      maxHeight: 2000,
       opacity: 1,
+      maxHeight: 2000,
       overflow: `visible`,
     },
   },
@@ -63,8 +63,8 @@ export const RailBox = styled(Box)(({ theme }) => ({
     transition: `opacity 0.35s ease 0.18s`,
   },
   [`& .tdsk-rail-child-items`]: {
-    maxHeight: 0,
     opacity: 0,
+    maxHeight: 0,
     overflow: `hidden`,
     transition: `max-height 0.35s ease 0.1s, opacity 0.35s ease 0.15s`,
   },
@@ -75,14 +75,14 @@ export const RailItemButton = styled(ListItemButton, {
 })<{ active?: boolean; depth?: number }>(({ theme, active, depth = 0 }) => ({
   py: 1,
   gap: 8,
+  borderRadius: 0,
+  paddingRight: 12,
+  justifyContent: `flex-start`,
   paddingTop: depth > 0 ? 4 : 8,
+  minHeight: depth > 0 ? 32 : 40,
+  marginBottom: depth > 0 ? 0 : 4,
   paddingBottom: depth > 0 ? 4 : 8,
   paddingLeft: depth > 0 ? 12 + depth * 12 : 12,
-  paddingRight: 12,
-  marginBottom: depth > 0 ? 0 : 4,
-  minHeight: depth > 0 ? 32 : 40,
-  borderRadius: 0,
-  justifyContent: `flex-start`,
   borderLeft: active ? `3px solid ${colors.primary.main}` : `3px solid transparent`,
   color: active ? colors.primary.main : theme.palette.text.secondary,
   backgroundColor: active ? cmx(colors.primary.main, 8) : `transparent`,

@@ -20,8 +20,20 @@ export const execInSandbox: TEndpointConfig = {
     const { db } = req.app.locals
     const { command, args, instanceId } = req.body
 
-    if (!command) throw new Exception(400, `command is required`)
-    if (!instanceId) throw new Exception(400, `instanceId is required`)
+    if (!command || typeof command !== `string`)
+      throw new Exception(400, `command is required and must be a string`)
+    if (command.length > 2048) throw new Exception(400, `command exceeds maximum length`)
+    if (!instanceId || typeof instanceId !== `string`)
+      throw new Exception(400, `instanceId is required and must be a string`)
+    if (args !== undefined) {
+      if (!Array.isArray(args)) throw new Exception(400, `args must be an array`)
+      if (args.length > 64) throw new Exception(400, `too many args`)
+      for (const arg of args) {
+        if (typeof arg !== `string`) throw new Exception(400, `each arg must be a string`)
+        if (arg.length > 1024 * 1024)
+          throw new Exception(400, `arg exceeds maximum length`)
+      }
+    }
 
     const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
 

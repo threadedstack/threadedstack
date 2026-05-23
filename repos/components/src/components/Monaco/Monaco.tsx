@@ -26,6 +26,7 @@ export type TMonaco = THMonaco & {
 
 export const Monaco = (props: TMonaco) => {
   const {
+    path,
     value,
     theme,
     actions,
@@ -33,6 +34,7 @@ export const Monaco = (props: TMonaco) => {
     onMount,
     onChange,
     language,
+    defaultPath,
     onLangChange,
     defaultValue,
     onBeforeMount,
@@ -47,7 +49,8 @@ export const Monaco = (props: TMonaco) => {
         props.className,
         props.hidden && `hidden`,
         props.required && `required`,
-        props.noLineNum && `no-editor-line-num`
+        props.noLineNum && `no-editor-line-num`,
+        props.variant === `ide` && `tdsk-monaco-ide`
       )}
     >
       {!props.hideActions && (
@@ -74,12 +77,14 @@ export const Monaco = (props: TMonaco) => {
         </MonacoPlaceholder>
       )}
       <MonEditor
+        path={path}
         theme={theme}
         value={value}
         options={options}
         onMount={onMount}
         onChange={onChange}
         language={language}
+        defaultPath={defaultPath}
         beforeMount={onBeforeMount}
         defaultValue={defaultValue}
         defaultLanguage={defaultLanguage}

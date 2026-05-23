@@ -30,6 +30,7 @@ export type THMonaco = EditorProps & {
   onFocusText?: TMonEditorCB
   onBeforeMount?: TMonacoCB
   actions?: TAccordionAction[]
+  variant?: `default` | `ide`
   themeLight?: `vs` | `r-light`
   themeDark?: `vs-dark` | `r-dark`
   onLangChange?: TMonEditorLangCB

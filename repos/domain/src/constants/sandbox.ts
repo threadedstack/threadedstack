@@ -5,6 +5,7 @@ import type {
   TRuntimeProviderEnvMap,
 } from '@TDM/types'
 
+import { SandboxHomePath } from '@TDM/constants/envs'
 import { EImagePullPolicy, ESandboxRuntime, ERuntimeBrand } from '@TDM/types'
 
 export const DefaultMaxInstances = 1
@@ -180,12 +181,6 @@ export const SandboxPresets: Record<
     },
   },
 }
-
-/**
- * TODO: Reuse this constant across the other repose where the home path is used
- * Will ensure it's consistent and doesn't drift
- */
-export const SandboxHomePath = `/home/sandbox`
 
 export const RuntimeSkillPathMap: Record<TSandboxRuntimeId, TRuntimeSkillConfig | null> =
   {

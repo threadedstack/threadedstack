@@ -1,4 +1,5 @@
 import type { TShimDefinition } from '@TSB/types'
+import { SandboxHomePath } from '@tdsk/domain'
 
 export const osShim: TShimDefinition = {
   names: [`os`, `node:os`],
@@ -8,7 +9,7 @@ export const osShim: TShimDefinition = {
     function arch() { return 'x64' }
     function type() { return 'Linux' }
     function tmpdir() { return '/tmp' }
-    function homedir() { return '/home/sandbox' }
+    function homedir() { return '${SandboxHomePath}' }
     function hostname() { return 'sandbox' }
     function endianness() { return 'LE' }
     const EOL = '\\n'
@@ -28,7 +29,7 @@ export const osShim: TShimDefinition = {
     }
 
     function userInfo() {
-      return { uid: 1000, gid: 1000, username: 'sandbox', homedir: '/home/sandbox', shell: '/bin/sh' }
+      return { uid: 1000, gid: 1000, username: 'sandbox', homedir: '${SandboxHomePath}', shell: '/bin/sh' }
     }
 
     export {

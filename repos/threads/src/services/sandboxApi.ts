@@ -1,9 +1,14 @@
 import type { TApiRes, TApiCacheKeys } from '@TTH/types'
 import type {
+  TProto,
+  TPortsResponse,
+  TSandboxResult,
+  TSBConnectResp,
   TSandboxSession,
+  TSBInstancesResp,
+  TFileChangeRequest,
+  TExposePortResponse,
   TSandboxConnectOpts,
-  TSandboxConnectResponse,
-  TSandboxInstancesResponse,
 } from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
@@ -61,8 +66,8 @@ export class SandboxApi extends BaseApi {
     projectId: string,
     id: string,
     opts?: TSandboxConnectOpts
-  ): Promise<TApiRes<TSandboxConnectResponse>> {
-    const resp = await this.api.post<TSandboxConnectResponse>({
+  ): Promise<TApiRes<TSBConnectResp>> {
+    const resp = await this.api.post<TSBConnectResp>({
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
       data: opts ?? {},
     })
@@ -86,8 +91,8 @@ export class SandboxApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string
-  ): Promise<TApiRes<TSandboxInstancesResponse>> {
-    const resp = await this.api.get<TSandboxInstancesResponse>({
+  ): Promise<TApiRes<TSBInstancesResp>> {
+    const resp = await this.api.get<TSBInstancesResp>({
       path: `${this.#path(orgId, projectId)}/${id}/instances`,
       queryKey: [...this.cache.detail(id), `instances`],
     })
@@ -110,6 +115,76 @@ export class SandboxApi extends BaseApi {
     if (resp.error?.status !== 409) {
       resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
     }
+    return resp
+  }
+
+  async exec(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    data: { command: string; args?: string[]; instanceId: string }
+  ): Promise<TApiRes<TSandboxResult>> {
+    const resp = await this.api.post<TSandboxResult>({
+      data,
+      path: `${this.#path(orgId, projectId)}/${sandboxId}/exec`,
+    })
+    return resp
+  }
+
+  async fileOp(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    data: { fileChange: TFileChangeRequest; instanceId: string }
+  ): Promise<TApiRes<TSandboxResult>> {
+    const resp = await this.api.post<TSandboxResult>({
+      data,
+      path: `${this.#path(orgId, projectId)}/${sandboxId}/file`,
+    })
+    return resp
+  }
+
+  async listPorts(
+    orgId: string,
+    projectId: string,
+    id: string,
+    instanceId: string
+  ): Promise<TApiRes<TPortsResponse>> {
+    const resp = await this.api.get<TPortsResponse>({
+      path: `${this.#path(orgId, projectId)}/${id}/ports`,
+      data: { instanceId },
+    })
+    resp.error && (await this._onError(resp.error, `Failed to load ports`))
+    return resp
+  }
+
+  async exposePort(
+    orgId: string,
+    projectId: string,
+    id: string,
+    data: { instanceId: string; port: number; protocol?: TProto }
+  ): Promise<TApiRes<TExposePortResponse>> {
+    const resp = await this.api.post<TExposePortResponse>({
+      data,
+      path: `${this.#path(orgId, projectId)}/${id}/ports`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to expose port`))
+    return resp
+  }
+
+  async removePort(
+    orgId: string,
+    projectId: string,
+    id: string,
+    port: number,
+    instanceId: string
+  ): Promise<TApiRes<{ success: boolean }>> {
+    const resp = await this.api.delete<{ success: boolean }>({
+      data: { instanceId },
+      path: `${this.#path(orgId, projectId)}/${id}/ports/${port}`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to remove port`))
     return resp
   }
 

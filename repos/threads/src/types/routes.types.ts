@@ -23,8 +23,7 @@ export enum ERoutePath {
   Sandbox = `sandbox/:sandboxId`,
   Instance = `sandbox/:sandboxId/instance/:instanceId`,
 
-  // TODO: the session route is incorrect. It should be under the instance
-  Session = `session/:sessionId`,
+  Session = `instances/:instanceId/session/:sessionId`,
 
   // Catch-all
   Star = `*`,

@@ -1,21 +1,20 @@
-import type { Sandbox, TSandboxInstance } from '@tdsk/domain'
+import type { Sandbox } from '@tdsk/domain'
 import type { TViewportMode } from '@TTH/types/ast.types'
 
 import { nav } from '@TTH/services/nav'
 import { ESandboxMode } from '@TTH/types'
 import { useLocation } from 'react-router'
 import { storage } from '@TTH/services/storage'
-import { sandboxApi } from '@TTH/services/sandboxApi'
 import { colors, cmx, dims } from '@tdsk/components'
 import { Terminal, ChevronRight } from '@mui/icons-material'
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useSandboxMode } from '@TTH/hooks/sandbox/useSandboxMode'
-import { useUser, useBackendSessions } from '@TTH/state/selectors'
 import { classifySessions } from '@TTH/utils/sessions/classifySessions'
 import { NavInstanceItem } from '@TTH/components/Sidebar/NavInstanceItem'
 import { Box, Typography, Collapse, Chip, useTheme } from '@mui/material'
 import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
 import { useSandboxHasSession } from '@TTH/hooks/sandbox/useSandboxHasSession'
+import { useUser, useBackendSessions, useSandboxInstances } from '@TTH/state/selectors'
 
 export type TNavSandboxItem = {
   sandbox: Sandbox
@@ -51,8 +50,8 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   const [user] = useUser()
   const location = useLocation()
   const sandboxMode = useSandboxMode(sandbox.id)
-  const [instances, setInstances] = useState<TSandboxInstance[]>([])
   const [backendSessionsMap] = useBackendSessions()
+  const [instancesMap] = useSandboxInstances()
   const hasSession = useSandboxHasSession(sandbox.id)
   const localSessions = useSandboxSessions(sandbox.id)
   const [expanded, setExpanded] = useState(() => storage.getSBExpanded(sandbox.id))
@@ -60,13 +59,18 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   const runtime = sandbox.config?.runtime || `custom`
   const resolvedProjectId = projectId || sandbox.projects?.[0]?.id || ``
 
+  const backendSessions = backendSessionsMap.get(sandbox.id) ?? []
+  const instances = instancesMap.get(sandbox.id)?.instances ?? []
+
   const isActive =
     location.pathname === nav.path.sandbox(orgId, resolvedProjectId, sandbox.id) ||
-    localSessions.some(
-      (s) => location.pathname === nav.path.session(orgId, resolvedProjectId, s.sessionId)
-    )
-
-  const backendSessions = backendSessionsMap.get(sandbox.id) ?? []
+    localSessions.some((s) => {
+      const iid =
+        backendSessions.find((bs) => bs.sessionId === s.sessionId)?.instanceId ?? ``
+      return (
+        location.pathname === nav.path.session(orgId, resolvedProjectId, iid, s.sessionId)
+      )
+    })
 
   const classifiedSessions = useMemo(
     () => classifySessions(backendSessions, localSessions, user?.id),
@@ -89,26 +93,6 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
     }
     return groups
   }, [classifiedSessions, backendSessions, instances])
-
-  const loadInstances = useCallback(() => {
-    if (!orgId || !resolvedProjectId) return
-    sandboxApi
-      .listInstances(orgId, resolvedProjectId, sandbox.id)
-      .then((resp) => {
-        if (resp.data) setInstances(resp.data.instances)
-      })
-      .catch((err) => {
-        console.warn(`[NavSandboxItem] loadInstances failed for ${sandbox.id}:`, err)
-      })
-  }, [orgId, sandbox.id, resolvedProjectId])
-
-  useEffect(() => {
-    loadInstances()
-  }, [loadInstances])
-
-  useEffect(() => {
-    if (backendSessions.length > 0) loadInstances()
-  }, [backendSessions.length, loadInstances])
 
   const onToggle = useCallback(
     (evt: React.MouseEvent) => {

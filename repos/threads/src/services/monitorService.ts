@@ -1,15 +1,29 @@
-import type { TMonitorMessage } from '@tdsk/domain'
+import type {
+  TPortsChangedMessage,
+  TFileTreeChangedMessage,
+  TSessionsUpdatedMessage,
+  TInstancesUpdatedMessage,
+} from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { EShellMsg } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
+import { isArr } from '@keg-hub/jsutils/isArr'
+import { isNum } from '@keg-hub/jsutils/isNum'
 import { sandboxApi } from '@TTH/services/sandboxApi'
-import { setBackendSessions } from '@TTH/state/accessors'
+import { handleFileTreeChanged } from '@TTH/actions/editor/handleFileTreeChanged'
+import {
+  setBackendSessions,
+  setSandboxPorts,
+  setSandboxInstances,
+} from '@TTH/state/accessors'
 
-const InitialReconnectDelay = 2_000
-const MaxReconnectDelay = 60_000
-const MaxRetries = 8
-const PermanentCloseFloor = 4001
+import {
+  MaxRetries,
+  PermanentCloseFloor,
+  MaxReconnectDelay,
+  InitialReconnectDelay,
+} from '@TTH/constants/monitor'
 
 class MonitorService {
   private ws: WebSocket | null = null
@@ -93,8 +107,47 @@ class MonitorService {
       if (msg.type === EShellMsg.SessionsUpdated && msg.sandboxId) {
         setBackendSessions(
           msg.sandboxId as string,
-          (msg as TMonitorMessage).sessions ?? []
+          (msg as unknown as TSessionsUpdatedMessage).sessions ?? []
         )
+      }
+
+      if (msg.type === EShellMsg.InstancesUpdated && msg.sandboxId) {
+        const im = msg as unknown as TInstancesUpdatedMessage
+        if (isArr(im.instances) && isNum(im.maxInstances)) {
+          setSandboxInstances(im.sandboxId as string, {
+            instances: im.instances,
+            maxInstances: im.maxInstances,
+          })
+        } else {
+          console.warn(`[MonitorService] Malformed InstancesUpdated message:`, msg)
+        }
+      }
+
+      if (msg.type === EShellMsg.FileTreeChanged) {
+        if (
+          msg.sandboxId &&
+          msg.path &&
+          msg.instanceId &&
+          msg.changeType &&
+          (msg.entryType === `file` || msg.entryType === `folder`)
+        ) {
+          handleFileTreeChanged(msg as unknown as TFileTreeChangedMessage)
+        } else {
+          console.warn(`[MonitorService] Malformed FileTreeChanged message:`, msg)
+        }
+      }
+
+      if (msg.type === EShellMsg.PortsChanged && msg.instanceId) {
+        const pm = msg as unknown as TPortsChangedMessage
+        if (pm.exposed && pm.detected) {
+          setSandboxPorts(pm.instanceId, {
+            instanceId: pm.instanceId,
+            exposed: pm.exposed,
+            detected: pm.detected,
+          })
+        } else {
+          console.warn(`[MonitorService] Malformed PortsChanged message:`, msg)
+        }
       }
     }
 

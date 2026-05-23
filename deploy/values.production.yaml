@@ -45,3 +45,4 @@ env:
 
 # ---- Sandbox Envs ---- #
   TDSK_SB_RUNTIME_CLASS: kata-clh
+  TDSK_SB_DOMAIN: sandbox.threadedstack.app

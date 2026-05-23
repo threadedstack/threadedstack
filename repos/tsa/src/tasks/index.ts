@@ -6,6 +6,7 @@ import { chat } from './chat'
 import { help } from './help'
 import { login } from './login'
 import { proxy } from './proxy'
+import { ports } from './ports'
 import { logout } from './logout'
 import { status } from './status'
 import { agents } from './agents'
@@ -20,6 +21,7 @@ export const tasks: TTasks = {
   help,
   login,
   proxy,
+  ports,
   logout,
   status,
   agents,

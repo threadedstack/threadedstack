@@ -1,19 +1,27 @@
 import type { AuthManager } from '@TSA/services/auth'
 import type { TSessionInfo, TProviderInfo, TCliSessionKeyResult } from '@TSA/types'
 import type {
+  TProto,
   TApiRequest,
   TApiResponse,
+  TSBConnectResp,
   TSandboxSession,
+  TSBInstancesResp,
   TSandboxConnectOpts,
-  TSandboxConnectResponse,
-  TSandboxInstancesResponse,
 } from '@tdsk/domain'
 
-import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TSA/constants'
 import { TokenRefreshService } from '@TSA/services/tokenRefresh'
-import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 import { RetryStatusCodes, RetryNetworkCodes } from '@TSA/constants/api'
+import {
+  Agent,
+  Thread,
+  Message,
+  Exception,
+  ApiService,
+  Organization,
+  SandboxHomePath,
+} from '@tdsk/domain'
 
 export class ApiClient extends ApiService {
   #auth: AuthManager
@@ -232,8 +240,8 @@ export class ApiClient extends ApiService {
     projectId: string,
     sandboxId: string,
     opts?: TSandboxConnectOpts
-  ): Promise<TApiResponse<TSandboxConnectResponse>> {
-    return this.post<TSandboxConnectResponse>({
+  ): Promise<TApiResponse<TSBConnectResp>> {
+    return this.post<TSBConnectResp>({
       path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
       data: opts ?? {},
     })
@@ -243,8 +251,8 @@ export class ApiClient extends ApiService {
     orgId: string,
     projectId: string,
     sandboxId: string
-  ): Promise<TApiResponse<TSandboxInstancesResponse>> {
-    return this.get<TSandboxInstancesResponse>({
+  ): Promise<TApiResponse<TSBInstancesResp>> {
+    return this.get<TSBInstancesResp>({
       path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/instances`,
     })
   }
@@ -304,11 +312,11 @@ export class ApiClient extends ApiService {
       sandboxId,
       instanceId,
       [
-        `mkdir -p /home/sandbox/.ssh`,
-        `echo '${escaped}' > /home/sandbox/.ssh/authorized_keys`,
-        `chmod 700 /home/sandbox/.ssh`,
-        `chmod 600 /home/sandbox/.ssh/authorized_keys`,
-        `chown -R sandbox:sandbox /home/sandbox/.ssh`,
+        `mkdir -p ${SandboxHomePath}/.ssh`,
+        `echo '${escaped}' > ${SandboxHomePath}/.ssh/authorized_keys`,
+        `chmod 700 ${SandboxHomePath}/.ssh`,
+        `chmod 600 ${SandboxHomePath}/.ssh/authorized_keys`,
+        `chown -R sandbox:sandbox ${SandboxHomePath}/.ssh`,
       ].join(` && `)
     )
 
@@ -360,6 +368,47 @@ export class ApiClient extends ApiService {
     if (result.ok && result.data)
       result.data = result.data.map((item) => new Message(item))
     return result
+  }
+
+  // --- Ports ---
+
+  async listPorts(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    instanceId: string
+  ): Promise<TApiResponse<any>> {
+    return this.get<any>({
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/ports`,
+      data: { instanceId },
+    })
+  }
+
+  async exposePort(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    instanceId: string,
+    port: number,
+    protocol?: TProto
+  ): Promise<TApiResponse<any>> {
+    return this.post<any>({
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/ports`,
+      data: { instanceId, port, ...(protocol && { protocol }) },
+    })
+  }
+
+  async removePort(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    port: number,
+    instanceId: string
+  ): Promise<TApiResponse<any>> {
+    return this.delete<any>({
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/ports/${port}`,
+      data: { instanceId },
+    })
   }
 
   async createMessage(

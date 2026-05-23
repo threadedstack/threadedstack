@@ -40,6 +40,10 @@ import { createAgent } from '@TBE/endpoints/agents/createAgent'
 import { updateAgent } from '@TBE/endpoints/agents/updateAgent'
 import { deleteAgent } from '@TBE/endpoints/agents/deleteAgent'
 
+import { listPorts } from '@TBE/endpoints/sandboxes/listPorts'
+import { exposePort } from '@TBE/endpoints/sandboxes/exposePort'
+import { removePort } from '@TBE/endpoints/sandboxes/removePort'
+
 import { addProjectMember } from '@TBE/endpoints/projects/addProjectMember'
 import { listProjectMembers } from '@TBE/endpoints/projects/listProjectMembers'
 import { removeProjectMember } from '@TBE/endpoints/projects/removeProjectMember'
@@ -58,6 +62,7 @@ import { getSBPConfig } from '@TBE/endpoints/sandboxes/getSBPConfig'
 import { listInstances } from '@TBE/endpoints/sandboxes/listInstances'
 import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
 import { execInSandbox } from '@TBE/endpoints/sandboxes/execInSandbox'
+import { fileOperation } from '@TBE/endpoints/sandboxes/fileOperation'
 import { createSandbox } from '@TBE/endpoints/sandboxes/createSandbox'
 import { updateSandbox } from '@TBE/endpoints/sandboxes/updateSandbox'
 import { deleteSandbox } from '@TBE/endpoints/sandboxes/deleteSandbox'
@@ -170,8 +175,8 @@ const projectSandboxes: TEndpointConfig = {
   method: EPMethod.Use,
   middleware: [projectAccessGuard(), projectMemberGuard()],
   endpoints: {
-    getSandbox,
     listSandboxes,
+    getSandbox,
     createSandbox,
     updateSandbox,
     deleteSandbox,
@@ -179,12 +184,16 @@ const projectSandboxes: TEndpointConfig = {
     stopSandbox,
     startSandbox,
     execInSandbox,
+    fileOperation,
     connectSandbox,
     listSessions,
     listInstances,
     getSandboxStatus,
     listSandboxThreads,
     projectSandboxConfig,
+    listPorts,
+    exposePort,
+    removePort,
   },
 }
 

@@ -22,7 +22,7 @@ export const connectSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals
-    const { newInstance, instanceId: requestedInstance } = req.body
+    const { newInstance, instanceId: requestedInstance, sessionId } = req.body
 
     const { projectId } = req.params
     if (!projectId)
@@ -53,13 +53,20 @@ export const connectSandbox: TEndpointConfig = {
     } else {
       const runningInstances = await sb.findRunningInstances(sandboxId, sandbox.orgId)
 
-      if (!newInstance && runningInstances.length > 0)
-        throw new Exception(
-          400,
-          `instanceId or newInstance required when instances exist`,
-          `INSTANCE_SELECTION_REQUIRED`,
-          runningInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
-        )
+      if (!newInstance && runningInstances.length > 0) {
+        if (sessionId) {
+          const resolved = sb.findInstanceForSession(sessionId, sandboxId)
+          if (resolved && runningInstances.includes(resolved)) instanceId = resolved
+        }
+
+        if (!instanceId)
+          throw new Exception(
+            400,
+            `instanceId or newInstance required when instances exist`,
+            `INSTANCE_SELECTION_REQUIRED`,
+            runningInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+          )
+      }
     }
 
     if (!instanceId) {
@@ -137,6 +144,7 @@ export const connectSandbox: TEndpointConfig = {
         throw err
       } finally {
         sb.clearStarting(sandboxId)
+        sb.broadcastInstanceList(sandboxId, sandbox.orgId).catch(() => {})
       }
     }
 
@@ -157,10 +165,6 @@ export const connectSandbox: TEndpointConfig = {
       )
     }
 
-    let password = sb.getPassword(instanceId)
-    if (!password) password = await sb.recoverPassword(instanceId)
-    if (!password) throw new Exception(500, `Could not retrieve SSH password for pod`)
-
     const shellToken = signShellToken({
       sandboxId,
       userId: req.user!.id,
@@ -169,10 +173,12 @@ export const connectSandbox: TEndpointConfig = {
 
     const alias = sandbox.getProjectAlias(projectId)
 
+    const subdomain = req.app.locals.kube?.findSubdomainByInstance(instanceId)
+    const portUrlTemplate = subdomain ? sb.buildPortUrlTemplate(subdomain) : undefined
+
     res.status(200).json({
       data: {
         workdir,
-        password,
         sandboxId,
         port: 2222,
         instanceId,
@@ -180,6 +186,8 @@ export const connectSandbox: TEndpointConfig = {
         command: `tsa ssh ${alias || sandboxId}`,
         ...(alias && { alias }),
         ...(initError && { initError }),
+        ...(subdomain && { subdomain }),
+        ...(portUrlTemplate && { portUrlTemplate }),
       },
     })
   },

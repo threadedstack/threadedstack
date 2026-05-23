@@ -20,8 +20,8 @@ export class NavService {
       `/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}`,
     instance: (orgId: string, projectId: string, sandboxId: string, instanceId: string) =>
       `/orgs/${orgId}/projects/${projectId}/sandbox/${sandboxId}/instance/${instanceId}`,
-    session: (orgId: string, projectId: string, sessionId: string) =>
-      `/orgs/${orgId}/projects/${projectId}/session/${sessionId}`,
+    session: (orgId: string, projectId: string, instanceId: string, sessionId: string) =>
+      `/orgs/${orgId}/projects/${projectId}/instances/${instanceId}/session/${sessionId}`,
     settings: () => `/settings`,
   }
 
@@ -65,6 +65,8 @@ export class NavService {
   has = (loc: string) => window.location.pathname.startsWith(loc)
   signin = () => !this.has(ERoutePath.Signin) && this.to(ERoutePath.Signin)
 
+  settings = (opts?: TNavOptions) => this.to(this.path.settings(), opts)
+
   orgs = (opts?: TNavOptions) => this.to(this.path.orgs(), opts)
 
   org = (orgId: string, opts?: TNavOptions) => this.to(this.path.org(orgId), opts)
@@ -86,10 +88,13 @@ export class NavService {
     opts?: TNavOptions
   ) => this.to(this.path.instance(orgId, projectId, sandboxId, instanceId), opts)
 
-  session = (orgId: string, projectId: string, sessionId: string, opts?: TNavOptions) =>
-    this.to(this.path.session(orgId, projectId, sessionId), opts)
-
-  settings = (opts?: TNavOptions) => this.to(this.path.settings(), opts)
+  session = (
+    orgId: string,
+    projectId: string,
+    instanceId: string,
+    sessionId: string,
+    opts?: TNavOptions
+  ) => this.to(this.path.session(orgId, projectId, instanceId, sessionId), opts)
 
   home = () => {
     if (this.is(ERoutePath.Home)) return

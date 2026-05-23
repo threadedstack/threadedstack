@@ -1,10 +1,26 @@
+import { ExtMap, FilenameMap, BinaryExtensions } from '@TTH/constants/monaco'
+
+const basename = (path: string): string => {
+  const parts = path.split(`/`)
+  return parts[parts.length - 1] || ``
+}
+
 export const detectLanguage = (path: string): string => {
-  if (path.endsWith(`.css`)) return `CSS`
-  if (path.endsWith(`.json`)) return `JSON`
-  if (path.endsWith(`.html`)) return `HTML`
-  if (path.endsWith(`.md`)) return `Markdown`
-  if (path.endsWith(`.yml`) || path.endsWith(`.yaml`)) return `YAML`
-  if (path.endsWith(`.ts`) || path.endsWith(`.tsx`)) return `TypeScript`
-  if (path.endsWith(`.js`) || path.endsWith(`.jsx`)) return `JavaScript`
-  return `Plain Text`
+  const filename = basename(path)
+
+  const mapped = FilenameMap.get(filename)
+  if (mapped) return mapped
+
+  const dotIndex = filename.lastIndexOf(`.`)
+  if (dotIndex < 0) return `plaintext`
+
+  const ext = filename.slice(dotIndex + 1).toLowerCase()
+  return ExtMap.get(ext) ?? `plaintext`
+}
+
+export const isBinaryFile = (path: string): boolean => {
+  const filename = basename(path)
+  const dotIndex = filename.lastIndexOf(`.`)
+  if (dotIndex < 0) return false
+  return BinaryExtensions.has(filename.slice(dotIndex + 1).toLowerCase())
 }

@@ -45,15 +45,16 @@ export const NavSessionItem = (props: TNavSessionItem) => {
 
   const isSharedViewOnly = session.category === `shared` && !canExecSandbox
   const isActive =
-    location.pathname === nav.path.session(orgId, projectId, session.sessionId)
+    location.pathname ===
+    nav.path.session(orgId, projectId, instanceId ?? ``, session.sessionId)
 
   const sid = formatShortId(session.sessionId)
   const timestamp = formatRelativeDate(session.connectedAt)
 
   const onClick = useCallback(async () => {
     if (session.category === `connected`) {
-      nav.session(orgId, projectId, session.sessionId, {
-        state: { sandboxId, projectId },
+      nav.session(orgId, projectId, instanceId ?? ``, session.sessionId, {
+        state: { sandboxId, projectId, instanceId },
       })
       return
     }
@@ -64,17 +65,19 @@ export const NavSessionItem = (props: TNavSessionItem) => {
 
     try {
       const { cols, rows } = estimateTerminalDimensions()
-      const resolvedId = await openSession({
-        orgId,
-        cols,
-        rows,
-        sandboxId,
-        projectId,
-        instanceId,
-        sessionId: session.sessionId,
-      })
-      nav.session(orgId, projectId, resolvedId, {
-        state: { sandboxId, projectId },
+      const { sessionId: resolvedId, instanceId: resolvedInstanceId } = await openSession(
+        {
+          cols,
+          rows,
+          orgId,
+          sandboxId,
+          projectId,
+          instanceId,
+          sessionId: session.sessionId,
+        }
+      )
+      nav.session(orgId, projectId, resolvedInstanceId, resolvedId, {
+        state: { sandboxId, projectId, instanceId: resolvedInstanceId },
       })
     } catch (err) {
       toast.error(`Failed to connect`, {

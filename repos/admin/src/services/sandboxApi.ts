@@ -1,5 +1,6 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 import type {
+  TSBConnectResp,
   TSandboxSession,
   TSandboxStopOpts,
   TSandboxStartResp,
@@ -7,7 +8,6 @@ import type {
   TSandboxConnectOpts,
   TSandboxStopResponse,
   TSandboxProjectConfig,
-  TSandboxConnectResponse,
 } from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
@@ -221,8 +221,8 @@ export class SandboxApi extends BaseApi {
     projectId: string,
     id: string,
     opts?: TSandboxConnectOpts
-  ): Promise<TApiRes<TSandboxConnectResponse>> {
-    const resp = await this.api.post<TSandboxConnectResponse>({
+  ): Promise<TApiRes<TSBConnectResp>> {
+    const resp = await this.api.post<TSBConnectResp>({
       data: opts || {},
       path: `${this.#path(orgId, projectId)}/${id}/connect`,
     })

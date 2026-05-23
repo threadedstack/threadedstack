@@ -2,6 +2,7 @@ import type { TOpenSessionOpts, TTerminalEntry } from '@TTH/types'
 
 import { toast } from 'sonner'
 import { sessionService } from '@TTH/services/sessionService'
+import { loadDirectory } from '@TTH/actions/editor/loadDirectory'
 import {
   setOpenSession,
   getOpenSessions,
@@ -11,15 +12,14 @@ import {
   setBackendSessions,
 } from '@TTH/state/accessors'
 
+type TOpenSessionResult = { sessionId: string; instanceId: string }
+
 export const getRawBuffer = (sessionId: string) => sessionService.getRawBuffer(sessionId)
 export const getConnection = (sessionId: string) =>
   sessionService.getConnection(sessionId)
 
 export const subscribeTerminalData = (sessionId: string, cb: (data: string) => void) =>
   sessionService.subscribeTerminalData(sessionId, cb)
-
-export const subscribeEngineData = (sessionId: string, cb: (data: Uint8Array) => void) =>
-  sessionService.subscribeEngineData(sessionId, cb)
 
 export const getTerminal = (sessionId: string) => sessionService.getTerminal(sessionId)
 export const setTerminal = (sessionId: string, entry: TTerminalEntry) =>
@@ -30,13 +30,16 @@ export const deleteTerminal = (sessionId: string) =>
 export const findSandboxForSession = (sessionId: string) =>
   sessionService.findSandboxForSession(sessionId)
 
-export const clearStoredSessionsForSandbox = (sandboxId: string) =>
-  sessionService.clearStoredSessionsForSandbox(sandboxId)
+export const openSession = async (
+  opts: TOpenSessionOpts
+): Promise<TOpenSessionResult> => {
+  let instanceId = ``
 
-export const openSession = async (opts: TOpenSessionOpts) => {
   const sessionId = await sessionService.open(opts, {
     onSetup: (data) => {
       setOpenSession(data.sessionId, data)
+      instanceId = data.instanceId
+      if (data.workdir) loadDirectory(data.workdir, data.sessionId)
     },
     onVisibilityChange: (sid, visibility) => {
       const existing = getOpenSessions().get(sid)
@@ -59,5 +62,5 @@ export const openSession = async (opts: TOpenSessionOpts) => {
   })
 
   setActiveSession(sessionId)
-  return sessionId
+  return { sessionId, instanceId }
 }

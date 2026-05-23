@@ -1,12 +1,19 @@
-import { useMemo } from 'react'
+import type { TMonEditorCB } from '@TSC/types'
+
 import Box from '@mui/material/Box'
-import { EditorTabs } from './EditorTabs'
-import { MonoFont } from '@TTH/constants/values'
-import { mockFileContents } from './mockContent'
-import Typography from '@mui/material/Typography'
-import { EditorStatusBar } from './EditorStatusBar'
-import { DefaultLines } from '@TTH/constants/monaco'
+import { useRef, useCallback } from 'react'
+import { EditorTabs } from '@TTH/components/Editor/EditorTabs'
 import { detectLanguage } from '@TTH/utils/editor/detectLanguage'
+import { markFileDirty } from '@TTH/actions/editor/markFileDirty'
+import { EditorContent } from '@TTH/components/Editor/EditorContent'
+import { saveFileContent } from '@TTH/actions/editor/saveFileContent'
+import { EditorStatusBar } from '@TTH/components/Editor/EditorStatusBar'
+import { updateCursorPosition } from '@TTH/actions/editor/updateCursorPosition'
+import {
+  useSavingFiles,
+  useCursorPosition,
+  useFileContentCache,
+} from '@TTH/state/selectors'
 
 export type TEditorPane = {
   files: string[]
@@ -19,18 +26,44 @@ export type TEditorPane = {
 export const EditorPane = (props: TEditorPane) => {
   const { files, onCloseAll, activeFile, onCloseFile, onSelectFile } = props
 
-  const lines = useMemo(() => {
-    if (!activeFile) return DefaultLines
-    return mockFileContents[activeFile] ?? DefaultLines
-  }, [activeFile])
+  const [savingFiles] = useSavingFiles()
+  const [cursorPos] = useCursorPosition()
+  const [contentCache] = useFileContentCache()
 
-  const language = useMemo(() => {
-    return activeFile ? detectLanguage(activeFile) : `Plain Text`
-  }, [activeFile])
+  const activeFileRef = useRef(activeFile)
+  activeFileRef.current = activeFile
+
+  const cached = activeFile ? contentCache.get(activeFile) : undefined
+  const language = activeFile ? detectLanguage(activeFile) : `plaintext`
+  const isSaving = activeFile ? savingFiles.has(activeFile) : false
+
+  const onMount: TMonEditorCB = useCallback((editor, monaco) => {
+    editor.onDidChangeCursorPosition((e) => {
+      updateCursorPosition({
+        lineNumber: e.position.lineNumber,
+        column: e.position.column,
+      })
+    })
+    editor.addAction({
+      id: `tdsk-save-file`,
+      label: `Save File`,
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      run: () => {
+        const file = activeFileRef.current
+        if (file) saveFileContent(file)
+      },
+    })
+  }, [])
+
+  const onChange = useCallback((value: string | undefined) => {
+    const file = activeFileRef.current
+    file && value !== undefined && markFileDirty(file, value)
+  }, [])
 
   return (
     <Box
       sx={{
+        flex: 1,
         minHeight: 0,
         borderBottom: 1,
         display: `flex`,
@@ -45,80 +78,25 @@ export const EditorPane = (props: TEditorPane) => {
         activeFile={activeFile}
         onSelect={onSelectFile}
         onCloseAll={onCloseAll}
+        contentCache={contentCache}
       />
 
-      {/* Code body */}
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflow: `auto`,
-          bgcolor: `background.paper`,
-        }}
-      >
-        <Box
-          sx={{
-            display: `grid`,
-            minHeight: `100%`,
-            gridTemplateColumns: `44px 1fr`,
-          }}
-        >
-          {/* Line number gutter */}
-          <Box
-            sx={{
-              pr: 1,
-              py: 0.5,
-              borderRight: 1,
-              display: `flex`,
-              borderColor: `divider`,
-              flexDirection: `column`,
-              bgcolor: `background.default`,
-            }}
-          >
-            {lines.map((_line, idx) => (
-              <Typography
-                key={idx}
-                sx={{
-                  px: 0.5,
-                  fontSize: 12.25,
-                  lineHeight: 1.65,
-                  textAlign: `right`,
-                  userSelect: `none`,
-                  fontFamily: MonoFont,
-                  color: `text.disabled`,
-                }}
-              >
-                {idx + 1}
-              </Typography>
-            ))}
-          </Box>
-
-          {/* Code content */}
-          <Box sx={{ py: 0.5, pl: 1.5, pr: 2, minWidth: 0 }}>
-            {lines.map((line, idx) => (
-              <Typography
-                key={idx}
-                component='pre'
-                sx={{
-                  fontSize: 12.25,
-                  fontFamily: MonoFont,
-                  lineHeight: 1.65,
-                  color: `text.primary`,
-                  margin: 0,
-                  whiteSpace: `pre`,
-                  minHeight: `1.65em`,
-                }}
-              >
-                {line || ` `}
-              </Typography>
-            ))}
-          </Box>
-        </Box>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: `hidden` }}>
+        <EditorContent
+          cached={cached}
+          onMount={onMount}
+          onChange={onChange}
+          language={language}
+          activeFile={activeFile}
+        />
       </Box>
 
       <EditorStatusBar
-        filePath={activeFile}
         language={language}
+        isSaving={isSaving}
+        filePath={activeFile}
+        cursorPosition={cursorPos}
+        isDirty={cached?.status === `dirty`}
       />
     </Box>
   )

@@ -26,18 +26,23 @@ import {
   useContextPanelOpen,
 } from '@TTH/state/selectors'
 import {
+  sendControl,
   openSession,
   closeSession,
-  sendControl,
-  disconnectSession,
   activateSession,
+  disconnectSession,
 } from '@TTH/actions/sessions'
 import {
-  SessionLayout,
-  SessionHeader,
   TerminalPane,
   ContextPanel,
+  SessionLayout,
+  SessionHeader,
 } from '@TTH/components/SessionLayout'
+
+type TSessionParams = {
+  sessionId: string
+  instanceId: string
+}
 
 const SessionInner = () => {
   const [orgId] = useOrgId()
@@ -46,8 +51,9 @@ const SessionInner = () => {
   const [openEditorFiles] = useOpenEditorFiles()
   const [activeEditorFile] = useActiveEditorFile()
   const [contextPanelOpen] = useContextPanelOpen()
-  const { sessionId } = useParams<{ sessionId: string }>()
-  const { session, isOwner, sandboxId, projectId, connecting } = useSessionContext()
+  const { sessionId } = useParams<TSessionParams>()
+  const { session, isOwner, sandboxId, projectId, instanceId, connecting } =
+    useSessionContext()
 
   const hasSession = !!session
 
@@ -68,26 +74,27 @@ const SessionInner = () => {
 
   const onConnect = useCallback(async () => {
     if (!sandboxId || !orgId || !projectId) return
+
     try {
       const { cols, rows } = estimateTerminalDimensions()
-      const newSessionId = await openSession({
-        orgId,
+      const { sessionId: newSessionId, instanceId: newInstanceId } = await openSession({
         cols,
         rows,
+        orgId,
         sandboxId,
         projectId,
         sessionId: null,
       })
-      if (newSessionId) {
-        nav.session(orgId, projectId, newSessionId, {
+
+      if (newSessionId)
+        nav.session(orgId, projectId, newInstanceId, newSessionId, {
           replace: true,
-          state: { sandboxId, projectId },
+          state: { sandboxId, projectId, instanceId: newInstanceId },
         })
-      } else {
+      else
         toast.error(`Failed to connect`, {
           description: `No session was created. Try again.`,
         })
-      }
     } catch (err) {
       console.error(`[Session] connect failed:`, err)
       toast.error(`Failed to connect`, {
@@ -100,7 +107,7 @@ const SessionInner = () => {
     if (!orgId || !sandboxId || !projectId) return
     try {
       const { cols, rows } = estimateTerminalDimensions()
-      const newSessionId = await openSession({
+      const { sessionId: newSessionId, instanceId: newInstanceId } = await openSession({
         cols,
         rows,
         orgId,
@@ -109,9 +116,13 @@ const SessionInner = () => {
         sessionId: null,
         instanceId: session?.instanceId,
       })
-      nav.session(orgId, projectId, newSessionId, {
+      nav.session(orgId, projectId, newInstanceId, newSessionId, {
         replace: true,
-        state: { sandboxId, projectId },
+        state: {
+          sandboxId,
+          projectId,
+          instanceId: newInstanceId,
+        },
       })
     } catch (err) {
       toast.error(`Failed to create session`, {
@@ -122,14 +133,14 @@ const SessionInner = () => {
 
   const onTabClick = useCallback(
     (tabSessionId: string) => {
-      if (!orgId || !projectId) return
+      if (!orgId || !projectId || !instanceId) return
       activateSession(tabSessionId)
-      nav.session(orgId, projectId, tabSessionId, {
+      nav.session(orgId, projectId, instanceId, tabSessionId, {
         replace: true,
-        state: sandboxId ? { sandboxId, projectId } : undefined,
+        state: sandboxId ? { sandboxId, projectId, instanceId } : undefined,
       })
     },
-    [orgId, projectId, sandboxId]
+    [orgId, projectId, sandboxId, instanceId]
   )
 
   const onDetach = useCallback(() => {
@@ -153,19 +164,17 @@ const SessionInner = () => {
         projectId,
         instanceId: session?.instanceId,
       })
-      if (result.opened === 0) {
-        toast.warning(`Restart completed`, {
-          description: `No sessions were reopened`,
-        })
-      } else if (result.opened < result.total) {
+
+      if (result.opened === 0)
+        toast.warning(`Restart completed`, { description: `No sessions were reopened` })
+      else if (result.opened < result.total)
         toast.warning(
           `Partial restart: ${result.opened} of ${result.total} sessions reopened`
         )
-      } else {
+      else
         toast.success(`Restarted`, {
           description: `${result.opened} session(s) reopened`,
         })
-      }
     } catch (err) {
       toast.error(`Failed to restart`, {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,
@@ -173,7 +182,7 @@ const SessionInner = () => {
     }
   }, [orgId, sandboxId, projectId, session?.instanceId])
 
-  const handleShare = useCallback(() => {
+  const onShare = useCallback(() => {
     if (!sessionId || !session) return
     const newVisibility = session.visibility === `public` ? `private` : `public`
     const sent = sendControl(sessionId, {
@@ -190,25 +199,17 @@ const SessionInner = () => {
   const onEndSession = useCallback(() => {
     if (!sessionId) return
     closeSession(sessionId)
-    if (orgId && projectId && sandboxId)
+
+    orgId &&
+      projectId &&
+      sandboxId &&
       nav.sandbox(orgId, projectId, sandboxId, { replace: true })
   }, [sessionId, orgId, projectId, sandboxId])
 
-  const onToggleContext = useCallback(() => {
-    toggleContextPanel()
-  }, [])
-
-  const onSelectEditorFile = useCallback((path: string) => {
-    selectEditorFile(path)
-  }, [])
-
-  const onCloseEditorFile = useCallback((path: string) => {
-    closeEditorFile(path)
-  }, [])
-
-  const onCloseAllEditorFiles = useCallback(() => {
-    closeAllEditorFiles()
-  }, [])
+  const onToggleContext = useCallback(() => toggleContextPanel(), [])
+  const onCloseAllEditorFiles = useCallback(() => closeAllEditorFiles(), [])
+  const onCloseEditorFile = useCallback((path: string) => closeEditorFile(path), [])
+  const onSelectEditorFile = useCallback((path: string) => selectEditorFile(path), [])
 
   const hasEditorOpen = openEditorFiles.length > 0 && activeEditorFile !== null
 
@@ -410,7 +411,7 @@ const SessionInner = () => {
             onToggleContext={onToggleContext}
             onDetach={onDetach}
             onRestart={onRestart}
-            onShare={handleShare}
+            onShare={onShare}
             onEndSession={onEndSession}
           />
         }
@@ -436,8 +437,10 @@ const SessionInner = () => {
         }
         contextPanel={
           <ContextPanel
+            orgId={orgId}
             session={session}
             sandbox={sandbox}
+            projectId={projectId}
           />
         }
       />

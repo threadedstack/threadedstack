@@ -8,6 +8,7 @@ export type TCommand = `stop` | `restart` | `recreate`
 export type TSessionLocationState = {
   sandboxId: string
   projectId: string
+  instanceId?: string
 }
 
 export type TSessionCommandsProps = {
@@ -20,11 +21,14 @@ export type TSessionCommandsProps = {
 export type TOpenSession = {
   runtime: string
   threadId: string
+  workdir?: string
   sandboxId: string
   sessionId: string
   projectId: string
   instanceId: string
+  subdomain?: string
   podOwnerUserId: string
+  portUrlTemplate?: string
   visibility: ESandboxSessionVisibility
 }
 

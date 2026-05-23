@@ -27,7 +27,10 @@ export const SessionProvider = (props: TSessionProvider) => {
   const [sandboxes] = useSandboxes()
   const [openSessions] = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
-  const { sessionId } = useParams<{ sessionId: string }>()
+  const { sessionId, instanceId: urlInstanceId } = useParams<{
+    sessionId: string
+    instanceId: string
+  }>()
 
   const session = sessionId ? openSessions.get(sessionId) : undefined
   const hasSession = !!session
@@ -107,8 +110,16 @@ export const SessionProvider = (props: TSessionProvider) => {
     setConnecting(true)
 
     const { cols, rows } = estimateTerminalDimensions()
-    openSession({ sandboxId, orgId, projectId, sessionId, cols, rows })
-      .then((newSessionId) => {
+    openSession({
+      cols,
+      rows,
+      orgId,
+      sandboxId,
+      projectId,
+      sessionId,
+      instanceId: urlInstanceId,
+    })
+      .then(({ sessionId: newSessionId, instanceId: newInstanceId }) => {
         if (!mounted) return
         if (!newSessionId) {
           console.error(`[SessionProvider] reconnect returned no sessionId`)
@@ -116,9 +127,9 @@ export const SessionProvider = (props: TSessionProvider) => {
           return
         }
         if (newSessionId !== sessionId) {
-          nav.session(orgId, projectId, newSessionId, {
+          nav.session(orgId, projectId, newInstanceId, newSessionId, {
             replace: true,
-            state: { sandboxId, projectId },
+            state: { sandboxId, projectId, instanceId: newInstanceId },
           })
         }
       })
@@ -139,15 +150,18 @@ export const SessionProvider = (props: TSessionProvider) => {
     }
   }, [orgId, projectId, sessionId, sandboxId, hasSession, connecting])
 
+  const instanceId = urlInstanceId ?? session?.instanceId
+
   const ctx = useMemo<TSessionCtx>(
     () => ({
       session,
       isOwner,
       sandboxId,
       projectId,
+      instanceId,
       connecting,
     }),
-    [session, isOwner, sandboxId, projectId, connecting]
+    [session, isOwner, sandboxId, projectId, instanceId, connecting]
   )
 
   return (

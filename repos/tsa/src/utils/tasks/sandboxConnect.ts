@@ -1,4 +1,4 @@
-import type { TSandboxConnectResponse } from '@tdsk/domain'
+import type { TSBConnectResp } from '@tdsk/domain'
 import type { ApiClient } from '@TSA/services/api'
 import type { TInstanceResolution } from '@TSA/types'
 
@@ -11,7 +11,7 @@ export const sandboxConnect = async (
   projectId: string,
   sandboxIdOrAlias: string,
   instanceOpts?: TInstanceResolution
-): Promise<TSandboxConnectResponse> => {
+): Promise<TSBConnectResp> => {
   process.stdout.write(
     `${themed(`muted`, `Connecting to sandbox "${sandboxIdOrAlias}"...`)}\n`
   )
@@ -53,5 +53,5 @@ export const sandboxConnect = async (
 
   process.stdout.write(`${themed(`muted`, `SSH session ready.`)}\n`)
 
-  return connectResp as TSandboxConnectResponse
+  return connectResp as TSBConnectResp
 }

@@ -1,1 +1,1 @@
-export * from './detectLanguage'
+export { detectLanguage, isBinaryFile } from './detectLanguage'

@@ -5,14 +5,20 @@ import type {
   Project,
   TRoleType,
   Organization,
+  TPortsResponse,
   TSandboxSession,
+  TSBInstancesResp,
 } from '@tdsk/domain'
 import type {
   TDocument,
   TFeedEvent,
   EThemeType,
+  TFileEntry,
   TOpenSession,
   TViewportMode,
+  TCursorPosition,
+  TFileCacheEntry,
+  TFileTreeAction,
   TTerminalSettings,
 } from '@TTH/types'
 
@@ -35,23 +41,44 @@ import {
   defActiveOrgRole,
   fileTreeOpenState,
   defActiveProjectId,
-  defOpenEditorFiles,
   activeOrgRoleState,
   defContextPanelOpen,
-  defActiveEditorFile,
-  openEditorFilesState,
   activeProjectIdState,
-  activeEditorFileState,
   contextPanelOpenState,
 } from '@TTH/state/app'
+
+import {
+  defSavingFiles,
+  defFileTreeData,
+  defFileTreeRoot,
+  savingFilesState,
+  defFileTreeAction,
+  fileTreeRootState,
+  defCursorPosition,
+  fileTreeDataState,
+  defLoadingFolders,
+  defExpandedFolders,
+  defOpenEditorFiles,
+  loadingFoldersState,
+  defFileContentCache,
+  cursorPositionState,
+  defActiveEditorFile,
+  fileTreeActionState,
+  expandedFoldersState,
+  openEditorFilesState,
+  activeEditorFileState,
+  fileContentCacheState,
+} from '@TTH/state/editor'
 
 import {
   orgsAtom,
   projectsAtom,
   sandboxesAtom,
+  sandboxPortsAtom,
   openSessionsAtom,
   activeSessionAtom,
   backendSessionsAtom,
+  sandboxInstancesAtom,
 } from '@TTH/state/sessions'
 
 export const store = createStore()
@@ -180,3 +207,59 @@ export const setBackendSessions = (sandboxId: string, sessions: TSandboxSession[
 }
 export const getBackendSessionsForSandbox = (sandboxId: string) =>
   store.get(backendSessionsAtom).get(sandboxId) ?? []
+
+export const getSandboxPorts = () => store.get(sandboxPortsAtom)
+export const resetSandboxPorts = () => store.set(sandboxPortsAtom, new Map())
+export const setSandboxPorts = (instanceId: string, ports: TPortsResponse) => {
+  const map = new Map(store.get(sandboxPortsAtom))
+  map.set(instanceId, ports)
+  store.set(sandboxPortsAtom, map)
+}
+
+export const getFileTreeData = () => store.get(fileTreeDataState)
+export const resetFileTreeData = () => store.set(fileTreeDataState, defFileTreeData)
+export const setFileTreeData = (data: Map<string, TFileEntry[]>) =>
+  store.set(fileTreeDataState, data)
+
+export const getExpandedFolders = () => store.get(expandedFoldersState)
+export const resetExpandedFolders = () =>
+  store.set(expandedFoldersState, defExpandedFolders)
+export const setExpandedFolders = (folders: Set<string>) =>
+  store.set(expandedFoldersState, folders)
+
+export const getLoadingFolders = () => store.get(loadingFoldersState)
+export const resetLoadingFolders = () => store.set(loadingFoldersState, defLoadingFolders)
+export const setLoadingFolders = (folders: Set<string>) =>
+  store.set(loadingFoldersState, folders)
+
+export const getFileContentCache = () => store.get(fileContentCacheState)
+export const resetFileContentCache = () =>
+  store.set(fileContentCacheState, defFileContentCache)
+export const setFileContentCache = (cache: Map<string, TFileCacheEntry>) =>
+  store.set(fileContentCacheState, cache)
+
+export const getCursorPosition = () => store.get(cursorPositionState)
+export const resetCursorPosition = () => store.set(cursorPositionState, defCursorPosition)
+export const setCursorPosition = (pos: TCursorPosition) =>
+  store.set(cursorPositionState, pos)
+
+export const getFileTreeRoot = () => store.get(fileTreeRootState)
+export const resetFileTreeRoot = () => store.set(fileTreeRootState, defFileTreeRoot)
+export const setFileTreeRoot = (root: string) => store.set(fileTreeRootState, root)
+
+export const getSavingFiles = () => store.get(savingFilesState)
+export const resetSavingFiles = () => store.set(savingFilesState, defSavingFiles)
+export const setSavingFiles = (files: Set<string>) => store.set(savingFilesState, files)
+
+export const getFileTreeAction = () => store.get(fileTreeActionState)
+export const resetFileTreeAction = () => store.set(fileTreeActionState, defFileTreeAction)
+export const setFileTreeAction = (action: TFileTreeAction | null) =>
+  store.set(fileTreeActionState, action)
+
+export const getSandboxInstances = () => store.get(sandboxInstancesAtom)
+export const resetSandboxInstances = () => store.set(sandboxInstancesAtom, new Map())
+export const setSandboxInstances = (sandboxId: string, data: TSBInstancesResp) => {
+  const map = new Map(store.get(sandboxInstancesAtom))
+  map.set(sandboxId, data)
+  store.set(sandboxInstancesAtom, map)
+}

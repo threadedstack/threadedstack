@@ -61,8 +61,6 @@ describe('Tier 3: Sandbox Connect', () => {
     const conn = res.data
     expect(conn.instanceId).toBeDefined()
     expect(conn.instanceId).toMatch(/^tdsk-sb-/)
-    expect(typeof conn.password).toBe('string')
-    expect(conn.password.length).toBeGreaterThan(0)
     expect(conn.port).toBe(2222)
     expect(conn.sandboxId).toBe(sandboxId)
     expect(conn.command).toContain('tsa ssh')

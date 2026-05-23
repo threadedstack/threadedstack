@@ -1,22 +1,36 @@
-import type { TSandboxInstance } from '@tdsk/domain'
+import type { TSandboxSession } from '@tdsk/domain'
+import type { TCommand, TSandboxStatus } from '@TTH/types'
 
 import { toast } from 'sonner'
+import Box from '@mui/material/Box'
+import List from '@mui/material/List'
 import { nav } from '@TTH/services/nav'
 import { useParams } from 'react-router'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { EPermResource } from '@tdsk/domain'
+import ListItem from '@mui/material/ListItem'
+import { MonoFont } from '@TTH/constants/values'
+import Typography from '@mui/material/Typography'
+import IconButton from '@mui/material/IconButton'
 import { openSession } from '@TTH/actions/sessions'
-import { sandboxApi } from '@TTH/services/sandboxApi'
+import DialogTitle from '@mui/material/DialogTitle'
+import ListItemText from '@mui/material/ListItemText'
+import { useState, useCallback, useMemo } from 'react'
 import { usePermissions } from '@TTH/hooks/permissions'
 import { CommandConfig } from '@TTH/constants/sessions'
-import { MonoFont } from '@TTH/constants/values'
-import { formatTimestamp, formatRelativeDate } from '@TTH/utils/formatDate'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import CircularProgress from '@mui/material/CircularProgress'
+import DialogContentText from '@mui/material/DialogContentText'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Avatar as TdskAvatar, Chip as TdskChip } from '@tdsk/components'
+import { formatTimestamp, formatRelativeDate } from '@TTH/utils/formatDate'
 import {
   Add,
   Memory,
@@ -33,31 +47,15 @@ import {
   useSandboxes,
   useOpenSessions,
   useBackendSessions,
+  useSandboxInstances,
 } from '@TTH/state/selectors'
-import Box from '@mui/material/Box'
-import List from '@mui/material/List'
-import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import { Avatar as TdskAvatar, Chip as TdskChip } from '@tdsk/components'
-import ListItem from '@mui/material/ListItem'
-import Typography from '@mui/material/Typography'
-import IconButton from '@mui/material/IconButton'
-import DialogTitle from '@mui/material/DialogTitle'
-import ListItemText from '@mui/material/ListItemText'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import CircularProgress from '@mui/material/CircularProgress'
-import DialogContentText from '@mui/material/DialogContentText'
 import {
-  PageHeader,
-  StatStrip,
-  SectionHeader,
-  StatusChip,
   RowList,
+  StatStrip,
+  PageHeader,
+  StatusChip,
+  SectionHeader,
 } from '@TTH/components/PagePrimitives'
-
-import type { TCommand, TSandboxStatus } from '@TTH/types'
-import type { TSandboxSession } from '@tdsk/domain'
 
 const ValidStatuses = new Set<string>([
   `running`,
@@ -124,9 +122,8 @@ const Instance = () => {
 
   const [openSessions] = useOpenSessions()
   const [backendSessionsMap] = useBackendSessions()
+  const [instancesMap] = useSandboxInstances()
   const [connecting, setConnecting] = useState(false)
-  const [instance, setInstance] = useState<TSandboxInstance | null>(null)
-  const [loadingInstance, setLoadingInstance] = useState(true)
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)
   const [forceStopSessions, setForceStopSessions] = useState<TSandboxSession[] | null>(
@@ -141,6 +138,12 @@ const Instance = () => {
   const resolvedOrgId = paramOrgId || orgId
   const projectId = paramProjectId || sandbox?.projects?.[0]?.id || ``
   const sessions = sandboxId ? (backendSessionsMap.get(sandboxId) ?? []) : []
+
+  const instance = useMemo(() => {
+    if (!sandboxId || !instanceId) return null
+    const data = instancesMap.get(sandboxId)
+    return data?.instances.find((i) => i.instanceId === instanceId) ?? null
+  }, [instancesMap, sandboxId, instanceId])
 
   const instanceSessions = useMemo(
     () => sessions.filter((s) => s.instanceId === instanceId),
@@ -166,57 +169,32 @@ const Instance = () => {
   const isOwner = instance?.userId === user?.id
   const isRunning = instance?.state === `Running`
 
-  const fetchInstance = useCallback(() => {
-    if (!sandboxId || !resolvedOrgId || !projectId) return
-    setLoadingInstance(true)
-    sandboxApi
-      .listInstances(resolvedOrgId, projectId, sandboxId)
-      .then((resp) => {
-        if (resp.error) {
-          toast.error(`Failed to load instance`, {
-            description: resp.error.message || `Could not fetch instance details`,
-          })
-          return
-        }
-        if (resp.data) {
-          const found = resp.data.instances.find((i) => i.instanceId === instanceId)
-          setInstance(found ?? null)
-        }
-      })
-      .catch((err) => {
-        console.error(`[Instance] fetchInstance failed:`, err)
-        toast.error(`Failed to load instance`, {
-          description:
-            err instanceof Error ? err.message : `An unexpected error occurred`,
-        })
-      })
-      .finally(() => setLoadingInstance(false))
-  }, [sandboxId, resolvedOrgId, projectId, instanceId])
-
-  useEffect(() => {
-    fetchInstance()
-  }, [fetchInstance])
-
   const onStart = useCallback(
     async (sessionId?: string | null) => {
       if (!sandboxId || !resolvedOrgId || !projectId || !instanceId) return
       setConnecting(true)
       try {
         const { cols, rows } = estimateTerminalDimensions()
-        const newSessionId = await openSession({
+        const { sessionId: newSessionId, instanceId: newInstanceId } = await openSession({
+          cols,
+          rows,
           sandboxId,
           projectId,
           instanceId,
-          cols,
-          rows,
           orgId: resolvedOrgId,
           sessionId: sessionId ?? null,
         })
 
         if (newSessionId)
-          nav.session(resolvedOrgId, projectId, newSessionId, {
-            state: { sandboxId, projectId },
-          })
+          nav.session(
+            resolvedOrgId,
+            projectId,
+            newInstanceId || instanceId,
+            newSessionId,
+            {
+              state: { sandboxId, projectId, instanceId: newInstanceId || instanceId },
+            }
+          )
         else
           toast.error(`Failed to start session`, {
             description: `No session was created. Try again or check instance status.`,
@@ -357,12 +335,7 @@ const Instance = () => {
   return (
     <Page className='tdsk-instance-page'>
       <Box sx={{ maxWidth: 960, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
-        {loadingInstance ? (
-          <Loading
-            message='Loading instance...'
-            messageSx={{ color: `text.primary` }}
-          />
-        ) : !instance ? (
+        {!instance ? (
           <>
             <PageHeader
               eyebrow={eyebrowText}
@@ -549,13 +522,17 @@ const Instance = () => {
                       key={s.sessionId}
                       isLast={idx === allVisibleSessions.length - 1}
                       onClick={() => {
-                        if (isOpen) {
-                          nav.session(resolvedOrgId, projectId, s.sessionId, {
-                            state: { sandboxId, projectId },
-                          })
-                        } else if (canExecSandbox) {
-                          onStart(s.sessionId)
-                        }
+                        !isOpen
+                          ? canExecSandbox && onStart(s.sessionId)
+                          : nav.session(
+                              resolvedOrgId,
+                              projectId,
+                              instanceId!,
+                              s.sessionId,
+                              {
+                                state: { sandboxId, projectId, instanceId },
+                              }
+                            )
                       }}
                     >
                       {/* Session */}
@@ -681,12 +658,12 @@ const Instance = () => {
             ) : (
               <Box
                 sx={{
-                  textAlign: `center`,
                   py: 6,
-                  bgcolor: `background.paper`,
                   border: 1,
-                  borderColor: `divider`,
                   borderRadius: `8px`,
+                  textAlign: `center`,
+                  borderColor: `divider`,
+                  bgcolor: `background.paper`,
                 }}
               >
                 <Typography

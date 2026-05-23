@@ -7,6 +7,7 @@ export type TSessionCtx = {
   connecting: boolean
   sandboxId: string | undefined
   projectId: string | undefined
+  instanceId: string | undefined
   session: TOpenSession | undefined
 }
 

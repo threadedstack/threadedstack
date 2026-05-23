@@ -71,18 +71,18 @@ export const FileTreeList = styled(Box)({
 export const FileTreeRow = styled(Box, {
   shouldForwardProp: (prop) => prop !== `active` && prop !== `depth`,
 })<{ active?: boolean; depth?: number }>(({ theme, active, depth = 0 }) => ({
-  display: `flex`,
-  alignItems: `center`,
   gap: 6,
-  paddingTop: 4,
-  paddingBottom: 4,
-  paddingRight: 8,
-  paddingLeft: 6 + (depth ?? 0) * 14,
-  borderRadius: 4,
-  marginLeft: 4,
-  marginRight: 4,
+  display: `flex`,
   cursor: `pointer`,
+  alignItems: `center`,
   userSelect: `none` as const,
+  paddingTop: theme.gutter.q,
+  marginLeft: theme.gutter.q,
+  marginRight: theme.gutter.q,
+  borderRadius: theme.gutter.q,
+  paddingRight: theme.gutter.h,
+  paddingBottom: theme.gutter.q,
+  paddingLeft: 6 + (depth ?? 0) * 14,
   backgroundColor: active ? theme.palette.action.selected : `transparent`,
   [`&:hover`]: {
     backgroundColor: active ? theme.palette.action.selected : theme.palette.action.hover,
@@ -92,11 +92,11 @@ export const FileTreeRow = styled(Box, {
 export const FileTreeFileName = styled(Box)({
   flex: 1,
   fontSize: 12,
-  fontFamily: MonoFont,
-  whiteSpace: `nowrap` as const,
-  overflow: `hidden`,
-  textOverflow: `ellipsis`,
   lineHeight: 1.5,
+  overflow: `hidden`,
+  fontFamily: MonoFont,
+  textOverflow: `ellipsis`,
+  whiteSpace: `nowrap` as const,
 })
 
 export const OpenFileDot = styled(Box)(({ theme }) => ({
@@ -106,3 +106,29 @@ export const OpenFileDot = styled(Box)(({ theme }) => ({
   borderRadius: `50%`,
   backgroundColor: theme.palette.primary.main,
 }))
+
+export const InlineNameInput = styled(InputBase)(({ theme }) => ({
+  flex: 1,
+  height: 24,
+  fontSize: 12,
+  borderRadius: 3,
+  padding: `0 6px`,
+  fontFamily: MonoFont,
+  backgroundColor: theme.palette.background.default,
+  border: `1px solid ${theme.palette.primary.main}`,
+  [`& .MuiInputBase-input`]: {
+    padding: 0,
+    height: 24,
+  },
+}))
+
+export const FileTreeRowActions = styled(Box)({
+  gap: 2,
+  opacity: 0,
+  flexShrink: 0,
+  display: `flex`,
+  alignItems: `center`,
+  [`${FileTreeRow}:hover &`]: {
+    opacity: 1,
+  },
+})

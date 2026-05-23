@@ -4,10 +4,11 @@ import type { TOrgWithRole } from '@tdsk/domain'
 import { toast } from 'sonner'
 import { init } from '@TTH/actions/init'
 import { storage } from '@TTH/services/storage'
-import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
+import { fetchInstances } from '@TTH/actions/sandboxes/fetchInstances'
 import { fetchSandboxSessions } from '@TTH/actions/sandboxes/fetchSandboxSessions'
+import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import {
   getOrgs,
   getOrgId,
@@ -92,6 +93,7 @@ export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
 
   await init()
   safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }), `sessions`)
+  safeFetch(() => fetchInstances({ orgId, sandboxId, projectId }), `instances`)
   return null
 }
 
@@ -101,5 +103,6 @@ export const instanceLoader = async ({ params }: LoaderFunctionArgs) => {
 
   await init()
   safeFetch(() => fetchSandboxSessions({ orgId, sandboxId, projectId }), `sessions`)
+  safeFetch(() => fetchInstances({ orgId, sandboxId, projectId }), `instances`)
   return null
 }

@@ -2,8 +2,9 @@ import type { TSessionCommandsProps } from '@TTH/types'
 
 import { toast } from 'sonner'
 import { nav } from '@TTH/services/nav'
-import AddIcon from '@mui/icons-material/Add'
+import { Box, Button } from '@mui/material'
 import { useState, useCallback } from 'react'
+import AddIcon from '@mui/icons-material/Add'
 import ShareIcon from '@mui/icons-material/Share'
 import LogoutIcon from '@mui/icons-material/Logout'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
@@ -11,7 +12,6 @@ import { usePermissions } from '@TTH/hooks/permissions'
 import { EShellMsg, EPermResource } from '@tdsk/domain'
 import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
 import { estimateTerminalDimensions } from '@TTH/utils/terminal'
-import { Box, Button } from '@mui/material'
 import {
   sendControl,
   openSession,
@@ -36,18 +36,18 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     setCreating(true)
     try {
       const { cols, rows } = estimateTerminalDimensions()
-      const newSessionId = await openSession({
-        sandboxId,
-        orgId,
+      const { sessionId: newSessionId, instanceId: newInstanceId } = await openSession({
         cols,
         rows,
+        orgId,
+        sandboxId,
         projectId,
         sessionId: null,
         instanceId: session?.instanceId,
       })
-      nav.session(orgId, projectId, newSessionId, {
+      nav.session(orgId, projectId, newInstanceId, newSessionId, {
         replace: true,
-        state: { sandboxId, projectId },
+        state: { sandboxId, projectId, instanceId: newInstanceId },
       })
     } catch (err) {
       toast.error(`Failed to create session`, {

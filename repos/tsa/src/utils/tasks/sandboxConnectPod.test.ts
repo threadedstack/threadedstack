@@ -19,7 +19,6 @@ const defaultConnectResp = {
   instanceId: `pod-1`,
   workdir: `/workspace`,
   command: `bash`,
-  password: `secret`,
 }
 
 describe(`sandboxConnectPod`, () => {

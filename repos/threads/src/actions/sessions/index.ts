@@ -10,8 +10,6 @@ export {
   getRawBuffer,
   getConnection,
   deleteTerminal,
-  subscribeEngineData,
   subscribeTerminalData,
   findSandboxForSession,
-  clearStoredSessionsForSandbox,
 } from './openSession'

@@ -45,12 +45,20 @@ const buildMockWs = () => {
 const buildMockReq = (url: string, headers: Record<string, string> = {}) =>
   ({ url, headers }) as unknown as IncomingMessage
 
+const defInstanceSnapshot = {
+  instances: [],
+  maxInstances: 1,
+  sandboxId: SANDBOX_ID,
+  type: `instances-updated`,
+}
+
 const buildMockApp = (overrides: Record<string, any> = {}) => {
   const sandboxService = {
     addOrgMonitor: vi.fn(),
     removeOrgMonitor: vi.fn(),
     getSessionsForSandbox: vi.fn().mockReturnValue([]),
     getShellSession: vi.fn().mockReturnValue(null),
+    buildInstanceSnapshot: vi.fn().mockResolvedValue(defInstanceSnapshot),
     ...overrides.sandbox,
   }
 
@@ -111,7 +119,12 @@ describe(`onMonitorConnect`, () => {
         app
       )
       expect(ws.close).not.toHaveBeenCalledWith(4001, expect.any(String))
-      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(ORG_ID, ws, null)
+      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(
+        ORG_ID,
+        ws,
+        null,
+        USER_ID
+      )
     })
 
     it(`closes with 4001 for invalid API key`, async () => {
@@ -172,13 +185,26 @@ describe(`onMonitorConnect`, () => {
 
       await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor?token=valid`), app)
 
-      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(ORG_ID, ws, null)
-      expect(ws.send).toHaveBeenCalledTimes(1)
+      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(
+        ORG_ID,
+        ws,
+        null,
+        USER_ID
+      )
+      expect(ws.send).toHaveBeenCalledTimes(2)
 
-      const sent = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0])
-      expect(sent.type).toBe(`sessions-updated`)
-      expect(sent.sandboxId).toBe(SANDBOX_ID)
-      expect(sent.sessions).toHaveLength(1)
+      const sessionSnap = JSON.parse(
+        (ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      )
+      expect(sessionSnap.type).toBe(`sessions-updated`)
+      expect(sessionSnap.sandboxId).toBe(SANDBOX_ID)
+      expect(sessionSnap.sessions).toHaveLength(1)
+
+      const instanceSnap = JSON.parse(
+        (ws.send as ReturnType<typeof vi.fn>).mock.calls[1][0]
+      )
+      expect(instanceSnap.type).toBe(`instances-updated`)
+      expect(instanceSnap.sandboxId).toBe(SANDBOX_ID)
     })
 
     it(`sends empty sessions snapshot for sandboxes with no active sessions`, async () => {
@@ -194,8 +220,13 @@ describe(`onMonitorConnect`, () => {
 
       await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor?token=valid`), app)
 
-      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(ORG_ID, ws, null)
-      expect(ws.send).toHaveBeenCalledTimes(2)
+      expect(app.locals.sandbox!.addOrgMonitor).toHaveBeenCalledWith(
+        ORG_ID,
+        ws,
+        null,
+        USER_ID
+      )
+      expect(ws.send).toHaveBeenCalledTimes(4)
 
       const sent1 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0])
       expect(sent1.type).toBe(`sessions-updated`)
@@ -203,9 +234,15 @@ describe(`onMonitorConnect`, () => {
       expect(sent1.sessions).toHaveLength(0)
 
       const sent2 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[1][0])
-      expect(sent2.type).toBe(`sessions-updated`)
-      expect(sent2.sandboxId).toBe(`sb-2`)
-      expect(sent2.sessions).toHaveLength(0)
+      expect(sent2.type).toBe(`instances-updated`)
+
+      const sent3 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[2][0])
+      expect(sent3.type).toBe(`sessions-updated`)
+      expect(sent3.sandboxId).toBe(`sb-2`)
+      expect(sent3.sessions).toHaveLength(0)
+
+      const sent4 = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[3][0])
+      expect(sent4.type).toBe(`instances-updated`)
     })
 
     it(`enriches sessions with hasShellSession flag`, async () => {
@@ -220,6 +257,7 @@ describe(`onMonitorConnect`, () => {
           removeOrgMonitor: vi.fn(),
           getSessionsForSandbox: vi.fn().mockReturnValue(sessions),
           getShellSession: vi.fn((id: string) => (id === `sess-1` ? {} : null)),
+          buildInstanceSnapshot: vi.fn().mockResolvedValue(defInstanceSnapshot),
         },
       })
       mockVerifyShellToken.mockReturnValue({ orgId: ORG_ID, userId: USER_ID })
@@ -266,6 +304,7 @@ describe(`onMonitorConnect`, () => {
           removeOrgMonitor: vi.fn(),
           getSessionsForSandbox: vi.fn().mockReturnValue([{ sessionId: `s1` }]),
           getShellSession: vi.fn().mockReturnValue(null),
+          buildInstanceSnapshot: vi.fn().mockResolvedValue(defInstanceSnapshot),
         },
       })
       mockVerifyShellToken.mockReturnValue({ orgId: ORG_ID, userId: USER_ID })

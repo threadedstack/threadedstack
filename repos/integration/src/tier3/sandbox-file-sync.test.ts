@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { env } from '../utils/env'
 import { tmpdir, homedir } from 'os'
+import { SandboxHomePath } from '@tdsk/domain'
 import { post, get } from '../utils/api-client'
 import { uniqueName } from '../utils/unique-name'
 import { readContext } from '../utils/test-context'
@@ -134,7 +135,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       const escaped = publicKey.replace(/'/g, `'\\''`)
       const sshKeyRes = await execInPod(
         ctx.orgId, projectId, sandboxId, instanceId,
-        `mkdir -p /home/sandbox/.ssh && echo '${escaped}' > /home/sandbox/.ssh/authorized_keys && chmod 700 /home/sandbox/.ssh && chmod 600 /home/sandbox/.ssh/authorized_keys && chown -R sandbox:sandbox /home/sandbox/.ssh`
+        `mkdir -p ${SandboxHomePath}/.ssh && echo '${escaped}' > ${SandboxHomePath}/.ssh/authorized_keys && chmod 700 ${SandboxHomePath}/.ssh && chmod 600 ${SandboxHomePath}/.ssh/authorized_keys && chown -R sandbox:sandbox ${SandboxHomePath}/.ssh`
       )
     } catch (err) {
       console.error('[sandbox-file-sync] Setup failed:', (err as Error).message)

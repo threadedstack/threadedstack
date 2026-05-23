@@ -6,6 +6,7 @@ import { treeCommand } from './tree'
 import { forkCommand } from './fork'
 import { clearCommand } from './clear'
 import { loginCommand } from './login'
+import { portsCommand } from './ports'
 import { logoutCommand } from './logout'
 import { verboseCommand } from './verbose'
 import { contextCommand } from './context'
@@ -27,6 +28,7 @@ export const registeredCommands: TSlashCommand[] = [
   exitCommand,
   loginCommand,
   clearCommand,
+  portsCommand,
   logoutCommand,
   contextCommand,
   historyCommand,

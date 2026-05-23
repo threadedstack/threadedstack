@@ -1,6 +1,15 @@
-import { setOpenEditorFiles, setActiveEditorFile } from '@TTH/state/accessors'
+import {
+  resetOpenEditorFiles,
+  resetActiveEditorFile,
+  resetFileContentCache,
+  resetCursorPosition,
+  resetSavingFiles,
+} from '@TTH/state/accessors'
 
 export const closeAllEditorFiles = () => {
-  setOpenEditorFiles([])
-  setActiveEditorFile(null)
+  resetOpenEditorFiles()
+  resetActiveEditorFile()
+  resetFileContentCache()
+  resetCursorPosition()
+  resetSavingFiles()
 }

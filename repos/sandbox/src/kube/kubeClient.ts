@@ -497,6 +497,37 @@ export class KubeClient {
     }
   }
 
+  updateRoutePort(subdomain: string, port: string, entry: TRouteEntry): boolean {
+    const route = this._routes[subdomain]
+    if (!route) return false
+    route.ports[port] = entry
+    return true
+  }
+
+  removeRoutePort(subdomain: string, port: string): boolean {
+    const route = this._routes[subdomain]
+    if (!route?.ports[port]) return false
+    delete route.ports[port]
+    return true
+  }
+
+  async patchPodAnnotation(
+    name: string,
+    annotations: Record<string, string>
+  ): Promise<void> {
+    await this.coreApi.patchNamespacedPod({
+      name,
+      namespace: this.namespace,
+      body: { metadata: { annotations } },
+    })
+  }
+
+  findSubdomainByInstance(instanceId: string): string | undefined {
+    for (const [subdomain, entry] of Object.entries(this._routes)) {
+      if (entry.meta.podName === instanceId) return subdomain
+    }
+  }
+
   private shouldHydrate(pod: k8s.V1Pod): boolean {
     if (pod.metadata?.deletionTimestamp) return false
     const phase = pod.status?.phase

@@ -6,13 +6,17 @@ import Box from '@mui/material/Box'
 import Key from '@mui/icons-material/Key'
 import Hub from '@mui/icons-material/Hub'
 import Memory from '@mui/icons-material/Memory'
+import Outlet from '@mui/icons-material/Outlet'
 import { MonoFont } from '@TTH/constants/values'
 import Typography from '@mui/material/Typography'
 import Terminal from '@mui/icons-material/Terminal'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import ChevronRight from '@mui/icons-material/ChevronRight'
+import { PortsSection } from '@TTH/components/SessionLayout/PortsSection'
 
 export type TContextPanel = {
+  orgId: string
+  projectId: string
   session: TOpenSession
   sandbox: Sandbox | undefined
 }
@@ -110,7 +114,7 @@ const truncateId = (id: string) => {
 }
 
 export const ContextPanel = (props: TContextPanel) => {
-  const { session, sandbox } = props
+  const { orgId, projectId, session, sandbox } = props
 
   return (
     <Box
@@ -209,6 +213,20 @@ export const ContextPanel = (props: TContextPanel) => {
             />
           )}
         </Box>
+      </Section>
+
+      {/* PORTS section */}
+      <Section
+        icon={<Outlet sx={{ fontSize: 14 }} />}
+        title='Ports'
+      >
+        <PortsSection
+          orgId={orgId}
+          projectId={projectId}
+          sandboxId={session.sandboxId}
+          instanceId={session.instanceId}
+          portUrlTemplate={session.portUrlTemplate}
+        />
       </Section>
 
       {/* ENVIRONMENT section */}

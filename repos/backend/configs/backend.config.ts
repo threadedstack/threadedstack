@@ -1,9 +1,14 @@
-import type { EEmailType, EPayType, TPayEnv } from '@TBE/types'
 import type { ESubscriptionTier } from '@tdsk/domain'
+import type { EEmailType, EPayType, TPayEnv } from '@TBE/types'
+
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 
 const nodeEnv = process.env.NODE_ENV || `local`
+
+const resolveSBDomain = (domain: string) => {
+  return domain || `sandbox.${nodeEnv}.threadedstack.app`
+}
 
 /*
  * Load the Envs for the configuration files from the repo root, and then add them to the process.
@@ -51,6 +56,7 @@ const {
   TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
 
   // ENVs specific to dynamic sandboxes
+  TDSK_SB_DOMAIN,
   TDSK_SB_RUNTIME_CLASS,
   TDSK_SB_TIMEOUT_MIN = `30`,
   TDSK_SB_IMAGE_TAG = `latest`,
@@ -88,6 +94,7 @@ export const config = {
     pollInterval: toNum(TDSK_SB_POLL_INTERVAL_MS),
     idleInterval: toNum(TDSK_SB_IDLE_INTERVAL_MS),
     image: `${TDSK_SB_IMAGE}:${TDSK_SB_IMAGE_TAG}`,
+    domain: resolveSBDomain(TDSK_SB_DOMAIN?.trim() || undefined),
     runtimeClassName: TDSK_SB_RUNTIME_CLASS?.trim() || undefined,
   },
   proxy: {

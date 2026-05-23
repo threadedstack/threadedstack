@@ -1,4 +1,4 @@
-import type { Sandbox, TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
+import type { Sandbox, TSBConnectResp, TSandboxSession } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
@@ -74,7 +74,7 @@ export const Sandboxes = (props: TSandboxes) => {
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
   const [connectSessions, setConnectSessions] = useState<TSandboxSession[]>([])
   const [connectModalSandbox, setConnectModalSandbox] = useState<Sandbox | null>(null)
-  const [connectData, setConnectData] = useState<TSandboxConnectResponse | null>(null)
+  const [connectData, setConnectData] = useState<TSBConnectResp | null>(null)
 
   const sandboxes = projectId ? projectSandboxes : orgSandboxes
 

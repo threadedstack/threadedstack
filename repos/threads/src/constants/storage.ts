@@ -1,9 +1,10 @@
 export const SessionStoragePrefix = `tdsk-`
 export const ActiveOrgIdStorageKey = `active-org-id`
-export const ShellSessionsStorageKey = `shell_sessions`
+export const ShellSessionsStorageKey = `shell-sessions`
 export const SettingsStorageKey = `settings-storage-key`
 export const ThemeTypeStorageKey = `theme-type-storage-key`
 export const ActiveProjectIdStorageKey = `active-project-id`
 export const ApiHeadersStorageKey = `api-headers-storage-key`
 export const TerminalSettingsStorageKey = `terminal-settings`
+export const ShellSessionInstancesStorageKey = `shell-session-instances`
 export const StorageKeyPrefix = `${SessionStoragePrefix}sidebar-section-`

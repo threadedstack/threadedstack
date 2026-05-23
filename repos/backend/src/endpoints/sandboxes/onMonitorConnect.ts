@@ -1,19 +1,19 @@
 import type WebSocket from 'ws'
 import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
-import type { TMonitorMessage } from '@tdsk/domain'
+import type { TSessionsUpdatedMessage } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
 import { WsPingInterval } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 import {
   hashKey,
+  ERoleType,
   EShellMsg,
   hasMinRole,
   canPerform,
-  ERoleType,
-  ApiKeyPrefix,
   EPermAction,
+  ApiKeyPrefix,
   EPermResource,
 } from '@tdsk/domain'
 
@@ -99,7 +99,7 @@ const monitorConnected = async (
     }
   }
 
-  sbService.addOrgMonitor(orgId, ws, accessibleIds)
+  sbService.addOrgMonitor(orgId, ws, accessibleIds, userId)
 
   for (const sbId of accessibleIds ?? allSandboxIds) {
     const sessions = sbService.getSessionsForSandbox(sbId)
@@ -109,7 +109,7 @@ const monitorConnected = async (
       hasShellSession: !!sbService.getShellSession(s.sessionId),
     }))
 
-    const snapshot: TMonitorMessage = {
+    const snapshot: TSessionsUpdatedMessage = {
       sandboxId: sbId,
       sessions: enriched,
       type: EShellMsg.SessionsUpdated,
@@ -119,7 +119,19 @@ const monitorConnected = async (
       ws.send(JSON.stringify(snapshot))
     } catch (err) {
       logger.warn(
-        `[Monitor] Failed to send snapshot for ${sbId}:`,
+        `[Monitor] Failed to send session snapshot for ${sbId}:`,
+        (err as Error).message
+      )
+      sbService.removeOrgMonitor(orgId, ws)
+      return
+    }
+
+    try {
+      const snapshot = await sbService.buildInstanceSnapshot(sbId, orgId)
+      ws.send(JSON.stringify(snapshot))
+    } catch (err) {
+      logger.warn(
+        `[Monitor] Failed to send instance snapshot for ${sbId}:`,
         (err as Error).message
       )
       sbService.removeOrgMonitor(orgId, ws)

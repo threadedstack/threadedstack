@@ -1,3 +1,5 @@
 export * from './FileTree'
 export * from './FileTreeItem'
-export * from './mockFiles'
+export * from './FileTreeInlineInput'
+export * from './FileTreeContextMenu'
+export * from './FileTreeDeleteDialog'

@@ -6,10 +6,16 @@ import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
 import type {
+  TProto,
   ISandbox,
+  TPortConfig,
+  TRouteEntry,
+  TDetectedPort,
   TPlaceholderMap,
   TSandboxSession,
-  TMonitorMessage,
+  TPortsChangedMessage,
+  TFileTreeChangedMessage,
+  TInstancesUpdatedMessage,
 } from '@tdsk/domain'
 
 import { nanoid } from 'nanoid'
@@ -37,6 +43,7 @@ import {
   PodLabelKeys,
   sanitizeLabel,
   buildPodManifest,
+  PodAnnotationKeys,
   setupKubeWatcher,
   toContainerState,
 } from '@tdsk/sandbox'
@@ -57,6 +64,7 @@ type TPodFilter = {
 }
 
 export type TSandboxOpts = {
+  domain?: string
   maxWait?: number
   timeoutMin?: number
   pollInterval?: number
@@ -71,19 +79,19 @@ export class SandboxService {
   private db: TDatabase
   private kube: KubeClient
   private readonly config: TSandboxOpts
-
   private readonly ShellTtlMS = 5 * 60 * 1000
-  private readonly RingBufferSize = 1024 * 1024
   private passwords = new Map<string, string>()
+  private dockerSecrets = new Map<string, string[]>()
   private instanceActivity = new Map<string, number>()
   private startingInstances = new Map<string, number>()
-  private dockerSecrets = new Map<string, string[]>()
   private orgMonitors = new Map<string, Set<WebSocket>>()
-  private monitorAccess = new WeakMap<WebSocket, Set<string>>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
   private eventBatches = new Map<string, TParsedEvent[]>()
+  private monitorUserId = new WeakMap<WebSocket, string>()
+  private static readonly BlockedPorts = new Set([22, 2222])
   private eventBatchTimers = new Map<string, NodeJS.Timeout>()
+  private monitorAccess = new WeakMap<WebSocket, Set<string>>()
   private idleTimer: ReturnType<typeof setInterval> | null = null
 
   // Caches existing pod proxies
@@ -100,6 +108,12 @@ export class SandboxService {
 
   static removePodProxy(target: string): void {
     SandboxService.proxyMap.delete(target)
+  }
+
+  static removePodProxiesByIp(ip: string): void {
+    for (const [target] of SandboxService.proxyMap) {
+      if (target.includes(`://${ip}:`)) SandboxService.proxyMap.delete(target)
+    }
   }
 
   static getPodProxy(target: string) {
@@ -148,10 +162,7 @@ export class SandboxService {
       const sandbox = new SandboxService(kube, app.locals.db, app.locals.config.sandbox)
 
       kube.onRemoveRoute((entry) => {
-        for (const portEntry of Object.values(entry.ports))
-          SandboxService.removePodProxy(
-            `${portEntry.protocol}://${portEntry.host}:${portEntry.port}`
-          )
+        if (entry.meta?.podIp) SandboxService.removePodProxiesByIp(entry.meta.podIp)
         entry.meta?.podName && sandbox.cleanupInstance(entry.meta.podName)
       })
 
@@ -554,6 +565,14 @@ export class SandboxService {
     return result
   }
 
+  findInstanceForSession(sessionId: string, sandboxId: string): string | undefined {
+    for (const [instanceId, sessions] of this.sessions.entries()) {
+      if (sessions.some((s) => s.sessionId === sessionId && s.sandboxId === sandboxId))
+        return instanceId
+    }
+    return undefined
+  }
+
   updateActivity(instanceId: string): void {
     this.instanceActivity.set(instanceId, Date.now())
   }
@@ -655,9 +674,10 @@ export class SandboxService {
 
   cleanupInstance(instanceId: string): void {
     const instanceSessions = this.sessions.get(instanceId) || []
-    const sandboxIds = new Set(instanceSessions.map((s) => s.sandboxId))
+    const sandboxOrgPairs = new Map<string, string>()
+    for (const s of instanceSessions) sandboxOrgPairs.set(s.sandboxId, s.orgId)
 
-    for (const sandboxId of sandboxIds) {
+    for (const sandboxId of sandboxOrgPairs.keys()) {
       for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
         this.removeShellSession(shell.sessionId)
       }
@@ -689,6 +709,14 @@ export class SandboxService {
     this.passwords.delete(instanceId)
     this.sessions.delete(instanceId)
     this.instanceActivity.delete(instanceId)
+
+    for (const [sandboxId, orgId] of sandboxOrgPairs)
+      this.broadcastInstanceList(sandboxId, orgId).catch((err) =>
+        logger.warn(
+          `[Sandbox] broadcastInstanceList failed during cleanup:`,
+          (err as Error).message
+        )
+      )
   }
 
   stopIdleTimeout(): void {
@@ -903,6 +931,95 @@ export class SandboxService {
     })
   }
 
+  async buildInstanceSnapshot(
+    sandboxId: string,
+    orgId: string
+  ): Promise<TInstancesUpdatedMessage> {
+    const { data: sandbox } = await this.db.services.sandbox.get(sandboxId)
+    const maxInstances = sandbox?.config?.maxInstances ?? 1
+
+    const allPods = await this.listPods({ orgId })
+    const podsByName = new Map(allPods.map((p: any) => [p.metadata?.name, p]))
+
+    const activeInstanceIds = allPods
+      .filter((p) => {
+        const phase = p.status?.phase
+        const id = p.metadata?.labels?.[PodLabelKeys.sandboxId]
+        return (
+          id === sandboxId &&
+          !p.metadata?.deletionTimestamp &&
+          (phase === EContainerState.Running || phase === EContainerState.Pending)
+        )
+      })
+      .filter((p) => p.metadata?.name)
+      .map((p) => p.metadata!.name!)
+
+    const instances = await Promise.all(
+      activeInstanceIds.map(async (instanceId) => {
+        let state: EContainerState
+        try {
+          state = await this.getPodState(instanceId)
+        } catch (err) {
+          logger.warn(
+            `[Sandbox] getPodState failed for ${instanceId}, reporting Unknown:`,
+            (err as Error).message
+          )
+          state = EContainerState.Unknown
+        }
+        const sessions = this.getSessions(instanceId)
+        const pod = podsByName.get(instanceId)
+        const userId = pod?.metadata?.labels?.[PodLabelKeys.userId] ?? ``
+
+        return {
+          state,
+          userId,
+          instanceId,
+          sandboxId,
+          sessions: sessions.map((s) => ({
+            ...s,
+            hasShellSession: !!this.shellSessions.get(s.sessionId),
+          })),
+        }
+      })
+    )
+
+    return {
+      sandboxId,
+      instances,
+      maxInstances,
+      type: EShellMsg.InstancesUpdated,
+    }
+  }
+
+  async broadcastInstanceList(sandboxId: string, orgId: string): Promise<void> {
+    try {
+      const message = await this.buildInstanceSnapshot(sandboxId, orgId)
+      const payload = JSON.stringify(message)
+      const orgSet = this.orgMonitors.get(orgId)
+      if (!orgSet?.size) return
+
+      for (const ws of orgSet) {
+        if (ws.readyState !== 1) continue
+        const allowed = this.monitorAccess.get(ws)
+        if (allowed && !allowed.has(sandboxId)) continue
+        try {
+          ws.send(payload)
+        } catch (err) {
+          logger.warn(
+            `[Monitor] Failed to broadcast instances-updated:`,
+            (err as Error).message
+          )
+          this.removeOrgMonitor(orgId, ws)
+        }
+      }
+    } catch (err) {
+      logger.error(
+        `[Monitor] broadcastInstanceList failed for sandbox ${sandboxId}:`,
+        (err as Error).message
+      )
+    }
+  }
+
   removeShellSession(sessionId: string) {
     const session = this.shellSessions.get(sessionId)
     if (!session) return
@@ -961,7 +1078,8 @@ export class SandboxService {
   addOrgMonitor(
     orgId: string,
     ws: import('ws').WebSocket,
-    sandboxIds: Set<string> | null
+    sandboxIds: Set<string> | null,
+    userId: string
   ): void {
     let set = this.orgMonitors.get(orgId)
     if (!set) {
@@ -970,6 +1088,7 @@ export class SandboxService {
     }
     set.add(ws)
     if (sandboxIds) this.monitorAccess.set(ws, sandboxIds)
+    this.monitorUserId.set(ws, userId)
   }
 
   removeOrgMonitor(orgId: string, ws: import('ws').WebSocket): void {
@@ -978,6 +1097,227 @@ export class SandboxService {
     set.delete(ws)
     if (set.size === 0) this.orgMonitors.delete(orgId)
     this.monitorAccess.delete(ws)
+    this.monitorUserId.delete(ws)
+  }
+
+  broadcastFileTreeChange(
+    message: TFileTreeChangedMessage,
+    excludeUserId?: string
+  ): void {
+    const { instanceId, sandboxId } = message
+    const instanceSessions = this.getSessions(instanceId)
+    if (!instanceSessions.length) return
+
+    const orgId = instanceSessions[0]!.orgId
+    const eligibleUserIds = new Set(
+      instanceSessions.map((s) => s.userId).filter((uid) => uid !== excludeUserId)
+    )
+    if (!eligibleUserIds.size) return
+
+    const orgSet = this.orgMonitors.get(orgId)
+    if (!orgSet?.size) return
+
+    const payload = JSON.stringify(message)
+    for (const ws of orgSet) {
+      if (ws.readyState !== 1) continue
+      const wsUserId = this.monitorUserId.get(ws)
+      if (!wsUserId || !eligibleUserIds.has(wsUserId)) continue
+      const allowed = this.monitorAccess.get(ws)
+      if (allowed && !allowed.has(sandboxId)) continue
+      try {
+        ws.send(payload)
+      } catch (err) {
+        logger.warn(
+          `[Monitor] Failed to broadcast file-tree-changed:`,
+          (err as Error).message
+        )
+      }
+    }
+  }
+
+  async exposePort(
+    instanceId: string,
+    port: number,
+    protocol: TProto = `http` as TProto
+  ): Promise<TRouteEntry | null> {
+    if (SandboxService.BlockedPorts.has(port))
+      throw new Exception(403, `Port ${port} is reserved for internal use`)
+    if (port < 1 || port > 65535)
+      throw new Exception(400, `Port must be between 1 and 65535`)
+
+    const subdomain = this.kube.findSubdomainByInstance(instanceId)
+    if (!subdomain) return null
+
+    const route = this.kube.routes[subdomain]
+    if (!route) return null
+
+    const entry: TRouteEntry = {
+      port,
+      protocol,
+      host: route.meta.podIp,
+    }
+
+    this.kube.updateRoutePort(subdomain, String(port), entry)
+
+    try {
+      const portsAnnotation: Record<string, { protocol: string }> = {}
+      for (const [p, e] of Object.entries(route.ports))
+        portsAnnotation[p] = { protocol: e.protocol }
+
+      await this.kube.patchPodAnnotation(instanceId, {
+        [PodAnnotationKeys.ports]: JSON.stringify(portsAnnotation),
+      })
+    } catch (err) {
+      logger.error(
+        `[Sandbox] Failed to persist port ${port} annotation on ${instanceId} — port may not survive restart:`,
+        (err as Error).message
+      )
+    }
+
+    return entry
+  }
+
+  async removePort(instanceId: string, port: number): Promise<boolean> {
+    const subdomain = this.kube.findSubdomainByInstance(instanceId)
+    if (!subdomain) return false
+
+    const route = this.kube.routes[subdomain]
+    if (!route) return false
+
+    const portStr = String(port)
+    const portEntry = route.ports[portStr]
+    if (!portEntry) return false
+
+    this.kube.removeRoutePort(subdomain, portStr)
+    SandboxService.removePodProxy(
+      `${portEntry.protocol}://${portEntry.host}:${portEntry.port}`
+    )
+
+    try {
+      const portsAnnotation: Record<string, { protocol: string }> = {}
+      for (const [p, e] of Object.entries(route.ports))
+        portsAnnotation[p] = { protocol: e.protocol }
+
+      await this.kube.patchPodAnnotation(instanceId, {
+        [PodAnnotationKeys.ports]: JSON.stringify(portsAnnotation),
+      })
+    } catch (err) {
+      logger.error(
+        `[Sandbox] Failed to persist port removal annotation on ${instanceId} — port may reappear on restart:`,
+        (err as Error).message
+      )
+    }
+
+    return true
+  }
+
+  async scanPorts(instanceId: string): Promise<TDetectedPort[]> {
+    try {
+      const sbInstance = await this.getSandbox(instanceId)
+
+      let output = ``
+      let exitCode = 1
+      try {
+        const result = await sbInstance.exec(`ss`, [`-tln`])
+        output = result.output || ``
+        exitCode = result.exitCode ?? 1
+      } catch (err) {
+        logger.debug(
+          `[Sandbox] ss failed for ${instanceId}, trying netstat:`,
+          (err as Error).message
+        )
+      }
+
+      if (exitCode !== 0) {
+        try {
+          const result = await sbInstance.exec(`netstat`, [`-tln`])
+          output = result.output || ``
+          exitCode = result.exitCode ?? 1
+        } catch (err) {
+          logger.warn(
+            `[Sandbox] Both ss and netstat failed for ${instanceId}:`,
+            (err as Error).message
+          )
+        }
+      }
+
+      if (exitCode !== 0) return []
+
+      return this.parseListeningPorts(output)
+    } catch (err) {
+      logger.warn(`[Sandbox] Port scan failed for ${instanceId}:`, (err as Error).message)
+      return []
+    }
+  }
+
+  private parseListeningPorts(output: string): TDetectedPort[] {
+    const ports = new Set<number>()
+    const lines = output.split(`\n`)
+
+    for (const line of lines) {
+      if (!line.includes(`LISTEN`)) continue
+      const parts = line.trim().split(/\s+/)
+      const addrCol = parts.find((p) => p.includes(`:`)) || ``
+      const lastColon = addrCol.lastIndexOf(`:`)
+      if (lastColon < 0) continue
+      const portNum = Number(addrCol.slice(lastColon + 1))
+      if (
+        !Number.isNaN(portNum) &&
+        portNum > 0 &&
+        portNum <= 65535 &&
+        !SandboxService.BlockedPorts.has(portNum)
+      )
+        ports.add(portNum)
+    }
+
+    return Array.from(ports)
+      .sort((a, b) => a - b)
+      .map((port) => ({ port, protocol: `http` as TProto }))
+  }
+
+  getExposedPorts(instanceId: string): Record<string, TPortConfig> | null {
+    const subdomain = this.kube.findSubdomainByInstance(instanceId)
+    if (!subdomain) return null
+    const route = this.kube.routes[subdomain]
+    if (!route) return null
+
+    const result: Record<string, TPortConfig> = {}
+    for (const [port, entry] of Object.entries(route.ports))
+      result[port] = { protocol: entry.protocol }
+    return result
+  }
+
+  buildPortUrl(subdomain: string, port: number): string {
+    return `https://${port}--${subdomain}.${this.config.domain}`
+  }
+
+  buildPortUrlTemplate(subdomain: string): string {
+    return `https://{port}--${subdomain}.${this.config.domain}`
+  }
+
+  broadcastPortsChanged(message: TPortsChangedMessage): void {
+    const { instanceId, sandboxId } = message
+    const instanceSessions = this.getSessions(instanceId)
+    if (!instanceSessions.length) return
+
+    const orgId = instanceSessions[0]!.orgId
+    const orgSet = this.orgMonitors.get(orgId)
+    if (!orgSet?.size) return
+
+    const payload = JSON.stringify(message)
+    for (const ws of orgSet) {
+      if (ws.readyState !== 1) continue
+      const allowed = this.monitorAccess.get(ws)
+      if (allowed && !allowed.has(sandboxId)) continue
+      try {
+        ws.send(payload)
+      } catch (err) {
+        logger.warn(
+          `[Monitor] Failed to broadcast ports-changed:`,
+          (err as Error).message
+        )
+      }
+    }
   }
 
   attachToShellSession(
