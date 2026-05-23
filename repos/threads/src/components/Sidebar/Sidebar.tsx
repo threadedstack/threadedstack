@@ -1,7 +1,5 @@
 import { NavRail } from '@tdsk/components'
 import { SidebarTree } from '@TTH/components/Sidebar/SidebarTree'
-import { SidebarFooter } from '@TTH/components/Sidebar/SidebarFooter'
-import { SidebarHeader } from '@TTH/components/Sidebar/SidebarHeader'
 import { MobileSidebar } from '@TTH/components/Sidebar/MobileSidebar'
 
 export type TSidebar = {
@@ -14,10 +12,7 @@ export const Sidebar = (props: TSidebar) => {
   if (isMobile) return <MobileSidebar />
 
   return (
-    <NavRail
-      header={<SidebarHeader />}
-      footer={<SidebarFooter />}
-    >
+    <NavRail>
       <SidebarTree />
     </NavRail>
   )

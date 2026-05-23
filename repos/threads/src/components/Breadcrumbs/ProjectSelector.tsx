@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import { nav } from '@TTH/services/nav'
 import { useState, useCallback } from 'react'
 import { selectProject } from '@TTH/actions/projects/selectProject'
-import { Avatar, ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
+import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 import {
   useOrgId,
   useProjects,
@@ -56,18 +56,10 @@ export const ProjectSelector = () => {
         placeholder='Select Project'
         className='tdsk-project-selector'
         icon={
-          activeProject?.name && activeProjectId ? (
-            <Avatar
-              name={activeProject?.name}
-              identifier={activeProjectId}
-              size='sm'
-            />
-          ) : (
-            <ProjectIcon
-              text
-              sx={{ fontSize: 18 }}
-            />
-          )
+          <ProjectIcon
+            text
+            sx={{ fontSize: 18 }}
+          />
         }
       />
       <SelectorMenu

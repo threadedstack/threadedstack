@@ -78,14 +78,19 @@ export const SidebarTree = () => {
   )
 
   return (
-    <Box sx={{ display: `flex`, flexDirection: `column`, height: `100%` }}>
+    <Box
+      className='tdsk-sidebar-tree'
+      sx={{ display: `flex`, flexDirection: `column`, height: `100%` }}
+    >
       {orgId && groups.length > 0 && (
         <Box
+          className='tdsk-sidebar-tree-box'
           sx={{
             px: 0.5,
             py: 0.5,
             flex: 1,
             overflow: `auto`,
+            overflowX: `hidden`,
           }}
         >
           <NavRailSection label={activeOrg?.name || `Projects`} />

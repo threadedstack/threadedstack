@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import { nav } from '@TTH/services/nav'
 import { selectOrg } from '@TTH/actions/orgs'
 import { useState, useCallback } from 'react'
-import { Avatar, SelectorButton, SelectorMenu } from '@tdsk/components'
+import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 import { useOrgs, useOrgId, useActiveOrg } from '@TTH/state/selectors'
 
 export const OrgSelector = () => {
@@ -47,13 +47,10 @@ export const OrgSelector = () => {
         placeholder='Select Org'
         className='tdsk-org-selector'
         icon={
-          orgName ? (
-            <Avatar
-              name={orgName}
-              size='sm'
-              square
-            />
-          ) : undefined
+          <OrgIcon
+            text
+            sx={{ fontSize: 18 }}
+          />
         }
       />
       <SelectorMenu

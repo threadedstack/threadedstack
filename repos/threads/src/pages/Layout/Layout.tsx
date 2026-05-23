@@ -1,3 +1,5 @@
+import type { PropsWithChildren } from 'react'
+
 import { useCallback } from 'react'
 import { Box } from '@mui/material'
 import { nav } from '@TTH/services/nav'
@@ -27,26 +29,25 @@ const LayoutContainer = styled(Box)(({ theme }) => {
   return `
     width: 100vw;
     height: 100vh;
-    display: grid;
-    overflow: hidden;
-    grid-template-rows: 1fr;
-    grid-template-columns: auto 1fr;
+    display: flex;
+    overflow-x: hidden;
+    flex-direction: column;
     max-height: -webkit-fill-available;
     background-color: ${theme.palette.background.default};
   `
 })
 
-const MainArea = styled(Box)`
-  min-width: 0;
-  min-height: 0;
+const LayoutContent = styled(Box)`
+  width: 100%;
+  flex: 1;
   display: flex;
   overflow: hidden;
-  flex-direction: column;
 `
 
-const ScrollableContent = styled(Box)`
+const MainArea = styled(Box)`
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   overflow: hidden;
   flex-direction: column;
@@ -68,7 +69,7 @@ const MobileToggle = styled(IconButton)(({ theme }) => {
   `
 })
 
-const Layout = (props: any) => {
+const Layout = (props: PropsWithChildren) => {
   const theme = useTheme()
   const [user] = useUser()
   const [orgId] = useOrgId()
@@ -114,39 +115,39 @@ const Layout = (props: any) => {
     <>
       <SignedIn>
         <LayoutContainer className='tdsk-layout-container'>
-          {sidebarRegion}
-          <MainArea>
-            <Header
-              user={user}
-              themeType={themeType}
-              onThemeToggle={toggleTheme}
-              breadcrumbs={<Breadcrumbs />}
-              menuItems={HeaderSettingsItems}
-              onNavigateHome={() => nav.home()}
-              actions={
-                <>
-                  <IconButton
-                    size='small'
-                    disabled
-                    title='Coming soon'
-                  >
-                    <Search sx={{ fontSize: 20 }} />
-                  </IconButton>
-                  <IconButton
-                    size='small'
-                    disabled
-                    title='Coming soon'
-                  >
-                    <NotificationsNone sx={{ fontSize: 20 }} />
-                  </IconButton>
-                </>
-              }
-            />
-            <ScrollableContent>
+          <Header
+            user={user}
+            themeType={themeType}
+            onThemeToggle={toggleTheme}
+            breadcrumbs={<Breadcrumbs />}
+            menuItems={HeaderSettingsItems}
+            onNavigateHome={() => nav.home()}
+            actions={
+              <>
+                <IconButton
+                  size='small'
+                  disabled
+                  title='Coming soon'
+                >
+                  <Search sx={{ fontSize: 20 }} />
+                </IconButton>
+                <IconButton
+                  size='small'
+                  disabled
+                  title='Coming soon'
+                >
+                  <NotificationsNone sx={{ fontSize: 20 }} />
+                </IconButton>
+              </>
+            }
+          />
+          <LayoutContent className='tdsk-page-content'>
+            {sidebarRegion}
+            <MainArea>
               <Outlet />
-              {props?.children}
-            </ScrollableContent>
-          </MainArea>
+              {props.children}
+            </MainArea>
+          </LayoutContent>
           {isMobile && (
             <MobileToggle onClick={openSidebar}>
               <MenuIcon />

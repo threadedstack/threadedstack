@@ -15,7 +15,9 @@ export const RailWrapper = styled(Box)({
   position: `relative`,
 })
 
-export const RailBox = styled(Box)(({ theme }) => ({
+export const RailBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== `expandedWidth`,
+})<{ expandedWidth?: number }>(({ theme, expandedWidth }) => ({
   position: `absolute`,
   top: 0,
   left: 0,
@@ -29,13 +31,12 @@ export const RailBox = styled(Box)(({ theme }) => ({
   zIndex: theme.zIndex.drawer,
   borderRight: `1px solid ${theme.palette.divider}`,
   backgroundColor: theme.palette.background.header,
-  transition: theme.transitions.create([`width`, `box-shadow`], {
+  transition: theme.transitions.create([`width`], {
     easing: theme.transitions.easing.easeInOut,
     duration: 500,
   }),
   [`&:hover`]: {
-    width: expandedW,
-    boxShadow: theme.shadows[4],
+    width: expandedWidth ?? expandedW,
     [`& .tdsk-rail-item-text`]: {
       opacity: 1,
       width: `auto`,
@@ -83,9 +84,9 @@ export const RailItemButton = styled(ListItemButton, {
   marginBottom: depth > 0 ? 0 : 4,
   paddingBottom: depth > 0 ? 4 : 8,
   paddingLeft: depth > 0 ? 12 + depth * 12 : 12,
-  borderLeft: active ? `3px solid ${colors.primary.main}` : `3px solid transparent`,
+  borderLeft: `3px solid transparent`,
   color: active ? colors.primary.main : theme.palette.text.secondary,
-  backgroundColor: active ? cmx(colors.primary.main, 8) : `transparent`,
+  backgroundColor: active ? cmx(colors.grey[500], 5) : `transparent`,
   transition: theme.transitions.create([`background-color`, `border-color`, `color`], {
     duration: 150,
   }),

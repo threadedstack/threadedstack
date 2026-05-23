@@ -13,7 +13,6 @@ import {
   ApiKeyAllowedRoles,
 } from '@tdsk/domain'
 
-export const NavRailWidth = 60
 export const DefSettingsState = {}
 export const SubNavPanelWidth = 200
 export const SidebarWidthOpen = 240

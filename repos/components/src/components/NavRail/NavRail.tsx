@@ -8,14 +8,16 @@ export type TNavRail = {
   footer?: ReactNode
   children?: ReactNode
   className?: string
+  expandedWidth?: number
 }
 
 export const NavRail = (props: TNavRail) => {
-  const { header, footer, children, className } = props
+  const { header, footer, children, className, expandedWidth } = props
 
   return (
     <RailWrapper className={`tdsk-nav-rail ${className ?? ``}`}>
       <RailBox
+        expandedWidth={expandedWidth}
         className='tdsk-nav-rail-box'
         sx={{
           '&:hover': {
