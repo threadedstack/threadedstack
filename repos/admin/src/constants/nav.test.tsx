@@ -126,6 +126,7 @@ describe(`getDynamicNav`, () => {
         `Members`,
         `Domains`,
         `API Keys`,
+        `Schedules`,
         `Settings`,
       ])
     })
@@ -308,7 +309,6 @@ describe(`OrgNavItems`, () => {
         `Domains`,
         `API Keys`,
         `Skills`,
-        `Schedules`,
         `Usage`,
         `Settings`,
       ]
@@ -472,6 +472,7 @@ describe(`ProjectNavItems`, () => {
         `Members`,
         `Domains`,
         `API Keys`,
+        `Schedules`,
         `Settings`,
       ]
       const actualItems = ProjectNavItems.map((item) => item.text)
@@ -530,10 +531,10 @@ describe(`OrgSubNavGroups`, () => {
     expect(texts).toEqual([`Secrets`, `API Keys`, `Domains`])
   })
 
-  it(`Management should have Members, Schedules, Usage, Settings`, () => {
+  it(`Management should have Members, Usage, Settings`, () => {
     const management = OrgSubNavGroups.find((g) => g.label === `Management`)
     const texts = management?.items.map((i) => i.text)
-    expect(texts).toEqual([`Members`, `Schedules`, `Usage`, `Settings`])
+    expect(texts).toEqual([`Members`, `Usage`, `Settings`])
   })
 
   it(`all items should have Icons`, () => {
@@ -555,10 +556,10 @@ describe(`ProjectSubNavGroups`, () => {
     ])
   })
 
-  it(`Development should have Sandboxes, Endpoints, Functions, Agents`, () => {
+  it(`Development should have Sandboxes, Schedules, Endpoints, Functions, Agents`, () => {
     const dev = ProjectSubNavGroups.find((g) => g.label === `Development`)
     const texts = dev?.items.map((i) => i.text)
-    expect(texts).toEqual([`Sandboxes`, `Endpoints`, `Functions`, `Agents`])
+    expect(texts).toEqual([`Sandboxes`, `Schedules`, `Endpoints`, `Functions`, `Agents`])
   })
 
   it(`Security should have Secrets, API Keys, Domains`, () => {

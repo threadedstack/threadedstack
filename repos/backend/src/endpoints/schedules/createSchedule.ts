@@ -18,17 +18,21 @@ export const createSchedule: TEndpointConfig = {
   middleware: [authorize(EPermAction.create, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId } = req.params
+    const { orgId, projectId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
+    if (!projectId) throw new Exception(400, `projectId is required`)
+
+    const { data: project, error: projectErr } = await db.services.project.get(projectId)
+    if (projectErr) throw new Exception(500, projectErr.message)
+    if (!project) throw new Exception(404, `Project not found`)
+    if (project.orgId !== orgId) throw new Exception(404, `Project not found`)
 
     const {
       prompt,
       command,
       enabled,
-      threadId,
       sandboxId,
-      createThread,
       cronExpression,
       maxConsecutiveErrors,
       type = EScheduleType.prompt,
@@ -45,11 +49,16 @@ export const createSchedule: TEndpointConfig = {
     if (!sandbox) throw new Exception(404, `Sandbox not found`)
     if (sandbox.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
 
+    const { error: linkErr } = await db.services.sandbox.getProjectConfig(
+      sandboxId,
+      projectId
+    )
+    if (linkErr) throw new Exception(404, `Sandbox is not linked to this project`)
+
     if (type === EScheduleType.shell) {
       if (!command) throw new Exception(400, `command is required for shell schedules`)
-    } else {
-      if (!prompt) throw new Exception(400, `prompt is required for prompt schedules`)
-    }
+    } else if (!prompt)
+      throw new Exception(400, `prompt is required for prompt schedules`)
 
     if (!isValidCron(cronExpression)) throw new Exception(400, `Invalid cron expression`)
 
@@ -62,11 +71,10 @@ export const createSchedule: TEndpointConfig = {
       command,
       nextRunAt,
       sandboxId,
+      projectId,
       cronExpression,
       userId: req.user?.id,
       enabled: enabled ?? true,
-      threadId: threadId || undefined,
-      createThread: createThread ?? true,
       maxConsecutiveErrors: maxConsecutiveErrors ?? 5,
     })
 

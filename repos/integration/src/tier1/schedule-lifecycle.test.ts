@@ -55,7 +55,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   })
 
   afterAll(async () => {
-    if (scheduleId) await tryDelete(`/orgs/${ctx.orgId}/schedules/${scheduleId}`)
+    if (scheduleId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`)
     if (sandboxId) await tryDelete(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}`)
     if (projectId) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}`)
   })
@@ -66,13 +66,12 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules`,
       {
         sandboxId,
         cronExpression: '0 9 * * MON',
         prompt: 'Weekly status report',
         enabled: true,
-        createThread: true,
         maxConsecutiveErrors: 3,
       }
     )
@@ -81,10 +80,10 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     expect(res.data).toBeDefined()
     expect(res.data.id).toBeTruthy()
     expect(res.data.sandboxId).toBe(sandboxId)
+    expect(res.data.projectId).toBe(projectId)
     expect(res.data.cronExpression).toBe('0 9 * * MON')
     expect(res.data.prompt).toBe('Weekly status report')
     expect(res.data.enabled).toBe(true)
-    expect(res.data.createThread).toBe(true)
     expect(res.data.type).toBe('prompt')
     expect(res.data.maxConsecutiveErrors).toBe(3)
     expect(res.data.consecutiveErrors).toBe(0)
@@ -95,7 +94,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('POST rejects invalid cron expression', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const res = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       cronExpression: 'not-a-cron',
       prompt: 'Should fail',
@@ -107,19 +106,19 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('POST requires cronExpression, prompt, and sandboxId', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const missing1 = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const missing1 = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       prompt: 'missing cron',
     })
     expect(missing1.status).toBe(400)
 
-    const missing2 = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const missing2 = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       cronExpression: '0 9 * * MON',
     })
     expect(missing2.status).toBe(400)
 
-    const missing3 = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const missing3 = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       cronExpression: '0 9 * * MON',
       prompt: 'missing sandboxId',
     })
@@ -132,7 +131,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const res = await get<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}`
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`
     )
 
     expect(res.status).toBe(200)
@@ -144,7 +143,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get<Record<string, any>[]>(
-      `/orgs/${ctx.orgId}/schedules`
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules`
     )
 
     expect(res.status).toBe(200)
@@ -162,7 +161,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const res = await put<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`,
       { prompt: 'Updated weekly report' }
     )
 
@@ -176,19 +175,8 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const res = await put(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`,
       { sandboxId: 'zz99999999' }
-    )
-
-    expect(res.status).toBe(404)
-  })
-
-  test('PUT rejects update with non-existent threadId → 404', async () => {
-    if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
-
-    const res = await put(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
-      { threadId: 'zz99999999' }
     )
 
     expect(res.status).toBe(404)
@@ -198,7 +186,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId || !sandboxId) return expect(setupFailed).toBe(false)
 
     const res = await put<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`,
       { sandboxId }
     )
 
@@ -212,7 +200,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules`,
       {
         sandboxId,
         type: 'shell',
@@ -225,13 +213,13 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     expect(res.data.type).toBe('shell')
     expect(res.data.command).toBe('echo "hello world"')
 
-    if (res.data.id) await tryDelete(`/orgs/${ctx.orgId}/schedules/${res.data.id}`)
+    if (res.data.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/${res.data.id}`)
   })
 
   test('POST rejects shell schedule without command', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const res = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       type: 'shell',
       cronExpression: '0 0 * * *',
@@ -243,7 +231,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('POST rejects prompt schedule without prompt', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const res = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       type: 'prompt',
       cronExpression: '0 0 * * *',
@@ -258,7 +246,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const res = await get<Record<string, any>[]>(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}/runs`
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}/runs`
     )
 
     expect(res.status).toBe(200)
@@ -270,7 +258,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const res = await get(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}/runs/sr_9999999`
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}/runs/sr_9999999`
     )
 
     expect(res.status).toBe(404)
@@ -278,11 +266,11 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
 
   // ─── Boolean defaults (.notNull) ───────────────────────────────────
 
-  test('POST schedule without enabled/createThread returns boolean defaults', async () => {
+  test('POST schedule without enabled returns boolean defaults', async () => {
     if (setupFailed || !sandboxId) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules`,
       {
         sandboxId,
         cronExpression: '0 12 * * *',
@@ -293,13 +281,11 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
     expect(res.status).toBe(201)
     expect(typeof res.data.enabled).toBe('boolean')
     expect(res.data.enabled).toBe(true)
-    expect(typeof res.data.createThread).toBe('boolean')
-    expect(res.data.createThread).toBe(true)
     expect(res.data.type).toBe('prompt')
     expect(res.data.maxConsecutiveErrors).toBe(5)
     expect(res.data.consecutiveErrors).toBe(0)
 
-    if (res.data.id) await tryDelete(`/orgs/${ctx.orgId}/schedules/${res.data.id}`)
+    if (res.data.id) await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/${res.data.id}`)
   })
 
   // ─── Impossible cron expression ────────────────────────────────────
@@ -307,7 +293,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('POST rejects cron that parses but never matches (Feb 31)', async () => {
     if (setupFailed || !sandboxId) return expect(setupFailed).toBe(false)
 
-    const res = await post(`/orgs/${ctx.orgId}/schedules`, {
+    const res = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, {
       sandboxId,
       cronExpression: '0 0 31 2 *',
       prompt: 'Impossible cron test',
@@ -323,7 +309,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
 
     const beforeTrigger = Date.now()
     const res = await post<Record<string, any>>(
-      `/orgs/${ctx.orgId}/schedules/${scheduleId}/trigger`
+      `/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}/trigger`
     )
 
     // The trigger endpoint calls the scheduleExecutor which requires full
@@ -347,7 +333,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('POST trigger returns 404 for non-existent schedule', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post(`/orgs/${ctx.orgId}/schedules/zz99999999/trigger`)
+    const res = await post(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/zz99999999/trigger`)
     expect(res.status).toBe(404)
   })
 
@@ -356,10 +342,10 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   test('DELETE removes the schedule', async () => {
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
-    const res = await del(`/orgs/${ctx.orgId}/schedules/${scheduleId}`)
+    const res = await del(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`)
     expect(res.status).toBe(200)
 
-    const getRes = await get(`/orgs/${ctx.orgId}/schedules/${scheduleId}`)
+    const getRes = await get(`/orgs/${ctx.orgId}/projects/${projectId}/schedules/${scheduleId}`)
     expect(getRes.status).toBe(404)
 
     scheduleId = ''
@@ -368,7 +354,7 @@ describe.skipIf(!isFeatureEnabled('schedules'))('Tier 1: Schedule Lifecycle', ()
   // ─── Auth ──────────────────────────────────────────────────────────
 
   test('GET schedules without auth returns 401', async () => {
-    const res = await get(`/orgs/${ctx.orgId}/schedules`, { noAuth: true })
+    const res = await get(`/orgs/${ctx.orgId}/projects/${projectId}/schedules`, { noAuth: true })
     expect(res.status).toBe(401)
   })
 })

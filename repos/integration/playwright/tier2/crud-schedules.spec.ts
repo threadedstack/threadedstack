@@ -16,12 +16,13 @@ import {
 } from '../utils/crud-helpers'
 import { isFeatureEnabled } from '@tdsk/domain'
 
-const PAGE_CLASS = 'tdsk-org-schedules-page'
+const PAGE_CLASS = 'tdsk-project-schedules-page'
 const FORM_ID = 'schedule-form'
 
 test.describe.serial('CRUD Schedules', () => {
-  test.beforeEach(({}, testInfo) => {
+  test.beforeEach(({ ctx }, testInfo) => {
     test.skip(!isFeatureEnabled('schedules'), 'schedules feature flag is disabled')
+    test.skip(!ctx.projectId, 'No projectId in context')
   })
   const cronExpr = '0 */6 * * *'
   const updatedCron = '30 9 * * 1-5'
@@ -50,7 +51,7 @@ test.describe.serial('CRUD Schedules', () => {
 
     test.skip(!hasSandboxes, 'No sandboxes exist — cannot create schedule without a sandbox')
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, PAGE_CLASS)
 
     // Open create drawer
     await openDrawer(page, /Create Schedule/i)
@@ -64,7 +65,7 @@ test.describe.serial('CRUD Schedules', () => {
     // Fill prompt
     await fillField(page, 'tdsk-schedule-prompt-input', promptText)
 
-    // Submit the form (switches default to enabled/createThread=true, leave as-is)
+    // Submit the form (enabled defaults to true, leave as-is)
     await submitForm(page, FORM_ID)
 
     // Wait for drawer to close (data is fetched before drawer closes)
@@ -78,7 +79,7 @@ test.describe.serial('CRUD Schedules', () => {
     const res = await apiRequest(
       page,
       'GET',
-      `/orgs/${ctx.orgId}/schedules?limit=200`,
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules?limit=200`,
       ctx.apiKey
     )
     const body = await res.json()
@@ -101,8 +102,8 @@ test.describe.serial('CRUD Schedules', () => {
     test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
 
     const errors = collectErrors(page)
-    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, PAGE_CLASS)
 
     // Verify cron expression is visible
     await expect(page.getByText(cronExpr).first()).toBeVisible({ timeout: 10_000 })
@@ -117,8 +118,8 @@ test.describe.serial('CRUD Schedules', () => {
     test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
 
     const errors = collectErrors(page)
-    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, PAGE_CLASS)
 
     // Click the schedule row to open edit drawer
     const cronCell = page
@@ -152,8 +153,8 @@ test.describe.serial('CRUD Schedules', () => {
     test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
 
     const errors = collectErrors(page)
-    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, PAGE_CLASS)
 
     // Find the row with the updated cron and click the delete action button
     const row = page.locator('tr', { has: page.getByText(updatedCron) })
@@ -201,7 +202,7 @@ test.describe.serial('CRUD Schedules', () => {
       )
       await apiDeleteResource(
         cleanupPage,
-        `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
+        `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules/${scheduleId}`,
         ctx.apiKey
       )
     } catch {

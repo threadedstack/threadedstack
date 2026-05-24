@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { featureGate } from '@TBE/middleware/featureGate'
 import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { projectMemberGuard } from '@TBE/middleware/projectMemberGuard'
 
@@ -71,6 +72,16 @@ import { deleteSBPConfig } from '@TBE/endpoints/sandboxes/deleteSBPConfig'
 import { upsertSBPConfig } from '@TBE/endpoints/sandboxes/upsertSBPConfig'
 import { getSandboxStatus } from '@TBE/endpoints/sandboxes/getSandboxStatus'
 import { execStreamInSandbox } from '@TBE/endpoints/sandboxes/execStreamInSandbox'
+
+import { getSchedule } from '@TBE/endpoints/schedules/getSchedule'
+import { listSchedules } from '@TBE/endpoints/schedules/listSchedules'
+import { getScheduleRun } from '@TBE/endpoints/schedules/getScheduleRun'
+import { createSchedule } from '@TBE/endpoints/schedules/createSchedule'
+import { updateSchedule } from '@TBE/endpoints/schedules/updateSchedule'
+import { deleteSchedule } from '@TBE/endpoints/schedules/deleteSchedule'
+import { triggerSchedule } from '@TBE/endpoints/schedules/triggerSchedule'
+import { listScheduleRuns } from '@TBE/endpoints/schedules/listScheduleRuns'
+import { getScheduleRunOutput } from '@TBE/endpoints/schedules/getScheduleRunOutput'
 
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
@@ -197,6 +208,23 @@ const projectSandboxes: TEndpointConfig = {
   },
 }
 
+const projectSchedules: TEndpointConfig = {
+  path: `/:projectId/schedules`,
+  method: EPMethod.Use,
+  middleware: [projectAccessGuard(), projectMemberGuard(), featureGate(`schedules`)],
+  endpoints: {
+    listSchedules,
+    getSchedule,
+    createSchedule,
+    updateSchedule,
+    deleteSchedule,
+    triggerSchedule,
+    listScheduleRuns,
+    getScheduleRun,
+    getScheduleRunOutput,
+  },
+}
+
 export const orgProjects: TEndpointConfig = {
   path: `/:orgId/projects`,
   method: EPMethod.Use,
@@ -213,5 +241,6 @@ export const orgProjects: TEndpointConfig = {
     projectEndpoints,
     projectFunctions,
     projectSandboxes,
+    projectSchedules,
   },
 }

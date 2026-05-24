@@ -1,7 +1,7 @@
-import { getSchedules, setSchedules } from '@TAF/state/accessors'
+import { getContextSchedules, setContextSchedules } from '@TAF/state/accessors'
 
-export const removeSchedule = (id: string) => {
-  const current = getSchedules() || {}
+export const removeSchedule = (projectId: string, id: string) => {
+  const current = getContextSchedules(projectId) || {}
   const { [id]: _, ...rest } = current
-  setSchedules(rest)
+  setContextSchedules(projectId, rest)
 }

@@ -5,8 +5,8 @@ import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
-import { useSchedules } from '@TAF/state/selectors'
 import { ConfirmDelete, Text } from '@tdsk/components'
+import { useProjectSchedules } from '@TAF/state/selectors'
 import { EPermResource, EScheduleType } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { formatRelativeTime } from '@TAF/utils/transforms/time'
@@ -16,6 +16,7 @@ import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
 import { deleteSchedule } from '@TAF/actions/schedules/api/deleteSchedule'
 import { triggerSchedule } from '@TAF/actions/schedules/api/triggerSchedule'
+import { fetchScheduleRuns } from '@TAF/actions/schedules/api/fetchScheduleRuns'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -28,6 +29,7 @@ import {
 
 export type TSchedules = {
   orgId?: string
+  projectId?: string
 }
 
 const styles = {
@@ -45,9 +47,9 @@ const styles = {
 }
 
 export const Schedules = (props: TSchedules) => {
-  const { orgId } = props
+  const { orgId, projectId } = props
 
-  const [schedulesMap] = useSchedules()
+  const [schedulesMap] = useProjectSchedules()
   const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const schedules = useMemo(() => Object.values(schedulesMap || {}), [schedulesMap])
 
@@ -71,24 +73,28 @@ export const Schedules = (props: TSchedules) => {
   const onEditSchedule = (schedule: Schedule) => {
     setSelectedSchedule(schedule)
     setDialogOpen(true)
+    fetchScheduleRuns(orgId, projectId, schedule.id)
   }
 
   const onTrigger = async (schedule: Schedule) => {
-    if (!orgId) return
+    if (!orgId || !projectId)
+      return toast.error(`Cannot trigger schedule: missing project context`)
 
-    const resp = await triggerSchedule(orgId, schedule.id)
+    const resp = await triggerSchedule(orgId, projectId, schedule.id)
     resp.error
       ? toast.error(`Failed to trigger schedule`)
       : toast.success(`Schedule triggered successfully`)
   }
 
   const onRemove = async () => {
-    if (!deleting || !orgId) return
+    if (!deleting) return
+    if (!orgId || !projectId)
+      return toast.error(`Cannot delete schedule: missing project context`)
 
     setLoading(true)
     setError(undefined)
 
-    const result = await deleteSchedule(orgId, deleting.id)
+    const result = await deleteSchedule(orgId, projectId, deleting.id)
 
     if (result.error)
       setError(
@@ -326,13 +332,14 @@ export const Schedules = (props: TSchedules) => {
         />
       )}
 
-      {orgId && (
+      {orgId && projectId && (
         <ScheduleDrawer
           orgId={orgId}
           open={dialogOpen}
+          projectId={projectId}
           onRemove={setDeleting}
-          schedule={selectedSchedule}
           onClose={onDialogClose}
+          schedule={selectedSchedule}
         />
       )}
 

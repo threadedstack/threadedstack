@@ -7,8 +7,7 @@ import { BaseApi } from '@TAF/services/api'
  * Schedules API Service
  * Handles all Schedule-related API operations
  *
- * Schedules belong to an organization and reference an agent.
- * Backend mount: /orgs/:orgId/schedules
+ * Backend mount: /orgs/:orgId/projects/:projectId/schedules
  */
 export class SchedulesApi extends BaseApi {
   cache: TApiCacheKeys = {
@@ -17,23 +16,28 @@ export class SchedulesApi extends BaseApi {
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
-  #path(orgId: string) {
-    return `/orgs/${orgId}/schedules`
+  #path(orgId: string, projectId: string) {
+    return `/orgs/${orgId}/projects/${projectId}/schedules`
   }
 
   /**
-   * Get all schedules for an organization
+   * Get all schedules for a project
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all schedules
    */
-  async list(orgId: string, data?: Record<string, any>): Promise<TApiRes<Schedule[]>> {
+  async list(
+    orgId: string,
+    projectId: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Schedule[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Schedule[]>({
       data: rest,
-      path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(orgId),
+      path: this.#path(orgId, projectId),
+      queryKey: queryKey || this.cache.list(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Schedules list`))
@@ -47,12 +51,13 @@ export class SchedulesApi extends BaseApi {
   /**
    * Get schedule by ID
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param id - Schedule ID
    * @returns Schedule object
    */
-  async get(orgId: string, id: string): Promise<TApiRes<Schedule>> {
+  async get(orgId: string, projectId: string, id: string): Promise<TApiRes<Schedule>> {
     const resp = await this.api.get<Schedule>({
-      path: `${this.#path(orgId)}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -67,13 +72,18 @@ export class SchedulesApi extends BaseApi {
   /**
    * Create new schedule
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param data - Schedule data
    * @returns Created schedule
    */
-  async create(orgId: string, data: Partial<Schedule>): Promise<TApiRes<Schedule>> {
+  async create(
+    orgId: string,
+    projectId: string,
+    data: Partial<Schedule>
+  ): Promise<TApiRes<Schedule>> {
     const resp = await this.api.post<Schedule>({
       data,
-      path: this.#path(orgId),
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Schedule`))
@@ -87,18 +97,20 @@ export class SchedulesApi extends BaseApi {
   /**
    * Update existing schedule
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param id - Schedule ID
    * @param data - Updated schedule data
    * @returns Updated schedule
    */
   async update(
     orgId: string,
+    projectId: string,
     id: string,
     data: Partial<Schedule>
   ): Promise<TApiRes<Schedule>> {
     const resp = await this.api.put<Schedule>({
       data,
-      path: `${this.#path(orgId)}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Schedule`))
@@ -112,12 +124,17 @@ export class SchedulesApi extends BaseApi {
   /**
    * Delete schedule
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param id - Schedule ID
    * @returns Success status
    */
-  async delete(orgId: string, id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.#path(orgId)}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Schedule`))
@@ -128,12 +145,17 @@ export class SchedulesApi extends BaseApi {
   /**
    * Trigger a schedule to run immediately
    * @param orgId - Organization ID
+   * @param projectId - Project ID
    * @param id - Schedule ID
    * @returns Triggered schedule result
    */
-  async trigger(orgId: string, id: string): Promise<TApiRes<{ success: boolean }>> {
+  async trigger(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
-      path: `${this.#path(orgId)}/${id}/trigger`,
+      path: `${this.#path(orgId, projectId)}/${id}/trigger`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to trigger Schedule`))
@@ -143,12 +165,13 @@ export class SchedulesApi extends BaseApi {
 
   async listRuns(
     orgId: string,
+    projectId: string,
     scheduleId: string,
     opts?: { limit?: number; offset?: number }
   ): Promise<TApiRes<ScheduleRun[]>> {
     const resp = await this.api.get<ScheduleRun[]>({
       data: opts,
-      path: `${this.#path(orgId)}/${scheduleId}/runs`,
+      path: `${this.#path(orgId, projectId)}/${scheduleId}/runs`,
       queryKey: [...this.cache.detail(scheduleId), `runs`],
     })
 
@@ -162,11 +185,12 @@ export class SchedulesApi extends BaseApi {
 
   async getRun(
     orgId: string,
+    projectId: string,
     scheduleId: string,
     runId: string
   ): Promise<TApiRes<ScheduleRun>> {
     const resp = await this.api.get<ScheduleRun>({
-      path: `${this.#path(orgId)}/${scheduleId}/runs/${runId}`,
+      path: `${this.#path(orgId, projectId)}/${scheduleId}/runs/${runId}`,
       queryKey: [...this.cache.detail(scheduleId), `runs`, runId],
     })
 

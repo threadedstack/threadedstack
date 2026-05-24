@@ -8,7 +8,6 @@ import {
   getOrgQuota,
   getProjects,
   getProviders,
-  getSchedules,
   getOrgLimits,
   getOrgSecrets,
   setActiveOrgId,
@@ -20,6 +19,7 @@ import {
   setActiveThreadId,
   setActiveProjectId,
   getProjectEndpoints,
+  getContextSchedules,
   getProjectFunctions,
   setActiveEndpointId,
   getContextSandboxes,
@@ -166,14 +166,17 @@ export const orgSkillsLoader = async ({ params }: LoaderFunctionArgs) => {
   return null
 }
 
-export const orgSchedulesLoader = async ({ params }: LoaderFunctionArgs) => {
-  const { orgId } = params
+export const projectSchedulesLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, projectId } = params
   if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   await Promise.all([
-    !getSchedules() ? safeFetch(() => fetchSchedules(orgId)) : Promise.resolve(),
-    !getContextSandboxes(`org`)
-      ? safeFetch(() => fetchSandboxes({ orgId }))
+    !getContextSchedules(projectId)
+      ? safeFetch(() => fetchSchedules({ orgId, projectId }))
+      : Promise.resolve(),
+    !getContextSandboxes(projectId)
+      ? safeFetch(() => fetchSandboxes({ orgId, projectId }))
       : Promise.resolve(),
   ])
   return null

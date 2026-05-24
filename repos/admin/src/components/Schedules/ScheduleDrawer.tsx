@@ -1,3 +1,4 @@
+import type { TSandboxSchedule } from '@TAF/types'
 import type { Schedule, Sandbox } from '@tdsk/domain'
 
 import Box from '@mui/material/Box'
@@ -5,9 +6,10 @@ import { useState, useEffect } from 'react'
 import { EScheduleType } from '@tdsk/domain'
 import Accordion from '@mui/material/Accordion'
 import Typography from '@mui/material/Typography'
+import { DefaultTemp } from '@TAF/constants/schedule'
 import ToggleButton from '@mui/material/ToggleButton'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
-import { useOrgSandboxes } from '@TAF/state/selectors'
+import { useProjectSandboxes } from '@TAF/state/selectors'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { SandboxSelector } from '@TAF/components/Selectors'
 import AccordionDetails from '@mui/material/AccordionDetails'
@@ -21,33 +23,25 @@ import { createSchedule } from '@TAF/actions/schedules/api/createSchedule'
 import { updateSchedule } from '@TAF/actions/schedules/api/updateSchedule'
 import {
   Drawer,
+  CronInput,
   TextInput,
   SwitchInput,
   DrawerActions,
-  CronInput,
 } from '@tdsk/components'
 
 export type TScheduleDrawer = {
   open: boolean
   orgId?: string
+  projectId?: string
   onClose: () => void
   schedule?: Schedule | null
   onRemove: (schedule: Schedule) => void
 }
 
-type TTempSchedule = {
-  type?: string
-  prompt?: string
-  command?: string
-  sandboxId?: string
-  enabled?: boolean
-  createThread?: boolean
-  cronExpression?: string
-}
-
 export const ScheduleDrawer = ({
   open,
   orgId,
+  projectId,
   schedule,
   onRemove,
   onClose: onCloseCB,
@@ -56,19 +50,14 @@ export const ScheduleDrawer = ({
   const [loading, setLoading] = useState(false)
   const [cronError, setCronError] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const defaultTemp: TTempSchedule = {
-    enabled: true,
-    createThread: true,
-    type: EScheduleType.prompt,
-    cronExpression: `0 0 * * 6`,
-  }
 
-  const [temp, setTemp] = useState<TTempSchedule>(defaultTemp)
+  const [temp, setTemp] = useState<TSandboxSchedule>(DefaultTemp)
 
-  const [orgSandboxes] = useOrgSandboxes()
-  const sandboxes = orgSandboxes ? Object.values(orgSandboxes) : []
+  const [projectSandboxes] = useProjectSandboxes()
+  const sandboxes = projectSandboxes ? Object.values(projectSandboxes) : []
 
-  const updateTemp = (update: Partial<TTempSchedule>) => setTemp({ ...temp, ...update })
+  const updateTemp = (update: Partial<TSandboxSchedule>) =>
+    setTemp({ ...temp, ...update })
 
   useEffect(() => {
     if (schedule) {
@@ -79,12 +68,11 @@ export const ScheduleDrawer = ({
         enabled: schedule.enabled ?? true,
         cronExpression: schedule.cronExpression,
         type: schedule.type || EScheduleType.prompt,
-        createThread: schedule.createThread ?? true,
       })
       setError(null)
     } else {
       setError(null)
-      setTemp(defaultTemp)
+      setTemp(DefaultTemp)
     }
   }, [schedule])
 
@@ -93,12 +81,13 @@ export const ScheduleDrawer = ({
 
     onCloseCB?.()
     setError(null)
-    setTemp(defaultTemp)
+    setTemp(DefaultTemp)
   }
 
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
+    if (!orgId || !projectId) return setError(`Organization and project are required`)
     if (!temp?.sandboxId?.trim()) return setError(`Sandbox is required`)
     if (!temp?.cronExpression?.trim()) return setError(`Cron expression is required`)
 
@@ -115,7 +104,6 @@ export const ScheduleDrawer = ({
       type: temp.type,
       enabled: temp.enabled,
       sandboxId: temp.sandboxId,
-      createThread: temp.createThread,
       cronExpression: temp.cronExpression,
       prompt: temp.type === EScheduleType.prompt ? temp.prompt : undefined,
       command: temp.type === EScheduleType.shell ? temp.command : undefined,
@@ -123,8 +111,8 @@ export const ScheduleDrawer = ({
 
     const result =
       isEditMode && schedule
-        ? await updateSchedule(orgId, schedule.id, payload)
-        : await createSchedule(orgId, payload)
+        ? await updateSchedule(orgId, projectId, schedule.id, payload)
+        : await createSchedule(orgId, projectId, payload)
 
     setLoading(false)
 
@@ -265,12 +253,7 @@ export const ScheduleDrawer = ({
             </AccordionDetails>
           </Accordion>
 
-          {isEditMode && orgId && schedule && (
-            <ScheduleRuns
-              orgId={orgId}
-              scheduleId={schedule.id}
-            />
-          )}
+          {isEditMode && schedule && <ScheduleRuns scheduleId={schedule.id} />}
         </Box>
       </form>
     </Drawer>

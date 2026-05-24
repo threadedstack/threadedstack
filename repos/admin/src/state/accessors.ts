@@ -281,11 +281,20 @@ export const getActiveSkillId = () => store.get(activeSkillIdState)
 export const resetActiveSkillId = () => store.set(activeSkillIdState, undefined)
 export const setActiveSkillId = (id: string) => store.set(activeSkillIdState, id)
 
-// Schedules (org-scoped, flat)
+// Schedules (project-scoped, context-keyed)
 export const getSchedules = () => store.get(schedulesState)
 export const resetSchedules = () => store.set(schedulesState, undefined)
-export const setSchedules = (schedules: Record<string, Schedule>) =>
+export const setSchedules = (schedules: Record<string, Record<string, Schedule>>) =>
   store.set(schedulesState, schedules)
+
+export const getContextSchedules = (projectId: string) => getSchedules()?.[projectId]
+export const setContextSchedules = (
+  projectId: string,
+  schedules: Record<string, Schedule>
+) => {
+  const all = getSchedules() || {}
+  setSchedules({ ...all, [projectId]: schedules })
+}
 
 export const getActiveScheduleId = () => store.get(activeScheduleIdState)
 export const resetActiveScheduleId = () => store.set(activeScheduleIdState, undefined)

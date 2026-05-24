@@ -10,6 +10,7 @@ import type {
   Thread,
   Project,
   Message,
+  Schedule,
   Endpoint,
   Organization,
   Function as FunctionModel,
@@ -31,6 +32,7 @@ import {
   schedulesState,
   scheduleRunsState,
   activeScheduleIdState,
+  projectSchedulesState,
 } from '@TAF/state/schedules'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
@@ -132,9 +134,9 @@ export const useOrgs = () => useRecState(orgsState)
 export const useOrgUsers = () => useRecState(orgUsersState)
 
 export const useActiveOrgId = () => useRecState(activeOrgIdState)
+export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
 export const useActiveOrgRole = () =>
   useDerivedState<string | undefined>(activeOrgRoleState)
-export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
 
 export const useProjects = () => useRecState(projectsState)
 export const useActiveProjectId = () => useRecState(activeProjectIdState)
@@ -215,6 +217,10 @@ export const useActiveSkillId = () => useRecState(activeSkillIdState)
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
 export const useScheduleRuns = () => useRecState(scheduleRunsState)
+
+// Project-scoped schedules
+export const useProjectSchedules = () =>
+  useDerivedState<Record<string, Schedule>>(projectSchedulesState)
 
 // Project-scoped members
 export const useProjectMembers = () => useRecState(projectMembersState)

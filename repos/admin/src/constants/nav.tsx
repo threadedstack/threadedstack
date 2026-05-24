@@ -95,12 +95,6 @@ const OrgSubNav: Record<string, TNavItem> = {
     Icon: <ExtensionIcon />,
     visible: (ctx) => hasOrg(ctx) && isFeatureEnabled(`skills`),
   },
-  Schedules: {
-    text: `Schedules`,
-    to: buildRoute(ERoutePath.OrgSchedules),
-    Icon: <TimerIcon />,
-    visible: (ctx) => hasOrg(ctx) && isFeatureEnabled(`schedules`),
-  },
   Usage: {
     text: `Usage`,
     to: buildRoute(ERoutePath.OrgUsage),
@@ -163,6 +157,12 @@ const ProjectSubNav: Record<string, TNavItem> = {
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.ProjectApiKeys),
     visible: hasProjectAdmin,
+  },
+  Schedules: {
+    text: `Schedules`,
+    to: buildRoute(ERoutePath.ProjectSchedules),
+    Icon: <TimerIcon />,
+    visible: (ctx) => hasOrgAndProject(ctx) && isFeatureEnabled(`schedules`),
   },
   Settings: {
     text: `Settings`,
@@ -235,7 +235,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
   },
   {
     label: `Management`,
-    items: [OrgSubNav.Members, OrgSubNav.Schedules, OrgSubNav.Usage, OrgSubNav.Settings],
+    items: [OrgSubNav.Members, OrgSubNav.Usage, OrgSubNav.Settings],
   },
 ]
 
@@ -244,6 +244,7 @@ export const ProjectSubNavGroups: TSubNavGroup[] = [
     label: `Development`,
     items: [
       ProjectSubNav.Sandboxes,
+      ProjectSubNav.Schedules,
       ProjectSubNav.Endpoints,
       ProjectSubNav.Functions,
       ProjectSubNav.Agents,

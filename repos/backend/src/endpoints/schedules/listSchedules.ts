@@ -11,12 +11,13 @@ export const listSchedules: TEndpointConfig = {
   middleware: [authorize(EPermAction.read, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId } = req.params
+    const { orgId, projectId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
+    if (!projectId) throw new Exception(400, `projectId is required`)
 
     const { data, error } = await db.services.schedule.list({
-      where: { orgId },
+      where: { orgId, projectId },
     })
 
     if (error) throw new Exception(500, error.message)

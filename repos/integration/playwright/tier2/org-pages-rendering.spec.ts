@@ -178,14 +178,15 @@ test.describe('Org Pages', () => {
     expect(errors).toEqual([])
   })
 
-  test('Org Schedules - renders Schedules heading', async ({ authenticatedPage: page, ctx }) => {
+  test('Project Schedules - renders Schedules heading', async ({ authenticatedPage: page, ctx }) => {
     test.skip(!isFeatureEnabled('schedules'), 'schedules feature flag is disabled')
+    test.skip(!ctx.projectId, 'No projectId in context')
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await expect(page.getByRole('heading', { name: 'Schedules' })).toBeVisible()
 

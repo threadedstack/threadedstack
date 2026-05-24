@@ -3,11 +3,12 @@ import { getScheduleRuns, setScheduleRuns } from '@TAF/state/accessors'
 
 export const fetchScheduleRuns = async (
   orgId: string | undefined,
+  projectId: string | undefined,
   scheduleId: string
 ) => {
-  if (!orgId) return
+  if (!orgId || !projectId) return { error: new Error(`Missing orgId or projectId`) }
 
-  const resp = await schedulesApi.listRuns(orgId, scheduleId)
+  const resp = await schedulesApi.listRuns(orgId, projectId, scheduleId)
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {

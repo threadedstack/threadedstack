@@ -2,9 +2,9 @@ import { test, expect } from '../fixtures/auth'
 import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
- * Org Schedules page integration tests.
+ * Project Schedules page integration tests.
  *
- * Validates the new Schedules page renders correctly, ScheduleDrawer
+ * Validates the Schedules page renders correctly, ScheduleDrawer
  * form has all expected fields with correct defaults, the sandbox select
  * populates, and the table renders correct columns when data exists.
  */
@@ -43,9 +43,10 @@ function collectConsoleErrors(page: import('@playwright/test').Page) {
   return errors
 }
 
-test.describe('Org Schedules Page', () => {
-  test.beforeEach(({}, testInfo) => {
+test.describe('Project Schedules Page', () => {
+  test.beforeEach(({ ctx }, testInfo) => {
     test.skip(!isFeatureEnabled('schedules'), 'schedules feature flag is disabled')
+    test.skip(!ctx.projectId, 'No projectId in context')
   })
 
   test('renders Schedules page with heading and empty/list state', async ({
@@ -54,7 +55,7 @@ test.describe('Org Schedules Page', () => {
   }) => {
     const errors = collectConsoleErrors(page)
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await expect(page.getByRole('heading', { name: 'Schedules' })).toBeVisible()
 
@@ -77,7 +78,7 @@ test.describe('Org Schedules Page', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
@@ -88,26 +89,21 @@ test.describe('Org Schedules Page', () => {
     await expect(page.locator('#tdsk-schedule-prompt-input')).toBeVisible()
     const form = page.locator('#schedule-form')
     await expect(form.getByText('Enabled')).toBeVisible()
-    await expect(form.getByText('New Thread Per Run')).toBeVisible()
 
     await page.keyboard.press('Escape')
   })
 
-  test('ScheduleDrawer switches default to on', async ({
+  test('ScheduleDrawer enabled switch defaults to on', async ({
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
 
-    // Both Enabled and New Thread Per Run default to true
     const enabledSwitch = page.locator('input[name="schedule-enabled"]')
-    const createThreadSwitch = page.locator('input[name="schedule-new-thread"]')
-
     await expect(enabledSwitch).toBeChecked()
-    await expect(createThreadSwitch).toBeChecked()
 
     await page.keyboard.press('Escape')
   })
@@ -116,7 +112,7 @@ test.describe('Org Schedules Page', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
@@ -137,7 +133,7 @@ test.describe('Org Schedules Page', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
@@ -154,7 +150,7 @@ test.describe('Org Schedules Page', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     const tableRows = page.locator('tbody tr')
     const rowCount = await tableRows.count()
@@ -187,7 +183,7 @@ test.describe('Org Schedules Page', () => {
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     const tableRows = page.locator('tbody tr')
     const rowCount = await tableRows.count()

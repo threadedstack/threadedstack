@@ -12,24 +12,24 @@ export const updateSchedule: TEndpointConfig = {
   middleware: [authorize(EPermAction.update, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, scheduleId } = req.params
+    const { orgId, projectId, scheduleId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
+    if (!projectId) throw new Exception(400, `projectId is required`)
     if (!scheduleId) throw new Exception(400, `scheduleId is required`)
 
     const { data: existing, error: getErr } = await db.services.schedule.get(scheduleId)
     if (getErr) throw new Exception(500, getErr.message)
     if (!existing) throw new Exception(404, `Schedule not found`)
-    if (existing.orgId !== orgId) throw new Exception(404, `Schedule not found`)
+    if (existing.orgId !== orgId || existing.projectId !== projectId)
+      throw new Exception(404, `Schedule not found`)
 
     const {
       type,
       prompt,
       command,
       enabled,
-      threadId,
       sandboxId,
-      createThread,
       cronExpression,
       maxConsecutiveErrors,
     } = req.body
@@ -40,13 +40,12 @@ export const updateSchedule: TEndpointConfig = {
       if (sandboxErr) throw new Exception(500, sandboxErr.message)
       if (!sandbox) throw new Exception(404, `Sandbox not found`)
       if (sandbox.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
-    }
 
-    if (threadId !== undefined && threadId) {
-      const { data: thread, error: tErr } = await db.services.thread.get(threadId)
-      if (tErr) throw new Exception(500, tErr.message)
-      if (!thread) throw new Exception(404, `Thread not found`)
-      if (thread.orgId !== orgId) throw new Exception(404, `Thread not found`)
+      const { error: linkErr } = await db.services.sandbox.getProjectConfig(
+        sandboxId,
+        projectId
+      )
+      if (linkErr) throw new Exception(404, `Sandbox is not linked to this project`)
     }
 
     const resolvedType = type ?? existing.type
@@ -72,10 +71,8 @@ export const updateSchedule: TEndpointConfig = {
       ...(prompt !== undefined && { prompt }),
       ...(command !== undefined && { command }),
       ...(enabled !== undefined && { enabled }),
-      ...(threadId !== undefined && { threadId }),
       ...(sandboxId !== undefined && { sandboxId }),
       ...(nextRunAt !== undefined && { nextRunAt }),
-      ...(createThread !== undefined && { createThread }),
       ...(cronExpression !== undefined && { cronExpression }),
       ...(maxConsecutiveErrors !== undefined && { maxConsecutiveErrors }),
     })

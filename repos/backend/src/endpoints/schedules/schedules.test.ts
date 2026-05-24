@@ -9,6 +9,9 @@ import { createSchedule } from './createSchedule'
 import { updateSchedule } from './updateSchedule'
 import { deleteSchedule } from './deleteSchedule'
 import { triggerSchedule } from './triggerSchedule'
+import { listScheduleRuns } from './listScheduleRuns'
+import { getScheduleRun } from './getScheduleRun'
+import { getScheduleRunOutput } from './getScheduleRunOutput'
 
 const mockCheckPermission = vi.hoisted(() => vi.fn())
 
@@ -30,14 +33,13 @@ vi.mock(`@TBE/services/scheduler/cronParser`, () => ({
 const mockSchedule = {
   id: `sched-1`,
   orgId: `org-1`,
+  projectId: `proj-1`,
   sandboxId: `sb-1`,
   type: `prompt`,
   cronExpression: `*/5 * * * *`,
   prompt: `Run the task`,
   enabled: true,
   nextRunAt: new Date(`2026-03-01T10:00:00Z`),
-  threadId: undefined,
-  createThread: true,
   maxConsecutiveErrors: 5,
   consecutiveErrors: 0,
 }
@@ -65,10 +67,23 @@ const buildMockReqRes = () => {
 
   const sandboxService = {
     get: vi.fn().mockResolvedValue({ data: mockSandbox }),
+    getProjectConfig: vi
+      .fn()
+      .mockResolvedValue({ data: { sandboxId: `sb-1`, projectId: `proj-1` } }),
   }
 
-  const threadService = {
-    get: vi.fn().mockResolvedValue({ data: { id: `thread-1`, orgId: `org-1` } }),
+  const projectService = {
+    get: vi.fn().mockResolvedValue({ data: { id: `proj-1`, orgId: `org-1` } }),
+  }
+
+  const scheduleRunService = {
+    listBySchedule: vi.fn(),
+    get: vi.fn(),
+  }
+
+  const s3 = {
+    active: true,
+    getObject: vi.fn(),
   }
 
   const mockRes = {
@@ -83,13 +98,16 @@ const buildMockReqRes = () => {
           services: {
             schedule: scheduleService,
             sandbox: sandboxService,
-            thread: threadService,
+            project: projectService,
+            scheduleRun: scheduleRunService,
           },
         },
+        s3,
       },
     } as any,
     user: { id: `user-1`, email: `test@example.com` } as any,
-    params: { orgId: `org-1` },
+    params: { orgId: `org-1`, projectId: `proj-1` },
+    query: {},
     body: {},
   } as unknown as TRequest
 
@@ -100,7 +118,9 @@ const buildMockReqRes = () => {
     mockStatus,
     scheduleService,
     sandboxService,
-    threadService,
+    projectService,
+    scheduleRunService,
+    s3,
   }
 }
 
@@ -160,7 +180,9 @@ describe(`GET / - listSchedules`, () => {
 
     await listSchedules.action(mockReq, mockRes)
 
-    expect(scheduleService.list).toHaveBeenCalledWith({ where: { orgId: `org-1` } })
+    expect(scheduleService.list).toHaveBeenCalledWith({
+      where: { orgId: `org-1`, projectId: `proj-1` },
+    })
     expect(mockJson).toHaveBeenCalledWith({ data: [mockSchedule] })
   })
 
@@ -177,6 +199,14 @@ describe(`GET / - listSchedules`, () => {
 
     await expect(listSchedules.action(mockReq, mockRes)).rejects.toThrow(
       `orgId is required`
+    )
+  })
+
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1` } as any
+
+    await expect(listSchedules.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
     )
   })
 
@@ -202,7 +232,7 @@ describe(`GET /:scheduleId - getSchedule`, () => {
     mockRes = ctx.mockRes
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
-    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
   })
 
   it(`should return schedule by id`, async () => {
@@ -247,18 +277,36 @@ describe(`GET /:scheduleId - getSchedule`, () => {
   })
 
   it(`should throw 400 when orgId is missing`, async () => {
-    mockReq.params = { scheduleId: `sched-1` } as any
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1` } as any
 
     await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `orgId is required`
     )
   })
 
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+
+    await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
   it(`should throw 400 when scheduleId is missing`, async () => {
-    mockReq.params = { orgId: `org-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1` } as any
 
     await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `scheduleId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(getSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
     )
   })
 })
@@ -381,6 +429,49 @@ describe(`POST / - createSchedule`, () => {
     )
   })
 
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1` } as any
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+    }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
+  it(`should throw 404 when project not found`, async () => {
+    const ctx = buildMockReqRes()
+    ctx.projectService.get.mockResolvedValue({ data: null })
+    ctx.mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+    }
+
+    await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Project not found`
+    )
+  })
+
+  it(`should throw 404 when project belongs to different org`, async () => {
+    const ctx = buildMockReqRes()
+    ctx.projectService.get.mockResolvedValue({
+      data: { id: `proj-1`, orgId: `other-org` },
+    })
+    ctx.mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+    }
+
+    await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Project not found`
+    )
+  })
+
   it(`should throw 404 when sandbox not found`, async () => {
     const ctx = buildMockReqRes()
     ctx.sandboxService.get.mockResolvedValue({ data: null })
@@ -408,6 +499,22 @@ describe(`POST / - createSchedule`, () => {
 
     await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
       `Sandbox not found`
+    )
+  })
+
+  it(`should throw 404 when sandbox is not linked to project`, async () => {
+    const ctx = buildMockReqRes()
+    ctx.sandboxService.getProjectConfig.mockResolvedValue({
+      error: new Error(`Sandbox is not linked to this project`),
+    })
+    ctx.mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+    }
+
+    await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Sandbox is not linked to this project`
     )
   })
 
@@ -441,7 +548,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
     sandboxService = ctx.sandboxService
-    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
   })
 
   it(`should update schedule fields`, async () => {
@@ -482,14 +589,32 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
       data: { ...mockSchedule, sandboxId: `sb-2` },
     })
     sandboxService.get.mockResolvedValue({ data: { id: `sb-2`, orgId: `org-1` } })
+    sandboxService.getProjectConfig.mockResolvedValue({
+      data: { sandboxId: `sb-2`, projectId: `proj-1` },
+    })
 
     mockReq.body = { sandboxId: `sb-2` }
 
     await updateSchedule.action(mockReq, mockRes)
 
     expect(sandboxService.get).toHaveBeenCalledWith(`sb-2`)
+    expect(sandboxService.getProjectConfig).toHaveBeenCalledWith(`sb-2`, `proj-1`)
     expect(scheduleService.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: `sched-1`, sandboxId: `sb-2` })
+    )
+  })
+
+  it(`should throw 404 when updated sandbox is not linked to project`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    sandboxService.get.mockResolvedValue({ data: { id: `sb-2`, orgId: `org-1` } })
+    sandboxService.getProjectConfig.mockResolvedValue({
+      error: new Error(`Sandbox is not linked to this project`),
+    })
+
+    mockReq.body = { sandboxId: `sb-2` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Sandbox is not linked to this project`
     )
   })
 
@@ -538,18 +663,38 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
   })
 
   it(`should throw 400 when orgId is missing`, async () => {
-    mockReq.params = { scheduleId: `sched-1` } as any
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1` } as any
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `orgId is required`
     )
   })
 
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
   it(`should throw 400 when scheduleId is missing`, async () => {
-    mockReq.params = { orgId: `org-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1` } as any
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `scheduleId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    mockReq.body = { prompt: `New prompt` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
     )
   })
 
@@ -634,7 +779,7 @@ describe(`DELETE /:scheduleId - deleteSchedule`, () => {
     mockRes = ctx.mockRes
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
-    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
   })
 
   it(`should delete schedule and return id`, async () => {
@@ -666,18 +811,36 @@ describe(`DELETE /:scheduleId - deleteSchedule`, () => {
   })
 
   it(`should throw 400 when orgId is missing`, async () => {
-    mockReq.params = { scheduleId: `sched-1` } as any
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1` } as any
 
     await expect(deleteSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `orgId is required`
     )
   })
 
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+
+    await expect(deleteSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
   it(`should throw 400 when scheduleId is missing`, async () => {
-    mockReq.params = { orgId: `org-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1` } as any
 
     await expect(deleteSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `scheduleId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(deleteSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
     )
   })
 
@@ -704,7 +867,7 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     mockRes = ctx.mockRes
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
-    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
   })
 
   it(`should trigger schedule and return data with triggered flag`, async () => {
@@ -763,18 +926,36 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
   })
 
   it(`should throw 400 when orgId is missing`, async () => {
-    mockReq.params = { scheduleId: `sched-1` } as any
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1` } as any
 
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `orgId is required`
     )
   })
 
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
   it(`should throw 400 when scheduleId is missing`, async () => {
-    mockReq.params = { orgId: `org-1` } as any
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1` } as any
 
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `scheduleId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
     )
   })
 
@@ -797,7 +978,456 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     scheduleService.markRun.mockResolvedValue({ error: { message: `Mark run error` } })
 
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `Failed to trigger schedule`
+      `Failed to trigger schedule: Mark run error`
     )
+  })
+})
+
+// ── LIST SCHEDULE RUNS ────────────────────────────────────────────
+
+const mockRun = {
+  id: `run-1`,
+  orgId: `org-1`,
+  projectId: `proj-1`,
+  scheduleId: `sched-1`,
+  status: `success`,
+  startedAt: new Date(`2026-03-01T10:00:00Z`),
+  durationMs: 5000,
+}
+
+describe(`GET /:scheduleId/runs - listScheduleRuns`, () => {
+  let mockReq: TRequest
+  let mockRes: Response
+  let mockJson: ReturnType<typeof vi.fn>
+  let scheduleService: ReturnType<typeof buildMockReqRes>['scheduleService']
+  let scheduleRunService: ReturnType<typeof buildMockReqRes>['scheduleRunService']
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const ctx = buildMockReqRes()
+    mockReq = ctx.mockReq
+    mockRes = ctx.mockRes
+    mockJson = ctx.mockJson
+    scheduleService = ctx.scheduleService
+    scheduleRunService = ctx.scheduleRunService
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
+  })
+
+  it(`should return runs for schedule`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.listBySchedule.mockResolvedValue({ data: [mockRun] })
+
+    await listScheduleRuns.action(mockReq, mockRes)
+
+    expect(scheduleService.get).toHaveBeenCalledWith(`sched-1`)
+    expect(scheduleRunService.listBySchedule).toHaveBeenCalledWith(`sched-1`, {
+      limit: 20,
+      offset: 0,
+    })
+    expect(mockJson).toHaveBeenCalledWith({ data: [mockRun] })
+  })
+
+  it(`should return empty array when no runs exist`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.listBySchedule.mockResolvedValue({ data: null })
+
+    await listScheduleRuns.action(mockReq, mockRes)
+
+    expect(mockJson).toHaveBeenCalledWith({ data: [] })
+  })
+
+  it(`should throw 400 when orgId is missing`, async () => {
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1` } as any
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `orgId is required`
+    )
+  })
+
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
+  it(`should throw 400 when scheduleId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1` } as any
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `scheduleId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: null })
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different org`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, orgId: `other-org` },
+    })
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 500 when schedule service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
+  })
+
+  it(`should throw 500 when run service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.listBySchedule.mockResolvedValue({
+      error: { message: `Run list failed` },
+    })
+
+    await expect(listScheduleRuns.action(mockReq, mockRes)).rejects.toThrow(
+      `Run list failed`
+    )
+  })
+})
+
+// ── GET SCHEDULE RUN ──────────────────────────────────────────────
+
+describe(`GET /:scheduleId/runs/:runId - getScheduleRun`, () => {
+  let mockReq: TRequest
+  let mockRes: Response
+  let mockJson: ReturnType<typeof vi.fn>
+  let scheduleService: ReturnType<typeof buildMockReqRes>['scheduleService']
+  let scheduleRunService: ReturnType<typeof buildMockReqRes>['scheduleRunService']
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const ctx = buildMockReqRes()
+    mockReq = ctx.mockReq
+    mockRes = ctx.mockRes
+    mockJson = ctx.mockJson
+    scheduleService = ctx.scheduleService
+    scheduleRunService = ctx.scheduleRunService
+    mockReq.params = {
+      orgId: `org-1`,
+      projectId: `proj-1`,
+      scheduleId: `sched-1`,
+      runId: `run-1`,
+    } as any
+  })
+
+  it(`should return run by id`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({ data: mockRun })
+
+    await getScheduleRun.action(mockReq, mockRes)
+
+    expect(scheduleService.get).toHaveBeenCalledWith(`sched-1`)
+    expect(scheduleRunService.get).toHaveBeenCalledWith(`run-1`)
+    expect(mockJson).toHaveBeenCalledWith({ data: mockRun })
+  })
+
+  it(`should throw 400 when orgId is missing`, async () => {
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `orgId is required`
+    )
+  })
+
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId is required`
+    )
+  })
+
+  it(`should throw 400 when scheduleId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `scheduleId is required`
+    )
+  })
+
+  it(`should throw 400 when runId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `runId is required`
+    )
+  })
+
+  it(`should throw 404 when schedule not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: null })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different org`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, orgId: `other-org` },
+    })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when run not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({ data: null })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule run not found`
+    )
+  })
+
+  it(`should throw 404 when run belongs to different schedule`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, scheduleId: `other-sched` },
+    })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule run not found`
+    )
+  })
+
+  it(`should throw 500 when schedule service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
+  })
+
+  it(`should throw 500 when run service returns error`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({ error: { message: `Run get failed` } })
+
+    await expect(getScheduleRun.action(mockReq, mockRes)).rejects.toThrow(
+      `Run get failed`
+    )
+  })
+})
+
+// ── GET SCHEDULE RUN OUTPUT ───────────────────────────────────────
+
+describe(`GET /:scheduleId/runs/:runId/output - getScheduleRunOutput`, () => {
+  let mockReq: TRequest
+  let mockRes: Response
+  let scheduleService: ReturnType<typeof buildMockReqRes>['scheduleService']
+  let scheduleRunService: ReturnType<typeof buildMockReqRes>['scheduleRunService']
+  let s3: ReturnType<typeof buildMockReqRes>['s3']
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const ctx = buildMockReqRes()
+    mockReq = ctx.mockReq
+    mockRes = ctx.mockRes
+    scheduleService = ctx.scheduleService
+    scheduleRunService = ctx.scheduleRunService
+    s3 = ctx.s3
+    mockReq.params = {
+      orgId: `org-1`,
+      projectId: `proj-1`,
+      scheduleId: `sched-1`,
+      runId: `run-1`,
+    } as any
+    mockReq.query = { stream: `stdout` } as any
+    ;(mockRes as any).setHeader = vi.fn()
+  })
+
+  it(`should throw 400 when orgId is missing`, async () => {
+    mockReq.params = { projectId: `proj-1`, scheduleId: `sched-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `orgId parameter required`
+    )
+  })
+
+  it(`should throw 400 when projectId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, scheduleId: `sched-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `projectId parameter required`
+    )
+  })
+
+  it(`should throw 400 when scheduleId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, runId: `run-1` } as any
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `scheduleId parameter required`
+    )
+  })
+
+  it(`should throw 400 when runId is missing`, async () => {
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `runId parameter required`
+    )
+  })
+
+  it(`should throw 503 when s3 is not active`, async () => {
+    s3.active = false
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `S3 not configured`
+    )
+  })
+
+  it(`should throw 400 when stream is invalid`, async () => {
+    mockReq.query = { stream: `invalid` } as any
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `stream must be "stdout" or "stderr"`
+    )
+  })
+
+  it(`should throw 404 when schedule not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: null })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different project`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, projectId: `other-proj` },
+    })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when schedule belongs to different org`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, orgId: `other-org` },
+    })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule not found`
+    )
+  })
+
+  it(`should throw 404 when run not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({ data: null })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule run not found`
+    )
+  })
+
+  it(`should throw 404 when run belongs to different schedule`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, scheduleId: `other-sched` },
+    })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule run not found`
+    )
+  })
+
+  it(`should throw 404 when no output key exists`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, stdoutKey: undefined },
+    })
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `No stdout output recorded for this run`
+    )
+  })
+
+  it(`should throw 404 when S3 returns NoSuchKey`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, stdoutKey: `org-1/runs/run-1/stdout` },
+    })
+    s3.getObject.mockRejectedValue(
+      Object.assign(new Error(`not found`), { name: `NoSuchKey` })
+    )
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Run output is no longer available`
+    )
+  })
+
+  it(`should throw 502 when S3 returns other error`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, stdoutKey: `org-1/runs/run-1/stdout` },
+    })
+    s3.getObject.mockRejectedValue(new Error(`S3 connection failed`))
+
+    await expect(getScheduleRunOutput.action(mockReq, mockRes)).rejects.toThrow(
+      `Failed to retrieve run output`
+    )
+  })
+
+  it(`should stream stdout output on success`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, stdoutKey: `org-1/runs/run-1/stdout` },
+    })
+    const mockReadable = { on: vi.fn(), pipe: vi.fn() }
+    s3.getObject.mockResolvedValue(mockReadable)
+
+    await getScheduleRunOutput.action(mockReq, mockRes)
+
+    expect(s3.getObject).toHaveBeenCalledWith(`org-1/runs/run-1/stdout`)
+    expect((mockRes as any).setHeader).toHaveBeenCalledWith(
+      `Content-Type`,
+      `application/octet-stream`
+    )
+    expect(mockReadable.pipe).toHaveBeenCalledWith(mockRes)
+  })
+
+  it(`should use stderrKey when stream=stderr`, async () => {
+    mockReq.query = { stream: `stderr` } as any
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.get.mockResolvedValue({
+      data: { ...mockRun, stderrKey: `org-1/runs/run-1/stderr` },
+    })
+    const mockReadable = { on: vi.fn(), pipe: vi.fn() }
+    s3.getObject.mockResolvedValue(mockReadable)
+
+    await getScheduleRunOutput.action(mockReq, mockRes)
+
+    expect(s3.getObject).toHaveBeenCalledWith(`org-1/runs/run-1/stderr`)
+    expect(mockReadable.pipe).toHaveBeenCalledWith(mockRes)
   })
 })

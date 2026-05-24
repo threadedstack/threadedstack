@@ -21,7 +21,6 @@ import {
   orgProvidersLoader,
   orgSandboxesLoader,
   projectScopeLoader,
-  orgSchedulesLoader,
   threadDetailLoader,
   projectSecretsLoader,
   projectAgentsLoader,
@@ -30,6 +29,7 @@ import {
   projectApiKeysLoader,
   endpointDetailLoader,
   projectThreadsLoader,
+  projectSchedulesLoader,
   projectSandboxesLoader,
   projectEndpointsLoader,
   projectFunctionsLoader,
@@ -54,7 +54,7 @@ const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
-const OrgSchedules = lazy(() => import('@TAF/pages/Orgs/OrgSchedules'))
+const ProjectSchedules = lazy(() => import('@TAF/pages/Projects/ProjectSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSandboxes = lazy(() => import('@TAF/pages/Orgs/OrgSandboxes'))
 
@@ -192,15 +192,6 @@ export const createRoutes = () =>
                   },
                 ]
               : []),
-            ...(isFeatureEnabled(`schedules`)
-              ? [
-                  {
-                    path: ERoutePath.Schedules,
-                    loader: orgSchedulesLoader,
-                    Component: () => <SuspensePage Component={OrgSchedules} />,
-                  },
-                ]
-              : []),
             {
               path: ERoutePath.ApiKeys,
               loader: orgApiKeysLoader,
@@ -278,6 +269,15 @@ export const createRoutes = () =>
                   loader: projectSandboxesLoader,
                   Component: () => <SuspensePage Component={ProjectSandboxes} />,
                 },
+                ...(isFeatureEnabled(`schedules`)
+                  ? [
+                      {
+                        path: ERoutePath.Schedules,
+                        loader: projectSchedulesLoader,
+                        Component: () => <SuspensePage Component={ProjectSchedules} />,
+                      },
+                    ]
+                  : []),
                 {
                   path: ERoutePath.Agent,
                   loader: agentDetailLoader,

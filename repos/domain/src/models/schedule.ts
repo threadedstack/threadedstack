@@ -6,15 +6,14 @@ export class Schedule extends Base {
   prompt?: string
   userId?: string
   command?: string
-  threadId?: string
+  projectId!: string
   sandboxId!: string
   enabled: boolean = true
   cronExpression!: string
   lastRunAt?: string | Date
   nextRunAt?: string | Date
-  createThread: boolean = true
-  maxConsecutiveErrors: number = 5
   consecutiveErrors: number = 0
+  maxConsecutiveErrors: number = 5
   type: EScheduleType = EScheduleType.prompt
 
   constructor(schedule: Partial<Schedule>) {

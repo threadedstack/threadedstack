@@ -4,6 +4,7 @@ import { Base } from '@TDM/models/base'
 export class ScheduleRun extends Base {
   orgId!: string
   error?: string
+  projectId!: string
   stdoutKey?: string
   stderrKey?: string
   scheduleId!: string

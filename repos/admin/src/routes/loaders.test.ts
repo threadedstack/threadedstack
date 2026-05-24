@@ -7,7 +7,7 @@ const mockGetProjects = vi.fn()
 const mockGetProviders = vi.fn()
 const mockGetContextSandboxes = vi.fn()
 const mockGetSkills = vi.fn()
-const mockGetSchedules = vi.fn()
+const mockGetContextSchedules = vi.fn()
 const mockGetApiKeys = vi.fn()
 const mockGetOrgUsers = vi.fn()
 const mockGetOrgSecrets = vi.fn()
@@ -33,7 +33,7 @@ vi.mock('@TAF/state/accessors', () => ({
   getProviders: () => mockGetProviders(),
   getContextSandboxes: (...args: any[]) => mockGetContextSandboxes(...args),
   getSkills: () => mockGetSkills(),
-  getSchedules: () => mockGetSchedules(),
+  getContextSchedules: (...args: any[]) => mockGetContextSchedules(...args),
   getApiKeys: () => mockGetApiKeys(),
   getOrgUsers: () => mockGetOrgUsers(),
   getOrgSecrets: () => mockGetOrgSecrets(),
@@ -135,7 +135,7 @@ import {
   orgDomainsLoader,
   orgAgentsLoader,
   orgSkillsLoader,
-  orgSchedulesLoader,
+  projectSchedulesLoader,
   orgMembersLoader,
   orgApiKeysLoader,
   orgUsageLoader,
@@ -830,26 +830,32 @@ describe('loaders', () => {
   })
 
   // ---------------------------------------------------------------------------
-  // orgSchedulesLoader (parallel fetch)
+  // projectSchedulesLoader (parallel fetch)
   // ---------------------------------------------------------------------------
-  describe('orgSchedulesLoader', () => {
+  describe('projectSchedulesLoader', () => {
     it('should fetch schedules and sandboxes in parallel when not loaded', async () => {
-      mockGetSchedules.mockReturnValue(undefined)
+      mockGetContextSchedules.mockReturnValue(undefined)
       mockGetContextSandboxes.mockReturnValue(undefined)
       mockFetchSchedules.mockResolvedValue({ data: {} })
       mockFetchSandboxes.mockResolvedValue({ data: {} })
 
-      await orgSchedulesLoader(makeArgs({ orgId: 'org-1' }))
+      await projectSchedulesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
 
-      expect(mockFetchSchedules).toHaveBeenCalledWith('org-1')
-      expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockFetchSchedules).toHaveBeenCalledWith({
+        orgId: 'org-1',
+        projectId: 'proj-1',
+      })
+      expect(mockFetchSandboxes).toHaveBeenCalledWith({
+        orgId: 'org-1',
+        projectId: 'proj-1',
+      })
     })
 
     it('should skip both when already loaded', async () => {
-      mockGetSchedules.mockReturnValue({ sch1: {} })
+      mockGetContextSchedules.mockReturnValue({ sch1: {} })
       mockGetContextSandboxes.mockReturnValue({ sb1: {} })
 
-      await orgSchedulesLoader(makeArgs({ orgId: 'org-1' }))
+      await projectSchedulesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
 
       expect(mockFetchSchedules).not.toHaveBeenCalled()
       expect(mockFetchSandboxes).not.toHaveBeenCalled()

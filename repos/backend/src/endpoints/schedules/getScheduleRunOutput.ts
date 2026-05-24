@@ -13,10 +13,11 @@ export const getScheduleRunOutput: TEndpointConfig = {
   middleware: [authorize(EPermAction.read, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, s3 } = req.app.locals
-    const { orgId, scheduleId, runId } = req.params
+    const { orgId, projectId, scheduleId, runId } = req.params
     const stream = (req.query.stream as string) || `stdout`
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)
+    if (!projectId) throw new Exception(400, `projectId parameter required`)
     if (!scheduleId) throw new Exception(400, `scheduleId parameter required`)
     if (!runId) throw new Exception(400, `runId parameter required`)
     if (!s3.active) throw new Exception(503, `S3 not configured`)
@@ -28,7 +29,8 @@ export const getScheduleRunOutput: TEndpointConfig = {
 
     if (scheduleErr) throw new Exception(500, scheduleErr.message)
     if (!schedule) throw new Exception(404, `Schedule not found`)
-    if (schedule.orgId !== orgId) throw new Exception(404, `Schedule not found`)
+    if (schedule.orgId !== orgId || schedule.projectId !== projectId)
+      throw new Exception(404, `Schedule not found`)
 
     const { data: run, error } = await db.services.scheduleRun.get(runId)
 

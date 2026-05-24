@@ -55,6 +55,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
       orgId: schedule.orgId,
       startedAt: new Date(),
       scheduleId: schedule.id,
+      projectId: schedule.projectId,
     })
 
     if (runErr || !run) {
@@ -90,6 +91,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
         orgId: schedule.orgId,
         userId: schedule.userId,
         sandboxId: schedule.sandboxId,
+        projectId: schedule.projectId,
         egressOpts: app.locals.config.egress,
       })
 
@@ -99,7 +101,16 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
       if (!sandboxRecord)
         throw new Error(`Sandbox config not found: ${schedule.sandboxId}`)
 
-      const sandboxConfig = sandboxRecord.config as TKubeSandboxConfig
+      const effective = sandboxRecord.getEffectiveConfig
+        ? sandboxRecord.getEffectiveConfig(schedule.projectId)
+        : sandboxRecord
+
+      if (effective === sandboxRecord && schedule.projectId)
+        logger.warn(
+          `[Executor] Schedule ${schedule.id} — no project-specific config for project ${schedule.projectId}; using base sandbox config`
+        )
+
+      const sandboxConfig = effective.config as TKubeSandboxConfig
       const command = resolveScheduleCommand(schedule, sandboxConfig)
 
       const sbInstance = await sandbox.getSandbox(instanceId)
@@ -142,7 +153,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       completeErr
         ? logger.error(
-            `[Executor] Schedule ${schedule.id} — failed to write completion record: ${completeErr.message}`
+            `[Executor] Failed to write completion record for run ${run.id} (schedule ${schedule.id}): ${completeErr.message}`
           )
         : (markedComplete = true)
 
@@ -167,7 +178,12 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
             status: isTimeout ? `timeout` : `error`,
             ...(uploadOk && { stdoutKey, stderrKey }),
           })
-          .catch((e: any) => logger.error(`[Executor] Failed to mark run as error:`, e))
+          .catch((e: any) =>
+            logger.error(
+              `[Executor] Failed to mark run ${run.id} (schedule ${schedule.id}) as error:`,
+              e
+            )
+          )
       }
 
       logger.error(`[Executor] Schedule ${schedule.id} failed:`, err?.message || err)

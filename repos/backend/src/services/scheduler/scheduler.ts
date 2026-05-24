@@ -76,6 +76,7 @@ export class Scheduler {
 
       if (this.executeAgent) {
         await this.executeAgent(schedule)
+        await this.db.services.schedule.resetErrors(schedule.id)
         logger.info(
           `[Scheduler] Schedule ${schedule.id} completed, next run at ${nextRunAt.toISOString()}`
         )

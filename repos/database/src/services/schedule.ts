@@ -66,9 +66,24 @@ export class Schedule extends Base<
         .set({
           lastRunAt: new Date(),
           nextRunAt,
-          consecutiveErrors: 0,
           updatedAt: new Date(),
         })
+        .where(eq(schedules.id, id))
+        .returning()
+
+      if (!resp[0]) return { error: new Error(`Schedule not found`) }
+
+      return { data: this.model(resp[0]) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  async resetErrors(id: string) {
+    try {
+      const resp = await this.db
+        .update(schedules)
+        .set({ consecutiveErrors: 0, updatedAt: new Date() })
         .where(eq(schedules.id, id))
         .returning()
 
