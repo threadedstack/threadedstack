@@ -18,7 +18,6 @@ export const TunnelBlockDuration = 60_000
 export const TunnelFastCloseThreshold = 10_000
 
 export const WsPingInterval = 30_000
-export const MaxPtyBufferSize = 10 * 1024 * 1024
 
 export const MaxTerminalDim = 500
 export const RateLimiterMaxKeys = 10_000

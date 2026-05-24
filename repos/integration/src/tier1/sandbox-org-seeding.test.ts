@@ -25,7 +25,7 @@ const cleanupOrg = async (orgId: string, apiKey: string) => {
  * Tests org-creation sandbox seeding.
  *
  * When a new organization is created, the backend seeds default sandbox
- * configs (Claude Code, Codex, OpenCode, Base) with builtIn=true.
+ * configs (Claude Code, Codex, OpenCode, Antigravity, OpenClaw, Base) with builtIn=true.
  *
  * Org creation requires user-level JWT auth (API keys return 403).
  * The test acquires a JWT from Neon Auth using email/password sign-in.
@@ -92,19 +92,19 @@ describe('Tier 1: Sandbox Org Seeding', () => {
     expect(listRes.status).toBe(200)
     expect(listRes.ok).toBe(true)
     expect(Array.isArray(listRes.data)).toBe(true)
-    expect(listRes.data.length).toBeGreaterThanOrEqual(5)
+    expect(listRes.data.length).toBeGreaterThanOrEqual(6)
 
     for (const sandbox of listRes.data) {
       expect(sandbox.builtIn).toBe(true)
     }
 
     const seededNames = listRes.data.map((s: any) => s.name)
-    for (const expectedName of ['Claude Code', 'Codex', 'OpenCode', 'Gemini CLI', 'Base']) {
+    for (const expectedName of ['Claude Code', 'Codex', 'OpenCode', 'Antigravity', 'OpenClaw', 'Base']) {
       expect(seededNames.some((n: string) => n.includes(expectedName))).toBe(true)
     }
 
     for (const sandbox of listRes.data) {
-      expect(['claude-code', 'codex', 'opencode', 'gemini-cli', 'custom']).toContain(sandbox.config.runtime)
+      expect(['claude-code', 'codex', 'opencode', 'antigravity', 'openclaw', 'custom']).toContain(sandbox.config.runtime)
       expect(sandbox.config.image).toBeTruthy()
       expect(sandbox.config.sshEnabled).toBe(true)
     }
@@ -134,8 +134,11 @@ describe('Tier 1: Sandbox Org Seeding', () => {
     expect(byRuntime['opencode']).toBeDefined()
     expect(byRuntime['opencode'].config.runtimeCommand).toBe('opencode')
 
-    expect(byRuntime['gemini-cli']).toBeDefined()
-    expect(byRuntime['gemini-cli'].config.runtimeCommand).toBe('gemini')
+    expect(byRuntime['antigravity']).toBeDefined()
+    expect(byRuntime['antigravity'].config.runtimeCommand).toBe('agy')
+
+    expect(byRuntime['openclaw']).toBeDefined()
+    expect(byRuntime['openclaw'].config.runtimeCommand).toBe('openclaw')
 
     expect(byRuntime['custom']).toBeDefined()
     expect(byRuntime['custom'].config.runtimeCommand).toBeFalsy()

@@ -26,7 +26,8 @@ export const SandboxRuntimeOptions = [
   { value: ESandboxRuntime.claudeCode, label: `Claude Code` },
   { value: ESandboxRuntime.codex, label: `Codex` },
   { value: ESandboxRuntime.openCode, label: `OpenCode` },
-  { value: ESandboxRuntime.geminiCli, label: `Gemini CLI` },
+  { value: ESandboxRuntime.antigravity, label: `Antigravity` },
+  { value: ESandboxRuntime.openClaw, label: `OpenClaw` },
   { value: ESandboxRuntime.custom, label: `Custom` },
 ]
 
@@ -92,10 +93,15 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
     promptCommand: `opencode run '{prompt}'`,
     initScript: `echo "OpenCode sandbox ready"`,
   },
-  [ESandboxRuntime.geminiCli]: {
-    runtimeCommand: `gemini`,
-    promptCommand: `gemini -p '{prompt}'`,
-    initScript: `echo "Gemini CLI sandbox ready"`,
+  [ESandboxRuntime.antigravity]: {
+    runtimeCommand: `agy`,
+    promptCommand: `agy -p '{prompt}'`,
+    initScript: `echo "Antigravity sandbox ready"`,
+  },
+  [ESandboxRuntime.openClaw]: {
+    runtimeCommand: `openclaw`,
+    promptCommand: `openclaw agent --message '{prompt}'`,
+    initScript: `echo "OpenClaw sandbox ready"`,
   },
   [ESandboxRuntime.custom]: {},
 }
@@ -155,16 +161,28 @@ export const SandboxPresets: Record<
       initScript: SandboxRuntimeConfigs[ESandboxRuntime.openCode].initScript,
     },
   },
-  [ESandboxRuntime.geminiCli]: {
-    name: `Gemini CLI`,
-    description: `Google Gemini CLI AI coding assistant`,
+  [ESandboxRuntime.antigravity]: {
+    name: `Antigravity`,
+    description: `Google Antigravity AI coding assistant`,
     config: {
       sshEnabled: true,
       idleTimeoutMinutes: 30,
       resources: DefaultResources,
-      runtime: ESandboxRuntime.geminiCli,
-      runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].runtimeCommand,
-      initScript: SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].initScript,
+      runtime: ESandboxRuntime.antigravity,
+      runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.antigravity].runtimeCommand,
+      initScript: SandboxRuntimeConfigs[ESandboxRuntime.antigravity].initScript,
+    },
+  },
+  [ESandboxRuntime.openClaw]: {
+    name: `OpenClaw`,
+    description: `OpenClaw AI assistant`,
+    config: {
+      sshEnabled: true,
+      idleTimeoutMinutes: 30,
+      resources: DefaultResources,
+      runtime: ESandboxRuntime.openClaw,
+      runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.openClaw].runtimeCommand,
+      initScript: SandboxRuntimeConfigs[ESandboxRuntime.openClaw].initScript,
     },
   },
   [ESandboxRuntime.custom]: {
@@ -196,10 +214,15 @@ export const RuntimeSkillPathMap: Record<TSandboxRuntimeId, TRuntimeSkillConfig 
       fileLayout: `flat`,
       basePath: `${SandboxHomePath}/.opencode/prompts`,
     },
-    [ESandboxRuntime.geminiCli]: {
+    [ESandboxRuntime.antigravity]: {
       fileName: `.md`,
       fileLayout: `flat`,
-      basePath: `${SandboxHomePath}/.gemini/skills`,
+      basePath: `${SandboxHomePath}/.gemini/antigravity-cli/skills`,
+    },
+    [ESandboxRuntime.openClaw]: {
+      fileName: `SKILL.md`,
+      fileLayout: `nested`,
+      basePath: `${SandboxHomePath}/.openclaw/workspace/skills`,
     },
     [ESandboxRuntime.custom]: null,
   }
@@ -441,12 +464,17 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
       { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
     ],
   },
-  [ESandboxRuntime.geminiCli]: {
+  [ESandboxRuntime.antigravity]: {
     [ERuntimeBrand.google]: [
-      { envVar: `GOOGLE_API_KEY`, source: `secret`, required: true },
+      { envVar: `ANTIGRAVITY_API_KEY`, source: `secret`, required: true },
     ],
     [ERuntimeBrand.googleVertex]: [
-      { envVar: `GOOGLE_API_KEY`, source: `secret`, injection: `direct`, required: true },
+      {
+        envVar: `ANTIGRAVITY_API_KEY`,
+        source: `secret`,
+        injection: `direct`,
+        required: true,
+      },
       {
         envVar: `GOOGLE_GENAI_USE_VERTEXAI`,
         source: `static`,
@@ -471,6 +499,26 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
         optionKey: `region`,
         injection: `direct`,
       },
+    ],
+  },
+  [ESandboxRuntime.openClaw]: {
+    [ERuntimeBrand.anthropic]: [
+      { envVar: `ANTHROPIC_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.openai]: [
+      { envVar: `OPENAI_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.google]: [
+      { envVar: `GOOGLE_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.openrouter]: [
+      { envVar: `OPENROUTER_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.ollamaCloud]: [
+      { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.custom]: [
+      { envVar: `CUSTOM_API_KEY`, source: `secret`, required: true },
     ],
   },
   [ESandboxRuntime.custom]: {},

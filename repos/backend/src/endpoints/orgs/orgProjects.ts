@@ -70,7 +70,6 @@ import { connectSandbox } from '@TBE/endpoints/sandboxes/connectSandbox'
 import { deleteSBPConfig } from '@TBE/endpoints/sandboxes/deleteSBPConfig'
 import { upsertSBPConfig } from '@TBE/endpoints/sandboxes/upsertSBPConfig'
 import { getSandboxStatus } from '@TBE/endpoints/sandboxes/getSandboxStatus'
-import { listSandboxThreads } from '@TBE/endpoints/sandboxes/listSandboxThreads'
 import { execStreamInSandbox } from '@TBE/endpoints/sandboxes/execStreamInSandbox'
 
 const projectEndpoints: TEndpointConfig = {
@@ -190,7 +189,6 @@ const projectSandboxes: TEndpointConfig = {
     listSessions,
     listInstances,
     getSandboxStatus,
-    listSandboxThreads,
     execStreamInSandbox,
     projectSandboxConfig,
     listPorts,

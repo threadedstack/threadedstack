@@ -3,10 +3,15 @@ import type { Schedule, Sandbox } from '@tdsk/domain'
 import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
 import { EScheduleType } from '@tdsk/domain'
+import Accordion from '@mui/material/Accordion'
+import Typography from '@mui/material/Typography'
 import ToggleButton from '@mui/material/ToggleButton'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { useOrgSandboxes } from '@TAF/state/selectors'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { SandboxSelector } from '@TAF/components/Selectors'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import AccordionSummary from '@mui/material/AccordionSummary'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { FormSection } from '@TAF/components/FormSection/FormSection'
@@ -49,6 +54,7 @@ export const ScheduleDrawer = ({
 }: TScheduleDrawer) => {
   const isEditMode = !!schedule
   const [loading, setLoading] = useState(false)
+  const [cronError, setCronError] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const defaultTemp: TTempSchedule = {
     enabled: true,
@@ -87,7 +93,7 @@ export const ScheduleDrawer = ({
 
     onCloseCB?.()
     setError(null)
-    setTemp({ type: EScheduleType.prompt, enabled: true, createThread: true })
+    setTemp(defaultTemp)
   }
 
   const onSave = async (evt: React.FormEvent) => {
@@ -148,7 +154,7 @@ export const ScheduleDrawer = ({
           actions={actions}
           loading={loading}
           editing={isEditMode}
-          disabled={loading}
+          disabled={loading || cronError}
         />
       }
     >
@@ -173,64 +179,7 @@ export const ScheduleDrawer = ({
             </ToggleButtonGroup>
           </FormSection>
 
-          <SandboxSelector
-            required
-            loading={loading}
-            sandboxes={sandboxes as Sandbox[]}
-            sandboxId={temp?.sandboxId || ``}
-            onChange={(id) => updateTemp({ sandboxId: id })}
-          />
-
-          <FormSection title='Schedule'>
-            <CronInput
-              hideDates
-              showCron
-              disabled={loading}
-              value={temp?.cronExpression || ``}
-              onChange={(_e, change) => updateTemp({ cronExpression: change.value })}
-            />
-          </FormSection>
-
-          {temp.type === EScheduleType.prompt && (
-            <TextInput
-              required
-              textarea
-              fullWidth
-              minRows={4}
-              disabled={loading}
-              label='Prompt'
-              value={temp?.prompt || ``}
-              id='tdsk-schedule-prompt-input'
-              placeholder='Enter the prompt to send on each run...'
-              onChange={(e) => updateTemp({ prompt: e.target.value })}
-            />
-          )}
-
-          {temp.type === EScheduleType.shell && (
-            <TextInput
-              required
-              textarea
-              fullWidth
-              minRows={4}
-              label='Command'
-              disabled={loading}
-              value={temp?.command || ``}
-              id='tdsk-schedule-command-input'
-              sx={{ '& textarea': { fontFamily: 'monospace' } }}
-              placeholder='Enter the shell command to execute on each run...'
-              onChange={(e) => updateTemp({ command: e.target.value })}
-            />
-          )}
-
-          <FormSection title='Schedule Options'>
-            <SwitchInput
-              disabled={loading}
-              id='schedule-new-thread'
-              label='New Thread Per Run'
-              checked={temp?.createThread ?? true}
-              onChange={(e) => updateTemp({ createThread: e.target.checked })}
-            />
-
+          {isEditMode && (
             <SwitchInput
               label='Enabled'
               disabled={loading}
@@ -238,7 +187,83 @@ export const ScheduleDrawer = ({
               checked={temp?.enabled ?? true}
               onChange={(e) => updateTemp({ enabled: e.target.checked })}
             />
-          </FormSection>
+          )}
+
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                fontWeight={500}
+                variant='subtitle1'
+              >
+                Configuration
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <SandboxSelector
+                  required
+                  loading={loading}
+                  sandboxes={sandboxes as Sandbox[]}
+                  sandboxId={temp?.sandboxId || ``}
+                  onChange={(id) => updateTemp({ sandboxId: id })}
+                />
+
+                {temp.type === EScheduleType.prompt && (
+                  <TextInput
+                    required
+                    textarea
+                    fullWidth
+                    minRows={4}
+                    label='Prompt'
+                    disabled={loading}
+                    value={temp?.prompt || ``}
+                    id='tdsk-schedule-prompt-input'
+                    placeholder='Enter the prompt to send on each run...'
+                    onChange={(e) => updateTemp({ prompt: e.target.value })}
+                  />
+                )}
+
+                {temp.type === EScheduleType.shell && (
+                  <TextInput
+                    required
+                    textarea
+                    fullWidth
+                    minRows={4}
+                    label='Command'
+                    disabled={loading}
+                    value={temp?.command || ``}
+                    id='tdsk-schedule-command-input'
+                    sx={{ '& textarea': { fontFamily: 'monospace' } }}
+                    placeholder='Enter the shell command to execute on each run...'
+                    onChange={(e) => updateTemp({ command: e.target.value })}
+                  />
+                )}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                fontWeight={500}
+                variant='subtitle1'
+              >
+                Cron Schedule
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <CronInput
+                hideDates
+                showCron
+                disabled={loading}
+                value={temp?.cronExpression || ``}
+                onChange={(_e, change) => {
+                  setCronError(!!change.error)
+                  updateTemp({ cronExpression: change.value })
+                }}
+              />
+            </AccordionDetails>
+          </Accordion>
 
           {isEditMode && orgId && schedule && (
             <ScheduleRuns

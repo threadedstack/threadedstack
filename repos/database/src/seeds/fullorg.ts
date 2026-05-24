@@ -1289,7 +1289,8 @@ const sandboxes = {
   claudeCode: buildPresetSandbox(Ids.sandbox.claudeCode, SandboxPresets[`claude-code`]),
   codex: buildPresetSandbox(Ids.sandbox.codex, SandboxPresets[`codex`]),
   openCode: buildPresetSandbox(Ids.sandbox.openCode, SandboxPresets[`opencode`]),
-  geminiCli: buildPresetSandbox(Ids.sandbox.geminiCli, SandboxPresets[`gemini-cli`]),
+  antigravity: buildPresetSandbox(Ids.sandbox.antigravity, SandboxPresets[`antigravity`]),
+  openClaw: buildPresetSandbox(Ids.sandbox.openClaw, SandboxPresets[`openclaw`]),
   custom: buildPresetSandbox(Ids.sandbox.custom, SandboxPresets[`custom`]),
 }
 
@@ -1312,9 +1313,15 @@ const sandboxProviderLinks = [
   { sandboxId: Ids.sandbox.openCode, providerId: providers.openrouter.id, priority: 2 },
   { sandboxId: Ids.sandbox.openCode, providerId: providers.zai.id, priority: 3 },
   { sandboxId: Ids.sandbox.openCode, providerId: providers.ollama.id, priority: 4 },
-  // Gemini CLI: google (primary)
-  { sandboxId: Ids.sandbox.geminiCli, providerId: providers.google.id, priority: 0 },
-  // Custom: no providers linked — bring your own
+  // Antigravity: google (primary)
+  { sandboxId: Ids.sandbox.antigravity, providerId: providers.google.id, priority: 0 },
+  // OpenClaw: anthropic (primary), openai, google, openrouter, ollama cloud (fallbacks)
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.openai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.google.id, priority: 2 },
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.openrouter.id, priority: 3 },
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.ollama.id, priority: 4 },
+  // Custom: no providers linked -- bring your own
 ]
 
 // --- Project → Provider links (git providers linked to projects) ---
@@ -1341,7 +1348,7 @@ const projectProviderLinks = [
  * - Messages: linked to thread, org, and project with TMessageContent[] format
  * - Skills: org-scoped, linked to agents via agentSkills junction table
  * - Schedules: cron-based agent execution, linked to agents and optionally threads
- * - Sandboxes: built-in presets (claude-code, codex, opencode, gemini-cli, custom) linked to providers via junction table
+ * - Sandboxes: built-in presets (claude-code, codex, opencode, antigravity, openclaw, custom) linked to providers via junction table
  * - Invitations: all 4 statuses (pending, accepted, expired, revoked)
  */
 export const seeds = {

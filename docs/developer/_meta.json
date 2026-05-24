@@ -10,6 +10,7 @@
     "agent-endpoints-internals",
     "threads-internals",
     "billing-internals",
+    "s3-internals",
     "sandbox-connect-internals",
     "threads-app-internals"
   ]

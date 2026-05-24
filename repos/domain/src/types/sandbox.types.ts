@@ -79,8 +79,9 @@ export enum ESandboxRuntime {
   codex = `codex`,
   custom = `custom`,
   openCode = `opencode`,
-  geminiCli = `gemini-cli`,
+  openClaw = `openclaw`,
   claudeCode = `claude-code`,
+  antigravity = `antigravity`,
 }
 
 export type TSBRuntimeConfig = {

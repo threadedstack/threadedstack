@@ -34,10 +34,20 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`ollama:cloud`)
   })
 
-  it(`gemini-cli supports google and google-vertex`, () => {
-    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.geminiCli]!)
+  it(`antigravity supports google and google-vertex`, () => {
+    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.antigravity]!)
     expect(brands).toContain(`google`)
     expect(brands).toContain(`google-vertex`)
+  })
+
+  it(`openclaw supports anthropic, openai, google, openrouter, ollamaCloud, custom`, () => {
+    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.openClaw]!)
+    expect(brands).toContain(`anthropic`)
+    expect(brands).toContain(`openai`)
+    expect(brands).toContain(`google`)
+    expect(brands).toContain(`openrouter`)
+    expect(brands).toContain(`ollama:cloud`)
+    expect(brands).toContain(`custom`)
   })
 
   it(`every required entry with source=secret has injection specified or defaults to mitm`, () => {
@@ -159,20 +169,38 @@ describe(`RuntimeProviderEnvMap`, () => {
 })
 
 describe(`SandboxPresets`, () => {
-  it(`includes geminiCli preset`, () => {
-    expect(SandboxPresets[ESandboxRuntime.geminiCli]).toBeDefined()
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].name).toBe(`Gemini CLI`)
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].config.runtimeCommand).toBe(`gemini`)
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].config.runtime).toBe(
-      ESandboxRuntime.geminiCli
+  it(`includes antigravity preset`, () => {
+    expect(SandboxPresets[ESandboxRuntime.antigravity]).toBeDefined()
+    expect(SandboxPresets[ESandboxRuntime.antigravity].name).toBe(`Antigravity`)
+    expect(SandboxPresets[ESandboxRuntime.antigravity].config.runtimeCommand).toBe(`agy`)
+    expect(SandboxPresets[ESandboxRuntime.antigravity].config.runtime).toBe(
+      ESandboxRuntime.antigravity
+    )
+  })
+
+  it(`includes openClaw preset`, () => {
+    expect(SandboxPresets[ESandboxRuntime.openClaw]).toBeDefined()
+    expect(SandboxPresets[ESandboxRuntime.openClaw].name).toBe(`OpenClaw`)
+    expect(SandboxPresets[ESandboxRuntime.openClaw].config.runtimeCommand).toBe(
+      `openclaw`
+    )
+    expect(SandboxPresets[ESandboxRuntime.openClaw].config.runtime).toBe(
+      ESandboxRuntime.openClaw
     )
   })
 })
 
 describe(`SandboxRuntimeConfigs`, () => {
-  it(`includes geminiCli config`, () => {
-    expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli]).toBeDefined()
-    expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].runtimeCommand).toBe(`gemini`)
+  it(`includes antigravity config`, () => {
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.antigravity]).toBeDefined()
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.antigravity].runtimeCommand).toBe(`agy`)
+  })
+
+  it(`includes openClaw config`, () => {
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.openClaw]).toBeDefined()
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.openClaw].runtimeCommand).toBe(
+      `openclaw`
+    )
   })
 
   it(`codex initScript generates config.toml with custom providers`, () => {

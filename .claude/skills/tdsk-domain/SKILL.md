@@ -50,7 +50,7 @@ Types are in `src/types/`. Key files and their exports:
 | `ESandboxType` | sandbox.types.ts | local, kubernetes |
 | `EContainerState` | sandbox.types.ts | Failed, Pending, Running, Unknown, Succeeded |
 | `ESBState` | sandbox.types.ts | Error, Running, Stopped, Starting |
-| `ESandboxRuntime` | sandbox.types.ts | claude-code, codex, opencode, gemini-cli, custom |
+| `ESandboxRuntime` | sandbox.types.ts | claude-code, codex, opencode, antigravity, openclaw, custom |
 | `EApiKeyScope` | scopes.types.ts | read, write, admin |
 | `EApiKeyExpire` | scopes.types.ts | d7, d30, d90, d180, y1, never |
 | `EProvider` | provider.types.ts | ai, git, auth, storage |

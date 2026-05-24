@@ -1,6 +1,7 @@
 import type { WebSocket } from 'ws'
 import type { PassThrough } from 'stream'
 import type { RingBuffer } from '@TBE/utils/ringBuffer'
+import type { TUploadStream } from '@TBE/types/s3.types'
 import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
 export type TWebSocketMeta = {
@@ -8,27 +9,22 @@ export type TWebSocketMeta = {
   joinedUserId?: string
 }
 
-export type TPtyRecorder = {
-  write(data: Uint8Array): void
-  getRawBuffer(): Uint8Array
-  destroy(): void
-}
-
 export type TShellSession = {
   readonly orgId: string
   readonly userId: string
-  readonly threadId: string
   readonly sandboxId: string
   readonly sessionId: string
   readonly stdin: PassThrough
   readonly buffer: RingBuffer
   readonly stdout: PassThrough
   readonly closeExec: () => void
+  readonly sandboxSessionId: string
   readonly resize: (cols: number, rows: number) => void
 
   projectId?: string
-  ptyRecorder: TPtyRecorder
   attachments: Set<WebSocket>
+  stdoutUpload?: TUploadStream
+  stderrUpload?: TUploadStream
   ttlTimer: NodeJS.Timeout | null
   visibility: ESandboxSessionVisibility
 }
@@ -41,7 +37,6 @@ export type TShellControlMsg =
 
 type TSessionIdentity = {
   runtime: string
-  threadId: string
   sessionId: string
   sandboxId: string
   podOwnerUserId: string

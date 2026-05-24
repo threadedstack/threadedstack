@@ -71,7 +71,7 @@ const allNodes: NodeDef[] = [
   {
     id: 'agent',
     label: 'AI Agent',
-    desc: 'Runs AI provider tooling (Claude-Code, Codex, Gemini-CLI, OpenCode, Custom)',
+    desc: 'Runs AI provider tooling (Claude-Code, Codex, Antigravity, OpenClaw, OpenCode, Custom)',
     x: 235,
     y: 410,
     w: 170,

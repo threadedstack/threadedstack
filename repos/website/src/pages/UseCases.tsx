@@ -57,7 +57,7 @@ tsa run claude-code
     icon: VpnKeyIcon,
     title: 'Secure Credential Management',
     paragraphs: [
-      'AI agents and tools need API keys to function — Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Gemini CLI. Traditionally, developers store these in local .env files, share them over insecure channels, or hardcode them in configuration. Every key distribution is a potential leak vector.',
+      'AI agents and tools need API keys to function — Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Antigravity. Traditionally, developers store these in local .env files, share them over insecure channels, or hardcode them in configuration. Every key distribution is a potential leak vector.',
       'Threaded Stack eliminates this entire problem class. Secrets are encrypted at rest with AES-256-GCM and never injected directly into sandbox environments. Instead, the sandbox receives placeholder tokens. When the AI tool makes an outbound API call, the MITM egress proxy intercepts the request, replaces placeholder tokens with real credentials, and forwards the request to the provider.',
       'This architecture means that even if an AI tool is instructed to print its environment variables or exfiltrate data, it only has access to placeholder values — not real secrets. The actual credentials exist only transiently in proxy memory during request forwarding.',
     ],

@@ -53,6 +53,7 @@ export const SandboxSkillsAccordion = (props: TSandboxSkillsAccordionProps) => {
   } = props
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [expanded, setExpanded] = useState(false)
   const [skillDrawerOpen, setSkillDrawerOpen] = useState(false)
 
   const isProjectContext = !!projectId
@@ -61,7 +62,10 @@ export const SandboxSkillsAccordion = (props: TSandboxSkillsAccordionProps) => {
 
   return (
     <>
-      <Accordion defaultExpanded={editableSkills.length > 0 || hasOrgSkills}>
+      <Accordion
+        expanded={expanded}
+        onChange={(_, isExpanded) => setExpanded(isExpanded)}
+      >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography
             fontWeight={500}
@@ -85,11 +89,18 @@ export const SandboxSkillsAccordion = (props: TSandboxSkillsAccordionProps) => {
                 <List
                   dense
                   disablePadding
+                  sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                 >
                   {orgSkills.map((skill) => (
                     <ListItem
                       key={skill.id}
-                      sx={{ pl: 1, opacity: 0.7 }}
+                      sx={(theme) => ({
+                        px: 1.5,
+                        opacity: 0.7,
+                        borderRadius: `6px`,
+                        backgroundColor: theme.palette.background.input,
+                        border: `1px solid ${theme.palette.border?.default}`,
+                      })}
                     >
                       <ListItemText
                         primary={skill.name}
@@ -126,17 +137,24 @@ export const SandboxSkillsAccordion = (props: TSandboxSkillsAccordionProps) => {
               <List
                 dense
                 disablePadding
+                sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
               >
                 {editableSkills.map((skill) => (
                   <ListItem
                     key={skill.id}
-                    sx={{ pl: 1 }}
+                    sx={(theme) => ({
+                      px: 1.5,
+                      borderRadius: `6px`,
+                      backgroundColor: theme.palette.background.input,
+                      border: `1px solid ${theme.palette.border?.default}`,
+                    })}
                     secondaryAction={
                       <IconButton
                         edge='end'
                         size='small'
                         disabled={disabled}
                         onClick={() => onRemoveSkill(skill.id)}
+                        sx={{ '&:hover': { color: 'error.main' } }}
                       >
                         <DeleteIcon fontSize='small' />
                       </IconButton>

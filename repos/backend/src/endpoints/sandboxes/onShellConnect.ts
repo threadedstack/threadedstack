@@ -4,11 +4,7 @@ import type { IncomingMessage } from 'http'
 import type { TExecStream } from '@tdsk/sandbox'
 import type { ESubscriptionTier, ERoleType } from '@tdsk/domain'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
-import type {
-  TPtyRecorder,
-  TShellSession,
-  TWebSocketMeta,
-} from '@TBE/types/shellSession.types'
+import type { TShellSession, TWebSocketMeta } from '@TBE/types/shellSession.types'
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
@@ -18,7 +14,6 @@ import { verifyShellToken } from '@TBE/services/sessionToken'
 import { parseShellControlMsg } from '@TBE/utils/shell/parseControlMsg'
 import {
   WsPingInterval,
-  MaxPtyBufferSize,
   SBBackpressureMaxWait,
   SBBackpressureThreshold,
 } from '@TBE/constants/sandbox'
@@ -35,34 +30,6 @@ import {
 
 const wsMeta = new Map<WebSocket, TWebSocketMeta>()
 
-function createPtyRecorder(): TPtyRecorder {
-  const chunks: Uint8Array[] = []
-  let totalSize = 0
-
-  return {
-    write(data: Uint8Array) {
-      totalSize += data.length
-      chunks.push(data)
-      while (totalSize > MaxPtyBufferSize && chunks.length > 1) {
-        totalSize -= chunks.shift()!.length
-      }
-    },
-    getRawBuffer(): Uint8Array {
-      const result = new Uint8Array(totalSize)
-      let offset = 0
-      for (const chunk of chunks) {
-        result.set(chunk, offset)
-        offset += chunk.length
-      }
-      return result
-    },
-    destroy() {
-      chunks.length = 0
-      totalSize = 0
-    },
-  }
-}
-
 /**
  * Handle WebSocket shell connections for interactive terminal access to sandbox pods.
  *
@@ -77,14 +44,14 @@ function createPtyRecorder(): TPtyRecorder {
  * Unlike the tunnel endpoint (raw TCP bridge), this handler:
  *   - Establishes a kubectl exec connection and allocates a PTY shell
  *   - Manages persistent sessions via the session broker (survives WS reconnects)
- *   - Creates a thread per session for history storage
+ *   - Streams stdout/stderr to S3 for post-session retrieval
  */
 export const onShellConnect = async (
   ws: WebSocket,
   req: IncomingMessage,
   app: TApp
 ): Promise<void> => {
-  const { db, sandbox: sbService, kube } = app.locals
+  const { db, sandbox: sbService, kube, s3 } = app.locals
 
   let closed = false
   let pingInterval: ReturnType<typeof setInterval> | null = null
@@ -249,7 +216,7 @@ export const onShellConnect = async (
     const existing = sbService.getShellSession(reconnectSessionId)
     if (existing && existing.sandboxId === sandboxId) {
       if (existing.userId === userId) {
-        // Own session reconnection
+        // Own session reconnection -- ring buffer only
         const session = sbService.attachToShellSession(reconnectSessionId, ws)
         if (!session) {
           ws.close(4005, `Session expired during reconnection`)
@@ -257,43 +224,8 @@ export const onShellConnect = async (
         }
         wsMeta.set(ws, { sessionId: reconnectSessionId })
 
-        let buffered = session.buffer.drain()
-
-        if (buffered.length > 0) {
-          ws.send(buffered)
-        } else {
-          // Ring buffer empty (no output during disconnect gap).
-          // Use the ptyRecorder's raw buffer -- the full session PTY history.
-          try {
-            const rawData = session.ptyRecorder.getRawBuffer()
-            if (rawData.length > 0) {
-              const buf = Buffer.from(rawData)
-              ws.send(buf)
-              buffered = buf
-            }
-          } catch (err) {
-            logger.warn(`[Shell] Failed to get PTY raw buffer:`, (err as Error).message)
-          }
-
-          // Fall back to ptyBuffer from DB (only populated after stream close)
-          if (buffered.length === 0) {
-            try {
-              const { data: thread } = await db.services.thread.get(session.threadId)
-              if (thread?.ptyBuffer) {
-                const buf = Buffer.isBuffer(thread.ptyBuffer)
-                  ? thread.ptyBuffer
-                  : Buffer.from(thread.ptyBuffer)
-                ws.send(buf)
-                buffered = buf
-              }
-            } catch (err) {
-              logger.warn(
-                `[Shell] Failed to load PTY buffer for thread ${session.threadId}:`,
-                (err as Error).message
-              )
-            }
-          }
-        }
+        const buffered = session.buffer.drain()
+        if (buffered.length > 0) ws.send(buffered)
 
         const requestedInstance = url.searchParams.get(`instanceId`)
         let instanceId: string | undefined
@@ -338,7 +270,6 @@ export const onShellConnect = async (
             sandboxId,
             podOwnerUserId,
             type: `reconnected`,
-            threadId: session.threadId,
             sessionId: reconnectSessionId,
             visibility: session.visibility,
             bufferedBytes: buffered.length,
@@ -392,38 +323,7 @@ export const onShellConnect = async (
       wsMeta.set(ws, { sessionId: reconnectSessionId, joinedUserId: userId })
 
       const buffered = session.buffer.drain()
-      if (buffered.length > 0) {
-        ws.send(buffered)
-      } else {
-        // Ring buffer empty -- use ptyRecorder's raw buffer (full PTY history)
-        let sent = false
-        try {
-          const rawData = session.ptyRecorder.getRawBuffer()
-          if (rawData.length > 0) {
-            ws.send(Buffer.from(rawData))
-            sent = true
-          }
-        } catch (err) {
-          logger.warn(`[Shell] Failed to get PTY raw buffer:`, (err as Error).message)
-        }
-
-        if (!sent) {
-          try {
-            const { data: thread } = await db.services.thread.get(session.threadId)
-            if (thread?.ptyBuffer) {
-              const buf = Buffer.isBuffer(thread.ptyBuffer)
-                ? thread.ptyBuffer
-                : Buffer.from(thread.ptyBuffer)
-              ws.send(buf)
-            }
-          } catch (err) {
-            logger.warn(
-              `[Shell] Failed to load PTY buffer for thread ${session.threadId}:`,
-              (err as Error).message
-            )
-          }
-        }
-      }
+      if (buffered.length > 0) ws.send(buffered)
 
       const requestedInstance = url.searchParams.get(`instanceId`)
       let instanceId: string | undefined
@@ -459,7 +359,6 @@ export const onShellConnect = async (
           sandboxId,
           type: `joined`,
           podOwnerUserId,
-          threadId: session.threadId,
           sessionId: reconnectSessionId,
           runtime: sbConfig?.config?.runtime ?? `custom`,
         })
@@ -575,23 +474,7 @@ export const onShellConnect = async (
   const runtimeCommand = sandbox?.config?.runtimeCommand
   const workdir = sandbox?.config?.workdir || DefaultWorkdir
 
-  // 11. Create thread for session history
-  const { data: thread, error: threadErr } = await db.services.thread.create({
-    orgId,
-    userId,
-    sandboxId,
-    meta: { runtime, shellSessionId: `` },
-    projectId: sandbox?.projects?.[0]?.id ?? undefined,
-    name: `${sandbox?.name ?? `Sandbox`} \u2014 ${new Date().toISOString()}`,
-  })
-
-  if (threadErr || !thread) {
-    ws.close(4005, `Failed to create session thread`)
-    return
-  }
-  const threadId = thread.id
-
-  // 12. Establish kubectl exec connection
+  // 10. Establish kubectl exec connection
   const sessionId = nanoid(16)
 
   let exec: TExecStream
@@ -610,41 +493,58 @@ export const onShellConnect = async (
     return
   }
 
-  const ptyRecorder = createPtyRecorder()
+  // 11. Create sandbox_sessions record (replaces thread creation)
+  const projectId = sandbox?.projects?.[0]?.id ?? undefined
+  const { data: sessionRecord, error: sessionErr } =
+    await db.services.sandboxSession.create({
+      orgId,
+      userId,
+      sandboxId,
+      sessionId,
+      instanceId,
+      projectId,
+      status: `connected`,
+      startedAt: new Date(),
+    })
+
+  if (sessionErr || !sessionRecord) {
+    logger.error(
+      `[Shell] Failed to create sandbox session record:`,
+      sessionErr?.message ?? `unknown`
+    )
+    ws.close(4005, `Failed to create session record`)
+    return
+  }
+  const sandboxSessionId = sessionRecord.id
+
+  // 12. Create S3 upload streams for stdout/stderr
+  const stdoutKey = `${orgId}/sessions/${sessionId}/stdout`
+  const stderrKey = `${orgId}/sessions/${sessionId}/stderr`
+  const stdoutUpload = s3.createUploadStream(stdoutKey)
+  const stderrUpload = s3.createUploadStream(stderrKey)
+  const sessionStart = Date.now()
 
   const session: TShellSession = {
     orgId,
     userId,
-    threadId,
     sandboxId,
     sessionId,
-    ptyRecorder,
+    projectId,
+    stdoutUpload,
+    stderrUpload,
     ttlTimer: null,
-    stdout: exec.stdout,
+    sandboxSessionId,
     stdin: exec.stdin,
-    closeExec: exec.close,
+    stdout: exec.stdout,
     resize: exec.resize,
+    closeExec: exec.close,
     attachments: new Set([ws]),
     buffer: new RingBuffer(1024 * 1024),
     visibility: ESandboxSessionVisibility.private,
-    projectId: sandbox?.projects?.[0]?.id ?? undefined,
   }
 
   sbService.addShellSession(session)
   wsMeta.set(ws, { sessionId })
-
-  // Update thread meta with session ID
-  db.services.thread
-    .update({
-      id: threadId,
-      meta: { runtime, shellSessionId: sessionId },
-    })
-    .catch((err) => {
-      logger.error(
-        `[Shell] Failed to update thread ${threadId} with session ${sessionId}:`,
-        (err as Error).message
-      )
-    })
 
   // Register as a pod session too (for idle timeout tracking)
   sbService.addSession(instanceId, {
@@ -655,14 +555,13 @@ export const onShellConnect = async (
     sandboxId,
     connectedAt: new Date().toISOString(),
     visibility: ESandboxSessionVisibility.private,
-    projectId: sandbox?.projects?.[0]?.id ?? undefined,
+    projectId,
   })
   sbService.broadcastSessionList(sandboxId)
 
   ws.send(
     JSON.stringify({
       runtime,
-      threadId,
       sessionId,
       sandboxId,
       podOwnerUserId,
@@ -675,10 +574,9 @@ export const onShellConnect = async (
   // Execute runtime command if requested
   if (shouldRun && runtimeCommand) exec.stdin.write(`${runtimeCommand}\n`)
 
-  // Exec stdout -> WebSocket fan-out (raw binary bytes only)
+  // Exec stdout -> WebSocket fan-out + S3 stream
   exec.stdout.on(`data`, (data: Buffer) => {
-    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
-    ptyRecorder.write(bytes)
+    stdoutUpload?.stream.write(data)
 
     if (session.attachments.size === 0) {
       session.buffer.write(data)
@@ -709,53 +607,53 @@ export const onShellConnect = async (
     }
   })
 
-  exec.stdout.on(`end`, () => {
+  let sessionCompleted = false
+  const completeSession = async (status: `completed` | `error`, reason: string) => {
+    if (sessionCompleted) return
+    sessionCompleted = true
+
+    stdoutUpload?.stream.end()
+    stderrUpload?.stream.end()
+    let uploadOk = false
     try {
-      const rawBuffer = ptyRecorder.getRawBuffer()
-      if (rawBuffer.length > 0) {
-        db.services.thread
-          .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
-          .catch((err) => {
-            logger.error(
-              `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
-              (err as Error).message
-            )
-          })
-      }
+      await Promise.all([stdoutUpload?.done(), stderrUpload?.done()])
+      uploadOk = true
     } catch (err) {
-      logger.error('[Shell] PTY buffer extraction failed:', (err as Error).message)
+      logger.error(
+        `[Shell] Failed to finalize S3 uploads for session ${sessionId}:`,
+        (err as Error).message
+      )
     }
 
-    ptyRecorder.destroy()
+    await db.services.sandboxSession
+      .complete(sandboxSessionId, {
+        status,
+        completedAt: new Date(),
+        durationMs: Date.now() - sessionStart,
+        ...(uploadOk && { stdoutKey, stderrKey }),
+      })
+      .catch((err: any) => {
+        logger.error(
+          `[Shell] Failed to complete sandbox session ${sandboxSessionId}:`,
+          (err as Error).message
+        )
+      })
+
     sbService.removeSession(instanceId, sessionId)
-    cleanup(`Exec stream ended`)
+    cleanup(reason)
     sbService.removeShellSession(sessionId)
+  }
+
+  exec.stdout.on(`end`, () => {
+    completeSession(`completed`, `Exec stream ended`)
   })
 
   exec.stdout.on(`error`, (streamErr: Error) => {
-    try {
-      const rawBuffer = ptyRecorder.getRawBuffer()
-      if (rawBuffer.length > 0) {
-        db.services.thread
-          .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
-          .catch((err) => {
-            logger.error(
-              `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
-              (err as Error).message
-            )
-          })
-      }
-    } catch (err) {
-      logger.error('[Shell] PTY buffer extraction failed:', (err as Error).message)
-    }
-
-    ptyRecorder.destroy()
-    sbService.removeSession(instanceId, sessionId)
-    cleanup(`Exec error: ${streamErr.message}`)
-    sbService.removeShellSession(sessionId)
+    completeSession(`error`, `Exec error: ${streamErr.message}`)
   })
 
   exec.stderr.on(`data`, (chunk: Buffer) => {
+    stderrUpload?.stream.write(chunk)
     logger.debug(`[Shell] Exec stderr for ${instanceId}:`, chunk.toString().slice(0, 500))
   })
 

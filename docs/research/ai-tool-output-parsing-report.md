@@ -43,7 +43,7 @@
 
 **Subagent Handling**: The session protocol mapper tracks Task/Agent tool calls, assigns `cuid2` subagent IDs, buffers sidechain messages, and hides parent tool calls. The app renders subagent content nested inside their parent.
 
-**Key Strength**: The dual capture path (SDK for headless, JSONL scanning for local) + the 9-event flat protocol that works across Claude, Codex, and Gemini.
+**Key Strength**: The dual capture path (SDK for headless, JSONL scanning for local) + the 9-event flat protocol that works across Claude, Codex, Antigravity, and OpenClaw.
 
 **Key Limitation**: Local mode has 0-3 second latency from file polling. Remote mode has no raw terminal output (interactive Claude Code features like theme selection are not captured).
 
@@ -74,7 +74,7 @@ CodexMessageKind: chat | thinking | toolActivity | fileChange |
 
 **Key Strength**: Codex provides the richest structured API of any AI tool — diffs, file changes, command output, plans are all first-class event types. Zero parsing needed.
 
-**Key Limitation**: Codex-only. The `app-server` JSON-RPC API is unique to Codex. Cannot work with Claude Code, Gemini, or other tools.
+**Key Limitation**: Codex-only. The `app-server` JSON-RPC API is unique to Codex. Cannot work with Claude Code, Antigravity, OpenClaw, or other tools.
 
 ---
 
@@ -93,7 +93,7 @@ MessageKind: text | tool_use | tool_result | thinking | stream_delta | stream_en
              session_created | interactive_prompt | task_notification
 ```
 
-**Provider Adapter Pattern**: All AI tools abstracted behind `ProviderAdapter` interface with `fetchHistory()` and `normalizeMessage()`. Currently supports Claude, Cursor, Codex, and Gemini. Each provider has its own adapter.
+**Provider Adapter Pattern**: All AI tools abstracted behind `ProviderAdapter` interface with `fetchHistory()` and `normalizeMessage()`. Currently supports Claude, Cursor, Codex, Antigravity, and OpenClaw. Each provider has its own adapter.
 
 **Tool Rendering**: Config-driven `TOOL_CONFIGS` registry maps tool names to display configurations:
 ```javascript
@@ -230,7 +230,7 @@ This means ThreadedStack can't simply import the Claude Code SDK on the backend 
 
 ```
 K8s Pod
-  ├── AI Tool (claude/codex/gemini) spawned with structured JSON flags
+  ├── AI Tool (claude/codex/antigravity/openclaw) spawned with structured JSON flags
   ├── Capture Agent (sidecar/wrapper) — runs SDK or reads structured output
   │     ├── Structured events → JSON text frames → WebSocket tunnel
   │     └── Raw PTY bytes → binary frames → WebSocket tunnel (for terminal view)
@@ -270,7 +270,7 @@ type NormalizedEvent = {
   id: string
   sessionId: string
   timestamp: number
-  provider: 'claude-code' | 'codex' | 'gemini-cli' | 'open-code'
+  provider: 'claude-code' | 'codex' | 'antigravity' | 'openclaw' | 'open-code'
   turn?: string              // groups events in a single AI turn
   subagent?: string          // for nested Task/Agent content
   ev: EventPayload
@@ -303,7 +303,8 @@ interface RuntimeAdapter {
 
 - `ClaudeCodeAdapter`: Handles `--output-format stream-json` NDJSON
 - `CodexAdapter`: Handles `app-server` JSON-RPC notifications
-- `GeminiAdapter`: Handles Gemini CLI output format
+- `AntigravityAdapter`: Handles Antigravity CLI output format
+- `OpenClawAdapter`: Handles OpenClaw CLI output format
 - `FallbackAdapter`: For unknown runtimes, falls back to the existing VT parser (text events only)
 
 #### 4. Implement config-driven tool rendering (CloudCLI pattern)

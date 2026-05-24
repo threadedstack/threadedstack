@@ -1,10 +1,11 @@
 import type {
   TApp,
   TPlanResp,
-  TStripeConfig,
+  TPayConfig,
   TPayCustomer,
   TPayPortalSession,
   TPayCheckoutSession,
+  TPaySubscriptionState,
 } from '@TBE/types'
 
 /**
@@ -12,9 +13,9 @@ import type {
  * Subclasses must implement all abstract methods.
  */
 export abstract class BaseService {
-  config: TStripeConfig
+  config: TPayConfig
 
-  constructor(config: TStripeConfig) {
+  constructor(config: TPayConfig) {
     this.config = config
   }
 
@@ -47,6 +48,14 @@ export abstract class BaseService {
   abstract createPortalSession(
     customerId: string
   ): Promise<{ data?: TPayPortalSession; error?: Error }>
+
+  /**
+   * Retrieve the current state of a subscription from the payment provider.
+   * Returns null when the provider cannot be queried (e.g. ConsoleService).
+   */
+  abstract retrieveSubscription(
+    subscriptionId: string
+  ): Promise<TPaySubscriptionState | null>
 
   /**
    * Cancel a subscription (cancel at period end)

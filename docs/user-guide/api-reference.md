@@ -339,7 +339,7 @@ Every new organization is automatically seeded with four built-in sandbox config
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `runtime` | string | AI tool runtime: `claude-code`, `codex`, `opencode`, `gemini-cli`, or `custom` |
+| `runtime` | string | AI tool runtime: `claude-code`, `codex`, `opencode`, `antigravity`, `openclaw`, or `custom` |
 | `runtimeCommand` | string | Shell command launched by `tsa run` |
 | `initScript` | string | Shell script run after container start |
 | `image` | string | Docker image |

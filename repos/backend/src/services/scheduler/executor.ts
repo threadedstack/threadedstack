@@ -37,7 +37,7 @@ function resolveScheduleCommand(
 
 export function createScheduleExecutor(app: TApp): TScheduleExecutor {
   return async (schedule: Schedule) => {
-    const { db, sandbox } = app.locals
+    const { db, sandbox, s3 } = app.locals
     if (!sandbox)
       throw new Error(
         `Sandbox service not available — cannot execute schedule ${schedule.id}`
@@ -62,9 +62,28 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
       throw new Error(`Failed to create schedule run: ${runErr?.message || 'unknown'}`)
     }
 
+    const stdoutKey = `${schedule.orgId}/runs/${run.id}/stdout`
+    const stderrKey = `${schedule.orgId}/runs/${run.id}/stderr`
+    const stdoutUpload = s3.createUploadStream(stdoutKey)
+    const stderrUpload = s3.createUploadStream(stderrKey)
+
     let instanceId: string | undefined
     let markedComplete = false
-    const outputChunks: string[] = []
+
+    const finalizeUploads = async (): Promise<boolean> => {
+      stdoutUpload?.stream.end()
+      stderrUpload?.stream.end()
+      try {
+        await Promise.all([stdoutUpload?.done(), stderrUpload?.done()])
+        return true
+      } catch (uploadErr) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — S3 upload failed:`,
+          (uploadErr as Error).message
+        )
+        return false
+      }
+    }
 
     try {
       instanceId = await sandbox.startPod({
@@ -85,20 +104,20 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       const sbInstance = await sandbox.getSandbox(instanceId)
 
-      const execPromise = sbInstance.execStreaming
+      const sbExecPromise = sbInstance.execStreaming
         ? sbInstance.execStreaming(command, [], {
-            onStdout: (chunk) => outputChunks.push(chunk.toString()),
-            onStderr: (chunk) => outputChunks.push(chunk.toString()),
+            onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
+            onStderr: (chunk) => stderrUpload?.stream.write(chunk),
           })
         : sbInstance.exec(command).then((r) => {
-            if (r.output) outputChunks.push(r.output)
+            if (r.output) stdoutUpload?.stream.write(r.output)
             return r
           })
 
       let execTimer: ReturnType<typeof setTimeout>
       const timeoutPromise = new Promise<never>((_, reject) => {
         execTimer = setTimeout(
-          () => reject(new Error(`Execution timed out after ${ExecTimeoutMS / 1000}s`)),
+          () => reject(new Error(`Timed out after ${ExecTimeoutMS / 1000}s`)),
           ExecTimeoutMS
         )
         execTimer.unref()
@@ -106,17 +125,19 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       let result
       try {
-        result = await Promise.race([execPromise, timeoutPromise])
+        result = await Promise.race([sbExecPromise, timeoutPromise])
       } finally {
         clearTimeout(execTimer!)
       }
 
+      const uploadOk = await finalizeUploads()
+
       const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
         instanceId,
         error: result.error,
-        output: outputChunks.join(''),
         durationMs: Date.now() - start,
         status: result.success ? `success` : `error`,
+        ...(uploadOk && { stdoutKey, stderrKey }),
       })
 
       completeErr
@@ -126,21 +147,25 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
         : (markedComplete = true)
 
       if (!result.success)
-        throw new Error(result.error || `Command exited with code ${result.exitCode}`)
+        throw new Error(
+          result.error || `Command exited with non-zero code ${result.exitCode}`
+        )
 
       logger.info(
         `[Executor] Schedule ${schedule.id} — completed successfully in ${Date.now() - start}ms`
       )
     } catch (err: any) {
       if (!markedComplete) {
-        const isTimeout = err?.message?.includes(`timed out`)
+        const uploadOk = await finalizeUploads()
+
+        const isTimeout = err?.message?.includes(`Timed out`)
         await db.services.scheduleRun
           .complete(run.id, {
             instanceId,
-            output: outputChunks.join(''),
             durationMs: Date.now() - start,
             error: err?.message || String(err),
             status: isTimeout ? `timeout` : `error`,
+            ...(uploadOk && { stdoutKey, stderrKey }),
           })
           .catch((e: any) => logger.error(`[Executor] Failed to mark run as error:`, e))
       }
@@ -154,14 +179,6 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
           logger.info(`[Executor] Schedule ${schedule.id} — pod stopped: ${instanceId}`)
         } catch (stopErr: any) {
           logger.error(`[Executor] Failed to stop pod ${instanceId}:`, stopErr?.message)
-          await db.services.scheduleRun
-            .appendOutput(run.id, `\n[WARN] Pod cleanup failed: ${stopErr?.message}`)
-            .catch((appendErr: any) =>
-              logger.warn(
-                `[Executor] Failed to append stop warning to run ${run.id}:`,
-                appendErr?.message
-              )
-            )
         }
       }
     }

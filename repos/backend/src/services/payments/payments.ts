@@ -1,4 +1,4 @@
-import type { TStripeConfig } from '@TBE/types'
+import type { TPayConfig } from '@TBE/types'
 
 import { EPayType } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
@@ -19,11 +19,11 @@ import { ConsoleService } from '@TBE/services/payments/strategies/console'
 export class PaymentsService {
   service: BaseService
 
-  constructor(config: TStripeConfig) {
+  constructor(config: TPayConfig) {
     this.service = this.setup(config)
   }
 
-  setup = (config: TStripeConfig) => {
+  setup = (config: TPayConfig) => {
     switch (config.type) {
       case EPayType.stripe: {
         return new StripeService(config)

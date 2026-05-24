@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useSearchParams } from 'react-router'
+import { Download as DownloadIcon } from '@mui/icons-material'
 import { CurrentPlan, PlanCard } from '@TAF/components/Billing'
 import { usePaymentPlans, useSubscription, useInvoices } from '@TAF/state/selectors'
 import {
@@ -32,7 +33,6 @@ import {
   CardContent,
   TableContainer,
 } from '@mui/material'
-import { Download as DownloadIcon } from '@mui/icons-material'
 
 export type TBilling = {}
 
@@ -155,24 +155,24 @@ export const Billing = (props: TBilling) => {
   const [upgradeLoading, setUpgradeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [invoices] = useInvoices()
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
-  const [invoices] = useInvoices()
 
   useEffect(() => {
     const success = searchParams.get('success')
     const cancelled = searchParams.get('cancelled')
 
-    if (success === 'true') {
-      toast.success('Subscription Updated', {
-        id: 'billing-success',
-        description: 'Your subscription has been successfully updated.',
+    if (success === `true`) {
+      toast.success(`Subscription Updated`, {
+        id: `billing-success`,
+        description: `Your subscription has been successfully updated.`,
       })
       loadData()
-    } else if (cancelled === 'true') {
-      toast.info('Checkout Cancelled', {
-        id: 'billing-cancelled',
-        description: 'You cancelled the checkout process.',
+    } else if (cancelled === `true`) {
+      toast.info(`Checkout Cancelled`, {
+        id: `billing-cancelled`,
+        description: `You cancelled the checkout process.`,
       })
     } else return
 
@@ -200,7 +200,7 @@ export const Billing = (props: TBilling) => {
         return
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load billing data')
+      setError(err.message || `Failed to load billing data`)
     } finally {
       setLoading(false)
     }
@@ -224,17 +224,32 @@ export const Billing = (props: TBilling) => {
       const { data, error } = await createCheckoutSession(tier, successUrl, cancelUrl)
 
       if (error) {
-        toast.error('Checkout Error', {
-          id: 'billing-checkout-error',
+        toast.error(`Checkout Error`, {
+          id: `billing-checkout-error`,
           description: error.message,
         })
         return
       }
 
-      window.location.href = data.url
+      if (data.updated || data.cancelled) {
+        toast.success(`Subscription Updated`, {
+          id: `billing-update-success`,
+          description: data.message,
+        })
+        await loadData()
+        setUpgradeLoading(false)
+        return
+      }
+
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+
+      setUpgradeLoading(false)
     } catch (err: any) {
-      toast.error('Checkout Error', {
-        id: 'billing-checkout-error',
+      toast.error(`Checkout Error`, {
+        id: `billing-checkout-error`,
         description: err.message,
       })
       setUpgradeLoading(false)

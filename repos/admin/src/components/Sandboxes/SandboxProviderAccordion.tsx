@@ -1,10 +1,10 @@
+import type { TProviderType } from '@tdsk/domain'
 import type { TProviderLinkItem } from '@TAF/types'
-import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import {
   Box,
   Chip,

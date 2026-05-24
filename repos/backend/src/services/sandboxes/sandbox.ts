@@ -2,7 +2,6 @@ import type { WebSocket } from 'ws'
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { TShellSession } from '@TBE/types'
-import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
 import type {
@@ -87,10 +86,8 @@ export class SandboxService {
   private orgMonitors = new Map<string, Set<WebSocket>>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
-  private eventBatches = new Map<string, TParsedEvent[]>()
   private monitorUserId = new WeakMap<WebSocket, string>()
   private static readonly BlockedPorts = new Set([22, 2222])
-  private eventBatchTimers = new Map<string, NodeJS.Timeout>()
   private monitorAccess = new WeakMap<WebSocket, Set<string>>()
   private idleTimer: ReturnType<typeof setInterval> | null = null
 
@@ -1027,7 +1024,6 @@ export class SandboxService {
     const sandboxId = session.sandboxId
 
     if (session.ttlTimer) clearTimeout(session.ttlTimer)
-    this.clearEventBatch(sessionId)
 
     try {
       session.closeExec()
@@ -1371,135 +1367,11 @@ export class SandboxService {
     }
 
     if (session.attachments.size === 0) {
-      // Persist ptyBuffer immediately so reconnecting clients get terminal history
-      try {
-        const rawBuffer = session.ptyRecorder.getRawBuffer()
-        if (rawBuffer.length > 0) {
-          this.db.services.thread
-            .update({ id: session.threadId, ptyBuffer: Buffer.from(rawBuffer) })
-            .catch((err) => {
-              logger.error(
-                `[ShellSession] PTY buffer save on detach failed for thread ${session.threadId}:`,
-                (err as Error).message
-              )
-            })
-        }
-      } catch (err) {
-        logger.warn(
-          `[ShellSession] Failed to read raw buffer on detach:`,
-          (err as Error).message
-        )
-      }
-
-      session.ttlTimer = setTimeout(async () => {
-        try {
-          await this.flushEventBatch(sessionId)
-        } catch (err) {
-          logger.warn(
-            `[ShellSession] Flush failed during TTL cleanup for ${sessionId}, retrying:`,
-            (err as Error).message
-          )
-          try {
-            await this.flushEventBatch(sessionId)
-          } catch (retryErr) {
-            logger.error(
-              `[ShellSession] Flush retry failed during TTL cleanup for ${sessionId}, events lost:`,
-              (retryErr as Error).message
-            )
-          }
-        }
+      session.ttlTimer = setTimeout(() => {
         this.removeShellSession(sessionId)
       }, this.ShellTtlMS)
     }
 
     this.broadcastSessionList(session.sandboxId)
-  }
-
-  queueEventForPersistence(sessionId: string, event: TParsedEvent) {
-    let batch = this.eventBatches.get(sessionId)
-    if (!batch) {
-      batch = []
-      this.eventBatches.set(sessionId, batch)
-    }
-    batch.push(event)
-
-    if (batch.length >= 20) {
-      this.flushEventBatch(sessionId).catch(async (err) => {
-        logger.warn(
-          `[Shell] Event batch flush failed, retrying once:`,
-          (err as Error).message
-        )
-        try {
-          await this.flushEventBatch(sessionId)
-        } catch (retryErr) {
-          logger.error(
-            `[Shell] Event batch flush retry failed, events lost:`,
-            (retryErr as Error).message
-          )
-        }
-      })
-      return
-    }
-
-    if (!this.eventBatchTimers.has(sessionId)) {
-      const timer = setTimeout(() => {
-        this.flushEventBatch(sessionId).catch(async (err) => {
-          logger.warn(
-            `[Shell] Event batch flush failed, retrying once:`,
-            (err as Error).message
-          )
-          try {
-            await this.flushEventBatch(sessionId)
-          } catch (retryErr) {
-            logger.error(
-              `[Shell] Event batch flush retry failed, events lost:`,
-              (retryErr as Error).message
-            )
-          }
-        })
-      }, 2000)
-      this.eventBatchTimers.set(sessionId, timer)
-    }
-  }
-
-  async flushEventBatch(sessionId: string) {
-    const timer = this.eventBatchTimers.get(sessionId)
-    if (timer) {
-      clearTimeout(timer)
-      this.eventBatchTimers.delete(sessionId)
-    }
-
-    const batch = this.eventBatches.get(sessionId)
-    if (!batch || batch.length === 0) return
-
-    const session = this.shellSessions.get(sessionId)
-    if (!session) {
-      this.eventBatches.delete(sessionId)
-      return
-    }
-
-    try {
-      const messages = batch.map((event) => ({
-        threadId: session.threadId,
-        orgId: session.orgId,
-        type: event.type,
-        content: event,
-      }))
-      await this.db.services.message.createBatch(messages)
-      this.eventBatches.delete(sessionId)
-    } catch (err) {
-      logger.error(
-        `[ShellSession] Failed to persist ${batch.length} events for session ${sessionId}:`,
-        (err as Error).message
-      )
-      this.eventBatches.delete(sessionId)
-    }
-  }
-
-  private clearEventBatch(sessionId: string) {
-    const timer = this.eventBatchTimers.get(sessionId)
-    if (timer) clearTimeout(timer)
-    this.eventBatchTimers.delete(sessionId)
-    this.eventBatches.delete(sessionId)
   }
 }

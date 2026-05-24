@@ -29,7 +29,7 @@ const featureSections: FeatureSection[] = [
     icon: CloudIcon,
     title: 'Managed Sandboxes',
     paragraphs: [
-      'Threaded Stack sandboxes are isolated K8s pods pre-configured to run AI agents and tools. Each sandbox includes SSH access, a configurable working directory, resource limits (CPU/memory), and automatic idle shutdown. Five built-in presets cover the major AI tools — Claude Code, Codex, OpenCode, Gemini CLI — plus a base preset for custom runtimes.',
+      'Threaded Stack sandboxes are isolated K8s pods pre-configured to run AI agents and tools. Each sandbox includes SSH access, a configurable working directory, resource limits (CPU/memory), and automatic idle shutdown. Six built-in presets cover the major AI tools — Claude Code, Codex, OpenCode, Antigravity, OpenClaw — plus a base preset for custom runtimes.',
       'Sandboxes are created per-organization and can be assigned to specific projects with per-project configuration overrides. This means a single sandbox definition can be reused across multiple projects, each with their own git repos, init scripts, and resource allocations.',
       'The lifecycle is simple: tsa run starts the pod, establishes SSH, syncs files, and launches the runtime command. When you disconnect, the pod continues running until the idle timeout expires, then shuts down automatically. Reconnecting to an active pod is instant.',
     ],
@@ -38,7 +38,8 @@ tsa sandbox --list
 # → claude-code  | Claude Code     | Stopped
 # → codex        | Codex           | Stopped
 # → opencode     | OpenCode        | Stopped
-# → gemini-cli   | Gemini CLI      | Stopped
+# → antigravity  | Antigravity     | Stopped
+# → openclaw     | OpenClaw        | Stopped
 # → custom       | Custom Runtime  | Stopped
 
 # Start a Claude Code sandbox
@@ -125,8 +126,11 @@ curl -H "Authorization: Bearer $ANTHROPIC_API_KEY" \\
 # OpenCode:
 #   anthropic, openai, openrouter, z.ai, ollama
 
-# Gemini CLI:
+# Antigravity:
 #   google, google-vertex
+
+# OpenClaw:
+#   anthropic, openai, google, openrouter, ollama
 
 # Example: configure Anthropic via Bedrock
 # Sets: CLAUDE_CODE_USE_BEDROCK=1

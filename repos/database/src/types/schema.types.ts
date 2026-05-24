@@ -22,6 +22,7 @@ import type { invitations } from '@TDB/schemas/invitations'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
+import type { sandboxSessions } from '@TDB/schemas/sandboxSessions'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
 type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike> = Omit<
@@ -80,6 +81,14 @@ export type TDBScheduleRunInsert = TInferDateProps<
 >
 export type TDBSandboxSelect = TInferDates<typeof sandboxes.$inferSelect>
 export type TDBSandboxInsert = TInferDates<typeof sandboxes.$inferInsert>
+export type TDBSandboxSessionSelect = TInferDateProps<
+  typeof sandboxSessions.$inferSelect,
+  `createdAt` | `updatedAt` | `startedAt` | `completedAt`
+>
+export type TDBSandboxSessionInsert = TInferDateProps<
+  typeof sandboxSessions.$inferInsert,
+  `createdAt` | `updatedAt` | `startedAt` | `completedAt`
+>
 export type TDBInvoiceSelect = TInferDates<typeof invoices.$inferSelect>
 export type TDBInvoiceInsert = TInferDates<typeof invoices.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
@@ -146,6 +155,7 @@ export type TDBEntitySelect =
   | TDBInvitationSelect
   | TDBScheduleRunSelect
   | TDBSubscriptionSelect
+  | TDBSandboxSessionSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -166,10 +176,11 @@ export type TDBEntityInsert =
   | TDBEndpointInsert
   | TDBProviderInsert
   | TDBScheduleInsert
-  | TDBScheduleRunInsert
   | TDBFunctionInsert
   | TDBInvitationInsert
+  | TDBScheduleRunInsert
   | TDBSubscriptionInsert
+  | TDBSandboxSessionInsert
 
 export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
   Partial<T>,

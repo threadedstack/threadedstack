@@ -1,6 +1,7 @@
 import type { TTask, TTaskActionArgs, TTaskParams } from '@TSCL/types'
 import os from 'os'
 import path from 'path'
+import { s3 } from './s3'
 import { list } from './list'
 import { tdsk } from './tdsk'
 import { email } from './email'
@@ -177,6 +178,7 @@ export const secret: TTask = {
   description: `Calls the kubectl create secret command`,
   tasks: {
     list,
+    s3,
     tdsk,
     email,
     docker,

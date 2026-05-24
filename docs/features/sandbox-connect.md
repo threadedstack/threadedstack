@@ -98,7 +98,8 @@ Sandboxes use a runtime system that determines which AI tool is launched after t
 | Claude Code | `claude-code` | Anthropic's Claude Code CLI |
 | Codex | `codex` | OpenAI's Codex CLI |
 | OpenCode | `opencode` | Open-source AI coding tool |
-| Gemini | `gemini-cli` | Google's Gemini CLI |
+| Antigravity | `antigravity` | Antigravity CLI |
+| OpenClaw | `openclaw` | OpenClaw CLI |
 | Custom | `custom` | User-specified command |
 
 ### Two-Command Model
@@ -112,7 +113,7 @@ Additionally, an optional **init script** runs between container start and the "
 
 ### Runtime Resolution
 
-For built-in runtimes (`claude-code`, `codex`, `opencode`, `gemini-cli`), commands are resolved automatically. The runtime command is read-only in the admin UI for built-in runtimes. For `custom` runtimes, all fields (start command, args, runtime command) are user-editable.
+For built-in runtimes (`claude-code`, `codex`, `opencode`, `antigravity`, `openclaw`), commands are resolved automatically. The runtime command is read-only in the admin UI for built-in runtimes. For `custom` runtimes, all fields (start command, args, runtime command) are user-editable.
 
 
 ## Built-In Sandbox Presets
@@ -124,7 +125,8 @@ When an organization is created, default sandbox configs are automatically seede
 | Claude Code | `claude-code` | Pre-configured for Anthropic's Claude Code |
 | Codex | `codex` | Pre-configured for OpenAI's Codex |
 | OpenCode | `opencode` | Pre-configured for the OpenCode CLI |
-| Gemini | `gemini-cli` | Pre-configured for the Gemini CLI |
+| Antigravity | `antigravity` | Pre-configured for the Antigravity CLI |
+| OpenClaw | `openclaw` | Pre-configured for the OpenClaw CLI |
 | Base | `custom` | Plain sandbox with SSH — bring your own runtime |
 
 These presets are:

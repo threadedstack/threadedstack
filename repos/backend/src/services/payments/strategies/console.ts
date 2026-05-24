@@ -1,7 +1,7 @@
 import type {
   TApp,
   TPlanResp,
-  TStripeConfig,
+  TPayConfig,
   TPayCustomer,
   TPayPortalSession,
   TPayCheckoutSession,
@@ -17,7 +17,7 @@ import { Plan, PlanLimits, PlanPrices } from '@tdsk/domain'
  * Logs method calls and returns appropriate stub values.
  */
 export class ConsoleService extends BaseService {
-  constructor(config: TStripeConfig) {
+  constructor(config: TPayConfig) {
     super(config)
     logger.info(`[ConsoleService] Initialized in dev mode (no payment provider)`)
   }
@@ -75,6 +75,11 @@ export class ConsoleService extends BaseService {
       `[ConsoleService] createPortalSession called for ${customerId} (dev mode)`
     )
     return { data: { url: `/billing` } }
+  }
+
+  async retrieveSubscription(_subscriptionId: string) {
+    logger.info(`[ConsoleService] retrieveSubscription called (dev mode)`)
+    return null
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {

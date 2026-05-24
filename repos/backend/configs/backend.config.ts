@@ -1,5 +1,5 @@
 import type { ESubscriptionTier } from '@tdsk/domain'
-import type { EEmailType, EPayType, TPayEnv } from '@TBE/types'
+import type { EEmailType, EPayType, TPayEnv, TS3Config } from '@TBE/types'
 
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
@@ -51,6 +51,12 @@ const {
   TDSK_EMAIL_API_KEY,
   TDSK_EMAIL_API_HOST,
   TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
+
+  TDSK_S3_BUCKET,
+  TDSK_S3_REGION,
+  TDSK_S3_ENDPOINT,
+  TDSK_S3_ACCESS_KEY_ID,
+  TDSK_S3_SECRET_ACCESS_KEY,
 
   // ENVs specific to dynamic sandboxes
   TDSK_SB_DOMAIN,
@@ -142,6 +148,19 @@ export const config = {
         }
       : undefined,
   },
+  s3: {
+    bucket: TDSK_S3_BUCKET,
+    endpoint: TDSK_S3_ENDPOINT,
+    accessKeyId: TDSK_S3_ACCESS_KEY_ID,
+    region: TDSK_S3_REGION || undefined,
+    secretAccessKey: TDSK_S3_SECRET_ACCESS_KEY,
+    active: Boolean(
+      TDSK_S3_BUCKET &&
+        TDSK_S3_ENDPOINT &&
+        TDSK_S3_ACCESS_KEY_ID &&
+        TDSK_S3_SECRET_ACCESS_KEY
+    ),
+  } as TS3Config,
   domains: {
     proxyHost: TDSK_CADDY_PX_HOST,
     prewarmHeader: TDSK_CADDY_PREWARM_HEADER,

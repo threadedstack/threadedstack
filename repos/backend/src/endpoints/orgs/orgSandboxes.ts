@@ -8,8 +8,8 @@ import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
 import { createSandbox } from '@TBE/endpoints/sandboxes/createSandbox'
 import { updateSandbox } from '@TBE/endpoints/sandboxes/updateSandbox'
 import { deleteSandbox } from '@TBE/endpoints/sandboxes/deleteSandbox'
-import { listSandboxThreads } from '@TBE/endpoints/sandboxes/listSandboxThreads'
-import { listSandboxThreadMessages } from '@TBE/endpoints/sandboxes/listSandboxThreadMessages'
+import { listSandboxSessions } from '@TBE/endpoints/sandboxes/listSandboxSessions'
+import { getSandboxSessionOutput } from '@TBE/endpoints/sandboxes/getSandboxSessionOutput'
 
 export const orgSandboxes: TEndpointConfig = {
   path: `/:orgId/sandboxes`,
@@ -22,7 +22,7 @@ export const orgSandboxes: TEndpointConfig = {
     monitorToken,
     updateSandbox,
     deleteSandbox,
-    listSandboxThreads,
-    listSandboxThreadMessages,
+    listSandboxSessions,
+    getSandboxSessionOutput,
   },
 }

@@ -18,7 +18,7 @@ const FORM_ID = 'project-sandbox-form'
 
 /**
  * Tests for sandbox runtime configuration fields in the SandboxDrawer:
- *   - Preset dropdown (claude-code, codex, opencode, gemini-cli, custom) — field id: sandbox-preset
+ *   - Preset dropdown (claude-code, codex, opencode, antigravity, openclaw, custom) -- field id: sandbox-preset
  *   - Runtime Command field (disabled for preset, editable for custom)
  *   - Init Script editor (pre-filled for presets, editable for custom)
  *   - Runtime + command persistence in edit mode

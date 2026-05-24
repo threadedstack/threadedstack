@@ -4,9 +4,10 @@ import { useMemo } from 'react'
 import { Button } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
 import { CheckCircle } from '@mui/icons-material'
-import { ESubscriptionTier } from '@tdsk/domain'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
+import { ESubscriptionTier, PlanPrices } from '@tdsk/domain'
 import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp'
+import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown'
 import {
   Box,
   Card,
@@ -37,7 +38,7 @@ const StyledCard = styled(Card, {
   },
 
   [`&.current`]: {
-    border: `2px solid ${theme.palette.primary.main}`,
+    border: `2px solid ${theme.palette.success.main}`,
   },
 }))
 
@@ -112,6 +113,9 @@ export const PlanCard = (props: TPlanCardProps) => {
   const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
   const isHighlighted = plan.name.toLowerCase() === ESubscriptionTier.pro
   const perSeatPrice = getPerSeatPrice(plan)
+  const currentPrice = PlanPrices[currentTier?.toLowerCase() as ESubscriptionTier] ?? 0
+  const targetPrice = PlanPrices[plan.name.toLowerCase() as ESubscriptionTier] ?? 0
+  const isDowngrade = !isCurrent && targetPrice < currentPrice
 
   return (
     <StyledCard
@@ -205,13 +209,19 @@ export const PlanCard = (props: TPlanCardProps) => {
         <Button
           fullWidth
           size='large'
-          color='success'
-          Icon={<ArrowCircleUpIcon />}
           disabled={isCurrent || loading}
+          color={isDowngrade ? `warning` : `success`}
+          variant={isCurrent ? `outlined` : `contained`}
           onClick={() => onUpgrade(plan.name as TSubscriptionTier)}
-          variant={isCurrent ? 'outlined' : 'contained'}
+          Icon={isDowngrade ? <ArrowCircleDownIcon /> : <ArrowCircleUpIcon />}
         >
-          {loading ? 'Processing...' : isCurrent ? 'Current Plan' : 'Upgrade'}
+          {loading
+            ? `Processing...`
+            : isCurrent
+              ? `Current Plan`
+              : isDowngrade
+                ? `Downgrade`
+                : `Upgrade`}
         </Button>
       </CardActions>
     </StyledCard>

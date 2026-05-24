@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { Exception, ESubscriptionTier } from '@tdsk/domain'
 
 const validTiers = new Set(Object.values(ESubscriptionTier))
@@ -35,8 +36,19 @@ export const updateSubscription: TEndpointConfig = {
       throw new Exception(404, `No active subscription found`)
 
     if (tier === ESubscriptionTier.free) {
-      // Downgrading to free = cancel
       await payments.service.cancelSubscription(subResult.data.stripeSubscriptionId)
+
+      const { error: updateErr } = await db.services.subscription.upsertByUser({
+        userId,
+        cancelAtPeriodEnd: true,
+      })
+      if (updateErr) {
+        logger.error(
+          `[updateSubscription] Stripe cancelled but local update failed for user ${userId}:`,
+          updateErr
+        )
+      }
+
       res.status(200).json({
         data: { success: true, message: `Subscription will be cancelled at period end` },
       })

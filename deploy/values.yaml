@@ -38,6 +38,8 @@ env:
   TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
   TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
   TDSK_KUBE_SCRT_EGRESS_CA: tdsk-egress-ca
+  # S3 object store configuration secret (multi-value)
+  TDSK_KUBE_SCRT_S3_CFG: tdsk-s3-secret
 
 # ---- Egress Proxy CA ENVs ---- #
   # Paths to CA cert/key files for the egress proxy (set in ~/.config/tdsk/values.yaml)
@@ -309,7 +311,7 @@ env:
 
   # ---- Payments ENVs --- #
   # Payment provider type - 'stripe' | 'console'
-  TDSK_PAY_TYPE:
+  TDSK_PAY_TYPE: stripe
   # Format: tier=priceId,tier=priceId:seatPriceId (e.g. solo=price_xxx,pro=price_yyy:seat_yyy)
   TDSK_PAY_PLANS:
   TDSK_PAY_ACCESS_TOKEN:
@@ -329,6 +331,17 @@ env:
 
   # Default from address for all emails
   TDSK_EMAIL_FROM: noreply@threadedstack.com
+
+
+  # ---- S3 ENVs --- #
+  # Internal s3 config for interacting with S3. This is NOT user provided
+  # S3 service is for Threaded Stack application (storing logs, sessions, etc.)
+  TDSK_S3_BUCKET:
+  TDSK_S3_ENDPOINT:
+  TDSK_S3_ACCESS_KEY_ID:
+  TDSK_S3_SECRET_ACCESS_KEY:
+  TDSK_S3_REGION:
+
 
   # ---- Agent ENVs --- #
   TDSK_AG_LOG_LEVEL:

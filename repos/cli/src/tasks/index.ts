@@ -6,6 +6,7 @@ import * as web from './web'
 import * as kube from './kube'
 import * as docker from './docker'
 import * as deploy from './deploy'
+import * as stripe from './stripe'
 import * as devspace from './devspace'
 
 export const tasks: TTasks = {
@@ -15,5 +16,6 @@ export const tasks: TTasks = {
   ...web,
   ...docker,
   ...deploy,
+  ...stripe,
   ...devspace,
 }

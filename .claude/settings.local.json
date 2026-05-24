@@ -138,7 +138,8 @@
       "Bash(tar xf *)",
       "Bash(grep *)",
       "Skill(hookify:hookify)",
-      "Bash(npm root *)"
+      "Bash(npm root *)",
+      "Bash(command -v tdsk)"
     ]
   },
   "sandbox": {

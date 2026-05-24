@@ -130,6 +130,7 @@ export const orgSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
 
   if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
+  if (!getSkills()) safeFetch(() => fetchSkills(orgId))
 
   if (!getContextSandboxes(`org`)) safeFetch(() => fetchSandboxes({ orgId }))
 
@@ -301,6 +302,7 @@ export const projectSandboxesLoader = async ({ params }: LoaderFunctionArgs) => 
   if (!projectId) missProjIdResp()
 
   if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
+  if (!getSkills()) safeFetch(() => fetchSkills(orgId))
 
   if (!getContextSandboxes(projectId))
     safeFetch(() => fetchSandboxes({ orgId, projectId }))

@@ -29,6 +29,7 @@ export { scheduleRuns, scheduleRunsRelations } from '@TDB/schemas/scheduleRuns'
 export { agentProjects, agentProjectsRelations } from '@TDB/schemas/agentProjects'
 export { subscriptions, subscriptionsRelations } from '@TDB/schemas/subscriptions'
 export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProviders'
+export { sandboxSessions, sandboxSessionsRelations } from '@TDB/schemas/sandboxSessions'
 export { sandboxProjects, sandboxProjectsRelations } from '@TDB/schemas/sandboxProjects'
 export {
   sandboxSkills,

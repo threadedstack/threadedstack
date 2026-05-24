@@ -1,3 +1,4 @@
+export * from './s3.types'
 export * from './api.types'
 export * from './pay.types'
 export * from './oai.types'

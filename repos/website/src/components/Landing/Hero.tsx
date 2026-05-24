@@ -136,8 +136,8 @@ const Hero = () => {
               sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
             >
               Launch AI agents and tools in managed K8s pods with zero-trust credential
-              injection. Full support for Claude Code, Codex, OpenCode, Gemini CLI, or
-              custom tooling.
+              injection. Full support for Claude Code, Codex, OpenCode, Antigravity,
+              OpenClaw, or custom tooling.
             </Typography>
 
             {/* CTAs */}

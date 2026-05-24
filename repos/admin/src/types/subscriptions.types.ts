@@ -11,10 +11,16 @@ export type TCheckoutData = {
 
 /**
  * Checkout session response
+ * - New subscription: { id, url } - redirect to Stripe checkout
+ * - In-place tier change: { updated: true, message }
+ * - Downgrade to free: { cancelled: true, message }
  */
 export type TCheckoutSession = {
-  id: string
-  url: string
+  id?: string
+  url?: string
+  message?: string
+  updated?: boolean
+  cancelled?: boolean
 }
 
 /**

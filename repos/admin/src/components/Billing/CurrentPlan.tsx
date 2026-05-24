@@ -1,11 +1,12 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { createPortalSession } from '@TAF/actions'
+import { ESubscriptionTier } from '@tdsk/domain'
 import { PlanSections } from '@TAF/constants/values'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import { formatDate } from '@TAF/utils/transforms/date'
 import { statusColor } from '@TAF/utils/transforms/status'
 import { CheckCircle as CheckIcon } from '@mui/icons-material'
+import { cancelSubscription, createPortalSession } from '@TAF/actions'
 import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
 import {
   Box,
@@ -14,20 +15,54 @@ import {
   Alert,
   Stack,
   Button,
+  Dialog,
   Divider,
   Typography,
   CardContent,
+  DialogTitle,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
 } from '@mui/material'
 
 export type TCurrentPlan = {}
 
 export const CurrentPlan = (props: TCurrentPlan) => {
   const [loading, setLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
 
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
 
   const currentPlan = plans.find((p) => p.id === subscription?.tier)
+  const canCancel =
+    subscription &&
+    subscription.tier !== ESubscriptionTier.free &&
+    subscription.status === `active` &&
+    !subscription.cancelAtPeriodEnd
+
+  const onCancelSubscription = async () => {
+    try {
+      setCancelLoading(true)
+      setCancelDialogOpen(false)
+
+      const { error } = await cancelSubscription()
+
+      if (error) {
+        toast.error(`Cancellation Error`, { description: error.message })
+        return
+      }
+
+      toast.success(`Subscription Cancelled`, {
+        description: `Your subscription will remain active until the end of the current billing period.`,
+      })
+    } catch (err: any) {
+      toast.error(`Cancellation Error`, { description: err.message })
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   const handleManageSubscription = async () => {
     try {
@@ -36,13 +71,13 @@ export const CurrentPlan = (props: TCurrentPlan) => {
       const { data, error } = await createPortalSession()
 
       if (error) {
-        toast.error('Portal Error', { description: error.message })
+        toast.error(`Portal Error`, { description: error.message })
         return
       }
 
-      window.open(data.url, '_blank')
+      window.open(data.url, `_blank`)
     } catch (err: any) {
-      toast.error('Portal Error', { description: err.message })
+      toast.error(`Portal Error`, { description: err.message })
     } finally {
       setLoading(false)
     }
@@ -225,7 +260,7 @@ export const CurrentPlan = (props: TCurrentPlan) => {
             </>
           )}
 
-          <Box sx={{ mt: 3 }}>
+          <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
             <Button
               variant='outlined'
               disabled={loading}
@@ -233,9 +268,46 @@ export const CurrentPlan = (props: TCurrentPlan) => {
             >
               {loading ? 'Loading...' : 'Manage Subscription'}
             </Button>
+
+            {canCancel && (
+              <Button
+                color='error'
+                variant='outlined'
+                disabled={cancelLoading}
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                {cancelLoading ? 'Cancelling...' : 'Cancel Subscription'}
+              </Button>
+            )}
           </Box>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+      >
+        <DialogTitle>Cancel Subscription</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Your subscription will remain active until the end of the current billing
+            period
+            {subscription?.currentPeriodEnd
+              ? ` (${formatDate(subscription.currentPeriodEnd)})`
+              : ``}
+            . After that, you will be moved to the Free plan.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelDialogOpen(false)}>Keep Subscription</Button>
+          <Button
+            color='error'
+            onClick={onCancelSubscription}
+          >
+            Confirm Cancellation
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

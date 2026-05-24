@@ -336,23 +336,23 @@ describe(`resolveProviderEnv`, () => {
     ).toBe(true)
   })
 
-  it(`generates MITM placeholder for gemini-cli/google API key`, async () => {
+  it(`generates MITM placeholder for antigravity/google API key`, async () => {
     const result = await resolveProviderEnv(
-      `gemini-cli`,
+      `antigravity`,
       [{ provider: { id: `p1`, brand: `google`, secretId: `sec_1` }, priority: 0 }],
       mockSecretResolver,
       `org_1`
     )
-    expect(result.extraEnv.GOOGLE_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(result.extraEnv.ANTIGRAVITY_API_KEY).toMatch(/^tdsk_ph_/)
     expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
     expect(result.errors).toEqual([])
   })
 
-  it(`injects direct API key and Vertex config for gemini-cli/google-vertex`, async () => {
+  it(`injects direct API key and Vertex config for antigravity/google-vertex`, async () => {
     mockSecretResolver.resolveApiKey.mockResolvedValueOnce(`direct-api-key`)
     mockSecretResolver.resolveApiKey.mockResolvedValueOnce(`{"type":"service_account"}`)
     const result = await resolveProviderEnv(
-      `gemini-cli`,
+      `antigravity`,
       [
         {
           provider: {
@@ -367,7 +367,7 @@ describe(`resolveProviderEnv`, () => {
       mockSecretResolver,
       `org_1`
     )
-    expect(result.extraEnv.GOOGLE_API_KEY).toBe(`direct-api-key`)
+    expect(result.extraEnv.ANTIGRAVITY_API_KEY).toBe(`direct-api-key`)
     expect(result.extraEnv.GOOGLE_GENAI_USE_VERTEXAI).toBe(`true`)
     expect(result.extraEnv.GOOGLE_CLOUD_PROJECT).toBe(`my-proj`)
     expect(result.extraEnv.GOOGLE_CLOUD_REGION).toBe(`us-central1`)
@@ -375,20 +375,20 @@ describe(`resolveProviderEnv`, () => {
     expect(result.errors).toEqual([])
   })
 
-  it(`errors on gemini-cli/google with no secret`, async () => {
+  it(`errors on antigravity/google with no secret`, async () => {
     const result = await resolveProviderEnv(
-      `gemini-cli`,
+      `antigravity`,
       [{ provider: { id: `p1`, brand: `google` }, priority: 0 }],
       mockSecretResolver,
       `org_1`
     )
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toContain(`GOOGLE_API_KEY`)
+    expect(result.errors[0]).toContain(`ANTIGRAVITY_API_KEY`)
   })
 
-  it(`errors on gemini-cli/google-vertex with no secret for required GOOGLE_API_KEY`, async () => {
+  it(`errors on antigravity/google-vertex with no secret for required ANTIGRAVITY_API_KEY`, async () => {
     const result = await resolveProviderEnv(
-      `gemini-cli`,
+      `antigravity`,
       [
         {
           provider: {
@@ -403,13 +403,13 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toContain(`GOOGLE_API_KEY`)
+    expect(result.errors[0]).toContain(`ANTIGRAVITY_API_KEY`)
   })
 
-  it(`omits optional vertex options when not provided for gemini-cli`, async () => {
+  it(`omits optional vertex options when not provided for antigravity`, async () => {
     mockSecretResolver.resolveApiKey.mockResolvedValueOnce(`direct-api-key`)
     const result = await resolveProviderEnv(
-      `gemini-cli`,
+      `antigravity`,
       [
         {
           provider: {
@@ -424,11 +424,94 @@ describe(`resolveProviderEnv`, () => {
       mockSecretResolver,
       `org_1`
     )
-    expect(result.extraEnv.GOOGLE_API_KEY).toBe(`direct-api-key`)
+    expect(result.extraEnv.ANTIGRAVITY_API_KEY).toBe(`direct-api-key`)
     expect(result.extraEnv.GOOGLE_GENAI_USE_VERTEXAI).toBe(`true`)
     expect(result.extraEnv.GOOGLE_CLOUD_PROJECT).toBeUndefined()
     expect(result.extraEnv.GOOGLE_CLOUD_REGION).toBeUndefined()
     expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/anthropic API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `anthropic`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.ANTHROPIC_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/openai API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `openai`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OPENAI_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/google API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `google`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.GOOGLE_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/openrouter API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `openrouter`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OPENROUTER_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/ollamaCloud API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `ollama:cloud`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`generates MITM placeholder for openclaw/custom API key`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `custom`, secretId: `sec_1` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.CUSTOM_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`errors on openclaw/anthropic with no secret`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [{ provider: { id: `p1`, brand: `anthropic` }, priority: 0 }],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain(`ANTHROPIC_API_KEY`)
   })
 
   it(`generates MITM placeholder for codex/zai API key`, async () => {

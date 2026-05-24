@@ -1,4 +1,4 @@
-import type { TApp, TStripeConfig } from '@TBE/types'
+import type { TApp, TPayConfig } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock logger before any imports that use it
@@ -42,7 +42,7 @@ import { logger } from '@TBE/utils/logger'
 import { ESubscriptionTier } from '@tdsk/domain'
 import { StripeService } from './stripe'
 
-const testConfig: TStripeConfig = {
+const testConfig: TPayConfig = {
   type: `stripe`,
   secretKey: `sk_test_123`,
   webhookSecret: `whsec_test_123`,
@@ -168,6 +168,78 @@ describe(`StripeService`, () => {
           userId: `user_1`,
           tier: `pro`,
           status: `active`,
+          cancelAtPeriodEnd: false,
+        })
+      )
+    })
+
+    it(`should set cancelAtPeriodEnd when subscription is cancelled at period end`, async () => {
+      const sub = {
+        id: `sub_123`,
+        status: `active`,
+        cancel_at_period_end: true,
+        items: {
+          data: [
+            {
+              price: { id: `price_solo_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      }
+
+      mockDb.services.subscription.findByStripeSubscriptionId.mockResolvedValue({
+        data: { userId: `user_1` },
+      })
+
+      await service.webhook(mockApp, {
+        type: `customer.subscription.updated`,
+        data: { object: sub },
+      } as any)
+
+      expect(mockDb.services.subscription.upsertByUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: `user_1`,
+          tier: `solo`,
+          status: `active`,
+          cancelAtPeriodEnd: true,
+        })
+      )
+    })
+
+    it(`should set cancelAtPeriodEnd when portal uses cancel_at instead of cancel_at_period_end`, async () => {
+      const sub = {
+        id: `sub_123`,
+        status: `active`,
+        cancel_at_period_end: false,
+        cancel_at: 1702592000,
+        items: {
+          data: [
+            {
+              price: { id: `price_solo_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      }
+
+      mockDb.services.subscription.findByStripeSubscriptionId.mockResolvedValue({
+        data: { userId: `user_1` },
+      })
+
+      await service.webhook(mockApp, {
+        type: `customer.subscription.updated`,
+        data: { object: sub },
+      } as any)
+
+      expect(mockDb.services.subscription.upsertByUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: `user_1`,
+          tier: `solo`,
+          status: `active`,
+          cancelAtPeriodEnd: true,
         })
       )
     })
@@ -729,7 +801,7 @@ describe(`StripeService`, () => {
           type: `invoice.payment_failed`,
           data: { object: invoice },
         } as any)
-      ).rejects.toThrow(`Failed to mark subscription as past_due`)
+      ).rejects.toThrow(`Failed to mark past_due subscription`)
     })
   })
 
@@ -779,6 +851,85 @@ describe(`StripeService`, () => {
     })
   })
 
+  describe(`retrieveSubscription`, () => {
+    it(`should return reconciliation state from Stripe`, async () => {
+      mockSubscriptionsRetrieve.mockResolvedValue({
+        status: `active`,
+        cancel_at_period_end: true,
+        items: {
+          data: [
+            {
+              price: { id: `price_solo_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      })
+
+      const result = await service.retrieveSubscription(`sub_123`)
+
+      expect(mockSubscriptionsRetrieve).toHaveBeenCalledWith(`sub_123`)
+      expect(result).toEqual({
+        tier: `solo`,
+        status: `active`,
+        stripePriceId: `price_solo_123`,
+        cancelAtPeriodEnd: true,
+        currentPeriodStart: new Date(1700000000 * 1000).toISOString(),
+        currentPeriodEnd: new Date(1702592000 * 1000).toISOString(),
+      })
+    })
+
+    it(`should detect cancel_at as cancelAtPeriodEnd even when cancel_at_period_end is false`, async () => {
+      mockSubscriptionsRetrieve.mockResolvedValue({
+        status: `active`,
+        cancel_at_period_end: false,
+        cancel_at: 1702592000,
+        items: {
+          data: [
+            {
+              price: { id: `price_solo_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      })
+
+      const result = await service.retrieveSubscription(`sub_portal_cancel`)
+
+      expect(result).toEqual({
+        tier: `solo`,
+        status: `active`,
+        stripePriceId: `price_solo_123`,
+        cancelAtPeriodEnd: true,
+        currentPeriodStart: new Date(1700000000 * 1000).toISOString(),
+        currentPeriodEnd: new Date(1702592000 * 1000).toISOString(),
+      })
+    })
+
+    it(`should return cancelAtPeriodEnd false when neither cancel flag is set`, async () => {
+      mockSubscriptionsRetrieve.mockResolvedValue({
+        status: `active`,
+        cancel_at_period_end: false,
+        cancel_at: null,
+        items: {
+          data: [
+            {
+              price: { id: `price_pro_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      })
+
+      const result = await service.retrieveSubscription(`sub_active`)
+
+      expect(result.cancelAtPeriodEnd).toBe(false)
+    })
+  })
+
   describe(`constructWebhookEvent`, () => {
     it(`should delegate to stripe.webhooks.constructEvent`, () => {
       const payload = Buffer.from(`test`)
@@ -794,6 +945,126 @@ describe(`StripeService`, () => {
         testConfig.webhookSecret
       )
       expect(result).toEqual({ type: `test` })
+    })
+
+    it(`should skip verification when webhookSecret is empty in local env`, () => {
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `local`,
+      })
+      const event = { type: `invoice.paid`, data: { object: {} } }
+      const payload = Buffer.from(JSON.stringify(event))
+
+      const result = localService.constructWebhookEvent(payload, `t=123,v1=bad`)
+
+      expect(mockWebhooksConstructEvent).not.toHaveBeenCalled()
+      expect(result).toEqual(event)
+    })
+
+    it(`should skip verification when webhookSecret is empty in test env`, () => {
+      const testEnvService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `test`,
+      })
+      const event = { type: `checkout.session.completed`, data: { object: {} } }
+      const payload = Buffer.from(JSON.stringify(event))
+
+      const result = testEnvService.constructWebhookEvent(payload, `t=123,v1=bad`)
+
+      expect(mockWebhooksConstructEvent).not.toHaveBeenCalled()
+      expect(result).toEqual(event)
+    })
+
+    it(`should still verify when webhookSecret is set even in non-production`, () => {
+      mockWebhooksConstructEvent.mockReturnValue({ type: `test` })
+
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: `whsec_local_test`,
+        environment: `local`,
+      })
+      const payload = Buffer.from(`test`)
+
+      localService.constructWebhookEvent(payload, `t=123,v1=abc`)
+
+      expect(mockWebhooksConstructEvent).toHaveBeenCalledWith(
+        payload,
+        `t=123,v1=abc`,
+        `whsec_local_test`
+      )
+    })
+
+    it(`should always verify in production even with empty webhookSecret`, () => {
+      const prodService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `production`,
+      })
+      const payload = Buffer.from(`test`)
+
+      prodService.constructWebhookEvent(payload, `t=123,v1=abc`)
+
+      expect(mockWebhooksConstructEvent).toHaveBeenCalledWith(payload, `t=123,v1=abc`, ``)
+    })
+
+    it(`should handle string payload in skip mode`, () => {
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `local`,
+      })
+      const event = { type: `invoice.paid`, data: { object: {} } }
+      const payload = JSON.stringify(event) as unknown as Buffer
+
+      const result = localService.constructWebhookEvent(payload, `t=123,v1=bad`)
+
+      expect(mockWebhooksConstructEvent).not.toHaveBeenCalled()
+      expect(result).toEqual(event)
+    })
+
+    it(`should log a warning when skipping verification`, () => {
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `local`,
+      })
+      const payload = Buffer.from(JSON.stringify({ type: `test` }))
+
+      localService.constructWebhookEvent(payload, `t=123,v1=bad`)
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        `[Stripe] Skipping webhook signature verification (no webhookSecret configured)`
+      )
+    })
+
+    it(`should throw on malformed JSON in skip mode`, () => {
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: ``,
+        environment: `local`,
+      })
+      const payload = Buffer.from(`not valid json`)
+
+      expect(() => localService.constructWebhookEvent(payload, `t=123,v1=bad`)).toThrow(
+        SyntaxError
+      )
+    })
+
+    it(`should skip verification when webhookSecret is undefined in non-production`, () => {
+      const localService = new StripeService({
+        ...testConfig,
+        webhookSecret: undefined as any,
+        environment: `local`,
+      })
+      const event = { type: `invoice.paid`, data: { object: {} } }
+      const payload = Buffer.from(JSON.stringify(event))
+
+      const result = localService.constructWebhookEvent(payload, `t=123,v1=bad`)
+
+      expect(mockWebhooksConstructEvent).not.toHaveBeenCalled()
+      expect(result).toEqual(event)
     })
   })
 })

@@ -168,6 +168,9 @@ vars:
   TDSK_KUBE_SCRT_EMAIL_CFG:
     source: env
     default: tdsk-email-secret
+  TDSK_KUBE_SCRT_S3_CFG:
+    source: env
+    default: tdsk-s3-secret
 
 # ----- Server Configuration ----- #
   TDSK_ALLOWED_HEADERS:
@@ -555,6 +558,36 @@ deployments:
                   secretKeyRef:
                     key: secure
                     name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                    optional: true
+              - name: TDSK_S3_BUCKET
+                valueFrom:
+                  secretKeyRef:
+                    key: bucket
+                    name: ${TDSK_KUBE_SCRT_S3_CFG}
+                    optional: true
+              - name: TDSK_S3_ENDPOINT
+                valueFrom:
+                  secretKeyRef:
+                    key: endpoint
+                    name: ${TDSK_KUBE_SCRT_S3_CFG}
+                    optional: true
+              - name: TDSK_S3_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    key: accessKeyId
+                    name: ${TDSK_KUBE_SCRT_S3_CFG}
+                    optional: true
+              - name: TDSK_S3_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: secretAccessKey
+                    name: ${TDSK_KUBE_SCRT_S3_CFG}
+                    optional: true
+              - name: TDSK_S3_REGION
+                valueFrom:
+                  secretKeyRef:
+                    key: region
+                    name: ${TDSK_KUBE_SCRT_S3_CFG}
                     optional: true
             volumeMounts:
               - containerPath: /etc/tdsk/ca

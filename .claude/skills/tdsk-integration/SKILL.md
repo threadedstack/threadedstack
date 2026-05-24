@@ -71,7 +71,7 @@ Direct API calls validating CRUD envelopes, auth, and field persistence. No UI.
 
 - `sandbox-config-crud.test.ts` — CRUD with projectId, SSH, git, idle timeout, builtIn fields
 - `sandbox-runtime-crud.test.ts` — Runtime enum, runtimeCommand, initScript, builtIn enforcement, copy endpoint
-- `sandbox-org-seeding.test.ts` — JWT auth org creation, 4 built-in preset verification
+- `sandbox-org-seeding.test.ts` — JWT auth org creation, 6 built-in preset verification
 - `tsa-sandbox-client.test.ts` — TSA ApiClient.listSandboxes() against live backend
 
 ## Tier 2 -- Playwright E2E Tests

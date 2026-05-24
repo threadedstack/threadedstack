@@ -4,7 +4,7 @@
 
 **Goal:** Enable sandbox pods to authenticate with AI provider APIs by linking org providers to sandboxes and injecting credentials as environment variables at pod startup.
 
-**Architecture:** A `sandbox_providers` junction table links sandboxes to providers. A static `RuntimeProviderEnvMap` in domain constants maps (runtime, providerBrand) → env vars. At `startPod()`, the backend resolves linked providers, generates MITM placeholders for API key providers and injects real credentials for complex auth (Sigv4, OAuth2). A new `gemini-cli` runtime is added to the sandbox base image and presets.
+**Architecture:** A `sandbox_providers` junction table links sandboxes to providers. A static `RuntimeProviderEnvMap` in domain constants maps (runtime, providerBrand) → env vars. At `startPod()`, the backend resolves linked providers, generates MITM placeholders for API key providers and injects real credentials for complex auth (Sigv4, OAuth2). New `antigravity` and `openclaw` runtimes are added to the sandbox base image and presets.
 
 **Tech Stack:** Drizzle ORM (Postgres), Express 5, K8s pod manifests, Docker, React/MUI admin UI, Ink CLI
 
@@ -35,8 +35,8 @@
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `repos/domain/src/types/sandbox.types.ts` | Add `geminiCli` to `ESandboxRuntime` |
-| `repos/domain/src/constants/sandbox.ts` | Add gemini-cli preset + `RuntimeProviderEnvMap` |
+| `repos/domain/src/types/sandbox.types.ts` | Add `antigravity` and `openclaw` to `ESandboxRuntime` |
+| `repos/domain/src/constants/sandbox.ts` | Add antigravity and openclaw presets + `RuntimeProviderEnvMap` |
 | `repos/domain/src/models/sandbox.ts` | Add optional `providers` field |
 | `repos/domain/src/models/index.ts` | Export new SandboxProvider model |
 | `repos/domain/src/types/index.ts` | Export new sandboxProvider types |
@@ -47,7 +47,7 @@
 | `repos/backend/src/services/sandboxes/sandbox.ts` | Call `resolveProviderEnv` in `startPod()` |
 | `repos/backend/src/endpoints/sandboxes/sandboxes.ts` | Register 3 new endpoints |
 | `repos/backend/src/endpoints/sandboxes/getSandbox.ts` | Include providers in response |
-| `deploy/Dockerfile.sandbox-base` | Add `@google/gemini-cli` |
+| `deploy/Dockerfile.sandbox-base` | Add `openclaw@latest` and Antigravity installer |
 | `deploy/sandbox-entrypoint.sh` | Add credential file resolution |
 
 ---
@@ -60,9 +60,9 @@
 - Modify: `repos/domain/src/types/index.ts`
 - Modify: `repos/domain/src/constants/sandbox.ts`
 
-- [ ] **Step 1: Add `geminiCli` to `ESandboxRuntime`**
+- [ ] **Step 1: Add `antigravity` and `openclaw` to `ESandboxRuntime`**
 
-In `repos/domain/src/types/sandbox.types.ts`, add the new enum value:
+In `repos/domain/src/types/sandbox.types.ts`, add the new enum values:
 
 ```typescript
 export enum ESandboxRuntime {
@@ -70,7 +70,8 @@ export enum ESandboxRuntime {
   custom = `custom`,
   openCode = `opencode`,
   claudeCode = `claude-code`,
-  geminiCli = `gemini-cli`,
+  antigravity = `antigravity`,
+  openclaw = `openclaw`,
 }
 ```
 
@@ -115,7 +116,7 @@ export * from './sandboxProvider.types'
 
 - [ ] **Step 4: Add `RuntimeProviderEnvMap` constant**
 
-In `repos/domain/src/constants/sandbox.ts`, add the following after the existing `SandboxPresets` export. Also add `geminiCli` entries to `SandboxRuntimeOptions`, `SandboxRuntimeConfigs`, and `SandboxPresets`.
+In `repos/domain/src/constants/sandbox.ts`, add the following after the existing `SandboxPresets` export. Also add `antigravity` and `openclaw` entries to `SandboxRuntimeOptions`, `SandboxRuntimeConfigs`, and `SandboxPresets`.
 
 Add to imports at top of file:
 
@@ -123,41 +124,59 @@ Add to imports at top of file:
 import type { TRuntimeProviderEnvMap } from '@TDM/types'
 ```
 
-Add gemini-cli to `SandboxRuntimeOptions`:
+Add antigravity and openclaw to `SandboxRuntimeOptions`:
 
 ```typescript
 export const SandboxRuntimeOptions = [
   { value: ESandboxRuntime.claudeCode, label: `Claude Code` },
   { value: ESandboxRuntime.codex, label: `Codex` },
   { value: ESandboxRuntime.openCode, label: `OpenCode` },
-  { value: ESandboxRuntime.geminiCli, label: `Gemini CLI` },
+  { value: ESandboxRuntime.antigravity, label: `Antigravity` },
+  { value: ESandboxRuntime.openclaw, label: `OpenClaw` },
   { value: ESandboxRuntime.custom, label: `Custom` },
 ]
 ```
 
-Add gemini-cli to `SandboxRuntimeConfigs`:
+Add antigravity and openclaw to `SandboxRuntimeConfigs`:
 
 ```typescript
-[ESandboxRuntime.geminiCli]: {
-  runtimeCommand: `gemini`,
-  initScript: `echo "Gemini CLI sandbox ready"`,
+[ESandboxRuntime.antigravity]: {
+  runtimeCommand: `agy`,
+  initScript: `echo "Antigravity sandbox ready"`,
+},
+[ESandboxRuntime.openclaw]: {
+  runtimeCommand: `openclaw`,
+  initScript: `echo "OpenClaw sandbox ready"`,
 },
 ```
 
-Add gemini-cli to `SandboxPresets`:
+Add antigravity and openclaw to `SandboxPresets`:
 
 ```typescript
-[ESandboxRuntime.geminiCli]: {
-  name: `Gemini CLI`,
-  description: `Google Gemini CLI AI assistant`,
+[ESandboxRuntime.antigravity]: {
+  name: `Antigravity`,
+  description: `Antigravity AI assistant`,
   config: {
     sshEnabled: true,
     idleTimeoutMinutes: 30,
     image: DefaultSandboxImage,
     resources: DefaultResources,
-    runtime: ESandboxRuntime.geminiCli,
-    runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].runtimeCommand,
-    initScript: SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].initScript,
+    runtime: ESandboxRuntime.antigravity,
+    runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.antigravity].runtimeCommand,
+    initScript: SandboxRuntimeConfigs[ESandboxRuntime.antigravity].initScript,
+  },
+},
+[ESandboxRuntime.openclaw]: {
+  name: `OpenClaw`,
+  description: `OpenClaw AI assistant`,
+  config: {
+    sshEnabled: true,
+    idleTimeoutMinutes: 30,
+    image: DefaultSandboxImage,
+    resources: DefaultResources,
+    runtime: ESandboxRuntime.openclaw,
+    runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.openclaw].runtimeCommand,
+    initScript: SandboxRuntimeConfigs[ESandboxRuntime.openclaw].initScript,
   },
 },
 ```
@@ -248,16 +267,21 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
       { envVar: `OPENROUTER_API_KEY`, source: `secret`, required: true },
     ],
   },
-  [ESandboxRuntime.geminiCli]: {
+  [ESandboxRuntime.antigravity]: {
     google: [
-      { envVar: `GOOGLE_API_KEY`, source: `secret`, required: true },
+      { envVar: `ANTIGRAVITY_API_KEY`, source: `secret`, required: true },
     ],
     'google-vertex': [
-      { envVar: `GOOGLE_API_KEY`, source: `secret`, injection: `direct`, required: true },
+      { envVar: `ANTIGRAVITY_API_KEY`, source: `secret`, injection: `direct`, required: true },
       { envVar: `GOOGLE_GENAI_USE_VERTEXAI`, source: `static`, staticValue: `true`, injection: `direct` },
       { envVar: `GOOGLE_APPLICATION_CREDENTIALS`, source: `secret`, injection: `file`, filePath: `/tmp/gcloud-sa.json` },
       { envVar: `GOOGLE_CLOUD_PROJECT`, source: `option`, optionKey: `projectId`, injection: `direct` },
       { envVar: `GOOGLE_CLOUD_REGION`, source: `option`, optionKey: `region`, injection: `direct` },
+    ],
+  },
+  [ESandboxRuntime.openclaw]: {
+    openai: [
+      { envVar: `OPENAI_API_KEY`, source: `secret`, required: true },
     ],
   },
   [ESandboxRuntime.custom]: {},
@@ -961,15 +985,16 @@ Expected: No type errors.
 - Modify: `deploy/Dockerfile.sandbox-base`
 - Modify: `deploy/sandbox-entrypoint.sh`
 
-- [ ] **Step 1: Add Gemini CLI to Dockerfile**
+- [ ] **Step 1: Add Antigravity and OpenClaw to Dockerfile**
 
 In `deploy/Dockerfile.sandbox-base`, update the npm install line (around line 27):
 
 ```dockerfile
-    && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli \
+    && npm install -g @anthropic-ai/claude-code @openai/codex openclaw@latest \
+    && curl -fsSL https://antigravity.dev/install.sh | sh \
 ```
 
-This adds `@google/gemini-cli` alongside the existing tools. The `gemini` binary will be available in PATH.
+This adds `openclaw@latest` and Antigravity alongside the existing tools. The `agy` and `openclaw` binaries will be available in PATH.
 
 - [ ] **Step 2: Add credential file resolution to entrypoint**
 
@@ -1035,7 +1060,7 @@ exec "$@"
 
 Run: `cd repos/cli && pnpm cli doc build app`
 
-Expected: Docker image builds successfully with gemini-cli included.
+Expected: Docker image builds successfully with Antigravity and OpenClaw included.
 
 ---
 
@@ -1160,10 +1185,15 @@ describe('RuntimeProviderEnvMap', () => {
     expect(brands).toContain('google')
   })
 
-  it('gemini-cli supports google and google-vertex', () => {
-    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.geminiCli]!)
+  it('antigravity supports google and google-vertex', () => {
+    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.antigravity]!)
     expect(brands).toContain('google')
     expect(brands).toContain('google-vertex')
+  })
+
+  it('openclaw supports openai', () => {
+    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.openclaw]!)
+    expect(brands).toContain('openai')
   })
 
   it('every required entry with source=secret has injection specified', () => {
@@ -1181,18 +1211,30 @@ describe('RuntimeProviderEnvMap', () => {
 })
 
 describe('SandboxPresets', () => {
-  it('includes geminiCli preset', () => {
-    expect(SandboxPresets[ESandboxRuntime.geminiCli]).toBeDefined()
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].name).toBe('Gemini CLI')
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].config.runtime).toBe(ESandboxRuntime.geminiCli)
-    expect(SandboxPresets[ESandboxRuntime.geminiCli].config.runtimeCommand).toBe('gemini')
+  it('includes antigravity preset', () => {
+    expect(SandboxPresets[ESandboxRuntime.antigravity]).toBeDefined()
+    expect(SandboxPresets[ESandboxRuntime.antigravity].name).toBe('Antigravity')
+    expect(SandboxPresets[ESandboxRuntime.antigravity].config.runtime).toBe(ESandboxRuntime.antigravity)
+    expect(SandboxPresets[ESandboxRuntime.antigravity].config.runtimeCommand).toBe('agy')
+  })
+
+  it('includes openclaw preset', () => {
+    expect(SandboxPresets[ESandboxRuntime.openclaw]).toBeDefined()
+    expect(SandboxPresets[ESandboxRuntime.openclaw].name).toBe('OpenClaw')
+    expect(SandboxPresets[ESandboxRuntime.openclaw].config.runtime).toBe(ESandboxRuntime.openclaw)
+    expect(SandboxPresets[ESandboxRuntime.openclaw].config.runtimeCommand).toBe('openclaw')
   })
 })
 
 describe('SandboxRuntimeConfigs', () => {
-  it('includes geminiCli config', () => {
-    expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli]).toBeDefined()
-    expect(SandboxRuntimeConfigs[ESandboxRuntime.geminiCli].runtimeCommand).toBe('gemini')
+  it('includes antigravity config', () => {
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.antigravity]).toBeDefined()
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.antigravity].runtimeCommand).toBe('agy')
+  })
+
+  it('includes openclaw config', () => {
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.openclaw]).toBeDefined()
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.openclaw].runtimeCommand).toBe('openclaw')
   })
 })
 ```

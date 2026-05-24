@@ -16,13 +16,13 @@ export type TPayEnv =
   | `staging`
   | `production`
 
-export type TStripeConfig = {
+export type TPayConfig = {
   type?: TPayType
   secretKey: string
   webhookSecret: string
+  environment?: TPayEnv
   priceIds: Record<string, string>
   seatPriceIds: Record<string, string>
-  environment?: TPayEnv
 }
 
 export type TPayCustomer = {
@@ -39,6 +39,15 @@ export type TPayCheckoutSession = {
 
 export type TPayPortalSession = {
   url: string
+}
+
+export type TPaySubscriptionState = {
+  tier: string
+  status: string
+  stripePriceId: string
+  currentPeriodEnd?: string
+  cancelAtPeriodEnd: boolean
+  currentPeriodStart?: string
 }
 
 export type TPlanResp = { data?: Plan[]; error?: Exception }

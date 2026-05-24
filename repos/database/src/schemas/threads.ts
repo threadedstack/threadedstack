@@ -7,28 +7,8 @@ import { base } from '@TDB/utils/schema/base'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { sandboxes } from '@TDB/schemas/sandboxes'
 import { entityId } from '@TDB/utils/schema/entityId'
-import {
-  uuid,
-  text,
-  jsonb,
-  index,
-  pgTable,
-  varchar,
-  boolean,
-  customType,
-} from 'drizzle-orm/pg-core'
-
-const byteaType = customType<{
-  data: Buffer
-  notNull: false
-  default: false
-}>({
-  dataType() {
-    return `bytea`
-  },
-})
+import { uuid, text, jsonb, index, pgTable, varchar, boolean } from 'drizzle-orm/pg-core'
 
 export const threads = pgTable(
   `threads`,
@@ -55,10 +35,6 @@ export const threads = pgTable(
     userId: uuid(`user_id`)
       .references(() => users.id, { onDelete: `cascade` })
       .notNull(),
-    sandboxId: varchar(`sandbox_id`, { length: 10 }).references(() => sandboxes.id, {
-      onDelete: `set null`,
-    }),
-    ptyBuffer: byteaType(`pty_buffer`),
   },
   (table) => [
     index(`threads_user_id_idx`).on(table.userId),
@@ -66,7 +42,6 @@ export const threads = pgTable(
     index(`threads_parent_thread_id_idx`).on(table.parentThreadId),
     index(`threads_org_id_idx`).on(table.orgId),
     index(`threads_project_id_idx`).on(table.projectId),
-    index(`threads_sandbox_id_idx`).on(table.sandboxId),
   ]
 )
 
@@ -87,5 +62,4 @@ export const threadsRelations = relations(threads, ({ one, many }) => ({
     fields: [threads.branchMessageId],
     references: [messages.id],
   }),
-  sandbox: one(sandboxes, { fields: [threads.sandboxId], references: [sandboxes.id] }),
 }))

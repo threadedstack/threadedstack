@@ -34,7 +34,8 @@ const paymentsAct = async (props: TTaskActionArgs) => {
     webhook: webhook || config.envs.TDSK_PAY_WEBHOOK_SECRET || undefined,
   }
 
-  ;(!cfg.url || !cfg.type || (!cfg.token && !cfg.webhook)) &&
+  const isProd = process.env.NODE_ENV === `production`
+  ;(!cfg.url || !cfg.type || !cfg.token || !cfg.plans || (isProd && !cfg.webhook)) &&
     taskError(`Missing payments configuration`, undefined, cfg)
 
   params.log && Logger.pair(`Found valid payments config values`)

@@ -2,9 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { Exception, ESubscriptionTier } from '@tdsk/domain'
 
-const validTiers = new Set(Object.values(ESubscriptionTier))
+const validTiers = new Set(Object.values(ESubscriptionTier).map((t) => t.toLowerCase()))
 
 /**
  * POST /subscriptions/checkout - Create a checkout session
@@ -23,7 +24,8 @@ export const createCheckout: TEndpointConfig = {
 
     if (!userId || !userEmail) throw new Exception(401, `Authentication required`)
 
-    const { tier, successUrl, cancelUrl } = req.body
+    const { successUrl, cancelUrl } = req.body
+    const tier: ESubscriptionTier = req.body.tier?.toLowerCase()
 
     if (!tier || !successUrl || !cancelUrl)
       throw new Exception(400, `Missing required fields: tier, successUrl, cancelUrl`)
@@ -31,14 +33,33 @@ export const createCheckout: TEndpointConfig = {
     if (!validTiers.has(tier as ESubscriptionTier))
       throw new Exception(400, `Invalid tier: ${tier}`)
 
-    if (tier === ESubscriptionTier.free)
-      throw new Exception(400, `Cannot checkout for free tier`)
-
     // Check if user already has an active subscription
     const subResult = await db.services.subscription.findByUser(userId)
 
     if (subResult.data?.stripeSubscriptionId && subResult.data.status === `active`) {
-      // Already subscribed — perform tier change instead of new checkout
+      if (tier === ESubscriptionTier.free) {
+        await payments.service.cancelSubscription(subResult.data.stripeSubscriptionId)
+
+        const { error: updateErr } = await db.services.subscription.upsertByUser({
+          userId,
+          cancelAtPeriodEnd: true,
+        })
+        if (updateErr) {
+          logger.error(
+            `[createCheckout] Stripe cancelled but local update failed for user ${userId}:`,
+            updateErr
+          )
+        }
+
+        res.status(200).json({
+          data: {
+            cancelled: true,
+            message: `Subscription will be cancelled at period end`,
+          },
+        })
+        return
+      }
+
       const priceId = payments.service.config.priceIds[tier]
       if (!priceId) throw new Exception(400, `No price configured for tier: ${tier}`)
 
@@ -52,6 +73,9 @@ export const createCheckout: TEndpointConfig = {
       })
       return
     }
+
+    if (tier === ESubscriptionTier.free)
+      throw new Exception(400, `Cannot checkout for free tier`)
 
     // New subscription — create or retrieve customer, then create checkout session
     let customerId = subResult.data?.stripeCustomerId

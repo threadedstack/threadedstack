@@ -156,8 +156,9 @@ export const Ids = {
     claudeCode: `sb_0000001`,
     codex: `sb_0000002`,
     openCode: `sb_0000003`,
-    geminiCli: `sb_0000004`,
+    antigravity: `sb_0000004`,
     custom: `sb_0000005`,
+    openClaw: `sb_0000006`,
   },
   domain: {
     orgDomain: `dm_0000001`,

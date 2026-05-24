@@ -136,7 +136,6 @@ export enum EAIProviderBrand {
   googleVertex = `google-vertex`,
   githubCopilot = `github-copilot`,
   amazonBedrock = `amazon-bedrock`,
-  googleGeminiCli = `google-gemini-cli`,
   vercelAiGateway = `vercel-ai-gateway`,
   googleAntigravity = `google-antigravity`,
   azureOpenaiResponses = `azure-openai-responses`,

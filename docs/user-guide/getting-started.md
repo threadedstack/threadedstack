@@ -217,7 +217,7 @@ If your goal is to run Claude Code, Codex, or another AI tool with managed secre
 
 ### Why Sandboxes?
 
-When you created your organization, Threaded Stack automatically seeded four built-in sandbox configs: **Claude Code**, **Codex**, **OpenCode**, **Gemini** and **Base**. These are ready to start immediately — no additional configuration required. Attach your secrets to a sandbox, and the AI tool running inside it can make API calls with real credentials without ever seeing them.
+When you created your organization, Threaded Stack automatically seeded six built-in sandbox configs: **Claude Code**, **Codex**, **OpenCode**, **Antigravity**, **OpenClaw** and **Base**. These are ready to start immediately — no additional configuration required. Attach your secrets to a sandbox, and the AI tool running inside it can make API calls with real credentials without ever seeing them.
 
 ### Step 1: Create an API Key
 

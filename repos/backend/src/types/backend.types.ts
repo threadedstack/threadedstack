@@ -4,13 +4,20 @@ import type { config } from '@TBE/configs/backend.config'
 import type { EmailService } from '@TBE/services/email/email'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type { PaymentsService } from '@TBE/services/payments/payments'
-import type { TApp as TEApp, TRequest as TReq, TAuthHeaderObj } from '@tdsk/domain'
+import type { S3Service } from '@TBE/services/s3/s3'
+import type {
+  TApp as TEApp,
+  TAppLocals,
+  TRequest as TReq,
+  TAuthHeaderObj,
+} from '@tdsk/domain'
 
 export type { TResponse } from '@tdsk/domain'
 
 export type TBEConfig = typeof config
 export type TReqParams = Record<string, any>
-export type TApp = TEApp<
+
+type TBELocals = TAppLocals<
   TBEConfig,
   TDatabase,
   PaymentsService,
@@ -18,6 +25,19 @@ export type TApp = TEApp<
   TAuthHeaderObj,
   KubeClient,
   SandboxService
+> & {
+  s3: S3Service
+}
+
+export type TApp = TEApp<
+  TBEConfig,
+  TDatabase,
+  PaymentsService,
+  EmailService,
+  TAuthHeaderObj,
+  KubeClient,
+  SandboxService,
+  TBELocals
 >
 
 export type TQuotaResource =

@@ -17,7 +17,7 @@ const steps = [
   {
     number: 3,
     title: `Choose a Runtime`,
-    description: `Select from built-in presets like Claude Code, Codex, OpenCode, Gemini CLI, or configure a custom runtime with your own tooling.`,
+    description: `Select from built-in presets like Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or configure a custom runtime with your own tooling.`,
   },
   {
     number: 4,

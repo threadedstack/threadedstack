@@ -8,7 +8,8 @@ describe(`slugify`, () => {
 
   it(`should handle built-in sandbox names`, () => {
     expect(slugify(`Claude Code`)).toBe(`claude-code`)
-    expect(slugify(`Gemini CLI`)).toBe(`gemini-cli`)
+    expect(slugify(`Antigravity`)).toBe(`antigravity`)
+    expect(slugify(`OpenClaw`)).toBe(`openclaw`)
     expect(slugify(`OpenCode`)).toBe(`opencode`)
   })
 

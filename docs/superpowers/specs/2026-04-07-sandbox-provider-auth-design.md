@@ -5,7 +5,7 @@
 The sandbox system has 4 runtime presets (claude-code, codex, opencode, custom) but no mechanism to inject AI provider credentials into sandbox pods. AI tools inside sandboxes cannot authenticate with their backing APIs, making them non-functional without manual env var configuration.
 
 This design adds:
-1. **Gemini CLI** as a new sandbox runtime
+1. **Antigravity** and **OpenClaw** as new sandbox runtimes
 2. **Provider-sandbox linking** via a junction table, enabling provider credentials to be injected into sandbox pods at startup
 3. **Env var mapping** that automatically resolves (runtime, provider brand) → environment variables
 4. **Dual injection**: MITM placeholders for API key providers, direct injection for complex auth (Sigv4, OAuth2)
@@ -15,13 +15,13 @@ This design adds:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Provider-sandbox relationship | Junction table (`sandbox_providers`) | Supports multiple providers per sandbox (AI auth + git auth). Mirrors agent_providers pattern. |
-| Runtime model for CC variants | Same `claude-code` runtime, provider brand determines env vars | Avoids enum bloat. Only `gemini-cli` gets a new ESandboxRuntime entry. |
+| Runtime model for CC variants | Same `claude-code` runtime, provider brand determines env vars | Avoids enum bloat. Only `antigravity` and `openclaw` get new ESandboxRuntime entries. |
 | Env var mapping approach | Static domain constants | Simple, type-safe, deterministic. Custom setups use existing `envVars` config field. |
 | Complex auth (Bedrock/Vertex) | Direct env injection at pod startup | Sigv4/OAuth2 can't use MITM placeholders. Pod is already network-isolated. |
 | Bedrock auth | Support both Sigv4 AND AWS_BEARER_TOKEN_BEDROCK | Bearer token path is MITM-compatible; Sigv4 requires direct injection. Provider `authMethod` option selects path. |
 | Vertex credential files | InitScript file write (base64 env → file) | Simple, no K8s Secret objects needed. Entrypoint decodes and writes file. |
-| Seeding | Seed existing 4 + gemini-cli on org creation | CC variants don't need seeding — they're the same runtime with different providers linked. User handles existing orgs manually. |
-| Provider auth scope | All runtimes (claude-code, codex, opencode, gemini-cli) | Comprehensive from day one. |
+| Seeding | Seed existing 4 + antigravity + openclaw on org creation | CC variants don't need seeding — they're the same runtime with different providers linked. User handles existing orgs manually. |
+| Provider auth scope | All runtimes (claude-code, codex, opencode, antigravity, openclaw) | Comprehensive from day one. |
 
 ---
 
@@ -57,7 +57,8 @@ enum ESandboxRuntime {
   custom = 'custom',
   openCode = 'opencode',
   claudeCode = 'claude-code',
-  geminiCli = 'gemini-cli',     // NEW
+  antigravity = 'antigravity',   // NEW
+  openclaw = 'openclaw',         // NEW
 }
 ```
 
@@ -183,12 +184,12 @@ LiteLLM is a generic gateway. Users create a provider with `brand: 'custom'` and
 |---------|--------|-----------|----------|-------|
 | `GEMINI_API_KEY` | secret | mitm | yes | |
 
-#### Gemini CLI — Google AI Studio (`google`)
+#### Antigravity — Google AI Studio (`google`)
 | Env Var | Source | Injection | Required | Notes |
 |---------|--------|-----------|----------|-------|
 | `GOOGLE_API_KEY` | secret | mitm | yes | Google AI Studio API key |
 
-#### Gemini CLI — Google Vertex AI (`google-vertex`)
+#### Antigravity — Google Vertex AI (`google-vertex`)
 | Env Var | Source | Injection | Required | Notes |
 |---------|--------|-----------|----------|-------|
 | `GOOGLE_API_KEY` | secret | direct | yes | |
@@ -222,7 +223,8 @@ The `sandbox_providers.model` field is injected as a model-selection env var, bu
 |---------|---------------|------------|
 | `claude-code` | `ANTHROPIC_MODEL` | Yes — env var natively supported |
 | `codex` | N/A | No — Codex uses `config.json` or `--model` CLI flag. Model override ignored. |
-| `gemini-cli` | N/A | No — Gemini CLI uses `--model` CLI flag. Model override ignored. |
+| `antigravity` | N/A | No — Antigravity uses `--model` CLI flag. Model override ignored. |
+| `openclaw` | N/A | No — OpenClaw uses config-based model selection. Model override ignored. |
 | `opencode` | N/A | No — OpenCode uses `opencode.json` config. Model override ignored. |
 
 For runtimes that don't support env var model selection, the junction table `model` field is stored but not injected. Future work could write config files or pass CLI flags.
@@ -308,15 +310,15 @@ The existing `EgressProxy.handleRequest()` in `repos/backend/src/services/proxy/
 
 ## 4. Dockerfile Changes
 
-### 4.1 Add Gemini CLI to Sandbox Base Image
+### 4.1 Add Antigravity and OpenClaw to Sandbox Base Image
 
 In `deploy/Dockerfile.sandbox-base`:
 
 ```dockerfile
-RUN npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli
+RUN npm install -g @anthropic-ai/claude-code @openai/codex openclaw@latest && curl -fsSL https://antigravity.dev/install.sh | sh
 ```
 
-Adds `gemini-cli` alongside existing tools. The `gemini` binary becomes available in PATH.
+Adds Antigravity and OpenClaw alongside existing tools. The `agy` and `openclaw` binaries become available in PATH.
 
 ### 4.2 Entrypoint Script
 
@@ -326,22 +328,35 @@ Add the credential file resolution block (Section 3.2) to `deploy/sandbox-entryp
 
 ## 5. Sandbox Preset Updates
 
-### 5.1 New Gemini CLI Preset
+### 5.1 New Antigravity and OpenClaw Presets
 
 In `repos/domain/src/constants/sandbox.ts`:
 
 ```typescript
-[ESandboxRuntime.geminiCli]: {
-  name: 'Gemini CLI',
-  description: 'Google Gemini CLI AI assistant',
+[ESandboxRuntime.antigravity]: {
+  name: 'Antigravity',
+  description: 'Antigravity AI assistant',
   config: {
     sshEnabled: true,
     idleTimeoutMinutes: 30,
     image: DefaultSandboxImage,
     resources: DefaultResources,
-    runtime: ESandboxRuntime.geminiCli,
-    runtimeCommand: 'gemini',
-    initScript: 'echo "Gemini CLI sandbox ready"',
+    runtime: ESandboxRuntime.antigravity,
+    runtimeCommand: 'agy',
+    initScript: 'echo "Antigravity sandbox ready"',
+  },
+},
+[ESandboxRuntime.openclaw]: {
+  name: 'OpenClaw',
+  description: 'OpenClaw AI assistant',
+  config: {
+    sshEnabled: true,
+    idleTimeoutMinutes: 30,
+    image: DefaultSandboxImage,
+    resources: DefaultResources,
+    runtime: ESandboxRuntime.openclaw,
+    runtimeCommand: 'openclaw',
+    initScript: 'echo "OpenClaw sandbox ready"',
   },
 }
 ```
@@ -349,15 +364,19 @@ In `repos/domain/src/constants/sandbox.ts`:
 ### 5.2 Runtime Config
 
 ```typescript
-[ESandboxRuntime.geminiCli]: {
-  runtimeCommand: 'gemini',
-  initScript: 'echo "Gemini CLI sandbox ready"',
-}
+[ESandboxRuntime.antigravity]: {
+  runtimeCommand: 'agy',
+  initScript: 'echo "Antigravity sandbox ready"',
+},
+[ESandboxRuntime.openclaw]: {
+  runtimeCommand: 'openclaw',
+  initScript: 'echo "OpenClaw sandbox ready"',
+},
 ```
 
 ### 5.3 Org Creation Seeding
 
-No code changes needed in `createOrg.ts` — it iterates `SandboxPresets`, which now includes `geminiCli`. New orgs get 5 built-in sandboxes.
+No code changes needed in `createOrg.ts` — it iterates `SandboxPresets`, which now includes `antigravity` and `openclaw`. New orgs get 6 built-in sandboxes.
 
 ---
 
@@ -463,8 +482,8 @@ Add a "Provider" column to the sandbox list table showing the primary linked pro
 
 | File | Change |
 |------|--------|
-| `repos/domain/src/types/sandbox.types.ts` | Add `geminiCli` to `ESandboxRuntime`. Add `TRuntimeEnvVar`, `TEnvVarSource`, `TEnvVarInjection` types. |
-| `repos/domain/src/constants/sandbox.ts` | Add gemini-cli preset, runtime config, `RuntimeProviderEnvMap` constant. |
+| `repos/domain/src/types/sandbox.types.ts` | Add `antigravity` and `openclaw` to `ESandboxRuntime`. Add `TRuntimeEnvVar`, `TEnvVarSource`, `TEnvVarInjection` types. |
+| `repos/domain/src/constants/sandbox.ts` | Add antigravity and openclaw presets, runtime configs, `RuntimeProviderEnvMap` constant. |
 | `repos/domain/src/models/sandbox.ts` | Add optional `providers: Provider[]` field. |
 | `repos/domain/src/models/sandboxProvider.ts` | **NEW**: `SandboxProvider` model class. |
 | `repos/domain/src/types/provider.types.ts` | Add `authMethod` to provider options type if needed. |
@@ -473,8 +492,8 @@ Add a "Provider" column to the sandbox list table showing the primary linked pro
 | `repos/backend/src/services/sandboxes/sandbox.ts` | Enhance `startPod()` to resolve provider env vars. |
 | `repos/backend/src/endpoints/sandboxes/` | **NEW**: `linkProvider.ts`, `listProviders.ts`, `unlinkProvider.ts` endpoints. |
 | `repos/backend/src/endpoints/sandboxes/getSandbox.ts` | Include providers in response. |
-| `repos/backend/src/endpoints/orgs/createOrg.ts` | Gemini-cli preset auto-seeded (no code change — iterates SandboxPresets). |
-| `deploy/Dockerfile.sandbox-base` | Add `@google/gemini-cli` to npm install. |
+| `repos/backend/src/endpoints/orgs/createOrg.ts` | Antigravity and OpenClaw presets auto-seeded (no code change — iterates SandboxPresets). |
+| `deploy/Dockerfile.sandbox-base` | Add `openclaw@latest` and Antigravity installer to build. |
 | `deploy/sandbox-entrypoint.sh` | Add credential file resolution block. |
 | `repos/admin/` | Provider picker on sandbox detail, auth status badges, connect modal warning. |
 | `repos/repl/src/tasks/run.ts` | Show provider brand in sandbox list. |

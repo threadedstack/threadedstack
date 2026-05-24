@@ -15,7 +15,7 @@ const features = [
     icon: CloudIcon,
     title: 'Managed Sandboxes',
     description:
-      'Pre-configured K8s pods for Claude Code, Codex, OpenCode, Gemini CLI, or your own custom runtime. SSH-enabled with configurable resources, idle timeouts, and automatic file sync.',
+      'Pre-configured K8s pods for Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or your own custom runtime. SSH-enabled with configurable resources, idle timeouts, and automatic file sync.',
   },
   {
     icon: SecurityIcon,

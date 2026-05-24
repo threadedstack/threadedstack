@@ -27,6 +27,8 @@
     "types": "tsc --noEmit --pretty"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1053.0",
+    "@aws-sdk/lib-storage": "3.1053.0",
     "@elastic/ecs-winston-format": "1.5.3",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",

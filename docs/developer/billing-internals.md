@@ -112,14 +112,17 @@ Source files:
 
 `POST /_/payments/webhooks` (`repos/backend/src/endpoints/payments/webhook.ts`)
 
-The webhook endpoint uses `express.raw({ type: 'application/json' })` middleware to receive the raw request body, which is required by Stripe's signature verification. The `stripe-signature` header is mandatory.
+The webhook endpoint receives the raw request body (captured via `express.json({ verify })` as `req.rawBody`), which is required by Stripe's signature verification. The `stripe-signature` header is always mandatory regardless of environment.
 
 ### Verification Flow
 
-1. Extract the `stripe-signature` header from the request.
-2. Call `payments.service.constructWebhookEvent(req.body, signature)` which delegates to `stripe.webhooks.constructEvent()` using the configured `webhookSecret`.
-3. If verification fails, return **400** with the error message.
-4. If verification succeeds, delegate to `payments.service.webhook(app, event)` for processing.
+1. Extract the `stripe-signature` header from the request. If missing, return **400**.
+2. Call `payments.service.constructWebhookEvent(payload, signature)`:
+   - **Production** or **webhookSecret is configured**: delegates to `stripe.webhooks.constructEvent()` for full HMAC-SHA256 verification. If verification fails, return **400**.
+   - **Non-production with no webhookSecret**: skips HMAC verification and parses the raw payload as JSON directly. Logs a warning. This enables local development with `stripe listen` without needing to synchronize signing secrets (see [Local Development](#local-development) below).
+3. If verification/parsing succeeds, delegate to `payments.service.webhook(app, event)` for processing.
+
+If a `webhookSecret` IS configured in a non-production environment, full HMAC verification is performed, allowing developers to opt in to the full verification flow when needed.
 
 ### Handled Events
 
@@ -174,3 +177,121 @@ Source files:
 - `repos/database/src/schemas/invoices.ts`
 - `repos/database/src/services/invoice.ts`
 - `repos/backend/src/endpoints/subscriptions/getInvoices.ts`
+
+---
+
+## Local Development
+
+### Overview
+
+Testing Stripe webhooks locally requires forwarding events from Stripe's servers to your local backend. The Stripe CLI's `stripe listen` command handles this, but it generates a new ephemeral webhook signing secret (`whsec_*`) on every restart. In non-production environments, the backend skips HMAC signature verification when no `webhookSecret` is configured, eliminating the need to update K8s secrets and restart pods after each `stripe listen` restart.
+
+### Prerequisites
+
+- [Stripe CLI](https://docs.stripe.com/stripe-cli) installed and authenticated (`stripe login`)
+- K8s services running (`tdsk dev start --clean`)
+- Payments K8s secret created with at least a Stripe API token:
+
+```bash
+tdsk kube secret payments --token <stripe_test_api_key> --type stripe --plans <plan_config>
+```
+
+The `--webhook` flag is optional in non-production environments. Without it, the backend skips signature verification automatically.
+
+### Forwarding Webhooks
+
+Use the `tdsk stripe forward` CLI command to start the Stripe event listener:
+
+```bash
+tdsk stripe forward
+```
+
+This runs `stripe listen` filtered to the five webhook event types the backend handles, forwarding them to `https://local.threadedstack.app/_/payments/webhooks`. The forwarding URL is derived from the `TDSK_HOST_DOMAIN` config value.
+
+Default events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.
+
+| Option | Description |
+|---|---|
+| `--url` | Override the webhook forwarding URL |
+| `--events` | Override the default event filter (comma-separated) |
+
+Aliases: `tdsk st fwd`, `tdsk st listen`, `tdsk stripe fwd`.
+
+### Triggering Test Events
+
+With `tdsk stripe forward` running in one terminal, trigger test events from another:
+
+```bash
+stripe trigger checkout.session.completed
+stripe trigger invoice.paid
+stripe trigger customer.subscription.updated
+stripe trigger customer.subscription.deleted
+stripe trigger invoice.payment_failed
+```
+
+The backend logs will show:
+- A warning: `[Stripe] Skipping webhook signature verification (no webhookSecret configured)`
+- The event being processed by the appropriate handler
+
+### How Skip-Verification Works
+
+The `StripeService.constructWebhookEvent()` method checks two conditions before deciding whether to verify signatures:
+
+1. **`webhookSecret` is falsy** (empty string or undefined). The `TDSK_PAY_WEBHOOK_SECRET` env var defaults to `''` in `backend.config.ts`, and the K8s secretKeyRef is marked `optional: true` in `devspace.yaml`.
+2. **`environment` is not `production`**. The environment value comes from `process.env.NODE_ENV`.
+
+If both conditions are met, the raw payload is parsed as JSON directly, bypassing HMAC verification. Otherwise, the standard `stripe.webhooks.constructEvent()` path is used.
+
+```
+stripe listen generates whsec_*
+        |
+        v
+Stripe CLI forwards event with stripe-signature header
+        |
+        v
+Backend receives POST /_/payments/webhooks
+        |
+        v
+stripe-signature header present? --NO--> 400
+        |
+       YES
+        |
+        v
+webhookSecret configured? --YES--> verify HMAC (standard Stripe flow)
+        |
+        NO
+        |
+        v
+environment === production? --YES--> verify HMAC (fail-closed)
+        |
+        NO
+        |
+        v
+Parse payload as JSON directly (skip verification)
+        |
+        v
+Dispatch to event handler
+```
+
+### Opting In to Full Verification
+
+If you want to test the full signature verification flow locally, include the `--webhook` flag when creating the payments secret:
+
+```bash
+tdsk kube secret payments \
+  --token <stripe_test_api_key> \
+  --type stripe \
+  --plans <plan_config> \
+  --webhook <whsec_from_stripe_listen>
+```
+
+With a `webhookSecret` configured, HMAC verification is active regardless of environment. You will need to update the K8s secret and restart the backend pod each time `stripe listen` restarts, since the CLI generates a new signing secret per session.
+
+### Production
+
+In production, `TDSK_PAY_WEBHOOK_SECRET` must be configured with the signing secret from the Stripe Dashboard (Developers > Webhooks > Signing secret). The skip-verification path is never used in production. If the secret is missing, `stripe.webhooks.constructEvent()` will throw, and the webhook returns 400.
+
+Source files:
+- `repos/backend/src/services/payments/strategies/stripe.ts` (constructWebhookEvent)
+- `repos/cli/src/tasks/stripe/forward.ts` (tdsk stripe forward)
+- `repos/cli/src/tasks/kube/secret/payments.ts` (payments secret creation)

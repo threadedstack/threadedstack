@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Generative UI system adds an async interpretation layer to the existing sandbox shell pipeline. It converts raw terminal output from AI tools (Claude Code, Codex, Gemini CLI, etc.) into interactive React component trees — without modifying how sandboxes run, without per-tool adapters, and without SDK dependencies.
+The Generative UI system adds an async interpretation layer to the existing sandbox shell pipeline. It converts raw terminal output from AI tools (Claude Code, Codex, Antigravity, OpenClaw, etc.) into interactive React component trees — without modifying how sandboxes run, without per-tool adapters, and without SDK dependencies.
 
 The system is **runtime-agnostic**: any tool that writes to stdout works. The AI interpreter handles the semantic understanding; the component registry handles the rendering; and the existing terminal parser + WebSocket infrastructure remains untouched.
 

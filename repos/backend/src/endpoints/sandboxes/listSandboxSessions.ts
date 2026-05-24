@@ -6,28 +6,23 @@ import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
-/**
- * GET /:orgId/sandboxes/:id/threads - List threads for a sandbox
- */
-export const listSandboxThreads: TEndpointConfig = {
-  path: `/:id/threads`,
+export const listSandboxSessions: TEndpointConfig = {
+  path: `/:id/history`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.thread)],
+  middleware: [authorize(EPermAction.read, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, id: sandboxId } = req.params
-    const userId = req.user?.id
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)
     if (!sandboxId) throw new Exception(400, `sandboxId parameter required`)
-    if (!userId) throw new Exception(401, `Authentication required`)
 
     const { limit, offset } = parsePagination(req)
 
-    const { data, error } = await db.services.thread.list({
+    const { data, error } = await db.services.sandboxSession.listBySandbox(sandboxId, {
       limit,
       offset,
-      where: { orgId, sandboxId, userId },
+      where: { orgId },
     })
 
     if (error)

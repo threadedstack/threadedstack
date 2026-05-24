@@ -86,12 +86,20 @@ describe(`resolveSkillFiles`, () => {
     expect(result!.mountPath).toBe(`${SandboxHomePath}/.opencode/prompts`)
   })
 
-  it(`geminiCli runtime uses flat layout`, () => {
+  it(`antigravity runtime uses flat layout`, () => {
     const links = [makeLink(`my-skill`, `Do X`)]
-    const result = resolveSkillFiles(`gemini-cli`, links, undefined)
+    const result = resolveSkillFiles(`antigravity`, links, undefined)
     expect(result).not.toBeNull()
     expect(result!.files[0].path).toBe(`my-skill.md`)
-    expect(result!.mountPath).toBe(`${SandboxHomePath}/.gemini/skills`)
+    expect(result!.mountPath).toBe(`${SandboxHomePath}/.gemini/antigravity-cli/skills`)
+  })
+
+  it(`openClaw runtime uses nested layout`, () => {
+    const links = [makeLink(`my-skill`, `Do X`)]
+    const result = resolveSkillFiles(`openclaw`, links, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.files[0].path).toBe(`my-skill/SKILL.md`)
+    expect(result!.mountPath).toBe(`${SandboxHomePath}/.openclaw/workspace/skills`)
   })
 
   it(`customSkillPath overrides runtime basePath`, () => {

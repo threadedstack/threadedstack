@@ -1,7 +1,7 @@
 import type { Response } from 'express'
 import type { User } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { TApp, TRequest, TEndpoint, TStripeConfig } from '@TBE/types'
+import type { TApp, TRequest, TEndpoint, TPayConfig } from '@TBE/types'
 
 import { subscriptions } from './subscriptions'
 import { config } from '@TBE/configs/backend.config'
@@ -59,7 +59,7 @@ describe('Subscription endpoints', () => {
       payments: new PaymentsService({
         ...config.payments,
         type: `console`,
-      } as TStripeConfig),
+      } as TPayConfig),
     },
   } as unknown as TApp
 

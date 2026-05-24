@@ -12,8 +12,10 @@ export const useCron = (props: TCronInput) => {
   const [interval, setInter] = useState<number>(1)
   const [time, setTime] = useState<string>(`00:00`)
   const [endDate, setEndDate] = useState<string>(``)
-  const [startDate, setStartDate] = useState<string>(``)
   const [days, setDays] = useState<string[]>([`Sat`])
+  const [cronText, setCronText] = useState<string>(``)
+  const [cronError, setCronError] = useState<string>(``)
+  const [startDate, setStartDate] = useState<string>(``)
   const [repeat, setRepeat] = useState<ERepeatType>(ERepeatType.weekly)
 
   useEffect(() => {
@@ -24,6 +26,8 @@ export const useCron = (props: TCronInput) => {
     setDays(parsed.days)
     setRepeat(parsed.repeat)
     setInter(parsed.interval)
+    setCronText(value)
+    setCronError(``)
   }, [value])
 
   const onChangeVal = useInline((evt: any, value: any, type: EChangeType) => {
@@ -42,17 +46,23 @@ export const useCron = (props: TCronInput) => {
       case EChangeType.time: {
         setTime(value)
         next = cronToString({ days, time: value, repeat, interval })
+        setCronText(next)
+        setCronError(``)
         break
       }
       case EChangeType.interval: {
         next = cronToString({ days, time, repeat, interval: value })
         setInter(value)
+        setCronText(next)
+        setCronError(``)
         break
       }
       case EChangeType.days: {
         if (value?.length) {
           next = cronToString({ days: value, time, repeat, interval })
           setDays(value)
+          setCronText(next)
+          setCronError(``)
         }
 
         break
@@ -60,6 +70,23 @@ export const useCron = (props: TCronInput) => {
       case EChangeType.repeat: {
         next = cronToString({ days, time, repeat: value, interval })
         setRepeat(value as ERepeatType)
+        setCronText(next)
+        setCronError(``)
+        break
+      }
+      case EChangeType.cron: {
+        const parsed = parseCron(value)
+        if (parsed) {
+          setTime(parsed.time)
+          setDays(parsed.days)
+          setRepeat(parsed.repeat)
+          setInter(parsed.interval)
+          setCronError(``)
+          next = value
+        } else {
+          setCronError(`Invalid cron expression`)
+          next = value
+        }
         break
       }
     }
@@ -72,6 +99,8 @@ export const useCron = (props: TCronInput) => {
       value: next,
       end: endDate,
       start: startDate,
+      error:
+        type === EChangeType.cron && !parseCron(value) ? `Invalid cron expression` : ``,
     })
   })
 
@@ -81,7 +110,10 @@ export const useCron = (props: TCronInput) => {
     repeat,
     endDate,
     interval,
+    cronText,
+    cronError,
     startDate,
+    setCronText,
     onChangeVal,
   }
 }

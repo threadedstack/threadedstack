@@ -79,18 +79,13 @@ export const ScheduleRuns = ({ orgId, scheduleId }: TScheduleRunsProps) => {
     {
       id: 'output',
       label: 'Output',
+      width: 120,
       render: (run) => (
         <Text
           variant='body2'
-          color='text.secondary'
-          sx={{
-            maxWidth: 200,
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-          }}
+          color={run.stdoutKey ? 'primary.main' : 'text.disabled'}
         >
-          {truncate(run.output, 50)}
+          {run.stdoutKey ? `Available` : `None`}
         </Text>
       ),
     },
@@ -133,10 +128,10 @@ export const ScheduleRuns = ({ orgId, scheduleId }: TScheduleRunsProps) => {
     <FormSection title='Run History'>
       <DataTable
         size='small'
-        columns={columns}
         data={runs}
-        getRowKey={(run) => run.id}
+        columns={columns}
         initialRowsPerPage={5}
+        getRowKey={(run) => run.id}
       />
     </FormSection>
   )

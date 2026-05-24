@@ -2,7 +2,7 @@
 
 ## Context
 
-We just completed a deep research + design session for the Generative UI system. This system adds an AI interpretation layer to the Threads Sandbox UI that converts raw terminal output from AI tools (Claude Code, Codex, Gemini CLI) into interactive React component trees.
+We just completed a deep research + design session for the Generative UI system. This system adds an AI interpretation layer to the Threads Sandbox UI that converts raw terminal output from AI tools (Claude Code, Codex, Antigravity, OpenClaw) into interactive React component trees.
 
 ## What Was Done This Session
 

@@ -6,7 +6,7 @@
 
 ## Overview
 
-The Threads app (`repos/threads`) provides a mobile-first web UI for non-developers to interact with AI tools (Claude Code, Codex, OpenCode, Gemini CLI) running in Threaded Stack sandboxes. It replaces the terminal-centric `tsa` CLI workflow with an intuitive chat interface, while retaining a terminal tab for power users.
+The Threads app (`repos/threads`) provides a mobile-first web UI for non-developers to interact with AI tools (Claude Code, Codex, OpenCode, Antigravity, OpenClaw) running in Threaded Stack sandboxes. It replaces the terminal-centric `tsa` CLI workflow with an intuitive chat interface, while retaining a terminal tab for power users.
 
 ### Problem
 
@@ -585,7 +585,7 @@ None expected. The proxy already forwards WebSocket upgrades for `/_/*` paths to
 |---|---|
 | File browser | New API to list/read pod filesystem |
 | Push notifications | Service worker + web push backend |
-| Pattern matchers for Codex/OpenCode/Gemini | Per-tool research needed |
+| Pattern matchers for Codex/OpenCode/Antigravity/OpenClaw | Per-tool research needed |
 | Voice input | Microphone → transcription |
 | Sandbox creation/configuration | Currently admin-only |
 | Chat export / sharing | Export thread as markdown/JSON |

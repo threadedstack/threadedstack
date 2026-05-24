@@ -343,7 +343,7 @@ For full cryptographic details on secret storage and decryption, see `docs/archi
 
 ## Sandbox Runtime System
 
-The runtime system determines which AI tool a sandbox launches. Each sandbox config has a `runtime` field (enum: `claude-code`, `codex`, `opencode`, `gemini-cli`, `custom`) that controls both the container start command and the runtime command executed by `tsa run`.
+The runtime system determines which AI tool a sandbox launches. Each sandbox config has a `runtime` field (enum: `claude-code`, `codex`, `opencode`, `antigravity`, `openclaw`, `custom`) that controls both the container start command and the runtime command executed by `tsa run`.
 
 ### Two-Command Model
 
@@ -433,7 +433,7 @@ TKubeSandboxConfig
   args?: string[]                        Container args
   command?: string[]                     Container command (default: [sleep, infinity])
   workdir?: string                       Working directory (default: /workspace)
-  runtime?: ESandboxRuntime              AI tool runtime (claude-code, codex, opencode, gemini-cli, custom)
+  runtime?: ESandboxRuntime              AI tool runtime (claude-code, codex, opencode, antigravity, openclaw, custom)
   runtimeCommand?: string                Shell command launched by tsa run
   initScript?: string                    Shell script run after container start for setup tasks
   envVars?: Record<string, string>       Environment variables

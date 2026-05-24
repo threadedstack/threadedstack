@@ -11,34 +11,35 @@ export const scheduleRuns = pgTable(
   {
     ...base,
     id: entityId(ScheduleRunIdPrefix),
+    error: text(`error`),
+    durationMs: integer(`duration_ms`),
+    stdoutKey: varchar(`stdout_key`, { length: 255 }),
+    stderrKey: varchar(`stderr_key`, { length: 255 }),
+    status: varchar(`status`, { length: 20 }).notNull(),
+    instanceId: varchar(`instance_id`, { length: 100 }),
+    completedAt: timestamp(`completed_at`, { withTimezone: true }),
+    startedAt: timestamp(`started_at`, { withTimezone: true }).notNull(),
     scheduleId: varchar(`schedule_id`, { length: 10 })
       .references(() => schedules.id, { onDelete: `cascade` })
       .notNull(),
     orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
-    status: varchar(`status`, { length: 20 }).notNull(),
-    startedAt: timestamp(`started_at`, { withTimezone: true }).notNull(),
-    completedAt: timestamp(`completed_at`, { withTimezone: true }),
-    durationMs: integer(`duration_ms`),
-    output: text(`output`),
-    error: text(`error`),
-    instanceId: varchar(`instance_id`, { length: 100 }),
   },
   (table) => [
-    index(`schedule_runs_schedule_id_idx`).on(table.scheduleId),
     index(`schedule_runs_org_id_idx`).on(table.orgId),
+    index(`schedule_runs_schedule_id_idx`).on(table.scheduleId),
     index(`schedule_runs_schedule_started_idx`).on(table.scheduleId, table.startedAt),
   ]
 )
 
 export const scheduleRunsRelations = relations(scheduleRuns, ({ one }) => ({
-  schedule: one(schedules, {
-    references: [schedules.id],
-    fields: [scheduleRuns.scheduleId],
-  }),
   org: one(orgs, {
     references: [orgs.id],
     fields: [scheduleRuns.orgId],
+  }),
+  schedule: one(schedules, {
+    references: [schedules.id],
+    fields: [scheduleRuns.scheduleId],
   }),
 }))

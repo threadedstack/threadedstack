@@ -30,7 +30,7 @@ tsa login tdsk_<api-key>
 tsa run --list
 ```
 
-This shows all sandbox configs in your organization with their name, runtime, and ID. Every new organization comes with four built-in presets: Claude Code, Codex, OpenCode, and Base.
+This shows all sandbox configs in your organization with their name, runtime, and ID. Every new organization comes with six built-in presets: Claude Code, Codex, OpenCode, Antigravity, OpenClaw, and Base.
 
 ### 3. Run a Sandbox
 

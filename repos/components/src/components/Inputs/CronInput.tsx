@@ -21,6 +21,7 @@ export type TCronChange = {
   end?: string
   start: string
   value: string
+  error?: string
   days: string[]
   interval: number
   repeat: ERepeatType
@@ -30,6 +31,7 @@ export type TCronInput = {
   value: string
   disabled?: boolean
   showCron?: boolean
+  hideDates?: boolean
   endProps?: Partial<TTextInput>
   timeProps?: Partial<TTextInput>
   startProps?: Partial<TTextInput>
@@ -44,6 +46,7 @@ export const CronInput = (props: TCronInput) => {
   const {
     disabled,
     showCron,
+    hideDates,
     endProps,
     dayProps,
     daysProps,
@@ -53,7 +56,18 @@ export const CronInput = (props: TCronInput) => {
     intervalProps,
   } = props
 
-  const { days, time, repeat, endDate, interval, startDate, onChangeVal } = useCron(props)
+  const {
+    days,
+    time,
+    repeat,
+    endDate,
+    interval,
+    cronText,
+    cronError,
+    startDate,
+    setCronText,
+    onChangeVal,
+  } = useCron(props)
 
   return (
     <CronContainer>
@@ -113,34 +127,43 @@ export const CronInput = (props: TCronInput) => {
           onChange={(e) => onChangeVal(e, e.target.value, EChangeType.time)}
         />
 
-        <TextInput
-          required
-          type='date'
-          id='start-date'
-          value={startDate}
-          label='Start Date'
-          disabled={disabled}
-          {...startProps}
-          onChange={(e) => onChangeVal(e, e.target.value, EChangeType.start)}
-        />
+        {!hideDates && (
+          <TextInput
+            required
+            type='date'
+            id='start-date'
+            value={startDate}
+            label='Start Date'
+            disabled={disabled}
+            {...startProps}
+            onChange={(e) => onChangeVal(e, e.target.value, EChangeType.start)}
+          />
+        )}
 
-        <TextInput
-          type='date'
-          id='end-date'
-          value={endDate}
-          label='End Date'
-          disabled={disabled}
-          {...endProps}
-          onChange={(e) => onChangeVal(e, e.target.value, EChangeType.end)}
-        />
+        {!hideDates && (
+          <TextInput
+            type='date'
+            id='end-date'
+            value={endDate}
+            label='End Date'
+            disabled={disabled}
+            {...endProps}
+            onChange={(e) => onChangeVal(e, e.target.value, EChangeType.end)}
+          />
+        )}
       </CronInputsRow>
 
       {showCron && (
         <TextInput
-          disabled
+          value={cronText}
+          disabled={disabled}
           id='cron-expression'
+          hasError={!!cronError}
+          helperText={cronError}
           label='Cron Expression'
-          value={cronToString({ days, time, repeat, interval })}
+          sx={{ '& input': { fontFamily: 'monospace' } }}
+          onChange={(e) => setCronText(e.target.value)}
+          onBlur={(e) => onChangeVal(e, cronText, EChangeType.cron)}
         />
       )}
     </CronContainer>

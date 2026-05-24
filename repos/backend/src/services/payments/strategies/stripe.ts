@@ -1,10 +1,11 @@
 import type {
   TApp,
   TPlanResp,
-  TStripeConfig,
+  TPayConfig,
   TPayCustomer,
   TPayPortalSession,
   TPayCheckoutSession,
+  TPaySubscriptionState,
 } from '@TBE/types'
 
 import Stripe from 'stripe'
@@ -20,7 +21,7 @@ import { Plan, PlanLimits, PlanPrices, ESubscriptionTier } from '@tdsk/domain'
 export class StripeService extends BaseService {
   #stripe: Stripe
 
-  constructor(config: TStripeConfig) {
+  constructor(config: TPayConfig) {
     super(config)
     this.#stripe = new Stripe(config.secretKey)
   }
@@ -121,6 +122,29 @@ export class StripeService extends BaseService {
   }
 
   /**
+   * Retrieve the current subscription state from Stripe for reconciliation
+   */
+  async retrieveSubscription(subscriptionId: string): Promise<TPaySubscriptionState> {
+    const sub = await this.#stripe.subscriptions.retrieve(subscriptionId)
+    const item = sub.items.data[0]
+    const priceId = item?.price?.id || ``
+    const tier = this.#tierFromPriceId(priceId)
+
+    return {
+      tier,
+      status: sub.status,
+      stripePriceId: priceId,
+      cancelAtPeriodEnd: sub.cancel_at_period_end || sub.cancel_at != null,
+      currentPeriodStart: item?.current_period_start
+        ? new Date(item.current_period_start * 1000).toISOString()
+        : undefined,
+      currentPeriodEnd: item?.current_period_end
+        ? new Date(item.current_period_end * 1000).toISOString()
+        : undefined,
+    }
+  }
+
+  /**
    * Cancel a subscription at the end of the current billing period
    */
   async cancelSubscription(subscriptionId: string): Promise<void> {
@@ -176,6 +200,14 @@ export class StripeService extends BaseService {
    * Construct and verify a Stripe webhook event
    */
   constructWebhookEvent(payload: Buffer, signature: string): Stripe.Event {
+    if (!this.config.webhookSecret && this.config.environment !== `production`) {
+      logger.warn(
+        `[Stripe] Skipping webhook signature verification (no webhookSecret configured)`
+      )
+      const raw = typeof payload === `string` ? payload : payload.toString()
+      return JSON.parse(raw) as Stripe.Event
+    }
+
     return this.#stripe.webhooks.constructEvent(
       payload,
       signature,
@@ -290,7 +322,7 @@ export class StripeService extends BaseService {
       currentPeriodEnd: item?.current_period_end
         ? new Date(item.current_period_end * 1000).toISOString()
         : undefined,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      cancelAtPeriodEnd: sub.cancel_at_period_end || sub.cancel_at != null,
     })
 
     if (error) {
@@ -320,10 +352,10 @@ export class StripeService extends BaseService {
     const tier = this.#tierFromPriceId(priceId)
 
     const { error } = await db.services.subscription.upsertByUser({
-      userId: existingSub.userId,
       tier,
       status: sub.status,
       stripePriceId: priceId,
+      userId: existingSub.userId,
       stripeSubscriptionId: sub.id,
       currentPeriodStart: item?.current_period_start
         ? new Date(item.current_period_start * 1000).toISOString()
@@ -331,7 +363,7 @@ export class StripeService extends BaseService {
       currentPeriodEnd: item?.current_period_end
         ? new Date(item.current_period_end * 1000).toISOString()
         : undefined,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      cancelAtPeriodEnd: sub.cancel_at_period_end || sub.cancel_at != null,
     })
 
     if (error) {
@@ -358,10 +390,10 @@ export class StripeService extends BaseService {
 
     const item = sub.items.data[0]
     const { error } = await db.services.subscription.upsertByUser({
-      userId: existingSub.userId,
-      tier: ESubscriptionTier.free,
       status: `canceled`,
       cancelAtPeriodEnd: false,
+      userId: existingSub.userId,
+      tier: ESubscriptionTier.free,
       stripeSubscriptionId: sub.id,
       currentPeriodEnd: item?.current_period_end
         ? new Date(item.current_period_end * 1000).toISOString()
@@ -455,34 +487,30 @@ export class StripeService extends BaseService {
     const customerId =
       typeof invoice.customer === `string` ? invoice.customer : invoice.customer?.id
 
-    if (!customerId) {
+    if (!customerId)
       throw new Error(
         `[StripeService] invoice.payment_failed missing customer ID for invoice ${invoice.id}`
       )
-    }
 
     const { data: existingSub } =
       await db.services.subscription.findByStripeCustomerId(customerId)
 
-    if (!existingSub) {
+    if (!existingSub)
       throw new Error(
         `[StripeService] No subscription found for customer ${customerId} during invoice.payment_failed`
       )
-    }
 
     const { error } = await db.services.subscription.upsertByUser({
       userId: existingSub.userId,
       status: `past_due`,
     })
 
-    if (error) {
+    if (error)
       throw new Error(
-        `[StripeService] Failed to mark subscription as past_due for customer ${customerId}: ${error.message}`
+        `[StripeService] Failed to mark past_due subscription for customer ${customerId}: ${error.message}`
       )
-    }
 
-    // Record the failed invoice
-    await db.services.invoice.upsertByStripeId(invoice.id, {
+    const { error: invoiceErr } = await db.services.invoice.upsertByStripeId(invoice.id, {
       userId: existingSub.userId,
       amount: invoice.amount_due || 0,
       currency: invoice.currency || `usd`,
@@ -490,6 +518,12 @@ export class StripeService extends BaseService {
       invoiceUrl: invoice.hosted_invoice_url || undefined,
       period: getBillingPeriod(),
     })
+
+    if (invoiceErr)
+      logger.error(
+        `[StripeService] Failed to record failed invoice ${invoice.id}:`,
+        invoiceErr
+      )
 
     logger.error(`[StripeService] Invoice ${invoice.id} payment failed`)
   }

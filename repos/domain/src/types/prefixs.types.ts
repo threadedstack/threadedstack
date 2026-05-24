@@ -25,6 +25,7 @@ import type {
   SandboxSkillIdPrefix,
   AgentProviderIdPrefix,
   SandboxProjectIdPrefix,
+  SandboxSessionIdPrefix,
   SandboxProviderIdPrefix,
   ProjectProviderIdPrefix,
   SandboxProjectProviderIdPrefix,
@@ -56,6 +57,7 @@ export type TEntityPrefix =
   | typeof SubscriptionIdPrefix
   | typeof AgentProjectIdPrefix
   | typeof AgentProviderIdPrefix
+  | typeof SandboxSessionIdPrefix
   | typeof SandboxProjectIdPrefix
   | typeof SandboxProviderIdPrefix
   | typeof ProjectProviderIdPrefix

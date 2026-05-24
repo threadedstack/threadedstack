@@ -44,6 +44,7 @@ tdsk kube secret database --env prod     # Neon DB credentials
 tdsk kube secret docker --env prod       # ghcr.io image pull credentials (creates both generic + docker-registry secrets)
 tdsk kube secret payments --env prod     # Stripe configuration
 tdsk kube secret email --env prod        # Email provider configuration
+tdsk kube secret s3 --env prod           # S3 object store configuration
 tdsk kube secret egress --env prod       # Egress proxy CA certificate
 ```
 
@@ -302,7 +303,7 @@ tdsk deploy status --env production            # Pod and service status
 tdsk doc build -c <context> --push            # Build + push (caddy|proxy|backend|sandbox)
 
 # Secrets
-tdsk kube secret <preset> --env prod          # Create secret (tdsk|database|docker|payments|email|egress)
+tdsk kube secret <preset> --env prod          # Create secret (tdsk|database|docker|payments|email|s3|egress)
 tdsk kube secret list --env production        # List secrets in namespace
 
 # Pod management
@@ -344,6 +345,13 @@ Add these secrets to the repository settings (Settings → Secrets and variables
 
 **Email:**
 - `TDSK_EMAIL_API_KEY` — Email provider API key
+
+**S3 Object Store:**
+- `TDSK_S3_BUCKET` — S3 bucket name
+- `TDSK_S3_ENDPOINT` — S3 endpoint URL
+- `TDSK_S3_ACCESS_KEY_ID` — S3 access key ID
+- `TDSK_S3_SECRET_ACCESS_KEY` — S3 secret access key
+- `TDSK_S3_REGION` — S3 region (optional, defaults to "auto")
 
 **Egress Proxy:**
 - `TDSK_EGRESS_CA_CERT` — CA certificate (base64-encode the file content: `base64 < ~/.config/tdsk/domain/egress.cert`)

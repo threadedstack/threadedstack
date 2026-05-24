@@ -40,7 +40,8 @@ export type TScheduleRun = {
   id: string
   orgId: string
   error?: string
-  output?: string
+  stdoutKey?: string
+  stderrKey?: string
   scheduleId: string
   durationMs?: number
   instanceId?: string
