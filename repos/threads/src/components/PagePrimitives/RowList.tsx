@@ -1,37 +1,41 @@
 import type { ReactNode } from 'react'
 
 import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
 import { cmx } from '@TSC/theme/helpers'
+import { cls } from '@keg-hub/jsutils/cls'
+import Typography from '@mui/material/Typography'
 
 export type TRowListColumn = {
   label: string
   width: string
+  className?: string
 }
 
 export type TRowList = {
-  columns: TRowListColumn[]
   children: ReactNode
+  className?: string
+  columns: TRowListColumn[]
 }
 
 export type TRowListRow = {
-  onClick?: () => void
-  children: ReactNode
   isLast?: boolean
+  className?: string
+  children: ReactNode
+  onClick?: () => void
 }
 
 const gridTemplate = (columns: TRowListColumn[]) =>
   columns.map((col) => col.width).join(` `)
 
 const Row = (props: TRowListRow) => {
-  const { onClick, children, isLast } = props
+  const { className, onClick, children, isLast } = props
 
   return (
     <Box
+      className={cls(className, `tdsk-row-list-row`)}
       onClick={onClick}
       sx={(theme) => ({
         display: `grid`,
-        gridTemplateColumns: `inherit`,
         padding: `14px 18px`,
         ...(!isLast && {
           borderBottom: `1px solid`,
@@ -43,8 +47,8 @@ const Row = (props: TRowListRow) => {
         },
         '& > *': {
           overflow: `hidden`,
-          textOverflow: `ellipsis`,
           whiteSpace: `nowrap`,
+          textOverflow: `ellipsis`,
         },
       })}
     >
@@ -54,32 +58,35 @@ const Row = (props: TRowListRow) => {
 }
 
 const RowListRoot = (props: TRowList) => {
-  const { columns, children } = props
+  const { className, columns, children } = props
 
   const template = gridTemplate(columns)
 
   return (
     <Box
+      className={cls(className, `tdsk-row-list-root`)}
       sx={{
-        bgcolor: `background.paper`,
         border: 1,
-        borderColor: `divider`,
         borderRadius: `8px`,
         overflow: `hidden`,
+        borderColor: `divider`,
+        bgcolor: `background.paper`,
       }}
     >
       <Box
+        className='tdsk-row-list-grid-labels'
         sx={{
           display: `grid`,
-          gridTemplateColumns: template,
           padding: `10px 18px`,
-          bgcolor: `background.header`,
-          borderBottom: `1px solid`,
           borderColor: `divider`,
+          borderBottom: `1px solid`,
+          bgcolor: `background.header`,
+          gridTemplateColumns: template,
         }}
       >
         {columns.map((col) => (
           <Typography
+            className='tdsk-row-list-column-label'
             key={col.label}
             sx={{
               fontSize: `10.5px`,
@@ -94,9 +101,8 @@ const RowListRoot = (props: TRowList) => {
         ))}
       </Box>
       <Box
+        className='tdsk-row-list-grid-container'
         sx={{
-          display: `grid`,
-          gridTemplateColumns: template,
           '& > *': {
             display: `grid`,
             gridTemplateColumns: template,

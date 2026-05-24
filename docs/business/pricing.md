@@ -22,7 +22,7 @@ Threaded Stack offers four subscription tiers. All limits below are sourced dire
 
 | | **Free** | **Solo** | **Pro** | **Team** |
 |---|---|---|---|---|
-| **Price** | $0/mo | $15/mo | $39/mo | $99/mo |
+| **Price** | $0/mo | $20/mo | $50/mo | $150/mo |
 | **Target User** | Experimenting and learning | Solo devs shipping real projects | Small teams building together | Organizations at scale |
 | **Organizations** | 1 | 2 | 5 | Unlimited |
 | **Projects** | 2 | 10 | 50 | Unlimited |

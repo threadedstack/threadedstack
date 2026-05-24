@@ -83,6 +83,14 @@ export enum ESandboxRuntime {
   claudeCode = `claude-code`,
 }
 
+export type TSBRuntimeConfig = {
+  args?: string[]
+  command?: string[]
+  initScript?: string
+  promptCommand?: string
+  runtimeCommand?: string
+}
+
 export type TSandboxRuntimeId = `${ESandboxRuntime}`
 
 export enum EProto {
@@ -100,6 +108,11 @@ export type TSandboxResult = {
   error?: string
   success: boolean
   exitCode?: number
+}
+
+export type TExecStreamOpts = {
+  onStdout?: (chunk: Buffer) => void
+  onStderr?: (chunk: Buffer) => void
 }
 
 /**
@@ -163,6 +176,12 @@ export interface ISandbox {
   writeFile(path: string, content: string): Promise<void>
   /** Execute a shell command */
   exec(command: string, args?: string[]): Promise<TSandboxResult>
+  /** Execute a shell command with streaming stdout/stderr callbacks */
+  execStreaming?(
+    command: string,
+    args?: string[],
+    opts?: TExecStreamOpts
+  ): Promise<TSandboxResult>
   /** Execute code using the sandbox's configured runtime */
   evaluate(code: string, opts?: TSandboxEvalOpts): Promise<TSandboxEvalResult>
 }
@@ -208,6 +227,8 @@ export type TKubeSandboxConfig = {
   maxInstances?: number
   /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */
   runtimeCommand?: string
+  /** Shell command template for running a prompt (use {prompt} placeholder) */
+  promptCommand?: string
   defaultRuntime?: string
   idleTimeoutMinutes?: number
   /** Which AI tool runtime to activate (claude-code, codex, opencode, or custom) */

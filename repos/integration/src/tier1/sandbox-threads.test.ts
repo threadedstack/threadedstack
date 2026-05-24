@@ -8,9 +8,8 @@ import { uniqueName } from '../utils/unique-name'
  * Tests for GET /orgs/:orgId/projects/:projectId/sandboxes/:id/threads
  * Lists threads associated with a specific sandbox, with pagination.
  *
- * Note: listSandboxThreads is only registered on the project-scoped sandbox
- * route (orgProjects), NOT on the orgSandboxes route. So tests must use
- * the full project-scoped path.
+ * listSandboxThreads is registered on both the project-scoped sandbox
+ * route (orgProjects) and the org-scoped sandbox route (orgSandboxes).
  */
 describe('Tier 1: Sandbox Threads', () => {
   const ctx = readContext()
@@ -95,16 +94,17 @@ describe('Tier 1: Sandbox Threads', () => {
     expect([400, 403, 404]).toContain(res.status)
   })
 
-  // --- Org-scoped route returns 404 (threads is project-scoped only) ---
+  // --- Org-scoped route also works (threads registered on both routers) ---
 
-  test('GET threads via org-scoped route returns 404', async () => {
+  test('GET threads via org-scoped route returns 200', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/threads`
     )
 
-    expect(res.status).toBe(404)
-    expect(res.ok).toBe(false)
+    expect(res.status).toBe(200)
+    expect(res.ok).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
   })
 })

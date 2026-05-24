@@ -9,3 +9,8 @@ export type TSandboxDrawer = {
   sandbox?: Sandbox | null
   onRemove?: (sandbox: Sandbox) => void
 }
+
+export type TRunStatusCfg = {
+  label: string
+  color: `success` | `error` | `info` | `warning`
+}

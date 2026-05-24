@@ -1,5 +1,10 @@
 import type { Readable } from 'stream'
-import type { TKubeClientConfig, TKubeEventHandlers, TExecStream } from '@TSB/types'
+import type {
+  TExecStream,
+  TRunInPodOpts,
+  TKubeClientConfig,
+  TKubeEventHandlers,
+} from '@TSB/types'
 import type {
   TRouteMap,
   TRouteEntry,
@@ -209,7 +214,8 @@ export class KubeClient {
   async runInPod(
     podName: string,
     command: string[],
-    stdin?: Readable
+    stdin?: Readable,
+    opts?: TRunInPodOpts
   ): Promise<TSandboxResult> {
     return new Promise((resolve, reject) => {
       const stdoutChunks: Buffer[] = []
@@ -217,8 +223,14 @@ export class KubeClient {
       const stdoutStream = new PassThrough()
       const stderrStream = new PassThrough()
 
-      stdoutStream.on(`data`, (chunk: Buffer) => stdoutChunks.push(chunk))
-      stderrStream.on(`data`, (chunk: Buffer) => stderrChunks.push(chunk))
+      stdoutStream.on(`data`, (chunk: Buffer) => {
+        opts?.onStdout?.(chunk)
+        stdoutChunks.push(chunk)
+      })
+      stderrStream.on(`data`, (chunk: Buffer) => {
+        opts?.onStderr?.(chunk)
+        stderrChunks.push(chunk)
+      })
 
       this.kubeExec
         .exec(

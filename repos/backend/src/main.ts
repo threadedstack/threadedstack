@@ -11,6 +11,7 @@ import { setupLogger } from '@TBE/middleware/setupLogger'
 import { setupSandbox } from '@TBE/middleware/setupSandbox'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
+import { setupScheduler } from '@TBE/middleware/setupScheduler'
 import { setupSandboxProxy } from '@TBE/middleware/sandboxProxy'
 import { PaymentsService } from '@TBE/services/payments/payments'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
@@ -31,8 +32,9 @@ export const main = async (config: TBEConfig) => {
   setupEndpoints(app, router)
   setupErrorHandler(app)
 
+  const scheduler = setupScheduler(app)
   const { server, wss } = initServer()
-  signals(server, { wss })
+  signals(server, { wss, scheduler })
 
   return {
     app,

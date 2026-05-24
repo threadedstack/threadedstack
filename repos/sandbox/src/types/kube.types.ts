@@ -23,3 +23,8 @@ export type TKubeClientConfig = {
   namespace?: string
   inCluster?: boolean
 }
+
+export type TRunInPodOpts = {
+  onStdout?: (chunk: Buffer) => void
+  onStderr?: (chunk: Buffer) => void
+}

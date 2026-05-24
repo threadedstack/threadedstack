@@ -5,7 +5,7 @@ import { isFeatureEnabled } from '@tdsk/domain'
  * Org Schedules page integration tests.
  *
  * Validates the new Schedules page renders correctly, ScheduleDrawer
- * form has all expected fields with correct defaults, the agent select
+ * form has all expected fields with correct defaults, the sandbox select
  * populates, and the table renders correct columns when data exists.
  */
 
@@ -83,7 +83,7 @@ test.describe('Org Schedules Page', () => {
     await page.waitForTimeout(1000)
 
     await expect(page.getByText('Create New Schedule')).toBeVisible()
-    await expect(page.locator('#agent-id')).toBeVisible()
+    await expect(page.locator('#sandbox-id')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-cron-input')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-prompt-input')).toBeVisible()
     const form = page.locator('#schedule-form')
@@ -112,7 +112,7 @@ test.describe('Org Schedules Page', () => {
     await page.keyboard.press('Escape')
   })
 
-  test('ScheduleDrawer agent select populates with agents', async ({
+  test('ScheduleDrawer sandbox select populates with sandboxes', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -121,13 +121,13 @@ test.describe('Org Schedules Page', () => {
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
 
-    // Open the MUI Select dropdown
-    await page.locator('#agent-id').click()
+    // Open the MUI Autocomplete dropdown
+    await page.locator('#sandbox-id').click()
     await page.waitForTimeout(500)
 
-    // At least one agent should be in the dropdown
-    const menuItems = page.locator('.MuiMenuItem-root')
-    expect(await menuItems.count()).toBeGreaterThan(0)
+    // At least one sandbox should be in the dropdown
+    const options = page.locator('.MuiAutocomplete-option')
+    expect(await options.count()).toBeGreaterThan(0)
 
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
@@ -161,9 +161,12 @@ test.describe('Org Schedules Page', () => {
     test.skip(rowCount === 0, 'No schedules data — cannot test table columns')
 
     // Column headers
-    await expect(page.locator('thead').getByText('Prompt')).toBeVisible()
+    await expect(page.locator('thead').getByText('Type')).toBeVisible()
+    await expect(page.locator('thead').getByText('Content')).toBeVisible()
     await expect(page.locator('thead').getByText('Cron')).toBeVisible()
     await expect(page.locator('thead').getByText('Status')).toBeVisible()
+    await expect(page.locator('thead').getByText('Last Run')).toBeVisible()
+    await expect(page.locator('thead').getByText('Errors')).toBeVisible()
     await expect(page.locator('thead').getByText('Next Run')).toBeVisible()
     await expect(page.locator('thead').getByText('Actions')).toBeVisible()
 
@@ -175,7 +178,7 @@ test.describe('Org Schedules Page', () => {
     // Status chip
     const chip = page
       .locator('.MuiChip-root')
-      .filter({ hasText: /^(Enabled|Disabled)$/ })
+      .filter({ hasText: /^(Enabled|Disabled|Auto-disabled)$/ })
       .first()
     await expect(chip).toBeVisible()
   })

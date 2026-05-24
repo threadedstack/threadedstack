@@ -79,6 +79,51 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
   }
 
   /**
+   * Atomically increment a counter only if the result stays at or below the limit.
+   * Returns { quotaExceeded: true } when the counter would exceed the limit.
+   */
+  async incrementIfUnderLimit(
+    orgId: string,
+    period: string,
+    key: TIncrementKey,
+    limit: number,
+    amount = 1
+  ) {
+    try {
+      if (amount <= 0) throw new DBError(`Quota increment amount must be positive`)
+
+      const column = this.table[key]
+      if (!column) throw new DBError(`Invalid quota key: ${key}`)
+
+      await this.db
+        .insert(this.table)
+        .values({ orgId, period, [key]: 0 })
+        .onConflictDoNothing()
+
+      const [row] = await this.db
+        .update(this.table)
+        .set({
+          updatedAt: new Date(),
+          [key]: sql`${column} + ${amount}`,
+        })
+        .where(
+          and(
+            eq(this.table.orgId, orgId),
+            eq(this.table.period, period),
+            sql`${column} + ${amount} <= ${limit}`
+          )
+        )
+        .returning()
+
+      if (!row) return { data: null, quotaExceeded: true as const }
+
+      return { data: this.model(row as TDBQuotaSelect) }
+    } catch (err: unknown) {
+      return { data: null, error: err as Error }
+    }
+  }
+
+  /**
    * Decrement a usage counter safely using SQL atomic update
    * Uses GREATEST to ensure the value never goes below 0
    */

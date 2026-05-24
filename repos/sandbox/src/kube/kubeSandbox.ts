@@ -17,6 +17,7 @@ import type {
   ISandbox,
   TSandboxResult,
   TSandboxRuntime,
+  TExecStreamOpts,
   TSandboxEvalOpts,
   TSandboxEvalResult,
 } from '@tdsk/domain'
@@ -52,6 +53,15 @@ export class KubeSandbox implements ISandbox {
   exec = async (command: string, args: string[] = []): Promise<TSandboxResult> => {
     const cmd = args.length ? `${command} ${args.join(` `)}` : command
     return await this.client.runInPod(this.podName, [`sh`, `-c`, cmd])
+  }
+
+  execStreaming = async (
+    command: string,
+    args: string[] = [],
+    opts?: TExecStreamOpts
+  ): Promise<TSandboxResult> => {
+    const cmd = args.length ? `${command} ${args.join(` `)}` : command
+    return await this.client.runInPod(this.podName, [`sh`, `-c`, cmd], undefined, opts)
   }
 
   async readFile(path: string): Promise<string> {

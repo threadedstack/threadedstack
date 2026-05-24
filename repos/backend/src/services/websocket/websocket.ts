@@ -27,6 +27,7 @@ type TWebsocketOpts = {
 export class Websocket {
   #closed = false
   #ws: WS | undefined
+  #pongReceived = true
   #app: TApp | undefined
   #runner: AgentRunner | null = null
   #agentHandle: TAgentHandle | null = null
@@ -559,15 +560,35 @@ export class Websocket {
     }
   }
 
-  /** Send periodic heartbeat messages
-   * So proxy/LB layers don't Kill idle connections during long LLM processing. Uses application-level
-   * JSON messages instead of protocol-level pings because Caddy's reverse
-   * proxy corrupts WebSocket control frames (RSV1 bit) in multi-hop chains.
+  /**
+   * Send periodic heartbeats and detect dead connections.
+   * Protocol-level ping/pong detects unresponsive clients (network failure, mobile sleep).
+   * Application-level JSON ping keeps proxy/LB layers from killing idle connections during LLM processing.
    */
   keepalive = () => {
+    this.#pongReceived = true
+    this.#ws?.on(`pong`, () => {
+      this.#pongReceived = true
+    })
+
     this.pingInterval = setInterval(() => {
-      this.#ws.readyState === this.#ws.OPEN &&
-        this.#ws.send(JSON.stringify({ type: EWSEventType.Ping }))
+      if (!this.#ws || this.#ws.readyState !== WS.OPEN) {
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval)
+          this.pingInterval = null
+        }
+        return
+      }
+
+      if (!this.#pongReceived) {
+        logger.warn(`[WS] Pong timeout — closing dead connection`)
+        this.close()
+        return
+      }
+
+      this.#pongReceived = false
+      this.#ws.ping()
+      this.#ws.send(JSON.stringify({ type: EWSEventType.Ping }))
     }, WsPingIntervalMS)
 
     return this.pingInterval

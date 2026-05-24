@@ -1,5 +1,10 @@
 export type TPayPlans = Record<string, string>
 
+export type TParsedPayPlans = {
+  priceIds: TPayPlans
+  seatPriceIds: TPayPlans
+}
+
 export enum ESubscriptionTier {
   free = `free`,
   solo = `solo`,

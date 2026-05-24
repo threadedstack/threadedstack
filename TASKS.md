@@ -3,18 +3,353 @@
 Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new features, P4 = major refactor
 
 
+## Cross-Repo
+
+### [P1] Divergent ApiService implementations (admin vs threads)
+
+* **Repos**: threads, admin, domain
+* **Key files**: `repos/threads/src/services/api.ts` (line 28), `repos/admin/src/services/api.ts` (line 14), `repos/domain/src/services/api/apiService.ts`
+* Admin extends `@tdsk/domain` ApiService with proper response envelope unwrapping. Threads has a completely independent standalone implementation that does NOT extend the domain class. Error handling, metadata extraction, and edge cases diverge. Bug fixes in one don't propagate
+* **Fix**:
+  1. Have threads `ApiService` extend domain `ApiService` like admin does
+  2. Remove duplicated fetch/retry/bearer logic from threads
+* **Files**:
+  * `repos/threads/src/services/api.ts` — extend domain ApiService
+  * `repos/domain/src/services/api/apiService.ts` — may need minor adjustments for threads use case
+
+### [P1] Inconsistent 409 error response format (stopSandbox)
+
+* **Repos**: backend, threads
+* **Key files**: `repos/backend/src/endpoints/sandboxes/stopSandbox.ts` (lines 35-41), `repos/threads/src/services/api.ts` (line 62)
+* `stopSandbox` returns `{ error: { message, code }, data: { activeSessions } }` — error is an object. The standard error handler returns `{ error: "string" }`. The threads `ApiError` constructor handles this accidentally via `msg.message` but would break as `[object Object]` if either side is refactored
+* **Fix**:
+  1. Use `throw new Exception(409, ...)` pattern in stopSandbox, OR
+  2. Standardize the error shape to match the global error handler format
+* **Files**:
+  * `repos/backend/src/endpoints/sandboxes/stopSandbox.ts` — use Exception pattern
+  * `repos/threads/src/services/api.ts` — harden error parsing if keeping non-standard format
+
+### [P2] Duplicated types and utilities between admin and threads
+
+* **Repos**: threads, admin, domain
+* **Key files**: `repos/threads/src/types/api.types.ts`, `repos/admin/src/types/api.types.ts`, `repos/threads/src/utils/api/objToQuery.tsx`
+* Both define own `TApiRes`, `TApiReq`, `EApiMethod`/`EAPIMethod` types with subtly different shapes. Threads has a local copy of `objToQuery` (`.tsx` extension, no JSX) instead of importing from `@tdsk/domain`
+* **Fix**:
+  1. Remove duplicate types from both SPAs, import shared types from `@tdsk/domain`
+  2. Delete threads `objToQuery.tsx`, import from `@tdsk/domain` instead
+  3. Standardize enum naming (`EApiMethod` everywhere)
+* **Files**:
+  * `repos/threads/src/types/api.types.ts` — remove duplicates
+  * `repos/admin/src/types/api.types.ts` — remove duplicates
+  * `repos/threads/src/utils/api/objToQuery.tsx` — delete, update imports
+  * `repos/domain/src/types/` — ensure shared types cover both SPAs
+
+### [P2] @keg-hub/parse-config version split (2.1.0 vs 2.2.0)
+
+* **Repos**: all
+* Domain/database/proxy use 2.2.0; backend/admin/threads use 2.1.0. Config loading behavior could diverge at the domain-backend boundary
+* **Fix**:
+  1. Sync all repos to 2.2.0 via `pnpm sync` or manual package.json updates
+* **Files**:
+  * Multiple `repos/*/package.json` files
+
+### [P2] TSBConnectResp type missing backend fields
+
+* **Repos**: domain, backend, threads
+* **Key files**: `repos/domain/src/types/sandbox.types.ts` (lines 311-320), `repos/backend/src/endpoints/sandboxes/connectSandbox.ts` (lines 179-192)
+* The domain type `TSBConnectResp` is missing `port: number` and `initError?: string` fields that the backend actually returns. TypeScript won't catch usages, and `initError` from failed init scripts is silently dropped by the threads frontend
+* **Fix**:
+  1. Add `port: number` and `initError?: string` to `TSBConnectResp` in domain types
+  2. Update threads session service to surface `initError` to users
+* **Files**:
+  * `repos/domain/src/types/sandbox.types.ts` — add missing fields
+  * `repos/threads/src/services/sessionService.ts` — handle initError
+
+---
+
 ## Threads
 
-_(All threads tasks completed — see audit at `.claude/plans/there-are-a-number-flickering-giraffe.md`)_
+### [P2] GUI state Maps cloned at frame rate during streaming
+
+* **Repos**: threads
+* **Key files**: `repos/threads/src/actions/gui/setEngineAst.ts` (lines 6-19), `repos/threads/src/actions/gui/appendFeedEvents.ts` (lines 6-18)
+* These actions are called at `requestAnimationFrame` frequency during terminal streaming. Each call clones the entire Map (`new Map(asts)`) to update one entry. With multiple sessions open, every frame copies all session data. Creates GC pressure and frame drops on lower-powered devices
+* **Fix**:
+  1. Use per-session atoms (a Map of atoms rather than an atom of Maps) so updating one session doesn't clone the entire Map
+  2. Alternatively, use `immer` patches or atom families
+* **Files**:
+  * `repos/threads/src/actions/gui/setEngineAst.ts` — refactor to per-session atoms
+  * `repos/threads/src/actions/gui/appendFeedEvents.ts` — same refactor
+
+### [P2] Editor atom defaults vs atomWithReset initial values differ
+
+* **Repos**: threads
+* **Key files**: `repos/threads/src/state/editor.ts` (lines 16-37)
+* Each atom is initialized with `new Map()`/`new Set()`, while the named defaults (`defFileTreeData`, `defExpandedFolders`) are separate instances. `useResetAtom` and manual accessor resets produce different object identities, causing unnecessary re-renders
+* **Fix**:
+  1. Share the same instance: `atomWithReset(defFileTreeData)` instead of `atomWithReset(new Map())`
+* **Files**:
+  * `repos/threads/src/state/editor.ts` — use def* instances as atomWithReset initial values
+
+### [P2] OrgSelector/ProjectSelector items not memoized
+
+* **Repos**: threads
+* **Key files**: `repos/threads/src/components/Breadcrumbs/OrgSelector.tsx` (lines 33-37), `repos/threads/src/components/Breadcrumbs/ProjectSelector.tsx` (lines 42-46)
+* The `items` array is recreated via `.map()` on every render, producing a new reference each time. `SelectorMenu` re-renders unnecessarily on every parent render
+* **Fix**:
+  1. Wrap in `useMemo(() => orgs.map(...), [orgs])` and `useMemo(() => projects.map(...), [projects])`
+* **Files**:
+  * `repos/threads/src/components/Breadcrumbs/OrgSelector.tsx` — add useMemo
+  * `repos/threads/src/components/Breadcrumbs/ProjectSelector.tsx` — add useMemo
 
 ---
 
 ## Admin
 
+### [P1] useEndpointForm uses mutable ref in useEffect deps
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/hooks/endpoints/useEndpointForm.ts` (lines 25-38)
+* `validateTriggerRef.current` is used as a `useEffect` dependency. React does not track ref mutations — the effect will not fire when the ref changes. Validation may never fire or fires unpredictably when other deps happen to change
+* **Fix**:
+  1. Replace the ref-based trigger with a state counter: `const [validateTrigger, setValidateTrigger] = useState(0)`
+  2. Use `setValidateTrigger(c => c + 1)` to trigger and include `validateTrigger` in deps
+* **Files**:
+  * `repos/admin/src/hooks/endpoints/useEndpointForm.ts` — replace ref with state
+
+### [P1] sendMessage silently drops failed file uploads
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/hooks/chat/useAgentChat.ts` (lines 225-239)
+* When a file upload fails (`resp.data` is falsy), the failure is silently ignored. The message sends with only successfully uploaded files. Users get no indication which files were or weren't attached
+* **Fix**:
+  1. Check `resp.error` after each upload
+  2. Surface failure via toast notification with the failed file name
+  3. Either abort the entire send or inform the user which files weren't attached
+* **Files**:
+  * `repos/admin/src/hooks/chat/useAgentChat.ts` — add error check and toast
+
+### [P2] useLocalSearch stale closure in onSearch
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/hooks/components/useLocalSearch.ts` (lines 15-33)
+* `onSearch` is not memoized and recreated every render. The `useEffect` only depends on `[props.items]`, missing `onSearch` and `onQuery`. When `props.items` changes, `onSearch` captures stale `items` state and `query` value
+* **Fix**:
+  1. Memoize `onSearch` with `useCallback`
+  2. Add `onSearch` to the effect dependency array, or call `onQuery` directly inside the effect with `props.items`
+* **Files**:
+  * `repos/admin/src/hooks/components/useLocalSearch.ts` — memoize and fix deps
+
+### [P2] useSandboxForm useEffect missing dependencies
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/hooks/sandboxes/useSandboxForm.ts` (lines 424-431)
+* `populateFromSandbox` is a local function (not memoized) calling 20+ state setters, omitted from the effect dependency array. If the `sandbox` object identity changes each render, the effect fires every time causing a cascade of re-renders
+* **Fix**:
+  1. Memoize `populateFromSandbox` with `useCallback` and include in deps
+  2. Compare `sandbox.id` rather than the full object reference to prevent unnecessary re-runs
+* **Files**:
+  * `repos/admin/src/hooks/sandboxes/useSandboxForm.ts` — memoize and fix dep comparison
+
+### [P2] await safeFetch() misleading pattern in loaders
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/routes/loaders.ts` (lines 62-69, 93, 113-114)
+* `safeFetch` returns void (undefined). Some callers `await` it (e.g., line 93), giving the false impression the loader waits for data. Others correctly fire-and-forget (e.g., lines 123-124). The inconsistency creates confusion and risk of breakage if `safeFetch` is later changed to return a promise
+* **Fix**:
+  1. Remove all `await` keywords before `safeFetch()` calls to make fire-and-forget intent unambiguous
+* **Files**:
+  * `repos/admin/src/routes/loaders.ts` — remove await from safeFetch calls
+
+### [P3] useAsyncAction never sets error state
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/hooks/components/useAsyncAction.ts` (lines 9-17)
+* The hook exposes `error` state and `setError`, but `run()` never catches errors or calls `setError`. Callers relying on `useAsyncAction().error` will always see `null`
+* **Fix**:
+  1. Add a `catch` block in `run()` that calls `setError(err.message)` and either re-throws or returns undefined
+* **Files**:
+  * `repos/admin/src/hooks/components/useAsyncAction.ts` — add catch block
 
 ---
 
 ## Backend
+
+---
+
+## Proxy
+
+### [P1] Echo endpoint leaks all headers with no production guard
+
+* **Repos**: proxy
+* **Key files**: `repos/proxy/src/endpoints/echo.ts` (lines 11-19), `repos/proxy/src/constants/values.ts` (line 7)
+* The `/echo` endpoint echoes all request headers including `Authorization` and cookies. It is registered as a `PublicRoute` (no auth required). The code comment warns "Do not enable in production" but there is no runtime guard — it is always registered regardless of environment
+* **Fix**:
+  1. Add a guard: only register the route when `NODE_ENV !== 'production'` or behind a dedicated feature flag
+  2. Alternatively, strip sensitive headers (`authorization`, `cookie`) before echoing
+* **Files**:
+  * `repos/proxy/src/endpoints/echo.ts` — add environment guard
+  * `repos/proxy/src/constants/values.ts` — conditionally include in PublicRoutes
+
+### [P2] CORS configuration allows wildcard origin
+
+* **Repos**: proxy, backend
+* **Key files**: `repos/proxy/src/middleware/setupServer.ts` (lines 19-26), `repos/backend/src/middleware/setupServer.ts` (lines 18-24)
+* If the `origins` config includes `*` and the service is not behind the LB proxy (`behindLBProxy()` returns false), CORS allows any origin. No explicit `credentials: false` is set
+* **Fix**:
+  1. Avoid configuring `origins: ["*"]` in any environment
+  2. Add `credentials: false` explicitly to the CORS config
+* **Files**:
+  * `repos/proxy/src/middleware/setupServer.ts` — add credentials: false
+  * `repos/backend/src/middleware/setupServer.ts` — same fix
+
+### [P2] Proxy-to-backend header validation silently skips if unconfigured
+
+* **Repos**: backend
+* **Key files**: `repos/backend/src/utils/auth/pxToBeHeader.ts` (lines 6-19)
+* If `config.proxy.headerValue` is not configured, the validation returns silently — no error. This means if the shared secret is misconfigured or missing, the backend accepts requests from any source. An attacker reaching the backend directly could forge user identity headers
+* **Fix**:
+  1. Make the shared secret mandatory — throw an error at startup if `config.proxy.headerValue` is not set
+* **Files**:
+  * `repos/backend/src/utils/auth/pxToBeHeader.ts` — throw on missing config
+
+---
+
+## Sandbox
+
+### [P1] Shell injection via KubeSandbox exec argument concatenation
+
+* **Repos**: sandbox, backend
+* **Key files**: `repos/sandbox/src/kube/kubeSandbox.ts` (lines 52-54), `repos/backend/src/endpoints/sandboxes/execInSandbox.ts` (lines 44-46)
+* Command and args are concatenated into a single string passed to `sh -c` without shell escaping. An AI agent calling `shellExec({ command: "ls", args: ["; cat /etc/shadow"] })` gets full shell interpretation inside the pod. While blast radius is limited to the isolated pod, this can exfiltrate injected secrets (SSH password, provider API keys via env vars). Same pattern affects `evaluate()` (line 138-139)
+* **Fix**:
+  1. Pass command and args as separate elements in the K8s exec command array (avoiding shell interpretation): `this.client.runInPod(this.podName, [command, ...args])`
+  2. Only use `sh -c` when shell features are explicitly needed (pipes, redirects)
+  3. For cases requiring `sh -c`, shell-quote each argument individually
+* **Files**:
+  * `repos/sandbox/src/kube/kubeSandbox.ts` — refactor exec/evaluate to avoid sh -c
+  * `repos/backend/src/endpoints/sandboxes/execInSandbox.ts` — validate or sanitize inputs
+
+### [P1] Sandbox proxy may lack authentication
+
+* **Repos**: backend
+* **Key files**: `repos/backend/src/middleware/sandboxProxy.ts` (lines 18-52)
+* The sandbox proxy middleware intercepts requests based on hostname pattern matching and forwards directly to pod IPs without any authentication check. If Caddy routes sandbox subdomain traffic directly to the backend (bypassing the auth proxy), these requests are unauthenticated. Anyone knowing the subdomain pattern could access services running in pods
+* **Fix**:
+  1. Add authentication/authorization checks in the sandbox proxy middleware before forwarding
+  2. Or ensure Caddy configuration always routes sandbox subdomain traffic through the auth proxy
+* **Files**:
+  * `repos/backend/src/middleware/sandboxProxy.ts` — add auth check
+
+### [P1] KubeSandbox file ops lack path traversal protection
+
+* **Repos**: sandbox
+* **Key files**: `repos/sandbox/src/kube/kubeSandbox.ts` (lines 57-101)
+* The `readFile`, `deleteFile`, `mkdir`, `listDir`, and `fileExists` methods accept arbitrary paths without validating for traversal (`../`), absolute paths outside the workspace, or symlink following. An AI agent could read/write/delete any file accessible to the `sandbox` user
+* **Fix**:
+  1. Validate paths in all ISandbox file methods to ensure they are within `DefaultWorkdir` or `DefaultTempdir`
+  2. Reject paths containing `..` or starting outside allowed directories
+* **Files**:
+  * `repos/sandbox/src/kube/kubeSandbox.ts` — add path validation to all file methods
+
+### [P2] runInPod unbounded output buffer (OOM)
+
+* **Repos**: sandbox
+* **Key files**: `repos/sandbox/src/kube/kubeClient.ts` (lines 215-216)
+* The `runInPod` method accumulates ALL stdout and stderr chunks in memory without any size limit. There is no timeout on command execution either. A command producing unbounded output (e.g., `yes`, `cat /dev/urandom`) would crash the backend process
+* **Fix**:
+  1. Add a maximum buffer size — truncate and resolve with partial result when exceeded
+  2. Add an execution timeout that kills the K8s exec WebSocket
+* **Files**:
+  * `repos/sandbox/src/kube/kubeClient.ts` — add buffer limit and timeout
+
+### [P2] SSH password in plaintext env var
+
+* **Repos**: backend, sandbox
+* **Key files**: `repos/backend/src/services/sandboxes/sandbox.ts` (lines 496-525), `repos/sandbox/src/kube/podManifest.ts` (line 251)
+* The SSH password is injected as a plain-text environment variable (`TDSK_SSH_PASSWORD`) into the pod. Any process running inside the pod can read it via `printenv` or `/proc/self/environ`. Combined with the path traversal issue, an AI agent could obtain SSH credentials
+* **Fix**:
+  1. Consider file-based secret mount (K8s Secret volume) instead of env var
+  2. Or use token-based authentication that expires
+* **Files**:
+  * `repos/backend/src/services/sandboxes/sandbox.ts` — change credential injection method
+  * `repos/sandbox/src/kube/podManifest.ts` — update pod spec
+
+### [P3] Agent tool execution ignores AbortSignal
+
+* **Repos**: agent
+* **Key files**: `repos/agent/src/tools/tools.ts` (lines 38-59)
+* The sandbox tools (`shellExec`, `readFile`, `writeFile`, etc.) accept an `_signal` (AbortSignal) parameter but never use it. A `shellExec` call to a long-running command blocks the agent indefinitely with no way to cancel the underlying K8s exec operation
+* **Fix**:
+  1. Wire the `_signal` (AbortSignal) to cancel the underlying K8s exec operation
+  2. Or add a configurable per-tool timeout
+* **Files**:
+  * `repos/agent/src/tools/tools.ts` — wire AbortSignal to sandbox operations
+
+---
+
+## Database
+
+### [P1] User first/last columns queried but don't exist in database
+
+* **Repos**: database, domain
+* **Key files**: `repos/database/src/services/role.ts` (lines 118-124), `repos/database/src/schemas/users.ts`
+* The `getProjectMembers` method queries the `user` relation with `first: true` and `last: true` in the columns projection. These columns do not exist on the `neon_auth.user` table — they are only computed properties on the `User` domain model. Drizzle will either produce a SQL error or silently return undefined
+* **Fix**:
+  1. Remove `first` and `last` from the column selection in `getProjectMembers`
+  2. Let the domain `User` model synthesize `first`/`last` from `name` at construction time
+* **Files**:
+  * `repos/database/src/services/role.ts` — remove nonexistent column projections
+
+### [P1] Provider brand nullable in DB, required in model
+
+* **Repos**: database, domain
+* **Key files**: `repos/database/src/schemas/providers.ts` (line 21), `repos/domain/src/models/provider.ts` (line 12)
+* The providers schema defines `brand` without `.notNull()` — it's nullable. The Provider domain model types `brand` as non-optional (required). A provider created without a brand stores `null`, but TypeScript says it's always `TProviderBrand`
+* **Fix**:
+  1. Add `.notNull()` to the schema if brand should always be present, OR
+  2. Make the model field optional: `brand?: TProviderBrand`
+* **Files**:
+  * `repos/database/src/schemas/providers.ts` — add .notNull() or
+  * `repos/domain/src/models/provider.ts` — make brand optional
+
+### [P2] Base update/delete have no orgId scoping
+
+* **Repos**: database
+* **Key files**: `repos/database/src/services/base.ts` (lines 154-171 update, 195-208 delete), `repos/database/src/services/thread.ts` (lines 26-56)
+* The base service `update()` and `delete()` methods filter only by `id`, relying on controllers to validate org ownership. Entity IDs are 10-char nanoids — not a security boundary. Thread service `listByAgent()` and `listByUser()` also lack orgId filtering
+* **Fix**:
+  1. Add optional `orgId` parameter to base `update()` and `delete()` methods
+  2. Add orgId filter to Thread `listByAgent()` and `listByUser()` methods
+* **Files**:
+  * `repos/database/src/services/base.ts` — add optional orgId to update/delete WHERE
+  * `repos/database/src/services/thread.ts` — add orgId to listByAgent/listByUser
+
+### [P2] Timestamp mode inconsistency across schemas
+
+* **Repos**: database
+* **Key files**: `repos/database/src/utils/schema/timestamps.ts`, `repos/database/src/schemas/users.ts` (lines 26-27), `repos/database/src/schemas/subscriptions.ts` (lines 26-27), `repos/database/src/schemas/invitations.ts` (lines 45-47)
+* The base timestamps utility uses default mode (Date objects). But users, subscriptions, and invitations schemas use `mode: 'string'` (ISO strings). The domain model's `string | Date` union accommodates both, but downstream consumers handling dates may behave differently depending on which entity they receive
+* **Fix**:
+  1. Standardize all timestamps to the same mode (either all Date objects or all strings)
+  2. Update domain model types to match the chosen mode
+* **Files**:
+  * `repos/database/src/schemas/users.ts` — standardize timestamp mode
+  * `repos/database/src/schemas/subscriptions.ts` — standardize timestamp mode
+  * `repos/database/src/schemas/invitations.ts` — standardize timestamp mode
+  * `repos/database/src/utils/schema/timestamps.ts` — reference for standard mode
+
+### [P3] Agent/Sandbox create() lacks transaction wrapping
+
+* **Repos**: database
+* **Key files**: `repos/database/src/services/agent.ts` (lines 346-375), `repos/database/src/services/sandbox.ts` (lines 302-338)
+* Agent and sandbox creation perform insert + relation setup without a transaction. If the process crashes between step 1 and step 2, orphaned records remain. The manual cleanup in the catch block can itself fail silently (`.catch(() => {})`)
+* **Fix**:
+  1. Wrap the creation and relation setup in `this.db.transaction()`
+  2. Match the pattern already used in `#upsertProviders` (line 172-212) which correctly uses transactions
+* **Files**:
+  * `repos/database/src/services/agent.ts` — wrap create in transaction
+  * `repos/database/src/services/sandbox.ts` — wrap create in transaction
 
 ---
 

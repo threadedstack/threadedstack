@@ -22,3 +22,5 @@ export const MaxPtyBufferSize = 10 * 1024 * 1024
 
 export const MaxTerminalDim = 500
 export const RateLimiterMaxKeys = 10_000
+
+export const ExecTimeoutMS = 30 * 60_000

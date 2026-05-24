@@ -27,7 +27,7 @@ export const listSandboxThreads: TEndpointConfig = {
     const { data, error } = await db.services.thread.list({
       limit,
       offset,
-      where: { orgId, sandboxId },
+      where: { orgId, sandboxId, userId },
     })
 
     if (error)

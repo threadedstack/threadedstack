@@ -6,9 +6,10 @@ import type {
   TDBScheduleInsert,
 } from '@TDB/types'
 
-import { eq, and, lte, sql } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
+import { eq, and, lte, sql } from 'drizzle-orm'
 import { schedules } from '@TDB/schemas/schedules'
+import type { EScheduleType } from '@tdsk/domain'
 import { Schedule as ScheduleModel } from '@tdsk/domain'
 
 export class Schedule extends Base<
@@ -27,7 +28,7 @@ export class Schedule extends Base<
     }) as TDBWithRecord
 
   model = (data: TDBScheduleSelect) => {
-    return new ScheduleModel(data)
+    return new ScheduleModel({ ...data, type: data.type as EScheduleType })
   }
 
   async get(id: string, opts?: TDBQueryOpts) {

@@ -55,6 +55,45 @@ export class Scheduler {
     }
   }
 
+  async #processSchedule(schedule: Schedule) {
+    try {
+      logger.info(
+        `[Scheduler] Schedule ${schedule.id} is due — sandbox=${schedule.sandboxId}, type=${schedule.type}, cron="${schedule.cronExpression}"`
+      )
+
+      const nextRunAt = parseNextRun(schedule.cronExpression)
+
+      const { error: markErr } = await this.db.services.schedule.markRun(
+        schedule.id,
+        nextRunAt
+      )
+      if (markErr) {
+        logger.error(
+          `[Scheduler] Failed to advance nextRunAt for schedule ${schedule.id} — skipping execution: ${markErr.message}`
+        )
+        return
+      }
+
+      if (this.executeAgent) {
+        await this.executeAgent(schedule)
+        logger.info(
+          `[Scheduler] Schedule ${schedule.id} completed, next run at ${nextRunAt.toISOString()}`
+        )
+      }
+    } catch (err: any) {
+      logger.error(
+        `[Scheduler] Error processing schedule ${schedule.id}: ${err?.message || err}`
+      )
+      try {
+        await this.db.services.schedule.incrementErrors(schedule.id)
+      } catch (incErr: any) {
+        logger.error(
+          `[Scheduler] Failed to increment errors for schedule ${schedule.id}: ${incErr?.message || incErr}`
+        )
+      }
+    }
+  }
+
   /**
    * Check for due schedules and process them.
    */
@@ -73,38 +112,15 @@ export class Scheduler {
 
       logger.info(`[Scheduler] Found ${dueSchedules.length} due schedule(s)`)
 
-      for (const schedule of dueSchedules) {
-        try {
-          logger.info(
-            `[Scheduler] Schedule ${schedule.id} is due — agent=${schedule.agentId}, cron="${schedule.cronExpression}"`
-          )
+      const results = await Promise.allSettled(
+        dueSchedules.map((schedule) => this.#processSchedule(schedule))
+      )
 
-          const nextRunAt = parseNextRun(schedule.cronExpression)
-
-          // Execute the agent if an executor was provided
-          if (this.executeAgent) {
-            await this.executeAgent(schedule)
-            logger.info(`[Scheduler] Schedule ${schedule.id} agent execution completed`)
-          }
-
-          // Mark run ONLY after successful execution — prevents advancing nextRunAt on failure
-          await this.db.services.schedule.markRun(schedule.id, nextRunAt)
-
-          logger.info(
-            `[Scheduler] Schedule ${schedule.id} marked as run, next run at ${nextRunAt.toISOString()}`
-          )
-        } catch (err: any) {
-          logger.error(
-            `[Scheduler] Error processing schedule ${schedule.id}: ${err?.message || err}`
-          )
-          try {
-            await this.db.services.schedule.incrementErrors(schedule.id)
-          } catch (incErr: any) {
-            logger.error(
-              `[Scheduler] Failed to increment errors for schedule ${schedule.id}: ${incErr?.message || incErr}`
-            )
-          }
-        }
+      const failures = results.filter((r) => r.status === `rejected`)
+      if (failures.length > 0) {
+        logger.warn(
+          `[Scheduler] ${failures.length}/${dueSchedules.length} schedule(s) failed in tick`
+        )
       }
     } catch (err: any) {
       logger.error(`[Scheduler] Tick error: ${err?.message || err}`)

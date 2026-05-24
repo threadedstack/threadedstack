@@ -26,6 +26,7 @@ import type {
   Schedule,
   Provider,
   Endpoint,
+  ScheduleRun,
   Subscription,
   Organization,
   Function as FunctionModel,
@@ -49,7 +50,11 @@ import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
-import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
+import {
+  schedulesState,
+  activeScheduleIdState,
+  scheduleRunsState,
+} from '@TAF/state/schedules'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
@@ -285,6 +290,11 @@ export const setSchedules = (schedules: Record<string, Schedule>) =>
 export const getActiveScheduleId = () => store.get(activeScheduleIdState)
 export const resetActiveScheduleId = () => store.set(activeScheduleIdState, undefined)
 export const setActiveScheduleId = (id: string) => store.set(activeScheduleIdState, id)
+
+export const getScheduleRuns = () => store.get(scheduleRunsState)
+export const resetScheduleRuns = () => store.set(scheduleRunsState, undefined)
+export const setScheduleRuns = (runs: Record<string, ScheduleRun[]>) =>
+  store.set(scheduleRunsState, runs)
 
 // ProjectMembers (project-scoped)
 export const getProjectMembers = () => store.get(projectMembersState)

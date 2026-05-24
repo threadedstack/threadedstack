@@ -27,7 +27,7 @@ test.describe.serial('CRUD Schedules', () => {
   const updatedCron = '30 9 * * 1-5'
   const promptText = `Playwright schedule test prompt ${Date.now()}`
   let scheduleId: string | undefined
-  let hasAgents = false
+  let hasSandboxes = false
 
   test('CREATE — should create a new schedule via the drawer', async ({
     authenticatedPage: page,
@@ -35,28 +35,28 @@ test.describe.serial('CRUD Schedules', () => {
   }) => {
     const errors = collectErrors(page)
 
-    // Check if agents exist (schedules require an agent)
-    const agentRes = await apiRequest(
+    // Check if sandboxes exist (schedules require a sandbox)
+    const sandboxRes = await apiRequest(
       page,
       'GET',
-      `/orgs/${ctx.orgId}/agents?limit=10`,
+      `/orgs/${ctx.orgId}/sandboxes?limit=10`,
       ctx.apiKey
     )
-    const agentBody = await agentRes.json()
-    const agents: Record<string, unknown>[] = Array.isArray(agentBody?.data)
-      ? agentBody.data
+    const sandboxBody = await sandboxRes.json()
+    const sandboxes: Record<string, unknown>[] = Array.isArray(sandboxBody?.data)
+      ? sandboxBody.data
       : []
-    hasAgents = agents.length > 0
+    hasSandboxes = sandboxes.length > 0
 
-    test.skip(!hasAgents, 'No agents exist — cannot create schedule without an agent')
+    test.skip(!hasSandboxes, 'No sandboxes exist — cannot create schedule without a sandbox')
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
 
     // Open create drawer
     await openDrawer(page, /Create Schedule/i)
 
-    // Select agent via EntitySelector autocomplete
-    await selectEntityOption(page, 'agent-id')
+    // Select sandbox via EntitySelector autocomplete
+    await selectEntityOption(page, 'sandbox-id')
 
     // Fill cron expression
     await fillField(page, 'tdsk-schedule-cron-input', cronExpr)
@@ -157,7 +157,7 @@ test.describe.serial('CRUD Schedules', () => {
 
     // Find the row with the updated cron and click the delete action button
     const row = page.locator('tr', { has: page.getByText(updatedCron) })
-    const deleteButton = row.locator('[aria-label="Delete schedule"]')
+    const deleteButton = row.locator('[aria-label="Delete Schedule"]')
 
     if ((await deleteButton.count()) > 0) {
       await deleteButton.first().click()

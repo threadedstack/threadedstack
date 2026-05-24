@@ -41,17 +41,12 @@ export const AgentLayout = () => {
     ? EAgentDetailTab.threads
     : pathAfterAgent.startsWith(`/skills`) && isFeatureEnabled('skills')
       ? EAgentDetailTab.skills
-      : pathAfterAgent.startsWith(`/schedules`) && isFeatureEnabled('schedules')
-        ? EAgentDetailTab.schedules
-        : EAgentDetailTab.agent
+      : EAgentDetailTab.agent
 
   const tabRoutes: Record<string, string> = {
     [EAgentDetailTab.threads]: `${agentPath}/threads`,
     ...(isFeatureEnabled('skills') && {
       [EAgentDetailTab.skills]: `${agentPath}/skills`,
-    }),
-    ...(isFeatureEnabled('schedules') && {
-      [EAgentDetailTab.schedules]: `${agentPath}/schedules`,
     }),
   }
 
@@ -176,12 +171,6 @@ export const AgentLayout = () => {
               <Tab
                 label='Skills'
                 value={EAgentDetailTab.skills}
-              />
-            )}
-            {isFeatureEnabled('schedules') && (
-              <Tab
-                label='Schedules'
-                value={EAgentDetailTab.schedules}
               />
             )}
           </Tabs>

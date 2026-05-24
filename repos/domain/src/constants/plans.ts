@@ -1,6 +1,13 @@
 import type { TPlanLimits } from '@TDM/types'
 import { ESubscriptionTier } from '@TDM/types'
 
+export const PlanPrices: Record<ESubscriptionTier, number> = {
+  [ESubscriptionTier.free]: 0,
+  [ESubscriptionTier.solo]: 2000,
+  [ESubscriptionTier.pro]: 5000,
+  [ESubscriptionTier.team]: 15000,
+} as const
+
 export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
   [ESubscriptionTier.free]: {
     organizations: 1,

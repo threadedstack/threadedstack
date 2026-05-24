@@ -20,8 +20,23 @@ export type TApp = TEApp<
   SandboxService
 >
 
+export type TQuotaResource =
+  | `projects`
+  | `compute`
+  | `threads`
+  | `messages`
+  | `endpoints`
+  | `secrets`
+export type TQuotaIncremented = {
+  orgId: string
+  period: string
+  resource: TQuotaResource
+}
+
 export type TRequest<
   ReqParams extends TReqParams = any,
   ReqBody = any,
   ResBody = any,
-> = TReq<TApp, ReqParams, ResBody, ReqBody>
+> = TReq<TApp, ReqParams, ResBody, ReqBody> & {
+  quotaIncremented?: TQuotaIncremented
+}

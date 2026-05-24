@@ -24,6 +24,21 @@ export const deleteSandbox: TEndpointConfig = {
           `Cannot delete sandbox with ${activeSessions.length} active session(s)`
         )
       }
+
+      const runningInstances = await sbService.findActiveInstances(
+        sandbox.id,
+        sandbox.orgId
+      )
+      const results = await Promise.allSettled(
+        runningInstances.map((instanceId) => sbService.stopPod(instanceId))
+      )
+      const failures = results.filter((r) => r.status === `rejected`)
+      if (failures.length > 0) {
+        throw new Exception(
+          500,
+          `Failed to stop ${failures.length} running instance(s) before deletion`
+        )
+      }
     }
 
     const { data, error } = await db.services.sandbox.delete(sandbox.id)

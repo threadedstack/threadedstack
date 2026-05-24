@@ -30,13 +30,12 @@ export class PaymentsService {
       }
       case EPayType.console:
       default: {
-        // TODO: Disable until stripe is configured
-        //if (process.env.NODE_ENV === `production`) {
-        //  throw new Error(
-        //    `[PaymentsService] Stripe configuration is required in production. ` +
-        //      `Set payments.type to "stripe" and provide a valid secret key.`
-        //  )
-        //}
+        if (process.env.NODE_ENV === `production`) {
+          throw new Error(
+            `[PaymentsService] Stripe configuration is required in production. ` +
+              `Set payments.type to "stripe" and provide a valid secret key.`
+          )
+        }
 
         logger.warn(
           `[PaymentsService] No Stripe config provided — falling back to ConsoleService. ` +

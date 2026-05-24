@@ -79,7 +79,6 @@ const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
 const AgentLayout = lazy(() => import('@TAF/components/Agents/AgentLayout'))
 const AgentDetailTab = lazy(() => import('@TAF/components/Agents/AgentDetailTab'))
 const SkillsTab = lazy(() => import('@TAF/components/Skills/Skills'))
-const SchedulesTab = lazy(() => import('@TAF/components/Schedules/Schedules'))
 const EndpointLayout = lazy(() => import('@TAF/components/Endpoints/EndpointLayout'))
 const EndpointTab = lazy(() => import('@TAF/components/Endpoints/Tabs/EndpointTab'))
 const EndpointTestTab = lazy(
@@ -312,14 +311,6 @@ export const createRoutes = () =>
                           {
                             path: `skills`,
                             Component: () => <SuspensePage Component={SkillsTab} />,
-                          },
-                        ]
-                      : []),
-                    ...(isFeatureEnabled(`schedules`)
-                      ? [
-                          {
-                            path: `schedules`,
-                            Component: () => <SuspensePage Component={SchedulesTab} />,
                           },
                         ]
                       : []),

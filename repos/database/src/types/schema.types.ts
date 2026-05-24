@@ -20,6 +20,7 @@ import type { providers } from '@TDB/schemas/providers'
 import type { sandboxes } from '@TDB/schemas/sandboxes'
 import type { invitations } from '@TDB/schemas/invitations'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
+import type { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
@@ -68,6 +69,14 @@ export type TDBScheduleSelect = TInferDateProps<
 export type TDBScheduleInsert = TInferDateProps<
   typeof schedules.$inferInsert,
   `createdAt` | `updatedAt` | `lastRunAt` | `nextRunAt`
+>
+export type TDBScheduleRunSelect = TInferDateProps<
+  typeof scheduleRuns.$inferSelect,
+  `createdAt` | `updatedAt` | `startedAt` | `completedAt`
+>
+export type TDBScheduleRunInsert = TInferDateProps<
+  typeof scheduleRuns.$inferInsert,
+  `createdAt` | `updatedAt` | `startedAt` | `completedAt`
 >
 export type TDBSandboxSelect = TInferDates<typeof sandboxes.$inferSelect>
 export type TDBSandboxInsert = TInferDates<typeof sandboxes.$inferInsert>
@@ -135,6 +144,7 @@ export type TDBEntitySelect =
   | TDBScheduleSelect
   | TDBFunctionSelect
   | TDBInvitationSelect
+  | TDBScheduleRunSelect
   | TDBSubscriptionSelect
 
 export type TDBEntityInsert =
@@ -156,6 +166,7 @@ export type TDBEntityInsert =
   | TDBEndpointInsert
   | TDBProviderInsert
   | TDBScheduleInsert
+  | TDBScheduleRunInsert
   | TDBFunctionInsert
   | TDBInvitationInsert
   | TDBSubscriptionInsert

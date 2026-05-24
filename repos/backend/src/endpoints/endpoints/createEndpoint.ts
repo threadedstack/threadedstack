@@ -4,11 +4,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
 import { isObj } from '@keg-hub/jsutils/isObj'
-import { logger } from '@TBE/utils/logger'
 import { HttpMethods } from '@TBE/constants/values'
 import { getEPService } from '@TBE/services/endpoints'
 import { authorize } from '@TBE/middleware/authorize'
-import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -68,16 +66,6 @@ export const createEndpoint: TEndpointConfig = {
 
     const { data, error } = await db.services.endpoint.create(endpointData)
     if (error) throw new Exception(500, error.message)
-
-    // Increment endpoint quota for the org
-    const orgId = req.params.orgId
-    if (orgId && db.services.quota) {
-      db.services.quota
-        .increment(orgId, getBillingPeriod(), `endpoints`)
-        .catch((err: unknown) =>
-          logger.error(`[quota] Failed to increment endpoints for org=${orgId}:`, err)
-        )
-    }
 
     res.status(201).json({ data })
   },

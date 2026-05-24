@@ -5,11 +5,12 @@ import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
-import { EPermResource } from '@tdsk/domain'
+import { useSchedules } from '@TAF/state/selectors'
 import { ConfirmDelete, Text } from '@tdsk/components'
+import { EPermResource, EScheduleType } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { formatRelativeTime } from '@TAF/utils/transforms/time'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { useSchedules, useOrgAgents } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
@@ -22,11 +23,11 @@ import {
   Delete as DeleteIcon,
   PlayArrow as TriggerIcon,
   Timer as ScheduleIcon,
+  Terminal as ShellIcon,
 } from '@mui/icons-material'
 
 export type TSchedules = {
   orgId?: string
-  agentId?: string
 }
 
 const styles = {
@@ -44,9 +45,8 @@ const styles = {
 }
 
 export const Schedules = (props: TSchedules) => {
-  const { orgId, agentId } = props
+  const { orgId } = props
 
-  const [orgAgents] = useOrgAgents()
   const [schedulesMap] = useSchedules()
   const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const schedules = useMemo(() => Object.values(schedulesMap || {}), [schedulesMap])
@@ -77,11 +77,9 @@ export const Schedules = (props: TSchedules) => {
     if (!orgId) return
 
     const resp = await triggerSchedule(orgId, schedule.id)
-    if (resp.error) {
-      toast.error(`Failed to trigger schedule`)
-    } else {
-      toast.success(`Schedule triggered successfully`)
-    }
+    resp.error
+      ? toast.error(`Failed to trigger schedule`)
+      : toast.success(`Schedule triggered successfully`)
   }
 
   const onRemove = async () => {
@@ -92,11 +90,10 @@ export const Schedules = (props: TSchedules) => {
 
     const result = await deleteSchedule(orgId, deleting.id)
 
-    if (result.error) {
+    if (result.error)
       setError(
         result.error instanceof Error ? result.error : new Error(String(result.error))
       )
-    }
 
     setLoading(false)
     setDeleting(undefined)
@@ -104,37 +101,44 @@ export const Schedules = (props: TSchedules) => {
   }
 
   const filteredSchedules = useMemo(() => {
-    let filtered = schedules
-
-    // Filter by agentId if provided (agent context)
-    if (agentId) {
-      filtered = filtered.filter((s) => s.agentId === agentId)
-    }
-
-    // Filter by search query
-    if (!searchQuery.trim()) return filtered
+    if (!searchQuery.trim()) return schedules
 
     const query = searchQuery.toLowerCase()
-    return filtered.filter(
+    return schedules.filter(
       (schedule) =>
         schedule.prompt?.toLowerCase().includes(query) ||
+        schedule.command?.toLowerCase().includes(query) ||
         schedule.cronExpression?.toLowerCase().includes(query) ||
         schedule.id?.toLowerCase().includes(query)
     )
-  }, [schedules, searchQuery, agentId])
-
-  const schedulesCount = useMemo(() => {
-    if (agentId) return schedules.filter((s) => s.agentId === agentId).length
-    return schedules.length
-  }, [schedules, agentId])
+  }, [schedules, searchQuery])
 
   const columns: TDataTableColumn<Schedule>[] = [
     {
+      id: 'type',
+      label: 'Type',
+      width: 120,
+      render: (schedule) => (
+        <Chip
+          size='small'
+          variant='outlined'
+          icon={
+            schedule.type === EScheduleType.shell ? (
+              <ShellIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <ScheduleIcon sx={{ fontSize: 14 }} />
+            )
+          }
+          label={schedule.type === EScheduleType.shell ? 'Shell' : 'Prompt'}
+          color={schedule.type === EScheduleType.shell ? 'info' : 'secondary'}
+        />
+      ),
+    },
+    {
       id: 'prompt',
-      label: 'Prompt',
+      label: 'Content',
       render: (schedule) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ScheduleIcon sx={{ color: 'text.secondary' }} />
           <Text
             variant='body2'
             display='block'
@@ -144,7 +148,7 @@ export const Schedules = (props: TSchedules) => {
             textOverflow='ellipsis'
             sx={{ maxWidth: 300 }}
           >
-            {schedule.prompt}
+            {schedule.type === EScheduleType.shell ? schedule.command : schedule.prompt}
           </Text>
         </Box>
       ),
@@ -166,15 +170,61 @@ export const Schedules = (props: TSchedules) => {
     {
       id: 'enabled',
       label: 'Status',
-      width: 100,
+      width: 120,
+      render: (schedule) => {
+        const autoDisabled = !schedule.enabled && (schedule.consecutiveErrors ?? 0) >= 5
+
+        return (
+          <Chip
+            size='small'
+            variant='outlined'
+            label={
+              autoDisabled ? 'Auto-disabled' : schedule.enabled ? 'Enabled' : 'Disabled'
+            }
+            color={autoDisabled ? 'warning' : schedule.enabled ? 'success' : 'default'}
+          />
+        )
+      },
+    },
+    {
+      id: 'lastRunAt',
+      label: 'Last Run',
+      width: 120,
       render: (schedule) => (
-        <Chip
-          size='small'
-          variant='outlined'
-          label={schedule.enabled ? 'Enabled' : 'Disabled'}
-          color={schedule.enabled ? 'success' : 'default'}
-        />
+        <Text
+          variant='body2'
+          color='text.secondary'
+        >
+          {formatRelativeTime(schedule.lastRunAt)}
+        </Text>
       ),
+    },
+    {
+      id: 'consecutiveErrors',
+      label: 'Errors',
+      width: 80,
+      render: (schedule) => {
+        const errorCount = schedule.consecutiveErrors ?? 0
+        if (errorCount === 0) {
+          return (
+            <Text
+              variant='body2'
+              color='text.secondary'
+            >
+              0
+            </Text>
+          )
+        }
+
+        return (
+          <Chip
+            size='small'
+            variant='outlined'
+            color='warning'
+            label={errorCount}
+          />
+        )
+      },
     },
     {
       id: 'nextRunAt',
@@ -243,17 +293,17 @@ export const Schedules = (props: TSchedules) => {
       searchCount={0}
       countLabel='schedule'
       query={searchQuery}
-      count={schedulesCount}
+      count={schedules.length}
       error={error?.message}
       actionIcon={<AddIcon />}
       setSearchQuery={setSearchQuery}
-      onAction={schedulesCount > 0 && onCreateSchedule}
+      onAction={schedules.length > 0 && onCreateSchedule}
       actionDisabled={!canCreate(EPermResource.schedule)}
-      actionLabel={schedulesCount > 0 && 'Create Schedule'}
-      searchPlaceholder='Search schedules by prompt or cron...'
+      actionLabel={schedules.length > 0 && 'Create Schedule'}
+      searchPlaceholder='Search schedules by content or cron...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
-      {!error && schedulesCount === 0 && !loading && (
+      {!error && schedules.length === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSchedule}
@@ -263,7 +313,7 @@ export const Schedules = (props: TSchedules) => {
         />
       )}
 
-      {!error && schedulesCount > 0 && filteredSchedules.length === 0 && (
+      {!error && schedules.length > 0 && filteredSchedules.length === 0 && (
         <EmptyState message='No schedules match your search query.' />
       )}
 
@@ -279,7 +329,6 @@ export const Schedules = (props: TSchedules) => {
       {orgId && (
         <ScheduleDrawer
           orgId={orgId}
-          agents={orgAgents}
           open={dialogOpen}
           onRemove={setDeleting}
           schedule={selectedSchedule}

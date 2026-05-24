@@ -1,17 +1,21 @@
 import { Base } from '@TDM/models/base'
+import { EScheduleType } from '@TDM/types'
 
 export class Schedule extends Base {
-  agentId!: string
   orgId!: string
-  cronExpression!: string
-  prompt!: string
+  prompt?: string
+  userId?: string
+  command?: string
+  threadId?: string
+  sandboxId!: string
   enabled: boolean = true
+  cronExpression!: string
   lastRunAt?: string | Date
   nextRunAt?: string | Date
-  threadId?: string
   createThread: boolean = true
   maxConsecutiveErrors: number = 5
   consecutiveErrors: number = 0
+  type: EScheduleType = EScheduleType.prompt
 
   constructor(schedule: Partial<Schedule>) {
     super()

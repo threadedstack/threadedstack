@@ -54,14 +54,15 @@ const waitForMessage = (ws: WebSocket, timeout = 15_000): Promise<Record<string,
 const waitForSandboxMessage = (
   ws: WebSocket,
   targetSandboxId: string,
-  timeout = 15_000
+  timeout = 15_000,
+  targetType?: string
 ): Promise<Record<string, unknown>> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('WS message timeout')), timeout)
     const handler = (data: any) => {
       try {
         const msg = JSON.parse(data.toString())
-        if (msg.sandboxId === targetSandboxId) {
+        if (msg.sandboxId === targetSandboxId && (!targetType || msg.type === targetType)) {
           clearTimeout(timer)
           ws.removeListener('message', handler)
           resolve(msg)
@@ -280,9 +281,12 @@ describe('Tier 3: Sandbox Monitor WebSocket', () => {
     // Open monitor and consume the initial snapshot for our sandbox
     const monitor = trackWs(openMonitor())
     await waitForOpen(monitor)
-    const initial = await waitForSandboxMessage(monitor, sandboxId)
+    const initial = await waitForSandboxMessage(monitor, sandboxId, 15_000, 'sessions-updated')
     expect(initial.type).toBe('sessions-updated')
     const initialCount = (initial.sessions as unknown[]).length
+
+    // Drain the initial instances-updated message so it doesn't interfere
+    await waitForSandboxMessage(monitor, sandboxId, 15_000, 'instances-updated').catch(() => {})
 
     // Open a shell session to trigger a broadcast
     const shellWsUrl = `${env.proxyUrl.replace(/^http/, 'ws')}/_/sandboxes/${sandboxId}/shell?cols=80&rows=24`
@@ -293,7 +297,7 @@ describe('Tier 3: Sandbox Monitor WebSocket', () => {
     await waitForOpen(shell)
 
     // Wait for the monitor to receive the broadcast for our sandbox
-    const broadcast = await waitForSandboxMessage(monitor, sandboxId, 30_000)
+    const broadcast = await waitForSandboxMessage(monitor, sandboxId, 30_000, 'sessions-updated')
     expect(broadcast.type).toBe('sessions-updated')
     expect(broadcast.sandboxId).toBe(sandboxId)
 

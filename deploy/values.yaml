@@ -308,9 +308,9 @@ env:
   TDSK_SB_HOME: /home/sandbox
 
   # ---- Payments ENVs --- #
-  # Email provider type - 'stripe' | 'console'
+  # Payment provider type - 'stripe' | 'console'
   TDSK_PAY_TYPE:
-  TDSK_PAY_URL:
+  # Format: tier=priceId,tier=priceId:seatPriceId (e.g. solo=price_xxx,pro=price_yyy:seat_yyy)
   TDSK_PAY_PLANS:
   TDSK_PAY_ACCESS_TOKEN:
   TDSK_PAY_WEBHOOK_SECRET:

@@ -27,7 +27,7 @@ const paymentsAct = async (props: TTaskActionArgs) => {
   const { url, type, token, webhook, plans, ...secParams } = params
 
   const cfg = {
-    url: url || config.envs.TDSK_PAY_URL || undefined,
+    url: url || config.envs.TDSK_PAY_URL || `unknown`,
     type: type || config.envs.TDSK_PAY_TYPE || undefined,
     plans: plans || config.envs.TDSK_PAY_PLANS || undefined,
     token: token || config.envs.TDSK_PAY_ACCESS_TOKEN || undefined,
@@ -45,10 +45,11 @@ const paymentsAct = async (props: TTaskActionArgs) => {
     ...props,
     params: {
       ...secParams,
+      separator: `||`,
       name: config.envs.TDSK_KUBE_SCRT_PAY_CFG || `tdsk-payments-secret`,
       secrets: Object.entries(cleanColl(cfg))
         .map(([key, value]) => `${key}:${value}`)
-        .join(`,`),
+        .join(`||`),
     },
   })
 }

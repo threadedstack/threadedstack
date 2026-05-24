@@ -37,9 +37,6 @@ const {
   TDSK_PAY_PLANS,
   TDSK_PAY_ACCESS_TOKEN = ``,
   TDSK_PAY_WEBHOOK_SECRET = ``,
-  // TODO: Pull these from the TDSK_PAY_PLANS env
-  TDSK_STRIPE_SEAT_PRICE_ID_PRO = ``,
-  TDSK_STRIPE_SEAT_PRICE_ID_TEAM = ``,
   // Frontend URL for email links (invitation emails, password reset, etc.)
   // Falls back to localhost:5887 for local development
   TDSK_FRONTEND_URL,
@@ -71,6 +68,8 @@ const {
   TDSK_CADDY_PX_HOST,
   TDSK_CADDY_PREWARM_HEADER,
 } = process.env
+
+const { priceIds, seatPriceIds } = parsePayPlans(TDSK_PAY_PLANS)
 
 export const config = {
   frontendUrl: TDSK_FRONTEND_URL || `http://localhost:${TDSK_AD_PORT}`,
@@ -117,16 +116,12 @@ export const config = {
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,
   },
   payments: {
+    seatPriceIds,
     type: TDSK_PAY_TYPE as EPayType,
     secretKey: TDSK_PAY_ACCESS_TOKEN,
     webhookSecret: TDSK_PAY_WEBHOOK_SECRET,
-    priceIds: parsePayPlans(TDSK_PAY_PLANS) as Record<ESubscriptionTier, string>,
-    // TODO: Pull these from the TDSK_PAY_PLANS env
-    seatPriceIds: {
-      pro: TDSK_STRIPE_SEAT_PRICE_ID_PRO,
-      team: TDSK_STRIPE_SEAT_PRICE_ID_TEAM,
-    },
     environment: process.env.NODE_ENV as TPayEnv,
+    priceIds: priceIds as Record<ESubscriptionTier, string>,
   },
   email: {
     from: TDSK_EMAIL_FROM,

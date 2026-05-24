@@ -8,8 +8,9 @@ import type {
 } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
-import { Plan, PlanLimits } from '@tdsk/domain'
 import { BaseService } from '@TBE/services/payments/strategies/base'
+import type { ESubscriptionTier } from '@tdsk/domain'
+import { Plan, PlanLimits, PlanPrices } from '@tdsk/domain'
 
 /**
  * Console-based payment service stub for development mode.
@@ -26,9 +27,10 @@ export class ConsoleService extends BaseService {
     const plans = Object.entries(PlanLimits).map(
       ([tier, limits]) =>
         new Plan({
+          limits,
           id: tier,
           name: tier.charAt(0).toUpperCase() + tier.slice(1),
-          limits,
+          price: PlanPrices[tier as ESubscriptionTier] ?? 0,
         })
     )
     return { data: plans }

@@ -9,9 +9,9 @@ import type {
 
 import Stripe from 'stripe'
 import { logger } from '@TBE/utils/logger'
-import { Plan, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
-import { BaseService } from '@TBE/services/payments/strategies/base'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
+import { BaseService } from '@TBE/services/payments/strategies/base'
+import { Plan, PlanLimits, PlanPrices, ESubscriptionTier } from '@tdsk/domain'
 
 /**
  * Stripe payment service implementation.
@@ -33,11 +33,13 @@ export class StripeService extends BaseService {
     const plans = Object.entries(PlanLimits).map(
       ([tier, limits]) =>
         new Plan({
+          limits,
           id: tier,
           name: tier.charAt(0).toUpperCase() + tier.slice(1),
-          limits,
+          price: PlanPrices[tier as ESubscriptionTier] ?? 0,
         })
     )
+
     return { data: plans }
   }
 
@@ -80,12 +82,12 @@ export class StripeService extends BaseService {
       if (!priceId) return { error: new Error(`No price configured for tier: ${tier}`) }
 
       const session = await this.#stripe.checkout.sessions.create({
+        metadata: { tier },
         customer: customerId,
         mode: `subscription`,
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: successUrl,
         cancel_url: cancelUrl,
-        metadata: { tier },
+        success_url: successUrl,
+        line_items: [{ price: priceId, quantity: 1 }],
       })
 
       return {

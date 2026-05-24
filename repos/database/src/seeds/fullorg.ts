@@ -1247,7 +1247,7 @@ const skillAgentLinks = [
 const agentSchedules = {
   dailyStandup: new Schedule({
     id: Ids.schedule.dailyStandup,
-    agentId: agents.general.id,
+    sandboxId: Ids.sandbox.claudeCode,
     orgId: org.id,
     cronExpression: `0 9 * * MON-FRI`,
     prompt: `Generate a daily standup summary. Review recent commits, open PRs, and active issues. Identify blockers and suggest priorities for today.`,
@@ -1258,7 +1258,7 @@ const agentSchedules = {
   }),
   weeklyReport: new Schedule({
     id: Ids.schedule.weeklyReport,
-    agentId: agents.chat.id,
+    sandboxId: Ids.sandbox.claudeCode,
     orgId: org.id,
     threadId: threads.planning.id,
     cronExpression: `0 17 * * FRI`,

@@ -3,8 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
+import { Exception, EPermAction, EPermResource, EScheduleType } from '@tdsk/domain'
 
 export const updateSchedule: TEndpointConfig = {
   path: `/:scheduleId`,
@@ -17,31 +17,31 @@ export const updateSchedule: TEndpointConfig = {
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!scheduleId) throw new Exception(400, `scheduleId is required`)
 
-    // Verify schedule exists and belongs to org
     const { data: existing, error: getErr } = await db.services.schedule.get(scheduleId)
     if (getErr) throw new Exception(500, getErr.message)
     if (!existing) throw new Exception(404, `Schedule not found`)
     if (existing.orgId !== orgId) throw new Exception(404, `Schedule not found`)
 
     const {
+      type,
       prompt,
-      agentId,
+      command,
       enabled,
       threadId,
+      sandboxId,
       createThread,
       cronExpression,
       maxConsecutiveErrors,
     } = req.body
 
-    // Verify agent ownership if agentId is being updated
-    if (agentId !== undefined) {
-      const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
-      if (agentErr) throw new Exception(500, agentErr.message)
-      if (!agent) throw new Exception(404, `Agent not found`)
-      if (agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
+    if (sandboxId !== undefined) {
+      const { data: sandbox, error: sandboxErr } =
+        await db.services.sandbox.get(sandboxId)
+      if (sandboxErr) throw new Exception(500, sandboxErr.message)
+      if (!sandbox) throw new Exception(404, `Sandbox not found`)
+      if (sandbox.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
     }
 
-    // Verify thread ownership if threadId is being updated
     if (threadId !== undefined && threadId) {
       const { data: thread, error: tErr } = await db.services.thread.get(threadId)
       if (tErr) throw new Exception(500, tErr.message)
@@ -49,20 +49,31 @@ export const updateSchedule: TEndpointConfig = {
       if (thread.orgId !== orgId) throw new Exception(404, `Thread not found`)
     }
 
-    // Validate cron expression if being updated
+    const resolvedType = type ?? existing.type
+    if (resolvedType === EScheduleType.shell) {
+      const resolvedCommand = command ?? existing.command
+      if (!resolvedCommand)
+        throw new Exception(400, `command is required for shell schedules`)
+    } else {
+      const resolvedPrompt = prompt ?? existing.prompt
+      if (!resolvedPrompt)
+        throw new Exception(400, `prompt is required for prompt schedules`)
+    }
+
     if (cronExpression !== undefined && !isValidCron(cronExpression))
       throw new Exception(400, `Invalid cron expression`)
 
-    // Recalculate nextRunAt if cron expression changed
     const nextRunAt =
       cronExpression !== undefined ? parseNextRun(cronExpression) : undefined
 
     const { data, error } = await db.services.schedule.update({
       id: scheduleId,
+      ...(type !== undefined && { type }),
       ...(prompt !== undefined && { prompt }),
-      ...(agentId !== undefined && { agentId }),
+      ...(command !== undefined && { command }),
       ...(enabled !== undefined && { enabled }),
       ...(threadId !== undefined && { threadId }),
+      ...(sandboxId !== undefined && { sandboxId }),
       ...(nextRunAt !== undefined && { nextRunAt }),
       ...(createThread !== undefined && { createThread }),
       ...(cronExpression !== undefined && { cronExpression }),

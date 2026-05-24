@@ -45,6 +45,21 @@ ife(async () => {
   `)
   console.log(`Table caddy_certmagic_objects created/verified.`)
 
+  // Create the caddy_locks table and sequence used by cirello.io/pglock
+  // for distributed locking during certificate renewal
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS caddy_locks (
+      name CHARACTER VARYING(255) PRIMARY KEY,
+      record_version_number BIGINT,
+      data BYTEA,
+      owner CHARACTER VARYING(255)
+    );
+  `)
+  await pool.query(`
+    CREATE SEQUENCE IF NOT EXISTS caddy_locks_rvn CYCLE OWNED BY caddy_locks.record_version_number;
+  `)
+  console.log(`Table caddy_locks + sequence caddy_locks_rvn created/verified.`)
+
   // Insert the root cert and key at the path Caddy expects
   const parent = `pki/authorities/local`
 

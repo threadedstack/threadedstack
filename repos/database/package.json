@@ -16,6 +16,7 @@
     "clean": "rm -rf ./node_modules",
     "dk": "drizzle-kit",
     "script": "STL_FORCE_DISABLE_SAFE=1 tsx -r ./configs/aliases.ts scripts/script.ts",
+    "sql": "tsx -r ./configs/aliases.ts scripts/sql.ts",
     "generate": "drizzle-kit generate --config=configs/drizzle.config.ts",
     "migrate": "drizzle-kit migrate --config=configs/drizzle.config.ts",
     "introspect": "drizzle-kit introspect --config=configs/drizzle.config.ts",

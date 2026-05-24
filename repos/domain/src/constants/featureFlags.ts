@@ -6,8 +6,8 @@ export const FeatureFlags: TFeatureFlags = {
     description: `AI Agent and sandbox skill system`,
   },
   schedules: {
-    enabled: false,
-    description: `Cron-based agent and sandbox execution`,
+    enabled: true,
+    description: `Cron-based sandbox execution`,
   },
   terminalGui: {
     enabled: false,

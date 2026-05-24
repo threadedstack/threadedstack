@@ -3,26 +3,48 @@ import { parsePayPlans } from './parsePayPlans'
 
 describe(`parsePayPlans`, () => {
   describe(`empty/missing input`, () => {
-    it(`should return empty object for empty string`, () => {
-      expect(parsePayPlans('')).toEqual({})
+    it(`should return empty objects for empty string`, () => {
+      expect(parsePayPlans('')).toEqual({ priceIds: {}, seatPriceIds: {} })
     })
 
-    it(`should return empty object for undefined`, () => {
-      expect(parsePayPlans()).toEqual({})
+    it(`should return empty objects for undefined`, () => {
+      expect(parsePayPlans()).toEqual({ priceIds: {}, seatPriceIds: {} })
     })
 
-    it(`should return empty object for whitespace only`, () => {
-      expect(parsePayPlans('  ')).toEqual({})
+    it(`should return empty objects for whitespace only`, () => {
+      expect(parsePayPlans('  ')).toEqual({ priceIds: {}, seatPriceIds: {} })
     })
   })
 
   describe(`valid input`, () => {
     it(`should parse a single plan`, () => {
-      expect(parsePayPlans('free=id1')).toEqual({ free: 'id1' })
+      expect(parsePayPlans('free=id1')).toEqual({
+        priceIds: { free: 'id1' },
+        seatPriceIds: {},
+      })
     })
 
     it(`should parse multiple plans`, () => {
-      expect(parsePayPlans('free=id1,pro=id2')).toEqual({ free: 'id1', pro: 'id2' })
+      expect(parsePayPlans('free=id1,pro=id2')).toEqual({
+        priceIds: { free: 'id1', pro: 'id2' },
+        seatPriceIds: {},
+      })
+    })
+
+    it(`should parse seat price IDs with colon separator`, () => {
+      expect(parsePayPlans('pro=price_pro:seat_pro,team=price_team:seat_team')).toEqual({
+        priceIds: { pro: 'price_pro', team: 'price_team' },
+        seatPriceIds: { pro: 'seat_pro', team: 'seat_team' },
+      })
+    })
+
+    it(`should handle mixed plans with and without seat prices`, () => {
+      expect(
+        parsePayPlans('solo=price_solo,pro=price_pro:seat_pro,team=price_team:seat_team')
+      ).toEqual({
+        priceIds: { solo: 'price_solo', pro: 'price_pro', team: 'price_team' },
+        seatPriceIds: { pro: 'seat_pro', team: 'seat_team' },
+      })
     })
   })
 

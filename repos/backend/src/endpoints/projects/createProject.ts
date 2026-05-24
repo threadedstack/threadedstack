@@ -2,9 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
-import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -41,15 +39,6 @@ export const createProject: TEndpointConfig = {
     })
 
     if (error) throw new Exception(500, error.message)
-
-    // Increment project quota for the org
-    if (orgId && db.services.quota) {
-      db.services.quota
-        .increment(orgId, getBillingPeriod(), `projects`)
-        .catch((err: unknown) =>
-          logger.error(`[quota] Failed to increment projects for org=${orgId}:`, err)
-        )
-    }
 
     res.status(201).json({ data })
   },

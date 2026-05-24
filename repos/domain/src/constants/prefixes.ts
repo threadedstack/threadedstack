@@ -16,6 +16,7 @@ export const ProviderIdPrefix = `pv_`
 export const FunctionIdPrefix = `fn_`
 export const EndpointIdPrefix = `ep_`
 export const ScheduleIdPrefix = `sd_`
+export const ScheduleRunIdPrefix = `sr_`
 export const AgentSkillIdPrefix = `al_`
 export const InvitationIdPrefix = `iv_`
 export const SubscriptionIdPrefix = `su_`

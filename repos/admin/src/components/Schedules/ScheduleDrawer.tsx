@@ -1,15 +1,26 @@
-import type { Agent, Schedule } from '@tdsk/domain'
+import type { Schedule, Sandbox } from '@tdsk/domain'
 
 import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
+import { EScheduleType } from '@tdsk/domain'
+import ToggleButton from '@mui/material/ToggleButton'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
-import { AgentSelector } from '@TAF/components/Selectors'
-import { createSchedule } from '@TAF/actions/schedules/api/createSchedule'
-import { updateSchedule } from '@TAF/actions/schedules/api/updateSchedule'
+import { useOrgSandboxes } from '@TAF/state/selectors'
+import { SandboxSelector } from '@TAF/components/Selectors'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { FormSection } from '@TAF/components/FormSection/FormSection'
+import { ScheduleRuns } from '@TAF/components/Schedules/ScheduleRuns'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
+import { createSchedule } from '@TAF/actions/schedules/api/createSchedule'
+import { updateSchedule } from '@TAF/actions/schedules/api/updateSchedule'
+import {
+  Drawer,
+  TextInput,
+  SwitchInput,
+  DrawerActions,
+  CronInput,
+} from '@tdsk/components'
 
 export type TScheduleDrawer = {
   open: boolean
@@ -17,12 +28,13 @@ export type TScheduleDrawer = {
   onClose: () => void
   schedule?: Schedule | null
   onRemove: (schedule: Schedule) => void
-  agents?: Record<string, Agent>
 }
 
 type TTempSchedule = {
+  type?: string
   prompt?: string
-  agentId?: string
+  command?: string
+  sandboxId?: string
   enabled?: boolean
   createThread?: boolean
   cronExpression?: string
@@ -31,7 +43,6 @@ type TTempSchedule = {
 export const ScheduleDrawer = ({
   open,
   orgId,
-  agents,
   schedule,
   onRemove,
   onClose: onCloseCB,
@@ -39,26 +50,35 @@ export const ScheduleDrawer = ({
   const isEditMode = !!schedule
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [temp, setTemp] = useState<TTempSchedule>({
+  const defaultTemp: TTempSchedule = {
     enabled: true,
     createThread: true,
-  })
+    type: EScheduleType.prompt,
+    cronExpression: `0 0 * * 6`,
+  }
+
+  const [temp, setTemp] = useState<TTempSchedule>(defaultTemp)
+
+  const [orgSandboxes] = useOrgSandboxes()
+  const sandboxes = orgSandboxes ? Object.values(orgSandboxes) : []
 
   const updateTemp = (update: Partial<TTempSchedule>) => setTemp({ ...temp, ...update })
 
   useEffect(() => {
     if (schedule) {
       setTemp({
-        agentId: schedule.agentId,
-        cronExpression: schedule.cronExpression,
         prompt: schedule.prompt,
+        command: schedule.command,
+        sandboxId: schedule.sandboxId,
         enabled: schedule.enabled ?? true,
+        cronExpression: schedule.cronExpression,
+        type: schedule.type || EScheduleType.prompt,
         createThread: schedule.createThread ?? true,
       })
       setError(null)
     } else {
       setError(null)
-      setTemp({ enabled: true, createThread: true })
+      setTemp(defaultTemp)
     }
   }, [schedule])
 
@@ -67,34 +87,38 @@ export const ScheduleDrawer = ({
 
     onCloseCB?.()
     setError(null)
-    setTemp({ enabled: true, createThread: true })
+    setTemp({ type: EScheduleType.prompt, enabled: true, createThread: true })
   }
 
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!temp?.agentId?.trim()) return setError(`Agent is required`)
+    if (!temp?.sandboxId?.trim()) return setError(`Sandbox is required`)
     if (!temp?.cronExpression?.trim()) return setError(`Cron expression is required`)
-    if (!temp?.prompt?.trim()) return setError(`Prompt is required`)
+
+    if (temp.type === EScheduleType.prompt && !temp?.prompt?.trim())
+      return setError(`Prompt is required`)
+
+    if (temp.type === EScheduleType.shell && !temp?.command?.trim())
+      return setError(`Command is required`)
 
     setLoading(true)
     setError(null)
 
     const payload = cleanColl({
-      agentId: temp.agentId,
-      cronExpression: temp.cronExpression,
-      prompt: temp.prompt,
+      type: temp.type,
       enabled: temp.enabled,
+      sandboxId: temp.sandboxId,
       createThread: temp.createThread,
+      cronExpression: temp.cronExpression,
+      prompt: temp.type === EScheduleType.prompt ? temp.prompt : undefined,
+      command: temp.type === EScheduleType.shell ? temp.command : undefined,
     })
 
-    let result: { error?: Error } | undefined
-
-    if (isEditMode && schedule) {
-      result = await updateSchedule(orgId, schedule.id, payload)
-    } else {
-      result = await createSchedule(orgId, payload)
-    }
+    const result =
+      isEditMode && schedule
+        ? await updateSchedule(orgId, schedule.id, payload)
+        : await createSchedule(orgId, payload)
 
     setLoading(false)
 
@@ -112,8 +136,6 @@ export const ScheduleDrawer = ({
     onClose,
     onRemove: () => onRemove?.(schedule),
   })
-
-  const agentsList = agents ? Object.values(agents) : []
 
   return (
     <Drawer
@@ -139,38 +161,66 @@ export const ScheduleDrawer = ({
             />
           )}
 
-          <AgentSelector
-            required={true}
+          <FormSection title='Job Type'>
+            <ToggleButtonGroup
+              exclusive
+              size='small'
+              value={temp.type || EScheduleType.prompt}
+              onChange={(_, val) => val && updateTemp({ type: val })}
+            >
+              <ToggleButton value={EScheduleType.prompt}>AI Prompt</ToggleButton>
+              <ToggleButton value={EScheduleType.shell}>Shell Command</ToggleButton>
+            </ToggleButtonGroup>
+          </FormSection>
+
+          <SandboxSelector
+            required
             loading={loading}
-            agents={agentsList}
-            agentId={temp?.agentId || ``}
-            onChange={(id) => updateTemp({ agentId: id })}
+            sandboxes={sandboxes as Sandbox[]}
+            sandboxId={temp?.sandboxId || ``}
+            onChange={(id) => updateTemp({ sandboxId: id })}
           />
 
-          <TextInput
-            required
-            fullWidth
-            disabled={loading}
-            label='Cron Expression'
-            value={temp?.cronExpression || ``}
-            id='tdsk-schedule-cron-input'
-            placeholder='e.g. 0 9 * * 1-5 (weekdays at 9am)'
-            onChange={(e) => updateTemp({ cronExpression: e.target.value })}
-            sx={{ '& input': { fontFamily: 'monospace' } }}
-          />
+          <FormSection title='Schedule'>
+            <CronInput
+              hideDates
+              showCron
+              disabled={loading}
+              value={temp?.cronExpression || ``}
+              onChange={(_e, change) => updateTemp({ cronExpression: change.value })}
+            />
+          </FormSection>
 
-          <TextInput
-            required
-            textarea
-            fullWidth
-            minRows={4}
-            disabled={loading}
-            label='Prompt'
-            value={temp?.prompt || ``}
-            id='tdsk-schedule-prompt-input'
-            placeholder='Enter the prompt to send to the agent on each run...'
-            onChange={(e) => updateTemp({ prompt: e.target.value })}
-          />
+          {temp.type === EScheduleType.prompt && (
+            <TextInput
+              required
+              textarea
+              fullWidth
+              minRows={4}
+              disabled={loading}
+              label='Prompt'
+              value={temp?.prompt || ``}
+              id='tdsk-schedule-prompt-input'
+              placeholder='Enter the prompt to send on each run...'
+              onChange={(e) => updateTemp({ prompt: e.target.value })}
+            />
+          )}
+
+          {temp.type === EScheduleType.shell && (
+            <TextInput
+              required
+              textarea
+              fullWidth
+              minRows={4}
+              label='Command'
+              disabled={loading}
+              value={temp?.command || ``}
+              id='tdsk-schedule-command-input'
+              sx={{ '& textarea': { fontFamily: 'monospace' } }}
+              placeholder='Enter the shell command to execute on each run...'
+              onChange={(e) => updateTemp({ command: e.target.value })}
+            />
+          )}
 
           <FormSection title='Schedule Options'>
             <SwitchInput
@@ -189,6 +239,13 @@ export const ScheduleDrawer = ({
               onChange={(e) => updateTemp({ enabled: e.target.checked })}
             />
           </FormSection>
+
+          {isEditMode && orgId && schedule && (
+            <ScheduleRuns
+              orgId={orgId}
+              scheduleId={schedule.id}
+            />
+          )}
         </Box>
       </form>
     </Drawer>

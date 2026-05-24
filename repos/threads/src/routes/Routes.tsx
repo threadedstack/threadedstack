@@ -47,7 +47,7 @@ export const Routes = createBrowserRouter([
         full
       />
     ),
-    Component: () => <SuspensePage Component={() => <Layout />} />,
+    Component: () => <SuspensePage Component={Layout} />,
     children: [
       {
         index: true,

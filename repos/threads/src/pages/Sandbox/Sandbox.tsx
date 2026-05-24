@@ -132,10 +132,10 @@ const Sandbox = () => {
     <Page className='tdsk-sandbox-page'>
       <Box sx={{ maxWidth: 960, mx: `auto`, width: `100%`, py: 4, px: 2 }}>
         <PageHeader
+          titleMono
           eyebrow={eyebrowText}
           eyebrowIcon={<Dataset />}
           title={sandbox?.name || sandboxId}
-          titleMono
           statusChip={<StatusChip status={runningCount > 0 ? `running` : `stopped`} />}
           actions={
             <>

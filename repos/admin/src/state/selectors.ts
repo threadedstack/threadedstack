@@ -27,7 +27,11 @@ import { onboardingState } from '@TAF/state/onboarding'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { skillsState, activeSkillIdState } from '@TAF/state/skills'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
-import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
+import {
+  schedulesState,
+  scheduleRunsState,
+  activeScheduleIdState,
+} from '@TAF/state/schedules'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
 import {
@@ -210,6 +214,7 @@ export const useActiveSkillId = () => useRecState(activeSkillIdState)
 
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
+export const useScheduleRuns = () => useRecState(scheduleRunsState)
 
 // Project-scoped members
 export const useProjectMembers = () => useRecState(projectMembersState)

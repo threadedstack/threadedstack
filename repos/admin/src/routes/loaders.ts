@@ -171,8 +171,8 @@ export const orgSchedulesLoader = async ({ params }: LoaderFunctionArgs) => {
 
   await Promise.all([
     !getSchedules() ? safeFetch(() => fetchSchedules(orgId)) : Promise.resolve(),
-    !getContextAgents('org')
-      ? safeFetch(() => fetchAgents({ orgId }))
+    !getContextSandboxes(`org`)
+      ? safeFetch(() => fetchSandboxes({ orgId }))
       : Promise.resolve(),
   ])
   return null

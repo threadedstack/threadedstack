@@ -27,8 +27,8 @@ export const restartSandbox = async (
         orgId,
         projectId,
         sandboxId,
-        instanceId,
         sessionId: null,
+        newInstance: true,
       })
       opened++
     } catch (err) {

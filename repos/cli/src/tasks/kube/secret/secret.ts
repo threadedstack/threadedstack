@@ -56,7 +56,7 @@ const addSecretArg = ({ key, log, args, name, files, value }: TAddSecretArg) => 
 }
 
 const buildLocs = (params: TTaskParams, name: string, defkey: string) => {
-  const { file, log, files, literal, secrets, keyvalue, value: val } = params
+  const { file, log, files, literal, secrets, keyvalue, separator, value: val } = params
 
   const secretFiles = files ? files.split(`,`) : file ? [`${defkey}:${file}`] : []
 
@@ -76,7 +76,11 @@ const buildLocs = (params: TTaskParams, name: string, defkey: string) => {
     return acc
   }, [])
 
-  const secretsFrom = secrets ? secrets.split(`,`) : keyvalue ? [keyvalue] : []
+  const secretsFrom = secrets
+    ? secrets.split(separator || `,`)
+    : keyvalue
+      ? [keyvalue]
+      : []
 
   const tempFiles = []
   const secretArgs = secretsFrom.reduce((acc, joined) => {
@@ -235,6 +239,11 @@ export const secret: TTask = {
       type: `boolean`,
       example: `--literal`,
       description: `Create the kubernetes secret from a literal value`,
+    },
+    separator: {
+      alias: [`sep`],
+      example: `--separator "||"`,
+      description: `Delimiter used to split the secrets string (default: comma)`,
     },
     log: {
       type: `boolean`,

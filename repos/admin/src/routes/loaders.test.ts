@@ -833,26 +833,26 @@ describe('loaders', () => {
   // orgSchedulesLoader (parallel fetch)
   // ---------------------------------------------------------------------------
   describe('orgSchedulesLoader', () => {
-    it('should fetch schedules and agents in parallel when not loaded', async () => {
+    it('should fetch schedules and sandboxes in parallel when not loaded', async () => {
       mockGetSchedules.mockReturnValue(undefined)
-      mockGetContextAgents.mockReturnValue(undefined)
+      mockGetContextSandboxes.mockReturnValue(undefined)
       mockFetchSchedules.mockResolvedValue({ data: {} })
-      mockFetchAgents.mockResolvedValue({ data: {} })
+      mockFetchSandboxes.mockResolvedValue({ data: {} })
 
       await orgSchedulesLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchSchedules).toHaveBeenCalledWith('org-1')
-      expect(mockFetchAgents).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
     })
 
     it('should skip both when already loaded', async () => {
       mockGetSchedules.mockReturnValue({ sch1: {} })
-      mockGetContextAgents.mockReturnValue({ a1: {} })
+      mockGetContextSandboxes.mockReturnValue({ sb1: {} })
 
       await orgSchedulesLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchSchedules).not.toHaveBeenCalled()
-      expect(mockFetchAgents).not.toHaveBeenCalled()
+      expect(mockFetchSandboxes).not.toHaveBeenCalled()
     })
   })
 

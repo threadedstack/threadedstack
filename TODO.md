@@ -8,19 +8,6 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Backend
 
-#### `startSandbox.ts` — Fire-and-Forget Pod Creation
-
-**File**: `repos/backend/src/endpoints/sandboxes/startSandbox.ts` (lines 25-33)
-
-**Problem**: The `startSandbox` endpoint calls `sb.startPod()` and immediately returns the pod name with a 201 status without waiting for the pod to reach `Running`. If the pod fails to schedule (invalid RuntimeClass, insufficient resources, image pull failure), the user receives a success response for a pod that will never start.
-
-**Impact**: The user has no indication the pod is stuck. Subsequent operations (exec, connect, shell) will fail with unrelated errors. The pod sits in `Pending` until the idle timeout cleans it up (30 min default).
-
-**Contrast**: `connectSandbox.ts` already has a polling loop that waits for `Running` state with a 120s timeout — `startSandbox` lacks this.
-
-**Possible fix**: Either poll for Running state like `connectSandbox.ts` does, or return the pod name with a status that indicates the pod is still starting (e.g., 202 Accepted) and let the client poll via a separate status endpoint.
-
-
 #### `resolveAgentConfig.ts` — Agent Starts Pod Without State Verification
 
 **File**: `repos/backend/src/utils/agent/resolveAgentConfig.ts` (lines 116-124)

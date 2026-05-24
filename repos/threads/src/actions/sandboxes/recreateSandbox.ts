@@ -9,7 +9,6 @@ export const recreateSandbox = async (opts: TSandboxActionOpts): Promise<void> =
   const { sandboxId, orgId, projectId, instanceId } = opts
 
   await stopSandbox({ sandboxId, orgId, projectId, instanceId, force: true })
-  sessionService.clearStoredSessionsForSandbox(sandboxId)
 
   const { cols, rows } = estimateTerminalDimensions()
   try {
@@ -19,9 +18,10 @@ export const recreateSandbox = async (opts: TSandboxActionOpts): Promise<void> =
       orgId,
       sandboxId,
       projectId,
-      instanceId,
       sessionId: null,
+      newInstance: true,
     })
+    sessionService.clearStoredSessionsForSandbox(sandboxId)
   } catch (err) {
     throw new Error(
       `Sandbox was stopped but failed to start a new session: ${err instanceof Error ? err.message : err}`

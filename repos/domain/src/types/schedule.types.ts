@@ -1,24 +1,52 @@
-/**
- * Schedule type definitions for the agent scheduling system.
- * Schedules define cron-based triggers that run agents with a given prompt.
- */
+export enum EScheduleType {
+  prompt = `prompt`,
+  shell = `shell`,
+}
 
-/**
- * Agent schedule definition — stored in DB, references an agent and org.
- */
-export type TAgentSchedule = {
+type TScheduleBase = {
   id: string
-  agentId: string
   orgId: string
-  cronExpression: string // e.g., "0 9 * * MON" (9am every Monday)
-  prompt: string // The prompt to send on trigger
+  userId?: string
   enabled: boolean
+  threadId?: string
+  sandboxId: string
+  createThread: boolean
+  cronExpression: string
   lastRunAt?: string | Date
   nextRunAt?: string | Date
-  threadId?: string // Optional: append to existing thread
-  createThread: boolean // Create new thread per run (default true)
-  maxConsecutiveErrors?: number // Disable after N consecutive failures
-  consecutiveErrors?: number
   createdAt?: string | Date
   updatedAt?: string | Date
+  consecutiveErrors?: number
+  maxConsecutiveErrors?: number
+}
+
+export type TPromptSchedule = TScheduleBase & {
+  type: EScheduleType.prompt
+  prompt: string
+  command?: never
+}
+
+export type TShellSchedule = TScheduleBase & {
+  type: EScheduleType.shell
+  command: string
+  prompt?: never
+}
+
+export type TSchedule = TPromptSchedule | TShellSchedule
+
+export type TScheduleRunStatus = `running` | `success` | `error` | `timeout`
+
+export type TScheduleRun = {
+  id: string
+  orgId: string
+  error?: string
+  output?: string
+  scheduleId: string
+  durationMs?: number
+  instanceId?: string
+  startedAt: string | Date
+  createdAt?: string | Date
+  updatedAt?: string | Date
+  status: TScheduleRunStatus
+  completedAt?: string | Date
 }

@@ -2,10 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
  * POST /:orgId/agents/:agentId/threads/:threadId/messages - Create a message
@@ -45,18 +43,6 @@ export const createMessage: TEndpointConfig = {
     })
 
     if (error) throw new Exception(500, error.message)
-
-    // Increment message quota for the org (period-usage, no decrement)
-    if (thread.orgId && db.services.quota) {
-      db.services.quota
-        .increment(thread.orgId, getBillingPeriod(), `messages`)
-        .catch((err: unknown) =>
-          logger.error(
-            `[quota] Failed to increment messages for org=${thread.orgId}:`,
-            err
-          )
-        )
-    }
 
     res.status(201).json({ data })
   },

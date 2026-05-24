@@ -30,7 +30,8 @@ vi.mock(`@TBE/services/scheduler/cronParser`, () => ({
 const mockSchedule = {
   id: `sched-1`,
   orgId: `org-1`,
-  agentId: `agent-1`,
+  sandboxId: `sb-1`,
+  type: `prompt`,
   cronExpression: `*/5 * * * *`,
   prompt: `Run the task`,
   enabled: true,
@@ -41,10 +42,11 @@ const mockSchedule = {
   consecutiveErrors: 0,
 }
 
-const mockAgent = {
-  id: `agent-1`,
-  name: `Test Agent`,
+const mockSandbox = {
+  id: `sb-1`,
+  name: `Test Sandbox`,
   orgId: `org-1`,
+  config: { runtime: `claude-code`, runtimeCommand: `claude` },
 }
 
 const buildMockReqRes = () => {
@@ -58,10 +60,11 @@ const buildMockReqRes = () => {
     update: vi.fn(),
     delete: vi.fn(),
     markRun: vi.fn(),
+    incrementErrors: vi.fn(),
   }
 
-  const agentService = {
-    get: vi.fn().mockResolvedValue({ data: mockAgent }),
+  const sandboxService = {
+    get: vi.fn().mockResolvedValue({ data: mockSandbox }),
   }
 
   const threadService = {
@@ -79,7 +82,7 @@ const buildMockReqRes = () => {
         db: {
           services: {
             schedule: scheduleService,
-            agent: agentService,
+            sandbox: sandboxService,
             thread: threadService,
           },
         },
@@ -96,7 +99,7 @@ const buildMockReqRes = () => {
     mockJson,
     mockStatus,
     scheduleService,
-    agentService,
+    sandboxService,
     threadService,
   }
 }
@@ -279,13 +282,13 @@ describe(`POST / - createSchedule`, () => {
     scheduleService = ctx.scheduleService
   })
 
-  it(`should create schedule with valid data`, async () => {
+  it(`should create schedule with valid prompt data`, async () => {
     scheduleService.create.mockResolvedValue({ data: mockSchedule })
 
     mockReq.body = {
       cronExpression: `*/5 * * * *`,
       prompt: `Run the task`,
-      agentId: `agent-1`,
+      sandboxId: `sb-1`,
     }
 
     await createSchedule.action(mockReq, mockRes)
@@ -295,27 +298,58 @@ describe(`POST / - createSchedule`, () => {
     expect(mockJson).toHaveBeenCalledWith({ data: mockSchedule })
   })
 
+  it(`should create schedule with shell type and command`, async () => {
+    const shellSchedule = {
+      ...mockSchedule,
+      type: `shell`,
+      command: `npm test`,
+      prompt: undefined,
+    }
+    scheduleService.create.mockResolvedValue({ data: shellSchedule })
+
+    mockReq.body = {
+      cronExpression: `*/5 * * * *`,
+      command: `npm test`,
+      sandboxId: `sb-1`,
+      type: `shell`,
+    }
+
+    await createSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.create).toHaveBeenCalled()
+    expect(mockStatus).toHaveBeenCalledWith(201)
+    expect(mockJson).toHaveBeenCalledWith({ data: shellSchedule })
+  })
+
   it(`should throw 400 when cronExpression is missing`, async () => {
-    mockReq.body = { prompt: `Run it`, agentId: `agent-1` }
+    mockReq.body = { prompt: `Run it`, sandboxId: `sb-1` }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `cronExpression is required`
     )
   })
 
-  it(`should throw 400 when prompt is missing`, async () => {
-    mockReq.body = { cronExpression: `* * * * *`, agentId: `agent-1` }
+  it(`should throw 400 when prompt is missing for prompt type`, async () => {
+    mockReq.body = { cronExpression: `* * * * *`, sandboxId: `sb-1` }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `prompt is required`
+      `prompt is required for prompt schedules`
     )
   })
 
-  it(`should throw 400 when agentId is missing`, async () => {
+  it(`should throw 400 when command is missing for shell type`, async () => {
+    mockReq.body = { cronExpression: `* * * * *`, sandboxId: `sb-1`, type: `shell` }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `command is required for shell schedules`
+    )
+  })
+
+  it(`should throw 400 when sandboxId is missing`, async () => {
     mockReq.body = { cronExpression: `* * * * *`, prompt: `Run it` }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `agentId is required`
+      `sandboxId is required`
     )
   })
 
@@ -326,7 +360,7 @@ describe(`POST / - createSchedule`, () => {
     mockReq.body = {
       cronExpression: `bad cron`,
       prompt: `Run it`,
-      agentId: `agent-1`,
+      sandboxId: `sb-1`,
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
@@ -339,7 +373,7 @@ describe(`POST / - createSchedule`, () => {
     mockReq.body = {
       cronExpression: `* * * * *`,
       prompt: `Run it`,
-      agentId: `agent-1`,
+      sandboxId: `sb-1`,
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
@@ -347,31 +381,33 @@ describe(`POST / - createSchedule`, () => {
     )
   })
 
-  it(`should throw 404 when agent not found`, async () => {
+  it(`should throw 404 when sandbox not found`, async () => {
     const ctx = buildMockReqRes()
-    ctx.agentService.get.mockResolvedValue({ data: null })
+    ctx.sandboxService.get.mockResolvedValue({ data: null })
     ctx.mockReq.body = {
       cronExpression: `* * * * *`,
       prompt: `Run it`,
-      agentId: `agent-missing`,
+      sandboxId: `sb-missing`,
     }
 
     await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
-      `Agent not found`
+      `Sandbox not found`
     )
   })
 
-  it(`should throw 404 when agent belongs to different org`, async () => {
+  it(`should throw 404 when sandbox belongs to different org`, async () => {
     const ctx = buildMockReqRes()
-    ctx.agentService.get.mockResolvedValue({ data: { ...mockAgent, orgId: `other-org` } })
+    ctx.sandboxService.get.mockResolvedValue({
+      data: { ...mockSandbox, orgId: `other-org` },
+    })
     ctx.mockReq.body = {
       cronExpression: `* * * * *`,
       prompt: `Run it`,
-      agentId: `agent-1`,
+      sandboxId: `sb-1`,
     }
 
     await expect(createSchedule.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
-      `Agent not found`
+      `Sandbox not found`
     )
   })
 
@@ -381,7 +417,7 @@ describe(`POST / - createSchedule`, () => {
     mockReq.body = {
       cronExpression: `* * * * *`,
       prompt: `Run it`,
-      agentId: `agent-1`,
+      sandboxId: `sb-1`,
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(`Create failed`)
@@ -395,6 +431,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
   let mockRes: Response
   let mockJson: ReturnType<typeof vi.fn>
   let scheduleService: ReturnType<typeof buildMockReqRes>['scheduleService']
+  let sandboxService: ReturnType<typeof buildMockReqRes>['sandboxService']
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -403,6 +440,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     mockRes = ctx.mockRes
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
+    sandboxService = ctx.sandboxService
     mockReq.params = { orgId: `org-1`, scheduleId: `sched-1` } as any
   })
 
@@ -435,6 +473,45 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
         cronExpression: `0 12 * * *`,
         nextRunAt: expect.any(Date),
       })
+    )
+  })
+
+  it(`should validate sandbox when sandboxId is updated`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.update.mockResolvedValue({
+      data: { ...mockSchedule, sandboxId: `sb-2` },
+    })
+    sandboxService.get.mockResolvedValue({ data: { id: `sb-2`, orgId: `org-1` } })
+
+    mockReq.body = { sandboxId: `sb-2` }
+
+    await updateSchedule.action(mockReq, mockRes)
+
+    expect(sandboxService.get).toHaveBeenCalledWith(`sb-2`)
+    expect(scheduleService.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: `sched-1`, sandboxId: `sb-2` })
+    )
+  })
+
+  it(`should throw 404 when updated sandbox not found`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    sandboxService.get.mockResolvedValue({ data: null })
+
+    mockReq.body = { sandboxId: `sb-missing` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Sandbox not found`
+    )
+  })
+
+  it(`should throw 404 when updated sandbox belongs to different org`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    sandboxService.get.mockResolvedValue({ data: { id: `sb-2`, orgId: `other-org` } })
+
+    mockReq.body = { sandboxId: `sb-2` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Sandbox not found`
     )
   })
 
@@ -500,7 +577,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     expect(updateArg.id).toBe(`sched-1`)
     expect(updateArg.enabled).toBe(false)
     expect(updateArg).not.toHaveProperty(`prompt`)
-    expect(updateArg).not.toHaveProperty(`agentId`)
+    expect(updateArg).not.toHaveProperty(`sandboxId`)
     expect(updateArg).not.toHaveProperty(`cronExpression`)
   })
 
@@ -511,6 +588,34 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     mockReq.body = { prompt: `Updated` }
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(`Update failed`)
+  })
+
+  it(`should throw 400 when type is changed to shell but command is missing`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, command: undefined },
+    })
+
+    mockReq.body = { type: `shell` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `command is required for shell schedules`
+    )
+  })
+
+  it(`should throw 400 when type is changed to prompt but prompt is missing`, async () => {
+    const shellSchedule = {
+      ...mockSchedule,
+      type: `shell`,
+      command: `npm test`,
+      prompt: undefined,
+    }
+    scheduleService.get.mockResolvedValue({ data: shellSchedule })
+
+    mockReq.body = { type: `prompt` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `prompt is required for prompt schedules`
+    )
   })
 })
 
@@ -616,6 +721,29 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     expect(responseData.nextRunAt).toBeInstanceOf(Date)
   })
 
+  it(`should call scheduleExecutor when configured`, async () => {
+    const mockExecutor = vi.fn().mockResolvedValue(undefined)
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.markRun.mockResolvedValue({})
+    ;(mockReq.app as any).locals.scheduleExecutor = mockExecutor
+
+    await triggerSchedule.action(mockReq, mockRes)
+
+    expect(mockExecutor).toHaveBeenCalledWith(mockSchedule)
+  })
+
+  it(`should throw 500 when scheduleExecutor fails`, async () => {
+    const mockExecutor = vi.fn().mockRejectedValue(new Error(`Execution error`))
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.incrementErrors.mockResolvedValue({})
+    ;(mockReq.app as any).locals.scheduleExecutor = mockExecutor
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Schedule execution failed: Execution error`
+    )
+    expect(scheduleService.incrementErrors).toHaveBeenCalledWith(`sched-1`)
+  })
+
   it(`should throw 404 when schedule not found`, async () => {
     scheduleService.get.mockResolvedValue({ data: null })
 
@@ -662,5 +790,14 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     scheduleService.get.mockResolvedValue({ error: { message: `DB error` } })
 
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(`DB error`)
+  })
+
+  it(`should throw 500 when markRun fails`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.markRun.mockResolvedValue({ error: { message: `Mark run error` } })
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Failed to trigger schedule`
+    )
   })
 })

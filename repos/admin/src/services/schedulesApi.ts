@@ -1,6 +1,6 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 
-import { Schedule } from '@tdsk/domain'
+import { Schedule, ScheduleRun } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 
 /**
@@ -139,6 +139,43 @@ export class SchedulesApi extends BaseApi {
     resp.error && (await this._onError(resp.error, `Failed to trigger Schedule`))
 
     return resp
+  }
+
+  async listRuns(
+    orgId: string,
+    scheduleId: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<TApiRes<ScheduleRun[]>> {
+    const resp = await this.api.get<ScheduleRun[]>({
+      data: opts,
+      path: `${this.#path(orgId)}/${scheduleId}/runs`,
+      queryKey: [...this.cache.detail(scheduleId), `runs`],
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load Schedule runs`))
+
+    return {
+      ...resp,
+      data: resp.data?.map((r) => new ScheduleRun(r)) || [],
+    }
+  }
+
+  async getRun(
+    orgId: string,
+    scheduleId: string,
+    runId: string
+  ): Promise<TApiRes<ScheduleRun>> {
+    const resp = await this.api.get<ScheduleRun>({
+      path: `${this.#path(orgId)}/${scheduleId}/runs/${runId}`,
+      queryKey: [...this.cache.detail(scheduleId), `runs`, runId],
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load Schedule run`))
+
+    return {
+      ...resp,
+      data: resp.data ? new ScheduleRun(resp.data) : undefined,
+    }
   }
 }
 

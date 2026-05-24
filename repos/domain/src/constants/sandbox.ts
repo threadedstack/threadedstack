@@ -1,4 +1,5 @@
 import type {
+  TSBRuntimeConfig,
   TSandboxRuntimeId,
   TKubeSandboxConfig,
   TRuntimeSkillConfig,
@@ -35,21 +36,15 @@ export const SandboxRuntimeOptions = [
  * - initScript: default setup script for this runtime
  * - command/args: optional container overrides (built-in presets use the Dockerfile ENTRYPOINT)
  */
-export const SandboxRuntimeConfigs: Record<
-  TSandboxRuntimeId,
-  {
-    command?: string[]
-    args?: string[]
-    runtimeCommand?: string
-    initScript?: string
-  }
-> = {
+export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> = {
   [ESandboxRuntime.claudeCode]: {
     runtimeCommand: `claude`,
+    promptCommand: `claude -p '{prompt}'`,
     initScript: `echo "Claude Code sandbox ready"`,
   },
   [ESandboxRuntime.codex]: {
     runtimeCommand: `codex`,
+    promptCommand: `codex exec '{prompt}'`,
     initScript: [
       `mkdir -p ~/.codex`,
       `# Default provider: later assignments win — priority: openai > openrouter > zai > google > ollama`,
@@ -94,10 +89,12 @@ export const SandboxRuntimeConfigs: Record<
   },
   [ESandboxRuntime.openCode]: {
     runtimeCommand: `opencode`,
+    promptCommand: `opencode run '{prompt}'`,
     initScript: `echo "OpenCode sandbox ready"`,
   },
   [ESandboxRuntime.geminiCli]: {
     runtimeCommand: `gemini`,
+    promptCommand: `gemini -p '{prompt}'`,
     initScript: `echo "Gemini CLI sandbox ready"`,
   },
   [ESandboxRuntime.custom]: {},

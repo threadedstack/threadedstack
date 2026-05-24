@@ -268,6 +268,47 @@ describe(`Scheduler`, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Agent crashed`))
     })
 
+    it(`should process schedules concurrently, not sequentially`, async () => {
+      const schedule2 = { ...mockSchedule, id: `sched-2` }
+      const callOrder: string[] = []
+
+      let resolveFirst!: () => void
+      let resolveSecond!: () => void
+      const firstDone = new Promise<void>((r) => {
+        resolveFirst = r
+      })
+      const secondDone = new Promise<void>((r) => {
+        resolveSecond = r
+      })
+
+      const mockExecutor = vi.fn().mockImplementation(async (s: any) => {
+        callOrder.push(`start:${s.id}`)
+        if (s.id === `sched-1`) {
+          await secondDone
+          resolveFirst()
+        } else {
+          resolveSecond()
+          await firstDone
+        }
+        callOrder.push(`end:${s.id}`)
+      })
+
+      scheduler = new Scheduler(mockDb, mockExecutor)
+      mockDb.services.schedule.listDue.mockResolvedValue({
+        data: [mockSchedule, schedule2],
+      })
+      mockDb.services.schedule.markRun.mockResolvedValue({})
+
+      vi.useRealTimers()
+      await scheduler.tick()
+
+      expect(callOrder[0]).toBe(`start:sched-1`)
+      expect(callOrder[1]).toBe(`start:sched-2`)
+      expect(mockExecutor).toHaveBeenCalledTimes(2)
+
+      vi.useFakeTimers()
+    })
+
     it(`should continue processing other schedules when one executor fails`, async () => {
       const schedule2 = { ...mockSchedule, id: `sched-2`, agentId: `agent-2` }
       const mockExecutor = vi

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { parseNextRun } from '@TBE/services/scheduler/cronParser'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
@@ -28,7 +29,14 @@ export const triggerSchedule: TEndpointConfig = {
       try {
         await executeAgent(data)
       } catch (execErr: any) {
-        await db.services.schedule.incrementErrors(scheduleId)
+        try {
+          await db.services.schedule.incrementErrors(scheduleId)
+        } catch (incErr: any) {
+          logger.error(
+            `[triggerSchedule] Failed to increment errors for schedule ${scheduleId}:`,
+            incErr?.message || incErr
+          )
+        }
         throw new Exception(
           500,
           `Schedule execution failed: ${execErr?.message || execErr}`

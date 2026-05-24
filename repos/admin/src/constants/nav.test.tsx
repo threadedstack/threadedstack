@@ -245,15 +245,9 @@ describe(`OrgNavItems`, () => {
   describe(`visibility`, () => {
     it(`should be visible when orgId is present with admin role`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
-      const featureGatedItems = [`Skills`, `Schedules`]
       OrgNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
-        if (featureGatedItems.includes(item.text as string)) {
-          // Skills and Schedules are feature-gated — hidden while flags are disabled
-          expect(item.visible?.(context)).toBe(false)
-        } else {
-          expect(item.visible?.(context)).toBe(true)
-        }
+        expect(item.visible?.(context)).toBe(true)
       })
     })
 
