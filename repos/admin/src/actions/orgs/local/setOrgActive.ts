@@ -1,5 +1,5 @@
 import { nav } from '@TAF/services/nav'
-import { setActiveOrgId, getActiveOrgId } from '@TAF/state/accessors'
+import { setActiveOrgId, getActiveOrgId, resetApiKeys } from '@TAF/state/accessors'
 import { unsetActiveProject } from '@TAF/actions/projects/local/unsetActiveProject'
 
 export const setOrgActive = (
@@ -10,6 +10,7 @@ export const setOrgActive = (
   const current = getActiveOrgId()
   if (force || current !== orgId) {
     unsetActiveProject()
+    resetApiKeys()
     setActiveOrgId(orgId)
   }
 

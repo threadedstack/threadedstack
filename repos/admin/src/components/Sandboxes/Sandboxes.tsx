@@ -304,19 +304,20 @@ export const Sandboxes = (props: TSandboxes) => {
 
   const filteredSandboxes = useMemo(() => {
     const sandboxArray = sandboxes ? Object.values(sandboxes) : []
-    if (!searchQuery.trim()) return sandboxArray
+    const visible = sandboxArray.filter(
+      (sandbox) =>
+        !(sandbox.builtIn && sandbox.config?.runtime === ESandboxRuntime.custom)
+    )
+    if (!searchQuery.trim()) return visible
     const query = searchQuery.toLowerCase()
-    return sandboxArray.filter(
+    return visible.filter(
       (sandbox) =>
         sandbox.name?.toLowerCase().includes(query) ||
         sandbox.config?.image?.toLowerCase().includes(query)
     )
   }, [sandboxes, searchQuery])
 
-  const sandboxCount = useMemo(
-    () => (sandboxes ? Object.values(sandboxes).length : 0),
-    [sandboxes]
-  )
+  const sandboxCount = filteredSandboxes.length
 
   const columns: TDataTableColumn<Sandbox>[] = [
     {
