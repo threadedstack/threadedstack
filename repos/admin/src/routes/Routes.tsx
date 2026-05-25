@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react'
 import { ERoutePath } from '@TAF/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TAF/pages/Layout/Layout'
+import { useMemo, lazy, Suspense } from 'react'
+import { RouterProvider } from 'react-router/dom'
 import { ERoleType, isFeatureEnabled } from '@tdsk/domain'
 import { AppError } from '@TAF/components/AppError/AppError'
 import { RequireRole } from '@TAF/components/Permissions/RequireRole'
@@ -389,3 +390,8 @@ export const createRoutes = () =>
       ),
     },
   ])
+
+export const Router = () => {
+  const router = useMemo(() => createRoutes(), [])
+  return <RouterProvider router={router} />
+}

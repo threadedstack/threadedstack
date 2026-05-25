@@ -93,18 +93,7 @@ const Layout = (props: any) => {
         <PermissionsProvider role={role}>
           <LayoutContainer className='tdsk-layout-container'>
             <Header navItems={filteredHeaderItems} />
-            {resolvedRole === null ? null : has('adminPanel:read') ? (
-              <LayoutContent className='tdsk-page-content'>
-                <Sidebar isMobile={isMobile} />
-                <Outlet />
-                {props?.children}
-                {isMobile && (
-                  <MobileToggle onClick={() => setSidebarOpen(true)}>
-                    <MenuIcon />
-                  </MobileToggle>
-                )}
-              </LayoutContent>
-            ) : (
+            {resolvedRole !== null && !has('adminPanel:read') ? (
               <Box
                 sx={{
                   display: 'flex',
@@ -123,6 +112,17 @@ const Layout = (props: any) => {
                   You do not have permission to access the admin panel.
                 </Typography>
               </Box>
+            ) : (
+              <LayoutContent className='tdsk-page-content'>
+                <Sidebar isMobile={isMobile} />
+                <Outlet />
+                {props?.children}
+                {isMobile && (
+                  <MobileToggle onClick={() => setSidebarOpen(true)}>
+                    <MenuIcon />
+                  </MobileToggle>
+                )}
+              </LayoutContent>
             )}
           </LayoutContainer>
         </PermissionsProvider>

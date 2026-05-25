@@ -1,6 +1,4 @@
-import { useMemo } from 'react'
-import { createRoutes } from '@TAF/routes/Routes'
-import { RouterProvider } from 'react-router/dom'
+import { Router } from '@TAF/routes/Routes'
 import { useWindowResize } from '@tdsk/components'
 import { Version } from '@TAF/components/Version'
 import { GlobalStyles as MGS } from '@mui/material'
@@ -13,7 +11,6 @@ import { useMakeTheme } from '@TAF/hooks/theme/useMakeTheme'
 const App = () => {
   useWindowResize()
   const theme = useMakeTheme()
-  const router = useMemo(() => createRoutes(), [])
 
   return (
     <ThemeProvider theme={theme}>
@@ -28,7 +25,7 @@ const App = () => {
               },
             }}
           />
-          <RouterProvider router={router} />
+          <Router />
           <Version />
         </AnalyticsProvider>
       </AuthProvider>

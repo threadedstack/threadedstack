@@ -1,7 +1,9 @@
+import { useMemo } from 'react'
 import { lazy, Suspense } from 'react'
 import { ERoutePath } from '@TTH/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TTH/pages/Layout/Layout'
+import { RouterProvider } from 'react-router/dom'
 import { Navigate, createBrowserRouter } from 'react-router'
 import {
   rootLoader,
@@ -36,94 +38,100 @@ const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   </Suspense>
 )
 
-export const Routes = createBrowserRouter([
-  {
-    loader: rootLoader,
-    id: ERoutePath.Home,
-    path: ERoutePath.Home,
-    hydrateFallbackElement: (
-      <Loading
-        fixed
-        full
-      />
-    ),
-    Component: () => <SuspensePage Component={Layout} />,
-    children: [
-      {
-        index: true,
-        Component: () => <SuspensePage Component={Home} />,
-      },
-      {
-        path: ERoutePath.Settings,
-        Component: () => <SuspensePage Component={Settings} />,
-      },
-      {
-        path: ERoutePath.Orgs,
-        Component: () => <SuspensePage Component={Orgs} />,
-      },
-      {
-        path: ERoutePath.OrgScope,
-        loader: orgScopeLoader,
-        children: [
-          {
-            index: true,
-            Component: () => (
-              <Navigate
-                replace
-                to='projects'
-              />
-            ),
-          },
-          {
-            path: ERoutePath.Projects,
-            Component: () => <SuspensePage Component={Projects} />,
-          },
-          {
-            path: ERoutePath.ProjectScope,
-            loader: projectScopeLoader,
-            children: [
-              {
-                index: true,
-                Component: () => <SuspensePage Component={Project} />,
-              },
-              {
-                loader: sandboxLoader,
-                path: ERoutePath.Sandbox,
-                Component: () => <SuspensePage Component={Sandbox} />,
-              },
-              {
-                loader: instanceLoader,
-                path: ERoutePath.Instance,
-                Component: () => <SuspensePage Component={Instance} />,
-              },
-              {
-                path: ERoutePath.Session,
-                Component: () => <SuspensePage Component={Session} />,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: ERoutePath.CliAuth,
-    path: ERoutePath.CliAuth,
-    Component: () => <SuspensePage Component={CliAuth} />,
-  },
-  {
-    id: ERoutePath.AuthPage,
-    path: ERoutePath.AuthPage,
-    Component: () => <SuspensePage Component={Login} />,
-  },
-  {
-    id: ERoutePath.Star,
-    path: ERoutePath.Star,
-    Component: () => (
-      <Navigate
-        replace
-        to={ERoutePath.Home}
-      />
-    ),
-  },
-])
+export const createRoutes = () =>
+  createBrowserRouter([
+    {
+      loader: rootLoader,
+      id: ERoutePath.Home,
+      path: ERoutePath.Home,
+      hydrateFallbackElement: (
+        <Loading
+          fixed
+          full
+        />
+      ),
+      Component: () => <SuspensePage Component={Layout} />,
+      children: [
+        {
+          index: true,
+          Component: () => <SuspensePage Component={Home} />,
+        },
+        {
+          path: ERoutePath.Settings,
+          Component: () => <SuspensePage Component={Settings} />,
+        },
+        {
+          path: ERoutePath.Orgs,
+          Component: () => <SuspensePage Component={Orgs} />,
+        },
+        {
+          path: ERoutePath.OrgScope,
+          loader: orgScopeLoader,
+          children: [
+            {
+              index: true,
+              Component: () => (
+                <Navigate
+                  replace
+                  to='projects'
+                />
+              ),
+            },
+            {
+              path: ERoutePath.Projects,
+              Component: () => <SuspensePage Component={Projects} />,
+            },
+            {
+              path: ERoutePath.ProjectScope,
+              loader: projectScopeLoader,
+              children: [
+                {
+                  index: true,
+                  Component: () => <SuspensePage Component={Project} />,
+                },
+                {
+                  loader: sandboxLoader,
+                  path: ERoutePath.Sandbox,
+                  Component: () => <SuspensePage Component={Sandbox} />,
+                },
+                {
+                  loader: instanceLoader,
+                  path: ERoutePath.Instance,
+                  Component: () => <SuspensePage Component={Instance} />,
+                },
+                {
+                  path: ERoutePath.Session,
+                  Component: () => <SuspensePage Component={Session} />,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: ERoutePath.CliAuth,
+      path: ERoutePath.CliAuth,
+      Component: () => <SuspensePage Component={CliAuth} />,
+    },
+    {
+      id: ERoutePath.AuthPage,
+      path: ERoutePath.AuthPage,
+      Component: () => <SuspensePage Component={Login} />,
+    },
+    {
+      id: ERoutePath.Star,
+      path: ERoutePath.Star,
+      Component: () => (
+        <Navigate
+          replace
+          to={ERoutePath.Home}
+        />
+      ),
+    },
+  ])
+
+export const Router = () => {
+  const router = useMemo(() => createRoutes(), [])
+  return <RouterProvider router={router} />
+}

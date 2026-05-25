@@ -1,6 +1,5 @@
 import { Toaster } from 'sonner'
-import { Routes } from '@TTH/routes/Routes'
-import { RouterProvider } from 'react-router/dom'
+import { Router } from '@TTH/routes/Routes'
 import { useWindowResize } from '@tdsk/components'
 import { GlobalStyles as MGS } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
@@ -26,7 +25,7 @@ const App = () => {
         position='top-right'
         theme={theme.palette.mode === `dark` ? `dark` : `light`}
       />
-      <RouterProvider router={Routes} />
+      <Router />
     </ThemeProvider>
   )
 }
