@@ -1,0 +1,14 @@
+Welcome to Threaded Stack
+
+Thanks for signing up for Threaded Stack! You're on the waitlist.
+We'll reach out when your account is approved.
+
+Email: {{email}}
+
+Visit Threaded Stack: {{frontendUrl}}
+
+We're rolling out access gradually to ensure the best experience for everyone.
+You'll receive another email once your account has been approved.
+
+---
+This is an automated email from Threaded Stack. Please do not reply to this message.

@@ -1,6 +1,7 @@
 import type { TOrgWithRole } from '@tdsk/domain'
 
 import { auth } from '@TTH/services/auth'
+import { WaitlistedCode } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { orgsApi } from '@TTH/services/orgsApi'
 import { storage } from '@TTH/services/storage'
@@ -14,6 +15,7 @@ import {
   setOrgId,
   setProjects,
   setSandboxes,
+  setWaitlisted,
   setActiveOrgRole,
   setActiveProjectId,
 } from '@TTH/state/accessors'
@@ -33,8 +35,11 @@ const initOnce = async () => {
   await apiService.bearer(resp)
   setUser(resp.user)
 
-  // Fetch org list
   const orgsResult = await orgsApi.list()
+  if ((orgsResult as any).error?.details?.code === WaitlistedCode) {
+    setWaitlisted(true)
+    return
+  }
   if (orgsResult.data?.length) setOrgs(orgsResult.data)
 
   // Restore saved org selection — scope loaders will override if the URL

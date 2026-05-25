@@ -20,6 +20,7 @@ import {
   resetProviders,
   resetThemeType,
   resetSandboxes,
+  resetWaitlisted,
   resetSidebarOpen,
   resetActiveOrgId,
   resetSubscription,
@@ -45,6 +46,7 @@ import {
 } from '@TAF/state/accessors'
 
 export const reset = () => {
+  resetWaitlisted?.()
   resetUser?.()
   resetOrgs?.()
   resetSkills?.()

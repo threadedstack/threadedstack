@@ -8,7 +8,6 @@ import type {
   TApiService,
 } from '@TTH/types'
 
-import { toast } from 'sonner'
 import { EAPIMethod } from '@TTH/types'
 import { query } from '@TTH/services/query'
 import { limbo } from '@keg-hub/jsutils/limbo'
@@ -193,6 +192,5 @@ export class BaseApi {
     if (!error) return
     const message = isStr(error) ? error : error?.message
     console.warn(`[API] ${title || `API Error`}:`, message)
-    toast.error(title || `API Error`, { id: title, description: message })
   }
 }

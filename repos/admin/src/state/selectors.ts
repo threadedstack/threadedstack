@@ -28,15 +28,15 @@ import { onboardingState } from '@TAF/state/onboarding'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { skillsState, activeSkillIdState } from '@TAF/state/skills'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
-import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
+import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
+import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
+import { waitlistedState, sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
 import {
   schedulesState,
   scheduleRunsState,
   activeScheduleIdState,
   projectSchedulesState,
 } from '@TAF/state/schedules'
-import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
-import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
 import {
   sandboxesState,
   orgSandboxesState,
@@ -124,6 +124,7 @@ const useDerivedState = <T = any>(state: Atom<T>) => {
   return [current, setCurrent, noOp] as [T, typeof setCurrent, typeof noOp]
 }
 
+export const useWaitlisted = () => useRecState(waitlistedState)
 export const useUser = () => useRecState(userState)
 export const useProviders = () => useRecState(providersState)
 export const useSandboxes = () => useRecState(sandboxesState)

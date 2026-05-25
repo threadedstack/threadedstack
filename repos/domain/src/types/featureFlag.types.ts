@@ -6,6 +6,7 @@ export type TFeatureFlagDef = {
 export type TFeatureFlags = {
   skills: TFeatureFlagDef
   schedules: TFeatureFlagDef
+  accessGate: TFeatureFlagDef
   terminalGui: TFeatureFlagDef
 }
 

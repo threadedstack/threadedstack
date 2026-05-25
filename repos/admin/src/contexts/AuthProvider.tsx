@@ -4,12 +4,19 @@ import type { TAuthSession } from '@tdsk/components'
 import { useMemo, useState } from 'react'
 import { auth } from '@TAF/services/auth'
 import { ife } from '@keg-hub/jsutils/ife'
+import { useWaitlisted } from '@TAF/state/selectors'
 import { AuthContext } from '@TAF/contexts/AuthContext'
 import { initAuth } from '@TAF/actions/auth/local/init'
 import { signout } from '@TAF/actions/auth/local/signout'
 import { tokenRefresh } from '@TAF/services/tokenRefresh'
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react'
-import { LoginError, Loading, MemoChildren, useEffectOnce } from '@tdsk/components'
+import {
+  LoginError,
+  Loading,
+  MemoChildren,
+  Waitlist,
+  useEffectOnce,
+} from '@tdsk/components'
 
 export type TAuthProvider = {
   children: ReactNode
@@ -30,6 +37,7 @@ export const AuthProvider = (props: TAuthProvider) => {
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState<boolean>(true)
   const [session, setSession] = useState<TAuthSession>()
+  const [waitlisted] = useWaitlisted()
   const ctx = useMemo(() => ({ session, loading }), [session, loading])
 
   useEffectOnce(() => {
@@ -37,7 +45,11 @@ export const AuthProvider = (props: TAuthProvider) => {
 
     ife(async () => {
       try {
-        const { session: authSession, error: authError } = await initAuth()
+        const result = await initAuth()
+        if (result?.waitlisted) return
+        if (!result) return
+
+        const { session: authSession, error: authError } = result
         if (authError) return setError(authError.message)
 
         if (authSession) {
@@ -64,6 +76,13 @@ export const AuthProvider = (props: TAuthProvider) => {
           <Loading
             fixed
             full
+          />
+        ) : waitlisted ? (
+          <Waitlist
+            onSignOut={async () => {
+              await signout({ navigate: false })
+              setTimeout(() => window.location.reload(), 0)
+            }}
           />
         ) : (
           <MemoChildren {...props} />

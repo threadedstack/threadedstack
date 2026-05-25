@@ -29,15 +29,20 @@ export type TAuthSession = {
   activeOrganizationId?: string
 }
 
+export type TAuthWaitlist = {
+  waitlisted?: boolean
+}
+
 export type TAuthData = {
   user?: User
   session?: TAuthSession
 }
 
-export type TAuthResp = TAuthData & {
-  error?: TAuthError
-  success?: boolean
-}
+export type TAuthResp = TAuthWaitlist &
+  TAuthData & {
+    error?: TAuthError
+    success?: boolean
+  }
 
 type TLoginBtn = (props: TLoginBtnProps) => ReactNode
 

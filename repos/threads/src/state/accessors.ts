@@ -38,6 +38,7 @@ import {
   orgIdState,
   defSidebarOpen,
   defFileTreeOpen,
+  waitlistedState,
   sidebarOpenState,
   defActiveOrgRole,
   fileTreeOpenState,
@@ -85,6 +86,10 @@ import {
 } from '@TTH/state/sessions'
 
 export const store = createStore()
+
+export const getWaitlisted = () => store.get(waitlistedState)
+export const resetWaitlisted = () => store.set(waitlistedState, false)
+export const setWaitlisted = (val: boolean) => store.set(waitlistedState, val)
 
 export const getThemeType = () => store.get(themeTypeState)
 export const resetThemeType = () => store.set(themeTypeState, defThemeType)

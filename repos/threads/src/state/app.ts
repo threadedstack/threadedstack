@@ -4,6 +4,8 @@ import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
 import { orgsAtom, projectsAtom } from '@TTH/state/sessions'
 
+export const waitlistedState = atomWithReset<boolean>(false)
+
 export const defSidebarOpen = true
 export const sidebarOpenState = atomWithReset<boolean>(defSidebarOpen)
 

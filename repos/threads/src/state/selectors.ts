@@ -8,6 +8,7 @@ import { guiASTState, guiFeedState, guiModeState, guiEngineState } from '@TTH/st
 import {
   orgIdState,
   activeOrgState,
+  waitlistedState,
   sidebarOpenState,
   fileTreeOpenState,
   activeProjectState,
@@ -47,13 +48,14 @@ const useReadOnly = <T>(state: Atom<T>) => {
 export const useUser = () => useReadOnly(userState)
 export const useOrgId = () => useReadOnly(orgIdState)
 export const useThemeType = () => useReadOnly(themeTypeState)
+export const useWaitlisted = () => useReadOnly(waitlistedState)
 export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
 export const useFileTreeOpen = () => useReadOnly(fileTreeOpenState)
 export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
-export const usePermissionOverrides = () => useReadOnly(permissionOverridesState)
 export const useOpenEditorFiles = () => useReadOnly(openEditorFilesState)
 export const useContextPanelOpen = () => useReadOnly(contextPanelOpenState)
 export const useActiveEditorFile = () => useReadOnly(activeEditorFileState)
+export const usePermissionOverrides = () => useReadOnly(permissionOverridesState)
 
 export const useOrgs = () => useReadOnly(orgsAtom)
 export const useProjects = () => useReadOnly(projectsAtom)
@@ -69,8 +71,8 @@ export const useGuiAst = () => useReadOnly(guiASTState)
 export const useGuiFeed = () => useReadOnly(guiFeedState)
 export const useGuiModes = () => useReadOnly(guiModeState)
 export const useGuiEngines = () => useReadOnly(guiEngineState)
-export const useBackendSessions = () => useReadOnly(backendSessionsAtom)
 export const useSandboxPorts = () => useReadOnly(sandboxPortsAtom)
+export const useBackendSessions = () => useReadOnly(backendSessionsAtom)
 export const useSandboxInstances = () => useReadOnly(sandboxInstancesAtom)
 export const useTerminalSettings = () => useReadOnly(terminalSettingsAtom)
 

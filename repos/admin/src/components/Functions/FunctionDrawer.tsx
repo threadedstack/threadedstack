@@ -3,18 +3,17 @@ import type { TParamRow } from '@TAF/components/ParamsEditor'
 import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
-import { useAtomValue } from 'jotai'
 import { EFunLanguage } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { LanguageOpts } from '@TAF/constants/values'
 import { useState, useEffect, useMemo } from 'react'
 import { ParamsEditor } from '@TAF/components/ParamsEditor'
-import { projectEndpointsState } from '@TAF/state/endpoints'
+import { EndpointSelector } from '@TAF/components/Selectors'
+import { useProjectEndpoints } from '@TAF/state/selectors'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
-import { EndpointSelector } from '@TAF/components/Selectors'
 import {
   Drawer,
   TextInput,
@@ -41,7 +40,7 @@ export const FunctionDrawer = ({
   onSuccess: onSuccessCB,
 }: TFunctionDrawer) => {
   const isEditMode = Boolean(func)
-  const endpoints = useAtomValue(projectEndpointsState)
+  const [endpoints] = useProjectEndpoints()
 
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(func?.name || ``)

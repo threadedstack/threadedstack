@@ -2,7 +2,6 @@ import type { TAuthData } from '@tdsk/components'
 import type { TApiRequest, TApiResponse } from '@tdsk/domain'
 import type { TApiReq, TApiData, TApiService } from '@TAF/types'
 
-import { toast } from 'sonner'
 import { query } from '@TAF/services/query'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isObj } from '@keg-hub/jsutils/isObj'
@@ -14,6 +13,7 @@ import { objToQuery, ApiService as DomainApiService, EApiMethod } from '@tdsk/do
 export class ApiService extends DomainApiService {
   path: string = `_`
   mock: typeof fetch
+  #validatePath = `/orgs`
 
   constructor(cfg: TApiService = {}) {
     super({
@@ -143,8 +143,6 @@ export class BaseApi {
       : isStr(details?.error)
         ? details.error
         : (error as Error)?.message
-    // TODO: investigate if this should be kept?
-    toast.error(title || `API Error`, { description: message })
     console.warn(message)
   }
 }

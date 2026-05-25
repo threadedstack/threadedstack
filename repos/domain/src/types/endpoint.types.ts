@@ -1,4 +1,5 @@
 import type { User } from '@TDM/models/user'
+import type { TAuthHeaderObj } from '@TDM/types'
 import type { Router, Express, Request, Response, NextFunction } from 'express'
 
 type TCfg = Record<string, any>
@@ -43,6 +44,7 @@ export type TApp<
 export type TResLocals = {
   user?: User
   subdomain?: string
+  auth?: TAuthHeaderObj
   subscriptionError?: boolean
 }
 

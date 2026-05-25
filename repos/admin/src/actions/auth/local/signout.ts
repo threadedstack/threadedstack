@@ -1,4 +1,5 @@
 import posthog from 'posthog-js'
+import type { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { auth } from '@TAF/services/auth'
 import { query } from '@TAF/services/query'
@@ -12,7 +13,12 @@ import {
   ApiHeadersStorageKey,
 } from '@TAF/constants/storage'
 
-export const signout = async () => {
+type TSignOut = {
+  to?: ERoutePath
+  navigate?: boolean
+}
+
+export const signout = async (props: TSignOut = {}) => {
   tokenRefresh.stop()
 
   try {
@@ -42,5 +48,6 @@ export const signout = async () => {
     console.warn(`[signout] storage cleanup failed:`, err)
   }
 
-  nav.signin()
+  if (props?.navigate === false) return
+  props?.to ? nav.to(props?.to) : nav.signin()
 }

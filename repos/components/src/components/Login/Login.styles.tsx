@@ -104,7 +104,7 @@ export const BrandHeadline = styled(Text)(({ theme }) => {
     line-height: 1.2;
     letter-spacing: -0.02em;
     margin-bottom: ${gutter.hpx};
-    background: ${theme.palette.colors.gradients.headline};
+    background: ${theme.palette?.colors?.gradients?.headline || theme.palette.primary.main};
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -171,7 +171,7 @@ export const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
     text-transform: none;
     transition: all 0.15s ease;
     color: ${theme.palette.text.primary};
-    border-radius: ${theme.dims.border.smpx};
+    border-radius: ${theme.dims?.border?.smpx || '8px'};
     border: 1px solid ${theme.palette.divider};
     background: ${alpha(theme.palette.text.primary, 0.04)};
 
@@ -187,15 +187,16 @@ export const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
 })
 
 export const ErrorSection = styled(Box)(({ theme }) => {
+  const danger = theme.palette?.colors?.states?.danger || theme.palette.error.main
   return `
     display: flex;
     width: 100%;
     flex-direction: column;
     padding: ${gutter.tpx};
     margin-top: ${gutter.px};
-    border-radius: ${theme.dims.border.smpx};
-    background: ${alpha(theme.palette.colors.states.danger, 0.12)};
-    border: 1px solid ${alpha(theme.palette.colors.states.danger, 0.3)};
+    border-radius: ${theme.dims?.border?.smpx || '8px'};
+    background: ${alpha(danger, 0.12)};
+    border: 1px solid ${alpha(danger, 0.3)};
   `
 })
 
@@ -203,7 +204,7 @@ export const ErrorTitle = styled(Text)(({ theme }) => {
   return `
     font-size: 0.875rem;
     font-weight: 600;
-    color: ${theme.palette.colors.states.danger};
+    color: ${theme.palette?.colors?.states?.danger || theme.palette.error.main};
     margin-bottom: ${gutter.qpx};
   `
 })

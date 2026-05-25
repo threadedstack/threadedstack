@@ -16,6 +16,7 @@ import {
   getProjects,
   setProjects,
   setSandboxes,
+  getWaitlisted,
   setActiveOrgRole,
   setActiveProjectId,
   resetActiveProjectId,
@@ -30,6 +31,8 @@ const safeFetch = (fn: () => Promise<any>, context?: string) => {
 }
 
 export const rootLoader = async () => {
+  if (getWaitlisted()) return null
+
   try {
     await init()
   } catch (err) {
@@ -42,6 +45,7 @@ export const rootLoader = async () => {
 }
 
 export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
+  if (getWaitlisted()) return null
   const { orgId } = params
   if (!orgId) return null
 
@@ -88,6 +92,7 @@ export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
 }
 
 export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
+  if (getWaitlisted()) return null
   const { orgId, sandboxId, projectId } = params
   if (!sandboxId || !orgId || !projectId) return null
 
@@ -98,6 +103,7 @@ export const sandboxLoader = async ({ params }: LoaderFunctionArgs) => {
 }
 
 export const instanceLoader = async ({ params }: LoaderFunctionArgs) => {
+  if (getWaitlisted()) return null
   const { orgId, sandboxId, projectId, instanceId } = params
   if (!sandboxId || !orgId || !projectId || !instanceId) return null
 

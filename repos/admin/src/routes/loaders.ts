@@ -1,32 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router'
 
-import {
-  getOrgs,
-  getSkills,
-  getApiKeys,
-  getOrgUsers,
-  getOrgQuota,
-  getProjects,
-  getProviders,
-  getOrgLimits,
-  getOrgSecrets,
-  setActiveOrgId,
-  setActiveAgentId,
-  getContextAgents,
-  getContextThreads,
-  getContextDomains,
-  getProjectSecrets,
-  setActiveThreadId,
-  setActiveProjectId,
-  getProjectEndpoints,
-  getContextSchedules,
-  getProjectFunctions,
-  setActiveEndpointId,
-  getContextSandboxes,
-  getPermissionOverrides,
-  getProjectMembersForProject,
-} from '@TAF/state/accessors'
-
+import { WaitlistedCode } from '@tdsk/domain'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
 import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
@@ -45,6 +19,34 @@ import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
 import { fetchOverrides } from '@TAF/actions/permissionOverrides/api/fetchOverrides'
 import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectMembers'
+import {
+  getOrgs,
+  getSkills,
+  getApiKeys,
+  getOrgUsers,
+  getOrgQuota,
+  getProjects,
+  getProviders,
+  getOrgLimits,
+  getWaitlisted,
+  setWaitlisted,
+  getOrgSecrets,
+  setActiveOrgId,
+  setActiveAgentId,
+  getContextAgents,
+  getContextThreads,
+  getContextDomains,
+  getProjectSecrets,
+  setActiveThreadId,
+  setActiveProjectId,
+  getProjectEndpoints,
+  getContextSchedules,
+  getProjectFunctions,
+  setActiveEndpointId,
+  getContextSandboxes,
+  getPermissionOverrides,
+  getProjectMembersForProject,
+} from '@TAF/state/accessors'
 
 /**
  * Critical fetch — throws on error so the route's errorElement renders.
@@ -52,7 +54,14 @@ import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectM
  */
 const criticalFetch = async (fn: () => Promise<{ error?: Error } | any>) => {
   const resp = await fn()
-  if (resp?.error) throw resp.error
+  if (!resp?.error) return
+
+  if (resp.error.code === WaitlistedCode) {
+    setWaitlisted(true)
+    return
+  }
+
+  throw resp.error
 }
 
 /**
@@ -73,6 +82,7 @@ const safeFetch = (fn: () => Promise<any>) => {
 // --- Root Loader ---
 
 export const rootLoader = async () => {
+  if (getWaitlisted()) return null
   if (!getOrgs()) await criticalFetch(() => fetchOrgs())
   return null
 }

@@ -6,9 +6,7 @@ export const fetchOrgs = async () => {
 
   if (resp.error) return { error: resp.error }
 
-  if (resp.data) {
-    setOrgs(resp.data)
-  }
+  resp.data && setOrgs(resp.data)
 
   return resp
 }

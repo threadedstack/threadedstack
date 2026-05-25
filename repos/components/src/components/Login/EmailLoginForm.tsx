@@ -5,9 +5,9 @@ import { useState, useCallback } from 'react'
 import Link from '@mui/material/Link'
 import Alert from '@mui/material/Alert'
 import Typography from '@mui/material/Typography'
-import { TextInput } from '../Inputs/TextInput'
+import { TextInput } from '@TSC/components/Inputs/TextInput'
 
-import { EmailFormContainer, EmailFormButton } from './Login.styles'
+import { EmailFormContainer, EmailFormButton } from '@TSC/components/Login/Login.styles'
 
 export const EmailLoginForm = (props: TEmailLoginFormProps) => {
   const { error, success, loading, onSignIn, onSignUp, onForgotPassword } = props

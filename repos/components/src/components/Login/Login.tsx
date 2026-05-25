@@ -1,11 +1,11 @@
-import type { TLogin, TLoginBtns } from '../../types'
+import type { TLogin, TLoginBtns } from '@TSC/types'
 
 import Divider from '@mui/material/Divider'
-import { GhButton } from './GithubBtn'
-import { GgButton } from './GoogleBtn'
-import { GlButton } from './GitlabBtn'
-import { VrButton } from './VercelBtn'
-import { EmailLoginForm } from './EmailLoginForm'
+import { GhButton } from '@TSC/components/Login/GithubBtn'
+import { GgButton } from '@TSC/components/Login/GoogleBtn'
+import { GlButton } from '@TSC/components/Login/GitlabBtn'
+import { VrButton } from '@TSC/components/Login/VercelBtn'
+import { EmailLoginForm } from '@TSC/components/Login/EmailLoginForm'
 
 import {
   ErrorText,

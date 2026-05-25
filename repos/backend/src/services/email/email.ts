@@ -5,6 +5,7 @@ import type {
   TSendEmailOptions,
   TInvitationEmailData,
   TMemberNotificationData,
+  TWaitlistNotificationData,
 } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
@@ -86,6 +87,35 @@ export class EmailService {
       return result.success
     } catch (error: any) {
       logger.error(`[EMAIL SERVICE] Failed to send invitation email:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Send waitlist notification email to new users during alpha/beta
+   * Uses Handlebars template: templates/waitlist-notification.html
+   */
+  async waitlistNotification(data: TWaitlistNotificationData): Promise<boolean> {
+    try {
+      const html = await templates.render(
+        `${EEmailTemplate.waitlistNotification}.html`,
+        data
+      )
+      const text = await templates.render(
+        `${EEmailTemplate.waitlistNotification}.txt`,
+        data
+      )
+
+      const result = await this.send({
+        to: data.email,
+        subject: `Welcome to Threaded Stack - You're on the waitlist`,
+        html,
+        text,
+      })
+
+      return result.success
+    } catch (error: any) {
+      logger.error(`[EMAIL SERVICE] Failed to send waitlist notification email:`, error)
       return false
     }
   }

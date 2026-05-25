@@ -4,6 +4,7 @@ import { loadEnvs } from '@tdsk/domain'
 import { ife } from '@keg-hub/jsutils/ife'
 import { config } from '@TDB/configs/db.config'
 import { scrypt, randomBytes } from 'node:crypto'
+import { ApprovedRole } from '@tdsk/domain'
 import { SeedPassword } from '@TDB/seeds/ids.seed'
 
 const hashSeedPassword = (password: string): Promise<string> => {
@@ -36,9 +37,9 @@ const reconcileUUID = async (
     )
     await pool.query(
       `INSERT INTO neon_auth."user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt", role, banned, "banReason", "banExpires")
-       SELECT $1::uuid, name, replace(email, '_SEED_SWAP', ''), "emailVerified", image, "createdAt", "updatedAt", role, banned, "banReason", "banExpires"
+       SELECT $1::uuid, name, replace(email, '_SEED_SWAP', ''), "emailVerified", image, "createdAt", "updatedAt", $3, banned, "banReason", "banExpires"
        FROM neon_auth."user" WHERE id = $2::uuid`,
-      [seedId, actualId]
+      [seedId, actualId, ApprovedRole]
     )
     await pool.query(
       `UPDATE neon_auth.account SET "userId" = $1::uuid, "accountId" = $1 WHERE "userId" = $2::uuid`,
@@ -238,6 +239,17 @@ const registerSeedUsers = async (seedUsers: TSeedUser[]) => {
         }
       } catch (err: any) {
         console.warn(`  ⚠️  Could not register ${user.email}: ${err.message}`)
+      }
+    }
+    for (const user of seedUsers) {
+      try {
+        await pool.query(`UPDATE neon_auth."user" SET role = $1 WHERE id = $2::uuid`, [
+          ApprovedRole,
+          user.id,
+        ])
+        console.log(`  ✅ Set role='${ApprovedRole}' for ${user.email}`)
+      } catch (err: any) {
+        console.warn(`  ⚠️  Could not set role for ${user.email}: ${err.message}`)
       }
     }
   } finally {

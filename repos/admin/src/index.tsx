@@ -5,9 +5,7 @@ import { Provider } from 'jotai'
 import { StrictMode } from 'react'
 import { store } from '@TAF/state/accessors'
 import { createRoot } from 'react-dom/client'
-import { Version } from '@TAF/components/Version'
-import { AuthProvider } from '@TAF/contexts/AuthProvider'
-import { overlayScrollBody, initAnalytics, AnalyticsProvider } from '@tdsk/components'
+import { overlayScrollBody, initAnalytics } from '@tdsk/components'
 import {
   TDSK_POSTHOG_KEY,
   TDSK_POSTHOG_HOST,
@@ -25,12 +23,7 @@ initAnalytics({
 createRoot(document.getElementById(`root`)!).render(
   <StrictMode>
     <Provider store={store}>
-      <AuthProvider>
-        <AnalyticsProvider>
-          <App />
-          <Version />
-        </AnalyticsProvider>
-      </AuthProvider>
+      <App />
     </Provider>
   </StrictMode>
 )

@@ -2,6 +2,7 @@ import type { TApiConfig, TApiRequest, TApiResponse, TApiResponseObj } from '@TD
 
 import { EApiMethod } from '@TDM/types'
 import { isObj } from '@keg-hub/jsutils/isObj'
+import { isStr } from '@keg-hub/jsutils/isStr'
 import { Exception } from '@TDM/error/exception'
 import { objToQuery } from '@TDM/utils/api/objToQuery'
 import { toFormData } from '@TDM/utils/api/toFormData'
@@ -64,12 +65,17 @@ export class ApiService {
     return JSON.stringify(data)
   }
 
-  protected buildError(message: string, status: number, text?: string): Exception {
+  protected buildError(
+    message: string,
+    status: number,
+    text?: string,
+    code?: string
+  ): Exception {
     const statusText = text ? `Status: ${status} - ${text}` : ``
     const msg =
       [message, statusText].filter(Boolean).join(`\n`) ||
       `Request failed with status ${status}`
-    return new Exception(status, msg)
+    return new Exception(status, msg, code)
   }
 
   protected buildFetchInit(opts: TApiRequest): { url: string; init: RequestInit } {
@@ -118,14 +124,20 @@ export class ApiService {
     }
 
     if (res.status >= 400) {
-      const text =
-        typeof parsed === `string`
-          ? parsed
-          : parsed
-            ? JSON.stringify(parsed)
-            : res.statusText || `Request failed`
+      let text = ``
+      let code: string
 
-      const error = this.buildError(opts.error || ``, res.status, text)
+      if (isStr(parsed)) {
+        text = parsed
+      } else if (!parsed) {
+        text = res.statusText || `Request failed`
+      } else {
+        code = parsed.code
+        text = JSON.stringify(parsed)
+      }
+
+      const error = this.buildError(opts.error || ``, res.status, text, code)
+
       if (parsed) error.details = parsed
 
       return {

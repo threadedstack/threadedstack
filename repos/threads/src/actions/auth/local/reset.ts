@@ -20,6 +20,7 @@ import {
   resetProjects,
   resetSandboxes,
   resetThemeType,
+  resetWaitlisted,
   resetSidebarOpen,
   resetOpenSessions,
   resetActiveOrgRole,
@@ -54,6 +55,7 @@ export const reset = () => {
   resetProjects()
   resetSandboxes()
   resetThemeType()
+  resetWaitlisted()
   resetSidebarOpen()
   resetActiveOrgRole()
   resetActiveProjectId()

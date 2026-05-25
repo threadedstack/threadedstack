@@ -9,11 +9,11 @@ import {
 } from '@tdsk/components'
 
 export class TokenRefreshManager {
-  #timer: ReturnType<typeof setTimeout> | null = null
-  #refreshPromise: Promise<boolean> | null = null
   #session: TAuthSession | null = null
-  #onSessionUpdate: ((session: TAuthSession) => void) | null = null
   #onAuthFailure: (() => void) | null = null
+  #refreshPromise: Promise<boolean> | null = null
+  #timer: ReturnType<typeof setTimeout> | null = null
+  #onSessionUpdate: ((session: TAuthSession) => void) | null = null
 
   start(
     session: TAuthSession,
@@ -21,8 +21,8 @@ export class TokenRefreshManager {
     onAuthFailure: () => void
   ) {
     this.#session = session
-    this.#onSessionUpdate = onSessionUpdate
     this.#onAuthFailure = onAuthFailure
+    this.#onSessionUpdate = onSessionUpdate
     this.#scheduleNext()
     document.addEventListener(`visibilitychange`, this.#onVisibilityChange)
   }
