@@ -72,6 +72,8 @@ tdsk doc build -c caddy --push
 tdsk doc build -c proxy --push
 tdsk doc build -c backend --push
 tdsk doc build -c sandbox --push
+# Build all of them together
+# tdsk doc build -c caddy --push && tdsk doc build -c proxy --push && tdsk doc build -c backend --push && tdsk doc build -c sandbox --push
 ```
 
 ### 1.6 Deploy Services

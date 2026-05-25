@@ -74,6 +74,11 @@ const {
 export const config = {
   envs,
   paths,
+  release: {
+    restart: [`caddy`, `proxy`, `backend`],
+    firebase: [`admin`, `threads`, `website`],
+    docker: [`caddy`, `proxy`, `backend`, `sandbox`, `init`],
+  },
   contexts: {
     app: {
       tags: [],
