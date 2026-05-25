@@ -126,6 +126,7 @@ export enum EAIProviderBrand {
   mistral = `mistral`,
   minimax = `minimax`,
   cerebras = `cerebras`,
+  deepseek = `deepseek`,
   opencode = `opencode`,
   anthropic = `anthropic`,
   minimaxCn = `minimax-cn`,

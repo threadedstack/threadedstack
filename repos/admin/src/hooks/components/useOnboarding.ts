@@ -8,13 +8,17 @@ import type {
 } from '@TAF/types'
 
 import { nav } from '@TAF/services'
+import { AIProviderTemplates } from '@tdsk/domain'
+import { getOrgs } from '@TAF/state/accessors'
 import { DefStepData, StepKeys } from '@TAF/types'
 import { useOnboardingState } from '@TAF/state/selectors'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { OnboardingSteps } from '@TAF/constants/onboarding'
+import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { updateSandbox } from '@TAF/actions/sandboxes/api/updateSandbox'
 import { createProvider } from '@TAF/actions/providers/api/createProvider'
+import { updateProvider } from '@TAF/actions/providers/api/updateProvider'
 import { closeOnboarding } from '@TAF/actions/onboarding/local/closeOnboarding'
 
 export const useOnboarding = () => {
@@ -25,19 +29,33 @@ export const useOnboarding = () => {
   const [submitting, setSubmitting] = useState(false)
   const [submitStep, setSubmitStep] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [returnToReview, setReturnToReview] = useState(false)
 
-  // Fix 1: Reset all local state when wizard opens so stale state from previous
-  // sessions is cleared (MUI Dialog doesn't unmount children on close).
-  // Also ensures startStep is honoured on every re-open.
   useEffect(() => {
     if (onboarding.open) {
       setActiveStep(onboarding.startStep || 0)
-      setStepData(DefStepData)
+
+      let initialStepData = DefStepData
+      if (onboarding.orgId) {
+        const orgs = getOrgs()
+        const org = orgs?.[onboarding.orgId]
+        initialStepData = {
+          ...DefStepData,
+          org: {
+            mode: `select`,
+            selectedId: onboarding.orgId,
+            selectedName: org?.name || ``,
+          },
+        }
+      }
+      setStepData(initialStepData)
+
       setError(null)
       setSubmitting(false)
       setSubmitStep(null)
+      setReturnToReview(false)
     }
-  }, [onboarding.open, onboarding.startStep])
+  }, [onboarding.open, onboarding.startStep, onboarding.orgId])
 
   const steps = OnboardingSteps
 
@@ -76,12 +94,20 @@ export const useOnboarding = () => {
   const onStepClick = useCallback(
     (stepIndex: number) => {
       if (stepIndex < activeStep || isStepSkipped(stepIndex)) {
+        if (isReviewStep && stepIndex < activeStep) {
+          setReturnToReview(true)
+        }
         setError(null)
         setActiveStep(stepIndex)
       }
     },
-    [activeStep, isStepSkipped]
+    [activeStep, isStepSkipped, isReviewStep]
   )
+
+  const onReturnToReview = useCallback(() => {
+    setReturnToReview(false)
+    setActiveStep(steps.length - 1)
+  }, [steps.length])
 
   const onSkip = useCallback(
     (stepIndex: number) => {
@@ -125,9 +151,7 @@ export const useOnboarding = () => {
                   ?.providerBrand
               : key === `project`
                 ? (stepData.project.data as TOnboardingProjectData | undefined)?.name
-                : key === `sandbox`
-                  ? data.selectedName
-                  : undefined
+                : undefined
         return { outcome: `creating`, resourceName: name }
       }
       return { outcome: `skipped` }
@@ -147,8 +171,8 @@ export const useOnboarding = () => {
     let succeeded = false
     let currentStep: number | null = null
     try {
-      // Step 1: Org
-      if (stepData.org.mode === `create` && stepData.org.data) {
+      // Step 1: Org (skip when pre-selected via onboarding.orgId)
+      if (!onboarding.orgId && stepData.org.mode === `create` && stepData.org.data) {
         currentStep = 0
         setSubmitStep(0)
         const result = await createOrg({
@@ -195,7 +219,6 @@ export const useOnboarding = () => {
           },
         })
         if (result.error) throw result.error
-        // Fix 3a: Reflect created provider in stepData.
         if (result.data) {
           providerId = result.data.id
           setStepData((prev) => ({
@@ -207,6 +230,32 @@ export const useOnboarding = () => {
                 result.data!.name || stepData.provider.data?.providerBrand || ``,
             },
           }))
+
+          const apiKey = stepData.provider.data?.apiKey?.trim()
+          if (apiKey && providerId) {
+            const brand = stepData.provider.data?.providerBrand
+            const template = brand
+              ? AIProviderTemplates[brand as keyof typeof AIProviderTemplates]
+              : undefined
+            const secretName =
+              template?.defaultSecretName ||
+              `${(stepData.provider.data?.providerName || brand || `PROVIDER`).toUpperCase().replace(/\s+/g, `_`)}_API_KEY`
+
+            const secretResult = await createSecret({
+              orgId,
+              name: secretName,
+              value: apiKey,
+              providerId,
+            })
+
+            if (secretResult.data?.id) {
+              await updateProvider({
+                orgId,
+                id: providerId,
+                data: { secretId: secretResult.data.id },
+              })
+            }
+          }
         }
       }
 
@@ -266,6 +315,7 @@ export const useOnboarding = () => {
       setSubmitting(false)
       if (succeeded) {
         closeOnboarding()
+        history.replaceState({}, ``, window.location.pathname)
         if (projectId && orgId) nav.to(`/orgs/${orgId}/projects/${projectId}`)
         else if (orgId) nav.to(`/orgs/${orgId}`)
       }
@@ -280,6 +330,7 @@ export const useOnboarding = () => {
     setError(null)
     setSubmitting(false)
     setSubmitStep(null)
+    setReturnToReview(false)
   }, [canDismiss])
 
   return {
@@ -303,7 +354,9 @@ export const useOnboarding = () => {
     getStepResult,
     setActiveStep,
     updateStepData,
+    returnToReview,
     isStepSkipped,
+    onReturnToReview,
     isProjectSkipped,
     isProviderSkipped,
   }

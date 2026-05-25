@@ -84,6 +84,14 @@ export const AIProviderTemplates: Partial<Record<EAIProviderBrand, TAIProviderTe
       apiKeyPlaceholder: `Enter your Z.AI API key...`,
       apiKeyPattern: ``,
     },
+    [EAIProviderBrand.deepseek]: {
+      id: EAIProviderBrand.deepseek,
+      name: `DeepSeek`,
+      baseUrl: `https://api.deepseek.com`,
+      defaultSecretName: `DEEPSEEK_API_KEY`,
+      apiKeyPlaceholder: `sk-...`,
+      apiKeyPattern: ``,
+    },
     [EAIProviderBrand.openrouter]: {
       id: EAIProviderBrand.openrouter,
       name: `OpenRouter`,

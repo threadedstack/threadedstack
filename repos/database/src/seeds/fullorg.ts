@@ -387,6 +387,18 @@ const providers = {
       allowedDomains: [`ollama.com`],
     },
   }),
+  deepseek: new Provider({
+    orgId: org.id,
+    type: EProvider.ai,
+    id: Ids.provider.deepseek,
+    name: `DeepSeek Provider`,
+    brand: EAIProviderBrand.deepseek,
+    secretId: Ids.secret.deepseekKey,
+    options: {
+      model: `deepseek-v4-flash`,
+      allowedDomains: [`api.deepseek.com`],
+    },
+  }),
   gitHub: new Provider({
     orgId: org.id,
     type: EProvider.git,
@@ -466,6 +478,12 @@ const ollamaProviderSecret = await encryptSecret(
   `Ollama Cloud API Key`,
   process.env.TDSK_OLLAMA_API_KEY || `ollama-test-key-for-seeding`,
   Ids.provider.ollama
+)
+
+const deepseekProviderSecret = await encryptSecret(
+  `DeepSeek API Key`,
+  process.env.TDSK_DS_API_KEY || `sk-deepseek-test-key-for-seeding`,
+  Ids.provider.deepseek
 )
 
 const secrets = {
@@ -576,6 +594,17 @@ const secrets = {
     providerId: providers.ollama.id,
     description: `Ollama Cloud API key for hosted model inference`,
     encryptedValue: ollamaProviderSecret.encryptedValue,
+  }),
+  deepseekKey: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `DeepSeek API Key`,
+    id: Ids.secret.deepseekKey,
+    hashKey: deepseekProviderSecret.hashKey,
+    providerId: providers.deepseek.id,
+    description: `DeepSeek API key for AI model inference`,
+    encryptedValue: deepseekProviderSecret.encryptedValue,
   }),
 }
 
@@ -1322,6 +1351,10 @@ const sandboxes = {
   openCode: buildPresetSandbox(Ids.sandbox.openCode, SandboxPresets[`opencode`]),
   antigravity: buildPresetSandbox(Ids.sandbox.antigravity, SandboxPresets[`antigravity`]),
   openClaw: buildPresetSandbox(Ids.sandbox.openClaw, SandboxPresets[`openclaw`]),
+  piCodingAgent: buildPresetSandbox(
+    Ids.sandbox.piCodingAgent,
+    SandboxPresets[`pi-coding-agent`]
+  ),
   custom: buildPresetSandbox(Ids.sandbox.custom, SandboxPresets[`custom`]),
 }
 
@@ -1352,6 +1385,31 @@ const sandboxProviderLinks = [
   { sandboxId: Ids.sandbox.openClaw, providerId: providers.google.id, priority: 2 },
   { sandboxId: Ids.sandbox.openClaw, providerId: providers.openrouter.id, priority: 3 },
   { sandboxId: Ids.sandbox.openClaw, providerId: providers.ollama.id, priority: 4 },
+  // Pi Coding Agent: anthropic (primary), openai, deepseek, google, openrouter, zai, ollama cloud
+  {
+    sandboxId: Ids.sandbox.piCodingAgent,
+    providerId: providers.anthropic.id,
+    priority: 0,
+  },
+  { sandboxId: Ids.sandbox.piCodingAgent, providerId: providers.openai.id, priority: 1 },
+  {
+    sandboxId: Ids.sandbox.piCodingAgent,
+    providerId: providers.deepseek.id,
+    priority: 2,
+  },
+  { sandboxId: Ids.sandbox.piCodingAgent, providerId: providers.google.id, priority: 3 },
+  {
+    sandboxId: Ids.sandbox.piCodingAgent,
+    providerId: providers.openrouter.id,
+    priority: 4,
+  },
+  { sandboxId: Ids.sandbox.piCodingAgent, providerId: providers.zai.id, priority: 5 },
+  { sandboxId: Ids.sandbox.piCodingAgent, providerId: providers.ollama.id, priority: 6 },
+  // DeepSeek links for existing sandboxes
+  { sandboxId: Ids.sandbox.claudeCode, providerId: providers.deepseek.id, priority: 4 },
+  { sandboxId: Ids.sandbox.codex, providerId: providers.deepseek.id, priority: 5 },
+  { sandboxId: Ids.sandbox.openCode, providerId: providers.deepseek.id, priority: 5 },
+  { sandboxId: Ids.sandbox.openClaw, providerId: providers.deepseek.id, priority: 5 },
   // Custom: no providers linked -- bring your own
 ]
 

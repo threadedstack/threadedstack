@@ -28,9 +28,7 @@ export type TOnboardingOrgData = {
   description: string
 }
 
-export type TOnboardingSandboxData = {
-  sandboxId: string
-}
+export type TOnboardingSandboxData = Record<string, never>
 
 export type TStepOutcome = `creating` | `selected` | `skipped`
 export type TOnboardingStepMode = `create` | `select` | `skip`
@@ -88,7 +86,7 @@ export const DefStepData: TOnboardingStepData = {
     },
   },
   project: { mode: `create`, data: { name: ``, description: `` } },
-  sandbox: { mode: `create`, data: { sandboxId: `` } },
+  sandbox: { mode: `create`, data: {} as TOnboardingSandboxData },
 }
 
 export type TOnboardingStepName = (typeof OnboardingSteps)[number]

@@ -17,6 +17,7 @@ export enum ERuntimeBrand {
   ollama = EAIProviderBrand.ollama,
   openai = EAIProviderBrand.openai,
   google = EAIProviderBrand.google,
+  deepseek = EAIProviderBrand.deepseek,
   anthropic = EAIProviderBrand.anthropic,
   openrouter = EAIProviderBrand.openrouter,
   googleVertex = EAIProviderBrand.googleVertex,
@@ -82,6 +83,7 @@ export enum ESandboxRuntime {
   openClaw = `openclaw`,
   claudeCode = `claude-code`,
   antigravity = `antigravity`,
+  piCodingAgent = `pi-coding-agent`,
 }
 
 export type TSBRuntimeConfig = {

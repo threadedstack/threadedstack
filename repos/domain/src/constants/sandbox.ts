@@ -28,6 +28,7 @@ export const SandboxRuntimeOptions = [
   { value: ESandboxRuntime.openCode, label: `OpenCode` },
   { value: ESandboxRuntime.antigravity, label: `Antigravity` },
   { value: ESandboxRuntime.openClaw, label: `OpenClaw` },
+  { value: ESandboxRuntime.piCodingAgent, label: `Pi Coding Agent` },
   { value: ESandboxRuntime.custom, label: `Custom` },
 ]
 
@@ -48,9 +49,10 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
     promptCommand: `codex exec '{prompt}'`,
     initScript: [
       `mkdir -p ~/.codex`,
-      `# Default provider: later assignments win — priority: openai > openrouter > zai > google > ollama`,
+      `# Default provider: later assignments win — priority: openai > openrouter > zai > google > deepseek > ollama`,
       `DP=""`,
       `[ -n "$OLLAMA_API_KEY" ] && DP="ollama-cloud"`,
+      `[ -n "$DEEPSEEK_API_KEY" ] && DP="deepseek"`,
       `[ -n "$GEMINI_API_KEY" ] && DP="google-ai"`,
       `[ -n "$Z_AI_API_KEY" ] && DP="zai"`,
       `[ -n "$OPENROUTER_API_KEY" ] && DP="openrouter"`,
@@ -79,6 +81,11 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
       `base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"`,
       `env_key = "GEMINI_API_KEY"`,
       ``,
+      `[model_providers.deepseek]`,
+      `name = "DeepSeek"`,
+      `base_url = "https://api.deepseek.com/v1"`,
+      `env_key = "DEEPSEEK_API_KEY"`,
+      ``,
       `[model_providers.ollama-cloud]`,
       `name = "Ollama Cloud"`,
       `base_url = "https://ollama.com/v1"`,
@@ -102,6 +109,11 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
     runtimeCommand: `openclaw`,
     promptCommand: `openclaw agent --message '{prompt}'`,
     initScript: `echo "OpenClaw sandbox ready"`,
+  },
+  [ESandboxRuntime.piCodingAgent]: {
+    runtimeCommand: `pi`,
+    promptCommand: `pi -p '{prompt}'`,
+    initScript: `echo "Pi Coding Agent sandbox ready"`,
   },
   [ESandboxRuntime.custom]: {},
 }
@@ -185,6 +197,18 @@ export const SandboxPresets: Record<
       initScript: SandboxRuntimeConfigs[ESandboxRuntime.openClaw].initScript,
     },
   },
+  [ESandboxRuntime.piCodingAgent]: {
+    name: `Pi Coding Agent`,
+    description: `Pi Coding Agent AI assistant`,
+    config: {
+      sshEnabled: true,
+      idleTimeoutMinutes: 30,
+      resources: DefaultResources,
+      runtime: ESandboxRuntime.piCodingAgent,
+      runtimeCommand: SandboxRuntimeConfigs[ESandboxRuntime.piCodingAgent].runtimeCommand,
+      initScript: SandboxRuntimeConfigs[ESandboxRuntime.piCodingAgent].initScript,
+    },
+  },
   [ESandboxRuntime.custom]: {
     name: `Base`,
     description: `Base sandbox with SSH — bring your own runtime`,
@@ -223,6 +247,11 @@ export const RuntimeSkillPathMap: Record<TSandboxRuntimeId, TRuntimeSkillConfig 
       fileName: `SKILL.md`,
       fileLayout: `nested`,
       basePath: `${SandboxHomePath}/.openclaw/workspace/skills`,
+    },
+    [ESandboxRuntime.piCodingAgent]: {
+      fileName: `SKILL.md`,
+      fileLayout: `nested`,
+      basePath: `${SandboxHomePath}/.pi/agent/skills`,
     },
     [ESandboxRuntime.custom]: null,
   }
@@ -433,6 +462,21 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
         injection: `direct`,
       },
     ],
+    [ERuntimeBrand.deepseek]: [
+      { envVar: `ANTHROPIC_AUTH_TOKEN`, source: `secret`, required: true },
+      {
+        envVar: `ANTHROPIC_BASE_URL`,
+        source: `static`,
+        injection: `direct`,
+        staticValue: `https://api.deepseek.com/anthropic`,
+      },
+      {
+        envVar: `ANTHROPIC_MODEL`,
+        source: `option`,
+        optionKey: `model`,
+        injection: `direct`,
+      },
+    ],
   },
   [ESandboxRuntime.codex]: {
     [ERuntimeBrand.openai]: [
@@ -448,6 +492,9 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     [ERuntimeBrand.ollamaCloud]: [
       { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
     ],
+    [ERuntimeBrand.deepseek]: [
+      { envVar: `DEEPSEEK_API_KEY`, source: `secret`, required: true },
+    ],
   },
   [ESandboxRuntime.openCode]: {
     [ERuntimeBrand.anthropic]: [
@@ -462,6 +509,9 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     [ERuntimeBrand.zai]: [{ envVar: `ZHIPU_API_KEY`, source: `secret`, required: true }],
     [ERuntimeBrand.ollamaCloud]: [
       { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.deepseek]: [
+      { envVar: `DEEPSEEK_API_KEY`, source: `secret`, required: true },
     ],
   },
   [ESandboxRuntime.antigravity]: {
@@ -514,6 +564,33 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     [ERuntimeBrand.openrouter]: [
       { envVar: `OPENROUTER_API_KEY`, source: `secret`, required: true },
     ],
+    [ERuntimeBrand.ollamaCloud]: [
+      { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.custom]: [
+      { envVar: `CUSTOM_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.deepseek]: [
+      { envVar: `DEEPSEEK_API_KEY`, source: `secret`, required: true },
+    ],
+  },
+  [ESandboxRuntime.piCodingAgent]: {
+    [ERuntimeBrand.anthropic]: [
+      { envVar: `ANTHROPIC_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.openai]: [
+      { envVar: `OPENAI_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.deepseek]: [
+      { envVar: `DEEPSEEK_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.google]: [
+      { envVar: `GEMINI_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.openrouter]: [
+      { envVar: `OPENROUTER_API_KEY`, source: `secret`, required: true },
+    ],
+    [ERuntimeBrand.zai]: [{ envVar: `ZAI_API_KEY`, source: `secret`, required: true }],
     [ERuntimeBrand.ollamaCloud]: [
       { envVar: `OLLAMA_API_KEY`, source: `secret`, required: true },
     ],

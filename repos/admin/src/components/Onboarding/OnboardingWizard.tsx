@@ -4,7 +4,6 @@ import { Text } from '@tdsk/components'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import IconButton from '@mui/material/IconButton'
-import DialogContent from '@mui/material/DialogContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import { OrgStep } from '@TAF/components/Onboarding/steps/OrgStep'
 import { useOnboarding } from '@TAF/hooks/components/useOnboarding'
@@ -23,6 +22,7 @@ import {
   ContentPanel,
   ContentFooter,
   WizardContainer,
+  WizardDialogContent,
 } from '@TAF/components/Onboarding/OnboardingWizard.styled'
 
 export const OnboardingWizard = () => {
@@ -46,6 +46,8 @@ export const OnboardingWizard = () => {
     isStepSkipped,
     getStepResult,
     updateStepData,
+    returnToReview,
+    onReturnToReview,
     isProviderSkipped,
     isProjectSkipped,
   } = useOnboarding()
@@ -95,16 +97,38 @@ export const OnboardingWizard = () => {
         },
       }}
     >
-      <DialogContent sx={{ p: 0, display: `flex`, height: `100%` }}>
-        <WizardContainer>
-          <StepperPanel>
-            <Text
-              variant='h6'
-              sx={{ mb: 3, fontWeight: 700 }}
+      <WizardDialogContent>
+        <WizardContainer className='tdsk-sw-container'>
+          <StepperPanel className='tdsk-sw-step-panel'>
+            <Box
+              className='tdsk-sw-side-header'
+              sx={{
+                display: `flex`,
+                justifyContent: `space-between`,
+                alignItems: `center`,
+                mb: 3,
+              }}
             >
-              Setup Wizard
-            </Text>
-            <Box sx={{ display: `flex`, flexDirection: `column`, gap: 0.5 }}>
+              <Text
+                variant='h6'
+                sx={{ fontWeight: 700 }}
+              >
+                Setup Wizard
+              </Text>
+              {canDismiss && (
+                <IconButton
+                  size='small'
+                  onClick={onClose}
+                  aria-label='Close wizard'
+                >
+                  <CloseIcon fontSize='small' />
+                </IconButton>
+              )}
+            </Box>
+            <Box
+              className='tdsk-sw-side-steps-container'
+              sx={{ display: `flex`, flexDirection: `column`, gap: 0.5 }}
+            >
               {steps.map((stepName, index) => {
                 if (index === steps.length - 1) return null
                 const isActive = activeStep === index
@@ -113,8 +137,12 @@ export const OnboardingWizard = () => {
                 const isClickable = index < activeStep || isSkipped
 
                 return (
-                  <Box key={stepName}>
+                  <Box
+                    key={stepName}
+                    className='tdsk-sw-step-box'
+                  >
                     <Box
+                      className='tdsk-sw-side-step-nav-item'
                       onClick={() => isClickable && onStepClick(index)}
                       sx={{
                         display: `flex`,
@@ -129,6 +157,7 @@ export const OnboardingWizard = () => {
                       }}
                     >
                       <Box
+                        className='tdsk-sw-step-nav-item-state'
                         sx={{
                           width: 28,
                           height: 28,
@@ -142,9 +171,7 @@ export const OnboardingWizard = () => {
                             ? `primary.main`
                             : isCompleted
                               ? `success.main`
-                              : isSkipped
-                                ? `action.disabledBackground`
-                                : `action.disabledBackground`,
+                              : `action.disabledBackground`,
                           color:
                             isActive || isCompleted
                               ? `primary.contrastText`
@@ -173,16 +200,6 @@ export const OnboardingWizard = () => {
                         {stepName}
                       </Text>
                     </Box>
-                    {index < steps.length - 2 && (
-                      <Box
-                        sx={{
-                          width: 1,
-                          height: 16,
-                          bgcolor: `divider`,
-                          ml: `25px`,
-                        }}
-                      />
-                    )}
                   </Box>
                 )
               })}
@@ -237,27 +254,16 @@ export const OnboardingWizard = () => {
                 </Box>
               </Box>
             </Box>
-
-            {canDismiss && (
-              <Box sx={{ mt: `auto`, pt: 2 }}>
-                <IconButton
-                  size='small'
-                  onClick={onClose}
-                >
-                  <CloseIcon fontSize='small' />
-                </IconButton>
-              </Box>
-            )}
           </StepperPanel>
 
-          <ContentPanel>
-            <ContentBody>
+          <ContentPanel className='tdsk-sw-content-panel'>
+            <ContentBody className='tdsk-sw-content-body'>
               <Fade
                 in
                 key={activeStep}
                 timeout={200}
               >
-                <Box>
+                <Box className='tdsk-sw-content-panel-box'>
                   {activeStep === 0 && (
                     <OrgStep
                       stepData={stepData.org}
@@ -302,7 +308,7 @@ export const OnboardingWizard = () => {
               </Fade>
             </ContentBody>
 
-            <ContentFooter>
+            <ContentFooter className='tdsk-sw-content-footer'>
               <Button
                 variant='outlined'
                 disabled={isFirstStep || submitting}
@@ -311,6 +317,14 @@ export const OnboardingWizard = () => {
                 Back
               </Button>
               <Box sx={{ display: `flex`, gap: 1 }}>
+                {!isReviewStep && returnToReview && (
+                  <Button
+                    variant='outlined'
+                    onClick={onReturnToReview}
+                  >
+                    Return to Review
+                  </Button>
+                )}
                 {isReviewStep ? (
                   <Button
                     variant='contained'
@@ -333,7 +347,7 @@ export const OnboardingWizard = () => {
             </ContentFooter>
           </ContentPanel>
         </WizardContainer>
-      </DialogContent>
+      </WizardDialogContent>
     </Dialog>
   )
 }

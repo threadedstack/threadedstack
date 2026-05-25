@@ -11,8 +11,8 @@ describe(`AIProviderTemplates`, () => {
     }
   })
 
-  it(`should have 7 provider entries`, () => {
-    expect(Object.keys(AIProviderTemplates)).toHaveLength(7)
+  it(`should have 8 provider entries`, () => {
+    expect(Object.keys(AIProviderTemplates)).toHaveLength(8)
   })
 
   it(`should be config-only templates (no models or defaultModel)`, () => {
@@ -54,6 +54,27 @@ describe(`AIProviderTemplates`, () => {
 
     it(`should have correct baseUrl`, () => {
       expect(tmpl.baseUrl).toBe(`http://localhost:11434/v1`)
+    })
+
+    it(`should have empty apiKeyPattern`, () => {
+      expect(tmpl.apiKeyPattern).toBe(``)
+    })
+  })
+
+  describe(`DeepSeek template`, () => {
+    const tmpl = AIProviderTemplates[EAIProviderBrand.deepseek]
+
+    it(`should have correct id and name`, () => {
+      expect(tmpl.id).toBe(`deepseek`)
+      expect(tmpl.name).toBe(`DeepSeek`)
+    })
+
+    it(`should have correct baseUrl`, () => {
+      expect(tmpl.baseUrl).toBe(`https://api.deepseek.com`)
+    })
+
+    it(`should have correct defaultSecretName`, () => {
+      expect(tmpl.defaultSecretName).toBe(`DEEPSEEK_API_KEY`)
     })
 
     it(`should have empty apiKeyPattern`, () => {

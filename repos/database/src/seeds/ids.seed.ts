@@ -55,6 +55,7 @@ export const Ids = {
     ollama: `pv_0000008`,
     gitHub: `pv_0000009`,
     gitLab: `pv_0000010`,
+    deepseek: `pv_0000011`,
   },
   quota: {
     acme202401: `qt_0000001`,
@@ -95,6 +96,7 @@ export const Ids = {
     openrouterKey: `sc_0000008`,
     googleKey: `sc_0000009`,
     ollamaKey: `sc_0000010`,
+    deepseekKey: `sc_0000011`,
   },
   project: {
     acmeApi: `pj_0000001`,
@@ -158,6 +160,7 @@ export const Ids = {
     antigravity: `sb_0000004`,
     custom: `sb_0000005`,
     openClaw: `sb_0000006`,
+    piCodingAgent: `sb_0000007`,
   },
   domain: {
     orgDomain: `dm_0000001`,

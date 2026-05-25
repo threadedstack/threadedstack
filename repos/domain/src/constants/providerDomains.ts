@@ -14,6 +14,7 @@ export const ProviderBrandDomains: Partial<Record<TProviderBrand, string[]>> = {
   openai: [`api.openai.com`],
   mistral: [`api.mistral.ai`],
   openrouter: [`openrouter.ai`],
+  deepseek: [`api.deepseek.com`],
   anthropic: [`api.anthropic.com`],
   [`azure-devops`]: [`dev.azure.com`],
   [`kimi-coding`]: [`api.moonshot.cn`],

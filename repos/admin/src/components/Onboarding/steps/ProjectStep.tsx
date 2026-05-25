@@ -25,7 +25,10 @@ export const ProjectStep = (props: TProjectStep) => {
   const hasExisting = !isNewOrg && projectsArray.length > 0
 
   const [showChoice, setShowChoice] = useState(
-    hasExisting && stepData.mode !== `create` && stepData.mode !== `select`
+    hasExisting &&
+      stepData.mode !== `skip` &&
+      !(stepData.mode === `select` && stepData.selectedId) &&
+      !(stepData.mode === `create` && stepData.data?.name?.trim())
   )
 
   const onSelectMode = useCallback(
@@ -98,16 +101,6 @@ export const ProjectStep = (props: TProjectStep) => {
             Skip this step
           </Button>
         </Box>
-        <SkipWarning>
-          <WarningAmberIcon sx={{ color: `warning.main`, fontSize: 18, mt: 0.25 }} />
-          <Text
-            variant='body2'
-            color='text.secondary'
-          >
-            Projects are required to organize your sandboxes, endpoints, and agents. You
-            can create one later from the Projects page.
-          </Text>
-        </SkipWarning>
       </Box>
     )
   }
@@ -156,6 +149,15 @@ export const ProjectStep = (props: TProjectStep) => {
               )}
             </ResourceChoiceCard>
           ))}
+        </Box>
+        <Box sx={{ mt: 3, display: `flex`, justifyContent: `flex-end` }}>
+          <Button
+            size='small'
+            color='warning'
+            onClick={onSkip}
+          >
+            Skip this step
+          </Button>
         </Box>
       </Box>
     )
@@ -213,29 +215,25 @@ export const ProjectStep = (props: TProjectStep) => {
           })
         }
       />
-      {!hasExisting && (
-        <Box sx={{ mt: 2, display: `flex`, justifyContent: `flex-end` }}>
-          <Button
-            size='small'
-            color='warning'
-            onClick={onSkip}
-          >
-            Skip this step
-          </Button>
-        </Box>
-      )}
-      {!hasExisting && (
-        <SkipWarning>
-          <WarningAmberIcon sx={{ color: `warning.main`, fontSize: 18, mt: 0.25 }} />
-          <Text
-            variant='body2'
-            color='text.secondary'
-          >
-            Projects are required to organize your sandboxes, endpoints, and agents. You
-            can create one later from the Projects page.
-          </Text>
-        </SkipWarning>
-      )}
+      <Box sx={{ mt: 2, display: `flex`, justifyContent: `flex-end` }}>
+        <Button
+          size='small'
+          color='warning'
+          onClick={onSkip}
+        >
+          Skip this step
+        </Button>
+      </Box>
+      <SkipWarning>
+        <WarningAmberIcon sx={{ color: `warning.main`, fontSize: 18, mt: 0.25 }} />
+        <Text
+          variant='body2'
+          color='text.secondary'
+        >
+          Projects are required to organize your sandboxes, endpoints, and agents. You can
+          create one later from the Projects page.
+        </Text>
+      </SkipWarning>
     </Box>
   )
 }

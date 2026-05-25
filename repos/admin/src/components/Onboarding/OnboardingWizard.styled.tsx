@@ -1,11 +1,19 @@
 import Box from '@mui/material/Box'
 import { styled } from '@mui/material/styles'
+import DialogContent from '@mui/material/DialogContent'
 
-export const WizardContainer = styled(Box)(({ theme }) => ({
+export const WizardDialogContent = styled(DialogContent)({
+  padding: 0,
+  display: `flex`,
   height: `100%`,
+})
+
+export const WizardContainer = styled(Box)({
+  height: `100%`,
+  width: `100%`,
   display: `flex`,
   overflow: `hidden`,
-}))
+})
 
 export const StepperPanel = styled(Box)(({ theme }) => ({
   width: 220,
@@ -17,12 +25,12 @@ export const StepperPanel = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.action.hover,
 }))
 
-export const ContentPanel = styled(Box)(({ theme }) => ({
+export const ContentPanel = styled(Box)({
   flex: 1,
   display: `flex`,
   overflow: `hidden`,
   flexDirection: `column`,
-}))
+})
 
 export const ContentBody = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -51,6 +59,10 @@ export const ResourceChoiceCard = styled(Box, {
   '&:hover': {
     borderColor: theme.palette.primary.main,
     backgroundColor: theme.palette.action.hover,
+  },
+  '&:focus-visible': {
+    outline: `2px solid ${theme.palette.primary.main}`,
+    outlineOffset: 2,
   },
 }))
 

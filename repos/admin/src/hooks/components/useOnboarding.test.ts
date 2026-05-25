@@ -19,6 +19,17 @@ vi.mock('@TAF/services', () => ({
   nav: { to: vi.fn() },
 }))
 
+vi.mock('@TAF/state/accessors', () => ({
+  getOrgs: vi.fn(() => ({})),
+}))
+
+vi.mock('@tdsk/domain', () => ({
+  AIProviderTemplates: {
+    anthropic: { name: `Anthropic`, defaultSecretName: `ANTHROPIC_API_KEY` },
+    openai: { name: `OpenAI`, defaultSecretName: `OPENAI_API_KEY` },
+  },
+}))
+
 vi.mock('@TAF/actions/orgs/api/createOrg', () => ({
   createOrg: vi.fn(),
 }))
@@ -33,6 +44,14 @@ vi.mock('@TAF/actions/providers/api/createProvider', () => ({
 
 vi.mock('@TAF/actions/sandboxes/api/updateSandbox', () => ({
   updateSandbox: vi.fn(),
+}))
+
+vi.mock('@TAF/actions/secrets/api/createSecret', () => ({
+  createSecret: vi.fn(),
+}))
+
+vi.mock('@TAF/actions/providers/api/updateProvider', () => ({
+  updateProvider: vi.fn(),
 }))
 
 vi.mock('@TAF/actions/onboarding/local/closeOnboarding', () => ({

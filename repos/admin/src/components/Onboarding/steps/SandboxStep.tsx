@@ -1,5 +1,6 @@
 import type { TOnboardingStepData } from '@TAF/types'
 
+import { useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Alert from '@mui/material/Alert'
@@ -28,6 +29,12 @@ export const SandboxStep = (props: TSandboxStep) => {
   const sandboxesArray = sandboxes ? Object.values(sandboxes) : []
 
   const bothSkipped = isProviderSkipped && isProjectSkipped
+
+  useEffect(() => {
+    if (bothSkipped && stepData.mode !== `skip`) {
+      onUpdate({ mode: `skip` })
+    }
+  }, [bothSkipped, stepData.mode, onUpdate])
 
   if (isNewOrg && sandboxesArray.length === 0) {
     return (

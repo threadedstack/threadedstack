@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { ESandboxRuntime } from '@TDM/types'
-import { RuntimeProviderEnvMap, SandboxPresets, SandboxRuntimeConfigs } from './sandbox'
+import { ESandboxRuntime, ERuntimeBrand } from '@TDM/types'
+import {
+  RuntimeProviderEnvMap,
+  RuntimeSkillPathMap,
+  SandboxPresets,
+  SandboxRuntimeConfigs,
+  SandboxRuntimeOptions,
+} from './sandbox'
+import { ProviderBrandDomains } from './providerDomains'
 
 describe(`RuntimeProviderEnvMap`, () => {
   it(`has mappings for every non-custom runtime`, () => {
@@ -13,7 +20,7 @@ describe(`RuntimeProviderEnvMap`, () => {
     }
   })
 
-  it(`claude-code supports anthropic, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama, ollamaCloud`, () => {
+  it(`claude-code supports anthropic, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama, ollamaCloud, deepseek`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.claudeCode]!)
     expect(brands).toContain(`anthropic`)
     expect(brands).toContain(`amazon-bedrock`)
@@ -23,15 +30,17 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`custom`)
     expect(brands).toContain(`ollama`)
     expect(brands).toContain(`ollama:cloud`)
+    expect(brands).toContain(`deepseek`)
   })
 
-  it(`codex supports openai, openrouter, google, zai, ollamaCloud`, () => {
+  it(`codex supports openai, openrouter, google, zai, ollamaCloud, deepseek`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.codex]!)
     expect(brands).toContain(`openai`)
     expect(brands).toContain(`openrouter`)
     expect(brands).toContain(`google`)
     expect(brands).toContain(`zai`)
     expect(brands).toContain(`ollama:cloud`)
+    expect(brands).toContain(`deepseek`)
   })
 
   it(`antigravity supports google and google-vertex`, () => {
@@ -40,7 +49,7 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`google-vertex`)
   })
 
-  it(`openclaw supports anthropic, openai, google, openrouter, ollamaCloud, custom`, () => {
+  it(`openclaw supports anthropic, openai, google, openrouter, ollamaCloud, custom, deepseek`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.openClaw]!)
     expect(brands).toContain(`anthropic`)
     expect(brands).toContain(`openai`)
@@ -48,6 +57,7 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`openrouter`)
     expect(brands).toContain(`ollama:cloud`)
     expect(brands).toContain(`custom`)
+    expect(brands).toContain(`deepseek`)
   })
 
   it(`every required entry with source=secret has injection specified or defaults to mitm`, () => {
@@ -158,13 +168,38 @@ describe(`RuntimeProviderEnvMap`, () => {
     }
   })
 
-  it(`open-code supports anthropic, openai, openrouter, zai, ollamaCloud`, () => {
+  it(`open-code supports anthropic, openai, openrouter, zai, ollamaCloud, deepseek`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.openCode]!)
     expect(brands).toContain(`anthropic`)
     expect(brands).toContain(`openai`)
     expect(brands).toContain(`openrouter`)
     expect(brands).toContain(`zai`)
     expect(brands).toContain(`ollama:cloud`)
+    expect(brands).toContain(`deepseek`)
+  })
+
+  it(`pi-coding-agent supports anthropic, openai, deepseek, google, openrouter, zai, ollamaCloud, custom`, () => {
+    const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.piCodingAgent]!)
+    expect(brands).toContain(`anthropic`)
+    expect(brands).toContain(`openai`)
+    expect(brands).toContain(`deepseek`)
+    expect(brands).toContain(`google`)
+    expect(brands).toContain(`openrouter`)
+    expect(brands).toContain(`zai`)
+    expect(brands).toContain(`ollama:cloud`)
+    expect(brands).toContain(`custom`)
+  })
+
+  it(`claude-code deepseek uses ANTHROPIC_AUTH_TOKEN and Anthropic-compatible base URL`, () => {
+    const entries =
+      RuntimeProviderEnvMap[ESandboxRuntime.claudeCode]![ERuntimeBrand.deepseek]!
+    const envVars = entries.map((e) => e.envVar)
+    expect(envVars).toContain(`ANTHROPIC_AUTH_TOKEN`)
+    expect(envVars).toContain(`ANTHROPIC_BASE_URL`)
+    expect(envVars).not.toContain(`DEEPSEEK_API_KEY`)
+    const baseUrlEntry = entries.find((e) => e.envVar === `ANTHROPIC_BASE_URL`)
+    expect(baseUrlEntry!.source).toBe(`static`)
+    expect((baseUrlEntry as any).staticValue).toBe(`https://api.deepseek.com/anthropic`)
   })
 })
 
@@ -188,6 +223,15 @@ describe(`SandboxPresets`, () => {
       ESandboxRuntime.openClaw
     )
   })
+
+  it(`includes piCodingAgent preset`, () => {
+    expect(SandboxPresets[ESandboxRuntime.piCodingAgent]).toBeDefined()
+    expect(SandboxPresets[ESandboxRuntime.piCodingAgent].name).toBe(`Pi Coding Agent`)
+    expect(SandboxPresets[ESandboxRuntime.piCodingAgent].config.runtimeCommand).toBe(`pi`)
+    expect(SandboxPresets[ESandboxRuntime.piCodingAgent].config.runtime).toBe(
+      ESandboxRuntime.piCodingAgent
+    )
+  })
 })
 
 describe(`SandboxRuntimeConfigs`, () => {
@@ -203,6 +247,11 @@ describe(`SandboxRuntimeConfigs`, () => {
     )
   })
 
+  it(`includes piCodingAgent config`, () => {
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.piCodingAgent]).toBeDefined()
+    expect(SandboxRuntimeConfigs[ESandboxRuntime.piCodingAgent].runtimeCommand).toBe(`pi`)
+  })
+
   it(`codex initScript generates config.toml with custom providers`, () => {
     const script = SandboxRuntimeConfigs[ESandboxRuntime.codex].initScript!
     expect(script).toContain(`mkdir -p ~/.codex`)
@@ -212,8 +261,59 @@ describe(`SandboxRuntimeConfigs`, () => {
     expect(script).toContain(`[model_providers.zai]`)
     expect(script).toContain(`[model_providers.google-ai]`)
     expect(script).toContain(`[model_providers.ollama-cloud]`)
+    expect(script).toContain(`[model_providers.deepseek]`)
     expect(script).not.toMatch(/\[model_providers\.openai\]/)
     expect(script).not.toMatch(/\[model_providers\.ollama\]/)
     expect(script).not.toMatch(/\[model_providers\.lmstudio\]/)
+  })
+
+  it(`codex initScript has deepseek priority between ollama and google`, () => {
+    const script = SandboxRuntimeConfigs[ESandboxRuntime.codex].initScript!
+    const ollamaIdx = script.indexOf(`OLLAMA_API_KEY`)
+    const deepseekIdx = script.indexOf(`DEEPSEEK_API_KEY`)
+    const geminiIdx = script.indexOf(`GEMINI_API_KEY`)
+    expect(ollamaIdx).toBeLessThan(deepseekIdx)
+    expect(deepseekIdx).toBeLessThan(geminiIdx)
+  })
+})
+
+describe(`SandboxRuntimeOptions`, () => {
+  it(`has an entry for every ESandboxRuntime value`, () => {
+    const runtimes = Object.values(ESandboxRuntime)
+    for (const runtime of runtimes) {
+      expect(
+        SandboxRuntimeOptions.some((o) => o.value === runtime),
+        `missing SandboxRuntimeOptions entry for ${runtime}`
+      ).toBe(true)
+    }
+  })
+})
+
+describe(`RuntimeSkillPathMap`, () => {
+  it(`has a non-null entry for every non-custom runtime`, () => {
+    const runtimes = Object.values(ESandboxRuntime).filter(
+      (r) => r !== ESandboxRuntime.custom
+    )
+    for (const runtime of runtimes) {
+      const config = RuntimeSkillPathMap[runtime]
+      expect(config, `${runtime} missing skill path config`).not.toBeNull()
+      expect(config!.basePath).toBeTruthy()
+      expect(config!.fileName).toBeTruthy()
+      expect([`flat`, `nested`]).toContain(config!.fileLayout)
+    }
+  })
+
+  it(`piCodingAgent skills stored at ~/.pi/agent/skills`, () => {
+    const config = RuntimeSkillPathMap[ESandboxRuntime.piCodingAgent]!
+    expect(config.basePath).toContain(`.pi/agent/skills`)
+    expect(config.fileLayout).toBe(`nested`)
+    expect(config.fileName).toBe(`SKILL.md`)
+  })
+})
+
+describe(`ProviderBrandDomains`, () => {
+  it(`deepseek maps to api.deepseek.com`, () => {
+    expect(ProviderBrandDomains.deepseek).toBeDefined()
+    expect(ProviderBrandDomains.deepseek).toContain(`api.deepseek.com`)
   })
 })

@@ -21,10 +21,11 @@ RUN ssh-keygen -A
 # CA cert mount point for MITM proxy trust
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/tdsk-proxy.crt
 
-# Node.js 22 + AI agents and tools (Claude Code, Codex, OpenClaw)
+# Node.js 22 + AI agents and tools (Claude Code, Codex, OpenClaw, Pi Coding Agent)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g @anthropic-ai/claude-code @openai/codex openclaw@latest \
+    && npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && rm -rf /var/lib/apt/lists/*
 
 # Antigravity CLI (standalone Go binary)

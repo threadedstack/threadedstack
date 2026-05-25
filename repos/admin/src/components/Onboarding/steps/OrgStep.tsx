@@ -22,8 +22,8 @@ export const OrgStep = (props: TOrgStep) => {
   const [showChoice, setShowChoice] = useState(
     hasExisting &&
       !preSelectedOrgId &&
-      stepData.mode !== `create` &&
-      stepData.mode !== `select`
+      !(stepData.mode === `select` && stepData.selectedId) &&
+      !(stepData.mode === `create` && stepData.data?.name?.trim())
   )
 
   const onSelectMode = useCallback(

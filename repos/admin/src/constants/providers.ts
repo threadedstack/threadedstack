@@ -19,6 +19,7 @@ import {
   ZAIIcon,
   OpenAIIcon,
   OllamaIcon,
+  DeepSeekIcon,
   AnthropicIcon,
   OpenRouterIcon,
 } from '@tdsk/components'
@@ -56,6 +57,7 @@ export const ProviderIcons: Record<string, ComponentType<any>> = {
   [EAIProviderBrand.google]: GoogleIcon,
   [EAIProviderBrand.openai]: OpenAIIcon,
   [EAIProviderBrand.ollama]: OllamaIcon,
+  [EAIProviderBrand.deepseek]: DeepSeekIcon,
   [EAIProviderBrand.anthropic]: AnthropicIcon,
   [EAIProviderBrand.openrouter]: OpenRouterIcon,
   [EAIProviderBrand.custom]: SettingsSuggestIcon,
