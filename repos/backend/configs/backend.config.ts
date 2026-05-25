@@ -50,7 +50,7 @@ const {
   TDSK_EMAIL_SECURE,
   TDSK_EMAIL_API_KEY,
   TDSK_EMAIL_API_HOST,
-  TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
+  TDSK_EMAIL_FROM = `noreply@notifications.threadedstack.com`,
 
   TDSK_S3_BUCKET,
   TDSK_S3_REGION,

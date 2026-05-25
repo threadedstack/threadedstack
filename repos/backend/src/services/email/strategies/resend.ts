@@ -43,6 +43,11 @@ export class ResendStrategy extends BaseEmailStrategy {
       const { data, error } = await this.#api.post({ data: payload })
 
       if (error) {
+        logger.error(`[RESEND ERROR]`, {
+          from,
+          error,
+          to: options.to,
+        })
         return {
           success: false,
           error: new Error(`Resend API error: ${error.message}`),

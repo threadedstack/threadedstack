@@ -319,8 +319,8 @@ env:
 
 
   # ---- Email ENVs --- #
-  # Email provider type - 'resend' | 'mailgun' | 'console'
-  TDSK_EMAIL_TYPE: console
+  # Email provider type - 'resend' | 'console'
+  TDSK_EMAIL_TYPE:
   TDSK_EMAIL_USER:
   TDSK_EMAIL_PASS:
   TDSK_EMAIL_HOST:
@@ -330,7 +330,7 @@ env:
   TDSK_EMAIL_API_HOST:
 
   # Default from address for all emails
-  TDSK_EMAIL_FROM: noreply@threadedstack.com
+  TDSK_EMAIL_FROM: noreply@notifications.threadedstack.com
 
 
   # ---- S3 ENVs --- #
