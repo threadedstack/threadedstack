@@ -30,7 +30,7 @@ export const invitations = pgTable(
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
 
     // Which org and what role
-    // 'viewer', 'member', 'admin', etc.
+    // 'member', 'admin', 'owner', etc.
     roleType: text(`role_type`).notNull(),
     orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })

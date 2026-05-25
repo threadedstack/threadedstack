@@ -9,6 +9,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => mockUseActiveOrgId(),
   useUser: () => mockUseUser(),
   useActiveOrgRole: () => mockUseActiveOrgRole(),
+  usePermissionOverrides: () => [undefined],
 }))
 
 const mockLoadUsers = vi.fn()
@@ -87,12 +88,12 @@ const mockUsers = [
   },
   {
     id: `user-3`,
-    displayName: `Charlie Viewer`,
+    displayName: `Charlie Member`,
     email: `charlie@example.com`,
-    role: `viewer`,
+    role: `member`,
     image: ``,
     first: `Charlie`,
-    last: `Viewer`,
+    last: `Member2`,
   },
 ]
 
@@ -115,7 +116,7 @@ describe(`Users`, () => {
     render(<Users />)
     expect(screen.getByText(`Alice Admin`)).toBeTruthy()
     expect(screen.getByText(`Bob Member`)).toBeTruthy()
-    expect(screen.getByText(`Charlie Viewer`)).toBeTruthy()
+    expect(screen.getByText(`Charlie Member`)).toBeTruthy()
   })
 
   it(`displays email column`, () => {
@@ -127,8 +128,7 @@ describe(`Users`, () => {
   it(`displays role chips`, () => {
     render(<Users />)
     expect(screen.getByText(`ADMIN`)).toBeTruthy()
-    expect(screen.getByText(`MEMBER`)).toBeTruthy()
-    expect(screen.getByText(`VIEWER`)).toBeTruthy()
+    expect(screen.getAllByText(`MEMBER`).length).toBe(2)
   })
 
   it(`shows table column headers`, () => {

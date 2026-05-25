@@ -1,11 +1,13 @@
+import type { TPermission } from '@tdsk/domain'
+
 import { sql } from 'drizzle-orm'
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
+import { ApiKeyIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
 import { entityId } from '@TDB/utils/schema/entityId'
-import { ERoleType, ApiKeyIdPrefix } from '@tdsk/domain'
 import {
   uuid,
   text,
@@ -26,12 +28,11 @@ export const apiKeys = pgTable(
     name: text(`name`).notNull(),
     expiresAt: timestamp(`expires_at`),
     lastUsedAt: timestamp(`last_used_at`),
-    scopes: text(`scopes`).default(`read`),
     active: boolean(`active`).default(true),
     rateLimit: integer(`rate_limit`).default(100),
     keyHash: text(`key_hash`).notNull().unique(),
     keyPrefix: varchar(`key_prefix`, { length: 12 }).notNull(),
-    role: varchar(`role`, { length: 10 }).default(ERoleType.viewer).notNull(),
+    permissions: text(`permissions`).array().$type<TPermission[]>(),
     orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
       onDelete: `cascade`,
     }),
@@ -53,7 +54,6 @@ export const apiKeys = pgTable(
     OR (${table.orgId} IS NULL AND ${table.projectId} IS NULL)
   `
     ),
-    check(`api_key_role_check`, sql`${table.role} IN ('admin', 'member', 'viewer')`),
   ]
 )
 

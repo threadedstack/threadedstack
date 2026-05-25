@@ -6,12 +6,12 @@ import Typography from '@mui/material/Typography'
 export type TNoInstances = {
   orgId: string
   projectId: string
-  canExecSandbox?: boolean
   onNewInstance?: () => any
+  canConnectSandbox?: boolean
 }
 
 export const NoInstances = (props: TNoInstances) => {
-  const { orgId, projectId, onNewInstance, canExecSandbox } = props
+  const { orgId, projectId, onNewInstance, canConnectSandbox } = props
 
   return (
     <Box
@@ -30,7 +30,7 @@ export const NoInstances = (props: TNoInstances) => {
       >
         No instances running
       </Typography>
-      {canExecSandbox && (
+      {canConnectSandbox && (
         <Button
           size='small'
           variant='contained'

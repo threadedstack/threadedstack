@@ -17,6 +17,7 @@ import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import { openSession } from '@TTH/actions/sessions'
 import DialogTitle from '@mui/material/DialogTitle'
+import { formatUptime } from '@TTH/utils/time/time'
 import ListItemText from '@mui/material/ListItemText'
 import { useState, useCallback, useMemo } from 'react'
 import { usePermissions } from '@TTH/hooks/permissions'
@@ -79,22 +80,6 @@ type TInstanceParams = {
   instanceId: string
 }
 
-const formatUptime = (date?: string | Date): string => {
-  if (!date) return `-`
-  const d = typeof date === `string` ? new Date(date) : date
-  if (Number.isNaN(d.getTime())) return `-`
-  const diffMs = Date.now() - d.getTime()
-  const totalMin = Math.floor(diffMs / 60_000)
-  if (totalMin < 1) return `< 1m`
-  if (totalMin < 60) return `${totalMin}m`
-  const hrs = Math.floor(totalMin / 60)
-  const mins = totalMin % 60
-  if (hrs < 24) return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
-  const days = Math.floor(hrs / 24)
-  const remHrs = hrs % 24
-  return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`
-}
-
 const SessionColumns = [
   { label: `Session`, width: `1.7fr` },
   { label: `Status`, width: `90px` },
@@ -117,13 +102,12 @@ const Instance = () => {
     projectId: paramProjectId,
   } = useParams<TInstanceParams>()
 
-  const { canExec } = usePermissions()
-  const canExecSandbox = canExec(EPermResource.sandbox)
-
+  const { canConnect } = usePermissions()
   const [openSessions] = useOpenSessions()
   const [backendSessionsMap] = useBackendSessions()
   const [instancesMap] = useSandboxInstances()
   const [connecting, setConnecting] = useState(false)
+  const canConnectSandbox = canConnect(EPermResource.sandbox)
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)
   const [forceStopSessions, setForceStopSessions] = useState<TSandboxSession[] | null>(
@@ -360,7 +344,7 @@ const Instance = () => {
               titleMono
               statusChip={<StatusChip status={toSandboxStatus(instance.state)} />}
               actions={
-                canExecSandbox ? (
+                canConnectSandbox ? (
                   <>
                     {isOwner && (
                       <>
@@ -442,7 +426,7 @@ const Instance = () => {
                       </Button>
                     )}
                   </>
-                ) : isRunning ? (
+                ) : isRunning && canConnectSandbox ? (
                   <Button
                     size='small'
                     variant='contained'
@@ -497,7 +481,7 @@ const Instance = () => {
               title='Sessions'
               count={allVisibleSessions.length}
               actions={
-                canExecSandbox && isRunning ? (
+                canConnectSandbox && isRunning ? (
                   <Button
                     size='small'
                     variant='outlined'
@@ -523,7 +507,7 @@ const Instance = () => {
                       isLast={idx === allVisibleSessions.length - 1}
                       onClick={() => {
                         !isOpen
-                          ? canExecSandbox && onStart(s.sessionId)
+                          ? canConnectSandbox && onStart(s.sessionId)
                           : nav.session(
                               resolvedOrgId,
                               projectId,
@@ -672,7 +656,7 @@ const Instance = () => {
                 >
                   No sessions
                 </Typography>
-                {canExecSandbox && isRunning && (
+                {canConnectSandbox && isRunning && (
                   <Button
                     size='small'
                     variant='contained'

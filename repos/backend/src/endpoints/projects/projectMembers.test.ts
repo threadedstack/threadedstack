@@ -313,14 +313,14 @@ describe(`Project Members endpoints`, () => {
     it(`should throw 403 when non-admin tries to manage members`, async () => {
       mockReq.body = { userId: `user-2` }
 
-      // Current user is a viewer -- cannot manage
+      // Current user is a member -- cannot manage
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
-      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
+      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.member } })
 
       await expect(
         addProjectMember.action(mockReq as TRequest, mockRes as Response)
@@ -460,7 +460,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 403 when trying to modify member with equal or higher role`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { roleType: ERoleType.viewer }
+      mockReq.body = { roleType: ERoleType.member }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -484,19 +484,19 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 403 when non-admin tries to manage roles`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { roleType: ERoleType.viewer }
+      mockReq.body = { roleType: ERoleType.member }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
-      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
+      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.member } })
 
       await expect(
         updateProjectMemberRole.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`You cannot assign viewer role`)
+      ).rejects.toThrow(`You cannot assign member role`)
     })
 
     it(`should throw 500 when update fails`, async () => {
@@ -658,8 +658,8 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
-      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
+      mockGetProjectRole.mockResolvedValue({ data: { type: ERoleType.member } })
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)

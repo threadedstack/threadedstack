@@ -16,7 +16,6 @@ describe(`usePermissions`, () => {
       expect(result.current.isOwner).toBe(false)
       expect(result.current.isAdmin).toBe(false)
       expect(result.current.isMember).toBe(false)
-      expect(result.current.isViewer).toBe(false)
     })
 
     it(`should deny all action checks`, () => {
@@ -27,6 +26,7 @@ describe(`usePermissions`, () => {
       expect(result.current.canDelete(EPermResource.org)).toBe(false)
       expect(result.current.canExec(EPermResource.sandbox)).toBe(false)
       expect(result.current.canManage(EPermResource.org)).toBe(false)
+      expect(result.current.canConnect(EPermResource.sandbox)).toBe(false)
     })
 
     it(`should deny all convenience booleans`, () => {
@@ -40,46 +40,23 @@ describe(`usePermissions`, () => {
 
     it(`should deny canAssignRole for any target`, () => {
       const { result } = renderHook(() => usePermissions(null))
-      expect(result.current.canAssignRole(ERoleType.viewer)).toBe(false)
       expect(result.current.canAssignRole(ERoleType.member)).toBe(false)
     })
-  })
 
-  describe(`viewer role`, () => {
-    it(`should have isViewer true and other is* booleans false`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.isViewer).toBe(true)
-      expect(result.current.isMember).toBe(false)
-      expect(result.current.isAdmin).toBe(false)
-      expect(result.current.isOwner).toBe(false)
-      expect(result.current.isSuper).toBe(false)
+    it(`should have empty permissions set`, () => {
+      const { result } = renderHook(() => usePermissions(null))
+      expect(result.current.permissions.size).toBe(0)
     })
 
-    it(`should allow reading org resources`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.canRead(EPermResource.org)).toBe(true)
-    })
-
-    it(`should deny creating org resources`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.canCreate(EPermResource.org)).toBe(false)
-    })
-
-    it(`should deny secret value access`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.canAccessSecretValues).toBe(false)
-    })
-
-    it(`should deny managing members`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.canManageMembers).toBe(false)
+    it(`should deny has() for any permission`, () => {
+      const { result } = renderHook(() => usePermissions(null))
+      expect(result.current.has('org:read')).toBe(false)
     })
   })
 
   describe(`member role`, () => {
     it(`should have isMember true and higher roles false`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.member))
-      expect(result.current.isViewer).toBe(true)
       expect(result.current.isMember).toBe(true)
       expect(result.current.isAdmin).toBe(false)
       expect(result.current.isOwner).toBe(false)
@@ -89,6 +66,11 @@ describe(`usePermissions`, () => {
     it(`should allow exec on sandbox (sandbox.exec requires member)`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.member))
       expect(result.current.canExec(EPermResource.sandbox)).toBe(true)
+    })
+
+    it(`should allow connect on sandbox (sandbox.connect requires member)`, () => {
+      const { result } = renderHook(() => usePermissions(ERoleType.member))
+      expect(result.current.canConnect(EPermResource.sandbox)).toBe(true)
     })
 
     it(`should deny creating sandbox (sandbox.create requires admin)`, () => {
@@ -110,12 +92,28 @@ describe(`usePermissions`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.member))
       expect(result.current.canManageMembers).toBe(false)
     })
+
+    it(`should have non-empty permissions set`, () => {
+      const { result } = renderHook(() => usePermissions(ERoleType.member))
+      expect(result.current.permissions.size).toBeGreaterThan(0)
+    })
+
+    it(`should return true from has() for member permissions`, () => {
+      const { result } = renderHook(() => usePermissions(ERoleType.member))
+      expect(result.current.has('org:read')).toBe(true)
+      expect(result.current.has('sandbox:exec')).toBe(true)
+    })
+
+    it(`should return false from has() for admin permissions`, () => {
+      const { result } = renderHook(() => usePermissions(ERoleType.member))
+      expect(result.current.has('sandbox:create')).toBe(false)
+      expect(result.current.has('secret:manage')).toBe(false)
+    })
   })
 
   describe(`admin role`, () => {
     it(`should have isAdmin true`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.admin))
-      expect(result.current.isViewer).toBe(true)
       expect(result.current.isMember).toBe(true)
       expect(result.current.isAdmin).toBe(true)
       expect(result.current.isOwner).toBe(false)
@@ -157,7 +155,6 @@ describe(`usePermissions`, () => {
   describe(`owner role`, () => {
     it(`should have isOwner true`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.owner))
-      expect(result.current.isViewer).toBe(true)
       expect(result.current.isMember).toBe(true)
       expect(result.current.isAdmin).toBe(true)
       expect(result.current.isOwner).toBe(true)
@@ -186,7 +183,6 @@ describe(`usePermissions`, () => {
       expect(result.current.isOwner).toBe(true)
       expect(result.current.isAdmin).toBe(true)
       expect(result.current.isMember).toBe(true)
-      expect(result.current.isViewer).toBe(true)
     })
 
     it(`should allow all action checks`, () => {
@@ -197,6 +193,7 @@ describe(`usePermissions`, () => {
       expect(result.current.canDelete(EPermResource.org)).toBe(true)
       expect(result.current.canExec(EPermResource.sandbox)).toBe(true)
       expect(result.current.canManage(EPermResource.org)).toBe(true)
+      expect(result.current.canConnect(EPermResource.sandbox)).toBe(true)
     })
 
     it(`should allow all convenience booleans`, () => {
@@ -206,6 +203,12 @@ describe(`usePermissions`, () => {
       expect(result.current.canInviteUsers).toBe(true)
       expect(result.current.canManageMembers).toBe(true)
       expect(result.current.canManageApiKeys).toBe(true)
+    })
+
+    it(`should return true from has() for any permission`, () => {
+      const { result } = renderHook(() => usePermissions(ERoleType.super))
+      expect(result.current.has('org:delete')).toBe(true)
+      expect(result.current.has('sandbox:connect')).toBe(true)
     })
   })
 
@@ -232,25 +235,13 @@ describe(`usePermissions`, () => {
 
     it(`should allow super to assign any role`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.super))
-      expect(result.current.canAssignRole(ERoleType.viewer)).toBe(true)
       expect(result.current.canAssignRole(ERoleType.member)).toBe(true)
       expect(result.current.canAssignRole(ERoleType.admin)).toBe(true)
       expect(result.current.canAssignRole(ERoleType.owner)).toBe(true)
     })
 
-    it(`should deny member assigning viewer`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.member))
-      expect(result.current.canAssignRole(ERoleType.viewer)).toBe(true)
-    })
-
     it(`should deny member assigning member (same level)`, () => {
       const { result } = renderHook(() => usePermissions(ERoleType.member))
-      expect(result.current.canAssignRole(ERoleType.member)).toBe(false)
-    })
-
-    it(`should deny viewer assigning any role`, () => {
-      const { result } = renderHook(() => usePermissions(ERoleType.viewer))
-      expect(result.current.canAssignRole(ERoleType.viewer)).toBe(false)
       expect(result.current.canAssignRole(ERoleType.member)).toBe(false)
     })
   })
@@ -269,11 +260,9 @@ describe(`usePermissions`, () => {
     it(`canManageMembers should be true for admin and above`, () => {
       const admin = renderHook(() => usePermissions(ERoleType.admin))
       const member = renderHook(() => usePermissions(ERoleType.member))
-      const viewer = renderHook(() => usePermissions(ERoleType.viewer))
 
       expect(admin.result.current.canManageMembers).toBe(true)
       expect(member.result.current.canManageMembers).toBe(false)
-      expect(viewer.result.current.canManageMembers).toBe(false)
     })
 
     it(`canInviteUsers should be true for admin and above`, () => {
@@ -290,6 +279,53 @@ describe(`usePermissions`, () => {
 
       expect(admin.result.current.canManageApiKeys).toBe(true)
       expect(member.result.current.canManageApiKeys).toBe(false)
+    })
+  })
+
+  describe(`overrides`, () => {
+    it(`should grant additional permissions via overrides`, () => {
+      const overrides = [
+        {
+          id: 'ov1',
+          userId: 'u1',
+          grantedBy: 'admin1',
+          permission: 'secret:manage' as const,
+          effect: 'grant' as const,
+        },
+      ]
+      const { result } = renderHook(() => usePermissions(ERoleType.member, overrides))
+      expect(result.current.has('secret:manage')).toBe(true)
+      expect(result.current.canAccessSecretValues).toBe(true)
+    })
+
+    it(`should deny permissions via deny overrides`, () => {
+      const overrides = [
+        {
+          id: 'ov1',
+          userId: 'u1',
+          grantedBy: 'admin1',
+          permission: 'sandbox:exec' as const,
+          effect: 'deny' as const,
+        },
+      ]
+      const { result } = renderHook(() => usePermissions(ERoleType.member, overrides))
+      expect(result.current.has('sandbox:exec')).toBe(false)
+      expect(result.current.canExec(EPermResource.sandbox)).toBe(false)
+    })
+
+    it(`should ignore expired overrides`, () => {
+      const overrides = [
+        {
+          id: 'ov1',
+          userId: 'u1',
+          grantedBy: 'admin1',
+          permission: 'secret:manage' as const,
+          effect: 'grant' as const,
+          expiresAt: new Date(Date.now() - 86400000).toISOString(),
+        },
+      ]
+      const { result } = renderHook(() => usePermissions(ERoleType.member, overrides))
+      expect(result.current.has('secret:manage')).toBe(false)
     })
   })
 })

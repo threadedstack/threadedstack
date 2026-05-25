@@ -1,8 +1,8 @@
 import type {
   TServiceOpts,
+  TDBQueryOpts,
   TDBApiKeySelect,
   TDBApiKeyInsert,
-  TDBQueryOpts,
 } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'

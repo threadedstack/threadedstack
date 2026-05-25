@@ -45,7 +45,7 @@ export const InviteUserDrawer = (props: TInviteUserDrawer) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [seatConfirmOpen, setSeatConfirmOpen] = useState(false)
-  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
+  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.member)
 
   const [subscription] = useSubscription()
 
@@ -61,7 +61,7 @@ export const InviteUserDrawer = (props: TInviteUserDrawer) => {
     if (loading) return
 
     setEmail('')
-    setRoleType(ERoleType.viewer)
+    setRoleType(ERoleType.member)
     setError(null)
     setSeatConfirmOpen(false)
     onCloseCB?.()

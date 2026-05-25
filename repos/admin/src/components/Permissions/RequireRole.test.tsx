@@ -1,8 +1,9 @@
 import type { TUsePermissions } from '@tdsk/components'
+import type { TPermission } from '@tdsk/domain'
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { ERoleType, EPermResource } from '@tdsk/domain'
+import { ERoleType } from '@tdsk/domain'
 
 const mockNavigate = vi.fn()
 let mockPermissions: TUsePermissions
@@ -32,11 +33,12 @@ const TestComponent = () => <div data-testid='protected-content'>Protected Conte
 
 const makePermissions = (role: ERoleType | null): TUsePermissions => ({
   role,
+  permissions: new Set<TPermission>(),
   isSuper: false,
   isOwner: false,
   isAdmin: false,
   isMember: false,
-  isViewer: false,
+  has: () => false,
   canDeleteOrg: false,
   canAccessSecretValues: false,
   canInviteUsers: false,
@@ -48,6 +50,7 @@ const makePermissions = (role: ERoleType | null): TUsePermissions => ({
   canCreate: () => false,
   canDelete: () => false,
   canManage: () => false,
+  canConnect: () => false,
   canAssignRole: () => false,
 })
 
@@ -112,19 +115,6 @@ describe(`RequireRole`, () => {
     expect(screen.queryByTestId(`navigate`)).toBeNull()
   })
 
-  it(`redirects when role is viewer and minRole is member`, () => {
-    mockPermissions = makePermissions(ERoleType.viewer)
-    render(
-      <RequireRole
-        minRole={ERoleType.member}
-        Component={TestComponent}
-      />
-    )
-
-    expect(screen.getByTestId(`navigate`)).toBeTruthy()
-    expect(screen.queryByTestId(`protected-content`)).toBeNull()
-  })
-
   it(`renders the Component when role is super (super > any minRole)`, () => {
     mockPermissions = makePermissions(ERoleType.super)
     render(
@@ -152,7 +142,7 @@ describe(`RequireRole`, () => {
   })
 
   it(`redirects to home path (/) with replace`, () => {
-    mockPermissions = makePermissions(ERoleType.viewer)
+    mockPermissions = makePermissions(ERoleType.member)
     render(
       <RequireRole
         minRole={ERoleType.admin}

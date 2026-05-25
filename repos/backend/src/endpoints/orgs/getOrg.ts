@@ -4,12 +4,13 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /orgs/:id - Get org by ID
  * User must be a member of the org to view it
- * Returns org with user's role for that org
+ * Returns org with user's role and resolved permissions for that org
  */
 export const getOrg: TEndpointConfig = {
   path: `/:orgId`,
@@ -29,10 +30,16 @@ export const getOrg: TEndpointConfig = {
     // Get user's role for this org
     const userRole = await getUserRole(req, { orgId })
 
+    // Resolve effective permissions (includes overrides and API key intersection)
+    const effectivePermissions = await resolveEffectivePermissions(req, { orgId })
+    const resolvedPermissions =
+      effectivePermissions === 'super' ? 'super' : [...effectivePermissions]
+
     res.status(200).json({
       data: {
         ...data,
         userRole,
+        resolvedPermissions,
       },
     })
   },

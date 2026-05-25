@@ -3,7 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception, ESubscriptionTier } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, ESubscriptionTier, EPermAction, EPermResource } from '@tdsk/domain'
 
 const validTiers = new Set(Object.values(ESubscriptionTier))
 
@@ -16,6 +17,7 @@ const validTiers = new Set(Object.values(ESubscriptionTier))
 export const updateSubscription: TEndpointConfig = {
   path: `/update`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.update, EPermResource.subscription)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, payments } = req.app.locals
     const userId = req.user?.id

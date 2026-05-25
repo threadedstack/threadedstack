@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import type { EPermAction, EPermResource, ERoleType } from '@tdsk/domain'
+import type { EPermAction, EPermResource, ERoleType, TPermission } from '@tdsk/domain'
 
 import { hasMinRole } from '@tdsk/domain'
-import { useCanPerform } from '@TAF/hooks/permissions/useCanPerform'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 
 type TPermissionGateProps = {
@@ -12,6 +11,7 @@ type TPermissionGateProps = {
   | { action: EPermAction; resource: EPermResource }
   | { minRole: ERoleType }
   | { check: keyof ReturnType<typeof usePermissions> }
+  | { permission: TPermission }
 )
 
 /**
@@ -29,6 +29,10 @@ type TPermissionGateProps = {
  * <PermissionGate check="canManageMembers">
  *   <MemberManagement />
  * </PermissionGate>
+ *
+ * <PermissionGate permission="sandbox:connect">
+ *   <ConnectButton />
+ * </PermissionGate>
  */
 export const PermissionGate = (props: TPermissionGateProps) => {
   const { children, fallback = null } = props
@@ -36,14 +40,19 @@ export const PermissionGate = (props: TPermissionGateProps) => {
 
   let hasPermission = false
 
-  if (`action` in props && `resource` in props) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    hasPermission = useCanPerform(props.action, props.resource)
+  if (`permission` in props) {
+    hasPermission = permissions.has(props.permission)
+  } else if (`action` in props && `resource` in props) {
+    hasPermission = permissions.has(`${props.resource}:${props.action}`)
   } else if (`minRole` in props) {
     hasPermission = hasMinRole(permissions.role, props.minRole)
   } else if (`check` in props) {
     const value = permissions[props.check]
-    hasPermission = typeof value === `boolean` ? value : Boolean(value)
+    if (typeof value === `function`) {
+      hasPermission = false
+    } else {
+      hasPermission = typeof value === `boolean` ? value : Boolean(value)
+    }
   }
 
   return hasPermission ? <>{children}</> : <>{fallback}</>

@@ -143,20 +143,20 @@ describe(`POST /:orgId/members - Add org member`, () => {
       id: `role-new`,
       orgId: `org-1`,
       userId: `user-2`,
-      type: ERoleType.viewer,
+      type: ERoleType.member,
     }
 
     const mockRoleCreate = mockReq.app?.locals.db.services.role.create as ReturnType<
       typeof vi.fn
     >
     mockRoleCreate.mockResolvedValue({ data: createdRole })
-    mockReq.body = { userId: `user-2`, roleType: ERoleType.viewer }
+    mockReq.body = { userId: `user-2`, roleType: ERoleType.member }
 
     await addOrgMember.action(mockReq as TRequest, mockRes as Response)
 
     // Verify the field mapping: body.role -> type parameter in create call
     const createArg = mockRoleCreate.mock.calls[0][0]
-    expect(createArg.type).toBe(ERoleType.viewer)
+    expect(createArg.type).toBe(ERoleType.member)
     // Ensure role is not passed as-is (it's mapped to type)
     expect(createArg.role).toBeUndefined()
   })

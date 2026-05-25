@@ -25,6 +25,7 @@ import {
   Logout as LogoutIcon,
   BarChart as UsageIcon,
   Cloud as ProviderIcon,
+  Security as SecurityIcon,
   Settings as SettingsIcon,
   CreditCard as BillingIcon,
   Extension as ExtensionIcon,
@@ -87,6 +88,12 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.OrgApiKeys),
+    visible: hasOrgAdmin,
+  },
+  Permissions: {
+    text: `Permissions`,
+    Icon: <SecurityIcon />,
+    to: buildRoute(ERoutePath.OrgPermissions),
     visible: hasOrgAdmin,
   },
   Skills: {
@@ -231,7 +238,12 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
   },
   {
     label: `Security`,
-    items: [OrgSubNav.Secrets, OrgSubNav.APIKeys, OrgSubNav.Domains],
+    items: [
+      OrgSubNav.Secrets,
+      OrgSubNav.APIKeys,
+      OrgSubNav.Permissions,
+      OrgSubNav.Domains,
+    ],
   },
   {
     label: `Management`,

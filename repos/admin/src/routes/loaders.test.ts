@@ -21,6 +21,7 @@ const mockGetOrgQuota = vi.fn()
 const mockGetOrgLimits = vi.fn()
 const mockGetContextThreads = vi.fn()
 const mockGetProjectMembers = vi.fn()
+const mockGetPermissionOverrides = vi.fn()
 const mockSetActiveOrgId = vi.fn()
 const mockSetActiveProjectId = vi.fn()
 const mockSetActiveEndpointId = vi.fn()
@@ -48,6 +49,7 @@ vi.mock('@TAF/state/accessors', () => ({
   getOrgLimits: () => mockGetOrgLimits(),
   getContextThreads: (...args: any[]) => mockGetContextThreads(...args),
   getProjectMembers: () => mockGetProjectMembers(),
+  getPermissionOverrides: () => mockGetPermissionOverrides(),
   setActiveOrgId: (...args: any[]) => mockSetActiveOrgId(...args),
   setActiveProjectId: (...args: any[]) => mockSetActiveProjectId(...args),
   setActiveEndpointId: (...args: any[]) => mockSetActiveEndpointId(...args),
@@ -73,6 +75,7 @@ const mockFetchOrgLimits = vi.fn()
 const mockFetchThreads = vi.fn()
 const mockListOrgUsers = vi.fn()
 const mockListProjectMembers = vi.fn()
+const mockFetchOverrides = vi.fn()
 
 vi.mock('@TAF/actions/orgs/api/fetchOrgs', () => ({
   fetchOrgs: () => mockFetchOrgs(),
@@ -122,6 +125,9 @@ vi.mock('@TAF/actions/threads/api/fetchThreads', () => ({
 vi.mock('@TAF/actions/users/api/listOrgUsers', () => ({
   listOrgUsers: (...args: any[]) => mockListOrgUsers(...args),
 }))
+vi.mock('@TAF/actions/permissionOverrides/api/fetchOverrides', () => ({
+  fetchOverrides: (...args: any[]) => mockFetchOverrides(...args),
+}))
 vi.mock('@TAF/actions/projectMembers/api/listProjectMembers', () => ({
   listProjectMembers: (...args: any[]) => mockListProjectMembers(...args),
 }))
@@ -138,6 +144,7 @@ import {
   projectSchedulesLoader,
   orgMembersLoader,
   orgApiKeysLoader,
+  orgPermissionsLoader,
   orgUsageLoader,
   projectScopeLoader,
   projectEndpointsLoader,
@@ -415,6 +422,65 @@ describe('loaders', () => {
       await orgMembersLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockListOrgUsers).toHaveBeenCalledWith('org-1')
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // orgPermissionsLoader
+  // ---------------------------------------------------------------------------
+  describe('orgPermissionsLoader', () => {
+    it('should skip both fetches when overrides and users already loaded', async () => {
+      mockGetPermissionOverrides.mockReturnValue([{ id: 'o1' }])
+      mockGetOrgUsers.mockReturnValue({ 'org-1': [{ id: 'u1' }] })
+
+      const result = await orgPermissionsLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(result).toBeNull()
+      expect(mockFetchOverrides).not.toHaveBeenCalled()
+      expect(mockListOrgUsers).not.toHaveBeenCalled()
+    })
+
+    it('should fetch overrides and users in parallel when not loaded', async () => {
+      mockGetPermissionOverrides.mockReturnValue(undefined)
+      mockGetOrgUsers.mockReturnValue(undefined)
+      mockFetchOverrides.mockResolvedValue({ data: [] })
+      mockListOrgUsers.mockResolvedValue({ data: {} })
+
+      await orgPermissionsLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchOverrides).toHaveBeenCalledWith('org-1')
+      expect(mockListOrgUsers).toHaveBeenCalledWith('org-1')
+    })
+
+    it('should fetch only overrides when users already loaded', async () => {
+      mockGetPermissionOverrides.mockReturnValue(undefined)
+      mockGetOrgUsers.mockReturnValue({ 'org-1': [{ id: 'u1' }] })
+      mockFetchOverrides.mockResolvedValue({ data: [] })
+
+      await orgPermissionsLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchOverrides).toHaveBeenCalledWith('org-1')
+      expect(mockListOrgUsers).not.toHaveBeenCalled()
+    })
+
+    it('should complete gracefully when fetchOverrides returns error', async () => {
+      mockGetPermissionOverrides.mockReturnValue(undefined)
+      mockGetOrgUsers.mockReturnValue({ 'org-1': [{ id: 'u1' }] })
+      const error = new Error('Overrides fetch failed')
+      mockFetchOverrides.mockResolvedValue({ error })
+
+      const result = await orgPermissionsLoader(makeArgs({ orgId: 'org-1' }))
+      expect(result).toBeNull()
+    })
+
+    it('should throw Response(400) when orgId is missing', async () => {
+      try {
+        await orgPermissionsLoader(makeArgs({}))
+        expect.fail('Should have thrown')
+      } catch (thrown) {
+        expect(thrown).toBeInstanceOf(Response)
+        expect((thrown as Response).status).toBe(400)
+      }
     })
   })
 

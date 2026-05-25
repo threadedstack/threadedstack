@@ -91,7 +91,7 @@ describe('Tier 1: Org Member Operations', () => {
         expect(member).toHaveProperty('type')
         expect(typeof member.type).toBe('string')
         expect(
-          ['super', 'owner', 'admin', 'member', 'viewer']
+          ['super', 'owner', 'admin', 'member']
         ).toContain(member.type)
         expect(member).toHaveProperty('createdAt')
         expect(typeof member.createdAt).toBe('string')
@@ -327,26 +327,9 @@ describe('Tier 1: Org Member Operations', () => {
 
     // ── Admin can assign lower roles ──
 
-    test('admin can update org member to viewer (lower role)', async () => {
-      if (!canRunHierarchy) {
-        console.warn('[org-members] SKIPPED: admin can update to viewer — hasAdmin=%s, hasTarget=%s', hasAdmin, hasTarget)
-        return
-      }
-
-      const res = await put<OrgMember>(
-        `${basePath}/${ctx.targetMemberUserId}`,
-        { roleType: 'viewer' },
-        adminOpts()
-      )
-
-      expect(res.status).toBe(200)
-      expect(res.ok).toBe(true)
-      expect(res.data.type).toBe('viewer')
-    })
-
     test('admin can update org member to member (lower role)', async () => {
       if (!canRunHierarchy) {
-        console.warn('[org-members] SKIPPED: admin can update to member — hasAdmin=%s, hasTarget=%s', hasAdmin, hasTarget)
+        console.warn('[org-members] SKIPPED: admin can update to member -- hasAdmin=%s, hasTarget=%s', hasAdmin, hasTarget)
         return
       }
 
@@ -397,7 +380,7 @@ describe('Tier 1: Org Member Operations', () => {
 
       const res = await put(
         `${basePath}/${ctx.targetMemberUserId}`,
-        { roleType: 'viewer' },
+        { roleType: 'member' },
         adminOpts()
       )
 
@@ -420,7 +403,7 @@ describe('Tier 1: Org Member Operations', () => {
 
       const res = await put(
         `${basePath}/${ctx.targetMemberUserId}`,
-        { roleType: 'viewer' },
+        { roleType: 'member' },
         adminOpts()
       )
 

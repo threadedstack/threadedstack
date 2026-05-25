@@ -39,6 +39,9 @@ describe(`Users endpoints`, () => {
             create: vi.fn().mockResolvedValue({ data: { id: 'role-123' } }),
             removeFromOrg: vi.fn().mockResolvedValue({ data: { success: true } }),
           },
+          permissionOverride: {
+            getForUser: vi.fn().mockResolvedValue({ data: [] }),
+          },
         },
       },
     },

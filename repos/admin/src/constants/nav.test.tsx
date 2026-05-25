@@ -252,32 +252,19 @@ describe(`OrgNavItems`, () => {
       })
     })
 
-    it(`should hide role-gated items for viewers`, () => {
-      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.viewer }
-      const viewerVisible = [`Projects`, `Agents`, `Members`]
-      const viewerHidden = [
+    it(`should show member-level items and hide admin-only items for members`, () => {
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.member }
+      const memberVisible = [
+        `Projects`,
+        `Agents`,
+        `Members`,
         `Sandboxes`,
         `Secrets`,
         `Providers`,
         `Domains`,
-        `API Keys`,
         `Usage`,
-        `Settings`,
       ]
-      viewerVisible.forEach((name) => {
-        const item = OrgNavItems.find((i) => i.text === name)
-        expect(item?.visible?.(context)).toBe(true)
-      })
-      viewerHidden.forEach((name) => {
-        const item = OrgNavItems.find((i) => i.text === name)
-        expect(item?.visible?.(context)).toBe(false)
-      })
-    })
-
-    it(`should show member-level items for members`, () => {
-      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.member }
-      const memberVisible = [`Sandboxes`, `Secrets`, `Providers`, `Domains`, `Usage`]
-      const memberHidden = [`API Keys`, `Settings`]
+      const memberHidden = [`API Keys`, `Permissions`, `Settings`]
       memberVisible.forEach((name) => {
         const item = OrgNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(true)
@@ -285,6 +272,13 @@ describe(`OrgNavItems`, () => {
       memberHidden.forEach((name) => {
         const item = OrgNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(false)
+      })
+    })
+
+    it(`should show all items for admin role`, () => {
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
+      OrgNavItems.forEach((item) => {
+        expect(item.visible?.(context)).toBe(true)
       })
     })
 
@@ -308,6 +302,7 @@ describe(`OrgNavItems`, () => {
         `Providers`,
         `Domains`,
         `API Keys`,
+        `Permissions`,
         `Skills`,
         `Usage`,
         `Settings`,
@@ -418,19 +413,27 @@ describe(`ProjectNavItems`, () => {
       })
     })
 
-    it(`should hide role-gated items for viewers`, () => {
+    it(`should show member-level items and hide admin-only items for members`, () => {
       const context: TNavCtx = {
         orgId: `org-123`,
         projectId: `project-456`,
-        role: ERoleType.viewer,
+        role: ERoleType.member,
       }
-      const viewerVisible = [`Endpoints`, `Functions`, `Agents`, `Members`]
-      const viewerHidden = [`Secrets`, `Sandboxes`, `Domains`, `API Keys`, `Settings`]
-      viewerVisible.forEach((name) => {
+      const memberVisible = [
+        `Endpoints`,
+        `Functions`,
+        `Agents`,
+        `Members`,
+        `Secrets`,
+        `Sandboxes`,
+        `Domains`,
+      ]
+      const memberHidden = [`API Keys`, `Settings`]
+      memberVisible.forEach((name) => {
         const item = ProjectNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(true)
       })
-      viewerHidden.forEach((name) => {
+      memberHidden.forEach((name) => {
         const item = ProjectNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(false)
       })
@@ -525,10 +528,10 @@ describe(`OrgSubNavGroups`, () => {
     expect(texts).toEqual([`Projects`, `Sandboxes`, `Providers`, `Skills`, `Agents`])
   })
 
-  it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
+  it(`Security should have Secrets, API Keys, Permissions, Domains`, () => {
     const security = OrgSubNavGroups.find((g) => g.label === `Security`)
     const texts = security?.items.map((i) => i.text)
-    expect(texts).toEqual([`Secrets`, `API Keys`, `Domains`])
+    expect(texts).toEqual([`Secrets`, `API Keys`, `Permissions`, `Domains`])
   })
 
   it(`Management should have Members, Usage, Settings`, () => {

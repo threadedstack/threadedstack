@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { PodLabelKeys } from '@tdsk/sandbox'
 import { authorize } from '@TBE/middleware/authorize'
 import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
@@ -35,7 +36,11 @@ export const listInstances: TEndpointConfig = {
         let state: EContainerState
         try {
           state = await sb.getPodState(instanceId)
-        } catch {
+        } catch (err) {
+          logger.warn(
+            `[Sandbox] getPodState failed for ${instanceId}:`,
+            (err as Error).message
+          )
           state = EContainerState.Unknown
         }
         const sessions = sb.getSessions(instanceId)

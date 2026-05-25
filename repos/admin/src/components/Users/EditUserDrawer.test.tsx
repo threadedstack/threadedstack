@@ -27,6 +27,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => [`org-1`],
   useActiveOrgRole: () => [`admin`],
   useApiKeys: () => [mockApiKeysMap],
+  usePermissionOverrides: () => [undefined],
 }))
 
 vi.mock(`@tdsk/components`, async (importOriginal) => {
@@ -62,7 +63,7 @@ vi.mock(`@TAF/components/Roles/RoleSelect`, () => ({
         onChange={onChange}
       >
         <option value='admin'>Admin</option>
-        <option value='viewer'>Viewer</option>
+        <option value='member'>Member</option>
       </select>
     </div>
   ),
@@ -83,10 +84,10 @@ const testKeys = [
     name: `Test Key`,
     keyPrefix: `tdsk_abc`,
     keyHash: `hash1`,
-    scopes: `read,write`,
     active: true,
     orgId: `org-1`,
     userId: `user-1`,
+    permissions: [`org:read`, `org:update`],
   }),
 ]
 

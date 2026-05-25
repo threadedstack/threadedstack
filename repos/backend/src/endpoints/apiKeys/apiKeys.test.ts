@@ -42,6 +42,9 @@ describe(`API Keys endpoints`, () => {
             isProjectMember: vi.fn().mockResolvedValue({ data: true }),
             isOrgMember: vi.fn().mockResolvedValue({ data: true }),
           },
+          permissionOverride: {
+            getForUser: vi.fn().mockResolvedValue({ data: [] }),
+          },
         },
       },
     },
@@ -111,7 +114,7 @@ describe(`API Keys endpoints`, () => {
           name: `Production Key`,
           keyHash: `abc123hash`,
           keyPrefix: `tdsk_prod`,
-          scopes: `read,write`,
+          permissions: [],
           active: true,
           orgId: `org-1`,
           createdAt: new Date(),
@@ -121,7 +124,7 @@ describe(`API Keys endpoints`, () => {
           name: `Test Key`,
           keyHash: `def456hash`,
           keyPrefix: `tdsk_test`,
-          scopes: `read`,
+          permissions: [],
           active: true,
           projectId: `project-1`,
           createdAt: new Date(),
@@ -278,7 +281,7 @@ describe(`API Keys endpoints`, () => {
         name: `My API Key`,
         keyHash: `secret_hash`,
         keyPrefix: `tdsk_myke`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-1`,
       })
@@ -323,7 +326,7 @@ describe(`API Keys endpoints`, () => {
         name: `New Key`,
         keyHash: `some_hash`,
         keyPrefix: `tdsk_newk`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-123`,
         createdAt: new Date(),
@@ -368,13 +371,6 @@ describe(`API Keys endpoints`, () => {
       )
     })
 
-    it(`should return 400 when scopes are invalid`, async () => {
-      mockReq.body = { name: `KEY`, orgId: `org-1`, scopes: `invalid_scope` }
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Invalid scopes`
-      )
-    })
-
     it(`should store userId from req.user on created API key`, async () => {
       mockReq.body = { name: `User Key`, orgId: `org-123` }
       const createdApiKey = new ApiKey({
@@ -382,7 +378,7 @@ describe(`API Keys endpoints`, () => {
         name: `User Key`,
         keyHash: `some_hash`,
         keyPrefix: `tdsk_user`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-123`,
         userId: `test-user-id`,
@@ -402,14 +398,18 @@ describe(`API Keys endpoints`, () => {
       )
     })
 
-    it(`should accept custom scopes`, async () => {
-      mockReq.body = { name: `Admin Key`, orgId: `org-123`, scopes: `read,write,admin` }
+    it(`should accept custom permissions`, async () => {
+      mockReq.body = {
+        name: `Admin Key`,
+        orgId: `org-123`,
+        permissions: [`org:read`, `sandbox:exec`],
+      }
       const createdApiKey = new ApiKey({
         id: `789`,
         name: `Admin Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_admi`,
-        scopes: `read,write,admin`,
+        permissions: [`org:read`, `sandbox:exec`],
         active: true,
         orgId: `org-123`,
       })
@@ -422,7 +422,7 @@ describe(`API Keys endpoints`, () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          scopes: `read,write,admin`,
+          permissions: [`org:read`, `sandbox:exec`],
         })
       )
     })
@@ -435,7 +435,7 @@ describe(`API Keys endpoints`, () => {
         name: `Temp Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_temp`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-123`,
         expiresAt: new Date(futureDate),
@@ -476,7 +476,7 @@ describe(`API Keys endpoints`, () => {
         name: `Delegated Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_dele`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-123`,
         userId: `other-user-id`,
@@ -529,7 +529,7 @@ describe(`API Keys endpoints`, () => {
         name: `Project Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_proj`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         projectId: `proj-1`,
         userId: `test-user-id`,
@@ -573,7 +573,7 @@ describe(`API Keys endpoints`, () => {
         name: `Member Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_memb`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         projectId: `proj-1`,
         userId: `other-user-id`,
@@ -653,7 +653,7 @@ describe(`API Keys endpoints`, () => {
         name: `Self Key`,
         keyHash: `hash`,
         keyPrefix: `tdsk_self`,
-        scopes: `read`,
+        permissions: [],
         active: true,
         orgId: `org-123`,
         userId: `test-user-id`,
@@ -683,11 +683,11 @@ describe(`API Keys endpoints`, () => {
         name: `New Name`,
         keyHash: `hash`,
         keyPrefix: `tdsk_old_`,
-        scopes: `read,write`,
+        permissions: [],
         active: true,
         orgId: `org-1`,
       })
-      const updateData = { name: `New Name`, scopes: `read,write` }
+      const updateData = { name: `New Name` }
       mockReq.params = { id: `123` }
       mockReq.body = updateData
 
@@ -699,28 +699,6 @@ describe(`API Keys endpoints`, () => {
 
       expect(mockUpdate).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
-    })
-
-    it(`should return 400 when scopes are invalid`, async () => {
-      const existingApiKey = new ApiKey({
-        id: `123`,
-        name: `Key`,
-        keyHash: `hash`,
-        keyPrefix: `p`,
-        scopes: `read`,
-        orgId: `org-1`,
-      })
-      mockReq.params = { id: `123` }
-      mockReq.body = { scopes: `invalid` }
-
-      const mockGet = mockReq.app?.locals.db.services.apiKey.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingApiKey })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Invalid scopes`
-      )
     })
   })
 

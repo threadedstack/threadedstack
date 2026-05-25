@@ -2,7 +2,7 @@ import type WebSocket from 'ws'
 import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
 import type { TExecStream } from '@tdsk/sandbox'
-import type { ESubscriptionTier, ERoleType } from '@tdsk/domain'
+import type { ESubscriptionTier, TPermission } from '@tdsk/domain'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type { TShellSession, TWebSocketMeta } from '@TBE/types/shellSession.types'
 
@@ -12,6 +12,7 @@ import { PodLabelKeys } from '@tdsk/sandbox'
 import { RingBuffer } from '@TBE/utils/ringBuffer'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 import { parseShellControlMsg } from '@TBE/utils/shell/parseControlMsg'
+import { checkUserPermission } from '@TBE/utils/auth/checkUserPermission'
 import {
   WsPingInterval,
   SBBackpressureMaxWait,
@@ -19,7 +20,6 @@ import {
 } from '@TBE/constants/sandbox'
 import {
   hashKey,
-  canPerform,
   PlanLimits,
   EPermAction,
   ApiKeyPrefix,
@@ -121,6 +121,7 @@ export const onShellConnect = async (
 
   let orgId: string
   let userId: string
+  let apiKeyPerms: TPermission[] | undefined
 
   if (authHeader?.startsWith(`Bearer `)) {
     const token = authHeader.slice(7)
@@ -138,6 +139,7 @@ export const onShellConnect = async (
       }
       orgId = apiKey.orgId
       userId = apiKey.userId
+      if (apiKey.permissions) apiKeyPerms = apiKey.permissions as TPermission[]
     } else {
       const payload = verifyShellToken(token)
       if (!payload) {
@@ -185,21 +187,16 @@ export const onShellConnect = async (
     return
   }
 
-  // 3c. Check exec permission on sandbox resource
-  const { error: roleErr, data: userOrgRole } = await db.services.role.getOrgRole(
+  // 3c. Check connect permission on sandbox resource (with override support)
+  const permResult = await checkUserPermission(
+    db,
     userId,
-    orgId
+    orgId,
+    EPermAction.connect,
+    EPermResource.sandbox,
+    undefined,
+    apiKeyPerms
   )
-  if (roleErr) {
-    logger.error(
-      `[Shell] Role lookup failed for user ${userId} in org ${orgId}:`,
-      roleErr.message
-    )
-    ws.close(4005, `Permission check failed, please retry`)
-    return
-  }
-  const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
-  const permResult = canPerform(effectiveRole, EPermAction.exec, EPermResource.sandbox)
   if (!permResult.allowed) {
     ws.close(4003, permResult.reason || `Permission denied`)
     return
@@ -256,15 +253,6 @@ export const onShellConnect = async (
           }
         }
 
-        const { data: sbConfig, error: sbConfigErr } =
-          await db.services.sandbox.get(sandboxId)
-        if (sbConfigErr) {
-          logger.warn(
-            '[Shell] Failed to load sandbox config for reconnect:',
-            sbConfigErr.message
-          )
-        }
-
         ws.send(
           JSON.stringify({
             sandboxId,
@@ -273,7 +261,7 @@ export const onShellConnect = async (
             sessionId: reconnectSessionId,
             visibility: session.visibility,
             bufferedBytes: buffered.length,
-            runtime: sbConfig?.config?.runtime ?? `custom`,
+            runtime: sbRecord?.config?.runtime ?? `custom`,
           })
         )
 
@@ -288,31 +276,30 @@ export const onShellConnect = async (
         return
       }
 
-      // Verify joining user has exec permission on sandbox
-      const { data: joinUserRole, error: joinRoleErr } =
-        await db.services.role.getOrgRole(userId, orgId)
-      if (joinRoleErr) {
-        logger.error(
-          `[Shell] Join role lookup failed for user ${userId} in org ${orgId}:`,
-          joinRoleErr.message
+      // Verify joining user has sandboxSession:manage or sandbox:manage (with override support)
+      const sessionPermResult = await checkUserPermission(
+        db,
+        userId,
+        orgId,
+        EPermAction.manage,
+        EPermResource.sandboxSession,
+        undefined,
+        apiKeyPerms
+      )
+      if (!sessionPermResult.allowed) {
+        const sandboxPermResult = await checkUserPermission(
+          db,
+          userId,
+          orgId,
+          EPermAction.manage,
+          EPermResource.sandbox,
+          undefined,
+          apiKeyPerms
         )
-        ws.close(4005, `Permission check failed, please retry`)
-        return
-      }
-      const joinRole = (joinUserRole?.type as ERoleType | null) ?? null
-      const joinPermResult = canPerform(joinRole, EPermAction.exec, EPermResource.sandbox)
-      if (!joinPermResult.allowed) {
-        ws.close(4003, `Not authorized to join this session`)
-        return
-      }
-
-      const { data: sbConfig, error: sbConfigErr } =
-        await db.services.sandbox.get(sandboxId)
-      if (sbConfigErr) {
-        logger.warn(
-          '[Shell] Failed to load sandbox config for reconnect:',
-          sbConfigErr.message
-        )
+        if (!sandboxPermResult.allowed) {
+          ws.close(4003, `Not authorized to join this session`)
+          return
+        }
       }
 
       const session = sbService.attachToShellSession(reconnectSessionId, ws)
@@ -360,7 +347,7 @@ export const onShellConnect = async (
           type: `joined`,
           podOwnerUserId,
           sessionId: reconnectSessionId,
-          runtime: sbConfig?.config?.runtime ?? `custom`,
+          runtime: sbRecord?.config?.runtime ?? `custom`,
         })
       )
 
@@ -465,14 +452,10 @@ export const onShellConnect = async (
     return
   }
 
-  // 9. Get sandbox config for runtime info
-  const { data: sandbox, error: sbErr } = await db.services.sandbox.get(sandboxId)
-  if (sbErr) {
-    logger.warn(`[Shell] Failed to load sandbox config for ${sandboxId}:`, sbErr.message)
-  }
-  const runtime = sandbox?.config?.runtime ?? `custom`
-  const runtimeCommand = sandbox?.config?.runtimeCommand
-  const workdir = sandbox?.config?.workdir || DefaultWorkdir
+  // 9. Use sandbox config (already fetched and validated at step 3b) for runtime info
+  const runtime = sbRecord?.config?.runtime ?? `custom`
+  const runtimeCommand = sbRecord?.config?.runtimeCommand
+  const workdir = sbRecord?.config?.workdir || DefaultWorkdir
 
   // 10. Establish kubectl exec connection
   const sessionId = nanoid(16)
@@ -494,7 +477,7 @@ export const onShellConnect = async (
   }
 
   // 11. Create sandbox_sessions record (replaces thread creation)
-  const projectId = sandbox?.projects?.[0]?.id ?? undefined
+  const projectId = sbRecord?.projects?.[0]?.id ?? undefined
   const { data: sessionRecord, error: sessionErr } =
     await db.services.sandboxSession.create({
       orgId,

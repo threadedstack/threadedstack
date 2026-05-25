@@ -5,10 +5,11 @@ export const getRoleColor = (role?: TRoleType) => {
   switch (role) {
     case ERoleType.super:
       return `error`
+    case ERoleType.owner:
+      return `warning`
     case ERoleType.admin:
     case ERoleType.member:
-      return `warning`
-    case ERoleType.viewer:
+      return `info`
     default:
       return `default`
   }

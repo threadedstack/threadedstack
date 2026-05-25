@@ -165,7 +165,6 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_revo`,
       active: false,
-      scopes: `read`,
       userId: `user-1`,
     })
     mockAuth.extract.mockReturnValue(`tdsk_revoked_key`)
@@ -186,7 +185,6 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_expi`,
       active: true,
-      scopes: `read`,
       userId: `user-1`,
       expiresAt: new Date(Date.now() - 86400000), // yesterday
     })
@@ -208,7 +206,6 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_nous`,
       active: true,
-      scopes: `read`,
     })
     mockAuth.extract.mockReturnValue(`tdsk_no_user_key`)
     mockDb.services.apiKey.getByHash.mockResolvedValue({ data: noUserKey })
@@ -230,7 +227,6 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_vali`,
       active: true,
-      scopes: `read,write`,
       userId: `user-456`,
     })
     mockAuth.extract.mockReturnValue(`tdsk_valid_key_abc`)
@@ -250,18 +246,18 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockDb.services.apiKey.touchLastUsed).toHaveBeenCalledWith(`key-4`)
   })
 
-  it(`should authenticate admin-scoped API key`, async () => {
-    const adminKey = new ApiKey({
+  it(`should authenticate API key with permissions`, async () => {
+    const permKey = new ApiKey({
       id: `key-5`,
-      name: `Admin Key`,
+      name: `Perm Key`,
       keyHash: `hash`,
-      keyPrefix: `tdsk_admi`,
+      keyPrefix: `tdsk_perm`,
       active: true,
-      scopes: `admin`,
+      permissions: [`sandbox:read`, `project:read`],
       userId: `user-789`,
     })
-    mockAuth.extract.mockReturnValue(`tdsk_admin_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: adminKey })
+    mockAuth.extract.mockReturnValue(`tdsk_perm_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: permKey })
     const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
 
     const middleware = validateApiKeyAuth(mockApp)
@@ -273,54 +269,6 @@ describe(`validateApiKeyAuth`, () => {
       apiKeyId: `key-5`,
     })
     expect(mockNext).toHaveBeenCalled()
-  })
-
-  it(`should authenticate read-scoped API key`, async () => {
-    const readKey = new ApiKey({
-      id: `key-6`,
-      name: `Read Key`,
-      keyHash: `hash`,
-      keyPrefix: `tdsk_read`,
-      active: true,
-      scopes: `read`,
-      userId: `user-101`,
-    })
-    mockAuth.extract.mockReturnValue(`tdsk_read_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: readKey })
-    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
-
-    const middleware = validateApiKeyAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockReq.user).toEqual({
-      userId: `user-101`,
-      email: ``,
-      apiKeyId: `key-6`,
-    })
-  })
-
-  it(`should authenticate write-scoped API key`, async () => {
-    const writeKey = new ApiKey({
-      id: `key-7`,
-      name: `Write Key`,
-      keyHash: `hash`,
-      keyPrefix: `tdsk_writ`,
-      active: true,
-      scopes: `write`,
-      userId: `user-102`,
-    })
-    mockAuth.extract.mockReturnValue(`tdsk_write_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: writeKey })
-    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
-
-    const middleware = validateApiKeyAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockReq.user).toEqual({
-      userId: `user-102`,
-      email: ``,
-      apiKeyId: `key-7`,
-    })
   })
 
   it(`should return 500 when getByHash throws`, async () => {
@@ -386,7 +334,7 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_prox`,
       active: true,
-      scopes: `write`,
+      permissions: [`project:read`, `project:update`],
       userId: `user-proxy-1`,
       orgId: `org-proxy-1`,
     })
@@ -441,7 +389,7 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_orgk`,
       active: true,
-      scopes: `admin`,
+      permissions: [`org:read`, `org:update`],
       userId: `user-300`,
       orgId: `org-123`,
     })
@@ -468,7 +416,7 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_proj`,
       active: true,
-      scopes: `write`,
+      permissions: [`project:read`],
       userId: `user-400`,
       projectId: `proj-456`,
     })
@@ -495,7 +443,7 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_bare`,
       active: true,
-      scopes: `read`,
+      permissions: [`org:read`],
       userId: `user-500`,
     })
     mockAuth.extract.mockReturnValue(`tdsk_bare_key`)
@@ -515,82 +463,6 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockNext).toHaveBeenCalled()
   })
 
-  it(`should include apiKeyRole in req.user when key has a role`, async () => {
-    const roleKey = new ApiKey({
-      id: `key-role`,
-      name: `Role Key`,
-      keyHash: `hash`,
-      keyPrefix: `tdsk_role`,
-      active: true,
-      scopes: `read`,
-      role: `member`,
-      userId: `user-role-1`,
-      orgId: `org-role-1`,
-    })
-    mockAuth.extract.mockReturnValue(`tdsk_role_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: roleKey })
-    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
-
-    const middleware = validateApiKeyAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockReq.user).toEqual({
-      userId: `user-role-1`,
-      email: ``,
-      orgId: `org-role-1`,
-      apiKeyId: `key-role`,
-      apiKeyRole: `member`,
-    })
-    expect(mockNext).toHaveBeenCalled()
-  })
-
-  it(`should reject API key with invalid role value`, async () => {
-    const badRoleKey = new ApiKey({
-      id: `key-bad-role`,
-      name: `Bad Role Key`,
-      keyHash: `hash`,
-      keyPrefix: `tdsk_badr`,
-      active: true,
-      scopes: `read`,
-      role: `super`,
-      userId: `user-bad-role`,
-      orgId: `org-bad-role`,
-    })
-    mockAuth.extract.mockReturnValue(`tdsk_bad_role_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: badRoleKey })
-    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
-
-    const middleware = validateApiKeyAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockRes.status).toHaveBeenCalledWith(401)
-    expect(mockRes.json).toHaveBeenCalledWith({
-      error: `Invalid API key configuration`,
-    })
-    expect(mockNext).not.toHaveBeenCalled()
-  })
-
-  it(`should not include apiKeyRole when key has no role set`, async () => {
-    const noRoleKey = new ApiKey({
-      id: `key-no-role`,
-      name: `No Role Key`,
-      keyHash: `hash`,
-      keyPrefix: `tdsk_noro`,
-      active: true,
-      scopes: `read`,
-      userId: `user-no-role`,
-    })
-    mockAuth.extract.mockReturnValue(`tdsk_no_role_key`)
-    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: noRoleKey })
-    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
-
-    const middleware = validateApiKeyAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockReq.user).not.toHaveProperty(`apiKeyRole`)
-    expect(mockNext).toHaveBeenCalled()
-  })
-
   it(`should not block request if touchLastUsed fails`, async () => {
     const validKey = new ApiKey({
       id: `key-8`,
@@ -598,7 +470,6 @@ describe(`validateApiKeyAuth`, () => {
       keyHash: `hash`,
       keyPrefix: `tdsk_touc`,
       active: true,
-      scopes: `read`,
       userId: `user-200`,
     })
     mockAuth.extract.mockReturnValue(`tdsk_touch_fail`)

@@ -39,11 +39,17 @@ export const roleChipColor = (role: string): TChipColors => {
       return `error`
     case `member`:
       return `warning`
-    case `viewer`:
+    case `owner`:
       return `info`
     default:
       return `default`
   }
+}
+
+export const formatPermissionsSummary = (permissions?: string[]) => {
+  if (!permissions || permissions.length === 0) return `No permissions`
+  if (permissions.length <= 3) return permissions.join(`, `)
+  return `${permissions.slice(0, 3).join(`, `)} +${permissions.length - 3} more`
 }
 
 export const formatRoleLabel = (role: string): string => {
@@ -52,8 +58,8 @@ export const formatRoleLabel = (role: string): string => {
       return `Admin`
     case `member`:
       return `Member`
-    case `viewer`:
-      return `Viewer`
+    case `owner`:
+      return `Owner`
     default:
       return role.charAt(0).toUpperCase() + role.slice(1)
   }

@@ -1,4 +1,4 @@
-import type { EPermResource, ERoleType } from '@tdsk/domain'
+import type { EPermResource, ERoleType, TPermission } from '@tdsk/domain'
 
 export type TUsePermissions = {
   role: ERoleType | null
@@ -6,17 +6,19 @@ export type TUsePermissions = {
   isOwner: boolean
   isAdmin: boolean
   isMember: boolean
-  isViewer: boolean
   canDeleteOrg: boolean
   canInviteUsers: boolean
   canManageMembers: boolean
   canManageApiKeys: boolean
+  permissions: Set<TPermission>
   canAccessSecretValues: boolean
+  has: (permission: TPermission) => boolean
   canRead: (resource: EPermResource) => boolean
   canExec: (resource: EPermResource) => boolean
   canUpdate: (resource: EPermResource) => boolean
   canCreate: (resource: EPermResource) => boolean
   canDelete: (resource: EPermResource) => boolean
   canManage: (resource: EPermResource) => boolean
+  canConnect: (resource: EPermResource) => boolean
   canAssignRole: (targetRole: ERoleType) => boolean
 }

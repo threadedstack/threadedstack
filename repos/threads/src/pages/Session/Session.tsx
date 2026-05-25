@@ -57,8 +57,8 @@ const SessionInner = () => {
 
   const hasSession = !!session
 
-  const { canExec } = usePermissions()
-  const canExecSandbox = canExec(EPermResource.sandbox)
+  const { canConnect } = usePermissions()
+  const canConnectSandbox = canConnect(EPermResource.sandbox)
 
   const sandbox = sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined
 
@@ -378,7 +378,7 @@ const SessionInner = () => {
               )}
 
               {/* Start Session button */}
-              {canExecSandbox && (
+              {canConnectSandbox && (
                 <Box sx={{ display: `flex`, justifyContent: `center` }}>
                   <Button
                     variant='contained'

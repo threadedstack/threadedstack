@@ -11,6 +11,14 @@
 
 ## 🚨🚨🚨 ABSOLUTE #2 RULE: ZERO LAZINESS, ZERO DEFERRAL, ZERO SILENT INCOMPLETION 🚨🚨🚨
 
+### HARD REQUIREMENT: NOTHING CAN EVER BE DEFERRED
+All requested and approved work MUST be completed. No exceptions. No alternative.
+- If a plan has steps, ALL steps get implemented. Not most. ALL.
+- If a task list has items, EVERY item gets done. None are optional.
+- If the user asks for something, it gets built NOW. Not noted for later.
+- The ONLY acceptable alternative to completing work is telling the user you CANNOT do it (tool limitation, missing access) immediately and clearly at the TOP of your response.
+- This applies to ALL subagents. Include this rule in EVERY subagent prompt.
+
 ### Banned Deferral Patterns
 Claude must **NEVER** use these phrases or patterns to avoid doing work:
 - "we can handle this later" / "as a follow-up" / "in a future session"
@@ -19,6 +27,9 @@ Claude must **NEVER** use these phrases or patterns to avoid doing work:
 - "a nice-to-have would be" / "we could also" (when you know it should be done)
 - "this should work" / "this looks correct" (without actually running it)
 - "I believe this will" / "this is likely" (assumptions presented as facts)
+- "we can revisit" / "we can circle back" / "we can address this later"
+- "low priority" / "non-blocking" (when used to justify skipping approved work)
+- "reasonably deferred" / "can be deferred" / "defer to" (NOTHING can be deferred)
 
 If you catch yourself reaching for deferral language, STOP — either do the work or explicitly tell the user what remains and why you cannot do it right now.
 

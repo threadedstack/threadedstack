@@ -8,6 +8,12 @@ import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 
+const mockResolveEffectivePermissions = vi.fn()
+vi.mock(`@TBE/utils/auth/resolveEffectivePermissions`, () => ({
+  resolveEffectivePermissions: (...args: any[]) =>
+    mockResolveEffectivePermissions(...args),
+}))
+
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
     error: vi.fn(),
@@ -58,6 +64,9 @@ describe(`Orgs endpoints`, () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockResolveEffectivePermissions.mockResolvedValue(
+      new Set([`org:read`, `org:update`, `project:read`, `project:create`])
+    )
     mockJson = vi.fn()
     mockStatus = vi.fn(() => mockRes as Response)
 
@@ -326,7 +335,7 @@ describe(`Orgs endpoints`, () => {
       ]
       const mockRoles = [
         { userId: `test-user-id`, orgId: `org-1`, type: ERoleType.owner },
-        { userId: `test-user-id`, orgId: `org-2`, type: ERoleType.viewer },
+        { userId: `test-user-id`, orgId: `org-2`, type: ERoleType.member },
       ]
 
       const mockGetUserRoles = mockReq.app?.locals.db.services.role
@@ -349,7 +358,7 @@ describe(`Orgs endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData[0].userRole).toBe(ERoleType.owner)
-      expect(responseData[1].userRole).toBe(ERoleType.viewer)
+      expect(responseData[1].userRole).toBe(ERoleType.member)
     })
   })
 
@@ -398,6 +407,10 @@ describe(`Orgs endpoints`, () => {
       expect(responseData.id).toBe(`org-123`)
       expect(responseData.name).toBe(`Test Organization`)
       expect(responseData).toHaveProperty(`userRole`)
+      expect(responseData).toHaveProperty(`resolvedPermissions`)
+      expect(responseData.resolvedPermissions).toEqual(
+        expect.arrayContaining([`org:read`, `org:update`])
+      )
     })
 
     it(`should return 404 when org not found`, async () => {
@@ -456,6 +469,14 @@ describe(`Orgs endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData.userRole).toBe(ERoleType.owner)
+      expect(responseData.resolvedPermissions).toEqual(
+        expect.arrayContaining([
+          `org:read`,
+          `org:update`,
+          `project:read`,
+          `project:create`,
+        ])
+      )
     })
 
     it(`should return org data for any authenticated user (auth handled by middleware)`, async () => {
@@ -481,6 +502,32 @@ describe(`Orgs endpoints`, () => {
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData.id).toBe(`org-123`)
       expect(responseData.userRole).toBe(ERoleType.admin)
+      expect(responseData).toHaveProperty(`resolvedPermissions`)
+    })
+
+    it(`should return 'super' as resolvedPermissions for super admin users`, async () => {
+      mockReq.params = { orgId: `org-123` }
+      mockReq.user = {
+        id: `super-user-id`,
+        email: `super@example.com`,
+        role: ERoleType.admin,
+      } as any
+
+      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({
+        data: { id: `org-123`, name: `Test Org` },
+      })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
+      mockResolveEffectivePermissions.mockResolvedValue(`super`)
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.resolvedPermissions).toBe(`super`)
     })
   })
 })

@@ -37,8 +37,8 @@ describe('Tier 1: Project Members', () => {
 
   afterAll(async () => {
     for (const userId of addedMemberUserIds) {
-      // Downgrade to viewer first in case member has owner role (backend blocks owner deletion)
-      try { await put(`${basePath}/${userId}`, { roleType: 'viewer' }) } catch {}
+      // Downgrade to member first in case member has owner role (backend blocks owner deletion)
+      try { await put(`${basePath}/${userId}`, { roleType: 'member' }) } catch {}
       await tryDelete(`${basePath}/${userId}`)
     }
   })
@@ -78,7 +78,7 @@ describe('Tier 1: Project Members', () => {
       expect(typeof member.id).toBe('string')
       expect(typeof member.userId).toBe('string')
       expect(member.projectId).toBe(ctx.projectId)
-      expect(['owner', 'admin', 'member', 'viewer']).toContain(member.type)
+      expect(['owner', 'admin', 'member']).toContain(member.type)
 
       expect(member).toHaveProperty('user')
       expect(member.user).toBeDefined()
@@ -126,7 +126,7 @@ describe('Tier 1: Project Members', () => {
     const fakeUserId = '00000000-0000-0000-0000-000099999999'
 
     test('PUT on nonexistent member returns 404', async () => {
-      const res = await put(`${basePath}/${fakeUserId}`, { roleType: 'viewer' })
+      const res = await put(`${basePath}/${fakeUserId}`, { roleType: 'member' })
       expect(res.status).toBe(404)
     })
 
@@ -155,7 +155,7 @@ describe('Tier 1: Project Members', () => {
       secondUserId = otherMember.userId
     })
 
-    test('POST adds member with viewer role', async () => {
+    test('POST adds member with member role', async () => {
       if (!secondUserId) return // skip if no second member
 
       // First remove them from the project if already a member (cleanup from prior runs)
@@ -163,12 +163,12 @@ describe('Tier 1: Project Members', () => {
 
       const res = await post<SingleResponse>(basePath, {
         userId: secondUserId,
-        roleType: 'viewer',
+        roleType: 'member',
       })
 
       expect(res.status).toBe(201)
       expect(res.data.userId).toBe(secondUserId)
-      expect(res.data.type).toBe('viewer')
+      expect(res.data.type).toBe('member')
       expect(res.data.projectId).toBe(ctx.projectId)
       addedMemberUserIds.push(secondUserId)
     })
@@ -180,7 +180,7 @@ describe('Tier 1: Project Members', () => {
       expect(res.status).toBe(200)
       const found = res.data.find((m: RoleMember) => m.userId === secondUserId)
       expect(found).toBeDefined()
-      expect(found!.type).toBe('viewer')
+      expect(found!.type).toBe('member')
     })
 
     test('PUT updates member role to member', async () => {
@@ -239,9 +239,9 @@ describe('Tier 1: Project Members', () => {
       }
       secondUserId = otherMember.userId
 
-      // Ensure they're a project member first (as viewer)
+      // Ensure they're a project member first (as member)
       await tryDelete(`${basePath}/${secondUserId}`)
-      const addRes = await post(basePath, { userId: secondUserId, roleType: 'viewer' })
+      const addRes = await post(basePath, { userId: secondUserId, roleType: 'member' })
       expect(addRes.status).toBe(201)
       addedMemberUserIds.push(secondUserId)
     })
@@ -275,7 +275,7 @@ describe('Tier 1: Project Members', () => {
       if (!secondUserId) return
 
       // Downgrade from owner before deleting (backend blocks owner deletion)
-      await put(`${basePath}/${secondUserId}`, { roleType: 'viewer' })
+      await put(`${basePath}/${secondUserId}`, { roleType: 'member' })
       await tryDelete(`${basePath}/${secondUserId}`)
       const idx = addedMemberUserIds.indexOf(secondUserId)
       if (idx !== -1) addedMemberUserIds.splice(idx, 1)
@@ -300,9 +300,9 @@ describe('Tier 1: Project Members', () => {
     })
 
     test('setup: ensure target is a project member', async () => {
-      // Clean up any prior state, then add as viewer using super key
+      // Clean up any prior state, then add as member using super key
       await tryDelete(`${basePath}/${memberUserId}`)
-      const res = await post<SingleResponse>(basePath, { userId: memberUserId, roleType: 'viewer' })
+      const res = await post<SingleResponse>(basePath, { userId: memberUserId, roleType: 'member' })
       expect(res.status).toBe(201)
       addedMemberUserIds.push(memberUserId)
     })
@@ -329,12 +329,12 @@ describe('Tier 1: Project Members', () => {
       expect(res.data.type).toBe('member')
     })
 
-    test('admin can update to viewer role', async () => {
+    test('admin can update to member role', async () => {
       const res = await put<SingleResponse>(
-        `${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts()
+        `${basePath}/${memberUserId}`, { roleType: 'member' }, adminOpts()
       )
       expect(res.status).toBe(200)
-      expect(res.data.type).toBe('viewer')
+      expect(res.data.type).toBe('member')
     })
 
     // ── Cannot modify members with equal or higher roles ──
@@ -356,7 +356,7 @@ describe('Tier 1: Project Members', () => {
         console.warn('[project-members] SKIPPED: equal-role test — target is %s not admin', target?.type)
         return
       }
-      const res = await put(`${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts())
+      const res = await put(`${basePath}/${memberUserId}`, { roleType: 'member' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
@@ -392,14 +392,14 @@ describe('Tier 1: Project Members', () => {
       expect(res.status).toBe(403)
     })
 
-    test('setup: super downgrades member to viewer', async () => {
+    test('setup: super downgrades member to member', async () => {
       const memberRes = await get<Array<{ userId: string; type: string }>>(`${basePath}`)
       const target = memberRes.data?.find?.((m: any) => m.userId === memberUserId)
-      if (!target || target.type === 'viewer') {
-        console.warn('[project-members] SKIPPED: downgrade — target is already viewer or not found')
+      if (!target || target.type === 'member') {
+        console.warn('[project-members] SKIPPED: downgrade -- target is already member or not found')
         return
       }
-      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'viewer' })
+      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'member' })
       if (res.status === 403) {
         console.warn('[project-members] SKIPPED: downgrade requires owner+ (API key caps at admin)')
         return
@@ -432,12 +432,12 @@ describe('Tier 1: Project Members', () => {
       expect(res.status).toBe(403)
     })
 
-    test('admin can add member with viewer role', async () => {
+    test('admin can add member with member role', async () => {
       const res = await post<SingleResponse>(
-        basePath, { userId: memberUserId, roleType: 'viewer' }, adminOpts()
+        basePath, { userId: memberUserId, roleType: 'member' }, adminOpts()
       )
       expect(res.status).toBe(201)
-      expect(res.data.type).toBe('viewer')
+      expect(res.data.type).toBe('member')
       addedMemberUserIds.push(memberUserId)
     })
 

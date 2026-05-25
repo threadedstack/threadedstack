@@ -53,7 +53,7 @@ describe(`isPlatformSuperAdmin`, () => {
       data: [
         { type: ERoleType.admin },
         { type: ERoleType.member },
-        { type: ERoleType.viewer },
+        { type: ERoleType.member },
       ],
     })
 

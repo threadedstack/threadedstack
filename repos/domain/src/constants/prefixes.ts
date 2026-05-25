@@ -27,4 +27,5 @@ export const SandboxProjectIdPrefix = `sp_`
 export const SandboxSessionIdPrefix = `sn_`
 export const SandboxProviderIdPrefix = `sv_`
 export const ProjectProviderIdPrefix = `pp_`
+export const PermissionOverrideIdPrefix = `po_`
 export const SandboxProjectProviderIdPrefix = `xp_`

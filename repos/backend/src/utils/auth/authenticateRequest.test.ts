@@ -47,6 +47,9 @@ describe(`authenticateRequest`, () => {
               user: {
                 get: vi.fn().mockResolvedValue({ data: mockUser, error: null }),
               },
+              role: {
+                isOrgMember: vi.fn().mockResolvedValue({ data: true, error: null }),
+              },
             },
           },
         },
@@ -190,5 +193,102 @@ describe(`authenticateRequest`, () => {
     await authenticateRequest(req, res)
 
     expect(req.app.locals.db.services.user.get).toHaveBeenCalledWith(`user-456`)
+  })
+
+  it(`should skip membership check when no apiKeyId in auth`, async () => {
+    const mockFromAuth = fromAuthHeaders as ReturnType<typeof vi.fn>
+    mockFromAuth.mockReturnValue({ userId: `user-123`, orgId: `org-1` })
+
+    const req = buildMockReq()
+    const res = buildMockRes()
+    await authenticateRequest(req, res)
+
+    expect(req.app.locals.db.services.role.isOrgMember).not.toHaveBeenCalled()
+  })
+
+  it(`should skip membership check when no orgId in auth`, async () => {
+    const mockFromAuth = fromAuthHeaders as ReturnType<typeof vi.fn>
+    mockFromAuth.mockReturnValue({ userId: `user-123`, apiKeyId: `key-1` })
+
+    const req = buildMockReq()
+    const res = buildMockRes()
+    await authenticateRequest(req, res)
+
+    expect(req.app.locals.db.services.role.isOrgMember).not.toHaveBeenCalled()
+  })
+
+  it(`should pass when API key owner is still an org member`, async () => {
+    const mockFromAuth = fromAuthHeaders as ReturnType<typeof vi.fn>
+    mockFromAuth.mockReturnValue({
+      userId: `user-123`,
+      apiKeyId: `key-1`,
+      orgId: `org-1`,
+    })
+
+    const req = buildMockReq()
+    const res = buildMockRes()
+    await authenticateRequest(req, res)
+
+    expect(req.app.locals.db.services.role.isOrgMember).toHaveBeenCalledWith(
+      `user-123`,
+      `org-1`
+    )
+    expect(req.user).toEqual(mockUser)
+  })
+
+  it(`should throw 401 when API key owner is no longer an org member`, async () => {
+    const mockFromAuth = fromAuthHeaders as ReturnType<typeof vi.fn>
+    mockFromAuth.mockReturnValue({
+      userId: `user-123`,
+      apiKeyId: `key-1`,
+      orgId: `org-1`,
+    })
+
+    const req = buildMockReq()
+    const res = buildMockRes()
+    const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
+      typeof vi.fn
+    >
+    mockIsOrgMember.mockResolvedValue({ data: false, error: null })
+
+    try {
+      await authenticateRequest(req, res)
+      expect.unreachable(`Should have thrown`)
+    } catch (err) {
+      expect((err as TExceptionLike).status).toBe(401)
+      expect((err as Error).message).toContain(
+        `API key owner is no longer a member of the organization`
+      )
+    }
+  })
+
+  it(`should throw 401 and log error when membership check fails`, async () => {
+    const mockFromAuth = fromAuthHeaders as ReturnType<typeof vi.fn>
+    mockFromAuth.mockReturnValue({
+      userId: `user-123`,
+      apiKeyId: `key-1`,
+      orgId: `org-1`,
+    })
+
+    const memberErr = new Error(`DB query failed`)
+    const req = buildMockReq()
+    const res = buildMockRes()
+    const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
+      typeof vi.fn
+    >
+    mockIsOrgMember.mockResolvedValue({ data: null, error: memberErr })
+
+    try {
+      await authenticateRequest(req, res)
+      expect.unreachable(`Should have thrown`)
+    } catch (err) {
+      expect((err as TExceptionLike).status).toBe(401)
+      expect((err as Error).message).toContain(`Authentication failed`)
+    }
+
+    expect(logger.error).toHaveBeenCalledWith(
+      `API key membership check failed:`,
+      memberErr
+    )
   })
 })

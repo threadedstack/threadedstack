@@ -117,7 +117,7 @@ describe(`PUT /:orgId/roles/:roleId - Update org role`, () => {
       userId: `user-2`,
       type: ERoleType.member,
     }
-    const updatedRole = { ...existingRole, type: ERoleType.viewer }
+    const updatedRole = { ...existingRole, type: ERoleType.member }
 
     const mockRoleGet = mockReq.app?.locals.db.services.role.get as ReturnType<
       typeof vi.fn
@@ -127,13 +127,13 @@ describe(`PUT /:orgId/roles/:roleId - Update org role`, () => {
     >
     mockRoleGet.mockResolvedValue({ data: existingRole })
     mockRoleUpdate.mockResolvedValue({ data: updatedRole })
-    mockReq.body = { roleType: ERoleType.viewer }
+    mockReq.body = { roleType: ERoleType.member }
 
     await updateOrgRole.action(mockReq as TRequest, mockRes as Response)
 
     // Verify roleType from body is passed directly as type in the update
     const updateArg = mockRoleUpdate.mock.calls[0][0]
-    expect(updateArg.type).toBe(ERoleType.viewer)
+    expect(updateArg.type).toBe(ERoleType.member)
     expect(mockStatus).toHaveBeenCalledWith(200)
   })
 

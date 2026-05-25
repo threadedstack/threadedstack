@@ -8,8 +8,9 @@ import { Menu as MenuIcon } from '@mui/icons-material'
 import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Sidebar } from '@TAF/components/Sidebar/Sidebar'
 import { resolveRole } from '@TAF/utils/permissions/resolveRole'
-import { useTheme, useMediaQuery, IconButton } from '@mui/material'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { SignedIn, RedirectToSignIn } from '@neondatabase/neon-js/auth/react'
+import { useTheme, useMediaQuery, IconButton, Typography } from '@mui/material'
 import {
   PermissionsProvider,
   usePostHogIdentify,
@@ -76,6 +77,7 @@ const Layout = (props: any) => {
   usePostHogPageView(location.pathname, location.search)
 
   const role = resolveRole(user?.role, activeOrgRole)
+  const { has, role: resolvedRole } = usePermissions()
 
   const filteredHeaderItems = useMemo(
     () =>
@@ -91,16 +93,37 @@ const Layout = (props: any) => {
         <PermissionsProvider role={role}>
           <LayoutContainer className='tdsk-layout-container'>
             <Header navItems={filteredHeaderItems} />
-            <LayoutContent className='tdsk-page-content'>
-              <Sidebar isMobile={isMobile} />
-              <Outlet />
-              {props?.children}
-              {isMobile && (
-                <MobileToggle onClick={() => setSidebarOpen(true)}>
-                  <MenuIcon />
-                </MobileToggle>
-              )}
-            </LayoutContent>
+            {resolvedRole === null ? null : has('adminPanel:read') ? (
+              <LayoutContent className='tdsk-page-content'>
+                <Sidebar isMobile={isMobile} />
+                <Outlet />
+                {props?.children}
+                {isMobile && (
+                  <MobileToggle onClick={() => setSidebarOpen(true)}>
+                    <MenuIcon />
+                  </MobileToggle>
+                )}
+              </LayoutContent>
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                <Typography variant='h5'>Access Denied</Typography>
+                <Typography
+                  variant='body1'
+                  color='text.secondary'
+                >
+                  You do not have permission to access the admin panel.
+                </Typography>
+              </Box>
+            )}
           </LayoutContainer>
         </PermissionsProvider>
       </SignedIn>

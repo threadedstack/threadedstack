@@ -128,7 +128,7 @@
       "Bash(devspace --version)",
       "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && grep -A 5 \"afterAll\\\\|afterEach\" {} | head -15')",
       "Bash(sed *)",
-      "Bash(sort -t: -k2 -n)",
+      "Bash(sort *)",
       "Bash(wait)",
       "mcp__playwright__browser_network_request",
       "mcp__playwright__browser_run_code_unsafe",
@@ -139,7 +139,8 @@
       "Bash(grep *)",
       "Skill(hookify:hookify)",
       "Bash(npm root *)",
-      "Bash(command -v tdsk)"
+      "Bash(command *)",
+      "Bash(tee *)"
     ]
   },
   "sandbox": {

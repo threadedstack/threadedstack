@@ -18,7 +18,6 @@ import {
   Provider,
   Schedule,
   EProvider,
-  ERoleType,
   Invitation,
   EGitProvider,
   Subscription,
@@ -62,12 +61,6 @@ const users = {
     emailVerified: true,
     email: `lancetipton04+tdsk-member@gmail.com`,
   }),
-  viewer: new User({
-    id: Ids.user.viewer,
-    name: `Test Viewer`,
-    emailVerified: true,
-    email: `lancetipton04+tdsk-viewer@gmail.com`,
-  }),
 }
 
 // --- Org-Scoped Roles ---
@@ -96,14 +89,6 @@ const roles = {
     projectId: undefined,
     id: Ids.role.memberAcme,
     userId: users.member.id,
-  }),
-  viewer: new Role({
-    type: `viewer`,
-    orgId: org.id,
-    name: `Viewer`,
-    projectId: undefined,
-    id: Ids.role.viewerAcme,
-    userId: users.viewer.id,
   }),
 }
 
@@ -170,14 +155,6 @@ const projectRoles = {
     userId: users.member.id,
     name: `Web Dashboard Member`,
   }),
-  viewerWeb: new Role({
-    type: `viewer`,
-    orgId: undefined,
-    projectId: projects.web.id,
-    id: Ids.role.viewerWeb,
-    userId: users.viewer.id,
-    name: `Web Dashboard Viewer`,
-  }),
 }
 
 // --- Subscriptions ---
@@ -203,23 +180,100 @@ const apiKeys = {
     rateLimit: 1000,
     orgId: org.id,
     projectId: undefined,
-    role: ERoleType.admin,
     userId: users.owner.id,
-    scopes: `read,write,admin`,
     keyPrefix: `tdsk_QIWTcVw`,
     id: Ids.apikey.tdskOrgKey,
     expiresAt: new Date(`2030-12-31`),
     lastUsedAt: new Date(`2024-01-25`),
     name: `Threaded Stack Org Master Key`,
     keyHash: `e1a4f913e4f19a36a4fe09ffc431dadd0cd79b218c70b0a1adc46b7435a4919c`,
+    permissions: [
+      `sandbox:read`,
+      `sandbox:connect`,
+      `sandbox:exec`,
+      `sandbox:create`,
+      `sandbox:update`,
+      `sandbox:delete`,
+      `sandbox:manage`,
+      `project:read`,
+      `project:create`,
+      `project:update`,
+      `project:delete`,
+      `project:manage`,
+      `secret:read`,
+      `secret:create`,
+      `secret:update`,
+      `secret:delete`,
+      `secret:manage`,
+      `apiKey:create`,
+      `apiKey:read`,
+      `apiKey:update`,
+      `apiKey:delete`,
+      `apiKey:manage`,
+      `org:read`,
+      `org:update`,
+      `org:manage`,
+      `role:read`,
+      `role:create`,
+      `role:update`,
+      `role:delete`,
+      `role:manage`,
+      `endpoint:read`,
+      `endpoint:create`,
+      `endpoint:update`,
+      `endpoint:delete`,
+      `provider:read`,
+      `provider:create`,
+      `provider:update`,
+      `provider:delete`,
+      `agent:read`,
+      `agent:create`,
+      `agent:update`,
+      `agent:delete`,
+      `agent:exec`,
+      `thread:read`,
+      `thread:create`,
+      `thread:update`,
+      `thread:delete`,
+      `message:read`,
+      `message:create`,
+      `message:update`,
+      `message:delete`,
+      `skill:read`,
+      `skill:create`,
+      `skill:update`,
+      `skill:delete`,
+      `schedule:read`,
+      `schedule:create`,
+      `schedule:update`,
+      `schedule:delete`,
+      `invitation:read`,
+      `invitation:create`,
+      `invitation:update`,
+      `invitation:delete`,
+      `domain:read`,
+      `domain:create`,
+      `domain:update`,
+      `domain:delete`,
+      `function:read`,
+      `function:create`,
+      `function:update`,
+      `function:delete`,
+      `asset:read`,
+      `asset:create`,
+      `asset:update`,
+      `asset:delete`,
+      `quota:read`,
+      `subscription:read`,
+      `user:read`,
+      `user:update`,
+    ],
   }),
   apiProject: new ApiKey({
     active: true,
     rateLimit: 500,
     orgId: undefined,
-    scopes: `read,write`,
     userId: users.admin.id,
-    role: ERoleType.member,
     keyPrefix: `tdsk_XP0wDQi`,
     projectId: projects.api.id,
     name: `API Backend Project Key`,
@@ -227,6 +281,32 @@ const apiKeys = {
     expiresAt: new Date(`2030-12-31`),
     lastUsedAt: new Date(`2024-01-26`),
     keyHash: `5bf5a7b45c5c9450d5b993f4441bb8a4ee167a1b466a00377dc4ea43e65577df`,
+    permissions: [
+      `sandbox:read`,
+      `sandbox:connect`,
+      `sandbox:exec`,
+      `project:read`,
+      `project:create`,
+      `project:update`,
+      `apiKey:create`,
+      `apiKey:read`,
+      `secret:read`,
+      `secret:create`,
+      `endpoint:read`,
+      `endpoint:create`,
+      `endpoint:update`,
+      `provider:read`,
+      `agent:read`,
+      `agent:exec`,
+      `thread:read`,
+      `thread:create`,
+      `thread:update`,
+      `message:read`,
+      `message:create`,
+      `function:read`,
+      `asset:read`,
+      `asset:create`,
+    ],
   }),
 }
 
@@ -860,25 +940,6 @@ const assets = {
       category: `documentation`,
     },
   }),
-  // User-scoped asset
-  userAvatar: new Asset({
-    orgId: undefined,
-    type: `image/jpeg`,
-    content: undefined,
-    threadId: undefined,
-    messageId: undefined,
-    projectId: undefined,
-    providerId: undefined,
-    userId: users.viewer.id,
-    id: Ids.asset.userAvatar,
-    name: `Profile Picture`,
-    url: `https://cdn.threadedstack.com/avatars/viewer.jpg`,
-    meta: {
-      width: 256,
-      height: 256,
-      size: 23456,
-    },
-  }),
   // Thread-scoped asset
   threadAttachment: new Asset({
     orgId: undefined,
@@ -982,19 +1043,6 @@ const threads = {
       tags: [`development`, `api`],
     },
   }),
-  viewer: new Thread({
-    public: true,
-    orgId: org.id,
-    userId: users.viewer.id,
-    agentId: agents.chat.id,
-    id: Ids.thread.viewer,
-    name: `General Q&A`,
-    projectId: projects.web.id,
-    providerId: providers.anthropic.id,
-    meta: {
-      tags: [`general`, `questions`],
-    },
-  }),
 }
 
 // --- Messages (using TMessageContent[] format for content field) ---
@@ -1084,22 +1132,6 @@ const messages = {
       role: `user`,
     },
   }),
-  viewerMsg1: new Message({
-    type: `user`,
-    orgId: org.id,
-    projectId: projects.web.id,
-    id: Ids.message.thread4Msg1,
-    threadId: threads.viewer.id,
-    content: [
-      {
-        type: `text`,
-        text: `How do I configure a new endpoint in the dashboard?`,
-      },
-    ],
-    meta: {
-      role: `user`,
-    },
-  }),
 }
 
 // --- Quotas ---
@@ -1160,7 +1192,7 @@ const invitations = {
   }),
   expired: new Invitation({
     userId: undefined,
-    roleType: `viewer`,
+    roleType: `member`,
     revokedAt: undefined,
     revokedBy: undefined,
     acceptedAt: undefined,
@@ -1332,13 +1364,39 @@ const projectProviderLinks = [
   { projectId: Ids.project.acmeWeb, providerId: providers.gitLab.id, priority: 1 },
 ]
 
+// --- Permission Overrides ---
+const permissionOverrides = {
+  memberSandboxCreate: {
+    id: Ids.permissionOverride.memberSandboxCreate,
+    userId: users.member.id,
+    orgId: org.id,
+    projectId: undefined,
+    permission: `sandbox:create`,
+    effect: `grant` as const,
+    grantedBy: users.owner.id,
+    reason: `Grant member ability to create sandbox configs`,
+    expiresAt: undefined,
+  },
+  memberDenyExposePort: {
+    id: Ids.permissionOverride.memberDenyExposePort,
+    userId: users.member.id,
+    orgId: org.id,
+    projectId: undefined,
+    permission: `sandbox:manage`,
+    effect: `deny` as const,
+    grantedBy: users.owner.id,
+    reason: `Prevent member from managing sandbox infrastructure`,
+    expiresAt: undefined,
+  },
+}
+
 /**
  * Full organization seed data
  * Contains everything needed to create a complete org with all entity types
  *
  * Entity relationships:
  * - Organization has ownerId -> users.owner
- * - Roles: org-scoped (owner/admin/member/viewer) + project-scoped (admin/member/viewer)
+ * - Roles: org-scoped (owner/admin/member) + project-scoped (admin/member)
  * - Providers: org-scoped (openai, anthropic, zai, openrouter, google, ollama) with secretId linking to provider secrets
  * - Agents: linked to providers via junction table, projects via junction table (with functionIds), skills via junction table
  * - Secrets: covers all 4 exclusive arc scopes (org, project, provider, agent)
@@ -1349,6 +1407,7 @@ const projectProviderLinks = [
  * - Schedules: cron-based agent execution, linked to agents and optionally threads
  * - Sandboxes: built-in presets (claude-code, codex, opencode, antigravity, openclaw, custom) linked to providers via junction table
  * - Invitations: all 4 statuses (pending, accepted, expired, revoked)
+ * - PermissionOverrides: per-user grant/deny overrides on top of role defaults
  */
 export const seeds = {
   // Core entities
@@ -1388,4 +1447,6 @@ export const seeds = {
   sandboxes,
   sandboxProviderLinks,
   projectProviderLinks,
+  // Permissions
+  permissionOverrides,
 }

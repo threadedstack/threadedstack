@@ -5,7 +5,13 @@ import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
-import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
+import {
+  Exception,
+  ERoleType,
+  EPermAction,
+  EPermResource,
+  hasMinRole,
+} from '@tdsk/domain'
 
 /**
  * GET /_/agents/:id - Get an agent by ID
@@ -36,7 +42,7 @@ export const getAgent: TEndpointConfig = {
 
     if (!sanitize) {
       const userRole = await getUserRole(req, { orgId: agent.orgId })
-      if (!canAccessSecretValue(userRole))
+      if (!hasMinRole(userRole, ERoleType.admin))
         throw new Exception(403, `Admin or higher role required to view secret values`)
     }
 

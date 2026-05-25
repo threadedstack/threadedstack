@@ -64,7 +64,7 @@ test.describe.serial('CRUD Project Members', () => {
     // Select user via EntitySelectorSingle (id='entity-user')
     await selectEntityOption(page, 'entity-user')
 
-    // The role Autocomplete defaults to "viewer" — leave as default
+    // The role Autocomplete defaults to "member" - leave as default
 
     // Submit the form (DrawerActions form='add-member-form', button text = 'Create')
     await submitForm(page, 'add-member-form')
@@ -108,9 +108,9 @@ test.describe.serial('CRUD Project Members', () => {
     const rowCount = await rows.count()
     expect(rowCount).toBeGreaterThan(0)
 
-    // Verify a "viewer" role chip exists (since we used the default role)
+    // Verify a "member" role chip exists (since we used the default role)
     await expect(
-      tableBody.locator('.MuiChip-label', { hasText: /^viewer$/i }).first()
+      tableBody.locator('.MuiChip-label', { hasText: /^member$/i }).first()
     ).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toEqual([])

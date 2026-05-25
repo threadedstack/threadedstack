@@ -79,7 +79,7 @@ export const listOrgs: TEndpointConfig = {
     const orgsWithRoles =
       userOrgs?.map((org) => ({
         ...org,
-        userRole: orgRoleMap.get(org.id) || ERoleType.viewer,
+        userRole: orgRoleMap.get(org.id) || null,
       })) || []
 
     res.status(200).json({ data: orgsWithRoles, limit, offset })

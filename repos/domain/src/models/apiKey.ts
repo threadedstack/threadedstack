@@ -1,4 +1,4 @@
-import type { TApiKeyScope } from '@TDM/types'
+import type { TPermission } from '@TDM/types'
 
 import { Base } from '@TDM/models/base'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
@@ -6,27 +6,25 @@ import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 export class ApiKey extends Base {
   key?: string
   name: string
-  role?: string
   orgId?: string
   userId?: string
   keyHash: string
-  scopes?: string
   active: boolean
   keyPrefix: string
   rateLimit?: number
   projectId?: string
   expiresAt?: Date | string
   lastUsedAt?: Date | string
+  permissions?: TPermission[]
 
   constructor(apiKey: Partial<ApiKey>) {
     super()
     Object.assign(this, apiKey)
   }
 
-  hasScope(scope: TApiKeyScope): boolean {
-    if (!this.scopes) return false
-    const scopeList = this.scopes.split(',').map((s) => s.trim())
-    return scopeList.includes(scope) || scopeList.includes(`admin`)
+  hasPermission(permission: TPermission): boolean {
+    if (!this.permissions) return false
+    return this.permissions.includes(permission)
   }
 
   isExpired(): boolean {

@@ -4,5 +4,4 @@ export type TAuthHeaderObj = {
   orgId?: string
   apiKeyId?: string
   projectId?: string
-  apiKeyRole?: string
 }

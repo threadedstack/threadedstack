@@ -82,6 +82,10 @@ const buildMockApp = (overrides: Record<string, any> = {}) => {
             getByHash: vi.fn().mockResolvedValue({ data: null }),
             ...overrides.apiKey,
           },
+          permissionOverride: {
+            getForUser: vi.fn().mockResolvedValue({ data: [] }),
+            ...overrides.permissionOverride,
+          },
         },
       },
       sandbox: sandboxService,

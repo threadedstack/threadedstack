@@ -66,18 +66,15 @@ export const Ids = {
     owner: `su_0000001`,
     admin: `su_0000002`,
     member: `su_0000003`,
-    viewer: `su_0000004`,
   },
   thread: {
     adminPlanning: `th_0000001`,
     adminSupport: `th_0000002`,
     memberDev: `th_0000003`,
-    viewer: `th_0000004`,
   },
   user: {
     admin: `00000000-0000-0000-0000-000000000001`,
     member: `00000000-0000-0000-0000-000000000002`,
-    viewer: `00000000-0000-0000-0000-000000000003`,
   },
   asset: {
     acmeLogo: `as_0000001`,
@@ -128,14 +125,16 @@ export const Ids = {
     ownerAcme: `rl_0000002`,
     adminAcme: `rl_0000003`,
     memberAcme: `rl_0000004`,
-    viewerAcme: `rl_0000005`,
     ownerStartup: `rl_0000006`,
     memberStartup: `rl_0000007`,
     ownerPersonal: `rl_0000008`,
     adminApi: `rl_0000009`,
     memberApi: `rl_0000010`,
     memberWeb: `rl_0000011`,
-    viewerWeb: `rl_0000012`,
+  },
+  permissionOverride: {
+    memberSandboxCreate: `po_0000001`,
+    memberDenyExposePort: `po_0000002`,
   },
   invitation: {
     pending: `iv_0000001`,
@@ -185,6 +184,7 @@ export const ThreadIds = Ids.thread
 export const SkillIds = Ids.skill
 export const ScheduleIds = Ids.schedule
 export const SandboxIds = Ids.sandbox
+export const PermissionOverrideIds = Ids.permissionOverride
 export const UserIds = Ids.user
 
 export const SeedPassword = `TdskSeed123!`

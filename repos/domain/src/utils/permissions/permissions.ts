@@ -2,20 +2,24 @@
  * Permission Utilities
  *
  * Core utilities for RBAC permission checking.
- * Implements a hierarchical role-based access control system.
+ * Implements a hierarchical role-based access control system
+ * using explicit permission sets (RoleTemplates) instead of a permission matrix.
  */
 
-import type { TPermCheckResult } from '@TDM/types'
-import type { EPermAction, EPermResource } from '@TDM/types'
-import { ERoleType } from '@TDM/types'
-import { RoleHierarchy, PermissionMatrix } from '@TDM/constants/values'
+import type { PermissionOverride } from '@TDM/models/permissionOverride'
+import type { EPermResource, TPermCheckResult, TPermission } from '@TDM/types'
+
+import { ERoleType, EPermAction } from '@TDM/types'
+import { RoleHierarchy, RoleTemplates } from '@TDM/constants/values'
 
 /**
  * Get the numeric level of a role in the hierarchy
  * Higher number = more permissions
  *
+ * Hierarchy: member(0), admin(1), owner(2), super(3)
+ *
  * @param role - Role to get level for, or null for non-members
- * @returns Numeric level (0-4), or -1 for null (non-member)
+ * @returns Numeric level (0-3), or -1 for null/invalid
  */
 export const getRoleLevel = (role: ERoleType | null): number => {
   if (role === null) return -1
@@ -39,16 +43,69 @@ export const hasMinRole = (
 }
 
 /**
+ * Build the full set of permissions for a given role by accumulating
+ * permissions from all role tiers at or below that role level.
+ *
+ * Super admins return an empty array because they bypass all permission checks.
+ *
+ * @param role - The role to build permissions for
+ * @returns Array of permission strings
+ */
+export const buildRolePermissions = (role: ERoleType): TPermission[] => {
+  if (role === ERoleType.super) return []
+
+  const tiers: ERoleType[] = [ERoleType.member, ERoleType.admin, ERoleType.owner]
+  const roleIdx = tiers.indexOf(role)
+  if (roleIdx === -1) return []
+
+  return tiers
+    .slice(0, roleIdx + 1)
+    .flatMap((tier) => RoleTemplates[tier as Exclude<ERoleType, 'super'>])
+}
+
+/**
+ * Resolve the effective permission set for a user by combining their role's
+ * default permissions with any active overrides.
+ *
+ * Grant overrides add permissions, deny overrides remove them.
+ * Deny always wins: grants are applied first, then denies.
+ * Expired overrides are ignored.
+ *
+ * Super admins return an empty set because they bypass all permission checks.
+ *
+ * @param roleType - The user's role
+ * @param overrides - Per-user permission overrides
+ * @returns Set of effective permission strings
+ */
+export const resolvePermissions = (
+  roleType: ERoleType,
+  overrides: PermissionOverride[]
+): Set<TPermission> => {
+  if (roleType === ERoleType.super) return new Set<TPermission>()
+
+  const defaults = new Set<TPermission>(buildRolePermissions(roleType))
+
+  const now = new Date()
+  const active = overrides.filter((o) => !o.expiresAt || new Date(o.expiresAt) > now)
+
+  for (const o of active) {
+    if (o.effect === 'grant') defaults.add(o.permission)
+  }
+
+  for (const o of active) {
+    if (o.effect === 'deny') defaults.delete(o.permission)
+  }
+
+  return defaults
+}
+
+/**
  * Check if a user can perform a specific action on a resource.
  * This is the main permission checking function.
  *
- * **Edge cases:**
- * - **Unknown resources/actions (U-M2):** If `resource` or `action` is not found in the
- *   `PermissionMatrix`, the function **fails closed** (returns `{ allowed: false }`).
- *   This is the safe default — unrecognized resource/action combos are denied.
- * - **Scope parameter (U-M3):** This function does not accept a `scope` parameter.
- *   All permission checks are purely role-based via `PermissionMatrix`. Org-level vs
- *   project-level scoping must be handled by the caller before invoking `canPerform`.
+ * Super admins bypass all checks.
+ * For other roles, the action is allowed only if the role's accumulated
+ * permissions include the requested resource:action pair.
  *
  * @param userRole - The user's current role, or null for non-members
  * @param action - The action being attempted
@@ -67,35 +124,18 @@ export const canPerform = (
     }
   }
 
-  const requiredRole = PermissionMatrix[resource]?.[action]
-
-  if (!requiredRole) {
-    return {
-      allowed: false,
-      reason: `Unknown permission: ${action} on ${resource}`,
-    }
+  if (isSuperAdmin(userRole)) {
+    return { allowed: true }
   }
 
-  const allowed = hasMinRole(userRole, requiredRole)
+  const permissions = new Set<TPermission>(buildRolePermissions(userRole))
+  const permission: TPermission = `${resource}:${action}`
+  const allowed = permissions.has(permission)
 
   return {
     allowed,
-    requiredRole,
-    reason: allowed ? undefined : `Requires ${requiredRole} role or higher`,
+    reason: allowed ? undefined : `Permission denied: requires ${permission}`,
   }
-}
-
-/**
- * Check if user can access secret values (not just metadata)
- * Secret values are only visible to admins and above
- * Members can see secret names but not values
- *
- * @param userRole - The user's current role, or null for non-members
- * @returns True if user can access secret values, false if null (non-member)
- */
-export const canAccessSecretValue = (userRole: ERoleType | null): boolean => {
-  if (userRole === null) return false
-  return hasMinRole(userRole, ERoleType.admin)
 }
 
 /**
@@ -129,7 +169,7 @@ export const getHighestRole = (roles: (ERoleType | null)[]): ERoleType | null =>
 /**
  * Check if a role can manage another role
  * Rule: You can only manage roles below your level
- * e.g., Admins can manage members and viewers, but not other admins or owners
+ * e.g., Admins can manage members, but not other admins or owners
  *
  * @param managerRole - The role attempting to manage, or null for non-members
  * @param targetRole - The role being managed
@@ -146,10 +186,10 @@ export const canManageRole = (
 
 /**
  * Get all actions allowed for a role on a specific resource.
- * Useful for UI - shows what actions are available to current user.
+ * Uses buildRolePermissions to determine the role's full permission set,
+ * then filters for actions matching the given resource.
  *
- * **Edge case:** If `resource` is not found in `PermissionMatrix`, returns an empty
- * array (fails closed — no actions are allowed for unknown resources).
+ * Super admins get all actions on every resource.
  *
  * @param userRole - The user's current role, or null for non-members
  * @param resource - The resource to check
@@ -160,12 +200,17 @@ export const getAllowedActions = (
   resource: EPermResource
 ): EPermAction[] => {
   if (userRole === null) return []
-  const permissions = PermissionMatrix[resource]
-  if (!permissions) return []
 
-  return Object.entries(permissions)
-    .filter(([_, requiredRole]) => hasMinRole(userRole, requiredRole))
-    .map(([action, _]) => action as EPermAction)
+  if (isSuperAdmin(userRole)) {
+    return Object.values(EPermAction)
+  }
+
+  const permissions = buildRolePermissions(userRole)
+  const prefix = `${resource}:`
+
+  return permissions
+    .filter((p) => p.startsWith(prefix))
+    .map((p) => p.slice(prefix.length) as EPermAction)
 }
 
 /**

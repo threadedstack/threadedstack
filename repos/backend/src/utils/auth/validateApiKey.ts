@@ -1,44 +1,33 @@
 import type { ApiKey } from '@tdsk/domain'
-import { AllowedScopes } from '@TBE/constants/values'
-import { ERoleType, hasMinRole, RoleHierarchy, ApiKeyAllowedRoles } from '@tdsk/domain'
+import type { TPermission } from '@tdsk/domain'
+import { ERoleType, hasMinRole } from '@tdsk/domain'
 
 type TValidateProjKeyPerm = {
   isOrgAdmin: boolean
   targetUserId?: string
-  requestedRole: string
   requesterRole: ERoleType | null
   requesterUserId: string
+  requestedPermissions: TPermission[]
+  targetUserPermissions: Set<TPermission>
 }
 
 /**
- * Validates that the requested API key role does not exceed the caller's effective role.
- * Super callers are capped at creating owner-role keys (no super keys via API key).
+ * Validates that requested API key permissions are a subset of the
+ * target user's effective permissions. No permission on the key can
+ * exceed what the user it belongs to actually has.
  */
-export const validateApiKeyRole = (
-  role: string,
-  callerRole: ERoleType | null
-): { valid: boolean; error?: string } => {
-  if (!ApiKeyAllowedRoles.includes(role as ERoleType)) {
+export const validateApiKeyPermissions = (
+  requestedPermissions: TPermission[],
+  targetUserPermissions: Set<TPermission>
+): { valid: boolean; error?: string; invalidPermissions?: TPermission[] } => {
+  const invalid = requestedPermissions.filter((p) => !targetUserPermissions.has(p))
+  if (invalid.length > 0) {
     return {
       valid: false,
-      error: `Invalid API key role "${role}". Valid values are: ${ApiKeyAllowedRoles.join(`, `)}`,
+      error: `Target user does not have these permissions: ${invalid.join(', ')}`,
+      invalidPermissions: invalid,
     }
   }
-
-  if (!callerRole)
-    return { valid: false, error: `Cannot determine caller role for key creation` }
-
-  const callerLevel = RoleHierarchy.indexOf(callerRole)
-  const ownerLevel = RoleHierarchy.indexOf(ERoleType.owner)
-  const effectiveCallerCeiling = Math.min(callerLevel, ownerLevel)
-  const requestedLevel = RoleHierarchy.indexOf(role as ERoleType)
-
-  if (requestedLevel > effectiveCallerCeiling)
-    return {
-      valid: false,
-      error: `Your role (${callerRole}) cannot create API keys with role "${role}"`,
-    }
-
   return { valid: true }
 }
 
@@ -47,13 +36,19 @@ export const validateApiKeyRole = (
  * Enforces:
  * - Org admins (admin/owner/super roles) bypass target-user restrictions
  * - Non-admin project members can only create keys for themselves
- * - Role ceiling: requested role cannot exceed the caller's project role
+ * - Requested permissions must be a subset of the target user's permissions
  */
 export const validateProjectKeyPermission = (
   params: TValidateProjKeyPerm
 ): { valid: boolean; error?: string } => {
-  const { isOrgAdmin, targetUserId, requestedRole, requesterRole, requesterUserId } =
-    params
+  const {
+    isOrgAdmin,
+    targetUserId,
+    requesterRole,
+    requesterUserId,
+    requestedPermissions,
+    targetUserPermissions,
+  } = params
 
   if (targetUserId && targetUserId !== requesterUserId)
     if (!isOrgAdmin && !hasMinRole(requesterRole, ERoleType.admin))
@@ -62,15 +57,7 @@ export const validateProjectKeyPermission = (
         error: `Only project admins can create API keys for other users`,
       }
 
-  return validateApiKeyRole(requestedRole, requesterRole)
-}
-
-export const validateApiScopes = (scopes: string) => {
-  const list = scopes.split(',').map((s) => s.trim())
-  const valid = list.every((scope) => AllowedScopes.includes(scope))
-  return valid
-    ? { valid }
-    : { valid, error: `Invalid scopes. Valid values are: ${AllowedScopes.join(', ')}` }
+  return validateApiKeyPermissions(requestedPermissions, targetUserPermissions)
 }
 
 export const validateExpiresAt = (expiresAt: string | Date) => {
@@ -84,7 +71,7 @@ export const validateExpiresAt = (expiresAt: string | Date) => {
 }
 
 export const validateApiKey = (data: Partial<ApiKey>) => {
-  const { name, orgId, projectId, scopes, expiresAt } = data
+  const { name, orgId, projectId, expiresAt } = data
 
   if (!name) return { valid: false, error: `API key name is required` }
 
@@ -99,11 +86,6 @@ export const validateApiKey = (data: Partial<ApiKey>) => {
       valid: false,
       error: `API key can only belong to one of: org or project (exclusive arc)`,
     }
-
-  if (scopes) {
-    const result = validateApiScopes(scopes)
-    if (!result.valid) return result
-  }
 
   if (expiresAt) {
     const result = validateExpiresAt(expiresAt)

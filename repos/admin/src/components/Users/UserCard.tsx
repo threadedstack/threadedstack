@@ -1,6 +1,6 @@
 import type { User } from '@tdsk/domain'
 
-import { ERoleType } from '@tdsk/domain'
+import { ERoleType, hasMinRole } from '@tdsk/domain'
 import { useUser } from '@TAF/state/selectors'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
@@ -75,7 +75,7 @@ export const UserCard = (props: TUserCard) => {
           <Chip
             size='small'
             color={getRoleColor(user.role as ERoleType)}
-            label={(user.role || ERoleType.viewer)?.toUpperCase()}
+            label={(user.role || `member`)?.toUpperCase()}
           />
           <Typography
             variant='caption'
@@ -92,7 +92,7 @@ export const UserCard = (props: TUserCard) => {
               size='small'
               color='primary'
               onClick={() => onEditRole(user)}
-              disabled={authUser.role === ERoleType.viewer}
+              disabled={!hasMinRole(authUser.role as ERoleType, ERoleType.admin)}
             >
               <EditIcon />
             </IconButton>

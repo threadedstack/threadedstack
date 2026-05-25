@@ -10,7 +10,7 @@ import {
   CliSessionKeyMaxPerOrg,
 } from '@TBE/constants/values'
 
-// No authorize() middleware — any authenticated org member (including viewers) can create
+// No authorize() middleware — any authenticated org member can create
 // session keys for themselves. This is intentionally weaker than createApiKey (admin+) because
 // CLI session keys are auto-generated during browser login, scoped to the current user only.
 export const createSessionKey: TEndpointConfig = {
@@ -86,12 +86,12 @@ export const createSessionKey: TEndpointConfig = {
       name,
       orgId,
       userId,
+      expiresAt,
       active: true,
       keyHash: hash,
-      keyPrefix: prefix,
-      scopes: `write`,
       rateLimit: 100,
-      expiresAt,
+      permissions: [],
+      keyPrefix: prefix,
     })
 
     const { data, error } = await db.services.apiKey.create(apiKeyData)

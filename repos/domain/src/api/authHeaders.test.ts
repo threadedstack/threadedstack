@@ -73,6 +73,6 @@ describe(`setAuthHeaders`, () => {
     expect(removedKeys).toContain(`X-User-Id`)
     expect(removedKeys).toContain(`X-User-Email`)
     expect(removedKeys).toContain(`X-User-Org-Id`)
-    expect(removedKeys).toContain(`X-Api-Key-Role`)
+    expect(removedKeys).toContain(`X-User-Api-Key-Id`)
   })
 })

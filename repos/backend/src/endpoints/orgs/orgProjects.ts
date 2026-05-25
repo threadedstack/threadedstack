@@ -73,6 +73,8 @@ import { upsertSBPConfig } from '@TBE/endpoints/sandboxes/upsertSBPConfig'
 import { getSandboxStatus } from '@TBE/endpoints/sandboxes/getSandboxStatus'
 import { execStreamInSandbox } from '@TBE/endpoints/sandboxes/execStreamInSandbox'
 
+import { permissionOverrides } from '@TBE/endpoints/permissionOverrides/permissionOverrides'
+
 import { getSchedule } from '@TBE/endpoints/schedules/getSchedule'
 import { listSchedules } from '@TBE/endpoints/schedules/listSchedules'
 import { getScheduleRun } from '@TBE/endpoints/schedules/getScheduleRun'
@@ -208,6 +210,15 @@ const projectSandboxes: TEndpointConfig = {
   },
 }
 
+const projectOverrides: TEndpointConfig = {
+  path: `/:projectId/overrides`,
+  method: EPMethod.Use,
+  middleware: [projectAccessGuard(), projectMemberGuard()],
+  endpoints: {
+    ...permissionOverrides.endpoints,
+  },
+}
+
 const projectSchedules: TEndpointConfig = {
   path: `/:projectId/schedules`,
   method: EPMethod.Use,
@@ -242,5 +253,6 @@ export const orgProjects: TEndpointConfig = {
     projectFunctions,
     projectSandboxes,
     projectSchedules,
+    projectOverrides,
   },
 }

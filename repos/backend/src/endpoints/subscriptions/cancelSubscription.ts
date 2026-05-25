@@ -3,7 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * DELETE /subscriptions/current - Cancel current subscription
@@ -12,6 +13,7 @@ import { Exception } from '@tdsk/domain'
 export const cancelSubscription: TEndpointConfig = {
   path: `/current`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.subscription)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, payments } = req.app.locals
     const userId = req.user?.id

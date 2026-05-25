@@ -1,3 +1,6 @@
+import type { TPermission } from '@tdsk/domain'
+import type { TUsePermissions } from '@TSC/types'
+
 export const AuthorBoxWidth = 26
 export const FeedbackIconSize = 16
 export const DrawerDefaultWidth = 400
@@ -30,3 +33,26 @@ export const CSSMuiColors = [
 ]
 
 export const CSSColorRefs = [`#`, `rgba`, `hsl`, `hwb`]
+
+export const EmptyPermissions: TUsePermissions = {
+  role: null,
+  isSuper: false,
+  isOwner: false,
+  isAdmin: false,
+  isMember: false,
+  has: () => false,
+  canDeleteOrg: false,
+  canInviteUsers: false,
+  canManageMembers: false,
+  canManageApiKeys: false,
+  canAccessSecretValues: false,
+  permissions: new Set<TPermission>(),
+  canRead: () => false,
+  canExec: () => false,
+  canUpdate: () => false,
+  canCreate: () => false,
+  canDelete: () => false,
+  canManage: () => false,
+  canConnect: () => false,
+  canAssignRole: () => false,
+}

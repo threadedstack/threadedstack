@@ -1,120 +1,71 @@
+import type { TPermission } from '@tdsk/domain'
+
 import { describe, it, expect } from 'vitest'
-import { ERoleType } from '@tdsk/domain'
-import { validateApiKeyRole, validateProjectKeyPermission } from './validateApiKey'
+import { ERoleType, buildRolePermissions } from '@tdsk/domain'
+import { validateApiKeyPermissions, validateProjectKeyPermission } from './validateApiKey'
 
-describe(`validateApiKeyRole`, () => {
-  it(`should allow admin caller to create admin key`, () => {
-    expect(validateApiKeyRole(`admin`, ERoleType.admin)).toEqual({ valid: true })
-  })
-
-  it(`should allow admin caller to create member key`, () => {
-    expect(validateApiKeyRole(`member`, ERoleType.admin)).toEqual({ valid: true })
-  })
-
-  it(`should allow admin caller to create viewer key`, () => {
-    expect(validateApiKeyRole(`viewer`, ERoleType.admin)).toEqual({ valid: true })
-  })
-
-  it(`should allow member caller to create member key`, () => {
-    expect(validateApiKeyRole(`member`, ERoleType.member)).toEqual({ valid: true })
-  })
-
-  it(`should allow member caller to create viewer key`, () => {
-    expect(validateApiKeyRole(`viewer`, ERoleType.member)).toEqual({ valid: true })
-  })
-
-  it(`should allow viewer caller to create viewer key`, () => {
-    expect(validateApiKeyRole(`viewer`, ERoleType.viewer)).toEqual({ valid: true })
-  })
-
-  it(`should reject member caller creating admin key`, () => {
-    const result = validateApiKeyRole(`admin`, ERoleType.member)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`member`)
-  })
-
-  it(`should reject viewer caller creating member key`, () => {
-    const result = validateApiKeyRole(`viewer`, ERoleType.viewer)
+describe(`validateApiKeyPermissions`, () => {
+  it(`should allow when all requested permissions are in the target set`, () => {
+    const targetPerms = new Set<TPermission>([`org:read`, `project:read`, `sandbox:exec`])
+    const result = validateApiKeyPermissions([`org:read`, `sandbox:exec`], targetPerms)
     expect(result.valid).toBe(true)
   })
 
-  it(`should reject viewer caller creating admin key`, () => {
-    const result = validateApiKeyRole(`admin`, ERoleType.viewer)
+  it(`should reject when a requested permission is not in the target set`, () => {
+    const targetPerms = new Set<TPermission>([`org:read`, `project:read`])
+    const result = validateApiKeyPermissions([`org:read`, `org:delete`], targetPerms)
+    expect(result.valid).toBe(false)
+    expect(result.error).toContain(`org:delete`)
+    expect(result.invalidPermissions).toEqual([`org:delete`])
+  })
+
+  it(`should return valid for empty requested permissions`, () => {
+    const targetPerms = new Set<TPermission>([`org:read`])
+    const result = validateApiKeyPermissions([], targetPerms)
+    expect(result.valid).toBe(true)
+  })
+
+  it(`should reject all permissions when target set is empty`, () => {
+    const targetPerms = new Set<TPermission>()
+    const result = validateApiKeyPermissions([`org:read`], targetPerms)
     expect(result.valid).toBe(false)
   })
 
-  it(`should allow owner caller to create owner key`, () => {
-    expect(validateApiKeyRole(`owner`, ERoleType.owner)).toEqual({ valid: true })
-  })
-
-  it(`should allow owner caller to create admin key`, () => {
-    expect(validateApiKeyRole(`admin`, ERoleType.owner)).toEqual({ valid: true })
-  })
-
-  it(`should allow super caller to create owner key (capped at owner)`, () => {
-    expect(validateApiKeyRole(`owner`, ERoleType.super)).toEqual({ valid: true })
-  })
-
-  it(`should allow super caller to create admin key`, () => {
-    expect(validateApiKeyRole(`admin`, ERoleType.super)).toEqual({ valid: true })
-  })
-
-  it(`should reject admin caller creating owner key`, () => {
-    const result = validateApiKeyRole(`owner`, ERoleType.admin)
+  it(`should list multiple invalid permissions`, () => {
+    const targetPerms = new Set<TPermission>([`org:read`])
+    const result = validateApiKeyPermissions(
+      [`org:delete`, `sandbox:manage`],
+      targetPerms
+    )
     expect(result.valid).toBe(false)
-    expect(result.error).toContain(`admin`)
-  })
-
-  it(`should reject member caller creating owner key`, () => {
-    const result = validateApiKeyRole(`owner`, ERoleType.member)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`member`)
-  })
-
-  it(`should reject viewer caller creating owner key`, () => {
-    const result = validateApiKeyRole(`owner`, ERoleType.viewer)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`viewer`)
-  })
-
-  it(`should reject super as a requested role`, () => {
-    const result = validateApiKeyRole(`super`, ERoleType.super)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`Invalid API key role`)
-  })
-
-  it(`should reject arbitrary string as role`, () => {
-    const result = validateApiKeyRole(`superuser`, ERoleType.admin)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`Invalid API key role`)
-  })
-
-  it(`should reject null caller role`, () => {
-    const result = validateApiKeyRole(`viewer`, null)
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain(`Cannot determine caller role`)
+    expect(result.invalidPermissions).toHaveLength(2)
   })
 })
 
 describe(`validateProjectKeyPermission`, () => {
-  it(`should allow self-creation within role ceiling`, () => {
+  const adminPerms = new Set<TPermission>(buildRolePermissions(ERoleType.admin))
+  const memberPerms = new Set<TPermission>(buildRolePermissions(ERoleType.member))
+
+  it(`should allow self-creation with valid permissions`, () => {
     const result = validateProjectKeyPermission({
       requesterRole: ERoleType.admin,
       requesterUserId: `user-1`,
       targetUserId: `user-1`,
-      requestedRole: `admin`,
       isOrgAdmin: false,
+      requestedPermissions: [`org:read`],
+      targetUserPermissions: adminPerms,
     })
     expect(result.valid).toBe(true)
   })
 
-  it(`should reject self-creation above role ceiling`, () => {
+  it(`should reject self-creation with permissions not in target set`, () => {
     const result = validateProjectKeyPermission({
       requesterRole: ERoleType.member,
       requesterUserId: `user-1`,
       targetUserId: `user-1`,
-      requestedRole: `admin`,
       isOrgAdmin: false,
+      requestedPermissions: [`org:delete`],
+      targetUserPermissions: memberPerms,
     })
     expect(result.valid).toBe(false)
   })
@@ -124,8 +75,9 @@ describe(`validateProjectKeyPermission`, () => {
       requesterRole: ERoleType.member,
       requesterUserId: `user-1`,
       targetUserId: `user-2`,
-      requestedRole: `member`,
       isOrgAdmin: true,
+      requestedPermissions: [`org:read`],
+      targetUserPermissions: memberPerms,
     })
     expect(result.valid).toBe(true)
   })
@@ -135,8 +87,9 @@ describe(`validateProjectKeyPermission`, () => {
       requesterRole: ERoleType.member,
       requesterUserId: `user-1`,
       targetUserId: `user-2`,
-      requestedRole: `viewer`,
       isOrgAdmin: false,
+      requestedPermissions: [`org:read`],
+      targetUserPermissions: memberPerms,
     })
     expect(result.valid).toBe(false)
     expect(result.error).toContain(`Only project admins`)
@@ -147,19 +100,21 @@ describe(`validateProjectKeyPermission`, () => {
       requesterRole: ERoleType.admin,
       requesterUserId: `user-1`,
       targetUserId: `user-2`,
-      requestedRole: `viewer`,
       isOrgAdmin: false,
+      requestedPermissions: [`org:read`],
+      targetUserPermissions: adminPerms,
     })
     expect(result.valid).toBe(true)
   })
 
-  it(`should still enforce role ceiling even for org admin`, () => {
+  it(`should reject when requested permissions exceed target user permissions`, () => {
     const result = validateProjectKeyPermission({
-      requesterRole: ERoleType.member,
+      requesterRole: ERoleType.admin,
       requesterUserId: `user-1`,
       targetUserId: `user-2`,
-      requestedRole: `admin`,
       isOrgAdmin: true,
+      requestedPermissions: [`org:delete`],
+      targetUserPermissions: memberPerms,
     })
     expect(result.valid).toBe(false)
   })

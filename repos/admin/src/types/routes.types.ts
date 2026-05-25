@@ -36,6 +36,9 @@ export enum ERoutePath {
   Settings = `settings`,
   OrgSettings = `/orgs/:orgId/settings`,
 
+  Permissions = `permissions`,
+  OrgPermissions = `/orgs/:orgId/permissions`,
+
   Projects = `projects`,
   OrgProjects = `/orgs/:orgId/projects`,
 

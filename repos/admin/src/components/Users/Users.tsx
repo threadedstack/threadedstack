@@ -154,7 +154,7 @@ export const Users = (props: TUsers) => {
         <Chip
           size='small'
           color={getRoleColor(user.role as ERoleType)}
-          label={(user.role || ERoleType.viewer)?.toUpperCase()}
+          label={(user.role || ERoleType.member)?.toUpperCase()}
         />
       ),
     },

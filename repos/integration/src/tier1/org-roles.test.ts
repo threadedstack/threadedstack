@@ -91,7 +91,7 @@ describe('Tier 1: Org Role CRUD', () => {
       expect(res.status).toBe(200)
       expect(Array.isArray(res.data)).toBe(true)
 
-      // Find a member or viewer role (NOT owner/super) that we can safely update.
+      // Find a member role (NOT owner/super) that we can safely update.
       // Prefer the targetMemberUserId from context if available.
       const members = res.data || []
 
@@ -163,16 +163,16 @@ describe('Tier 1: Org Role CRUD', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('owner can update a member role to viewer (and restore)', async () => {
+    test('owner can update a member role to member (and restore)', async () => {
       if (!targetRoleId || !targetRoleType) {
-        console.warn('[org-roles] SKIPPED: owner can update member role — targetRoleId=%s, targetRoleType=%s', !!targetRoleId, targetRoleType)
+        console.warn('[org-roles] SKIPPED: owner can update member role -- targetRoleId=%s, targetRoleType=%s', !!targetRoleId, targetRoleType)
         return
       }
 
-      // Update role to viewer
+      // Update role to member
       const updateRes = await put(
         `/orgs/${ctx.orgId}/roles/${targetRoleId}`,
-        { roleType: 'viewer' }
+        { roleType: 'member' }
       )
 
       expect(updateRes.status).toBe(200)

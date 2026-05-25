@@ -369,7 +369,7 @@ describe('Tier 1: Role Permission Matrix', () => {
       expect(Array.isArray(res.data)).toBe(true)
     })
 
-    test('admin can list agents (agent.read requires viewer+)', async () => {
+    test('admin can list agents (agent.read requires member+)', async () => {
       if (!hasAdmin) return
 
       const res = await get(`/orgs/${ctx.orgId}/agents`, adminOpts())
@@ -378,7 +378,7 @@ describe('Tier 1: Role Permission Matrix', () => {
       expect(Array.isArray(res.data)).toBe(true)
     })
 
-    test('admin can list projects (project.read requires viewer+)', async () => {
+    test('admin can list projects (project.read requires member+)', async () => {
       if (!hasAdmin) return
 
       const res = await get(`/orgs/${ctx.orgId}/projects`, adminOpts())

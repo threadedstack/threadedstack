@@ -44,7 +44,7 @@ export const env = {
   get superUserId() { return process.env.TDSK_IT_SUPER_USER || '' },
   get adminUserId() { return process.env.TDSK_IT_ADMIN_USER || '' },
   get memberUserId() { return process.env.TDSK_IT_MEMBER_USER || '' },
-  get viewerUserId() { return process.env.TDSK_IT_VIEWER_USER || '' },
+  get targetUserId() { return process.env.TDSK_IT_TARGET_USER || '' },
 
   /**
    * Agent ID with a real LLM provider key for live chat tests.

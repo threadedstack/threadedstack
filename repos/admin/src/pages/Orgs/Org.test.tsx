@@ -92,9 +92,9 @@ const mockUsers = [
     id: `user-3`,
     displayName: `Charlie`,
     email: `charlie@example.com`,
-    role: `viewer`,
+    role: `member`,
     first: `Charlie`,
-    last: `Viewer`,
+    last: `Member2`,
     image: ``,
   },
 ]
@@ -164,8 +164,7 @@ describe(`Org - Members Section`, () => {
   it(`shows role chips for members`, () => {
     render(<Org />)
     expect(screen.getByText(`ADMIN`)).toBeTruthy()
-    expect(screen.getByText(`MEMBER`)).toBeTruthy()
-    expect(screen.getByText(`VIEWER`)).toBeTruthy()
+    expect(screen.getAllByText(`MEMBER`).length).toBe(2)
   })
 
   it(`shows member emails`, () => {

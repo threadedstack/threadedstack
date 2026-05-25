@@ -1,5 +1,5 @@
 import type { TRetryConfig } from '@TBE/types'
-import { EWSEventType, EHttpMethod, EApiKeyScope } from '@tdsk/domain'
+import { EWSEventType, EHttpMethod } from '@tdsk/domain'
 
 export const sigs = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 
@@ -11,7 +11,6 @@ export const LoggerIgnore = {
 }
 
 export const HttpMethods = Object.values(EHttpMethod)
-export const AllowedScopes: string[] = Object.values(EApiKeyScope)
 
 /** Ping interval to keep WS alive through proxy/LB layers during LLM silence */
 export const WsPingIntervalMS = 25_000

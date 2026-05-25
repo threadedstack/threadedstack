@@ -65,6 +65,7 @@ vi.mock(`@TDB/services`, () => {
     domain: makeService(),
     invitation: makeService(),
     subscription: makeService(),
+    permissionOverride: makeService(),
   }
 })
 
@@ -120,6 +121,7 @@ describe(`database factory`, () => {
       `domain`,
       `invitation`,
       `subscription`,
+      `permissionOverride`,
     ]
     for (const svc of expectedServices) {
       expect(db.services).toHaveProperty(svc)

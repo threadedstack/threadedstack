@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -23,6 +24,12 @@ export const stopSandbox: TEndpointConfig = {
 
     const userId = req.user?.id
     if (!userId) throw new Exception(401, `Authenticated user required`)
+
+    if (force || stopAll) {
+      await checkPermission(req, EPermAction.manage, EPermResource.sandboxSession, {
+        orgId: sandbox.orgId,
+      })
+    }
 
     if (stopAll) {
       const activeInstances = await sb.findActiveInstances(sandbox.id, sandbox.orgId)

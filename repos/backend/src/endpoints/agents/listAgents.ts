@@ -11,7 +11,6 @@ import {
   hasMinRole,
   EPermAction,
   EPermResource,
-  canAccessSecretValue,
 } from '@tdsk/domain'
 
 /**
@@ -41,7 +40,7 @@ export const listAgents: TEndpointConfig = {
 
     // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {
-      if (!canAccessSecretValue(userRole))
+      if (!hasMinRole(userRole, ERoleType.admin))
         throw new Exception(403, `Admin or higher role required to view secret values`)
     }
 

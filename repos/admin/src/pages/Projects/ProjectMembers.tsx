@@ -52,7 +52,7 @@ export const ProjectMembers = () => {
   const [addDrawerOpen, setAddDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [selectedRole, setSelectedRole] = useState<ERoleType>(ERoleType.viewer)
+  const [selectedRole, setSelectedRole] = useState<ERoleType>(ERoleType.member)
   const [memberToRemove, setMemberToRemove] = useState<TProjectMember | null>(null)
 
   const loadMembers = async () => {
@@ -125,7 +125,7 @@ export const ProjectMembers = () => {
       toast.success(`Member added successfully`)
       setAddDrawerOpen(false)
       setSelectedUserId(null)
-      setSelectedRole(ERoleType.viewer)
+      setSelectedRole(ERoleType.member)
     } catch (err) {
       toast.error(`Failed to add member`)
     } finally {
@@ -288,7 +288,7 @@ export const ProjectMembers = () => {
               items={AuthRoles}
               value={selectedRole}
               onChange={(e) =>
-                setSelectedRole((e.target.value as ERoleType) || ERoleType.viewer)
+                setSelectedRole((e.target.value as ERoleType) || ERoleType.member)
               }
             />
           </Box>

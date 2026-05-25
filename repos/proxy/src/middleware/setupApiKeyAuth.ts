@@ -2,8 +2,7 @@ import type { TProxyApp } from '@TPX/types'
 import type { Request, Response, NextFunction } from 'express'
 
 import { logger } from '@TPX/utils/logger'
-import type { ERoleType } from '@tdsk/domain'
-import { hashKey, ApiKeyPrefix, ApiKeyAllowedRoles } from '@tdsk/domain'
+import { hashKey, ApiKeyPrefix } from '@tdsk/domain'
 
 /**
  * API Key Authentication middleware
@@ -19,7 +18,7 @@ import { hashKey, ApiKeyPrefix, ApiKeyAllowedRoles } from '@tdsk/domain'
  *    - All other routes get 401
  * 5. Hash API key and look up in database
  * 6. Validate (active, not expired)
- * 7. Set req.user with key's userId and scope-derived role
+ * 7. Set req.user with key's userId, orgId, projectId, and apiKeyId
  */
 export const validateApiKeyAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -67,17 +66,10 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
         return
       }
 
-      if (apiKey.role && !ApiKeyAllowedRoles.includes(apiKey.role as ERoleType)) {
-        logger.error(`API key ${apiKey.id} has invalid role: ${apiKey.role}`)
-        res.status(401).json({ error: `Invalid API key configuration` })
-        return
-      }
-
       req.user = {
         email: ``,
         userId: apiKey.userId,
         ...(apiKey.orgId && { orgId: apiKey.orgId }),
-        ...(apiKey.role && { apiKeyRole: apiKey.role }),
         ...(apiKey.projectId && { projectId: apiKey.projectId }),
         apiKeyId: apiKey.id,
       }

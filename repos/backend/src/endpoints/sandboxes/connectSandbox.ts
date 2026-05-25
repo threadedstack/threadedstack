@@ -10,15 +10,15 @@ import {
   Exception,
   EPermAction,
   EPermResource,
-  EContainerState,
   DefaultWorkdir,
+  EContainerState,
   DefaultMaxInstances,
 } from '@tdsk/domain'
 
 export const connectSandbox: TEndpointConfig = {
   path: `/:id/connect`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.exec, EPermResource.sandbox)],
+  middleware: [authorize(EPermAction.connect, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals

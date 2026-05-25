@@ -24,6 +24,7 @@ import type { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { sandboxSessions } from '@TDB/schemas/sandboxSessions'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
+import type { permissionOverrides } from '@TDB/schemas/permissionOverrides'
 
 type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike> = Omit<
   T,
@@ -41,6 +42,10 @@ export type TDBOrgSelect = TInferDates<typeof orgs.$inferSelect>
 export type TDBOrgInsert = TInferDates<typeof orgs.$inferInsert>
 export type TDBRoleSelect = TInferDates<typeof roles.$inferSelect>
 export type TDBRoleInsert = TInferDates<typeof roles.$inferInsert>
+export type TDBAgentSelect = TInferDates<typeof agents.$inferSelect>
+export type TDBAgentInsert = TInferDates<typeof agents.$inferInsert>
+export type TDBSkillSelect = TInferDates<typeof skills.$inferSelect>
+export type TDBSkillInsert = TInferDates<typeof skills.$inferInsert>
 export type TDBQuotaSelect = TInferDates<typeof quotas.$inferSelect>
 export type TDBQuotaInsert = TInferDates<typeof quotas.$inferInsert>
 export type TDBAssetSelect = TInferDates<typeof assets.$inferSelect>
@@ -57,12 +62,8 @@ export type TDBEndpointSelect = TInferDates<typeof endpoints.$inferSelect>
 export type TDBEndpointInsert = TInferDates<typeof endpoints.$inferInsert>
 export type TDBProviderSelect = TInferDates<typeof providers.$inferSelect>
 export type TDBProviderInsert = TInferDates<typeof providers.$inferInsert>
-export type TDBAgentSelect = TInferDates<typeof agents.$inferSelect>
-export type TDBAgentInsert = TInferDates<typeof agents.$inferInsert>
 export type TDBFunctionSelect = TInferDates<typeof functions.$inferSelect>
 export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
-export type TDBSkillSelect = TInferDates<typeof skills.$inferSelect>
-export type TDBSkillInsert = TInferDates<typeof skills.$inferInsert>
 export type TDBScheduleSelect = TInferDateProps<
   typeof schedules.$inferSelect,
   `createdAt` | `updatedAt` | `lastRunAt` | `nextRunAt`
@@ -91,6 +92,14 @@ export type TDBSandboxSessionInsert = TInferDateProps<
 >
 export type TDBInvoiceSelect = TInferDates<typeof invoices.$inferSelect>
 export type TDBInvoiceInsert = TInferDates<typeof invoices.$inferInsert>
+export type TDBPermissionOverrideSelect = TInferDateProps<
+  typeof permissionOverrides.$inferSelect,
+  `createdAt` | `updatedAt` | `expiresAt`
+>
+export type TDBPermissionOverrideInsert = TInferDateProps<
+  typeof permissionOverrides.$inferInsert,
+  `createdAt` | `updatedAt` | `expiresAt`
+>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
@@ -156,6 +165,7 @@ export type TDBEntitySelect =
   | TDBScheduleRunSelect
   | TDBSubscriptionSelect
   | TDBSandboxSessionSelect
+  | TDBPermissionOverrideSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -181,6 +191,7 @@ export type TDBEntityInsert =
   | TDBScheduleRunInsert
   | TDBSubscriptionInsert
   | TDBSandboxSessionInsert
+  | TDBPermissionOverrideInsert
 
 export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
   Partial<T>,

@@ -55,6 +55,9 @@ describe(`Secrets endpoints`, () => {
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
               isProjectMember: vi.fn().mockResolvedValue({ data: true }),
             },
+            permissionOverride: {
+              getForUser: vi.fn().mockResolvedValue({ data: [] }),
+            },
           },
         },
       },

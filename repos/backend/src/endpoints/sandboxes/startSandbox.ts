@@ -9,7 +9,7 @@ import { Exception, EPermAction, EPermResource, DefaultMaxInstances } from '@tds
 export const startSandbox: TEndpointConfig = {
   path: `/:id/start`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.exec, EPermResource.sandbox)],
+  middleware: [authorize(EPermAction.connect, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals

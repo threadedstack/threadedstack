@@ -1,17 +1,17 @@
 import type WebSocket from 'ws'
 import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
-import type { TSessionsUpdatedMessage } from '@tdsk/domain'
+import type { TPermission, TSessionsUpdatedMessage } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
 import { WsPingInterval } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
+import { checkUserPermission } from '@TBE/utils/auth/checkUserPermission'
 import {
   hashKey,
   ERoleType,
   EShellMsg,
   hasMinRole,
-  canPerform,
   EPermAction,
   ApiKeyPrefix,
   EPermResource,
@@ -30,6 +30,7 @@ const monitorConnected = async (
 
   let orgId: string
   let userId: string
+  let apiKeyPerms: TPermission[] | undefined
 
   if (authHeader?.startsWith(`Bearer `)) {
     const token = authHeader.slice(7)
@@ -47,6 +48,7 @@ const monitorConnected = async (
       }
       orgId = apiKey.orgId
       userId = apiKey.userId
+      if (apiKey.permissions) apiKeyPerms = apiKey.permissions as TPermission[]
     } else {
       const payload = verifyShellToken(token)
       if (!payload) {
@@ -69,25 +71,61 @@ const monitorConnected = async (
     return
   }
 
-  const { data: userOrgRole } = await db.services.role.getOrgRole(userId, orgId)
-  const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
-  const permResult = canPerform(effectiveRole, EPermAction.read, EPermResource.sandbox)
+  // Check read permission on sandbox resource (with override support)
+  const permResult = await checkUserPermission(
+    db,
+    userId,
+    orgId,
+    EPermAction.read,
+    EPermResource.sandbox,
+    undefined,
+    apiKeyPerms
+  )
   if (!permResult.allowed) {
     ws.close(4003, permResult.reason || `Permission denied`)
     return
   }
+
+  // Fetch the role separately for the project-scoping check below
+  const { data: userOrgRole, error: roleErr } = await db.services.role.getOrgRole(
+    userId,
+    orgId
+  )
+  if (roleErr) {
+    logger.error(
+      `[Monitor] Role lookup failed for user ${userId} in org ${orgId}:`,
+      roleErr.message
+    )
+    ws.close(4005, `Failed to verify user role`)
+    return
+  }
+  const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
 
   if (!sbService) {
     ws.close(4003, `Sandbox service not available`)
     return
   }
 
-  const { data: orgSandboxes } = await db.services.sandbox.listByOrg(orgId)
+  const { data: orgSandboxes, error: sbErr } = await db.services.sandbox.listByOrg(orgId)
+  if (sbErr) {
+    logger.error(`[Monitor] Sandbox listing failed for org ${orgId}:`, sbErr.message)
+    ws.close(4005, `Failed to load sandbox data`)
+    return
+  }
   const allSandboxIds = (orgSandboxes ?? []).map((sb) => sb.id)
 
   let accessibleIds: Set<string> | null = null
   if (!hasMinRole(effectiveRole, ERoleType.admin)) {
-    const { data: userProjectIds } = await db.services.role.getUserProjects(userId)
+    const { data: userProjectIds, error: projErr } =
+      await db.services.role.getUserProjects(userId)
+    if (projErr) {
+      logger.error(
+        `[Monitor] User projects lookup failed for user ${userId}:`,
+        projErr.message
+      )
+      ws.close(4005, `Failed to verify project access`)
+      return
+    }
     const projectIdSet = new Set(userProjectIds ?? [])
 
     accessibleIds = new Set<string>()

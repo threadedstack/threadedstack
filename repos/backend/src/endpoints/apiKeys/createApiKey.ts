@@ -1,28 +1,40 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { TPermission } from '@tdsk/domain'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
-import {
-  validateApiKey,
-  validateApiKeyRole,
-  validateProjectKeyPermission,
-} from '@TBE/utils/auth/validateApiKey'
-import {
-  ApiKey,
-  ERoleType,
-  hasMinRole,
-  EPermAction,
-  EPermResource,
-  generateApiKey,
-} from '@tdsk/domain'
+import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
+import { validateApiKey, validateApiKeyPermissions } from '@TBE/utils/auth/validateApiKey'
+import { ApiKey, EPermAction, EPermResource, generateApiKey } from '@tdsk/domain'
+
+/**
+ * Validate that requested permissions are a subset of the target's effective permissions.
+ * No-ops when there are no requested permissions or target is a super admin.
+ */
+const validatePermissionsSubset = async (
+  req: TRequest,
+  requestedPermissions: TPermission[],
+  context: { orgId?: string; projectId?: string },
+  targetUserId?: string
+): Promise<void> => {
+  if (requestedPermissions.length === 0) return
+
+  const targetReq = targetUserId
+    ? ({ ...req, user: { ...req.user, id: targetUserId } } as TRequest)
+    : req
+  const targetPerms = await resolveEffectivePermissions(targetReq, context)
+  if (targetPerms === 'super') return
+
+  const permCheck = validateApiKeyPermissions(requestedPermissions, targetPerms)
+  if (!permCheck.valid) throw new Exception(403, permCheck.error)
+}
 
 /**
  * POST /api-keys - Generate a new API key
- * Requires admin+ role in the org or project
+ * Any member can create a key for themselves; creating for another user requires apiKey:manage
  */
 export const createApiKey: TEndpointConfig = {
   path: `/`,
@@ -37,69 +49,70 @@ export const createApiKey: TEndpointConfig = {
     const { valid, error } = validateApiKey(keyData)
     if (!valid || error) throw new Exception(400, error)
 
-    const { name, orgId, scopes, projectId, expiresAt, rateLimit } = keyData
-    const role = keyData.role || `viewer`
-
-    // Resolve target userId and enforce permissions
-    const orgRole = await getUserRole(req, { orgId: orgId || req.params.orgId })
+    const { name, orgId, projectId, expiresAt, rateLimit } = keyData
+    const requestedPermissions: TPermission[] = keyData.permissions || []
+    const effectiveOrgId = orgId || req.params.orgId
+    const scopeContext = projectId ? { projectId } : { orgId: effectiveOrgId }
 
     let targetUserId = req.user?.id
     if (keyData.userId && keyData.userId !== req.user?.id) {
+      // Cross-user key creation requires apiKey:manage permission
+      const callerPermissions = await resolveEffectivePermissions(req, {
+        orgId: effectiveOrgId,
+        projectId,
+      })
+      if (callerPermissions !== 'super') {
+        const managePermission: TPermission = `${EPermResource.apiKey}:${EPermAction.manage}`
+        if (!callerPermissions.has(managePermission))
+          throw new Exception(403, `Only admins can create API keys for other users`)
+      }
+
+      // Verify target user is a member of the scope
       if (projectId) {
-        const projectRole = await getUserRole(req, { projectId })
-        const callerRole = projectRole || orgRole
-        const isOrgAdmin = hasMinRole(orgRole, ERoleType.admin)
-
-        const permCheck = validateProjectKeyPermission({
-          requesterRole: callerRole,
-          requesterUserId: req.user?.id || ``,
-          targetUserId: keyData.userId,
-          requestedRole: role,
-          isOrgAdmin,
-        })
-        if (!permCheck.valid) throw new Exception(403, permCheck.error)
-
-        const { data: isMember } = await db.services.role.isProjectMember(
-          keyData.userId,
-          projectId
-        )
+        const { data: isMember, error: memberErr } =
+          await db.services.role.isProjectMember(keyData.userId, projectId)
+        if (memberErr)
+          throw new Exception(
+            500,
+            `Failed to verify project membership: ${memberErr.message}`
+          )
         if (!isMember)
           throw new Exception(400, `Target user is not a member of this project`)
       } else {
-        if (!hasMinRole(orgRole, ERoleType.admin))
-          throw new Exception(403, `Only admins can create API keys for other users`)
-
-        const roleCheck = validateApiKeyRole(role, orgRole)
-        if (!roleCheck.valid) throw new Exception(403, roleCheck.error)
-
-        const { data: isMember } = await db.services.role.isOrgMember(
+        const { data: isMember, error: memberErr } = await db.services.role.isOrgMember(
           keyData.userId,
           orgId
         )
+        if (memberErr)
+          throw new Exception(
+            500,
+            `Failed to verify org membership: ${memberErr.message}`
+          )
         if (!isMember)
           throw new Exception(400, `Target user is not a member of this organization`)
       }
 
+      await validatePermissionsSubset(
+        req,
+        requestedPermissions,
+        scopeContext,
+        keyData.userId
+      )
       targetUserId = keyData.userId
     } else {
-      const callerRole = projectId
-        ? (await getUserRole(req, { projectId })) || orgRole
-        : orgRole
-
-      const roleCheck = validateApiKeyRole(role, callerRole)
-      if (!roleCheck.valid) throw new Exception(403, roleCheck.error)
+      // Self-creation: validate permissions against caller's own permissions
+      await validatePermissionsSubset(req, requestedPermissions, scopeContext)
     }
 
     try {
       const { key, hash, prefix } = generateApiKey()
       const apiKeyData = new ApiKey({
         name,
-        role,
         active: true,
         keyHash: hash,
         keyPrefix: prefix,
         userId: targetUserId,
-        scopes: scopes || `read`,
+        permissions: requestedPermissions,
         rateLimit: rateLimit || 100,
         ...(orgId && { orgId }),
         ...(projectId && { projectId }),

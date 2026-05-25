@@ -39,11 +39,11 @@ export const NavSessionItem = (props: TNavSessionItem) => {
   const theme = useTheme()
   const location = useLocation()
   const connectingRef = useRef(false)
-  const { canExec } = usePermissions()
-  const canExecSandbox = canExec(EPermResource.sandbox)
+  const { canConnect } = usePermissions()
   const [connecting, setConnecting] = useState(false)
+  const canConnectSandbox = canConnect(EPermResource.sandbox)
 
-  const isSharedViewOnly = session.category === `shared` && !canExecSandbox
+  const isSharedViewOnly = session.category === `shared` && !canConnectSandbox
   const isActive =
     location.pathname ===
     nav.path.session(orgId, projectId, instanceId ?? ``, session.sessionId)

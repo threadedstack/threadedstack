@@ -23,6 +23,7 @@ import {
   getProjectFunctions,
   setActiveEndpointId,
   getContextSandboxes,
+  getPermissionOverrides,
   getProjectMembersForProject,
 } from '@TAF/state/accessors'
 
@@ -42,6 +43,7 @@ import { fetchSandboxes } from '@TAF/actions/sandboxes/api/fetchSandboxes'
 import { fetchSchedules } from '@TAF/actions/schedules/api/fetchSchedules'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
+import { fetchOverrides } from '@TAF/actions/permissionOverrides/api/fetchOverrides'
 import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectMembers'
 
 /**
@@ -196,6 +198,19 @@ export const orgApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
 
   await Promise.all([
     !getApiKeys() ? safeFetch(() => fetchApiKeys({ orgId })) : Promise.resolve(),
+    !getOrgUsers()?.[orgId] ? safeFetch(() => listOrgUsers(orgId)) : Promise.resolve(),
+  ])
+  return null
+}
+
+export const orgPermissionsLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId } = params
+  if (!orgId) missOrgIdResp()
+
+  await Promise.all([
+    !getPermissionOverrides()
+      ? safeFetch(() => fetchOverrides(orgId))
+      : Promise.resolve(),
     !getOrgUsers()?.[orgId] ? safeFetch(() => listOrgUsers(orgId)) : Promise.resolve(),
   ])
   return null

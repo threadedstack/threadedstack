@@ -11,6 +11,13 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => [`org-1`],
 }))
 
+vi.mock(`@tdsk/domain`, async () => {
+  const actual = await vi.importActual<typeof import('@tdsk/domain')>(`@tdsk/domain`)
+  return {
+    ...actual,
+  }
+})
+
 vi.mock(`@tdsk/components`, () => ({
   Drawer: ({ open, title, children, actions }: any) =>
     open ? (
@@ -79,6 +86,22 @@ vi.mock(`@tdsk/components`, () => ({
   ),
 }))
 
+vi.mock(`@TAF/components/Permissions/PermissionsPicker`, () => ({
+  PermissionsPicker: ({ selected, available, onChange }: any) => (
+    <div data-testid='permissions-picker'>
+      <span data-testid='perm-count'>
+        {selected.length}/{available.length}
+      </span>
+      <button
+        data-testid='select-all-perms'
+        onClick={() => onChange([...available])}
+      >
+        Select All
+      </button>
+    </div>
+  ),
+}))
+
 import { CreateApiKeyDrawer } from './CreateApiKeyDrawer'
 
 const defaultProps = {
@@ -111,19 +134,28 @@ describe(`CreateApiKeyDrawer`, () => {
     expect(screen.getByText(`Alice Admin`)).toBeTruthy()
   })
 
-  it(`includes userId in createApiKey call when provided`, async () => {
+  it(`renders permissions picker`, () => {
+    render(<CreateApiKeyDrawer {...defaultProps} />)
+    expect(screen.getByTestId(`permissions-picker`)).toBeTruthy()
+  })
+
+  it(`includes permissions in createApiKey call`, async () => {
     render(
       <CreateApiKeyDrawer
         {...defaultProps}
         userId='user-1'
         userName='Alice Admin'
+        maxRole='admin'
       />
     )
 
     const nameInput = screen.getByLabelText(`Key Name`)
     fireEvent.change(nameInput, { target: { value: `My Test Key` } })
 
-    // The DrawerActions renders a Create button (editing=false)
+    // Select all permissions via the mock picker
+    const selectAllBtn = screen.getByTestId(`select-all-perms`)
+    fireEvent.click(selectAllBtn)
+
     const createBtn = screen.getByText(`Create`)
     fireEvent.click(createBtn)
 
@@ -134,9 +166,41 @@ describe(`CreateApiKeyDrawer`, () => {
           data: expect.objectContaining({
             userId: `user-1`,
             name: `My Test Key`,
+            permissions: expect.any(Array),
           }),
         })
       )
+    })
+
+    // Verify permissions array was sent (not role)
+    const callData = mockCreateApiKey.mock.calls[0][0].data
+    expect(callData.permissions.length).toBeGreaterThan(0)
+    expect(callData).not.toHaveProperty(`role`)
+  })
+
+  it(`does not include role field in createApiKey call`, async () => {
+    render(
+      <CreateApiKeyDrawer
+        {...defaultProps}
+        userId='user-1'
+        userName='Alice Admin'
+      />
+    )
+
+    const nameInput = screen.getByLabelText(`Key Name`)
+    fireEvent.change(nameInput, { target: { value: `Test` } })
+
+    const selectAllBtn = screen.getByTestId(`select-all-perms`)
+    fireEvent.click(selectAllBtn)
+
+    const createBtn = screen.getByText(`Create`)
+    fireEvent.click(createBtn)
+
+    await waitFor(() => {
+      expect(mockCreateApiKey).toHaveBeenCalled()
+      const callData = mockCreateApiKey.mock.calls[0][0].data
+      expect(callData).not.toHaveProperty(`role`)
+      expect(callData).toHaveProperty(`permissions`)
     })
   })
 })

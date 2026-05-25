@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import type { TPermission } from '@tdsk/domain'
+
 import { createApiKey } from '@TAF/actions/apiKeys'
-import { ERoleType, RoleHierarchy } from '@tdsk/domain'
+import { ApiKeysExpire } from '@TAF/constants/values'
+import { useState, useMemo, useCallback } from 'react'
 import { Box, Paper, Alert, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { UserSelectorSingle } from '@TAF/components/Selectors/UserSelector'
-import { ApiKeyRoles, ApiKeyRoleDesc, ApiKeysExpire } from '@TAF/constants/values'
+import { PermissionsPicker } from '@TAF/components/Permissions/PermissionsPicker'
+import { ERoleType, buildRolePermissions } from '@tdsk/domain'
 import {
   Drawer,
   Button,
   TextInput,
-  InputLabel,
   SelectInput,
   ClipboardCopy,
   DrawerActions,
@@ -18,35 +20,36 @@ import {
 
 export type TCreateApiKeyDrawer = {
   orgId: string
-  projectId?: string
-  userId?: string
-  userName?: string
-  users?: Array<{ id: string; name: string; email?: string }>
-  maxRole?: string
   open: boolean
+  userId?: string
+  maxRole?: string
+  userName?: string
+  projectId?: string
   onClose: () => void
   onSuccess?: () => void
+  users?: Array<{ id: string; name: string; email?: string }>
 }
 
 export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   const {
     open,
     orgId,
-    projectId,
-    userId,
-    userName,
     users,
+    userId,
     maxRole,
+    userName,
+    projectId,
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
 
-  const maxRoleLevel = maxRole
-    ? RoleHierarchy.indexOf(maxRole as ERoleType)
-    : RoleHierarchy.indexOf(ERoleType.admin)
+  const availablePermissions = useMemo(() => {
+    const role = (maxRole as ERoleType) || ERoleType.admin
+    return buildRolePermissions(role)
+  }, [maxRole])
 
   const [name, setName] = useState('')
-  const [role, setRole] = useState<string>(ERoleType.viewer)
+  const [permissions, setPermissions] = useState<TPermission[]>([])
   const [expiresIn, setExpiresIn] = useState<string>(`none`)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +58,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
 
   const onSave = async () => {
     if (!name.trim()) return setError(`API key name is required`)
+    if (permissions.length === 0) return setError(`Select at least one permission`)
 
     setLoading(true)
     setError(null)
@@ -69,7 +73,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     const result = await createApiKey({
       orgId,
       data: {
-        role,
+        permissions,
         projectId,
         expiresAt,
         name: name.trim(),
@@ -83,16 +87,16 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     if (result.data?.key) setGeneratedKey(result.data.key)
   }
 
-  const onClose = () => {
+  const onClose = useCallback(() => {
     generatedKey && onSuccessCB?.()
     setName(``)
-    setRole(ERoleType.viewer)
+    setPermissions([])
     setExpiresIn(`none`)
     setError(null)
     setGeneratedKey(null)
     setSelectedUserId(null)
     onCloseCB?.()
-  }
+  }, [generatedKey, onSuccessCB, onCloseCB])
 
   const { actions } = useDrawerActions({
     onSave,
@@ -103,12 +107,6 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     onSuccessCB?.()
     onClose()
   }
-
-  const roleItems = ApiKeyRoles.map((r) => {
-    const roleLevel = RoleHierarchy.indexOf(r.value as ERoleType)
-    const disabled = roleLevel > maxRoleLevel || roleLevel < 0
-    return { ...r, disabled }
-  })
 
   return (
     <Drawer
@@ -131,7 +129,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
             loading={loading}
             form='api-key-form'
             cancelDisabled={false}
-            disabled={!name.trim()}
+            disabled={!name.trim() || permissions.length === 0}
           />
         )
       }
@@ -193,7 +191,13 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
 
           {userId && userName && (
             <Box sx={{ mb: 2 }}>
-              <InputLabel>User</InputLabel>
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                fontWeight={600}
+              >
+                User
+              </Typography>
               <Typography
                 variant='body2'
                 color='text.secondary'
@@ -235,23 +239,12 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
           />
 
           <Box sx={{ mt: 2 }}>
-            <SelectInput
-              label='Role'
-              value={role}
+            <PermissionsPicker
               disabled={loading}
-              items={roleItems}
-              id='tdsk-api-key-role'
-              onChange={(e) => setRole(e.target.value)}
+              selected={permissions}
+              onChange={setPermissions}
+              available={availablePermissions}
             />
-            {ApiKeyRoleDesc[role] && (
-              <Typography
-                variant='caption'
-                color='text.secondary'
-                sx={{ display: 'block', mt: 0.5 }}
-              >
-                {ApiKeyRoleDesc[role]}
-              </Typography>
-            )}
           </Box>
         </form>
       )}

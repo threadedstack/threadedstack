@@ -23,10 +23,10 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   const { isOwner, sandboxId, sessionId, projectId } = props
 
   const [orgId] = useOrgId()
-  const { canExec } = usePermissions()
+  const { canConnect } = usePermissions()
   const [openSessions] = useOpenSessions()
-  const canExecSandbox = canExec(EPermResource.sandbox)
   const [creating, setCreating] = useState(false)
+  const canConnectSandbox = canConnect(EPermResource.sandbox)
 
   const session = openSessions.get(sessionId)
   const isPublic = session?.visibility === `public`
@@ -87,7 +87,7 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
 
   return (
     <Box sx={{ display: `flex`, gap: 0.5 }}>
-      {canExecSandbox && (
+      {canConnectSandbox && (
         <Button
           size='small'
           variant='outlined'

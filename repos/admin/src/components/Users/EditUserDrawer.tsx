@@ -207,19 +207,19 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
       ),
     },
     {
-      id: 'scopes',
-      label: 'Scopes',
+      id: 'permissions',
+      label: 'Permissions',
       render: (key) => (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {key.scopes?.split(',').map((scope) => (
-            <Chip
-              key={scope}
-              size='small'
-              variant='outlined'
-              label={scope.trim()}
-            />
-          ))}
-        </Box>
+        <Chip
+          size='small'
+          color='info'
+          variant='outlined'
+          label={
+            key.permissions?.length
+              ? `${key.permissions.length} permission${key.permissions.length !== 1 ? `s` : ``}`
+              : `No permissions`
+          }
+        />
       ),
     },
     {

@@ -68,13 +68,13 @@ export const Sandboxes = (props: TSandboxes) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Sandbox>()
   const [error, setError] = useState<Error | null>(null)
-  const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const [podStates, setPodStates] = useState<TInstanceStates>({})
   const [busySandboxes, setBusySandboxes] = useState<Set<string>>(new Set())
+  const [connectData, setConnectData] = useState<TSBConnectResp | null>(null)
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
   const [connectSessions, setConnectSessions] = useState<TSandboxSession[]>([])
+  const { canCreate, canUpdate, canDelete, canExec, canConnect } = usePermissions()
   const [connectModalSandbox, setConnectModalSandbox] = useState<Sandbox | null>(null)
-  const [connectData, setConnectData] = useState<TSBConnectResp | null>(null)
 
   const sandboxes = projectId ? projectSandboxes : orgSandboxes
 
@@ -528,7 +528,7 @@ export const Sandboxes = (props: TSandboxes) => {
                   color='info'
                   tooltip='Start Sandbox'
                   icon={<StartIcon sx={styles.table.actions.icon} />}
-                  disabled={isBusy || !canExec(EPermResource.sandbox)}
+                  disabled={isBusy || !canConnect(EPermResource.sandbox)}
                   disabledTooltip='You do not have permission to start sandboxes'
                   onClick={(e) => {
                     e.stopPropagation()
@@ -541,7 +541,7 @@ export const Sandboxes = (props: TSandboxes) => {
                 size='small'
                 color='success'
                 tooltip='Connect to Sandbox'
-                disabled={isBusy || !canExec(EPermResource.sandbox)}
+                disabled={isBusy || !canConnect(EPermResource.sandbox)}
                 icon={<ConnectIcon sx={styles.table.actions.icon} />}
                 disabledTooltip='You do not have permission to connect to sandboxes'
                 onClick={(e) => {

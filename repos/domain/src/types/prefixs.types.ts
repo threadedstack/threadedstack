@@ -28,6 +28,7 @@ import type {
   SandboxSessionIdPrefix,
   SandboxProviderIdPrefix,
   ProjectProviderIdPrefix,
+  PermissionOverrideIdPrefix,
   SandboxProjectProviderIdPrefix,
 } from '@TDM/constants/prefixes'
 
@@ -61,4 +62,5 @@ export type TEntityPrefix =
   | typeof SandboxProjectIdPrefix
   | typeof SandboxProviderIdPrefix
   | typeof ProjectProviderIdPrefix
+  | typeof PermissionOverrideIdPrefix
   | typeof SandboxProjectProviderIdPrefix

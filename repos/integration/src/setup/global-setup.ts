@@ -310,10 +310,10 @@ export default async function setup() {
     console.warn(`[global-setup] TDSK_IT_MEMBER_USER not set. Permission boundary tests will be skipped.`)
   }
 
-  // 8. Use the dedicated viewer user as the target for role hierarchy tests
-  targetMemberUserId = env.viewerUserId || undefined
+  // 8. Use the dedicated target user for role hierarchy tests
+  targetMemberUserId = env.targetUserId || undefined
   if (!targetMemberUserId) {
-    console.warn(`[global-setup] TDSK_IT_VIEWER_USER not set. Role hierarchy target tests will be skipped.`)
+    console.warn(`[global-setup] TDSK_IT_TARGET_USER not set. Role hierarchy target tests will be skipped.`)
   }
 
   // 9. Write context for tests

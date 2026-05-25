@@ -8,6 +8,7 @@ import type {
   TPortsResponse,
   TSandboxSession,
   TSBInstancesResp,
+  PermissionOverride,
 } from '@tdsk/domain'
 import type {
   TDocument,
@@ -45,6 +46,8 @@ import {
   defContextPanelOpen,
   activeProjectIdState,
   contextPanelOpenState,
+  defPermissionOverrides,
+  permissionOverridesState,
 } from '@TTH/state/app'
 
 import {
@@ -99,6 +102,12 @@ export const getActiveOrgRole = () => store.get(activeOrgRoleState)
 export const resetActiveOrgRole = () => store.set(activeOrgRoleState, defActiveOrgRole)
 export const setActiveOrgRole = (role: TRoleType | null) =>
   store.set(activeOrgRoleState, role)
+
+export const getPermissionOverrides = () => store.get(permissionOverridesState)
+export const resetPermissionOverrides = () =>
+  store.set(permissionOverridesState, defPermissionOverrides)
+export const setPermissionOverrides = (overrides: PermissionOverride[] | undefined) =>
+  store.set(permissionOverridesState, overrides)
 
 export const getContextPanelOpen = () => store.get(contextPanelOpenState)
 export const resetContextPanelOpen = () =>

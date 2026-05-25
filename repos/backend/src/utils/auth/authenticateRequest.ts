@@ -38,4 +38,18 @@ export const authenticateRequest = async (
   if (!user) throw new Exception(401, `A valid and authorized user could not be found`)
 
   req.user = user
+
+  if (auth.apiKeyId && auth.orgId) {
+    const { data: isMember, error: memberErr } = await db.services.role.isOrgMember(
+      auth.userId,
+      auth.orgId
+    )
+    if (memberErr) {
+      logger.error(`API key membership check failed:`, memberErr)
+      throw new Exception(401, `Authentication failed`)
+    }
+    if (!isMember) {
+      throw new Exception(401, `API key owner is no longer a member of the organization`)
+    }
+  }
 }

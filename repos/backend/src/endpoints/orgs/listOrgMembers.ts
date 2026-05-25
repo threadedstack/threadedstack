@@ -8,7 +8,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /orgs/:id/members - List all members of an org
- * Requires viewer+ role (any member can see member list)
+ * Requires member+ role (any member can see member list)
  */
 export const listOrgMembers: TEndpointConfig = {
   path: `/:orgId/members`,

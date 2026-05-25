@@ -9,7 +9,7 @@ import { Exception, EShellMsg, EPermAction, EPermResource, EProto } from '@tdsk/
 export const exposePort: TEndpointConfig = {
   path: `/:id/ports`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.exec, EPermResource.sandbox)],
+  middleware: [authorize(EPermAction.manage, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals

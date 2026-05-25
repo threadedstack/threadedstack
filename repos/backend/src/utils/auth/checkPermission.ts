@@ -1,20 +1,18 @@
 import type { TRequest } from '@TBE/types'
-import type { EPermAction, EPermResource, TPermissionContext } from '@tdsk/domain'
-import type { ERoleType } from '@tdsk/domain'
-import {
-  Exception,
-  canPerform,
-  isSuperAdmin,
-  getHighestRole,
-  getAuthHeader,
-  RoleHierarchy,
-  ApiKeyAllowedRoles,
+import type {
+  ERoleType,
+  EPermAction,
+  EPermResource,
+  TPermission,
+  TPermissionContext,
 } from '@tdsk/domain'
 
+import { Exception, getHighestRole } from '@tdsk/domain'
+import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
+
 /**
- * Get user`s effective role for the given context
+ * Get user's effective role for the given context
  * Checks org-level and project-level roles, returns highest
- * Caps by API key role when request is made via API key
  * Returns null for non-members (no role found)
  * Throws on DB errors to prevent silent permission denials
  */
@@ -49,26 +47,14 @@ export const getUserRole = async (
     if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
 
-  const userDbRole = roles.length > 0 ? getHighestRole(roles) : null
-
-  if (!userDbRole) return null
-
-  const apiKeyRole = getAuthHeader(req, `apiKeyRole`) as ERoleType | undefined
-  if (apiKeyRole) {
-    if (!ApiKeyAllowedRoles.includes(apiKeyRole))
-      throw new Exception(403, `Invalid API key role: ${apiKeyRole}`, `FORBIDDEN`)
-
-    const dbLevel = RoleHierarchy.indexOf(userDbRole)
-    const keyLevel = RoleHierarchy.indexOf(apiKeyRole)
-    if (keyLevel < dbLevel) return apiKeyRole
-  }
-
-  return userDbRole
+  return roles.length > 0 ? getHighestRole(roles) : null
 }
 
 /**
- * Check if user can perform action on resource
- * Throws Exception if not allowed
+ * Check if user can perform action on resource.
+ * Uses resolveEffectivePermissions to combine role-based permissions
+ * with any per-user overrides. Caches resolved permissions on the request.
+ * Throws Exception if not allowed.
  */
 export const checkPermission = async (
   req: TRequest,
@@ -76,16 +62,14 @@ export const checkPermission = async (
   resource: EPermResource,
   context: TPermissionContext = {}
 ): Promise<void> => {
-  const userRole = await getUserRole(req, context)
+  const permissions = await resolveEffectivePermissions(req, context)
 
-  if (userRole !== null && isSuperAdmin(userRole)) return
+  if (permissions === 'super') return
 
-  const result = canPerform(userRole, action, resource)
-
-  if (!result.allowed)
-    throw new Exception(
-      403,
-      result.reason || `Permission denied: cannot ${action} ${resource}`,
-      `FORBIDDEN`
-    )
+  const permission: TPermission = `${resource}:${action}`
+  if (!permissions.has(permission)) {
+    throw new Exception(403, `Permission denied: requires ${permission}`, `FORBIDDEN`)
+  }
+  // Cache resolved permissions on request for downstream use
+  ;(req as any).permissions = permissions
 }

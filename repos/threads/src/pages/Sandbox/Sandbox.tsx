@@ -15,13 +15,13 @@ import { estimateTerminalDimensions } from '@TTH/utils/terminal'
 import { NoInstances } from '@TTH/components/Instance/NoInstances'
 import { InstanceList } from '@TTH/components/Instance/InstanceList'
 import { useOrgId, useSandboxes, useSandboxInstances } from '@TTH/state/selectors'
+import { Add, Link, Public, Dataset, Settings, RocketLaunch } from '@mui/icons-material'
 import {
   StatStrip,
   StatusChip,
   PageHeader,
   SectionHeader,
 } from '@TTH/components/PagePrimitives'
-import { Add, Link, Public, Dataset, Settings, RocketLaunch } from '@mui/icons-material'
 
 type TSandboxParams = {
   orgId: string
@@ -39,8 +39,8 @@ const Sandbox = () => {
     projectId: paramProjectId,
   } = useParams<TSandboxParams>()
 
-  const { canExec } = usePermissions()
-  const canExecSandbox = canExec(EPermResource.sandbox)
+  const { canConnect } = usePermissions()
+  const canConnectSandbox = canConnect(EPermResource.sandbox)
 
   const [connecting, setConnecting] = useState(false)
   const [instancesMap] = useSandboxInstances()
@@ -157,7 +157,7 @@ const Sandbox = () => {
               >
                 Configure
               </Button>
-              {canExecSandbox && (
+              {canConnectSandbox && (
                 <Button
                   size='small'
                   variant='contained'
@@ -202,7 +202,7 @@ const Sandbox = () => {
           title='Instances'
           count={instances.length}
           actions={
-            canExecSandbox ? (
+            canConnectSandbox ? (
               <Button
                 size='small'
                 variant='outlined'
@@ -231,7 +231,7 @@ const Sandbox = () => {
             orgId={resolvedOrgId}
             projectId={projectId}
             onNewInstance={onNewInstance}
-            canExecSandbox={canExecSandbox}
+            canConnectSandbox={canConnectSandbox}
           />
         )}
       </Box>

@@ -1,15 +1,15 @@
 import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { Page } from '@TAF/pages/Page/Page'
 import { useState, useMemo } from 'react'
-import { Box, Typography, Chip } from '@mui/material'
-import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { Page } from '@TAF/pages/Page/Page'
 import { revokeApiKey } from '@TAF/actions/apiKeys'
+import { Box, Typography, Chip, Tooltip } from '@mui/material'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { formatPermissionsSummary } from '@TAF/utils/transforms/scopes'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
-import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
@@ -145,20 +145,20 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       ),
     },
     {
-      id: 'scopes',
-      label: 'Scopes',
+      id: 'permissions',
+      label: 'Permissions',
       render: (apiKey) => (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {apiKey.scopes?.split(',').map((scope) => (
-            <Chip
-              key={scope}
-              label={formatScopeLabel(scope.trim())}
-              size='small'
-              color={scopeChipColor(scope.trim())}
-              variant='outlined'
-            />
-          ))}
-        </Box>
+        <Tooltip
+          title={apiKey.permissions?.join(`, `) || `No permissions`}
+          placement='top'
+        >
+          <Chip
+            size='small'
+            variant='outlined'
+            color='info'
+            label={formatPermissionsSummary(apiKey.permissions)}
+          />
+        </Tooltip>
       ),
     },
     {

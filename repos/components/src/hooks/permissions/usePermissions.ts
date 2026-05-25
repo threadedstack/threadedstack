@@ -1,42 +1,58 @@
 import type { TUsePermissions } from '@TSC/types'
-import type { EPermResource, ERoleType } from '@tdsk/domain'
-
-import { useMemo } from 'react'
-import {
-  canPerform,
-  hasMinRole,
-  isSuperAdmin,
-  EPermAction,
-  canManageRole,
-  ERoleType as ERT,
-  EPermResource as EPR,
-  canAccessSecretValue,
+import type {
+  EPermResource,
+  ERoleType,
+  TPermission,
+  PermissionOverride,
 } from '@tdsk/domain'
 
-export const usePermissions = (role: ERoleType | null): TUsePermissions => {
+import { useMemo } from 'react'
+import { EmptyPermissions } from '@TSC/constants/values'
+import {
+  hasMinRole,
+  canManageRole,
+  ERoleType as ERT,
+  resolvePermissions,
+  buildRolePermissions,
+} from '@tdsk/domain'
+
+export const usePermissions = (
+  role: ERoleType | null,
+  overrides?: PermissionOverride[]
+): TUsePermissions => {
   return useMemo((): TUsePermissions => {
-    const check = (action: EPermAction, resource: EPermResource) =>
-      canPerform(role, action, resource).allowed
+    if (!role) return EmptyPermissions
+
+    const permissions = overrides?.length
+      ? resolvePermissions(role, overrides)
+      : new Set<TPermission>(buildRolePermissions(role))
+
+    const has = (perm: TPermission) => {
+      if (role === ERT.super) return true
+      return permissions.has(perm)
+    }
 
     return {
+      has,
       role,
-      isSuper: isSuperAdmin(role),
-      isOwner: hasMinRole(role, ERT.owner),
+      permissions,
+      isSuper: role === ERT.super,
       isAdmin: hasMinRole(role, ERT.admin),
       isMember: hasMinRole(role, ERT.member),
-      isViewer: hasMinRole(role, ERT.viewer),
-      canDeleteOrg: check(EPermAction.delete, EPR.org),
-      canAccessSecretValues: canAccessSecretValue(role),
-      canInviteUsers: check(EPermAction.create, EPR.user),
-      canManageMembers: check(EPermAction.manage, EPR.org),
-      canManageApiKeys: check(EPermAction.create, EPR.apiKey),
-      canRead: (resource) => check(EPermAction.read, resource),
-      canExec: (resource) => check(EPermAction.exec, resource),
-      canUpdate: (resource) => check(EPermAction.update, resource),
-      canDelete: (resource) => check(EPermAction.delete, resource),
-      canManage: (resource) => check(EPermAction.manage, resource),
-      canCreate: (resource) => check(EPermAction.create, resource),
-      canAssignRole: (targetRole) => canManageRole(role, targetRole),
+      isOwner: role === ERT.owner || role === ERT.super,
+      canRead: (r: EPermResource) => has(`${r}:read`),
+      canExec: (r: EPermResource) => has(`${r}:exec`),
+      canCreate: (r: EPermResource) => has(`${r}:create`),
+      canUpdate: (r: EPermResource) => has(`${r}:update`),
+      canDelete: (r: EPermResource) => has(`${r}:delete`),
+      canManage: (r: EPermResource) => has(`${r}:manage`),
+      canConnect: (r: EPermResource) => has(`${r}:connect`),
+      canDeleteOrg: has(`org:delete`),
+      canManageMembers: has(`org:manage`),
+      canManageApiKeys: has(`apiKey:manage`),
+      canInviteUsers: has(`invitation:create`),
+      canAccessSecretValues: has(`secret:manage`),
+      canAssignRole: (target: ERoleType) => canManageRole(role, target),
     }
-  }, [role])
+  }, [role, overrides])
 }

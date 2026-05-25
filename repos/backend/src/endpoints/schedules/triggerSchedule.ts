@@ -10,7 +10,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const triggerSchedule: TEndpointConfig = {
   path: `/:scheduleId/trigger`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.update, EPermResource.schedule)],
+  middleware: [authorize(EPermAction.exec, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, projectId, scheduleId } = req.params

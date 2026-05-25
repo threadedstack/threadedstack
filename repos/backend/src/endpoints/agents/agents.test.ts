@@ -307,10 +307,10 @@ describe(`Agents endpoints`, () => {
       mockReq.params = { orgId: `org-1` }
       mockReq.query = { sanitize: `false` }
 
-      // Override role mock to return viewer for this test
+      // Override role mock to return member for this test
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValue({ data: { type: `viewer` } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Admin or higher role required to view secret values`
@@ -444,10 +444,10 @@ describe(`Agents endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: mockAgent })
 
-      // Override role mock to return viewer for this test
+      // Override role mock to return member for this test
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValue({ data: { type: `viewer` } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
 
       // Agent has projects and user is a project member, so access check passes
       const mockGetUserProjects = mockReq.app?.locals.db.services.role

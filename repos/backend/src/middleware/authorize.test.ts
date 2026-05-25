@@ -24,6 +24,9 @@ describe(`authorize middleware`, () => {
                   .fn()
                   .mockResolvedValue({ data: { type: ERoleType.admin } }),
               },
+              permissionOverride: {
+                getForUser: vi.fn().mockResolvedValue({ data: [] }),
+              },
             },
           },
         },
@@ -87,7 +90,7 @@ describe(`authorize middleware`, () => {
       const middleware = authorize(EPermAction.read, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      // Body is not used for orgId — permission check fails without valid orgId
+      // Body is not used for orgId -- permission check fails without valid orgId
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
     })
 
@@ -98,7 +101,7 @@ describe(`authorize middleware`, () => {
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
       >
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
 
       const middleware = authorize(EPermAction.delete, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
@@ -139,7 +142,7 @@ describe(`authorize middleware`, () => {
       expect(error.status).toBe(403)
     })
 
-    it(`should call next with error when req.user is undefined`, async () => {
+    it(`should call next with 401 error when req.user is undefined`, async () => {
       const req = buildMockReq({
         user: undefined,
         params: { orgId: `org-1` },
@@ -150,10 +153,11 @@ describe(`authorize middleware`, () => {
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
       const error = mockNext.mock.calls[0][0]
-      expect(error.status).toBe(403)
+      // resolveEffectivePermissions throws 401 for no userId (authentication failure)
+      expect(error.status).toBe(401)
     })
 
-    it(`should call next with error when req.user.id is missing`, async () => {
+    it(`should call next with 401 error when req.user.id is missing`, async () => {
       const req = buildMockReq({
         user: { email: `test@example.com` },
         params: { orgId: `org-1` },
@@ -164,7 +168,8 @@ describe(`authorize middleware`, () => {
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
       const error = mockNext.mock.calls[0][0]
-      expect(error.status).toBe(403)
+      // resolveEffectivePermissions throws 401 for no userId (authentication failure)
+      expect(error.status).toBe(401)
     })
 
     it(`should use orgId from auth headers when present`, async () => {
@@ -199,7 +204,7 @@ describe(`authorize middleware`, () => {
       const middleware = authorize(EPermAction.read, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      // Body is untrusted — no valid orgId available, permission check fails
+      // Body is untrusted -- no valid orgId available, permission check fails
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
     })
 
@@ -213,7 +218,7 @@ describe(`authorize middleware`, () => {
       const middleware = authorize(EPermAction.read, EPermResource.project)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      // Body is untrusted — projectId from body is ignored, org-level check passes
+      // Body is untrusted -- projectId from body is ignored, org-level check passes
       expect(mockNext).toHaveBeenCalledWith()
       const mockGetProjectRole = req.app.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>

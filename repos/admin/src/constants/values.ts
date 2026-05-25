@@ -5,12 +5,10 @@ import {
   EHttpMethod,
   EEPAuthType,
   EFunLanguage,
-  EApiKeyScope,
   EEPVisibility,
   EApiKeyExpire,
   EEndpointType,
   EEPCredential,
-  ApiKeyAllowedRoles,
 } from '@tdsk/domain'
 
 export const DefSettingsState = {}
@@ -19,7 +17,6 @@ export const SidebarWidthOpen = 240
 export const SidebarWidthClosed = 60
 export const NavRailExpandedWidth = 200
 export const HttpMethods = Object.keys(EHttpMethod)
-export const ApiKeyScopes = Object.values(EApiKeyScope)
 export const EPVisibility = Object.values(EEPVisibility)
 
 export const ApiKeysExpire = [
@@ -31,29 +28,7 @@ export const ApiKeysExpire = [
   { label: `Never expires`, value: EApiKeyExpire.never },
 ]
 
-export const ApiKeyScopeDesc = {
-  [EApiKeyScope.admin]: `Full administrative access`,
-  [EApiKeyScope.write]: `Create and update resources`,
-  [EApiKeyScope.read]: `Read-only access to resources`,
-}
-
-export const ApiKeyRoles = ApiKeyAllowedRoles.map((role) => ({
-  value: role,
-  label: capitalize(role),
-}))
-
-export const ApiKeyRoleDesc: Record<string, string> = {
-  [ERoleType.owner]: `Full org ownership — delete orgs, manage all resources and members`,
-  [ERoleType.admin]: `Full administrative access — manage members, settings, and resources`,
-  [ERoleType.member]: `Standard access — create, read, and update resources`,
-  [ERoleType.viewer]: `Read-only access — view resources only`,
-}
-
 export const AllAuthRoles = [
-  {
-    value: ERoleType.viewer,
-    label: `Basic - View access only`,
-  },
   {
     value: ERoleType.member,
     label: `Member - Standard access`,

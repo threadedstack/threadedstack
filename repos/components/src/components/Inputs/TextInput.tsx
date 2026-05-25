@@ -1,5 +1,5 @@
 import type { IInput } from '@TSC/types'
-import type { MutableRefObject, ReactNode } from 'react'
+import type { RefObject, ReactNode } from 'react'
 import type { TextFieldProps } from '@mui/material/TextField'
 import type { TextareaAutosizeProps } from '@mui/material/TextareaAutosize'
 
@@ -25,7 +25,7 @@ export type TTextInput = {
   placeholder?: string
   endAdornment?: ReactNode
   startAdornment?: ReactNode
-  inputRef?: MutableRefObject<HTMLInputElement | HTMLTextAreaElement>
+  inputRef?: RefObject<HTMLInputElement | HTMLTextAreaElement>
 } & IInput &
   Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> &
   Pick<TextFieldProps, `multiline` | `slotProps` | `inputProps`>
@@ -114,7 +114,7 @@ export const TextInput = ({
           disabled={disabled}
           required={required}
           placeholder={placeholder}
-          ref={inputRef as MutableRefObject<HTMLTextAreaElement>}
+          ref={inputRef as RefObject<HTMLTextAreaElement>}
           onBlur={onBlur as unknown as TextareaAutosizeProps['onBlur']}
           onFocus={onFocusCB as unknown as TextareaAutosizeProps['onFocus']}
           onChange={onChange as unknown as TextareaAutosizeProps['onChange']}
@@ -147,7 +147,7 @@ export const TextInput = ({
           defaultValue={defaultValue}
           endAdornment={endAdornment}
           startAdornment={startAdornment}
-          inputRef={inputRef as MutableRefObject<HTMLInputElement>}
+          inputRef={inputRef as RefObject<HTMLInputElement>}
           className={cls(
             inputClass,
             hidden && `hidden`,

@@ -2,7 +2,7 @@
  * Role-Based Access Control (RBAC) Type Definitions
  *
  * Defines the permission system for the Threaded Stack platform.
- * Roles are hierarchical: viewer < member < admin < owner < super
+ * Roles are hierarchical: member < admin < owner < super
  */
 
 /**
@@ -13,7 +13,6 @@ export enum ERoleType {
   owner = `owner`, // Org/Project creator - can delete/transfer ownership
   admin = `admin`, // Can manage members, settings, secrets
   member = `member`, // Can create/edit resources
-  viewer = `viewer`, // Read-only access
 }
 
 export type TRoleType = `${ERoleType}`
@@ -28,6 +27,8 @@ export enum EPermAction {
   delete = `delete`, // Delete resources
   manage = `manage`, // Manage members, settings, advanced operations
   exec = `exec`, // Execute an action using the resource (sandbox exec, agent run, function invoke)
+  connect = `connect`, // Start/connect to sandbox sessions
+  transfer = `transfer`, // Ownership transfer
 }
 
 /**
@@ -54,6 +55,8 @@ export enum EPermResource {
   skill = `skill`, // Reusable agent skills
   schedule = `schedule`, // Agent cron schedules
   sandbox = `sandbox`, // Sandbox configurations
+  sandboxSession = `sandboxSession`, // Active sandbox sessions
+  adminPanel = `adminPanel`, // Admin panel access
 }
 
 export type TPermAction = `${EPermAction}`
@@ -102,3 +105,9 @@ export type TPermissionContext = {
   projectId?: string
   resourceId?: string
 }
+
+/**
+ * A permission string combining a resource and an action.
+ * Format: "resource:action" (e.g., "sandbox:exec", "org:read")
+ */
+export type TPermission = `${EPermResource}:${EPermAction}`

@@ -27,6 +27,7 @@ import { providersState } from '@TAF/state/providers'
 import { onboardingState } from '@TAF/state/onboarding'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { skillsState, activeSkillIdState } from '@TAF/state/skills'
+import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
 import {
   schedulesState,
@@ -238,6 +239,9 @@ export const useOrgSandboxes = () =>
   useDerivedState<Record<string, Sandbox>>(orgSandboxesState)
 export const useProjectSandboxes = () =>
   useDerivedState<Record<string, Sandbox>>(projectSandboxesState)
+
+// Permission Overrides
+export const usePermissionOverrides = () => useRecState(permissionOverridesState)
 
 // Onboarding
 export const useOnboardingState = () => useRecState(onboardingState)

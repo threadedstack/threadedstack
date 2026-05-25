@@ -1,4 +1,4 @@
-import type { Organization, Project, TRoleType } from '@tdsk/domain'
+import type { Organization, Project, TRoleType, PermissionOverride } from '@tdsk/domain'
 
 import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
@@ -27,6 +27,11 @@ export const contextPanelOpenState = atomWithReset<boolean>(defContextPanelOpen)
 
 export const defFileTreeOpen = false
 export const fileTreeOpenState = atomWithReset<boolean>(defFileTreeOpen)
+
+export const defPermissionOverrides: PermissionOverride[] | undefined = undefined
+export const permissionOverridesState = atomWithReset<PermissionOverride[] | undefined>(
+  defPermissionOverrides
+)
 
 export const activeProjectState = atom<Project | undefined>((get) => {
   const projectId = get(activeProjectIdState)

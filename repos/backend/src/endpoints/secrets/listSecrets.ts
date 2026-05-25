@@ -1,12 +1,12 @@
 import type { Response } from 'express'
-import type { Secret } from '@tdsk/domain'
+import type { Secret, TPermission } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { parsePagination } from '@TBE/utils/pagination'
 import { authorize } from '@TBE/middleware/authorize'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
-import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
+import { parsePagination } from '@TBE/utils/pagination'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 
 /**
  * GET /secrets - List all secrets
@@ -27,14 +27,22 @@ export const listSecrets: TEndpointConfig = {
     // For agent secrets, look up the agent to get its orgId for permission check
     let permOrgId = orgId
     if (agentId) {
-      const { data: agent } = await db.services.agent.get(agentId as string)
+      const { data: agent, error: agentErr } = await db.services.agent.get(
+        agentId as string
+      )
+      if (agentErr)
+        throw new Exception(500, `Failed to look up agent: ${agentErr.message}`)
       if (!agent) throw new Exception(404, `Agent not found`)
       permOrgId = agent.orgId
     }
 
     // For provider secrets, look up the provider to get its orgId for permission check
     if (providerId) {
-      const { data: provider } = await db.services.provider.get(providerId as string)
+      const { data: provider, error: providerErr } = await db.services.provider.get(
+        providerId as string
+      )
+      if (providerErr)
+        throw new Exception(500, `Failed to look up provider: ${providerErr.message}`)
       if (!provider) throw new Exception(404, `Provider not found`)
       permOrgId = provider.orgId
     }
@@ -53,12 +61,14 @@ export const listSecrets: TEndpointConfig = {
 
     const secrets: Secret[] = data || []
 
-    // Check if user can see secret values
-    const userRole = await getUserRole(req, {
+    // Use override-aware permission resolution to check secret:manage
+    // This respects both role-based permissions and per-user overrides
+    const permissions = await resolveEffectivePermissions(req, {
       orgId: permOrgId,
       projectId,
     })
-    const includeValue = canAccessSecretValue(userRole)
+    const managePermission: TPermission = `${EPermResource.secret}:${EPermAction.manage}`
+    const includeValue = permissions === 'super' || permissions.has(managePermission)
 
     // Return sanitized for members, full for admins
     const responseData = includeValue

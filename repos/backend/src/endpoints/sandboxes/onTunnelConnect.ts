@@ -1,24 +1,25 @@
 import type WebSocket from 'ws'
-import type { IncomingMessage } from 'http'
+import type { TPermission } from '@tdsk/domain'
+import type { IncomingMessage } from 'node:http'
+import type { ESubscriptionTier } from '@tdsk/domain'
 import type { TApp, TRateLimiterBackend } from '@TBE/types'
 
-import net from 'net'
-import { URL } from 'url'
+import net from 'node:net'
+import { URL } from 'node:url'
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
-import type { ERoleType, ESubscriptionTier } from '@tdsk/domain'
+import { verifyShellToken } from '@TBE/services/sessionToken'
+import { InMemoryRateLimiter } from '@TBE/services/rateLimiter'
+import { checkUserPermission } from '@TBE/utils/auth/checkUserPermission'
 import {
-  Exception,
   hashKey,
-  canPerform,
+  Exception,
   PlanLimits,
-  ApiKeyPrefix,
   EPermAction,
+  ApiKeyPrefix,
   EPermResource,
   ESandboxSessionVisibility,
 } from '@tdsk/domain'
-import { verifyShellToken } from '@TBE/services/sessionToken'
-import { InMemoryRateLimiter } from '@TBE/services/rateLimiter'
 import {
   SBTcpTimeout,
   TunnelRateWindow,
@@ -104,6 +105,7 @@ export const onTunnelConnect = async (
   const token = authHeader.slice(7)
   let orgId: string
   let userId: string
+  let apiKeyPerms: TPermission[] | undefined
 
   if (token.startsWith(ApiKeyPrefix)) {
     const keyHash = hashKey(token)
@@ -118,6 +120,7 @@ export const onTunnelConnect = async (
       return
     }
     orgId = apiKey.orgId
+    if (apiKey.permissions) apiKeyPerms = apiKey.permissions as TPermission[]
     userId = apiKey.userId
   } else {
     const payload = verifyShellToken(token)
@@ -137,21 +140,16 @@ export const onTunnelConnect = async (
     userId = payload.userId
   }
 
-  // 3. Check exec permission on sandbox resource
-  const { error: roleErr, data: userOrgRole } = await db.services.role.getOrgRole(
+  // 3. Check connect permission on sandbox resource (with override support)
+  const permResult = await checkUserPermission(
+    db,
     userId,
-    orgId
+    orgId,
+    EPermAction.connect,
+    EPermResource.sandbox,
+    undefined,
+    apiKeyPerms
   )
-  if (roleErr) {
-    logger.error(
-      `[Tunnel] Role lookup failed for user ${userId} in org ${orgId}:`,
-      roleErr.message
-    )
-    ws.close(4005, `Permission check failed, please retry`)
-    return
-  }
-  const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
-  const permResult = canPerform(effectiveRole, EPermAction.exec, EPermResource.sandbox)
   if (!permResult.allowed) {
     logger.debug(`[Tunnel] Permission denied for user ${userId}: ${permResult.reason}`)
     ws.close(4003, permResult.reason || `Permission denied`)

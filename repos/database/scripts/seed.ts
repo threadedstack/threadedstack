@@ -523,6 +523,11 @@ ife(async () => {
       service: db.services.schedule,
     },
     { name: `domains`, data: Object.values(seeds.domains), service: db.services.domain },
+    {
+      name: `permissionOverrides`,
+      service: db.services.permissionOverride,
+      data: Object.values(seeds.permissionOverrides),
+    },
   ]
 
   for (const seed of seedOrder) {

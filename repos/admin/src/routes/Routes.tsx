@@ -22,13 +22,14 @@ import {
   orgSandboxesLoader,
   projectScopeLoader,
   threadDetailLoader,
-  projectSecretsLoader,
   projectAgentsLoader,
+  projectSecretsLoader,
   projectDomainsLoader,
   projectMembersLoader,
   projectApiKeysLoader,
   endpointDetailLoader,
   projectThreadsLoader,
+  orgPermissionsLoader,
   projectSchedulesLoader,
   projectSandboxesLoader,
   projectEndpointsLoader,
@@ -56,6 +57,7 @@ const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
 const ProjectSchedules = lazy(() => import('@TAF/pages/Projects/ProjectSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
+const OrgPermissions = lazy(() => import('@TAF/pages/Orgs/OrgPermissions'))
 const OrgSandboxes = lazy(() => import('@TAF/pages/Orgs/OrgSandboxes'))
 
 // Project pages
@@ -199,6 +201,16 @@ export const createRoutes = () =>
                 <RequireRole
                   minRole={ERoleType.admin}
                   Component={OrgApiKeys}
+                />
+              ),
+            },
+            {
+              path: ERoutePath.Permissions,
+              loader: orgPermissionsLoader,
+              Component: () => (
+                <RequireRole
+                  minRole={ERoleType.admin}
+                  Component={OrgPermissions}
                 />
               ),
             },

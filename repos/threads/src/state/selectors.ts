@@ -14,6 +14,7 @@ import {
   activeOrgRoleState,
   activeProjectIdState,
   contextPanelOpenState,
+  permissionOverridesState,
 } from '@TTH/state/app'
 import {
   savingFilesState,
@@ -49,6 +50,7 @@ export const useThemeType = () => useReadOnly(themeTypeState)
 export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
 export const useFileTreeOpen = () => useReadOnly(fileTreeOpenState)
 export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
+export const usePermissionOverrides = () => useReadOnly(permissionOverridesState)
 export const useOpenEditorFiles = () => useReadOnly(openEditorFilesState)
 export const useContextPanelOpen = () => useReadOnly(contextPanelOpenState)
 export const useActiveEditorFile = () => useReadOnly(activeEditorFileState)
