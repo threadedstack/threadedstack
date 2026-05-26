@@ -3,8 +3,8 @@ import type { TOnboardingStepData } from '@TAF/types'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import { useState, useCallback } from 'react'
-import { AIProviderTemplates } from '@tdsk/domain'
+import { useState, useCallback, useMemo } from 'react'
+import { AIProviderTemplates, EProvider } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
 import { Text, TextInput } from '@tdsk/components'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
@@ -27,7 +27,11 @@ const brands = Object.entries(AIProviderTemplates) as [
 export const ProviderStep = (props: TProviderStep) => {
   const { stepData, onUpdate, onSkip } = props
   const [providers] = useProviders()
-  const providersArray = providers ? Object.values(providers) : []
+  const providersArray = useMemo(
+    () =>
+      providers ? Object.values(providers).filter((p) => p.type === EProvider.ai) : [],
+    [providers]
+  )
   const hasExisting = providersArray.length > 0
 
   const [showChoice, setShowChoice] = useState(

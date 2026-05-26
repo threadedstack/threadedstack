@@ -44,32 +44,33 @@ export const NavRail = (props: TNavRail) => {
   const { context, sections, bottomItems, activeSection, onSectionClick } = props
 
   return (
-    <BaseNavRail expandedWidth={NavRailExpandedWidth}>
-      <Box sx={{ width: `100%`, flex: 1 }}>
-        {sections.map((section) => {
-          if (section.visible && !section.visible(context)) return null
-
-          return (
-            <NavRailItem
-              key={section.id}
-              icon={section.Icon}
-              label={section.label}
-              active={activeSection === section.id}
-              onClick={() => onSectionClick(section.id)}
+    <BaseNavRail
+      expandedWidth={NavRailExpandedWidth}
+      footer={
+        <Box sx={{ width: `100%` }}>
+          {bottomItems.map((item) => (
+            <RailNavItem
+              key={isFunc(item.to) ? String(item.text) : (item.to as string)}
+              item={item}
+              context={context}
             />
-          )
-        })}
-      </Box>
+          ))}
+        </Box>
+      }
+    >
+      {sections.map((section) => {
+        if (section.visible && !section.visible(context)) return null
 
-      <Box sx={{ width: `100%` }}>
-        {bottomItems.map((item) => (
-          <RailNavItem
-            key={isFunc(item.to) ? String(item.text) : (item.to as string)}
-            item={item}
-            context={context}
+        return (
+          <NavRailItem
+            key={section.id}
+            icon={section.Icon}
+            label={section.label}
+            active={activeSection === section.id}
+            onClick={() => onSectionClick(section.id)}
           />
-        ))}
-      </Box>
+        )
+      })}
     </BaseNavRail>
   )
 }

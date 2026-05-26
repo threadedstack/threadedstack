@@ -8,38 +8,40 @@ import { Box, Grid, Divider, Typography } from '@mui/material'
 export type TActionCards = {
   sx?: SxProps<Theme>
   title?: ReactNode
+  hideHeader?: boolean
   children?: ReactNode
   actions?: TActionCard[]
 }
 
 export const ActionCards = (props: TActionCards) => {
-  const { sx, actions, children, title = `Actions` } = props
+  const { sx, actions, children, hideHeader, title = `Actions` } = props
 
   return (
-    <>
-      <Box
-        className='tdsk-ac-header-box'
-        sx={{
-          mb: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          ...sx,
-        }}
-      >
-        <Typography
-          variant='h6'
-          gutterBottom
-          className='tdsk-ac-header-title'
+    <Box sx={sx}>
+      {!hideHeader && (
+        <Box
+          className='tdsk-ac-header-box'
+          sx={{
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
         >
-          {title}
-        </Typography>
-        {children}
-      </Box>
+          <Typography
+            variant='h6'
+            gutterBottom
+            className='tdsk-ac-header-title'
+          >
+            {title}
+          </Typography>
+          {children}
+        </Box>
+      )}
 
       {actions && (
         <>
-          <Divider sx={{ mb: 2 }} />
+          {!hideHeader && <Divider sx={{ mb: 2 }} />}
           <Grid
             container
             spacing={2}
@@ -58,6 +60,6 @@ export const ActionCards = (props: TActionCards) => {
           </Grid>
         </>
       )}
-    </>
+    </Box>
   )
 }

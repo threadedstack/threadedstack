@@ -72,10 +72,10 @@ const styles = {
       display: `flex`,
       fontSize: `13px`,
       fontWeight: 600,
-      bgcolor: `grey.300`,
       color: `text.primary`,
       alignItems: `center`,
       justifyContent: `center`,
+      bgcolor: `action.selected`,
       [`&.active`]: {
         bgcolor: `primary.main`,
         color: `primary.contrastText`,

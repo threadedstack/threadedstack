@@ -6,17 +6,12 @@ import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
 import { ActionCards } from '@TAF/components/ActionCards/ActionCards'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
-import {
-  Drawer,
-  TextInput,
-  ProjectIcon,
-  ConfirmDelete,
-  RobotOutlineIcon,
-} from '@tdsk/components'
+import { Drawer, TextInput, ProjectIcon, ConfirmDelete } from '@tdsk/components'
 import {
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
+  useProjectSecrets,
   useProjectSandboxes,
 } from '@TAF/state/selectors'
 import {
@@ -31,7 +26,6 @@ import {
   Box,
   Card,
   Chip,
-  Grid,
   List,
   Alert,
   Button,
@@ -43,7 +37,7 @@ import {
   ListItemText,
 } from '@mui/material'
 
-import type { Sandbox } from '@tdsk/domain'
+import type { Sandbox, Secret } from '@tdsk/domain'
 
 export type TProject = {}
 
@@ -53,10 +47,15 @@ export const Project = (props: TProject) => {
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
 
+  const [projectSecrets] = useProjectSecrets()
   const [projectSandboxes] = useProjectSandboxes()
   const sandboxList = useMemo<Sandbox[]>(
     () => (projectSandboxes ? Object.values(projectSandboxes) : []),
     [projectSandboxes]
+  )
+  const secretsList = useMemo<Secret[]>(
+    () => (projectSecrets ? Object.values(projectSecrets) : []),
+    [projectSecrets]
   )
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -154,128 +153,41 @@ export const Project = (props: TProject) => {
         </Button>
       </Box>
 
-      <Grid
-        container
-        spacing={2}
+      <ActionCards
+        hideHeader
         sx={{ mb: 3 }}
-      >
-        <Grid
-          item
-          xs={6}
-          sm={3}
-        >
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <SandboxIcon sx={{ fontSize: 32, color: 'success.main', mb: 1 }} />
-              <Typography variant='h4'>{sandboxList.length}</Typography>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                Sandboxes
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid
-          item
-          xs={6}
-          sm={3}
-        >
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <ApiIcon sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
-              <Typography variant='h4'>{project?.counts?.endpoint ?? 0}</Typography>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                Endpoints
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid
-          item
-          xs={6}
-          sm={3}
-        >
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <FunctionsIcon sx={{ fontSize: 32, color: 'secondary.main', mb: 1 }} />
-              <Typography variant='h4'>{project?.counts?.function ?? 0}</Typography>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                Functions
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid
-          item
-          xs={6}
-          sm={3}
-        >
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <RobotOutlineIcon sx={{ fontSize: 32, color: 'warning.main', mb: 1 }} />
-              <Typography variant='h4'>{project?.counts?.agent ?? 0}</Typography>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                Agents
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <ActionCards
-            title='Quick Actions'
-            actions={[
-              {
-                title: 'Sandboxes',
-                Icon: SandboxIcon,
-                subtitle: 'Manage sandbox environments',
-                onClick: () =>
-                  navigate(
-                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes)
-                  ),
-              },
-              {
-                title: 'Endpoints',
-                Icon: ApiIcon,
-                subtitle: 'View and manage endpoints',
-                onClick: () =>
-                  navigate(
-                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectEndpoints)
-                  ),
-              },
-              {
-                title: 'Agents',
-                Icon: RobotOutlineIcon,
-                subtitle: 'Configure AI agents',
-                onClick: () =>
-                  navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectAgents)),
-              },
-              {
-                title: 'Secrets',
-                Icon: SecretIcon,
-                subtitle: 'Manage API keys and secrets',
-                onClick: () =>
-                  navigate(
-                    buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSecrets)
-                  ),
-              },
-            ]}
-          />
-        </CardContent>
-      </Card>
+        title='Quick Actions'
+        actions={[
+          {
+            title: 'Sandboxes',
+            Icon: SandboxIcon,
+            subtitle: `${sandboxList.length} sandbox environments`,
+            onClick: () =>
+              navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSandboxes)),
+          },
+          {
+            title: 'Endpoints',
+            Icon: ApiIcon,
+            subtitle: `${project?.counts?.endpoint ?? 0} endpoints`,
+            onClick: () =>
+              navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectEndpoints)),
+          },
+          {
+            title: 'Functions',
+            Icon: FunctionsIcon,
+            subtitle: `${project?.counts?.function ?? 0} functions`,
+            onClick: () =>
+              navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectFunctions)),
+          },
+          {
+            title: 'Secrets',
+            Icon: SecretIcon,
+            subtitle: `${secretsList.length} secrets`,
+            onClick: () =>
+              navigate(buildNavRoute({ orgId, projectId }, ERoutePath.ProjectSecrets)),
+          },
+        ]}
+      />
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -463,32 +375,6 @@ export const Project = (props: TProject) => {
           )}
         </CardContent>
       </Card>
-
-      {project.meta && Object.keys(project.meta).length > 0 && (
-        <Card>
-          <CardContent>
-            <Typography
-              variant='h6'
-              gutterBottom
-            >
-              Metadata
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Box
-              component='pre'
-              sx={{
-                p: 2,
-                bgcolor: 'background.default',
-                borderRadius: 1,
-                overflow: 'auto',
-                fontSize: '0.875rem',
-              }}
-            >
-              {JSON.stringify(project.meta, null, 2)}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
 
       <Drawer
         open={editOpen}

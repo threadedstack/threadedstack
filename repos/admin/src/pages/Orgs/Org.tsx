@@ -105,123 +105,44 @@ export const Org = (props: TOrg) => {
         </Button>
       </Box>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography
-            variant='h6'
-            gutterBottom
-          >
-            Org Information
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant='subtitle2'
-              color='text.secondary'
-            >
-              Name
-            </Typography>
-            <Typography variant='body1'>{org.name}</Typography>
-          </Box>
-
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant='subtitle2'
-              color='text.secondary'
-            >
-              Description
-            </Typography>
-            <Typography variant='body1'>
-              {org.description || 'No description provided'}
-            </Typography>
-          </Box>
-
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant='subtitle2'
-              color='text.secondary'
-            >
-              Org ID
-            </Typography>
-            <Typography
-              variant='body2'
-              fontFamily='monospace'
-            >
-              {org.id}
-            </Typography>
-          </Box>
-
-          {org.createdAt && (
-            <Box sx={{ mb: 2 }}>
-              <Typography
-                variant='subtitle2'
-                color='text.secondary'
-              >
-                Created At
-              </Typography>
-              <Typography variant='body2'>
-                {new Date(org.createdAt).toLocaleString()}
-              </Typography>
-            </Box>
-          )}
-
-          {org.updatedAt && (
-            <Box>
-              <Typography
-                variant='subtitle2'
-                color='text.secondary'
-              >
-                Last Updated
-              </Typography>
-              <Typography variant='body2'>
-                {new Date(org.updatedAt).toLocaleString()}
-              </Typography>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+      <ActionCards
+        hideHeader
+        sx={{ mb: 3 }}
+        title='Quick Actions'
+        actions={[
+          {
+            title: `Setup Wizard`,
+            Icon: RocketLaunchIcon,
+            onClick: () =>
+              openOnboarding({
+                mode: `manual`,
+                orgId: org.id,
+                startStep: 1,
+              }),
+            subtitle: `Configure providers, projects & sandboxes`,
+          },
+          {
+            title: `Projects`,
+            Icon: ProjectIcon,
+            subtitle: `View and manage projects`,
+            onClick: () => navigate(`/orgs/${org.id}/projects`),
+          },
+          {
+            Icon: AddMemberIcon,
+            title: `Invite Users`,
+            subtitle: `Manage team members`,
+            onClick: () => navigate(`/orgs/${org.id}/members`),
+          },
+          {
+            Icon: SecretIcon,
+            title: `Manage Secrets`,
+            subtitle: `Configure API keys and secrets`,
+            onClick: () => navigate(`/orgs/${org.id}/secrets`),
+          },
+        ]}
+      />
 
       <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <ActionCards
-            title='Quick Actions'
-            actions={[
-              {
-                title: `Projects`,
-                Icon: ProjectIcon,
-                subtitle: `View and manage projects`,
-                onClick: () => navigate(`/orgs/${org.id}/projects`),
-              },
-              {
-                Icon: AddMemberIcon,
-                title: `Invite Users`,
-                subtitle: `Manage team members`,
-                onClick: () => navigate(`/orgs/${org.id}/members`),
-              },
-              {
-                Icon: SecretIcon,
-                title: `Manage Secrets`,
-                subtitle: `Configure API keys and secrets`,
-                onClick: () => navigate(`/orgs/${org.id}/secrets`),
-              },
-              {
-                title: `Setup Wizard`,
-                Icon: RocketLaunchIcon,
-                onClick: () =>
-                  openOnboarding({
-                    mode: `manual`,
-                    orgId: org.id,
-                    startStep: 1,
-                  }),
-                subtitle: `Configure providers, projects & sandboxes`,
-              },
-            ]}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
         <CardContent>
           <Box
             sx={{
@@ -300,6 +221,83 @@ export const Org = (props: TOrg) => {
                 </Button>
               )}
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography
+            variant='h6'
+            gutterBottom
+          >
+            Org Information
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant='subtitle2'
+              color='text.secondary'
+            >
+              Name
+            </Typography>
+            <Typography variant='body1'>{org.name}</Typography>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant='subtitle2'
+              color='text.secondary'
+            >
+              Description
+            </Typography>
+            <Typography variant='body1'>
+              {org.description || 'No description provided'}
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant='subtitle2'
+              color='text.secondary'
+            >
+              Org ID
+            </Typography>
+            <Typography
+              variant='body2'
+              fontFamily='monospace'
+            >
+              {org.id}
+            </Typography>
+          </Box>
+
+          {org.createdAt && (
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant='subtitle2'
+                color='text.secondary'
+              >
+                Created At
+              </Typography>
+              <Typography variant='body2'>
+                {new Date(org.createdAt).toLocaleString()}
+              </Typography>
+            </Box>
+          )}
+
+          {org.updatedAt && (
+            <Box>
+              <Typography
+                variant='subtitle2'
+                color='text.secondary'
+              >
+                Last Updated
+              </Typography>
+              <Typography variant='body2'>
+                {new Date(org.updatedAt).toLocaleString()}
+              </Typography>
+            </Box>
           )}
         </CardContent>
       </Card>
