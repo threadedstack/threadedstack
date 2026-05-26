@@ -6,15 +6,15 @@
  */
 
 import type { IWebProvider } from '@TAG/types'
-import type { AgentTool } from '@mariozechner/pi-agent-core'
+import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type {
   ISandbox,
   TFunctionExecResult,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
-import { Type } from '@mariozechner/pi-ai'
 import { logger } from '@TAG/utils/logger'
+import { Type } from '@earendil-works/pi-ai'
 
 /**
  * Creates pi-mono AgentTool definitions backed by an ISandbox instance.

@@ -1,4 +1,4 @@
-import { getModel, streamSimple } from '@mariozechner/pi-ai'
+import { getModel, streamSimple } from '@earendil-works/pi-ai'
 import type { TGuiConfig, TParsedEvent, TGenerativeUIResult } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { validateTree } from './validator'

@@ -1,5 +1,5 @@
 import type { ISandbox, TMessageContent, TStreamEvent } from '@tdsk/domain'
-import type { AgentEvent, AgentMessage, StreamFn } from '@mariozechner/pi-agent-core'
+import type { AgentEvent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core'
 import type {
   TAgentHandle,
   TAgentConfig,
@@ -14,10 +14,10 @@ import type {
   ImageContent,
   AssistantMessage,
   ToolResultMessage,
-} from '@mariozechner/pi-ai'
+} from '@earendil-works/pi-ai'
 
 import { logger } from '@TAG/utils/logger'
-import { Agent } from '@mariozechner/pi-agent-core'
+import { Agent } from '@earendil-works/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
 import { isTransientError } from '@TAG/utils/errorClassifier'
@@ -25,12 +25,12 @@ import { resolveActiveSkills } from '@TAG/utils/skillResolver'
 import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { createContextManager } from '@TAG/utils/contextManager'
 import { createWebProvider } from '@TAG/tools/definitions/web/webProvider'
+import { getModel, streamSimple, isContextOverflow } from '@earendil-works/pi-ai'
 import {
   createSandboxTools,
   createWebTools,
   buildCustomFunctionTools,
 } from '@TAG/tools/tools'
-import { getModel, streamSimple, isContextOverflow } from '@mariozechner/pi-ai'
 import {
   convertToLlmMessages,
   convertAssistantToContent,
@@ -229,13 +229,13 @@ export class AgentRunner {
     if (initOpts.skills?.length) {
       const resolved = resolveActiveSkills(initOpts.skills, prompt)
       const updatedPrompt = this.#baseSystemPrompt + resolved.instructions
-      this.#agent!.setSystemPrompt(updatedPrompt)
+      this.#agent!.state.systemPrompt = updatedPrompt
 
       if (resolved.tools.length > 0) {
         const mergedToolNames = [
           ...new Set([...(initOpts.tools || []), ...resolved.tools]),
         ]
-        this.#agent!.setTools(this.#buildTools(mergedToolNames))
+        this.#agent!.state.tools = this.#buildTools(mergedToolNames)
       }
     }
 
@@ -339,11 +339,8 @@ export class AgentRunner {
           // Retry loop for transient failures
           const maxRetries = initOpts.environment?.maxRetries ?? 2
           let retries = 0
-          while (retries < maxRetries && agent.state.error && !signal?.aborted) {
-            const errorStr =
-              typeof agent.state.error === `string`
-                ? agent.state.error
-                : ((agent.state.error as any)?.message ?? String(agent.state.error))
+          while (retries < maxRetries && agent.state.errorMessage && !signal?.aborted) {
+            const errorStr = agent.state.errorMessage
             if (!isTransientError(errorStr)) break
             retries++
             logger.warn(
@@ -412,21 +409,21 @@ export class AgentRunner {
         })) as Model<Api> | undefined
       if (newModel) {
         this.#model = newModel
-        this.#agent.setModel(newModel)
+        this.#agent.state.model = newModel
       }
     }
 
     if (config.systemPrompt !== undefined) {
       this.#baseSystemPrompt = config.systemPrompt
-      this.#agent.setSystemPrompt(config.systemPrompt)
+      this.#agent.state.systemPrompt = config.systemPrompt
     }
 
     if (config.thinkingLevel) {
-      this.#agent.setThinkingLevel(config.thinkingLevel as any)
+      this.#agent.state.thinkingLevel = config.thinkingLevel as any
     }
 
     if (config.tools) {
-      this.#agent.setTools(this.#buildTools(config.tools, false))
+      this.#agent.state.tools = this.#buildTools(config.tools, false)
     }
   }
 

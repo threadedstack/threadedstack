@@ -34,7 +34,7 @@
     "@emotion/styled": "11.13.0",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
-    "@mariozechner/pi-web-ui": "0.55.3",
+    "@earendil-works/pi-web-ui": "0.75.3",
     "@mdx-js/react": "3.1.1",
     "@mdx-js/rollup": "3.1.1",
     "@mui/icons-material": "6.1.2",

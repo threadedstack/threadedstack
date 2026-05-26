@@ -1,12 +1,12 @@
 import type { TChatMessage } from '@tdsk/components'
-import type { AgentMessage } from '@mariozechner/pi-web-ui'
+import type { AgentMessage } from '@earendil-works/pi-web-ui'
+import type { MessageList, MessageEditor } from '@earendil-works/pi-web-ui'
+
+import '@earendil-works/pi-web-ui/app.css'
 
 import { useRef, useEffect } from 'react'
 import { Box, Alert } from '@mui/material'
-import type { MessageList, MessageEditor } from '@mariozechner/pi-web-ui'
 import { getThemeBridgeStyles } from '@TAF/utils/piWebUiThemeBridge'
-
-import '@mariozechner/pi-web-ui/app.css'
 
 export type TPiChatPanel = {
   messages: TChatMessage[]

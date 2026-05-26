@@ -23,6 +23,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveProject: () => mockUseActiveProject(),
   useActiveProjectId: () => mockUseActiveProjectId(),
   useProjectSandboxes: () => [{}],
+  useProjectSecrets: () => [{}],
 }))
 
 vi.mock(`@TAF/pages/Page/Page`, () => ({
@@ -64,18 +65,19 @@ describe(`Project Page`, () => {
   })
 
   describe(`stat cards with counts`, () => {
-    it(`should display endpoint, function, agent, and sandbox counts from project`, () => {
+    it(`should display endpoint, function, sandbox, and secret counts from project`, () => {
       mockUseActiveProject.mockReturnValue([
-        { ...baseProject, counts: { endpoint: 5, function: 3, agent: 2 } },
+        { ...baseProject, counts: { endpoint: 5, function: 3 } },
       ])
       render(<Project />)
 
-      expect(screen.getByText(`5`)).toBeTruthy()
-      expect(screen.getByText(`3`)).toBeTruthy()
-      expect(screen.getByText(`2`)).toBeTruthy()
+      expect(screen.getByText(`5 endpoints`)).toBeTruthy()
+      expect(screen.getByText(`3 functions`)).toBeTruthy()
+      expect(screen.getByText(`0 sandbox environments`)).toBeTruthy()
+      expect(screen.getByText(`0 secrets`)).toBeTruthy()
       expect(screen.getAllByText(`Endpoints`).length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText(`Functions`).length).toBeGreaterThanOrEqual(1)
-      expect(screen.getAllByText(`Agents`).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(`Secrets`).length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText(`Sandboxes`).length).toBeGreaterThanOrEqual(1)
     })
 
@@ -83,18 +85,22 @@ describe(`Project Page`, () => {
       mockUseActiveProject.mockReturnValue([baseProject])
       render(<Project />)
 
-      const zeros = screen.getAllByText(`0`)
-      expect(zeros.length).toBe(4)
+      expect(screen.getByText(`0 endpoints`)).toBeTruthy()
+      expect(screen.getByText(`0 functions`)).toBeTruthy()
+      expect(screen.getByText(`0 sandbox environments`)).toBeTruthy()
+      expect(screen.getByText(`0 secrets`)).toBeTruthy()
     })
 
     it(`should display 0 when count fields are explicitly zero`, () => {
       mockUseActiveProject.mockReturnValue([
-        { ...baseProject, counts: { endpoint: 0, function: 0, agent: 0 } },
+        { ...baseProject, counts: { endpoint: 0, function: 0 } },
       ])
       render(<Project />)
 
-      const zeros = screen.getAllByText(`0`)
-      expect(zeros.length).toBe(4)
+      expect(screen.getByText(`0 endpoints`)).toBeTruthy()
+      expect(screen.getByText(`0 functions`)).toBeTruthy()
+      expect(screen.getByText(`0 sandbox environments`)).toBeTruthy()
+      expect(screen.getByText(`0 secrets`)).toBeTruthy()
     })
   })
 

@@ -1,11 +1,11 @@
-import type { Component, MarkdownTheme } from '@mariozechner/pi-tui'
+import type { Component, MarkdownTheme } from '@earendil-works/pi-tui'
 import type { TDisplayMessage } from '@TSA/renderers/chatLogic'
 import type { TToolCall } from '@TSA/types'
 
 import chalk from 'chalk'
-import { Markdown } from '@mariozechner/pi-tui'
+import { Markdown } from '@earendil-works/pi-tui'
 import { themed } from '@TSA/theme'
-import { wrapTextWithAnsi } from '@mariozechner/pi-tui'
+import { wrapTextWithAnsi } from '@earendil-works/pi-tui'
 
 /**
  * Default markdown theme for assistant messages.

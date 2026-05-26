@@ -5,10 +5,10 @@ import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
-import { Text, ConfirmDelete } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { Text, ConfirmDelete, DataTableSkeleton } from '@tdsk/components'
 import { usePermissionOverrides, useOrgUsers } from '@TAF/state/selectors'
 import { deleteOverride } from '@TAF/actions/permissionOverrides/api/deleteOverride'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
@@ -38,10 +38,20 @@ const styles = {
   },
 }
 
+const skeletonColumns = [
+  { id: `user`, label: `User` },
+  { id: `permission`, label: `Permission` },
+  { id: `effect`, label: `Effect`, width: 100 },
+  { id: `reason`, label: `Reason` },
+  { id: `expiresAt`, label: `Expires At`, width: 150 },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const PermissionOverrides = (props: PermissionOverrides) => {
   const { orgId, users } = props
 
   const [overrides] = usePermissionOverrides()
+  const isInitialLoading = overrides === undefined
   const overridesList = useMemo(() => overrides || [], [overrides])
 
   const [error, setError] = useState<Error>()
@@ -233,14 +243,16 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
       error={error?.message}
       actionIcon={<AddIcon />}
       title='Permission Overrides'
-      count={overridesList.length}
       setSearchQuery={setSearchQuery}
       onAction={overridesList.length > 0 && onCreateOverride}
       actionLabel={overridesList.length > 0 && 'Add Override'}
+      count={isInitialLoading ? undefined : overridesList.length}
       searchPlaceholder='Search by user, permission, or reason...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
-      {!error && overridesList.length === 0 && !loading && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && overridesList.length === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           actionLabel='Add Override'
@@ -249,9 +261,12 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
         />
       )}
 
-      {!error && overridesList.length > 0 && filteredOverrides.length === 0 && (
-        <EmptyState message='No overrides match your search query.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        overridesList.length > 0 &&
+        filteredOverrides.length === 0 && (
+          <EmptyState message='No overrides match your search query.' />
+        )}
 
       {!error && filteredOverrides.length > 0 && (
         <DataTable

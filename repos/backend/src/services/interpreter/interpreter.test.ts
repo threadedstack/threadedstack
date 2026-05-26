@@ -6,7 +6,7 @@ vi.mock('@TBE/utils/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
 
-vi.mock('@mariozechner/pi-ai', () => ({
+vi.mock('@earendil-works/pi-ai', () => ({
   getModel: vi.fn(() => ({
     id: 'test-model',
     name: 'Test',
@@ -16,7 +16,7 @@ vi.mock('@mariozechner/pi-ai', () => ({
   streamSimple: vi.fn(),
 }))
 
-const { streamSimple } = await import('@mariozechner/pi-ai')
+const { streamSimple } = await import('@earendil-works/pi-ai')
 
 function mockStream(text: string): any {
   return (async function* () {

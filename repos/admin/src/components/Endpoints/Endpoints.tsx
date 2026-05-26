@@ -1,12 +1,7 @@
-import type { Endpoint } from '@tdsk/domain'
-
-import { useCallback } from 'react'
 import { Box } from '@mui/material'
-import { ERoutePath } from '@TAF/types'
 import { EPermResource } from '@tdsk/domain'
+import { DataTableSkeleton } from '@tdsk/components'
 import { Add as AddIcon } from '@mui/icons-material'
-import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
-import { setActiveEndpointId } from '@TAF/state/accessors'
 import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { useEndpoints } from '@TAF/hooks/endpoints/useEndpoints'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
@@ -19,6 +14,15 @@ import { EndpointDrawer } from '@TAF/components/Endpoints/EndpointDrawer'
 
 export type TEndpoints = {}
 
+const skeletonColumns = [
+  { id: `name`, label: `Name` },
+  { id: `method`, label: `Method` },
+  { id: `type`, label: `Type` },
+  { id: `path`, label: `Path` },
+  { id: `public`, label: `Public`, align: `center` as const },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Endpoints = (props: TEndpoints) => {
   const {
     orgId,
@@ -27,47 +31,35 @@ export const Endpoints = (props: TEndpoints) => {
     onDelete,
     setQuery,
     onCreate,
-    navigate,
     endpoints,
     projectId,
     onNavigate,
     methodFilter,
+    rawEndpoints,
     setMethodFilter,
+    onCreateSuccess,
     visibilityFilter,
     createDrawerOpen,
-    setCreateDrawerOpen,
     onCreateDrawerClose,
     setVisibilityFilter,
   } = useEndpoints()
+  const isInitialLoading = rawEndpoints === undefined
 
   const { canCreate, canUpdate, canDelete } = usePermissions()
   const createDisabled = !canCreate(EPermResource.endpoint)
 
-  const onCreateSuccess = useCallback(
-    (endpoint?: Endpoint) => {
-      setCreateDrawerOpen(false)
-      if (endpoint?.id) {
-        setActiveEndpointId(endpoint.id)
-        const path = buildNavRoute(
-          { orgId, projectId, endpointId: endpoint.id },
-          ERoutePath.ProjectEndpoint
-        )
-        navigate(path)
-      }
-    },
-    [navigate, orgId, projectId]
-  )
-
   return (
     <PageLayout
       title='Endpoints'
-      count={count}
       countLabel='endpoint'
       onAction={onCreate}
       actionLabel='Create Endpoint'
       actionDisabled={createDisabled}
+      count={isInitialLoading ? undefined : count}
     >
-      {count > 0 && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && count > 0 && (
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <SearchBar
             value={query}
@@ -94,7 +86,7 @@ export const Endpoints = (props: TEndpoints) => {
         </Box>
       )}
 
-      {count === 0 && (
+      {!isInitialLoading && count === 0 && (
         <EmptyState
           onAction={onCreate}
           actionIcon={<AddIcon />}
@@ -104,7 +96,7 @@ export const Endpoints = (props: TEndpoints) => {
         />
       )}
 
-      {count > 0 && endpoints.length === 0 && (
+      {!isInitialLoading && count > 0 && endpoints.length === 0 && (
         <EmptyState message='No endpoints match your search or filter criteria.' />
       )}
 

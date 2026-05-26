@@ -1,4 +1,4 @@
-import type { SelectItem, SlashCommand, EditorTheme } from '@mariozechner/pi-tui'
+import type { SelectItem, SlashCommand, EditorTheme } from '@earendil-works/pi-tui'
 import type { TSelectItem } from '@TSA/types'
 import type { ChatLogic } from '@TSA/renderers/chatLogic'
 
@@ -13,7 +13,7 @@ import {
   SelectList,
   ProcessTerminal,
   CombinedAutocompleteProvider,
-} from '@mariozechner/pi-tui'
+} from '@earendil-works/pi-tui'
 import { themed } from '@TSA/theme'
 import { commands } from '@TSA/commands'
 import { Version } from '@TSA/constants/version'

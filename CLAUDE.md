@@ -2,72 +2,49 @@
 
 ## 🚨🚨🚨 ABSOLUTE #1 RULE: NEVER COMMIT OR MODIFY GIT HISTORY 🚨🚨🚨
 
-- **ALLOWED**: `git add` (staging), `git status`, `git diff`, `git log`, `git branch`, `git show`
-- **NEVER** run: `git commit`, `git push`, `git reset`, `git revert`, `git rebase`, `git cherry-pick`, `git stash`, `git merge`
-- **"write a commit message"** = OUTPUT the message as text. DO NOT run `git commit`.
-- **"commit this"** = OUTPUT what you would commit. DO NOT run `git commit`.
-- **The user handles all commits manually. No exceptions. Ever.**
-- This rule applies to ALL subagents — include it in EVERY subagent prompt.
+> Enforced by PreToolUse hook. Attempts to run blocked commands will be rejected.
+
+- **ALLOWED**: `git add`, `git status`, `git diff`, `git log`, `git branch`, `git show`
+- **BLOCKED**: `git commit`, `git push`, `git reset`, `git revert`, `git rebase`, `git cherry-pick`, `git stash`, `git merge`
+- "write a commit message" / "commit this" = OUTPUT the message as text, never run `git commit`
+- The user handles all commits manually. This rule applies to ALL subagents.
 
 ## 🚨🚨🚨 ABSOLUTE #2 RULE: ZERO LAZINESS, ZERO DEFERRAL, ZERO SILENT INCOMPLETION 🚨🚨🚨
 
-### HARD REQUIREMENT: NOTHING CAN EVER BE DEFERRED
-All requested and approved work MUST be completed. No exceptions. No alternative.
-- If a plan has steps, ALL steps get implemented. Not most. ALL.
-- If a task list has items, EVERY item gets done. None are optional.
-- If the user asks for something, it gets built NOW. Not noted for later.
-- The ONLY acceptable alternative to completing work is telling the user you CANNOT do it (tool limitation, missing access) immediately and clearly at the TOP of your response.
-- This applies to ALL subagents. Include this rule in EVERY subagent prompt.
+> Deferral patterns in code are enforced by the `block-lazy-patterns.sh` PreToolUse hook.
 
-### Banned Deferral Patterns
-Claude must **NEVER** use these phrases or patterns to avoid doing work:
-- "we can handle this later" / "as a follow-up" / "in a future session"
-- "for now" (when used to justify incomplete work)
-- "as a separate effort" / "out of scope for this task"
-- "a nice-to-have would be" / "we could also" (when you know it should be done)
-- "this should work" / "this looks correct" (without actually running it)
-- "I believe this will" / "this is likely" (assumptions presented as facts)
-- "we can revisit" / "we can circle back" / "we can address this later"
-- "low priority" / "non-blocking" (when used to justify skipping approved work)
-- "reasonably deferred" / "can be deferred" / "defer to" (NOTHING can be deferred)
-
-If you catch yourself reaching for deferral language, STOP — either do the work or explicitly tell the user what remains and why you cannot do it right now.
+- All requested and approved work MUST be completed. The ONLY alternative is telling the user you CANNOT do it (tool limitation, missing access) at the TOP of your response.
+- NEVER use deferral language: "later", "follow-up", "for now", "out of scope", "can revisit", "low priority", "can be deferred"
+- NEVER present assumptions as facts: "this should work", "I believe this will", "this is likely"
+- NEVER add TODO/FIXME/HACK comments or write stub/placeholder implementations
+- This applies to ALL subagents.
 
 ### Completion Means Verified
-"Done" is not "code written." "Done" means ALL of:
+"Done" means ALL of:
 1. Code written and saved
 2. Type checks pass (`pnpm types` for affected repos)
 3. Unit tests pass (`pnpm test` for affected repos)
 4. Integration tests pass (if the change touches API behavior)
-5. No silent gaps — everything the user asked for is delivered or explicitly flagged as incomplete
+5. No silent gaps. If you skip a verification step, say which and why.
 
-If you skip ANY verification step, you MUST say which step you skipped and why. Silence is not acceptable.
+### Pre-Completion Self-Audit
+Before reporting ANY task as complete:
+1. **What was asked?** - enumerate every deliverable
+2. **What was delivered?** - match each ask to what you did
+3. **What was verified?** - which checks ran? paste output
+4. **What's incomplete?** - say so at the TOP, not buried at the bottom
+5. **What else did you notice?** - adjacent bugs, missing tests, wrong types
 
-### Mandatory Pre-Completion Self-Audit
-Before reporting ANY task as complete, answer these questions in your response:
-1. **What was asked?** — Enumerate every deliverable from the user's request
-2. **What was delivered?** — Match each ask to what you actually did
-3. **What was verified?** — Which checks did you run? Paste the output.
-4. **What's incomplete?** — If ANY deliverable is missing, say so **at the TOP of your response**, not buried at the bottom
-5. **What else did you notice?** — Bugs, missing tests, wrong types, broken imports you saw but didn't fix? Say so.
-
-### Do The Right Thing (Proactive Engineering)
-- If you see a bug adjacent to your task — **FIX IT** or **TELL THE USER** about it
-- If you know a better approach than what was asked — **PROPOSE IT** before implementing the lesser version
-- If a test is missing — **WRITE IT**, don't note its absence and move on
-- If an import is wrong, a type is missing, or an edge case is unhandled — **FIX IT NOW**
-- You are not a task-completion machine. You are a senior engineer. Act like one.
-- **NEVER** add TODO/FIXME/HACK comments — implement it fully or explain why you can't
-- **NEVER** write stub functions or placeholder implementations
-
-### This Rule Applies to ALL Subagents
-Include anti-deferral and completion requirements in EVERY subagent prompt. Subagents do not get to be lazy either.
+### Proactive Engineering
+- See a bug adjacent to your task? **FIX IT** or **TELL THE USER**
+- Know a better approach? **PROPOSE IT** before implementing the lesser version
+- Missing test, wrong import, unhandled edge case? **FIX IT NOW**
 
 ## 🚨 CRITICAL: CONCURRENT EXECUTION & FILE MANAGEMENT
 
 **ABSOLUTE RULES**:
 1. ALL operations MUST be concurrent/parallel in a single message
-2. **NEVER save working files, text/mds and tests to the root folder**
+2. **NEVER save files to the root folder** (enforced by `block-root-files.sh` hook)
 3. ALWAYS organize files in appropriate subdirectories
 4. **USE CLAUDE CODE'S TASK TOOL** for spawning agents concurrently
 
@@ -128,7 +105,6 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-Never save working files, text/mds and tests to the root folder.
 
 ### 🚨 Shared Types Belong in the Repo's Types Directory
 - **Exported (shared) types** MUST go in the sub-repo's `types/` directory (e.g., `repos/backend/src/types/`)
@@ -169,7 +145,9 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
             ├── /_/quotas/*    - Quota tracking
             ├── /_/payments/*  - Payment webhooks
             ├── /_/skills/*    - Skills CRUD + attach/detach to agents
-            └── /_/schedules/* - Schedules CRUD + trigger (cron-based agent execution)
+            ├── /_/schedules/* - Schedules CRUD + trigger (cron-based agent execution)
+            ├── /_/permission-overrides/* - Permission overrides CRUD
+            └── /_/cli/*       - CLI integration endpoints
          Sandboxes: /_/sandboxes/*
             ├── /_/sandboxes/*     - Sandbox config CRUD (runtime, initScript, builtIn fields)
             ├── /_/sandboxes/:id/connect  - Start pod + SSH credentials
@@ -206,7 +184,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/tdsk-cli/SKILL.md` |
 | `tsa/` | Terminal TSA for AI agent interaction | Bun, Pi-TUI, @keg-hub/args-parse, Mutagen | `.claude/skills/tdsk-tsa/SKILL.md` |
 | `sandbox/` | Pluggable sandbox execution layer + runtime-aware pod manifest | K8s pods, isolated-vm, just-bash, isomorphic-git, runtime presets | `.claude/skills/tdsk-sandbox/SKILL.md` |
-| `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
+| `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/tdsk-integration/SKILL.md` |
 | `website/` | Marketing site + docs portal | Vite, React, MUI, MDX, Shiki, docs from root `docs/` | `.claude/skills/tdsk-website/SKILL.md` |
 | `threads/` | User-facing threads SPA — sandbox sessions, AST-based GUI engine, terminal | Vite, React, MUI, Jotai, Neon Auth, ghostty-web | `.claude/skills/tdsk-threads/SKILL.md` |
 
@@ -228,13 +206,13 @@ Load the relevant skill when working on a specific repo:
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state (23 atoms), MUI theming, React Router v7 loaders, 48 component dirs, 22 action domains, Skills/Schedules UI, Billing, Quota tracking |
-| `tdsk-agent/SKILL.md` | Instance-based multi-turn agent orchestration (init/runTurn/updateConfig/destroy), skill resolver, context manager, web tools (Jina), artifact tool, thinking support, 11 sandbox+web tools (9 sandbox + 2 web) |
+| `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, React Router v7 loaders, components, actions, Skills/Schedules UI, Billing, Quota tracking |
+| `tdsk-agent/SKILL.md` | Instance-based multi-turn agent orchestration (init/runTurn/updateConfig/destroy), skill resolver, context manager, web tools (Jina), artifact tool, thinking support, sandbox+web tools |
 | `tdsk-backend/SKILL.md` | Express 5 API, Skills/Schedules/Shell/Monitor endpoints, OpenAI-compatible chat completions, InterpreterService (generative UI), Scheduler (cron), EgressProxy (MITM), enforceQuota/projectAccessGuard/projectMemberGuard/featureGate/rateLimit middleware, sandbox lifecycle |
-| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), 7 contexts (app/proxy/backend/admin/caddy/sandbox/init), 7 task groups (db/deploy/devspace/docker/kube/web/npm) |
-| `tdsk-components/SKILL.md` | 40 React component dirs (incl. ArtifactRenderer, ChatComponents, FeatureGate, Header, Avatar, Chip, NavRail), 28 icons, 10 hook categories, Monaco editor, theming |
-| `tdsk-database/SKILL.md` | Drizzle ORM, 31 tables (incl. skills, schedules, sandboxProjects, sandboxProviders, sandboxSkills, projectProviders, sandboxProjectProviders junctions), 21 services, quotas/subscriptions/sandboxes/invoices |
-| `tdsk-domain/SKILL.md` | 23 model classes (incl. Skill, Schedule, Invoice, Sandbox), 28 type files, terminal parser module, GUI types, sync types, 24+ LLM provider brands, crypto, permissions, provider templates |
+| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets (incl. egress CA), contexts (app/proxy/backend/admin/caddy/sandbox/init), task groups (db/deploy/devspace/docker/kube/web/npm) |
+| `tdsk-components/SKILL.md` | React components (incl. ArtifactRenderer, ChatComponents, FeatureGate, Header, Avatar, Chip, NavRail), icons, hooks, Monaco editor, theming. See `repos/components/src/` |
+| `tdsk-database/SKILL.md` | Drizzle ORM, schema files in `repos/database/src/schemas/`, services in `repos/database/src/services/`, quotas/subscriptions/sandboxes/invoices |
+| `tdsk-domain/SKILL.md` | Model classes in `repos/domain/src/models/`, type files in `repos/domain/src/types/`, terminal parser module, GUI types, sync types, LLM provider brands, crypto, permissions, provider templates |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching, loadEnvs scripts |
 | `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, rate limiting (11 middleware), dual-proxy (backend + sandbox subdomain), WebSocket upgrade dispatch |
 | `tdsk-tsa/SKILL.md` | Pi-TUI terminal CLI, tsa binary, 12 CLI tasks (incl. sandbox/sync/sessions/ssh) + 19 slash commands, Mutagen file sync, thread branching, config system, session-based LLM proxy |
@@ -242,7 +220,7 @@ Load the relevant skill when working on a specific repo:
 | `tdsk-website/SKILL.md` | Vite + React + MUI marketing site, MDX docs portal from root `/docs`, Shiki code highlighting, MermaidBlock, DocsSidebar, remarkDocsLinks plugin, vitePluginDocsAssets, pricing tiers |
 | `tdsk-threads/SKILL.md` | User-facing threads SPA, sandbox session management, WebSocket streaming, AST-based GUI engine (tokenizer/parser/AST/engine/visitors), ASTNodes (15), ActivityFeed, ghostty-web terminal, SmartInput, org/project-scoped routing, Neon Auth, Jotai state |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
-| `integration-testing/SKILL.md` | Three-tier integration testing (API, Playwright UI, E2E flows), sandbox lifecycle tests, WebSocket tunnel tests |
+| `tdsk-integration/SKILL.md` | Three-tier integration testing (API, Playwright UI, E2E flows), sandbox lifecycle tests, WebSocket tunnel tests |
 
 ### Workflow Skills
 | Skill File | Purpose |
@@ -278,7 +256,7 @@ Custom subagents live in `.claude/agents/`:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables (31 total, 29 Drizzle-managed + 2 external): `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`, `sandboxes`, `invoices`, `skills`, `schedules`
+Key tables (32 Drizzle-managed, see `repos/database/src/schemas/`): `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`, `sandboxes`, `invoices`, `skills`, `schedules`, `sandbox_sessions`, `schedule_runs`, `permission_overrides`
 
 Junction tables: `agent_projects`, `agent_functions`, `agent_providers`, `agent_skills`, `sandbox_projects`, `sandbox_providers`, `sandbox_skills`, `project_providers`, `sandbox_project_providers`
 
@@ -294,7 +272,10 @@ Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR
 # Install (PNPM required - enforced)
 pnpm install
 
-# Run unit tests via vitest
+# Type-check all repos
+pnpm types
+
+# Run unit tests via vitest (excludes integration)
 pnpm test
 
 # Sync package versions
@@ -341,6 +322,8 @@ pnpm test:all       # API tests + Playwright E2E tests
 pnpm test:ui        # Playwright E2E tests only (tier2, requires admin UI)
 ```
 > **Note**: Integration tests require K8s services running (`tdsk dev start --clean`). UI tests also require the admin dev server (`cd repos/admin && pnpm start`).
+
+> **All repos** support `pnpm types` for type-checking and `pnpm test` for unit tests. Domain and database have no `build` script (TypeScript source consumed directly via aliases).
 
 ## Service Management (`tdsk` CLI)
 
@@ -452,14 +435,7 @@ pnpm --filter @tdsk/admin build      # depends on domain, components
 
 ### Commands Notes
 
-* Linting and formatting are automatic, so `lint` and `format` command should be ignored.
-* **NEVER save to root folder. Use these directories:**
-  - `/src` - Source code files
-  - `/tests` - Test files
-  - `/docs` - Documentation and markdown files
-  - `/config` - Configuration files
-  - `/scripts` - Utility scripts
-  - `/examples` - Example code
+* Linting and formatting are automatic, so `lint` and `format` commands should be ignored.
 
 ## Compact Instructions
 

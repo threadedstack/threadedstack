@@ -6,13 +6,13 @@ import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
 import { EPermResource } from '@tdsk/domain'
 import { useSkills } from '@TAF/state/selectors'
-import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { SkillDrawer } from '@TAF/components/Skills/SkillDrawer'
 import { deleteSkill } from '@TAF/actions/skills/api/deleteSkill'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ConfirmDelete, Text, DataTableSkeleton } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -39,11 +39,19 @@ const styles = {
   },
 }
 
+const skeletonColumns = [
+  { id: `name`, label: `Name` },
+  { id: `description`, label: `Description` },
+  { id: `alwaysActive`, label: `Always Active`, width: 50 },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Skills = (props: TSkills) => {
   const { orgId } = props
 
   const { canCreate, canUpdate, canDelete } = usePermissions()
   const [skillsMap] = useSkills()
+  const isInitialLoading = skillsMap === undefined
   const skills = useMemo(() => Object.values(skillsMap || {}), [skillsMap])
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -186,17 +194,19 @@ export const Skills = (props: TSkills) => {
       searchCount={0}
       countLabel='skill'
       query={searchQuery}
-      count={skills.length}
       error={error?.message}
-      setSearchQuery={setSearchQuery}
       actionIcon={<AddIcon />}
+      setSearchQuery={setSearchQuery}
       onAction={skills.length > 0 && onCreateSkill}
       actionLabel={skills.length > 0 && 'Create Skill'}
       actionDisabled={!canCreate(EPermResource.skill)}
+      count={isInitialLoading ? undefined : skills.length}
       searchPlaceholder='Search skills by name or description...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
-      {!error && skills.length === 0 && !loading && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && skills.length === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSkill}
@@ -206,9 +216,12 @@ export const Skills = (props: TSkills) => {
         />
       )}
 
-      {!error && skills.length > 0 && filteredSkills.length === 0 && (
-        <EmptyState message='No skills match your search query.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        skills.length > 0 &&
+        filteredSkills.length === 0 && (
+          <EmptyState message='No skills match your search query.' />
+        )}
 
       {!error && filteredSkills.length > 0 && (
         <DataTable

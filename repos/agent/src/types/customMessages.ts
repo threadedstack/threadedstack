@@ -11,7 +11,7 @@
  */
 export {}
 
-declare module '@mariozechner/pi-agent-core' {
+declare module '@earendil-works/pi-agent-core' {
   interface CustomAgentMessages {
     artifact: {
       role: `artifact`

@@ -30,3 +30,5 @@ export const FontSizeMap: Record<TAvatarSize, number> = {
   lg: 14,
   xl: 16,
 }
+
+export const SkeletonWidths = [`60%`, `40%`, `75%`, `50%`, `45%`, `70%`, `35%`, `55%`]

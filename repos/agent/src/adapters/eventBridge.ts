@@ -1,8 +1,8 @@
-import type { AgentEvent } from '@mariozechner/pi-agent-core'
-import type { Api, AssistantMessage, Model, ToolCall, Usage } from '@mariozechner/pi-ai'
 import type { TStreamEvent, TTokenUsage } from '@tdsk/domain'
+import type { AgentEvent } from '@earendil-works/pi-agent-core'
+import type { Api, AssistantMessage, Model, ToolCall, Usage } from '@earendil-works/pi-ai'
 
-import { calculateCost } from '@mariozechner/pi-ai'
+import { calculateCost } from '@earendil-works/pi-ai'
 import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 
 /**
@@ -78,7 +78,7 @@ export const mapAgentEvent = (
         case PiMonoEventType.Error:
           return {
             type: EStreamEventType.error,
-            error: ame.error.errorMessage ?? `LLM error`,
+            error: ame.error?.errorMessage ?? `LLM error`,
           }
 
         default:

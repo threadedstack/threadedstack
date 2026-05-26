@@ -16,7 +16,12 @@ const getExternal = () => {
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
   ]
-    .filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
+    .filter(
+      (name) =>
+        !name.startsWith(`@tdsk`) &&
+        !name.startsWith(`@keg-hub`) &&
+        !name.startsWith(`@earendil-works`)
+    )
     .concat(nativeModules)
 }
 

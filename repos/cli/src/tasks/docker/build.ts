@@ -1,22 +1,28 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
+import { Logger } from '@tdsk/logger'
+import { login } from '@TSCL/tasks/docker/login'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { docker } from '@TSCL/utils/docker/docker'
 import { taskError } from '@TSCL/utils/tasks/error'
-import { login } from '@TSCL/tasks/docker/login'
 
-/**
- * Runs a docker build command and returns the output
- * @function
- * @public
- * @returns {Void}
- */
 const buildImg: TTaskAction = async (args) => {
   const { params } = args
-  const ctx = getCtx(args)
-  !ctx && taskError(`Build context name is missing or invalid`)
+  const context = params?.context
+  !context && taskError(`Build context name is missing or invalid`)
+
+  const contexts = context
+    .split(`,`)
+    .map((c: string) => c.trim())
+    .filter(Boolean)
+  !contexts.length && taskError(`Build context name is missing or invalid`)
 
   params?.login && (await login.action(args))
-  await docker.build({ ...args, ctx })
+
+  for (const name of contexts) {
+    Logger.pair(`  Building`, name)
+    const ctx = getCtx({ ...args, params: { ...params, context: name } })
+    await docker.build({ ...args, ctx })
+  }
 }
 
 export const build: TTask = {
@@ -28,9 +34,9 @@ export const build: TTask = {
   options: {
     context: {
       required: true,
-      example: `--context proxy`,
       alias: [`ctx`, `name`],
-      description: `Context or name to use when resolving the Dockerfile to built`,
+      example: `--context app,sandbox,caddy`,
+      description: `Comma-separated context names to build (e.g. app,sandbox,caddy)`,
     },
     push: {
       type: `boolean`,

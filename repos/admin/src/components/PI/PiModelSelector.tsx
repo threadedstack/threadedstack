@@ -1,10 +1,9 @@
-import type { ModelSelector } from '@mariozechner/pi-web-ui'
+import type { ModelSelector } from '@earendil-works/pi-web-ui'
 
-import { useRef, useEffect, useCallback } from 'react'
+import '@earendil-works/pi-web-ui/app.css'
 import { Box } from '@mui/material'
+import { useRef, useEffect, useCallback } from 'react'
 import { getThemeBridgeStyles } from '@TAF/utils/piWebUiThemeBridge'
-
-import '@mariozechner/pi-web-ui/app.css'
 
 export type TPiModelSelector = {
   currentModel?: string

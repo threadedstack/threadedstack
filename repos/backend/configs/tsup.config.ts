@@ -22,7 +22,12 @@ const getExternal = () => {
     `sql.js`,
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
-  ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
+  ].filter(
+    (name) =>
+      !name.startsWith(`@tdsk`) &&
+      !name.startsWith(`@keg-hub`) &&
+      !name.startsWith(`@earendil-works`)
+  )
 }
 
 export default defineConfig(async () => {

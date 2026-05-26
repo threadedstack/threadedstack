@@ -4,9 +4,9 @@ import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { useCallback, useState } from 'react'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
-import { setActiveEndpointId } from '@TAF/state/accessors'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { useEndpointFilter } from '@TAF/hooks/endpoints/useEndpointFilter'
+import { setActiveEndpoint } from '@TAF/actions/endpoints/local/setActiveEndpoint'
 import {
   useActiveOrgId,
   useActiveProjectId,
@@ -14,11 +14,11 @@ import {
 } from '@TAF/state/selectors'
 
 export const useEndpoints = () => {
-  const [endpoints] = useProjectEndpoints()
-  const [orgId] = useActiveOrgId()
   const navigate = useNavigate()
+  const [orgId] = useActiveOrgId()
   const [query, setQuery] = useState(``)
   const [projectId] = useActiveProjectId()
+  const [endpoints] = useProjectEndpoints()
   const [deleteError, setDeleteError] = useState(``)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
 
@@ -45,7 +45,7 @@ export const useEndpoints = () => {
 
   const onNavigate = useCallback(
     (endpoint: Endpoint) => {
-      setActiveEndpointId(endpoint.id)
+      setActiveEndpoint(endpoint.id)
       const path = buildNavRoute(
         { orgId, projectId, endpointId: endpoint.id },
         ERoutePath.ProjectEndpoint
@@ -59,6 +59,21 @@ export const useEndpoints = () => {
     setCreateDrawerOpen(false)
   }
 
+  const onCreateSuccess = useCallback(
+    (endpoint?: Endpoint) => {
+      setCreateDrawerOpen(false)
+      if (endpoint?.id) {
+        setActiveEndpoint(endpoint.id)
+        const path = buildNavRoute(
+          { orgId, projectId, endpointId: endpoint.id },
+          ERoutePath.ProjectEndpoint
+        )
+        navigate(path)
+      }
+    },
+    [navigate, orgId, projectId]
+  )
+
   return {
     orgId,
     query,
@@ -71,12 +86,14 @@ export const useEndpoints = () => {
     onNavigate,
     deleteError,
     methodFilter,
-    createDrawerOpen,
     setMethodFilter,
+    onCreateSuccess,
+    createDrawerOpen,
+    visibilityFilter,
     onCreateDrawerClose,
     setCreateDrawerOpen,
-    visibilityFilter,
     setVisibilityFilter,
     endpoints: filtered,
+    rawEndpoints: endpoints,
   }
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import type { AssistantMessage, ToolResultMessage } from '@mariozechner/pi-ai'
-import { EContentType } from '@tdsk/domain'
 import type { TMessageContent } from '@tdsk/domain'
+import type { AssistantMessage, ToolResultMessage } from '@earendil-works/pi-ai'
+
+import { EContentType } from '@tdsk/domain'
 
 import {
   convertToLlmMessages,

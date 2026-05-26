@@ -28,8 +28,8 @@
   "dependencies": {
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
-    "@mariozechner/pi-agent-core": "0.55.3",
-    "@mariozechner/pi-ai": "0.55.3",
+    "@earendil-works/pi-agent-core": "0.75.5",
+    "@earendil-works/pi-ai": "0.75.5",
     "@tdsk/database": "workspace:*",
     "@tdsk/domain": "workspace:*",
     "@tdsk/logger": "workspace:*",

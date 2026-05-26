@@ -3,6 +3,7 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
 import { ConfirmDelete } from '@tdsk/components'
+import { DataTableSkeleton } from '@tdsk/components'
 import { useState, useMemo, useCallback } from 'react'
 import { statusColor } from '@TAF/utils/sandbox/status'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
@@ -42,6 +43,9 @@ export type TSandboxes = {
   projectId?: string
 }
 
+type TInstanceStates = Record<string, TInstanceState[]>
+type TInstanceState = { instanceId: string; state: ESBState }
+
 const styles = {
   table: {
     actions: {
@@ -56,8 +60,32 @@ const styles = {
   },
 }
 
-type TInstanceStates = Record<string, TInstanceState[]>
-type TInstanceState = { instanceId: string; state: ESBState }
+const BaseSkeletonColumns = [
+  { id: `name`, label: `Name` },
+
+  { id: `auth`, label: `Auth` },
+  { id: `image`, label: `Image` },
+
+  { id: `ports`, label: `Ports` },
+  { id: `resources`, label: `Resources` },
+  { id: `status`, label: `Status` },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
+const SkeletonColumns = {
+  default: BaseSkeletonColumns,
+  project: [
+    BaseSkeletonColumns[0],
+    { id: `alias`, label: `Alias` },
+    BaseSkeletonColumns[1],
+    BaseSkeletonColumns[2],
+    { id: `project`, label: `Projects` },
+    BaseSkeletonColumns[3],
+    BaseSkeletonColumns[4],
+    BaseSkeletonColumns[5],
+    BaseSkeletonColumns[6],
+  ],
+}
 
 export const Sandboxes = (props: TSandboxes) => {
   const { orgId, projectId } = props
@@ -77,6 +105,12 @@ export const Sandboxes = (props: TSandboxes) => {
   const [connectModalSandbox, setConnectModalSandbox] = useState<Sandbox | null>(null)
 
   const sandboxes = projectId ? projectSandboxes : orgSandboxes
+  const isInitialLoading = sandboxes === undefined
+
+  const skeletonColumns = useMemo(
+    () => (projectId ? SkeletonColumns.project : SkeletonColumns.default),
+    [projectId]
+  )
 
   const setBusy = useCallback((id: string, busy: boolean) => {
     setBusySandboxes((prev) => {
@@ -599,17 +633,19 @@ export const Sandboxes = (props: TSandboxes) => {
       loading={loading}
       countLabel='config'
       query={searchQuery}
-      count={sandboxCount}
       error={error?.message}
       title='Sandbox Configs'
       setSearchQuery={setSearchQuery}
       searchPlaceholder='Search sandbox configs...'
+      count={isInitialLoading ? undefined : sandboxCount}
       onAction={sandboxCount > 0 && onCreateSandbox}
       actionLabel={sandboxCount > 0 && 'Create Sandbox'}
       actionDisabled={!canCreate(EPermResource.sandbox)}
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
-      {!error && sandboxCount === 0 && !loading && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && sandboxCount === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSandbox}
@@ -619,9 +655,12 @@ export const Sandboxes = (props: TSandboxes) => {
         />
       )}
 
-      {!error && sandboxCount > 0 && filteredSandboxes.length === 0 && (
-        <EmptyState message='No sandboxes match your search.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        sandboxCount > 0 &&
+        filteredSandboxes.length === 0 && (
+          <EmptyState message='No sandboxes match your search.' />
+        )}
 
       {!error && filteredSandboxes.length > 0 && (
         <DataTable

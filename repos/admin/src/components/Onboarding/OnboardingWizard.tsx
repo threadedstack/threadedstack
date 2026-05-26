@@ -280,28 +280,29 @@ export const OnboardingWizard = () => {
                   )}
                   {activeStep === 2 && (
                     <ProjectStep
-                      stepData={stepData.project}
                       isNewOrg={isNewOrg}
-                      onUpdate={(data) => updateStepData(`project`, data)}
                       onSkip={() => onSkip(2)}
+                      stepData={stepData.project}
+                      onUpdate={(data) => updateStepData(`project`, data)}
                     />
                   )}
                   {activeStep === 3 && (
                     <SandboxStep
-                      stepData={stepData.sandbox}
                       isNewOrg={isNewOrg}
-                      isProviderSkipped={isProviderSkipped}
-                      isProjectSkipped={isProjectSkipped}
-                      onUpdate={(data) => updateStepData(`sandbox`, data)}
                       onSkip={() => onSkip(3)}
+                      stepData={stepData.sandbox}
+                      isProjectSkipped={isProjectSkipped}
+                      isProviderSkipped={isProviderSkipped}
+                      orgId={onboarding.orgId || stepData.org.selectedId}
+                      onUpdate={(data) => updateStepData(`sandbox`, data)}
                     />
                   )}
                   {activeStep === 4 && (
                     <ReviewStep
                       error={error}
                       submitStep={submitStep}
-                      getStepResult={getStepResult}
                       onStepClick={onStepClick}
+                      getStepResult={getStepResult}
                     />
                   )}
                 </Box>

@@ -6,14 +6,16 @@ import Chip from '@mui/material/Chip'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import { Text } from '@tdsk/components'
+import { SandboxPresets } from '@tdsk/domain'
 import { useOrgSandboxes } from '@TAF/state/selectors'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import {
-  ResourceChoiceCard,
   SkipWarning,
+  ResourceChoiceCard,
 } from '@TAF/components/Onboarding/OnboardingWizard.styled'
 
 export type TSandboxStep = {
+  orgId?: string
   onSkip: () => void
   isNewOrg?: boolean
   isProviderSkipped: boolean
@@ -22,13 +24,15 @@ export type TSandboxStep = {
   onUpdate: (data: TOnboardingStepData['sandbox']) => void
 }
 
-export const SandboxStep = (props: TSandboxStep) => {
-  const { stepData, isNewOrg, isProviderSkipped, isProjectSkipped, onUpdate, onSkip } =
-    props
-  const [sandboxes] = useOrgSandboxes()
-  const sandboxesArray = sandboxes ? Object.values(sandboxes) : []
+const SBPresets = Object.entries(SandboxPresets)
 
+export const SandboxStep = (props: TSandboxStep) => {
+  const { onSkip, stepData, isNewOrg, onUpdate, isProjectSkipped, isProviderSkipped } =
+    props
+
+  const [sandboxes] = useOrgSandboxes()
   const bothSkipped = isProviderSkipped && isProjectSkipped
+  const sandboxesArray = sandboxes ? Object.values(sandboxes) : []
 
   useEffect(() => {
     if (bothSkipped && stepData.mode !== `skip`) {
@@ -45,13 +49,49 @@ export const SandboxStep = (props: TSandboxStep) => {
         >
           Sandbox
         </Text>
-        <Alert
-          severity='info'
-          sx={{ mt: 2 }}
+        <Text
+          color='text.secondary'
+          sx={{ mb: 2 }}
         >
-          Your organization's built-in sandboxes will be linked during setup. You can
-          configure sandbox linking later from the Sandboxes page.
-        </Alert>
+          Select a sandbox to link with your project after setup
+        </Text>
+
+        <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
+          {SBPresets.map(([runtime, preset]) => (
+            <ResourceChoiceCard
+              key={runtime}
+              selected={stepData.selectedName === preset.name}
+              onClick={() =>
+                onUpdate({
+                  mode: `select`,
+                  selectedId: runtime,
+                  selectedName: preset.name,
+                })
+              }
+            >
+              <Box sx={{ display: `flex`, alignItems: `center`, gap: 1 }}>
+                <Text
+                  variant='subtitle1'
+                  fontWeight={600}
+                >
+                  {preset.name}
+                </Text>
+                <Chip
+                  label='Built-in'
+                  size='small'
+                  variant='outlined'
+                />
+              </Box>
+              <Text
+                variant='body2'
+                color='text.secondary'
+              >
+                {preset.description}
+              </Text>
+            </ResourceChoiceCard>
+          ))}
+        </Box>
+
         <Box sx={{ mt: 3, display: `flex`, justifyContent: `flex-end` }}>
           <Button
             size='small'
@@ -159,7 +199,8 @@ export const SandboxStep = (props: TSandboxStep) => {
           color='text.secondary'
           sx={{ mt: 2, textAlign: `center` }}
         >
-          No sandboxes available. They will be created when the organization is set up.
+          No sandboxes found for this organization. You can configure sandboxes from the
+          Sandboxes page.
         </Text>
       )}
 

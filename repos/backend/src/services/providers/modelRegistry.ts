@@ -1,9 +1,9 @@
 import type { TProviderModel } from '@tdsk/domain'
-import type { Model, Api } from '@mariozechner/pi-ai'
+import type { Model, Api } from '@earendil-works/pi-ai'
 
-import { getModels, getModel } from '@mariozechner/pi-ai'
 import { logger } from '@TBE/utils/logger'
 import { DefProviderModelUrls } from '@tdsk/domain'
+import { getModels, getModel } from '@earendil-works/pi-ai'
 
 /**
  * ModelRegistry — wraps pi-mono's model registry as the sole source

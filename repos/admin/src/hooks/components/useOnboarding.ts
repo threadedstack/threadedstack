@@ -8,8 +8,8 @@ import type {
 } from '@TAF/types'
 
 import { nav } from '@TAF/services'
-import { AIProviderTemplates } from '@tdsk/domain'
 import { getOrgs } from '@TAF/state/accessors'
+import { AIProviderTemplates } from '@tdsk/domain'
 import { DefStepData, StepKeys } from '@TAF/types'
 import { useOnboardingState } from '@TAF/state/selectors'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
@@ -17,6 +17,7 @@ import { OnboardingSteps } from '@TAF/constants/onboarding'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { updateSandbox } from '@TAF/actions/sandboxes/api/updateSandbox'
+import { fetchSandboxes } from '@TAF/actions/sandboxes/api/fetchSandboxes'
 import { createProvider } from '@TAF/actions/providers/api/createProvider'
 import { updateProvider } from '@TAF/actions/providers/api/updateProvider'
 import { closeOnboarding } from '@TAF/actions/onboarding/local/closeOnboarding'
@@ -80,9 +81,16 @@ export const useOnboarding = () => {
   const onNext = useCallback(() => {
     if (activeStep < steps.length - 1) {
       setError(null)
+      if (activeStep === 2) {
+        const orgId = onboarding.orgId || stepData.org.selectedId
+        if (orgId)
+          fetchSandboxes({ orgId }).catch(() =>
+            setError(`Failed to load sandboxes. You can configure them later.`)
+          )
+      }
       setActiveStep((s) => s + 1)
     }
-  }, [activeStep, steps.length])
+  }, [activeStep, steps.length, onboarding.orgId, stepData.org.selectedId])
 
   const onBack = useCallback(() => {
     if (activeStep > 0) {
@@ -164,34 +172,36 @@ export const useOnboarding = () => {
     setError(null)
     setSubmitStep(null)
 
-    let orgId = onboarding.orgId || stepData.org.selectedId
-    let providerId = stepData.provider.selectedId
-    let projectId = stepData.project.selectedId
-
+    let wasNewOrg = false
     let succeeded = false
     let currentStep: number | null = null
+    let projectId = stepData.project.selectedId
+    let providerId = stepData.provider.selectedId
+    let orgId = onboarding.orgId || stepData.org.selectedId
+
     try {
       // Step 1: Org (skip when pre-selected via onboarding.orgId)
       if (!onboarding.orgId && stepData.org.mode === `create` && stepData.org.data) {
         currentStep = 0
         setSubmitStep(0)
+        wasNewOrg = true
         const result = await createOrg({
           name: stepData.org.data.name,
           description: stepData.org.data.description || undefined,
         })
         if (result.error) throw result.error
-        // Fix 3a: Reflect created resource in stepData to prevent duplicate creation on retry.
-        if (result.org) {
-          orgId = result.org.id
-          setStepData((prev) => ({
-            ...prev,
-            org: {
-              mode: `select`,
-              selectedId: result.org!.id,
-              selectedName: result.org!.name || stepData.org.data?.name || ``,
-            },
-          }))
-        }
+        if (!result.org)
+          throw new Error(`Organization was created but the server returned no data`)
+
+        orgId = result.org.id
+        setStepData((prev) => ({
+          ...prev,
+          org: {
+            mode: `select`,
+            selectedId: result.org!.id,
+            selectedName: result.org!.name || stepData.org.data?.name || ``,
+          },
+        }))
       }
 
       if (!orgId) throw new Error(`Organization is required`)
@@ -219,42 +229,45 @@ export const useOnboarding = () => {
           },
         })
         if (result.error) throw result.error
-        if (result.data) {
-          providerId = result.data.id
-          setStepData((prev) => ({
-            ...prev,
-            provider: {
-              mode: `select`,
-              selectedId: result.data!.id,
-              selectedName:
-                result.data!.name || stepData.provider.data?.providerBrand || ``,
-            },
-          }))
+        if (!result.data)
+          throw new Error(`Provider was created but the server returned no data`)
 
-          const apiKey = stepData.provider.data?.apiKey?.trim()
-          if (apiKey && providerId) {
-            const brand = stepData.provider.data?.providerBrand
-            const template = brand
-              ? AIProviderTemplates[brand as keyof typeof AIProviderTemplates]
-              : undefined
-            const secretName =
-              template?.defaultSecretName ||
-              `${(stepData.provider.data?.providerName || brand || `PROVIDER`).toUpperCase().replace(/\s+/g, `_`)}_API_KEY`
+        providerId = result.data.id
+        setStepData((prev) => ({
+          ...prev,
+          provider: {
+            mode: `select`,
+            selectedId: result.data!.id,
+            selectedName:
+              result.data!.name || stepData.provider.data?.providerBrand || ``,
+          },
+        }))
 
-            const secretResult = await createSecret({
+        const apiKey = stepData.provider.data?.apiKey?.trim()
+        if (apiKey && providerId) {
+          const brand = stepData.provider.data?.providerBrand
+          const template = brand
+            ? AIProviderTemplates[brand as keyof typeof AIProviderTemplates]
+            : undefined
+          const secretName =
+            template?.defaultSecretName ||
+            `${(stepData.provider.data?.providerName || brand || `PROVIDER`).toUpperCase().replace(/\s+/g, `_`)}_API_KEY`
+
+          const secretResult = await createSecret({
+            orgId,
+            name: secretName,
+            value: apiKey,
+            providerId,
+          })
+          if (secretResult.error) throw secretResult.error
+
+          if (secretResult.data?.id) {
+            const updateResult = await updateProvider({
               orgId,
-              name: secretName,
-              value: apiKey,
-              providerId,
+              id: providerId,
+              data: { secretId: secretResult.data.id },
             })
-
-            if (secretResult.data?.id) {
-              await updateProvider({
-                orgId,
-                id: providerId,
-                data: { secretId: secretResult.data.id },
-              })
-            }
+            if (updateResult.error) throw updateResult.error
           }
         }
       }
@@ -273,35 +286,65 @@ export const useOnboarding = () => {
           orgId,
         })
         if (result.error) throw result.error
-        // Fix 3a: Reflect created project in stepData.
-        if (result.data) {
-          projectId = result.data.id
-          setStepData((prev) => ({
-            ...prev,
-            project: {
-              mode: `select`,
-              selectedId: result.data!.id,
-              selectedName: result.data!.name || stepData.project.data?.name || ``,
-            },
-          }))
-        }
+        if (!result.data) throw new Error(`Project creation returned no data`)
+
+        projectId = result.data.id
+        setStepData((prev) => ({
+          ...prev,
+          project: {
+            mode: `select`,
+            selectedId: result.data!.id,
+            selectedName: result.data!.name || stepData.project.data?.name || ``,
+          },
+        }))
+      } else if (
+        !isStepSkipped(2) &&
+        stepData.project.mode === `select` &&
+        stepData.project.selectedId
+      ) {
+        projectId = stepData.project.selectedId
       }
 
       // Step 4: Sandbox linking
-      if (!isStepSkipped(3) && stepData.sandbox.selectedId) {
+      if (!isStepSkipped(3) && stepData.sandbox.selectedName) {
         currentStep = 3
         setSubmitStep(3)
-        const updateData: Record<string, any> = {}
-        if (providerId) updateData.providerInputs = [{ id: providerId }]
-        if (projectId) updateData.projectIds = [projectId]
+        const linkData: Record<string, any> = {}
+        if (providerId) linkData.providerInputs = [{ id: providerId }]
+        if (projectId) linkData.projectIds = [projectId]
 
-        if (Object.keys(updateData).length > 0) {
-          const result = await updateSandbox({
-            id: stepData.sandbox.selectedId,
-            orgId,
-            data: updateData,
-          })
-          if (result.error) throw result.error
+        if (Object.keys(linkData).length > 0) {
+          let sandboxId: string | undefined
+
+          if (wasNewOrg) {
+            const sbResult = await fetchSandboxes({ orgId })
+            if (sbResult.error)
+              throw new Error(
+                `Failed to load sandboxes: ${sbResult.error.message || `Unknown error`}`
+              )
+
+            const orgSandboxes = sbResult.data ? Object.values(sbResult.data) : []
+            const match = orgSandboxes.find(
+              (sb) => sb.name === stepData.sandbox.selectedName
+            )
+            if (!match)
+              throw new Error(
+                `Sandbox "${stepData.sandbox.selectedName}" was not found after organization setup`
+              )
+
+            sandboxId = match.id
+          } else {
+            sandboxId = stepData.sandbox.selectedId
+          }
+
+          if (sandboxId) {
+            const result = await updateSandbox({
+              id: sandboxId,
+              orgId,
+              data: linkData,
+            })
+            if (result.error) throw result.error
+          }
         }
       }
 

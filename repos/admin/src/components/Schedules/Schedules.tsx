@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
-import { ConfirmDelete, Text } from '@tdsk/components'
 import { useProjectSchedules } from '@TAF/state/selectors'
 import { EPermResource, EScheduleType } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
@@ -13,6 +12,7 @@ import { formatRelativeTime } from '@TAF/utils/transforms/time'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ConfirmDelete, Text, DataTableSkeleton } from '@tdsk/components'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
 import { deleteSchedule } from '@TAF/actions/schedules/api/deleteSchedule'
 import { triggerSchedule } from '@TAF/actions/schedules/api/triggerSchedule'
@@ -46,10 +46,22 @@ const styles = {
   },
 }
 
+const skeletonColumns = [
+  { id: `type`, label: `Type`, width: 120 },
+  { id: `prompt`, label: `Content` },
+  { id: `cronExpression`, label: `Cron`, width: 150 },
+  { id: `enabled`, label: `Status`, width: 120 },
+  { id: `lastRunAt`, label: `Last Run`, width: 120 },
+  { id: `consecutiveErrors`, label: `Errors`, width: 80 },
+  { id: `nextRunAt`, label: `Next Run`, width: 150 },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Schedules = (props: TSchedules) => {
   const { orgId, projectId } = props
 
   const [schedulesMap] = useProjectSchedules()
+  const isInitialLoading = schedulesMap === undefined
   const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const schedules = useMemo(() => Object.values(schedulesMap || {}), [schedulesMap])
 
@@ -299,17 +311,19 @@ export const Schedules = (props: TSchedules) => {
       searchCount={0}
       countLabel='schedule'
       query={searchQuery}
-      count={schedules.length}
       error={error?.message}
       actionIcon={<AddIcon />}
       setSearchQuery={setSearchQuery}
       onAction={schedules.length > 0 && onCreateSchedule}
       actionDisabled={!canCreate(EPermResource.schedule)}
       actionLabel={schedules.length > 0 && 'Create Schedule'}
+      count={isInitialLoading ? undefined : schedules.length}
       searchPlaceholder='Search schedules by content or cron...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
-      {!error && schedules.length === 0 && !loading && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && schedules.length === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSchedule}
@@ -319,9 +333,12 @@ export const Schedules = (props: TSchedules) => {
         />
       )}
 
-      {!error && schedules.length > 0 && filteredSchedules.length === 0 && (
-        <EmptyState message='No schedules match your search query.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        schedules.length > 0 &&
+        filteredSchedules.length === 0 && (
+          <EmptyState message='No schedules match your search query.' />
+        )}
 
       {!error && filteredSchedules.length > 0 && (
         <DataTable

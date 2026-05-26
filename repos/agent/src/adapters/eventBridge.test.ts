@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { AgentEvent } from '@mariozechner/pi-agent-core'
+import type { AgentEvent } from '@earendil-works/pi-agent-core'
 
 /**
  * Mock @tdsk/domain to avoid the transitive @TDM/constants/values

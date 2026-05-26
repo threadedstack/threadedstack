@@ -1,10 +1,5 @@
-import type {
-  TAgentRunOpts,
-  TAgentInitOpts,
-  TAgentTurnOpts,
-  TAgentConfig,
-} from '@TAG/types'
-import type { AgentEvent } from '@mariozechner/pi-agent-core'
+import type { AgentEvent } from '@earendil-works/pi-agent-core'
+import type { TAgentRunOpts, TAgentInitOpts } from '@TAG/types'
 
 import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -19,10 +14,6 @@ const {
   mockAbort,
   mockSteer,
   mockFollowUp,
-  mockSetModel,
-  mockSetTools,
-  mockSetSystemPrompt,
-  mockSetThinkingLevel,
 } = vi.hoisted(() => ({
   mockSubscribe: vi.fn().mockReturnValue(vi.fn()),
   mockPrompt: vi.fn().mockResolvedValue(undefined),
@@ -32,10 +23,6 @@ const {
   mockAbort: vi.fn(),
   mockSteer: vi.fn(),
   mockFollowUp: vi.fn(),
-  mockSetModel: vi.fn(),
-  mockSetTools: vi.fn(),
-  mockSetSystemPrompt: vi.fn(),
-  mockSetThinkingLevel: vi.fn(),
   mockSandboxCreate: vi.fn().mockResolvedValue({
     exec: vi.fn(),
     readFile: vi.fn(),
@@ -48,7 +35,7 @@ const {
   }),
 }))
 
-vi.mock(`@mariozechner/pi-agent-core`, () => {
+vi.mock(`@earendil-works/pi-agent-core`, () => {
   return {
     Agent: vi.fn().mockImplementation(() => ({
       subscribe: mockSubscribe,
@@ -58,16 +45,21 @@ vi.mock(`@mariozechner/pi-agent-core`, () => {
       abort: mockAbort,
       steer: mockSteer,
       followUp: mockFollowUp,
-      setModel: mockSetModel,
-      setTools: mockSetTools,
-      setSystemPrompt: mockSetSystemPrompt,
-      setThinkingLevel: mockSetThinkingLevel,
-      state: { error: undefined as string | undefined },
+      state: {
+        errorMessage: undefined as string | undefined,
+        systemPrompt: ``,
+        model: {},
+        thinkingLevel: `off`,
+        tools: [],
+        messages: [],
+        isStreaming: false,
+        pendingToolCalls: new Set(),
+      },
     })),
   }
 })
 
-vi.mock(`@mariozechner/pi-ai`, () => ({
+vi.mock(`@earendil-works/pi-ai`, () => ({
   getModel: vi.fn().mockReturnValue({
     api: `test`,
     provider: `test`,
@@ -120,8 +112,8 @@ vi.mock(`@TAG/utils/contextManager`, () => ({
 }))
 
 import { AgentRunner } from './runner'
-import { getModel, isContextOverflow } from '@mariozechner/pi-ai'
-import { Agent } from '@mariozechner/pi-agent-core'
+import { getModel, isContextOverflow } from '@earendil-works/pi-ai'
+import { Agent } from '@earendil-works/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { createSandboxTools } from '@TAG/tools/tools'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
@@ -161,10 +153,6 @@ describe(`AgentRunner`, () => {
     mockSandboxClose.mockResolvedValue(undefined)
     mockSteer.mockReturnValue(undefined)
     mockFollowUp.mockReturnValue(undefined)
-    mockSetModel.mockReturnValue(undefined)
-    mockSetTools.mockReturnValue(undefined)
-    mockSetSystemPrompt.mockReturnValue(undefined)
-    mockSetThinkingLevel.mockReturnValue(undefined)
     mockSandboxCreate.mockResolvedValue({
       exec: vi.fn(),
       readFile: vi.fn(),
@@ -562,7 +550,7 @@ describe(`AgentRunner`, () => {
       vi.useFakeTimers()
 
       let waitCalls = 0
-      const agentState = { error: `Rate limit exceeded` as string | undefined }
+      const agentState = { errorMessage: `Rate limit exceeded` as string | undefined }
 
       vi.mocked(Agent).mockImplementationOnce(
         () =>
@@ -571,7 +559,7 @@ describe(`AgentRunner`, () => {
             prompt: mockPrompt,
             waitForIdle: vi.fn().mockImplementation(async () => {
               waitCalls++
-              if (waitCalls >= 2) agentState.error = undefined
+              if (waitCalls >= 2) agentState.errorMessage = undefined
             }),
             continue: mockContinue,
             abort: mockAbort,
@@ -596,7 +584,7 @@ describe(`AgentRunner`, () => {
     })
 
     it(`should not retry on permanent errors`, async () => {
-      const agentState = { error: `Invalid API key` as string | undefined }
+      const agentState = { errorMessage: `Invalid API key` as string | undefined }
 
       vi.mocked(Agent).mockImplementationOnce(
         () =>
@@ -1152,31 +1140,32 @@ describe(`AgentRunner`, () => {
       )
     })
 
-    it(`should call agent.setSystemPrompt`, async () => {
+    it(`should update agent.state.systemPrompt`, async () => {
       const runner = new AgentRunner()
       await runner.init(baseInitOpts())
 
       runner.updateConfig({ systemPrompt: `New prompt` })
-      expect(mockSetSystemPrompt).toHaveBeenCalledWith(`New prompt`)
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      expect(agentInstance.state.systemPrompt).toBe(`New prompt`)
 
       await runner.destroy()
     })
 
-    it(`should call agent.setThinkingLevel`, async () => {
+    it(`should update agent.state.thinkingLevel`, async () => {
       const runner = new AgentRunner()
       await runner.init(baseInitOpts())
 
       runner.updateConfig({ thinkingLevel: `high` })
-      expect(mockSetThinkingLevel).toHaveBeenCalledWith(`high`)
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      expect(agentInstance.state.thinkingLevel).toBe(`high`)
 
       await runner.destroy()
     })
 
-    it(`should call agent.setModel when model + provider provided`, async () => {
+    it(`should update agent.state.model when model + provider provided`, async () => {
       const runner = new AgentRunner()
       await runner.init(baseInitOpts())
 
-      // Set mock AFTER init() so it's not consumed by the init getModel call
       const newModel = {
         api: `test`,
         provider: `test`,
@@ -1187,21 +1176,26 @@ describe(`AgentRunner`, () => {
 
       runner.updateConfig({ model: `new-model`, provider: `anthropic` })
       expect(getModel).toHaveBeenCalledWith(`anthropic`, `new-model`)
-      expect(mockSetModel).toHaveBeenCalledWith(newModel)
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      expect(agentInstance.state.model).toEqual(newModel)
 
       await runner.destroy()
     })
 
-    it(`should call agent.setTools when tools + sandbox available`, async () => {
+    it(`should update agent.state.tools when tools + sandbox available`, async () => {
       const runner = new AgentRunner()
       await runner.init(baseInitOpts())
+
+      const sentinel = [{ name: `sentinel-tool` }]
+      vi.mocked(createSandboxTools).mockReturnValueOnce(sentinel as any)
 
       runner.updateConfig({ tools: [`shellExec`, `readFile`] })
       expect(createSandboxTools).toHaveBeenCalledWith(expect.anything(), [
         `shellExec`,
         `readFile`,
       ])
-      expect(mockSetTools).toHaveBeenCalled()
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      expect(agentInstance.state.tools).toEqual(expect.arrayContaining(sentinel))
 
       await runner.destroy()
     })

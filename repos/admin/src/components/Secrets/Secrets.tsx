@@ -3,15 +3,15 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
-import { EPermResource } from '@tdsk/domain'
 import { useState, useMemo } from 'react'
-import { ConfirmDelete, Text } from '@tdsk/components'
+import { EPermResource } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
 import { deleteSecret } from '@TAF/actions/secrets/api/deleteSecret'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ConfirmDelete, Text, DataTableSkeleton } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Key as KeyIcon,
@@ -44,8 +44,17 @@ const styles = {
   },
 }
 
+const skeletonColumns = [
+  { id: `name`, label: `Name` },
+  { id: `description`, label: `Description` },
+  { id: `created`, label: `Created`, width: 50 },
+  { id: `scope`, label: `Scope`, width: 50 },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Secrets = (props: TSecrets) => {
   const { orgId, error, loading, secrets, setError, projectId, setLoading } = props
+  const isInitialLoading = secrets === undefined
   const { canCreate, canUpdate, canDelete } = usePermissions()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -241,7 +250,6 @@ export const Secrets = (props: TSecrets) => {
       loading={loading}
       countLabel='secret'
       query={searchQuery}
-      count={secretsCount}
       error={error?.message}
       actionIcon={<AddIcon />}
       setSearchQuery={setSearchQuery}
@@ -249,9 +257,12 @@ export const Secrets = (props: TSecrets) => {
       actionLabel={secretsCount > 0 && 'Create Secret'}
       actionDisabled={!canCreate(EPermResource.secret)}
       searchPlaceholder='Search secrets by name or ID...'
+      count={isInitialLoading ? undefined : secretsCount}
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
-      {!error && secretsCount === 0 && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && secretsCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSecret}
@@ -261,9 +272,12 @@ export const Secrets = (props: TSecrets) => {
         />
       )}
 
-      {!error && secretsCount > 0 && filteredSecrets.length === 0 && (
-        <EmptyState message='No secrets match your search query.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        secretsCount > 0 &&
+        filteredSecrets.length === 0 && (
+          <EmptyState message='No secrets match your search query.' />
+        )}
 
       {!error && filteredSecrets.length > 0 && (
         <DataTable

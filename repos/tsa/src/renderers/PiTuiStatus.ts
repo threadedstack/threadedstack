@@ -1,4 +1,4 @@
-import type { Component } from '@mariozechner/pi-tui'
+import type { Component } from '@earendil-works/pi-tui'
 import type { TConnectionStatus } from '@TSA/types'
 
 import chalk from 'chalk'

@@ -8,7 +8,7 @@ import type {
   TextContent as PiTextContent,
   ImageContent as PiImageContent,
   ThinkingContent as PiThinkingContent,
-} from '@mariozechner/pi-ai'
+} from '@earendil-works/pi-ai'
 
 import { EContentType } from '@tdsk/domain'
 

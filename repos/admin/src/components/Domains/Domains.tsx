@@ -3,6 +3,7 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { useState, useMemo } from 'react'
 import { EPermResource } from '@tdsk/domain'
+import { DataTableSkeleton } from '@tdsk/components'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
@@ -24,6 +25,15 @@ export type TDomains = {
   projectId?: string
 }
 
+const skeletonColumns = [
+  { id: `domain`, label: `Domain` },
+  { id: `status`, label: `Status` },
+  { id: `verifiedAt`, label: `Verified` },
+  { id: `sslExpiresAt`, label: `SSL Expires` },
+  { id: `id`, label: `ID` },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Domains = ({ orgId, projectId }: TDomains) => {
   const { canCreate, canUpdate } = usePermissions()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -35,6 +45,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   const [projectDomains] = useProjectDomains()
   const [orgDomains] = useOrgDomains()
   const domains = isProjectContext ? projectDomains : orgDomains
+  const isInitialLoading = domains === undefined
 
   const onCreateDomain = () => {
     setSelectedDomain(null)
@@ -182,14 +193,16 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
       title='Domains'
       query={searchQuery}
       countLabel='domain'
-      count={domainsCount}
       setSearchQuery={setSearchQuery}
+      count={isInitialLoading ? undefined : domainsCount}
       onAction={domainsCount > 0 && onCreateDomain}
       actionLabel={domainsCount > 0 && 'Add Domain'}
       actionDisabled={!canCreate(EPermResource.domain)}
       searchPlaceholder='Search domains by name or ID...'
     >
-      {domainsCount === 0 && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && domainsCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateDomain}
@@ -199,7 +212,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
         />
       )}
 
-      {domainsCount > 0 && filteredDomains.length === 0 && (
+      {!isInitialLoading && domainsCount > 0 && filteredDomains.length === 0 && (
         <EmptyState message='No domains match your search query.' />
       )}
 

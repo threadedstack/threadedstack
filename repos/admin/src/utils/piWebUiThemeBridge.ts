@@ -2,7 +2,7 @@ import type React from 'react'
 
 /**
  * Maps MUI dark theme tokens to the CSS custom properties that
- * @mariozechner/mini-lit (and by extension pi-web-ui) reads.
+ * @earendil-works/mini-lit (and by extension pi-web-ui) reads.
  *
  * mini-lit themes define variables like --background, --foreground, --primary,
  * --border, etc. on :root / .dark. By setting these on a container element

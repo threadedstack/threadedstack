@@ -1,5 +1,5 @@
 // Type declarations for pi-web-ui Lit web components used in React JSX
-// These custom elements are registered by importing from @mariozechner/pi-web-ui
+// These custom elements are registered by importing from @earendil-works/pi-web-ui
 
 import 'react'
 

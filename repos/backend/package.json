@@ -32,7 +32,7 @@
     "@elastic/ecs-winston-format": "1.5.3",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
-    "@mariozechner/pi-ai": "0.55.3",
+    "@earendil-works/pi-ai": "0.75.5",
     "@tdsk/agent": "workspace:*",
     "@tdsk/database": "workspace:*",
     "@tdsk/domain": "workspace:*",

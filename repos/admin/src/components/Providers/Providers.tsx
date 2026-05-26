@@ -3,13 +3,13 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { useState, useMemo } from 'react'
 import { EPermResource } from '@tdsk/domain'
-import { ConfirmDelete } from '@tdsk/components'
 import { useProviders } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
 import { deleteProvider } from '@TAF/actions/providers'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { ConfirmDelete, DataTableSkeleton } from '@tdsk/components'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
@@ -38,8 +38,17 @@ const styles = {
   },
 }
 
+const skeletonColumns = [
+  { id: `name`, label: `Name` },
+  { id: `type`, label: `Type` },
+  { id: `providerBrand`, label: `Provider` },
+  { id: `baseUrl`, label: `Base URL` },
+  { id: `actions`, label: `Actions`, align: `right` as const },
+]
+
 export const Providers = ({ orgId }: TProviders) => {
   const [providers] = useProviders()
+  const isInitialLoading = providers === undefined
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -199,16 +208,18 @@ export const Providers = ({ orgId }: TProviders) => {
       query={searchQuery}
       countLabel='provider'
       title='Org Providers'
-      count={providersCount}
       error={error?.message}
       setSearchQuery={setSearchQuery}
       onAction={providersCount > 0 && onCreateProvider}
-      actionLabel={providersCount > 0 && 'Create Provider'}
       actionDisabled={!canCreate(EPermResource.provider)}
+      actionLabel={providersCount > 0 && 'Create Provider'}
+      count={isInitialLoading ? undefined : providersCount}
       searchPlaceholder='Search providers by name, type, or URL...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
-      {!error && providersCount === 0 && (
+      {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
+
+      {!isInitialLoading && !error && providersCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateProvider}
@@ -218,9 +229,12 @@ export const Providers = ({ orgId }: TProviders) => {
         />
       )}
 
-      {!error && providersCount > 0 && filteredProviders.length === 0 && (
-        <EmptyState message='No providers match your search query.' />
-      )}
+      {!isInitialLoading &&
+        !error &&
+        providersCount > 0 &&
+        filteredProviders.length === 0 && (
+          <EmptyState message='No providers match your search query.' />
+        )}
 
       {!error && filteredProviders.length > 0 && (
         <DataTable
