@@ -230,10 +230,10 @@ export const Project = (props: TProject) => {
                   <ListItem
                     key={sb.id}
                     sx={{
-                      px: 0,
+                      px: 2,
+                      borderRadius: 1,
                       cursor: 'pointer',
                       '&:hover': { bgcolor: 'action.hover' },
-                      borderRadius: 1,
                     }}
                     onClick={() =>
                       navigate(
