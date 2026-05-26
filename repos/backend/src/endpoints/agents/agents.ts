@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { featureGate } from '@TBE/middleware/featureGate'
 import { getAgent } from '@TBE/endpoints/agents/getAgent'
 import { runAgent } from '@TBE/endpoints/agents/runAgent'
 import { oaiModels } from '@TBE/endpoints/agents/oaiModels'
@@ -13,6 +14,7 @@ import { oaiChatCompletions } from '@TBE/endpoints/agents/oaiChatCompletions'
 export const agents: TEndpointConfig = {
   path: `/agents`,
   method: EPMethod.Use,
+  middleware: [featureGate(`agents`)],
   endpoints: {
     getAgent,
     runAgent,

@@ -7,6 +7,7 @@ import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
 import { setupRunningPod, execInPod, cleanupSandbox } from '../utils/sandbox-helpers'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Agent-Driven Sandbox Execution
@@ -22,7 +23,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  */
 const hasLLM = () => !!env.testProviderKey
 
-describe('Tier 3: Agent-Driven Sandbox Execution', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Agent-Driven Sandbox Execution', () => {
   const ctx = readContext()
 
   let sandboxId = ''

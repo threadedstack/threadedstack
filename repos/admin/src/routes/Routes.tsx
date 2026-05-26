@@ -215,11 +215,15 @@ export const createRoutes = () =>
                 />
               ),
             },
-            {
-              path: ERoutePath.Agents,
-              loader: orgAgentsLoader,
-              Component: () => <SuspensePage Component={OrgAgents} />,
-            },
+            ...(isFeatureEnabled(`agents`)
+              ? [
+                  {
+                    path: ERoutePath.Agents,
+                    loader: orgAgentsLoader,
+                    Component: () => <SuspensePage Component={OrgAgents} />,
+                  },
+                ]
+              : []),
             {
               path: ERoutePath.Projects,
               Component: () => <SuspensePage Component={Projects} />,
@@ -272,11 +276,15 @@ export const createRoutes = () =>
                   loader: projectFunctionsLoader,
                   Component: () => <SuspensePage Component={ProjectFunctions} />,
                 },
-                {
-                  path: ERoutePath.Agents,
-                  loader: projectAgentsLoader,
-                  Component: () => <SuspensePage Component={ProjectAgents} />,
-                },
+                ...(isFeatureEnabled(`agents`)
+                  ? [
+                      {
+                        path: ERoutePath.Agents,
+                        loader: projectAgentsLoader,
+                        Component: () => <SuspensePage Component={ProjectAgents} />,
+                      },
+                    ]
+                  : []),
                 {
                   path: ERoutePath.Sandboxes,
                   loader: projectSandboxesLoader,
@@ -291,44 +299,52 @@ export const createRoutes = () =>
                       },
                     ]
                   : []),
-                {
-                  path: ERoutePath.Agent,
-                  loader: agentDetailLoader,
-                  Component: () => <SuspensePage Component={AgentLayout} />,
-                  children: [
-                    {
-                      index: true,
-                      Component: () => <SuspensePage Component={AgentDetailTab} />,
-                    },
-                    {
-                      path: `threads`,
-                      loader: projectThreadsLoader,
-                      Component: () => <SuspensePage Component={ProjectThreads} />,
-                    },
-                    {
-                      path: `chat`,
-                      Component: () => <SuspensePage Component={AgentChat} />,
-                    },
-                    {
-                      path: ERoutePath.AgentThreadDetail,
-                      loader: threadDetailLoader,
-                      Component: () => <SuspensePage Component={ProjectThreadDetail} />,
-                    },
-                    {
-                      path: ERoutePath.AgentThreadChat,
-                      loader: threadDetailLoader,
-                      Component: () => <SuspensePage Component={ProjectThreadChat} />,
-                    },
-                    ...(isFeatureEnabled(`skills`)
-                      ? [
+                ...(isFeatureEnabled(`agents`)
+                  ? [
+                      {
+                        path: ERoutePath.Agent,
+                        loader: agentDetailLoader,
+                        Component: () => <SuspensePage Component={AgentLayout} />,
+                        children: [
                           {
-                            path: `skills`,
-                            Component: () => <SuspensePage Component={SkillsTab} />,
+                            index: true,
+                            Component: () => <SuspensePage Component={AgentDetailTab} />,
                           },
-                        ]
-                      : []),
-                  ],
-                },
+                          {
+                            path: `threads`,
+                            loader: projectThreadsLoader,
+                            Component: () => <SuspensePage Component={ProjectThreads} />,
+                          },
+                          {
+                            path: `chat`,
+                            Component: () => <SuspensePage Component={AgentChat} />,
+                          },
+                          {
+                            path: ERoutePath.AgentThreadDetail,
+                            loader: threadDetailLoader,
+                            Component: () => (
+                              <SuspensePage Component={ProjectThreadDetail} />
+                            ),
+                          },
+                          {
+                            path: ERoutePath.AgentThreadChat,
+                            loader: threadDetailLoader,
+                            Component: () => (
+                              <SuspensePage Component={ProjectThreadChat} />
+                            ),
+                          },
+                          ...(isFeatureEnabled(`skills`)
+                            ? [
+                                {
+                                  path: `skills`,
+                                  Component: () => <SuspensePage Component={SkillsTab} />,
+                                },
+                              ]
+                            : []),
+                        ],
+                      },
+                    ]
+                  : []),
                 {
                   path: ERoutePath.ApiKeys,
                   loader: projectApiKeysLoader,

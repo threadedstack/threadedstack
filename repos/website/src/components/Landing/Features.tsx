@@ -53,7 +53,7 @@ const Features = () => (
   <SectionContainer id='features'>
     <SectionHeader
       overline='PLATFORM CAPABILITIES'
-      title='Everything you need to run AI Agents securely'
+      title='Everything you need to run AI tools securely'
       subtitle='A managed platform that handles environments, credentials, and collaboration, letting your team move faster.'
     />
     <Grid

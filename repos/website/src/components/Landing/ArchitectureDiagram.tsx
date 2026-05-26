@@ -69,8 +69,8 @@ const allNodes: NodeDef[] = [
     h: 44,
   },
   {
-    id: 'agent',
-    label: 'AI Agent',
+    id: 'tool',
+    label: 'AI Tool',
     desc: 'Runs AI provider tooling (Claude-Code, Codex, Antigravity, OpenClaw, OpenCode, Custom)',
     x: 235,
     y: 410,
@@ -90,8 +90,8 @@ const flowPaths: PathDef[] = [
 /* Counter-clockwise circular loop segments (true circle arcs) */
 const loopSegments: PathDef[] = [
   { id: 'backend-inject', path: `M320,225 A${r},${r} 0 0,0 225,300` },
-  { id: 'inject-agent', path: `M225,344 A${r},${r} 0 0,0 320,420` },
-  { id: 'agent-response', path: `M320,420 A${r},${r} 0 0,0 415,344` },
+  { id: 'inject-tool', path: `M225,344 A${r},${r} 0 0,0 320,420` },
+  { id: 'tool-response', path: `M320,420 A${r},${r} 0 0,0 415,344` },
   { id: 'response-backend', path: `M415,300 A${r},${r} 0 0,0 320,225` },
 ]
 
@@ -142,7 +142,7 @@ const ArchitectureDiagram = () => {
         viewBox='95 0 450 510'
         style={{ width: '100%', height: 'auto', overflow: 'visible' }}
         role='img'
-        aria-label='Threaded Stack architecture: requests flow from TSA CLI or Browser through Auth Gateway to Backend, which manages Sandboxs. Outbound requests pass through the MITM Proxy where placeholder tokens are resolved to real secrets before reaching LLM Providers.'
+        aria-label='Threaded Stack architecture: requests flow from TSA CLI or Browser through Auth Gateway to Backend, which manages sandboxes. Outbound requests pass through the MITM Proxy where placeholder tokens are resolved to real secrets before reaching LLM Providers.'
       >
         <defs>
           <style>{`

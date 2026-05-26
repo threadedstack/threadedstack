@@ -6,8 +6,9 @@ import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
-describe('Tier 3: Agent with Custom Functions', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Agent with Custom Functions', () => {
   const ctx = readContext()
 
   let setupFailed = false

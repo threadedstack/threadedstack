@@ -4,6 +4,7 @@ import type { TFeatureFlagName } from '@TDM/types'
 
 describe('FeatureFlags', () => {
   it('should define all expected flags', () => {
+    expect(FeatureFlags).toHaveProperty('agents')
     expect(FeatureFlags).toHaveProperty('terminalGui')
     expect(FeatureFlags).toHaveProperty('schedules')
     expect(FeatureFlags).toHaveProperty('skills')

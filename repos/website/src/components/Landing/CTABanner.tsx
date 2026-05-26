@@ -24,8 +24,8 @@ const CTABanner = () => (
         variant='body1'
         sx={{ color: 'rgba(255,255,255,0.8)', mb: 4, maxWidth: 480, mx: 'auto' }}
       >
-        Get a secure sandbox environment for your AI agents and tools in under a minute.
-        Free tier, no credit card.
+        Get a secure sandbox environment for your AI tools in under a minute. Free tier,
+        no credit card.
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Button

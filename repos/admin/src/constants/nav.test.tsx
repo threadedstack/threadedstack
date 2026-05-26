@@ -246,7 +246,8 @@ describe(`OrgNavItems`, () => {
   describe(`visibility`, () => {
     it(`should be visible when orgId is present with admin role`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
-      OrgNavItems.forEach((item) => {
+      const featureGated = [`Agents`]
+      OrgNavItems.filter((item) => !featureGated.includes(item.text)).forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(true)
       })
@@ -256,7 +257,6 @@ describe(`OrgNavItems`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.member }
       const memberVisible = [
         `Projects`,
-        `Agents`,
         `Members`,
         `Sandboxes`,
         `Secrets`,
@@ -264,7 +264,7 @@ describe(`OrgNavItems`, () => {
         `Domains`,
         `Usage`,
       ]
-      const memberHidden = [`API Keys`, `Permissions`, `Settings`]
+      const memberHidden = [`API Keys`, `Permissions`, `Settings`, `Agents`]
       memberVisible.forEach((name) => {
         const item = OrgNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(true)
@@ -275,9 +275,10 @@ describe(`OrgNavItems`, () => {
       })
     })
 
-    it(`should show all items for admin role`, () => {
+    it(`should show all non-feature-gated items for admin role`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
-      OrgNavItems.forEach((item) => {
+      const featureGated = [`Agents`]
+      OrgNavItems.filter((item) => !featureGated.includes(item.text)).forEach((item) => {
         expect(item.visible?.(context)).toBe(true)
       })
     })
@@ -407,10 +408,13 @@ describe(`ProjectNavItems`, () => {
         projectId: `project-456`,
         role: ERoleType.admin,
       }
-      ProjectNavItems.forEach((item) => {
-        expect(item.visible).toBeDefined()
-        expect(item.visible?.(context)).toBe(true)
-      })
+      const featureGated = [`Agents`]
+      ProjectNavItems.filter((item) => !featureGated.includes(item.text)).forEach(
+        (item) => {
+          expect(item.visible).toBeDefined()
+          expect(item.visible?.(context)).toBe(true)
+        }
+      )
     })
 
     it(`should show member-level items and hide admin-only items for members`, () => {
@@ -422,13 +426,12 @@ describe(`ProjectNavItems`, () => {
       const memberVisible = [
         `Endpoints`,
         `Functions`,
-        `Agents`,
         `Members`,
         `Secrets`,
         `Sandboxes`,
         `Domains`,
       ]
-      const memberHidden = [`API Keys`, `Settings`]
+      const memberHidden = [`API Keys`, `Settings`, `Agents`]
       memberVisible.forEach((name) => {
         const item = ProjectNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(true)

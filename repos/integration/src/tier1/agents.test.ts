@@ -3,8 +3,9 @@ import { get, post, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
-describe('Tier 1: Agents', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Agents', () => {
   const ctx = readContext()
 
   // Local agent for mutation tests (attach/detach secrets)

@@ -19,9 +19,10 @@ export const updateOrg = async (
 
   if (resp.data) {
     const currentOrgs = getOrgs() || {}
-    setOrgs({ ...currentOrgs, [resp.data.id]: resp.data })
+    const merged = { ...currentOrgs[id], ...resp.data }
+    setOrgs({ ...currentOrgs, [resp.data.id]: merged })
     query.client.invalidateQueries({ queryKey: orgsApi.cache.list() })
-    query.updateDetailCache(orgsApi.cache.detail(id), resp.data)
+    query.updateDetailCache(orgsApi.cache.detail(id), merged)
   }
 
   return { org: resp.data }

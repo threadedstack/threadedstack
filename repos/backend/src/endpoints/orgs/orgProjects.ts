@@ -150,7 +150,7 @@ const projectAgentConfig: TEndpointConfig = {
 const projectAgents: TEndpointConfig = {
   path: `/:projectId/agents`,
   method: EPMethod.Use,
-  middleware: [projectAccessGuard(), projectMemberGuard()],
+  middleware: [featureGate(`agents`), projectAccessGuard(), projectMemberGuard()],
   endpoints: {
     getAgent,
     listAgents,

@@ -29,7 +29,7 @@ const featureSections: FeatureSection[] = [
     icon: CloudIcon,
     title: 'Managed Sandboxes',
     paragraphs: [
-      'Threaded Stack sandboxes are isolated K8s pods pre-configured to run AI agents and tools. Each sandbox includes SSH access, a configurable working directory, resource limits (CPU/memory), and automatic idle shutdown. Six built-in presets cover the major AI tools — Claude Code, Codex, OpenCode, Antigravity, OpenClaw — plus a base preset for custom runtimes.',
+      'Threaded Stack sandboxes are isolated K8s pods pre-configured to run AI tools. Each sandbox includes SSH access, a configurable working directory, resource limits (CPU/memory), and automatic idle shutdown. Six built-in presets cover the major AI tools — Claude Code, Codex, OpenCode, Antigravity, OpenClaw — plus a base preset for custom runtimes.',
       'Sandboxes are created per-organization and can be assigned to specific projects with per-project configuration overrides. This means a single sandbox definition can be reused across multiple projects, each with their own git repos, init scripts, and resource allocations.',
       'The lifecycle is simple: tsa run starts the pod, establishes SSH, syncs files, and launches the runtime command. When you disconnect, the pod continues running until the idle timeout expires, then shuts down automatically. Reconnecting to an active pod is instant.',
     ],
@@ -81,7 +81,7 @@ curl -H "Authorization: Bearer $ANTHROPIC_API_KEY" \\
     icon: VpnKeyIcon,
     title: 'Secret Management',
     paragraphs: [
-      'Secrets in Threaded Stack are encrypted at rest using AES-256-GCM with keys derived via HKDF from a master key. When a secret is created, it is encrypted immediately and the plaintext is never stored in the database. Secrets are scoped using an exclusive-arc pattern: each secret belongs to exactly one of an organization, project, agent, or provider context.',
+      'Secrets in Threaded Stack are encrypted at rest using AES-256-GCM with keys derived via HKDF from a master key. When a secret is created, it is encrypted immediately and the plaintext is never stored in the database. Secrets are scoped using an exclusive-arc pattern: each secret belongs to exactly one of an organization, project, or provider context.',
       'At runtime, secrets can be injected into sandbox pods through three mechanisms: direct environment variable injection, file-based injection (writing the secret to a specified path inside the container), or MITM injection via the egress proxy. The injection method is configurable per-secret and per-provider brand, allowing fine-grained control over how credentials reach the AI tool.',
       'Secret values are redacted in all API responses and logs. The admin dashboard shows secret metadata (name, scope, creation date) but never the value. Only the egress proxy and the direct-injection pipeline can decrypt secret values, and they do so transiently in memory.',
     ],
@@ -274,7 +274,7 @@ const Features = () => (
             sx={{ maxWidth: 560, mx: 'auto' }}
           >
             A deep dive into the systems that make Threaded Stack the most secure way to
-            run AI agents and tools.
+            run AI tools.
           </Typography>
         </Container>
       </Box>

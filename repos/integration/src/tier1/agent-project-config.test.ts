@@ -5,6 +5,7 @@ import { tryDelete } from '../utils/cleanup'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Agent Project Config (Override) CRUD
@@ -16,7 +17,7 @@ import { uniqueName } from '../utils/unique-name'
  * - Deep merge behavior for envVars and environment
  * - functionIds assignment via project config
  */
-describe('Tier 1: Agent Project Config', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Agent Project Config', () => {
   const ctx = readContext()
 
   // Resources created by fixtures

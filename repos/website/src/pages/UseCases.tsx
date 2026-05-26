@@ -28,12 +28,12 @@ const useCaseSections: UseCaseSection[] = [
     icon: BusinessIcon,
     title: 'Platform Engineering',
     paragraphs: [
-      'Platform engineering teams need to provide developers with standardized, secure environments for AI agents and tools. Without Threaded Stack, each developer configures their own credentials, installs their own tool versions, and manages their own environment inconsistencies. This creates security blind spots and support burden.',
+      'Platform engineering teams need to provide developers with standardized, secure environments for AI tools. Without Threaded Stack, each developer configures their own credentials, installs their own tool versions, and manages their own environment inconsistencies. This creates security blind spots and support burden.',
       'With Threaded Stack, platform engineers define sandbox presets at the organization level. Every developer in the org gets the same runtime configuration, the same resource limits, and the same credential injection pipeline. New developers are productive in seconds — just run tsa run and their sandbox is ready with all provider credentials pre-configured.',
       'Role-based access control ensures that only platform admins can modify sandbox configurations and secret values. Developers interact with pre-configured sandboxes without needing access to raw API keys or infrastructure details.',
     ],
     scenario:
-      'A 50-person engineering team adopts AI agents and tools. The platform team configures five sandbox presets — one per AI tool — with org-wide Anthropic and OpenAI credentials. New engineers run tsa login and tsa run on day one. No credential sharing over Slack. No environment setup guides. No security reviews per-developer.',
+      'A 50-person engineering team adopts AI tools. The platform team configures five sandbox presets — one per AI tool — with org-wide Anthropic and OpenAI credentials. New engineers run tsa login and tsa run on day one. No credential sharing over Slack. No environment setup guides. No security reviews per-developer.',
     features: ['Managed Sandboxes', 'Secret Management', 'Team Management', 'TSA CLI'],
     code: `# Platform engineer: configure org-wide sandbox
 # presets via the admin dashboard or REST API
@@ -57,7 +57,7 @@ tsa run claude-code
     icon: VpnKeyIcon,
     title: 'Secure Credential Management',
     paragraphs: [
-      'AI agents and tools need API keys to function — Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Antigravity. Traditionally, developers store these in local .env files, share them over insecure channels, or hardcode them in configuration. Every key distribution is a potential leak vector.',
+      'AI tools need API keys to function — Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Antigravity. Traditionally, developers store these in local .env files, share them over insecure channels, or hardcode them in configuration. Every key distribution is a potential leak vector.',
       'Threaded Stack eliminates this entire problem class. Secrets are encrypted at rest with AES-256-GCM and never injected directly into sandbox environments. Instead, the sandbox receives placeholder tokens. When the AI tool makes an outbound API call, the MITM egress proxy intercepts the request, replaces placeholder tokens with real credentials, and forwards the request to the provider.',
       'This architecture means that even if an AI tool is instructed to print its environment variables or exfiltrate data, it only has access to placeholder values — not real secrets. The actual credentials exist only transiently in proxy memory during request forwarding.',
     ],
@@ -89,7 +89,7 @@ echo $ANTHROPIC_API_KEY
     icon: CloudQueueIcon,
     title: 'Remote AI Development',
     paragraphs: [
-      'AI agents and tools are resource-intensive. Running Claude Code or Codex locally competes with your IDE, build tools, and browser for CPU and memory. Cloud sandboxes give AI tools dedicated compute resources while keeping your local machine responsive.',
+      'AI tools are resource-intensive. Running Claude Code or Codex locally competes with your IDE, build tools, and browser for CPU and memory. Cloud sandboxes give AI tools dedicated compute resources while keeping your local machine responsive.',
       "Threaded Stack sandboxes include bidirectional file sync powered by Mutagen. Your local project files are mirrored to the sandbox's /workspace directory in real-time. The AI tool operates on the synced files, and any changes it makes are immediately reflected on your local filesystem. It feels like running locally, but with cloud-grade resources.",
       'Sandbox pods are configurable: set CPU and memory limits, choose a base image, auto-clone a git repository, and define init scripts that run on startup. When you finish a session, the sandbox idles and stops automatically after a configurable timeout — you only use resources when actively developing.',
     ],
@@ -150,7 +150,7 @@ const UseCases = () => (
   <>
     <PageMeta
       title='Use Cases'
-      description='Discover how engineering teams use Threaded Stack to run AI agents and tools in secure, managed sandbox environments with centralized credential management and real-time collaboration.'
+      description='Discover how engineering teams use Threaded Stack to run AI tools in secure, managed sandbox environments with centralized credential management and real-time collaboration.'
     />
     <Box>
       {/* Mini Hero */}

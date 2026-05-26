@@ -52,7 +52,7 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Agents`,
     to: buildRoute(ERoutePath.OrgAgents),
     Icon: <RobotIcon />,
-    visible: hasOrg,
+    visible: (ctx) => hasOrg(ctx) && isFeatureEnabled(`agents`),
   },
   Sandboxes: {
     text: `Sandboxes`,
@@ -139,7 +139,7 @@ const ProjectSubNav: Record<string, TNavItem> = {
     text: `Agents`,
     Icon: <RobotIcon />,
     to: buildRoute(ERoutePath.ProjectAgents),
-    visible: hasOrgAndProject,
+    visible: (ctx) => hasOrgAndProject(ctx) && isFeatureEnabled(`agents`),
   },
   Sandboxes: {
     text: `Sandboxes`,

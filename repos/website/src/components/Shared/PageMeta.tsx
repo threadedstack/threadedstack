@@ -10,7 +10,7 @@ const PageMeta = ({ title, description }: Props) => (
     <title>
       {title
         ? `${title} | Threaded Stack`
-        : 'Threaded Stack - The Developer Platform for AI Agents'}
+        : 'Threaded Stack - The Developer Platform for AI Tools'}
     </title>
     {description && (
       <meta

@@ -4,6 +4,7 @@ export type TFeatureFlagDef = {
 }
 
 export type TFeatureFlags = {
+  agents: TFeatureFlagDef
   skills: TFeatureFlagDef
   schedules: TFeatureFlagDef
   accessGate: TFeatureFlagDef

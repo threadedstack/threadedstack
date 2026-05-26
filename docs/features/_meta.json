@@ -4,7 +4,6 @@
   "pages": [
     "organizations",
     "providers",
-    "agent-endpoints",
     "proxy-endpoints",
     "faas-endpoints",
     "threads",

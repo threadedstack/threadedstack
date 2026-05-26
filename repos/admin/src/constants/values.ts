@@ -9,6 +9,7 @@ import {
   EApiKeyExpire,
   EEndpointType,
   EEPCredential,
+  isFeatureEnabled,
 } from '@tdsk/domain'
 
 export const DefSettingsState = {}
@@ -82,10 +83,12 @@ export const EPVisibilityOpts = EPVisibility.map((value) => {
   }
 })
 
-export const EndpointTypeOpts = Object.values(EEndpointType).map((value) => ({
-  value,
-  label: capitalize(value),
-}))
+export const EndpointTypeOpts = Object.values(EEndpointType)
+  .filter((value) => value !== EEndpointType.agent || isFeatureEnabled(`agents`))
+  .map((value) => ({
+    value,
+    label: capitalize(value),
+  }))
 
 export const SecretModeOptions = [
   { value: ESecretMode.none, label: `None` },

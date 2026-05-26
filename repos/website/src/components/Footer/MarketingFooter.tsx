@@ -76,8 +76,7 @@ const MarketingFooter = () => (
             color='text.secondary'
             sx={{ mb: 2, maxWidth: 280 }}
           >
-            The developer platform for building autonomous AI agents without
-            infrastructure headaches.
+            The developer platform for running AI tools without infrastructure headaches.
           </Typography>
           <ThemeToggle />
         </Grid>

@@ -1,6 +1,10 @@
 import type { TFeatureFlags, TFeatureFlagName } from '@TDM/types'
 
 export const FeatureFlags: TFeatureFlags = {
+  agents: {
+    enabled: false,
+    description: `AI agent orchestration system`,
+  },
   skills: {
     enabled: true,
     description: `AI Agent and sandbox skill system`,

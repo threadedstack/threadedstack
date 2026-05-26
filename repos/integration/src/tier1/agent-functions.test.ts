@@ -5,6 +5,7 @@ import { tryDelete } from '../utils/cleanup'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Agent-Functions Relationship
@@ -31,7 +32,7 @@ const functionContent = `export default async function handler(request, context)
   return { body: { message: 'agent function test' } }
 }`
 
-describe('Tier 1: Agent-Functions Relationship', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Agent-Functions Relationship', () => {
   const ctx = readContext()
 
   let setupFailed = false

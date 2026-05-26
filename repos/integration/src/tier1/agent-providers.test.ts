@@ -6,6 +6,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Agent-Provider Relationship Contract Tests
@@ -21,7 +22,7 @@ import { uniqueName } from '../utils/unique-name'
  * - Provider deletion is blocked when linked to agents
  * - Agent deletion cleans up junction records
  */
-describe('Tier 1: Agent-Provider Relationship', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Agent-Provider Relationship', () => {
   const ctx = readContext()
   const hasProviderKey = () => !!env.testProviderKey
 

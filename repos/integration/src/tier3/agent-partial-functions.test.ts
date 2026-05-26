@@ -6,6 +6,7 @@ import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Agent with Partial (Deleted) Functions
@@ -23,7 +24,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  *   5. Run agent via SSE — verify it starts despite the missing function
  *   6. Verify the remaining function is still queryable
  */
-describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Agent with Partial (Deleted) Functions', () => {
   const ctx = readContext()
 
   let setupFailed = false

@@ -8,6 +8,7 @@ import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Multi-Provider Agent E2E Tests
@@ -32,7 +33,7 @@ const hasProviderKey = () => !!env.testProviderKey
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasAgent = () => !!getAgentId()
 
-describe('Tier 3: Multi-Provider Agent E2E', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Multi-Provider Agent E2E', () => {
   const ctx = readContext()
 
   // ─── Quickstart-based agent with real provider key ─────────────────

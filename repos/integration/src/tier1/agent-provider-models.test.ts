@@ -6,6 +6,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Agent-Provider Model Resolution Tests
@@ -21,7 +22,7 @@ import { uniqueName } from '../utils/unique-name'
 
 const hasProviderKey = () => !!env.testProviderKey
 
-describe('Tier 1: Agent-Provider Model Resolution', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Agent-Provider Model Resolution', () => {
   const ctx = readContext()
 
   let fixtures: TFixtureResult = {}

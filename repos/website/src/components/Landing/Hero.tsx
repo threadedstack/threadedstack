@@ -125,7 +125,7 @@ const Hero = () => {
               }}
             >
               <span className={isDark ? 'gradient-text-dark' : 'gradient-text-light'}>
-                Unleash AI Agents with Confidence
+                Unleash AI with Confidence
               </span>
             </Typography>
 
@@ -135,9 +135,9 @@ const Hero = () => {
               color='text.secondary'
               sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
             >
-              Launch AI agents and tools in managed K8s pods with zero-trust credential
-              injection. Full support for Claude Code, Codex, OpenCode, Antigravity,
-              OpenClaw, or custom tooling.
+              Run AI tools in managed K8s pods with zero-trust credential injection. Full
+              support for Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or custom
+              tooling.
             </Typography>
 
             {/* CTAs */}
