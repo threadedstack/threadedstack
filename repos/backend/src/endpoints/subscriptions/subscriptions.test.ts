@@ -47,8 +47,8 @@ describe('Subscription endpoints', () => {
             isOrgMember: vi.fn(),
           },
           subscription: {
-            findByUser: vi.fn(),
-            upsertByUser: vi.fn(),
+            findByUser: vi.fn().mockResolvedValue({ data: null }),
+            upsertByUser: vi.fn().mockResolvedValue({ data: null }),
           },
           invoice: {
             findByUserId: vi.fn(),
@@ -83,6 +83,8 @@ describe('Subscription endpoints', () => {
       params: {},
       body: {},
       query: {},
+      headers: {},
+      get: vi.fn(() => undefined),
     }
   })
 
@@ -248,6 +250,10 @@ describe('Subscription endpoints', () => {
     })
 
     it('should return 400 for free tier checkout', async () => {
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({ data: null })
+
       mockReq.body = {
         tier: 'free',
         successUrl: 'http://localhost:3000/billing?success=true',

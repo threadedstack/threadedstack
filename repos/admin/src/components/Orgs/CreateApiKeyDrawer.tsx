@@ -7,8 +7,8 @@ import { Box, Paper, Alert, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { UserSelectorSingle } from '@TAF/components/Selectors/UserSelector'
+import { ERoleType, EPermScope, buildScopedPermissions } from '@tdsk/domain'
 import { PermissionsPicker } from '@TAF/components/Permissions/PermissionsPicker'
-import { ERoleType, buildRolePermissions } from '@tdsk/domain'
 import {
   Drawer,
   Button,
@@ -45,8 +45,9 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
 
   const availablePermissions = useMemo(() => {
     const role = (maxRole as ERoleType) || ERoleType.admin
-    return buildRolePermissions(role)
-  }, [maxRole])
+    const scope = projectId ? EPermScope.project : EPermScope.org
+    return buildScopedPermissions(role, scope)
+  }, [maxRole, projectId])
 
   const [name, setName] = useState('')
   const [permissions, setPermissions] = useState<TPermission[]>([])

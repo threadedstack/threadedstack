@@ -4,7 +4,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermScope, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /assets - List assets filtered by scope
@@ -37,6 +38,14 @@ export const listAssets: TEndpointConfig = {
       const { data: message } = await db.services.message.get(messageId as string)
       if (!message) throw new Exception(404, `Message not found`)
       permOrgId = message.orgId
+    }
+
+    if (projectId) {
+      await checkPermission(req, EPermAction.read, EPermResource.asset, {
+        orgId: permOrgId,
+        projectId: projectId as string,
+        scopeType: EPermScope.project,
+      })
     }
 
     const { limit, offset } = parsePagination(req)

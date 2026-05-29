@@ -28,6 +28,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useProviders: () => mockUseProviders(),
   useActiveAgentId: () => mockUseActiveAgentId(),
   useActiveThreadId: () => mockUseActiveThreadId(),
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`@TAF/actions/threads/api/fetchThreads`, () => ({

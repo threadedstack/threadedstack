@@ -592,6 +592,75 @@ describe(`API Keys endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
+    it(`should reject project-scoped key with org-level permissions`, async () => {
+      mockReq.body = {
+        name: `Bad Scope Key`,
+        projectId: `proj-1`,
+        permissions: [`org:delete`, `project:read`],
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `These permissions are not valid for a project-scoped key`
+      )
+    })
+
+    it(`should allow project-scoped key with only project-level permissions`, async () => {
+      mockReq.body = {
+        name: `Good Scope Key`,
+        projectId: `proj-1`,
+        permissions: [`project:read`, `agent:exec`, `sandbox:connect`],
+      }
+      const createdApiKey = new ApiKey({
+        id: `scope-key-1`,
+        name: `Good Scope Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_scop`,
+        permissions: [`project:read`, `agent:exec`, `sandbox:connect`],
+        active: true,
+        projectId: `proj-1`,
+        userId: `test-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should allow org-scoped key with org-level permissions`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `owner` } })
+
+      mockReq.body = {
+        name: `Org Key`,
+        permissions: [`org:delete`, `subscription:manage`, `project:read`],
+      }
+      const createdApiKey = new ApiKey({
+        id: `org-key-1`,
+        name: `Org Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_orgk`,
+        permissions: [`org:delete`, `subscription:manage`, `project:read`],
+        active: true,
+        orgId: `org-123`,
+        userId: `test-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
     it(`should reject when target user is not a project member`, async () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>

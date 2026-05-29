@@ -1,15 +1,20 @@
 import type { Response } from 'express'
+import type { TRoleType, TPermission } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { InviteService } from '@TBE/services/invite'
 import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
   PlanLimits,
   EPermAction,
   EPermResource,
+  canManageRole,
+  isValidEffect,
+  isValidPermission,
   ESubscriptionTier,
 } from '@tdsk/domain'
 
@@ -18,9 +23,17 @@ type TOrgReq = {
 }
 
 export type TValidate = {
-  roleType: string
   email: string
+  roleType: string
   expiresInDays?: number
+  projectRoles?: Array<{ projectId: string; roleType: string }>
+  permissionOverrides?: Array<{
+    reason?: string
+    expiresAt?: string
+    permission: string
+    projectId?: string
+    effect: `grant` | `deny`
+  }>
 }
 
 /**
@@ -39,22 +52,70 @@ export const inviteOrgUser: TEndpointConfig = {
   middleware: [authorize(EPermAction.create, EPermResource.role)],
   action: async (req: TRequest<TOrgReq, TValidate>, res: Response): Promise<void> => {
     const { orgId } = req.params
-    const { email, roleType, expiresInDays = 7 } = req.body
+    const { email, roleType, expiresInDays = 7, projectRoles } = req.body
+    const permissionOverrides = req.body.permissionOverrides?.map((po) => ({
+      ...po,
+      permission: po.permission as TPermission,
+    }))
     const { db, config, email: ems } = req.app.locals
 
     if (!email) throw new Exception(400, `Email is required`)
     if (!roleType) throw new Exception(400, `Role type is required`)
 
-    const validRoles = Object.values(ERoleType) as string[]
+    const validRoles = [ERoleType.member, ERoleType.admin, ERoleType.owner] as string[]
     if (!validRoles.includes(roleType))
       throw new Exception(
         400,
         `Invalid role type. Must be one of: ${validRoles.join(', ')}`
       )
 
+    const currentUserRole = await getUserRole(req, { orgId })
+    if (!canManageRole(currentUserRole, roleType as ERoleType))
+      throw new Exception(
+        403,
+        `You cannot invite a user with a role equal to or above your own`,
+        `FORBIDDEN`
+      )
+
     // Validate expiration days
     if (expiresInDays < 1 || expiresInDays > 30)
       throw new Exception(400, `expiresInDays must be between 1 and 30`)
+
+    if (projectRoles?.length) {
+      const prValidRoles = [
+        ERoleType.member,
+        ERoleType.admin,
+        ERoleType.owner,
+      ] as string[]
+      for (const pr of projectRoles) {
+        if (!prValidRoles.includes(pr.roleType))
+          throw new Exception(400, `Invalid project role type: ${pr.roleType}`)
+
+        const { data: project, error: projErr } = await db.services.project.get(
+          pr.projectId
+        )
+        if (projErr)
+          throw new Exception(500, `Failed to verify project: ${projErr.message}`)
+        if (!project) throw new Exception(400, `Project not found: ${pr.projectId}`)
+        if (project.orgId !== orgId)
+          throw new Exception(
+            400,
+            `Project ${pr.projectId} does not belong to this organization`
+          )
+      }
+    }
+
+    if (permissionOverrides?.length) {
+      for (const po of permissionOverrides) {
+        if (!isValidPermission(po.permission as string))
+          throw new Exception(400, `Invalid permission: ${po.permission}`)
+        if (!isValidEffect(po.effect))
+          throw new Exception(
+            400,
+            `Invalid effect: ${po.effect}. Must be 'grant' or 'deny'`
+          )
+      }
+    }
 
     // Verify org exists
     const { data: org, error: orgError } = await db.services.org.get(orgId)
@@ -64,7 +125,14 @@ export const inviteOrgUser: TEndpointConfig = {
 
     // Check seat capacity based on owner's subscription tier
     if (org.ownerId) {
-      const { data: ownerSub } = await db.services.subscription.findByUser(org.ownerId)
+      const { data: ownerSub, error: subErr } = await db.services.subscription.findByUser(
+        org.ownerId
+      )
+      if (subErr)
+        throw new Exception(
+          500,
+          `Failed to verify subscription status: ${subErr.message}`
+        )
       const tier = (ownerSub?.tier || `free`) as ESubscriptionTier
       const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
 
@@ -111,34 +179,40 @@ export const inviteOrgUser: TEndpointConfig = {
       // If user exists, check if user is already a member
       await ins.isMember({ user, org })
 
-      const newRole = await ins.existing({
+      const { role: newRole, warnings } = await ins.existing({
         org,
         user,
         email,
-        roleType,
         inviter: req.user,
+        permissionOverrides,
+        roleType: roleType as TRoleType,
+        projectRoles: projectRoles as Array<{ projectId: string; roleType: TRoleType }>,
       })
 
       res.status(201).json({
         data: newRole,
         message: `User ${email} has been added to the organization`,
+        ...(warnings?.length && { warnings }),
       })
       return
     }
 
     // CASE 2: User doesn't exist - create invitation and send email
-    const invite = await ins.create({
+    const { invite, warnings: createWarnings } = await ins.create({
       org,
-      roleType,
       email,
       expiresInDays,
       inviter: req.user,
+      permissionOverrides,
       frontendUrl: config.frontendUrl,
+      roleType: roleType as TRoleType,
+      projectRoles: projectRoles as Array<{ projectId: string; roleType: TRoleType }>,
     })
 
     res.status(201).json({
       data: invite,
       message: `Invitation sent to ${email}`,
+      ...(createWarnings?.length && { warnings: createWarnings }),
     })
   },
 }

@@ -28,6 +28,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgRole: () => [`admin`],
   useApiKeys: () => [mockApiKeysMap],
   usePermissionOverrides: () => [undefined],
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`@tdsk/components`, async (importOriginal) => {

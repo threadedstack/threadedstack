@@ -1,10 +1,20 @@
+import type { TInvitationProjectRole, TInvitationPermOverride } from '@tdsk/domain'
+
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { entityId } from '@TDB/utils/schema/entityId'
 import { EInviteStatus, InvitationIdPrefix } from '@tdsk/domain'
-import { uuid, text, timestamp, index, pgTable, varchar } from 'drizzle-orm/pg-core'
+import {
+  uuid,
+  text,
+  jsonb,
+  timestamp,
+  index,
+  pgTable,
+  varchar,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Organization Invitations Table
@@ -47,6 +57,9 @@ export const invitations = pgTable(
     expiresAt: timestamp(`expires_at`, { mode: `string` }).notNull(),
     status: text(`status`).notNull().default(EInviteStatus.pending),
     revokedBy: uuid(`revoked_by`).references(() => users.id, { onDelete: `set null` }),
+
+    projectRoles: jsonb(`project_roles`).$type<TInvitationProjectRole[]>(),
+    permissionOverrides: jsonb(`permission_overrides`).$type<TInvitationPermOverride[]>(),
   },
   (table) => [
     index(`invitations_org_id_idx`).on(table.orgId),

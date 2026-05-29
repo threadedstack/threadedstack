@@ -1,5 +1,5 @@
 import type { TPermission } from '@TDM/types'
-import { ERoleType } from '@TDM/types'
+import { ERoleType, EPermScope, EPermResource } from '@TDM/types'
 
 /**
  * Prefix for Threaded stack API keys
@@ -156,4 +156,30 @@ export const RoleTemplates: Record<Exclude<ERoleType, 'super'>, TPermission[]> =
     `quota:delete`,
     `subscription:delete`,
   ],
+}
+
+export const ResourceScope: Record<EPermResource, EPermScope> = {
+  [EPermResource.asset]: EPermScope.project,
+  [EPermResource.skill]: EPermScope.project,
+  [EPermResource.agent]: EPermScope.project,
+  [EPermResource.secret]: EPermScope.project,
+  [EPermResource.domain]: EPermScope.project,
+  [EPermResource.apiKey]: EPermScope.project,
+  [EPermResource.thread]: EPermScope.project,
+  [EPermResource.message]: EPermScope.project,
+  [EPermResource.project]: EPermScope.project,
+  [EPermResource.sandbox]: EPermScope.project,
+  [EPermResource.endpoint]: EPermScope.project,
+  [EPermResource.function]: EPermScope.project,
+  [EPermResource.schedule]: EPermScope.project,
+  [EPermResource.provider]: EPermScope.project,
+  [EPermResource.sandboxSession]: EPermScope.project,
+
+  [EPermResource.org]: EPermScope.org,
+  [EPermResource.user]: EPermScope.org,
+  [EPermResource.role]: EPermScope.org,
+  [EPermResource.quota]: EPermScope.org,
+  [EPermResource.invitation]: EPermScope.org,
+  [EPermResource.adminPanel]: EPermScope.org,
+  [EPermResource.subscription]: EPermScope.org,
 }

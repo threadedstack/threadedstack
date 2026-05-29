@@ -3,8 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { authorize } from '@TBE/middleware/authorize'
-import { Exception, ESubscriptionTier, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, ESubscriptionTier, fromAuthHeaders } from '@tdsk/domain'
 
 const validTiers = new Set(Object.values(ESubscriptionTier).map((t) => t.toLowerCase()))
 
@@ -18,13 +17,18 @@ const validTiers = new Set(Object.values(ESubscriptionTier).map((t) => t.toLower
 export const createCheckout: TEndpointConfig = {
   path: `/checkout`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.create, EPermResource.subscription)],
+  middleware: [],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, payments } = req.app.locals
     const userId = req.user?.id
     const userEmail = req.user?.email
 
     if (!userId || !userEmail) throw new Exception(401, `Authentication required`)
+    if (fromAuthHeaders(req).apiKeyId)
+      throw new Exception(
+        403,
+        `Subscription endpoints do not accept API key authentication`
+      )
 
     const { successUrl, cancelUrl } = req.body
     const tier: ESubscriptionTier = req.body.tier?.toLowerCase()
@@ -37,6 +41,7 @@ export const createCheckout: TEndpointConfig = {
 
     // Check if user already has an active subscription
     const subResult = await db.services.subscription.findByUser(userId)
+    if (subResult.error) throw new Exception(500, subResult.error.message)
 
     if (subResult.data?.stripeSubscriptionId && subResult.data.status === `active`) {
       if (tier === ESubscriptionTier.free) {
@@ -92,11 +97,15 @@ export const createCheckout: TEndpointConfig = {
 
       customerId = customerResult.data.id
 
-      // Persist the customer ID on the subscription record
-      await db.services.subscription.upsertByUser({
+      const { error: persistErr } = await db.services.subscription.upsertByUser({
         userId,
         stripeCustomerId: customerId,
       })
+      if (persistErr)
+        logger.error(
+          `[createCheckout] Failed to persist Stripe customer ID for user ${userId}:`,
+          persistErr
+        )
     }
 
     const checkoutResult = await payments.service.createCheckoutSession(

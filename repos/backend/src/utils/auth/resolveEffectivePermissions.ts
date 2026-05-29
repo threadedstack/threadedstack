@@ -3,11 +3,14 @@ import type { TPermission, TPermissionContext, PermissionOverride } from '@tdsk/
 
 import { getUserRole } from './checkPermission'
 import {
+  ERoleType,
   Exception,
+  EPermScope,
   isSuperAdmin,
   fromAuthHeaders,
   resolvePermissions,
   buildRolePermissions,
+  filterPermissionsByScope,
 } from '@tdsk/domain'
 
 /**
@@ -25,7 +28,7 @@ import {
 export const resolveEffectivePermissions = async (
   req: TRequest,
   context: TPermissionContext
-): Promise<Set<TPermission> | 'super'> => {
+): Promise<Set<TPermission> | ERoleType.super> => {
   const { db } = req.app.locals
   const userId = req.user?.id
   if (!userId) throw new Exception(401, `Authentication required`)
@@ -33,7 +36,7 @@ export const resolveEffectivePermissions = async (
   const userRole = await getUserRole(req, context)
   if (!userRole)
     throw new Exception(403, `Not a member of this organization or project`, `FORBIDDEN`)
-  if (isSuperAdmin(userRole)) return 'super'
+  if (isSuperAdmin(userRole)) return ERoleType.super
 
   const scopeId = context.projectId || context.orgId
   let permissions: Set<TPermission>
@@ -65,14 +68,23 @@ export const resolveEffectivePermissions = async (
   const apiKeyId = fromAuthHeaders(req).apiKeyId
   if (apiKeyId) {
     const { data: apiKey, error: keyErr } = await db.services.apiKey.get(apiKeyId)
+
     if (keyErr)
       throw new Exception(500, `Failed to resolve API key permissions: ${keyErr.message}`)
+
     if (!apiKey) throw new Exception(401, `API key not found`)
     if (apiKey.permissions) {
       const keyPerms = new Set<TPermission>(apiKey.permissions as TPermission[])
-      for (const perm of [...permissions]) {
+      for (const perm of [...permissions])
         if (!keyPerms.has(perm)) permissions.delete(perm)
-      }
+    }
+
+    if (apiKey.projectId) {
+      const projectPerms = filterPermissionsByScope([...permissions], EPermScope.project)
+      const projectPermSet = new Set(projectPerms)
+
+      for (const perm of [...permissions])
+        if (!projectPermSet.has(perm)) permissions.delete(perm)
     }
   }
 

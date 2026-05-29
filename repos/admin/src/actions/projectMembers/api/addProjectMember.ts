@@ -1,12 +1,16 @@
+import type { TPermissionOverrides } from '@tdsk/domain'
+
 import { query } from '@TAF/services/query'
-import { projectMembersApi } from '@TAF/services/projectMembersApi'
 import { listProjectMembers } from './listProjectMembers'
+import { projectMembersApi } from '@TAF/services/projectMembersApi'
 
 export type TAddProjectMemberOpts = {
   orgId: string
-  projectId: string
-  userId: string
+  email?: string
+  userId?: string
   roleType: string
+  projectId: string
+  permissionOverrides?: TPermissionOverrides
 }
 
 export const addProjectMember = async (opts: TAddProjectMemberOpts) => {
@@ -19,6 +23,6 @@ export const addProjectMember = async (opts: TAddProjectMemberOpts) => {
   query.client.removeQueries({ queryKey: [`projectMembers`, orgId, projectId] })
   const refreshResp = await listProjectMembers({ orgId, projectId })
   if (refreshResp.error)
-    console.warn('[addProjectMember] Failed to refresh member list:', refreshResp.error)
+    console.warn(`[addProjectMember] Failed to refresh member list:`, refreshResp.error)
   return resp
 }

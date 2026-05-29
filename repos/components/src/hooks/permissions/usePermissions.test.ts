@@ -282,6 +282,86 @@ describe(`usePermissions`, () => {
     })
   })
 
+  describe(`serverPermissions parameter`, () => {
+    it(`should use serverPermissions array directly instead of computing from role`, () => {
+      const serverPermissions = [`sandbox:exec`, `sandbox:read`] as const
+      // member does not normally have secret:create; if serverPermissions is used, it controls
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, serverPermissions as any)
+      )
+      expect(result.current.has(`sandbox:exec`)).toBe(true)
+      expect(result.current.has(`sandbox:read`)).toBe(true)
+      // org:read is in member template but NOT in serverPermissions — so it should be absent
+      expect(result.current.has(`org:read`)).toBe(false)
+    })
+
+    it(`should populate permissions set from serverPermissions array`, () => {
+      const serverPermissions = [`project:read`, `agent:exec`] as const
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, serverPermissions as any)
+      )
+      expect(result.current.permissions.has(`project:read`)).toBe(true)
+      expect(result.current.permissions.has(`agent:exec`)).toBe(true)
+      expect(result.current.permissions.size).toBe(2)
+    })
+
+    it(`should allow granting permissions not in the role template via serverPermissions`, () => {
+      // member does not normally have secret:create
+      const serverPermissions = [`secret:create`] as const
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, serverPermissions as any)
+      )
+      expect(result.current.has(`secret:create`)).toBe(true)
+      expect(result.current.canCreate(EPermResource.secret)).toBe(true)
+    })
+
+    it(`should return true from has() for any permission when serverPermissions is 'super'`, () => {
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, ERoleType.super)
+      )
+      expect(result.current.has(`org:delete`)).toBe(true)
+      expect(result.current.has(`sandbox:manage`)).toBe(true)
+      expect(result.current.has(`secret:manage`)).toBe(true)
+    })
+
+    it(`should populate permissions set when serverPermissions is 'super'`, () => {
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.admin, undefined, ERoleType.super)
+      )
+      // super path uses owner template perms as the set (not empty)
+      expect(result.current.permissions.size).toBeGreaterThan(0)
+    })
+
+    it(`should fall back to role-based computation when serverPermissions is undefined`, () => {
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, undefined)
+      )
+      // should behave exactly as regular member
+      expect(result.current.has(`org:read`)).toBe(true)
+      expect(result.current.has(`sandbox:exec`)).toBe(true)
+      expect(result.current.has(`org:delete`)).toBe(false)
+    })
+
+    it(`should not treat string 'super' as an array`, () => {
+      // 'super' is a string, not an array — must go through the super sentinel path
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.owner, undefined, ERoleType.super)
+      )
+      // Array.isArray('super') is false, so it should hit the super path, not the array path
+      expect(result.current.has(`org:delete`)).toBe(true)
+    })
+
+    it(`should ignore empty serverPermissions array and use overrides path`, () => {
+      // empty array is falsy for .length check, so falls through to overrides path
+      const { result } = renderHook(() =>
+        usePermissions(ERoleType.member, undefined, [] as any)
+      )
+      // no overrides either, so member template perms apply
+      expect(result.current.has(`org:read`)).toBe(true)
+      expect(result.current.has(`sandbox:exec`)).toBe(true)
+    })
+  })
+
   describe(`overrides`, () => {
     it(`should grant additional permissions via overrides`, () => {
       const overrides = [

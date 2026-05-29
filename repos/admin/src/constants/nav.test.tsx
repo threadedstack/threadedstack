@@ -247,10 +247,12 @@ describe(`OrgNavItems`, () => {
     it(`should be visible when orgId is present with admin role`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
       const featureGated = [`Agents`]
-      OrgNavItems.filter((item) => !featureGated.includes(item.text)).forEach((item) => {
-        expect(item.visible).toBeDefined()
-        expect(item.visible?.(context)).toBe(true)
-      })
+      OrgNavItems.filter((item) => !featureGated.includes(item.text as string)).forEach(
+        (item) => {
+          expect(item.visible).toBeDefined()
+          expect(item.visible?.(context)).toBe(true)
+        }
+      )
     })
 
     it(`should show member-level items and hide admin-only items for members`, () => {
@@ -278,9 +280,11 @@ describe(`OrgNavItems`, () => {
     it(`should show all non-feature-gated items for admin role`, () => {
       const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
       const featureGated = [`Agents`]
-      OrgNavItems.filter((item) => !featureGated.includes(item.text)).forEach((item) => {
-        expect(item.visible?.(context)).toBe(true)
-      })
+      OrgNavItems.filter((item) => !featureGated.includes(item.text as string)).forEach(
+        (item) => {
+          expect(item.visible?.(context)).toBe(true)
+        }
+      )
     })
 
     it(`should not be visible when orgId is missing`, () => {
@@ -409,12 +413,12 @@ describe(`ProjectNavItems`, () => {
         role: ERoleType.admin,
       }
       const featureGated = [`Agents`]
-      ProjectNavItems.filter((item) => !featureGated.includes(item.text)).forEach(
-        (item) => {
-          expect(item.visible).toBeDefined()
-          expect(item.visible?.(context)).toBe(true)
-        }
-      )
+      ProjectNavItems.filter(
+        (item) => !featureGated.includes(item.text as string)
+      ).forEach((item) => {
+        expect(item.visible).toBeDefined()
+        expect(item.visible?.(context)).toBe(true)
+      })
     })
 
     it(`should show member-level items and hide admin-only items for members`, () => {

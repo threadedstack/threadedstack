@@ -1,5 +1,5 @@
 import type { TApiRes } from '@TAF/types'
-import type { TRole } from '@tdsk/domain'
+import type { TRole, TPermissionOverrides } from '@tdsk/domain'
 
 import { Role } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
@@ -26,7 +26,12 @@ export class ProjectMembersApi extends BaseApi {
   async add(
     orgId: string,
     projectId: string,
-    data: { userId: string; roleType: string }
+    data: {
+      userId?: string
+      email?: string
+      roleType: string
+      permissionOverrides?: TPermissionOverrides
+    }
   ): Promise<TApiRes<any>> {
     const resp = await this.api.post<any>({
       data,

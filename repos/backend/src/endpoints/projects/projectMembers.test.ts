@@ -247,12 +247,12 @@ describe(`Project Members endpoints`, () => {
       ).rejects.toThrow(`Authentication required`)
     })
 
-    it(`should throw 400 when userId is missing`, async () => {
+    it(`should throw 400 when userId and email are both missing`, async () => {
       mockReq.body = {}
 
       await expect(
         addProjectMember.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`userId is required`)
+      ).rejects.toThrow(`Either userId or email is required`)
     })
 
     it(`should throw 400 when target user is not an org member`, async () => {

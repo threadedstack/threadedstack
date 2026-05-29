@@ -100,10 +100,18 @@ export type TRoleUser = {
  * Context for permission checks.
  * Used by authorize middleware and checkPermission utility.
  */
+export enum EPermScope {
+  org = `org`,
+  project = `project`,
+}
+
+export type TPermScope = `${EPermScope}`
+
 export type TPermissionContext = {
   orgId?: string
   projectId?: string
   resourceId?: string
+  scopeType?: TPermScope
 }
 
 /**
@@ -111,3 +119,10 @@ export type TPermissionContext = {
  * Format: "resource:action" (e.g., "sandbox:exec", "org:read")
  */
 export type TPermission = `${EPermResource}:${EPermAction}`
+
+export type TProjectRules = Array<{ projectId: string; roleType: string }>
+export type TPermissionOverrides = Array<{
+  permission: TPermission
+  effect: string
+  projectId?: string
+}>

@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import type { ERoleType } from '@tdsk/domain'
-import { isSuperAdmin, Exception } from '@tdsk/domain'
 import { parsePagination } from '@TBE/utils/pagination'
+import { hasMinRole, isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
 
 /**
  * GET /Projects - List all Projects
@@ -24,12 +23,17 @@ export const listProjects: TEndpointConfig = {
     const { limit, offset } = parsePagination(req)
 
     if (orgId) {
-      const { data: orgRole } = await db.services.role.getOrgRole(userId, orgId)
+      const { data: orgRole, error: roleErr } = await db.services.role.getOrgRole(
+        userId,
+        orgId
+      )
+      if (roleErr)
+        throw new Exception(500, `Failed to resolve org role: ${roleErr.message}`)
 
-      // Note: Super admins intentionally see all projects across all orgs.
-      // This is by design for platform administration. Regular users
-      // are filtered to only see projects in their member orgs.
-      if (orgRole && isSuperAdmin(orgRole.type as ERoleType)) {
+      if (
+        isSuperAdmin(req.user?.role as ERoleType) ||
+        (orgRole && hasMinRole(orgRole.type as ERoleType, ERoleType.admin))
+      ) {
         const { data, error } = await db.services.project.list({
           limit,
           offset,

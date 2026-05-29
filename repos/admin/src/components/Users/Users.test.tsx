@@ -10,6 +10,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useUser: () => mockUseUser(),
   useActiveOrgRole: () => mockUseActiveOrgRole(),
   usePermissionOverrides: () => [undefined],
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 const mockLoadUsers = vi.fn()

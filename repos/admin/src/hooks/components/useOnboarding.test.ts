@@ -8,6 +8,7 @@ const mockSetOnboardingState = vi.fn()
 const mockResetOnboardingState = vi.fn()
 
 vi.mock('@TAF/state/selectors', () => ({
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
   useOnboardingState: () => [
     mockOnboardingState,
     mockSetOnboardingState,

@@ -3,8 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { authorize } from '@TBE/middleware/authorize'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, fromAuthHeaders } from '@tdsk/domain'
 
 /**
  * DELETE /subscriptions/current - Cancel current subscription
@@ -13,12 +12,17 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const cancelSubscription: TEndpointConfig = {
   path: `/current`,
   method: EPMethod.Delete,
-  middleware: [authorize(EPermAction.delete, EPermResource.subscription)],
+  middleware: [],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, payments } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
+    if (fromAuthHeaders(req).apiKeyId)
+      throw new Exception(
+        403,
+        `Subscription endpoints do not accept API key authentication`
+      )
 
     // Get user's subscription
     const subResult = await db.services.subscription.findByUser(userId)

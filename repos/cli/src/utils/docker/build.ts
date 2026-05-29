@@ -7,7 +7,7 @@ const addPlatforms = (platforms: string[] = emptyArr, push?: boolean) => {
   return platforms.length && push ? [`--platform`, platforms.join(`,`)] : emptyArr
 }
 
-const addTags = (ctx: TCtxCfg, tags: string[], image?: string) => {
+const addTags = (ctx: TCtxCfg, tags: string[] = [], image?: string) => {
   image = (image || ctx.image).split(`:`).shift()
 
   return tags.reduce(

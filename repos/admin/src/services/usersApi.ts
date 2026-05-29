@@ -1,4 +1,5 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
+import type { TProjectRules, TPermissionOverrides } from '@tdsk/domain'
 
 import { User } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
@@ -151,7 +152,12 @@ export class UsersApi extends BaseApi {
    */
   async inviteToOrg(
     orgId: string,
-    data: { email: string; roleType: string }
+    data: {
+      email: string
+      roleType: string
+      projectRoles?: TProjectRules
+      permissionOverrides?: TPermissionOverrides
+    }
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
       data,

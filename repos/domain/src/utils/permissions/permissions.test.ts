@@ -1,7 +1,7 @@
 import type { PermissionOverride } from '@TDM/models/permissionOverride'
 
 import { describe, it, expect } from 'vitest'
-import { ERoleType, EPermAction, EPermResource } from '@TDM/types'
+import { ERoleType, EPermAction, EPermResource, EPermScope } from '@TDM/types'
 import { RoleHierarchy, RoleTemplates } from '@TDM/constants/values'
 import {
   hasMinRole,
@@ -9,11 +9,15 @@ import {
   getRoleLevel,
   isSuperAdmin,
   canManageRole,
+  isValidEffect,
   getHighestRole,
   isValidRoleType,
+  isValidPermission,
   getAllowedActions,
-  buildRolePermissions,
   resolvePermissions,
+  buildRolePermissions,
+  buildScopedPermissions,
+  filterPermissionsByScope,
 } from '@TDM/utils/permissions'
 
 describe(`permissions utilities`, () => {
@@ -596,6 +600,180 @@ describe(`permissions utilities`, () => {
       expect(getAllowedActions(null, EPermResource.org)).toEqual([])
       expect(getAllowedActions(null, EPermResource.project)).toEqual([])
       expect(getAllowedActions(null, EPermResource.apiKey)).toEqual([])
+    })
+  })
+
+  describe(`isValidPermission`, () => {
+    it(`should return true for valid resource:action strings`, () => {
+      expect(isValidPermission(`org:read`)).toBe(true)
+      expect(isValidPermission(`sandbox:exec`)).toBe(true)
+      expect(isValidPermission(`secret:manage`)).toBe(true)
+      expect(isValidPermission(`apiKey:create`)).toBe(true)
+      expect(isValidPermission(`project:delete`)).toBe(true)
+    })
+
+    it(`should return false for strings with no colon`, () => {
+      expect(isValidPermission(`orgread`)).toBe(false)
+      expect(isValidPermission(``)).toBe(false)
+    })
+
+    it(`should return false for strings with more than one colon`, () => {
+      expect(isValidPermission(`org:read:extra`)).toBe(false)
+    })
+
+    it(`should return false for invalid resource`, () => {
+      expect(isValidPermission(`foo:read`)).toBe(false)
+      expect(isValidPermission(`notaresource:create`)).toBe(false)
+    })
+
+    it(`should return false for invalid action`, () => {
+      expect(isValidPermission(`org:fly`)).toBe(false)
+      expect(isValidPermission(`sandbox:superpower`)).toBe(false)
+    })
+
+    it(`should return false for valid resource with invalid action`, () => {
+      expect(isValidPermission(`org:dance`)).toBe(false)
+    })
+
+    it(`should return false for empty parts`, () => {
+      expect(isValidPermission(`:read`)).toBe(false)
+      expect(isValidPermission(`org:`)).toBe(false)
+    })
+  })
+
+  describe(`isValidEffect`, () => {
+    it(`should return true for 'grant'`, () => {
+      expect(isValidEffect(`grant`)).toBe(true)
+    })
+
+    it(`should return true for 'deny'`, () => {
+      expect(isValidEffect(`deny`)).toBe(true)
+    })
+
+    it(`should return false for anything else`, () => {
+      expect(isValidEffect(`allow`)).toBe(false)
+      expect(isValidEffect(`reject`)).toBe(false)
+      expect(isValidEffect(`GRANT`)).toBe(false)
+      expect(isValidEffect(`DENY`)).toBe(false)
+      expect(isValidEffect(``)).toBe(false)
+      expect(isValidEffect(`Grant`)).toBe(false)
+    })
+  })
+
+  describe(`filterPermissionsByScope`, () => {
+    it(`should return all permissions for org scope`, () => {
+      const perms = buildRolePermissions(ERoleType.member)
+      const result = filterPermissionsByScope(perms, EPermScope.org)
+      expect(result).toEqual(perms)
+    })
+
+    it(`should return all permissions when scope is null`, () => {
+      const perms = buildRolePermissions(ERoleType.member)
+      const result = filterPermissionsByScope(perms, null)
+      expect(result).toEqual(perms)
+    })
+
+    it(`should return only project-scoped permissions for project scope`, () => {
+      const perms = buildRolePermissions(ERoleType.admin)
+      const result = filterPermissionsByScope(perms, EPermScope.project)
+      // All returned perms must be project-scoped resources
+      for (const perm of result) {
+        const resource = perm.split(`:`)[0] as EPermResource
+        expect([
+          EPermResource.asset,
+          EPermResource.skill,
+          EPermResource.agent,
+          EPermResource.secret,
+          EPermResource.domain,
+          EPermResource.apiKey,
+          EPermResource.thread,
+          EPermResource.message,
+          EPermResource.project,
+          EPermResource.sandbox,
+          EPermResource.endpoint,
+          EPermResource.function,
+          EPermResource.schedule,
+          EPermResource.provider,
+          EPermResource.sandboxSession,
+        ]).toContain(resource)
+      }
+    })
+
+    it(`should exclude org-scoped permissions for project scope`, () => {
+      const perms = buildRolePermissions(ERoleType.admin)
+      const result = filterPermissionsByScope(perms, EPermScope.project)
+      const orgScopedResources = [
+        EPermResource.org,
+        EPermResource.user,
+        EPermResource.role,
+        EPermResource.quota,
+        EPermResource.invitation,
+        EPermResource.adminPanel,
+        EPermResource.subscription,
+      ]
+      for (const perm of result) {
+        const resource = perm.split(`:`)[0]
+        expect(orgScopedResources).not.toContain(resource)
+      }
+    })
+
+    it(`should not include org:read in project-scoped result`, () => {
+      const perms = buildRolePermissions(ERoleType.member)
+      const result = filterPermissionsByScope(perms, EPermScope.project)
+      expect(result).not.toContain(`org:read`)
+    })
+
+    it(`should include sandbox:exec in project-scoped result`, () => {
+      const perms = buildRolePermissions(ERoleType.member)
+      const result = filterPermissionsByScope(perms, EPermScope.project)
+      expect(result).toContain(`sandbox:exec`)
+    })
+
+    it(`should return empty array when input is empty`, () => {
+      expect(filterPermissionsByScope([], EPermScope.project)).toEqual([])
+      expect(filterPermissionsByScope([], EPermScope.org)).toEqual([])
+    })
+  })
+
+  describe(`buildScopedPermissions`, () => {
+    it(`should return full permission set for org scope`, () => {
+      const scoped = buildScopedPermissions(ERoleType.member, EPermScope.org)
+      const full = buildRolePermissions(ERoleType.member)
+      expect(scoped).toEqual(full)
+    })
+
+    it(`should return full permission set when scope is null`, () => {
+      const scoped = buildScopedPermissions(ERoleType.member, null)
+      const full = buildRolePermissions(ERoleType.member)
+      expect(scoped).toEqual(full)
+    })
+
+    it(`should return subset for project scope (excludes org-level perms)`, () => {
+      const scoped = buildScopedPermissions(ERoleType.admin, EPermScope.project)
+      const full = buildRolePermissions(ERoleType.admin)
+      expect(scoped.length).toBeLessThan(full.length)
+    })
+
+    it(`should not include org:delete in project-scoped owner permissions`, () => {
+      const scoped = buildScopedPermissions(ERoleType.owner, EPermScope.project)
+      expect(scoped).not.toContain(`org:delete`)
+    })
+
+    it(`should not include org:update in project-scoped admin permissions`, () => {
+      const scoped = buildScopedPermissions(ERoleType.admin, EPermScope.project)
+      expect(scoped).not.toContain(`org:update`)
+    })
+
+    it(`should include project-scoped permissions like sandbox:exec`, () => {
+      const scoped = buildScopedPermissions(ERoleType.member, EPermScope.project)
+      expect(scoped).toContain(`sandbox:exec`)
+      expect(scoped).toContain(`project:read`)
+      expect(scoped).toContain(`agent:create`)
+    })
+
+    it(`should return empty array for super (super bypasses all checks)`, () => {
+      expect(buildScopedPermissions(ERoleType.super, EPermScope.project)).toEqual([])
+      expect(buildScopedPermissions(ERoleType.super, EPermScope.org)).toEqual([])
     })
   })
 

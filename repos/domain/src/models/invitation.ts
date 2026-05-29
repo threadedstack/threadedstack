@@ -1,4 +1,8 @@
-import type { TInviteStatus } from '@TDM/types'
+import type {
+  TInviteStatus,
+  TInvitationProjectRole,
+  TInvitationPermOverride,
+} from '@TDM/types'
 
 import { Base } from '@TDM/models/base'
 import { EInviteStatus } from '@TDM/types'
@@ -22,6 +26,8 @@ export class Invitation extends Base {
   expiresAt: string | Date
   acceptedAt?: string | Date
   status: TInviteStatus | string
+  projectRoles?: TInvitationProjectRole[]
+  permissionOverrides?: TInvitationPermOverride[]
 
   constructor(data: Partial<Invitation>) {
     super()

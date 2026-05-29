@@ -41,8 +41,21 @@ const releaseAct: TTaskAction = async (args) => {
     await docker.login(args)
     for (const name of config.release.docker) {
       Logger.pair(`  Building`, name)
-      const ctx = getCtx({ ...args, params: { ...params, context: name } })
-      await docker.build({ ...args, ctx, params: { ...params, push: true } })
+      try {
+        const ctx = getCtx({ ...args, params: { ...params, context: name } })
+        await docker.build({
+          ...args,
+          ctx,
+          params: {
+            ...params,
+            push: true,
+            platforms: params?.platforms || [`linux/amd64`, `linux/arm64`],
+          },
+        })
+      } catch (err) {
+        Logger.error(err)
+        throw err
+      }
     }
     Logger.success(`[2/5] All images built and pushed.`)
   }

@@ -148,9 +148,39 @@ describe(`Endpoint projects`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
     })
 
-    it(`should filter by orgId and project roles when provided`, async () => {
+    it(`should return all org projects for org admin`, async () => {
+      const mockProjects = [
+        { id: `1`, name: `Project A` },
+        { id: `2`, name: `Project B` },
+      ]
+      mockReq.params = { orgId: `org-1` }
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockProjects })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects, limit: 50, offset: 0 })
+    })
+
+    it(`should filter by orgId and project roles for org members`, async () => {
       const mockProjects = []
       mockReq.params = { orgId: `org-1` }
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
@@ -179,7 +209,7 @@ describe(`Endpoint projects`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, id: [`project-1`] },
+        where: { orgId: `org-1` },
         limit: 10,
         offset: 5,
       })
@@ -199,6 +229,65 @@ describe(`Endpoint projects`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Database connection failed`
       )
+    })
+
+    it(`should return all org projects for super admin without org role`, async () => {
+      const mockProjects = [
+        { id: `1`, name: `Project A` },
+        { id: `2`, name: `Project B` },
+        { id: `3`, name: `Project C` },
+      ]
+      mockReq.params = { orgId: `org-1` }
+      // Super admin on req.user.role but no org membership (getOrgRole returns null)
+      mockReq.user = {
+        id: `super-user-id`,
+        email: `super@example.com`,
+        role: `super`,
+      } as any
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: null })
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockProjects })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // Super admin bypasses org role check and gets all org projects
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: mockProjects,
+        limit: 50,
+        offset: 0,
+      })
+    })
+
+    it(`should not use projectId from query params for role resolution`, async () => {
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { projectId: `project-owner-1` }
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetProjectRole = mockReq.app?.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGetProjectRole).not.toHaveBeenCalled()
     })
   })
 

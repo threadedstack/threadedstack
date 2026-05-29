@@ -9,6 +9,7 @@ vi.mock(`@TAF/actions/apiKeys`, () => ({
 vi.mock(`@TAF/state/selectors`, () => ({
   useUser: () => [{ id: `auth-user`, role: `admin` }],
   useActiveOrgId: () => [`org-1`],
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`@tdsk/domain`, async () => {

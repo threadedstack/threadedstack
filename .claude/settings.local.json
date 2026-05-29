@@ -140,7 +140,9 @@
       "Skill(hookify:hookify)",
       "Bash(npm root *)",
       "Bash(command *)",
-      "Bash(tee *)"
+      "Bash(tee *)",
+      "Bash(xargs -I {} date -r {})",
+      "Bash(civo version *)"
     ]
   },
   "sandbox": {

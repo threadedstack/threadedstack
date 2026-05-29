@@ -467,7 +467,7 @@ describe(`Invitations endpoints`, () => {
       )
     })
 
-    it(`should return 400 when user is already a member`, async () => {
+    it(`should return 200 when user is already a member and mark invitation accepted`, async () => {
       const mockInvitation = {
         id: `inv-1`,
         email: `test@example.com`,
@@ -483,12 +483,23 @@ describe(`Invitations endpoints`, () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
 
+      const mockAccept = mockReq.app?.locals.db.services.invitation.accept as ReturnType<
+        typeof vi.fn
+      >
+      mockAccept.mockResolvedValue({ data: true })
+
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
       mockGetOrgRole.mockResolvedValue({ data: { id: `existing-role` } })
 
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `You are already a member of this organization`
-      )
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockAccept).toHaveBeenCalledWith(`inv-1`, `test-user-id`)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        data: { id: `existing-role` },
+        message: `You are already a member of this organization`,
+      })
     })
 
     it(`should return 500 when role creation fails`, async () => {

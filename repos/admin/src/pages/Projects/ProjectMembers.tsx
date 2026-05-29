@@ -1,21 +1,44 @@
-import type { TRoleType } from '@tdsk/domain'
+import type { TRoleType, TPermission } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
-import { ERoleType } from '@tdsk/domain'
 import { Page } from '@TAF/pages/Page/Page'
-import { AuthRoles } from '@TAF/constants/values'
+import { ProjectRoles } from '@TAF/constants/values'
 import { listOrgUsers } from '@TAF/actions/users'
+import { isEmail } from '@keg-hub/jsutils/isEmail'
 import { useState, useEffect, useMemo } from 'react'
-import { Box, Chip, Typography } from '@mui/material'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { UserSelectorSingle } from '@TAF/components/Selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ERoleType, EPermScope, buildScopedPermissions } from '@tdsk/domain'
+import { PermissionsPicker } from '@TAF/components/Permissions/PermissionsPicker'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { PersonAdd as PersonAddIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import { Drawer, SelectInput, DrawerActions, ConfirmDelete } from '@tdsk/components'
+import {
+  Drawer,
+  TextInput,
+  SelectInput,
+  DrawerActions,
+  ConfirmDelete,
+} from '@tdsk/components'
+import {
+  Delete as DeleteIcon,
+  PersonAdd as PersonAddIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+} from '@mui/icons-material'
+import {
+  Box,
+  Chip,
+  Button,
+  Tooltip,
+  Divider,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
 import {
   useOrgUsers,
   useActiveOrgId,
@@ -41,6 +64,7 @@ export const ProjectMembers = () => {
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
   const [projectMembersMap] = useActiveProjectMembers()
+  const { canInviteUsers } = usePermissions()
 
   const orgUsers = useMemo(() => orgUsersMap?.[orgId] || [], [orgUsersMap, orgId])
 
@@ -54,6 +78,15 @@ export const ProjectMembers = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<ERoleType>(ERoleType.member)
   const [memberToRemove, setMemberToRemove] = useState<TProjectMember | null>(null)
+  const [inviteMode, setInviteMode] = useState<'select' | 'invite'>('select')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [permOverrides, setPermOverrides] = useState<TPermission[]>([])
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const availablePermissions = useMemo(
+    () => buildScopedPermissions(selectedRole, EPermScope.project),
+    [selectedRole]
+  )
 
   const loadMembers = async () => {
     if (!orgId || !projectId) return
@@ -112,25 +145,60 @@ export const ProjectMembers = () => {
     setAddDrawerOpen(true)
   }
 
+  const resetDrawer = () => {
+    setAddDrawerOpen(false)
+    setSelectedUserId(null)
+    setSelectedRole(ERoleType.member)
+    setInviteMode('select')
+    setInviteEmail('')
+    setPermOverrides([])
+    setShowAdvanced(false)
+  }
+
   const onAdd = async () => {
-    if (!orgId || !projectId || !selectedUserId) return
-    setLoading(true)
-    try {
-      await addProjectMember({
-        orgId,
-        projectId,
-        roleType: selectedRole,
-        userId: selectedUserId,
-      })
-      toast.success(`Member added successfully`)
-      setAddDrawerOpen(false)
-      setSelectedUserId(null)
-      setSelectedRole(ERoleType.member)
-    } catch (err) {
-      toast.error(`Failed to add member`)
-    } finally {
-      setLoading(false)
+    if (!orgId || !projectId) return
+
+    if (inviteMode === 'select' && !selectedUserId) return
+    if (inviteMode === 'invite') {
+      if (!inviteEmail.trim() || !isEmail(inviteEmail)) {
+        toast.error(`Please enter a valid email address`)
+        return
+      }
     }
+
+    setLoading(true)
+    const result = await addProjectMember({
+      orgId,
+      projectId,
+      roleType: selectedRole,
+      ...(inviteMode === 'select'
+        ? { userId: selectedUserId! }
+        : { email: inviteEmail.trim() }),
+      ...(permOverrides.length && {
+        permissionOverrides: permOverrides.map((p) => ({
+          permission: p,
+          effect: 'grant' as const,
+        })),
+      }),
+    })
+    setLoading(false)
+
+    if (result?.error) {
+      toast.error(result.error.message || `Failed to add member`)
+      return
+    }
+
+    const warnings = (result?.data as any)?.warnings as string[] | undefined
+    if (warnings?.length)
+      toast.warning(
+        `${inviteMode === 'invite' ? 'Invitation sent' : 'Member added'}, but: ${warnings.join('; ')}`
+      )
+    else
+      toast.success(
+        inviteMode === 'invite' ? `Invitation sent` : `Member added successfully`
+      )
+
+    resetDrawer()
   }
 
   const onRemoveClick = (member: TProjectMember) => {
@@ -150,14 +218,19 @@ export const ProjectMembers = () => {
       toast.success(`Member removed successfully`)
       setDeleteDialogOpen(false)
       setMemberToRemove(null)
-    } catch (err) {
-      toast.error(`Failed to remove member`)
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to remove member`)
     } finally {
       setLoading(false)
     }
   }
 
   if (!orgId || !projectId) return null
+
+  const canSubmit =
+    inviteMode === `select`
+      ? !loading && !!selectedUserId
+      : !loading && !!inviteEmail.trim()
 
   const columns: TDataTableColumn<TProjectMember>[] = [
     {
@@ -251,46 +324,117 @@ export const ProjectMembers = () => {
 
         <Drawer
           open={addDrawerOpen}
-          onClose={() => setAddDrawerOpen(false)}
+          onClose={resetDrawer}
           title='Add Project Member'
           actions={
             <DrawerActions
               form='add-member-form'
               actions={{
-                save: { onClick: onAdd, text: 'Add Member' },
-                cancel: { onClick: () => setAddDrawerOpen(false) },
+                save: {
+                  onClick: onAdd,
+                  text: inviteMode === 'invite' ? 'Send Invite' : 'Add Member',
+                },
+                cancel: { onClick: resetDrawer },
               }}
               loading={loading}
-              disabled={loading || !selectedUserId}
+              disabled={!canSubmit}
             />
           }
         >
-          <Box sx={{ p: 2 }}>
-            <Typography
-              sx={{ mb: 2 }}
-              variant='body2'
-              color='text.secondary'
+          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              size='small'
+              value={inviteMode}
+              onChange={(_, val) => val && setInviteMode(val)}
             >
-              Select an organization member to add to this project.
-            </Typography>
-            <UserSelectorSingle
-              userId={selectedUserId}
-              onChange={setSelectedUserId}
-              users={availableUsers.map((u) => ({
-                id: u.id,
-                email: u.email,
-                name: u.displayName || u.email || u.id,
-              }))}
-            />
+              <ToggleButton value='select'>Existing Member</ToggleButton>
+              <Tooltip
+                title={!canInviteUsers ? 'Requires org-level invitation permissions' : ''}
+              >
+                <span style={{ flex: 1 }}>
+                  <ToggleButton
+                    value='invite'
+                    disabled={!canInviteUsers}
+                    sx={{ width: '100%' }}
+                  >
+                    Invite by Email
+                  </ToggleButton>
+                </span>
+              </Tooltip>
+            </ToggleButtonGroup>
+
+            {inviteMode === 'select' ? (
+              <>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  Select an organization member to add to this project.
+                </Typography>
+                <UserSelectorSingle
+                  userId={selectedUserId}
+                  onChange={setSelectedUserId}
+                  users={availableUsers.map((u) => ({
+                    id: u.id,
+                    email: u.email,
+                    name: u.displayName || u.email || u.id,
+                  }))}
+                />
+              </>
+            ) : (
+              <>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  Invite a new user by email. They will be added to the organization and
+                  this project.
+                </Typography>
+                <TextInput
+                  required
+                  fullWidth
+                  type='email'
+                  value={inviteEmail}
+                  id='invite-email'
+                  disabled={loading}
+                  label='Email Address'
+                  placeholder='user@example.com'
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </>
+            )}
+
             <SelectInput
               label='Role'
               id='member-role'
-              items={AuthRoles}
+              items={ProjectRoles}
               value={selectedRole}
               onChange={(e) =>
                 setSelectedRole((e.target.value as ERoleType) || ERoleType.member)
               }
             />
+
+            <Divider />
+
+            <Box>
+              <Button
+                size='small'
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                endIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              >
+                Granular Permissions
+              </Button>
+              {showAdvanced && (
+                <PermissionsPicker
+                  selected={permOverrides}
+                  available={availablePermissions}
+                  onChange={setPermOverrides}
+                  disabled={loading}
+                />
+              )}
+            </Box>
           </Box>
         </Drawer>
 

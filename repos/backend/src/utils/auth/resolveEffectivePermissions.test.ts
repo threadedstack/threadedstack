@@ -391,6 +391,32 @@ describe(`resolveEffectivePermissions`, () => {
     expect(req.app.locals.db.services.apiKey.get).not.toHaveBeenCalled()
   })
 
+  it(`should filter to project-scope only when API key has projectId set`, async () => {
+    const req = buildMockReq()
+    mockGetUserRole.mockResolvedValue(ERoleType.admin)
+    mockFromAuthHeaders.mockReturnValue({ apiKeyId: `key-project-scoped` })
+
+    const apiKeySvc = req.app.locals.db.services.apiKey
+    ;(apiKeySvc.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      // API key is project-scoped (has a projectId) with full admin permissions listed
+      data: {
+        projectId: `proj-1`,
+        permissions: null, // null means no additional intersection — only scope filtering applies
+      },
+    })
+
+    const result = await resolveEffectivePermissions(req, { orgId: `org-1` })
+
+    const permissions = result as Set<TPermission>
+    // Org-level permissions must be stripped for project-scoped API keys
+    expect(permissions.has(`org:delete`)).toBe(false)
+    expect(permissions.has(`org:update`)).toBe(false)
+    expect(permissions.has(`org:manage`)).toBe(false)
+    // Project-scoped permissions should still be present
+    expect(permissions.has(`sandbox:exec`)).toBe(true)
+    expect(permissions.has(`project:read`)).toBe(true)
+  })
+
   it(`should throw 401 when API key is not found (revoked/deleted)`, async () => {
     const req = buildMockReq()
     mockGetUserRole.mockResolvedValue(ERoleType.member)

@@ -3,10 +3,10 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermScope, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /api-keys - List all API keys (masked)
@@ -25,8 +25,15 @@ export const listApiKeys: TEndpointConfig = {
       : req.query.active
     const active = rawActive !== undefined ? rawActive === `true` : true
 
-    // Require orgId — keys are listed under /orgs/:orgId even when project-scoped (exclusive arc)
     if (!orgId) throw new Exception(400, `orgId parameter required`)
+
+    if (projectId) {
+      await checkPermission(req, EPermAction.read, EPermResource.apiKey, {
+        orgId,
+        projectId: projectId as string,
+        scopeType: EPermScope.project,
+      })
+    }
 
     const { limit, offset } = parsePagination(req)
 

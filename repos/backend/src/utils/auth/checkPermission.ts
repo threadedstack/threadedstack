@@ -1,13 +1,13 @@
 import type { TRequest } from '@TBE/types'
 import type {
-  ERoleType,
   EPermAction,
-  EPermResource,
   TPermission,
+  EPermResource,
   TPermissionContext,
 } from '@tdsk/domain'
 
-import { Exception, getHighestRole } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { ERoleType, EPermScope, Exception, getHighestRole } from '@tdsk/domain'
 import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 
 /**
@@ -33,12 +33,10 @@ export const getUserRole = async (
       context.orgId
     )
     if (orgErr) throw new Exception(500, `Role lookup failed: ${orgErr.message}`)
-    if (orgRole?.type) {
-      roles.push(orgRole.type as ERoleType)
-    }
+    if (orgRole?.type) roles.push(orgRole.type as ERoleType)
   }
 
-  if (context.projectId) {
+  if (context.projectId && context.scopeType !== EPermScope.org) {
     const { data: projectRole, error: projErr } = await db.services.role.getProjectRole(
       userId,
       context.projectId
@@ -46,6 +44,14 @@ export const getUserRole = async (
     if (projErr) throw new Exception(500, `Role lookup failed: ${projErr.message}`)
     if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
+
+  if (roles.length === 0 && (context.orgId || context.projectId))
+    logger.warn({
+      userId,
+      orgId: context.orgId,
+      projectId: context.projectId,
+      message: `getUserRole found no roles for user in scope`,
+    })
 
   return roles.length > 0 ? getHighestRole(roles) : null
 }
@@ -64,12 +70,12 @@ export const checkPermission = async (
 ): Promise<void> => {
   const permissions = await resolveEffectivePermissions(req, context)
 
-  if (permissions === 'super') return
+  if (permissions === ERoleType.super) return
 
   const permission: TPermission = `${resource}:${action}`
-  if (!permissions.has(permission)) {
+  if (!permissions.has(permission))
     throw new Exception(403, `Permission denied: requires ${permission}`, `FORBIDDEN`)
-  }
-  // Cache resolved permissions on request for downstream use
+
+    // Cache resolved permissions on request for downstream use
   ;(req as any).permissions = permissions
 }

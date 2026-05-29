@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router'
 
 import { WaitlistedCode } from '@tdsk/domain'
+import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
 import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
@@ -102,6 +103,7 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
 
   setActiveOrgId(orgId)
+  safeFetch(() => fetchOrg(orgId))
   await safeFetch(() => fetchProjects({ orgId }))
   return null
 }

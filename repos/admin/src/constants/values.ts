@@ -53,6 +53,21 @@ export const AuthRoles = AllAuthRoles.map((role) => {
   return role.value === ERoleType.super ? { ...role, disabled: true } : role
 })
 
+export const ProjectRoles = [
+  {
+    value: ERoleType.member,
+    label: `Member - Standard project access`,
+  },
+  {
+    value: ERoleType.admin,
+    label: `Admin - Project settings and member management`,
+  },
+  {
+    value: ERoleType.owner,
+    label: `Owner - Full project management`,
+  },
+]
+
 export const AuthTypes = [
   { value: EEPAuthType.apikey, label: `API Key` },
   { value: EEPAuthType.basic, label: `Basic Auth` },

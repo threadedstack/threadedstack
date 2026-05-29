@@ -12,6 +12,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: (...args: any[]) => mockUseActiveOrgId(...args),
   // @ts-ignore
   useActiveProjectId: (...args: any[]) => mockUseActiveProjectId(...args),
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`react-router`, async () => {

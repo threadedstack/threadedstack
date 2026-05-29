@@ -18,6 +18,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
       },
     },
   ]),
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`@TAF/actions/threads/api/updateThread`, () => ({

@@ -8,7 +8,14 @@ import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 import { validateApiKey, validateApiKeyPermissions } from '@TBE/utils/auth/validateApiKey'
-import { ApiKey, EPermAction, EPermResource, generateApiKey } from '@tdsk/domain'
+import {
+  ApiKey,
+  EPermScope,
+  EPermAction,
+  EPermResource,
+  generateApiKey,
+  filterPermissionsByScope,
+} from '@tdsk/domain'
 
 /**
  * Validate that requested permissions are a subset of the target's effective permissions.
@@ -52,7 +59,21 @@ export const createApiKey: TEndpointConfig = {
     const { name, orgId, projectId, expiresAt, rateLimit } = keyData
     const requestedPermissions: TPermission[] = keyData.permissions || []
     const effectiveOrgId = orgId || req.params.orgId
-    const scopeContext = projectId ? { projectId } : { orgId: effectiveOrgId }
+    const scopeContext = projectId
+      ? { projectId, orgId: effectiveOrgId }
+      : { orgId: effectiveOrgId }
+
+    if (projectId && requestedPermissions.length > 0) {
+      const projectPerms = new Set(
+        filterPermissionsByScope(requestedPermissions, EPermScope.project)
+      )
+      const outOfScope = requestedPermissions.filter((p) => !projectPerms.has(p))
+      if (outOfScope.length > 0)
+        throw new Exception(
+          400,
+          `These permissions are not valid for a project-scoped key: ${outOfScope.join(', ')}`
+        )
+    }
 
     let targetUserId = req.user?.id
     if (keyData.userId && keyData.userId !== req.user?.id) {
@@ -112,8 +133,8 @@ export const createApiKey: TEndpointConfig = {
         keyHash: hash,
         keyPrefix: prefix,
         userId: targetUserId,
-        permissions: requestedPermissions,
         rateLimit: rateLimit || 100,
+        permissions: requestedPermissions,
         ...(orgId && { orgId }),
         ...(projectId && { projectId }),
         ...(expiresAt && { expiresAt: new Date(expiresAt) }),

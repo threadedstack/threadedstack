@@ -7,10 +7,10 @@
  */
 
 import type { PermissionOverride } from '@TDM/models/permissionOverride'
-import type { EPermResource, TPermCheckResult, TPermission } from '@TDM/types'
+import type { TPermCheckResult, TPermission } from '@TDM/types'
 
-import { ERoleType, EPermAction } from '@TDM/types'
-import { RoleHierarchy, RoleTemplates } from '@TDM/constants/values'
+import { ERoleType, EPermAction, EPermResource, EPermScope } from '@TDM/types'
+import { RoleHierarchy, RoleTemplates, ResourceScope } from '@TDM/constants/values'
 
 /**
  * Get the numeric level of a role in the hierarchy
@@ -97,6 +97,37 @@ export const resolvePermissions = (
   }
 
   return defaults
+}
+
+export const isValidPermission = (perm: string): perm is TPermission => {
+  const parts = perm.split(':')
+  if (parts.length !== 2) return false
+  const resources = Object.values(EPermResource) as string[]
+  const actions = Object.values(EPermAction) as string[]
+  return resources.includes(parts[0]) && actions.includes(parts[1])
+}
+
+export const isValidEffect = (effect: string): effect is `grant` | `deny` => {
+  return effect === `grant` || effect === `deny`
+}
+
+export const filterPermissionsByScope = (
+  permissions: TPermission[],
+  keyScope: EPermScope | null
+): TPermission[] => {
+  if (!keyScope || keyScope === EPermScope.org) return permissions
+
+  return permissions.filter((perm) => {
+    const resource = perm.split(':')[0] as EPermResource
+    return ResourceScope[resource] === EPermScope.project
+  })
+}
+
+export const buildScopedPermissions = (
+  role: ERoleType,
+  keyScope: EPermScope | null
+): TPermission[] => {
+  return filterPermissionsByScope(buildRolePermissions(role), keyScope)
 }
 
 /**

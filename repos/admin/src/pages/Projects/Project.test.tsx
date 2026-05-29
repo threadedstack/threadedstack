@@ -19,11 +19,12 @@ const mockUseActiveProject = vi.fn(() => [undefined])
 const mockUseActiveProjectId = vi.fn(() => [`project-1`])
 
 vi.mock(`@TAF/state/selectors`, () => ({
+  useProjectSecrets: () => [{}],
+  useProjectSandboxes: () => [{}],
   useActiveOrgId: () => mockUseActiveOrgId(),
   useActiveProject: () => mockUseActiveProject(),
   useActiveProjectId: () => mockUseActiveProjectId(),
-  useProjectSandboxes: () => [{}],
-  useProjectSecrets: () => [{}],
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
 }))
 
 vi.mock(`@TAF/pages/Page/Page`, () => ({

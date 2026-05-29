@@ -106,6 +106,7 @@ import {
   activeOrgState,
   activeOrgIdState,
   activeOrgRoleState,
+  activeOrgResolvedPermsState,
 } from '@TAF/state/orgs'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
@@ -139,6 +140,8 @@ export const useActiveOrgId = () => useRecState(activeOrgIdState)
 export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
 export const useActiveOrgRole = () =>
   useDerivedState<string | undefined>(activeOrgRoleState)
+export const useActiveOrgResolvedPerms = () =>
+  useDerivedState(activeOrgResolvedPermsState)
 
 export const useProjects = () => useRecState(projectsState)
 export const useActiveProjectId = () => useRecState(activeProjectIdState)

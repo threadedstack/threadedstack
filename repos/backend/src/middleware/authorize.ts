@@ -1,8 +1,8 @@
 import type { NextFunction } from 'express'
-import type { TPermissionContext, EPermAction, EPermResource } from '@tdsk/domain'
 import type { TRequest, TResponse } from '@TBE/types'
+import type { TPermissionContext, EPermAction, EPermResource } from '@tdsk/domain'
 
-import { fromAuthHeaders } from '@tdsk/domain'
+import { EPermScope, fromAuthHeaders } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -14,9 +14,11 @@ export const authorize = (action: EPermAction, resource: EPermResource) => {
   return async (req: TRequest, res: TResponse, next: NextFunction) => {
     try {
       const auth = fromAuthHeaders(req)
+      const projectId = req.params.projectId as string | undefined
       const context: TPermissionContext = {
+        projectId,
         resourceId: req.params.id,
-        projectId: req.params.projectId || (req.query?.projectId as string),
+        scopeType: projectId ? EPermScope.project : EPermScope.org,
         orgId: auth.orgId || req.params.orgId || (req.query?.orgId as string),
       }
 

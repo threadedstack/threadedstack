@@ -57,8 +57,17 @@ export const acceptInvitation: TEndpointConfig = {
       invitation.orgId
     )
 
-    if (existingRole)
-      throw new Exception(400, `You are already a member of this organization`)
+    if (existingRole) {
+      if (invitation.isPending()) {
+        await db.services.invitation.accept(invitation.id, user.id)
+      }
+      res.status(200).json({
+        success: true,
+        data: existingRole,
+        message: `You are already a member of this organization`,
+      })
+      return
+    }
 
     // Create the role
     const { data: newRole, error: roleError } = await db.services.role.create({
@@ -69,15 +78,52 @@ export const acceptInvitation: TEndpointConfig = {
 
     if (roleError) throw new Exception(500, roleError.message)
 
-    // Mark invitation as accepted
+    const warnings: string[] = []
+
+    if (invitation.projectRoles?.length) {
+      for (const pr of invitation.projectRoles) {
+        const { error: prErr } = await db.services.role.create({
+          projectId: pr.projectId,
+          userId: user.id,
+          type: pr.roleType,
+        })
+        if (prErr) {
+          logger.error(`Failed to create project role for ${pr.projectId}:`, prErr)
+          warnings.push(`Failed to set up project access for ${pr.projectId}`)
+        }
+      }
+    }
+
+    if (invitation.permissionOverrides?.length) {
+      for (const po of invitation.permissionOverrides) {
+        const { error: poErr } = await db.services.permissionOverride.create({
+          userId: user.id,
+          permission: po.permission,
+          effect: po.effect,
+          reason: po.reason,
+          expiresAt: po.expiresAt,
+          grantedBy: invitation.invitedBy,
+          ...(po.projectId ? { projectId: po.projectId } : { orgId: invitation.orgId }),
+        })
+        if (poErr) {
+          logger.error(`Failed to create permission override:`, poErr)
+          warnings.push(`Failed to set ${po.permission} permission override`)
+        }
+      }
+    }
+
     const { error: acceptError } = await db.services.invitation.accept(
       invitation.id,
       user.id
     )
 
-    // Role was created but invitation wasn't updated - log the error but don't fail
-    acceptError &&
+    if (acceptError) {
       logger.error(`Failed to mark invitation ${invitation.id} as accepted:`, acceptError)
+      throw new Exception(
+        500,
+        `Failed to complete invitation acceptance. Please try again.`
+      )
+    }
 
     // Update seat quantity on Stripe if this member pushes past included seats
     try {
@@ -99,11 +145,16 @@ export const acceptInvitation: TEndpointConfig = {
           const tier = (ownerSub.tier || `free`) as ESubscriptionTier
           const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
           if (limits.additionalSeats) {
-            const { data: members } = await db.services.role.getOrgMembers(
-              invitation.orgId
-            )
-            const totalMembers = members?.length || 1
-            if (totalMembers > limits.seats) {
+            const { data: members, error: membersErr } =
+              await db.services.role.getOrgMembers(invitation.orgId)
+            if (membersErr)
+              logger.error(
+                `[acceptInvitation] Failed to get org members for seat update:`,
+                membersErr
+              )
+
+            const totalMembers = membersErr ? 0 : members?.length || 1
+            if (!membersErr && totalMembers > limits.seats) {
               const paidSeats = Math.max(0, totalMembers - limits.seats)
               await req.app.locals.payments.service.updateSeatQuantity(
                 ownerSub.stripeSubscriptionId,
@@ -121,6 +172,7 @@ export const acceptInvitation: TEndpointConfig = {
       success: true,
       data: newRole,
       message: `Successfully joined the organization`,
+      ...(warnings.length && { warnings }),
     })
   },
 }

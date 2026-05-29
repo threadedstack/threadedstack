@@ -17,10 +17,11 @@ const mockUseActiveOrg = vi.fn(() => [
 ])
 
 vi.mock(`@TAF/state/selectors`, () => ({
-  useActiveOrg: () => mockUseActiveOrg(),
-  useActiveOrgId: () => [`org-1`],
-  useUser: () => [{ id: `auth-user-1`, role: `admin` }],
   useOrgUsers: () => [{}],
+  useActiveOrgId: () => [`org-1`],
+  useActiveOrg: () => mockUseActiveOrg(),
+  useActiveOrgResolvedPerms: vi.fn(() => [undefined]),
+  useUser: () => [{ id: `auth-user-1`, role: `admin` }],
   useOnboardingState: () => [{ open: false, mode: `auto` }, vi.fn(), vi.fn()],
 }))
 

@@ -1,7 +1,13 @@
 import type { TBEConfig } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
-import type { User, Organization } from '@tdsk/domain'
 import type { EmailService } from '@TBE/services/email'
+import type {
+  User,
+  TRoleType,
+  Organization,
+  TInvitationProjectRole,
+  TInvitationPermOverride,
+} from '@tdsk/domain'
 
 import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
@@ -21,8 +27,10 @@ type TExistingUser = {
   user: User
   email: string
   inviter: User
-  roleType: string
   org: Organization
+  roleType: TRoleType
+  projectRoles?: TInvitationProjectRole[]
+  permissionOverrides?: TInvitationPermOverride[]
 }
 
 type TIsMember = {
@@ -36,12 +44,14 @@ type TInvited = {
 }
 
 type TNewUser = {
-  roleType: string
   inviter: User
   email: string
   org: Organization
+  roleType: TRoleType
   frontendUrl: string
   expiresInDays: number
+  projectRoles?: TInvitationProjectRole[]
+  permissionOverrides?: TInvitationPermOverride[]
 }
 
 export class InviteService {
@@ -56,7 +66,8 @@ export class InviteService {
   }
 
   existing = async (opts: TExistingUser) => {
-    const { org, user, roleType, email, inviter } = opts
+    const { org, user, email, inviter, roleType, projectRoles, permissionOverrides } =
+      opts
 
     const { data: newRole, error: createError } = await this.db.services.role.create({
       orgId: org.id,
@@ -66,7 +77,40 @@ export class InviteService {
 
     if (createError) throw new Exception(500, createError.message)
 
-    // Send notification email using EmailService
+    const failures: string[] = []
+
+    if (projectRoles?.length) {
+      for (const pr of projectRoles) {
+        const { error: prErr } = await this.db.services.role.create({
+          projectId: pr.projectId,
+          userId: user.id,
+          type: pr.roleType,
+        })
+        if (prErr) {
+          logger.error(`Failed to create project role for ${pr.projectId}:`, prErr)
+          failures.push(`project role for ${pr.projectId}`)
+        }
+      }
+    }
+
+    if (permissionOverrides?.length) {
+      for (const po of permissionOverrides) {
+        const { error: poErr } = await this.db.services.permissionOverride.create({
+          userId: user.id,
+          effect: po.effect,
+          reason: po.reason,
+          grantedBy: inviter?.id,
+          expiresAt: po.expiresAt,
+          permission: po.permission,
+          ...(po.projectId ? { projectId: po.projectId } : { orgId: org.id }),
+        })
+        if (poErr) {
+          logger.error(`Failed to create permission override:`, poErr)
+          failures.push(`permission override ${po.permission}`)
+        }
+      }
+    }
+
     if (this.email) {
       const emailSent = await this.email.sendMemberNotification({
         email,
@@ -76,14 +120,26 @@ export class InviteService {
         inviterName: inviter?.name || inviter?.email || `A team member`,
       })
 
-      !emailSent && logger.warn(`Failed to send notification email to ${email}`)
+      if (!emailSent) {
+        logger.error(`Failed to send notification email to ${email}`)
+        failures.push(`notification email to ${email}`)
+      }
     }
 
-    return newRole
+    return { role: newRole, warnings: failures }
   }
 
   create = async (opts: TNewUser) => {
-    const { org, email, inviter, roleType, frontendUrl, expiresInDays } = opts
+    const {
+      org,
+      email,
+      inviter,
+      roleType,
+      frontendUrl,
+      expiresInDays,
+      projectRoles,
+      permissionOverrides,
+    } = opts
 
     const token = generateInvitationToken()
     const expiresAt = getInvitationExpiration(expiresInDays)
@@ -92,16 +148,20 @@ export class InviteService {
       await this.db.services.invitation.create({
         email,
         token,
+        roleType,
         expiresAt,
         orgId: org.id,
-        roleType,
         invitedBy: inviter?.id,
         status: EInviteStatus.pending,
+        ...(projectRoles?.length && { projectRoles }),
+        ...(permissionOverrides?.length && { permissionOverrides }),
       })
 
     if (invitationError) throw new Exception(500, invitationError.message)
 
     // Send invitation email using EmailService
+    const warnings: string[] = []
+
     if (this.email) {
       const emailSent = await this.email.invitation({
         email,
@@ -112,10 +172,13 @@ export class InviteService {
         invitationUrl: `${frontendUrl}/invitations/accept?token=${token}`,
       })
 
-      !emailSent && logger.warn(`Failed to send invitation email to ${email}`)
+      if (!emailSent) {
+        logger.error(`Failed to send invitation email to ${email}`)
+        warnings.push(`invitation email to ${email}`)
+      }
     }
 
-    return invite
+    return { invite, warnings }
   }
 
   isMember = async (params: TIsMember) => {
