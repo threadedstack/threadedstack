@@ -3,7 +3,7 @@ import { EWSEventType, EHttpMethod } from '@tdsk/domain'
 
 export const sigs = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 
-export const AuthIgnore = [`/`, `/health`, `/payments/webhooks`]
+export const AuthIgnore = [`/`, `/health`, `/payments/webhooks`, `/subscriptions/plans`]
 
 export const LoggerIgnore = {
   methods: [`OPTIONS`],
@@ -26,6 +26,13 @@ export const ClientMsgTypes: ReadonlySet<string> = new Set<string>([
   EWSEventType.UpdateConfig,
   EWSEventType.WorkspaceManifest,
 ])
+
+/**
+ * Payment plan cache timeout
+ * Stripe payment service implementation.
+ * Handles subscriptions, checkout, portal sessions, and webhook processing.
+ */
+export const PlansCacheTtl = 300_000
 
 // Retry on specific HTTP status codes
 // 408: Request Timeout

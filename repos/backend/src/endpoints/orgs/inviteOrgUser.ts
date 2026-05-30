@@ -219,7 +219,8 @@ export const inviteOrgUser: TEndpointConfig = {
       expiresInDays,
       inviter: req.user,
       permissionOverrides,
-      frontendUrl: config.frontendUrl,
+      adminUrl: config.urls.admin,
+      threadsUrl: config.urls.threads,
       roleType: roleType as TRoleType,
       projectRoles: projectRoles as Array<{ projectId: string; roleType: TRoleType }>,
     })

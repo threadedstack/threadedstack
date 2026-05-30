@@ -3,10 +3,10 @@ import type { TRequest, TResponse } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
 import {
-  isFeatureEnabled,
   ApprovedRole,
   WaitlistRole,
   WaitlistedCode,
+  isFeatureEnabled,
 } from '@tdsk/domain'
 
 export const accessGate = async (req: TRequest, res: TResponse, next: NextFunction) => {
@@ -38,7 +38,8 @@ export const accessGate = async (req: TRequest, res: TResponse, next: NextFuncti
         email
           .waitlistNotification({
             email: user.email,
-            frontendUrl: config.frontendUrl,
+            adminUrl: config.urls.admin,
+            threadsUrl: config.urls.threads,
           })
           .catch((err: unknown) => {
             logger.error(

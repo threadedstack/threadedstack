@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Threaded Stack</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+    <h1 style="color: #1a73e8; margin-top: 0;">Welcome to Threaded Stack</h1>
+
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      {{#if name}}Hi {{name}},{{else}}Hi there,{{/if}}
+    </p>
+
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      You now have a place to run AI coding agents with you or your team's context, secrets, and guardrails built in. No setup to reconstruct, no keys to paste, no environments to babysit.
+      <br/>
+      Run agents in seconds.
+      <br/>
+      Four sandboxes come ready out of the box: Claude Code, Codex, OpenCode, and Base. Start one with a single command:
+      <br/>
+      <code>
+        <pre>
+          tsa run <sandbox-id>
+        <pre>
+      </code>
+      <br/>
+      It boots the sandbox, syncs your files, and launches your tool. That's it.
+      <br/>
+      Prefer the browser? Open the <a href="{{threadsUrl}}" >Threads app</a> for full web UI and terminal access to your sandboxes; no local install required.
+      <br/>
+      Bring the tools you already use.
+      <br/>
+      Claude Code, Codex, OpenCode, or your own custom agent; anything that runs in a container works as-is. No new framework to learn.
+      <br/>
+      Secrets your agents never see.
+      <br/>
+      Reference a secret by name and our proxy injects the real value at the network layer, outside the agent's reach. Rotate it once and every agent picks it up on the next request.
+      <br/>
+      Share setup across your team.
+      <br/>
+      Define secrets, tools, and configs once at the org or project level. Everyone inherits them. One source of truth instead of scattered READMEs.
+      <br/>
+      Ready when you are.
+      <br/>
+    </p>
+
+    <div style="background-color: #fff; border-left: 4px solid #1a73e8; padding: 15px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px;">
+        <strong>Email:</strong> {{email}}
+      </p>
+    </div>
+
+    <a href="{{adminUrl}}"
+       style="display: inline-block; background-color: #1a73e8; color: #fff; text-decoration: none;
+              padding: 12px 30px; border-radius: 4px; font-weight: bold; margin: 20px 0;">
+      Get Started
+    </a>
+
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      If you have any questions, check out our documentation or reach out to our team.
+    </p>
+  </div>
+
+  <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; font-size: 12px; color: #999;">
+    <p>This is an automated email from Threaded Stack. Please do not reply to this message.</p>
+  </div>
+</body>
+</html>

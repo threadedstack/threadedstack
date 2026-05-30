@@ -48,7 +48,8 @@ type TNewUser = {
   email: string
   org: Organization
   roleType: TRoleType
-  frontendUrl: string
+  adminUrl: string
+  threadsUrl: string
   expiresInDays: number
   projectRoles?: TInvitationProjectRole[]
   permissionOverrides?: TInvitationPermOverride[]
@@ -116,7 +117,7 @@ export class InviteService {
         email,
         roleType,
         orgName: org.name,
-        orgUrl: `${this.config.frontendUrl}/orgs/${org.id}`,
+        orgUrl: `${this.config.urls.admin}/orgs/${org.id}`,
         inviterName: inviter?.name || inviter?.email || `A team member`,
       })
 
@@ -134,8 +135,8 @@ export class InviteService {
       org,
       email,
       inviter,
+      adminUrl,
       roleType,
-      frontendUrl,
       expiresInDays,
       projectRoles,
       permissionOverrides,
@@ -169,7 +170,7 @@ export class InviteService {
         expiresInDays,
         orgName: org.name,
         inviterName: inviter?.name || inviter?.email || `A team member`,
-        invitationUrl: `${frontendUrl}/invitations/accept?token=${token}`,
+        invitationUrl: `${adminUrl}/invitations/accept?token=${token}`,
       })
 
       if (!emailSent) {

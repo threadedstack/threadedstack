@@ -1,4 +1,4 @@
-import { PlanLimits } from '@tdsk/domain'
+import type { Plan } from '@tdsk/domain'
 
 export type PricingTier = {
   name: string
@@ -16,77 +16,80 @@ const fmt = (value: number, suffix?: string): string => {
   return suffix ? `${formatted}${suffix}` : formatted
 }
 
-const free = PlanLimits.free
-const solo = PlanLimits.solo
-const pro = PlanLimits.pro
-const team = PlanLimits.team
+const fmtPrice = (cents: number): string => {
+  if (cents === 0) return '$0/mo'
+  return `$${cents / 100}/mo`
+}
 
-export const tiers: PricingTier[] = [
-  {
-    name: 'Free',
-    price: '$0/mo',
-    description: 'For experimenting and learning.',
-    features: [
-      { label: `${fmt(free.sandboxSessions)} Sandbox Session`, included: true },
-      { label: `${fmt(free.projects)} Projects`, included: true },
-      { label: `${fmt(free.seats)} Seat`, included: true },
-      { label: `${fmt(free.secrets)} Secrets`, included: true },
-      { label: `${fmt(free.endpoints)} Endpoints`, included: true },
-      { label: `${fmt(free.compute)} Compute units`, included: true },
-      { label: 'Community Support', included: true },
-      { label: 'Custom Domains', included: false },
-    ],
-    cta: 'Get Started Free',
+const fmtSeatPrice = (cents: number): string | undefined => {
+  if (!cents) return undefined
+  return `+$${cents / 100}/seat/mo`
+}
+
+type TierMeta = {
+  cta: string
+  support: string
+  description: string
+  highlighted?: boolean
+  customDomains: boolean
+}
+
+const tierMeta: Record<string, TierMeta> = {
+  free: {
+    description: `For experimenting and learning.`,
+    cta: `Get Started Free`,
+    support: `Community Support`,
+    customDomains: false,
   },
-  {
-    name: 'Solo',
-    price: '$15/mo',
-    description: 'For solo developers shipping real projects.',
-    features: [
-      { label: `${fmt(solo.sandboxSessions)} Sandbox Sessions`, included: true },
-      { label: `${fmt(solo.projects)} Projects`, included: true },
-      { label: `${fmt(solo.seats)} Seat`, included: true },
-      { label: `${fmt(solo.secrets)} Secrets`, included: true },
-      { label: `${fmt(solo.endpoints)} Endpoints`, included: true },
-      { label: `${fmt(solo.compute)} Compute units`, included: true },
-      { label: 'Email Support', included: true },
-      { label: 'Custom Domains', included: false },
-    ],
-    cta: 'Start Solo',
+  solo: {
+    cta: `Start Solo`,
+    customDomains: false,
+    support: `Email Support`,
+    description: `For solo developers shipping real projects.`,
   },
-  {
-    name: 'Pro',
-    price: '$39/mo',
-    description: 'For small teams building together.',
+  pro: {
+    cta: `Start Pro`,
     highlighted: true,
-    subtitle: '+$10/seat/mo',
-    features: [
-      { label: `${fmt(pro.sandboxSessions)} Sandbox Sessions`, included: true },
-      { label: `${fmt(pro.projects)} Projects`, included: true },
-      { label: `${fmt(pro.seats)} Seats included`, included: true },
-      { label: `${fmt(pro.secrets)} Secrets`, included: true },
-      { label: `${fmt(pro.endpoints)} Endpoints`, included: true },
-      { label: `${fmt(pro.compute)} Compute units`, included: true },
-      { label: 'Priority Support', included: true },
-      { label: 'Custom Domains', included: true },
-    ],
-    cta: 'Start Pro',
+    customDomains: true,
+    support: `Priority Support`,
+    description: `For small teams building together.`,
   },
-  {
-    name: 'Team',
-    price: '$99/mo',
-    description: 'For organizations at scale.',
-    subtitle: '+$8/seat/mo',
-    features: [
-      { label: `${fmt(team.sandboxSessions)} Sandbox Sessions`, included: true },
-      { label: `${fmt(team.projects)} Projects`, included: true },
-      { label: `${fmt(team.seats)} Seats included`, included: true },
-      { label: `${fmt(team.secrets)} Secrets`, included: true },
-      { label: `${fmt(team.endpoints)} Endpoints`, included: true },
-      { label: `${fmt(team.compute)} Compute units`, included: true },
-      { label: 'Dedicated Support', included: true },
-      { label: 'Custom Domains', included: true },
-    ],
-    cta: 'Start Team',
+  team: {
+    cta: `Start Team`,
+    customDomains: true,
+    support: `Dedicated Support`,
+    description: `For organizations at scale.`,
   },
-]
+}
+
+export const buildTiers = (plans: Plan[]): PricingTier[] => {
+  return plans.map((plan) => {
+    const meta = tierMeta[plan.id] ?? tierMeta.free
+    const lim = plan.limits
+
+    return {
+      name: plan.name,
+      price: fmtPrice(plan.price),
+      subtitle: fmtSeatPrice(plan.seatPrice),
+      description: meta.description,
+      highlighted: meta.highlighted,
+      cta: meta.cta,
+      features: [
+        {
+          label: `${fmt(lim.sandboxSessions)} Sandbox Session${lim.sandboxSessions !== 1 ? 's' : ''}`,
+          included: true,
+        },
+        { label: `${fmt(lim.projects)} Projects`, included: true },
+        {
+          label: `${fmt(lim.seats)} Seat${lim.seats !== 1 ? 's' : ''}${lim.additionalSeats ? ' included' : ''}`,
+          included: true,
+        },
+        { label: `${fmt(lim.secrets)} Secrets`, included: true },
+        { label: `${fmt(lim.endpoints)} Endpoints`, included: true },
+        { label: `${fmt(lim.compute)} Compute units`, included: true },
+        { label: meta.support, included: true },
+        { label: 'Custom Domains', included: meta.customDomains },
+      ],
+    }
+  })
+}

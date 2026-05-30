@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
+import { fetchPlans } from '@TAF/utils/fetchPlans'
 
 const Landing = lazy(() => import('@TAF/pages/Landing'))
 const Pricing = lazy(() => import('@TAF/pages/Pricing'))
@@ -17,7 +18,13 @@ const S = ({ C }: { C: React.ComponentType }) => (
 
 export const router = createBrowserRouter([
   {
+    id: `marketing`,
     path: `/`,
+    loader: () =>
+      fetchPlans().catch((err) => {
+        console.error(`[Marketing] Failed to load plans:`, err)
+        return []
+      }),
     Component: () => <S C={MarketingLayout} />,
     children: [
       { index: true, Component: () => <S C={Landing} /> },

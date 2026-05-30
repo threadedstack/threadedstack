@@ -6,7 +6,7 @@ import { Exception } from '@tdsk/domain'
 
 /**
  * GET /subscriptions/plans - Get all available payment plans
- * Returns static plan definitions derived from PlanLimits.
+ * Fetches prices from the payment provider (Stripe) and combines with plan limits.
  */
 export const getPlans: TEndpointConfig = {
   path: `/plans`,
@@ -14,7 +14,7 @@ export const getPlans: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { payments } = req.app.locals
 
-    const { data, error } = payments.service.fetchPlans()
+    const { data, error } = await payments.service.fetchPlans()
     if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })

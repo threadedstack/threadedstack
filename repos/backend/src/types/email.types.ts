@@ -1,4 +1,5 @@
 export enum EEmailTemplate {
+  welcome = `welcome`,
   invitation = `invitation`,
   member = `member-notification`,
   waitlistNotification = `waitlist-notification`,
@@ -97,5 +98,13 @@ export type TMemberNotificationData = {
 
 export type TWaitlistNotificationData = {
   email: string
-  frontendUrl: string
+  adminUrl: string
+  threadsUrl: string
+}
+
+export type TWelcomeEmailData = {
+  email: string
+  name?: string
+  adminUrl: string
+  threadsUrl: string
 }

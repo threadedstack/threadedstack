@@ -1,3 +1,4 @@
+import type { TBillingInterval } from '@tdsk/domain'
 import type {
   TApp,
   TPlanResp,
@@ -10,38 +11,78 @@ import type {
 
 import Stripe from 'stripe'
 import { logger } from '@TBE/utils/logger'
+import { PlansCacheTtl } from '@TBE/constants/values'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { BaseService } from '@TBE/services/payments/strategies/base'
-import { Plan, PlanLimits, PlanPrices, ESubscriptionTier } from '@tdsk/domain'
+import { Plan, PlanLimits, ESubscriptionTier, Exception } from '@tdsk/domain'
 
-/**
- * Stripe payment service implementation.
- * Handles subscriptions, checkout, portal sessions, and webhook processing.
- */
 export class StripeService extends BaseService {
   #stripe: Stripe
+  #plansCacheTime = 0
+  #plansCache: Plan[] | null = null
 
   constructor(config: TPayConfig) {
     super(config)
     this.#stripe = new Stripe(config.secretKey)
   }
 
-  /**
-   * Return static plan objects derived from PlanLimits.
-   * No API call needed since plan definitions are in code.
-   */
-  fetchPlans(): TPlanResp {
-    const plans = Object.entries(PlanLimits).map(
-      ([tier, limits]) =>
-        new Plan({
-          limits,
-          id: tier,
-          name: tier.charAt(0).toUpperCase() + tier.slice(1),
-          price: PlanPrices[tier as ESubscriptionTier] ?? 0,
-        })
-    )
+  async fetchPlans(): Promise<TPlanResp> {
+    if (this.#plansCache && Date.now() - this.#plansCacheTime < PlansCacheTtl)
+      return { data: this.#plansCache }
 
-    return { data: plans }
+    try {
+      const entries = Object.entries(PlanLimits)
+      const plans = await Promise.all(
+        entries.map(async ([tier, limits]) => {
+          const priceId = this.config.priceIds[tier]
+          const seatPriceId = this.config.seatPriceIds[tier]
+
+          let price = 0
+          let seatPrice = 0
+          let interval: TBillingInterval = `month`
+          let currency = `usd`
+
+          if (priceId) {
+            const sp = await this.#stripe.prices.retrieve(priceId)
+            price = sp.unit_amount ?? 0
+            interval = (sp.recurring?.interval as TBillingInterval) ?? `month`
+            currency = sp.currency ?? `usd`
+          }
+
+          if (seatPriceId) {
+            const ssp = await this.#stripe.prices.retrieve(seatPriceId)
+            seatPrice = ssp.unit_amount ?? 0
+          }
+
+          return new Plan({
+            price,
+            limits,
+            id: tier,
+            interval,
+            currency,
+            seatPrice,
+            name: tier.charAt(0).toUpperCase() + tier.slice(1),
+          })
+        })
+      )
+
+      this.#plansCache = plans
+      this.#plansCacheTime = Date.now()
+
+      return { data: plans }
+    } catch (err: unknown) {
+      logger.error(`[StripeService] Failed to fetch plans from Stripe:`, err)
+
+      if (this.#plansCache) {
+        const ageMs = Date.now() - this.#plansCacheTime
+        logger.warn(
+          `[StripeService] Serving stale plans cache (age: ${Math.round(ageMs / 1000)}s) after Stripe API failure`
+        )
+        return { data: this.#plansCache }
+      }
+
+      return { error: new Exception(500, (err as Error).message) }
+    }
   }
 
   /**
@@ -59,8 +100,8 @@ export class StripeService extends BaseService {
       return {
         data: {
           id: customer.id,
-          email: customer.email || email,
           metadata: { userId },
+          email: customer.email || email,
         },
       }
     } catch (err: unknown) {
@@ -309,13 +350,13 @@ export class StripeService extends BaseService {
 
     const item = sub.items.data[0]
     const { error } = await db.services.subscription.upsertByUser({
-      userId,
       tier,
-      status: sub.status,
+      userId,
       seats: 1,
+      status: sub.status,
+      stripePriceId: priceId,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
-      stripePriceId: priceId,
       currentPeriodStart: item?.current_period_start
         ? new Date(item.current_period_start * 1000).toISOString()
         : undefined,
@@ -436,12 +477,12 @@ export class StripeService extends BaseService {
 
     // Record the invoice
     const { error: invoiceErr } = await db.services.invoice.upsertByStripeId(invoice.id, {
+      status: `paid`,
       userId: existingSub.userId,
+      period: getBillingPeriod(),
       amount: invoice.amount_paid || 0,
       currency: invoice.currency || `usd`,
-      status: `paid`,
       invoiceUrl: invoice.hosted_invoice_url || undefined,
-      period: getBillingPeriod(),
     })
     if (invoiceErr) {
       logger.error(`[StripeService] Failed to record invoice ${invoice.id}:`, invoiceErr)
@@ -467,9 +508,9 @@ export class StripeService extends BaseService {
               prevPeriod
             )
             const stockCounters = {
+              secrets: previousUsage?.secrets ?? 0,
               projects: previousUsage?.projects ?? 0,
               endpoints: previousUsage?.endpoints ?? 0,
-              secrets: previousUsage?.secrets ?? 0,
             }
             return db.services.quota.initializePeriod(org.id, newPeriod, stockCounters)
           })
@@ -511,12 +552,12 @@ export class StripeService extends BaseService {
       )
 
     const { error: invoiceErr } = await db.services.invoice.upsertByStripeId(invoice.id, {
+      status: `failed`,
       userId: existingSub.userId,
+      period: getBillingPeriod(),
       amount: invoice.amount_due || 0,
       currency: invoice.currency || `usd`,
-      status: `failed`,
       invoiceUrl: invoice.hosted_invoice_url || undefined,
-      period: getBillingPeriod(),
     })
 
     if (invoiceErr)

@@ -8,9 +8,8 @@ import type {
 } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
+import { Plan, PlanLimits } from '@tdsk/domain'
 import { BaseService } from '@TBE/services/payments/strategies/base'
-import type { ESubscriptionTier } from '@tdsk/domain'
-import { Plan, PlanLimits, PlanPrices } from '@tdsk/domain'
 
 /**
  * Console-based payment service stub for development mode.
@@ -22,7 +21,7 @@ export class ConsoleService extends BaseService {
     logger.info(`[ConsoleService] Initialized in dev mode (no payment provider)`)
   }
 
-  fetchPlans(): TPlanResp {
+  async fetchPlans(): Promise<TPlanResp> {
     logger.info(`[ConsoleService] fetchPlans called (dev mode)`)
     const plans = Object.entries(PlanLimits).map(
       ([tier, limits]) =>
@@ -30,7 +29,10 @@ export class ConsoleService extends BaseService {
           limits,
           id: tier,
           name: tier.charAt(0).toUpperCase() + tier.slice(1),
-          price: PlanPrices[tier as ESubscriptionTier] ?? 0,
+          price: 0,
+          seatPrice: 0,
+          currency: `usd`,
+          interval: `month`,
         })
     )
     return { data: plans }

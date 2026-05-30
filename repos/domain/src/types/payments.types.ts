@@ -22,6 +22,8 @@ export enum ESubscriptionStatus {
 }
 export type TSubscriptionStatus = `${ESubscriptionStatus}`
 
+export type TBillingInterval = `month` | `year`
+
 export type TPlanLimits = {
   organizations: number
   projects: number

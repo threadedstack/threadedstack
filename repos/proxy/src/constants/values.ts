@@ -5,10 +5,11 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
  * Note: login/register/refresh are handled client-side by Neon Auth
  */
 export const PublicRoutes = [
+  `/echo`,
   `/health`,
   `/domains/validate`,
-  `/echo`,
   `/_/payments/webhooks`,
+  `/_/subscriptions/plans`,
 ]
 
 export const BearerPrefix = `Bearer `

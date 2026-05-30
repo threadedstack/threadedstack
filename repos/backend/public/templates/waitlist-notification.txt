@@ -5,7 +5,7 @@ We'll reach out when your account is approved.
 
 Email: {{email}}
 
-Visit Threaded Stack: {{frontendUrl}}
+Visit Threaded Stack: {{adminUrl}}
 
 We're rolling out access gradually to ensure the best experience for everyone.
 You'll receive another email once your account has been approved.

@@ -32,6 +32,9 @@ env:
   TDSK_BE_PORT: 5885
   TDSK_BE_LOGGER_PRETTY: 0
 
+# ---- Website Envs ---- #
+  TDSK_WEB_URL: https://www.threadedstack.com
+  TDSK_WB_PORT: 443
 
 # ---- Admin Envs ---- #
   TDSK_AD_APP_URL: https://admin.threadedstack.com

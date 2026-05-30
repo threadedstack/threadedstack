@@ -203,4 +203,62 @@ describe(`EmailService`, () => {
       mockRender.mockRestore()
     })
   })
+
+  describe(`welcome`, () => {
+    it(`should send welcome email using template`, async () => {
+      const config: TEmailConfig = {
+        type: `console`,
+        from: `noreply@test.com`,
+      }
+
+      const service = new EmailService(config)
+
+      const mockRender = vi.spyOn(templates, `render`)
+      mockRender.mockResolvedValueOnce(`<p>Welcome HTML</p>`)
+      mockRender.mockResolvedValueOnce(`Welcome Text`)
+
+      const result = await service.welcome({
+        email: `user@example.com`,
+        name: `Test User`,
+        adminUrl: `https://app.threadedstack.com`,
+        threadsUrl: `https://threads.threadedstack.com`,
+      })
+
+      const expectedData = {
+        email: `user@example.com`,
+        name: `Test User`,
+        adminUrl: `https://app.threadedstack.com`,
+        threadsUrl: `https://threads.threadedstack.com`,
+      }
+
+      expect(result).toBe(true)
+      expect(mockRender).toHaveBeenCalledWith(`welcome.html`, expectedData)
+      expect(mockRender).toHaveBeenCalledWith(`welcome.txt`, expectedData)
+
+      mockRender.mockRestore()
+    })
+
+    it(`should handle template rendering errors`, async () => {
+      const config: TEmailConfig = {
+        type: `console`,
+        from: `noreply@test.com`,
+      }
+
+      const service = new EmailService(config)
+
+      const mockRender = vi.spyOn(templates, `render`)
+      mockRender.mockRejectedValueOnce(new Error(`Template not found`))
+
+      const result = await service.welcome({
+        email: `user@example.com`,
+        name: `Test User`,
+        adminUrl: `https://app.threadedstack.com`,
+        threadsUrl: `https://threads.threadedstack.com`,
+      })
+
+      expect(result).toBe(false)
+
+      mockRender.mockRestore()
+    })
+  })
 })

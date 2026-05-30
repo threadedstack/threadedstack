@@ -3,9 +3,9 @@ import type { Plan, TSubscriptionTier } from '@tdsk/domain'
 import { useMemo } from 'react'
 import { Button } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
+import { ESubscriptionTier } from '@tdsk/domain'
 import { CheckCircle } from '@mui/icons-material'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
-import { ESubscriptionTier, PlanPrices } from '@tdsk/domain'
 import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp'
 import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown'
 import {
@@ -51,6 +51,7 @@ const StyledDivider = styled(Divider)(({ theme }) => ({
 
 export type TPlanCardProps = {
   plan: Plan
+  currentPrice?: number
   currentTier?: string
   onUpgrade: (tier: TSubscriptionTier) => void
   loading?: boolean
@@ -97,24 +98,13 @@ const usePlanFeatures = (plan: Plan) => {
   }, [plan.limits])
 }
 
-/**
- * Calculate per-seat price from the total plan price and included seats
- */
-const getPerSeatPrice = (plan: Plan): number | null => {
-  if (!plan.limits?.additionalSeats) return null
-  if (plan.limits.seats <= 0) return null
-  return Math.round(plan.price / plan.limits.seats)
-}
-
 export const PlanCard = (props: TPlanCardProps) => {
-  const { plan, onUpgrade, currentTier, loading = false } = props
+  const { plan, onUpgrade, currentTier, currentPrice = 0, loading = false } = props
 
   const features = usePlanFeatures(plan)
   const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
   const isHighlighted = plan.name.toLowerCase() === ESubscriptionTier.pro
-  const perSeatPrice = getPerSeatPrice(plan)
-  const currentPrice = PlanPrices[currentTier?.toLowerCase() as ESubscriptionTier] ?? 0
-  const targetPrice = PlanPrices[plan.name.toLowerCase() as ESubscriptionTier] ?? 0
+  const targetPrice = plan.price
   const isDowngrade = !isCurrent && targetPrice < currentPrice
 
   return (
@@ -169,13 +159,13 @@ export const PlanCard = (props: TPlanCardProps) => {
           )}
         </Typography>
 
-        {perSeatPrice !== null && (
+        {plan.seatPrice > 0 && (
           <Typography
             variant='body2'
             color='text.secondary'
             sx={{ mb: 2 }}
           >
-            +${perSeatPrice / 100}/seat/mo for additional seats
+            +${plan.seatPrice / 100}/seat/mo for additional seats
           </Typography>
         )}
 

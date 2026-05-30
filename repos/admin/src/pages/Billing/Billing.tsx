@@ -158,6 +158,9 @@ export const Billing = (props: TBilling) => {
   const [invoices] = useInvoices()
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
+  const currentPrice = plans.find(
+    (p) => p.name.toLowerCase() === subscription?.tier?.toLowerCase()
+  )?.price
 
   useEffect(() => {
     const success = searchParams.get('success')
@@ -430,6 +433,7 @@ export const Billing = (props: TBilling) => {
                     >
                       <PlanCard
                         plan={plan}
+                        currentPrice={currentPrice}
                         currentTier={subscription?.tier}
                         onUpgrade={onUpgrade}
                         loading={upgradeLoading}

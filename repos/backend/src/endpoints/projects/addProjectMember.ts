@@ -193,7 +193,8 @@ export const addProjectMember: TEndpointConfig = {
         inviter: req.user,
         permissionOverrides,
         roleType: ERoleType.member,
-        frontendUrl: config.frontendUrl,
+        adminUrl: config.urls.admin,
+        threadsUrl: config.urls.threads,
         projectRoles: [{ projectId, roleType: targetRole }],
       })
       jsonWithWarnings(

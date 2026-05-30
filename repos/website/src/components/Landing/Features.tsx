@@ -1,5 +1,4 @@
 import Grid from '@mui/material/Grid'
-import { RobotIcon } from '@tdsk/components'
 import SyncIcon from '@mui/icons-material/Sync'
 import CloudIcon from '@mui/icons-material/Cloud'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
@@ -53,8 +52,8 @@ const Features = () => (
   <SectionContainer id='features'>
     <SectionHeader
       overline='PLATFORM CAPABILITIES'
-      title='Everything you need to run AI tools securely'
-      subtitle='A managed platform that handles environments, credentials, and collaboration, letting your team move faster.'
+      title='Secure AI Tool execution'
+      subtitle='A managed platform that handles environments, credentials, and collaboration, letting you and your team move faster.'
     />
     <Grid
       container

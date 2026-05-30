@@ -20,6 +20,7 @@ const mockCheckoutSessionsCreate = vi.fn()
 const mockBillingPortalSessionsCreate = vi.fn()
 const mockSubscriptionItemsUpdate = vi.fn()
 const mockInvoicesList = vi.fn()
+const mockPricesRetrieve = vi.fn()
 
 vi.mock(`stripe`, () => {
   return {
@@ -33,6 +34,7 @@ vi.mock(`stripe`, () => {
       },
       subscriptionItems: { update: mockSubscriptionItemsUpdate },
       invoices: { list: mockInvoicesList },
+      prices: { retrieve: mockPricesRetrieve },
       webhooks: { constructEvent: mockWebhooksConstructEvent },
     })),
   }
@@ -94,6 +96,149 @@ describe(`StripeService`, () => {
     service = new StripeService(testConfig)
     mockDb = createMockDb()
     mockApp = createMockApp(mockDb)
+  })
+
+  describe(`fetchPlans`, () => {
+    const mockStripePrice = (
+      unitAmount: number,
+      interval = `month`,
+      currency = `usd`
+    ) => ({
+      unit_amount: unitAmount,
+      recurring: { interval },
+      currency,
+    })
+
+    it(`should fetch prices from Stripe and return plans with correct fields`, async () => {
+      mockPricesRetrieve.mockImplementation((id: string) => {
+        const prices: Record<string, any> = {
+          price_solo_123: mockStripePrice(1500),
+          price_pro_123: mockStripePrice(3900),
+          price_team_123: mockStripePrice(9900),
+          seat_pro_123: mockStripePrice(1000),
+          seat_team_123: mockStripePrice(800),
+        }
+        return Promise.resolve(prices[id])
+      })
+
+      const { data, error } = await service.fetchPlans()
+
+      expect(error).toBeUndefined()
+      expect(data).toHaveLength(4)
+
+      const free = data!.find((p) => p.id === `free`)!
+      expect(free.price).toBe(0)
+      expect(free.seatPrice).toBe(0)
+      expect(free.interval).toBe(`month`)
+      expect(free.currency).toBe(`usd`)
+
+      const solo = data!.find((p) => p.id === `solo`)!
+      expect(solo.price).toBe(1500)
+      expect(solo.seatPrice).toBe(0)
+      expect(solo.name).toBe(`Solo`)
+
+      const pro = data!.find((p) => p.id === `pro`)!
+      expect(pro.price).toBe(3900)
+      expect(pro.seatPrice).toBe(1000)
+
+      const team = data!.find((p) => p.id === `team`)!
+      expect(team.price).toBe(9900)
+      expect(team.seatPrice).toBe(800)
+    })
+
+    it(`should return cached plans on second call within TTL`, async () => {
+      mockPricesRetrieve.mockResolvedValue(mockStripePrice(1500))
+
+      await service.fetchPlans()
+      const callCount = mockPricesRetrieve.mock.calls.length
+
+      const { data } = await service.fetchPlans()
+
+      expect(data).toBeDefined()
+      expect(mockPricesRetrieve.mock.calls.length).toBe(callCount)
+    })
+
+    it(`should refetch after cache TTL expires`, async () => {
+      mockPricesRetrieve.mockResolvedValue(mockStripePrice(1500))
+
+      await service.fetchPlans()
+      const callCount = mockPricesRetrieve.mock.calls.length
+
+      const dateNowSpy = vi.spyOn(Date, `now`).mockReturnValue(Date.now() + 300_001)
+
+      await service.fetchPlans()
+
+      expect(mockPricesRetrieve.mock.calls.length).toBeGreaterThan(callCount)
+
+      dateNowSpy.mockRestore()
+    })
+
+    it(`should return error when Stripe fails with no cache`, async () => {
+      mockPricesRetrieve.mockRejectedValue(new Error(`Stripe down`))
+
+      const { data, error } = await service.fetchPlans()
+
+      expect(data).toBeUndefined()
+      expect(error).toBeDefined()
+      expect(error!.status).toBe(500)
+      expect(error!.message).toBe(`Stripe down`)
+    })
+
+    it(`should return stale cache when Stripe fails after a successful fetch`, async () => {
+      mockPricesRetrieve.mockResolvedValue(mockStripePrice(1500))
+      const firstResult = await service.fetchPlans()
+      expect(firstResult.data).toBeDefined()
+
+      const dateNowSpy = vi.spyOn(Date, `now`).mockReturnValue(Date.now() + 300_001)
+      mockPricesRetrieve.mockRejectedValue(new Error(`Stripe down`))
+
+      const { data, error } = await service.fetchPlans()
+
+      expect(error).toBeUndefined()
+      expect(data).toBeDefined()
+      expect(data!.length).toBe(firstResult.data!.length)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Serving stale plans cache`)
+      )
+
+      dateNowSpy.mockRestore()
+    })
+
+    it(`should set price to 0 for tiers without a priceId`, async () => {
+      mockPricesRetrieve.mockResolvedValue(mockStripePrice(1500))
+
+      const { data } = await service.fetchPlans()
+      const free = data!.find((p) => p.id === `free`)!
+
+      expect(free.price).toBe(0)
+      expect(free.seatPrice).toBe(0)
+      expect(mockPricesRetrieve).not.toHaveBeenCalledWith(undefined)
+    })
+
+    it(`should handle null unit_amount from Stripe`, async () => {
+      mockPricesRetrieve.mockResolvedValue({
+        unit_amount: null,
+        recurring: { interval: `month` },
+        currency: `usd`,
+      })
+
+      const { data } = await service.fetchPlans()
+      const solo = data!.find((p) => p.id === `solo`)!
+
+      expect(solo.price).toBe(0)
+    })
+
+    it(`should include limits from PlanLimits on each plan`, async () => {
+      mockPricesRetrieve.mockResolvedValue(mockStripePrice(1500))
+
+      const { data } = await service.fetchPlans()
+
+      for (const plan of data!) {
+        expect(plan.limits).toBeDefined()
+        expect(plan.limits.projects).toBeDefined()
+        expect(plan.limits.seats).toBeDefined()
+      }
+    })
   })
 
   describe(`webhook event dispatch`, () => {

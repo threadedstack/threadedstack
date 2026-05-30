@@ -37,10 +37,11 @@ const {
   TDSK_PAY_PLANS,
   TDSK_PAY_ACCESS_TOKEN = ``,
   TDSK_PAY_WEBHOOK_SECRET = ``,
-  // Frontend URL for email links (invitation emails, password reset, etc.)
-  // Falls back to localhost:5887 for local development
-  TDSK_FRONTEND_URL,
-  TDSK_AD_PORT = 5887,
+
+  // URL for email links (invitation emails, password reset, etc.)
+  TDSK_WEB_URL,
+  TDSK_TH_APP_URL,
+  TDSK_AD_APP_URL,
 
   TDSK_EMAIL_TYPE,
   TDSK_EMAIL_HOST,
@@ -78,7 +79,11 @@ const {
 const { priceIds, seatPriceIds } = parsePayPlans(TDSK_PAY_PLANS)
 
 export const config = {
-  frontendUrl: TDSK_FRONTEND_URL || `http://localhost:${TDSK_AD_PORT}`,
+  urls: {
+    web: TDSK_WEB_URL,
+    admin: TDSK_AD_APP_URL,
+    threads: TDSK_TH_APP_URL,
+  },
   server: {
     port: toNum(TDSK_BE_PORT),
     label: `TDSK - Backend`,

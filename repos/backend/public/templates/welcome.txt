@@ -1,0 +1,41 @@
+Welcome to Threaded Stack
+
+{{#if name}}Hi {{name}},{{else}}Hi there,{{/if}}
+
+
+You now have a place to run AI coding agents with you or your team's context, secrets, and guardrails built in. No setup to reconstruct, no keys to paste, no environments to babysit.
+
+Run agents in seconds.
+
+Four sandboxes come ready out of the box: Claude Code, Codex, OpenCode, and Base. Start one with a single command:
+
+tsa run <sandbox-id>
+
+It boots the sandbox, syncs your files, and launches your tool. That's it.
+
+Prefer the browser? Open the Threads App ({{threadsUrl}}) for full web UI and terminal access to your sandboxes; no local install required.
+
+Bring the tools you already use.
+
+Claude Code, Codex, OpenCode, or your own custom agent; anything that runs in a container works as-is. No new framework to learn.
+
+Secrets your agents never see.
+
+Reference a secret by name and our proxy injects the real value at the network layer, outside the agent's reach. Rotate it once and every agent picks it up on the next request.
+
+Share setup across your team.
+
+Define secrets, tools, and configs once at the org or project level. Everyone inherits them. One source of truth instead of scattered READMEs.
+
+Ready when you are.
+
+
+
+Email: {{email}}
+
+Get Started: {{adminUrl}}
+
+If you have any questions, check out our documentation or reach out to our team.
+
+---
+This is an automated email from Threaded Stack. Please do not reply to this message.

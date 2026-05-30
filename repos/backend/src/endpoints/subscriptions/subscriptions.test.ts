@@ -12,7 +12,7 @@ import { PaymentsService } from '@TBE/services/payments/payments'
 vi.mock('@TBE/services/payments/payments', () => ({
   PaymentsService: vi.fn().mockImplementation(() => ({
     service: {
-      fetchPlans: vi.fn().mockReturnValue({ data: [] }),
+      fetchPlans: vi.fn().mockResolvedValue({ data: [] }),
       createCustomer: vi.fn().mockResolvedValue({ data: null }),
       createCheckoutSession: vi.fn().mockResolvedValue({ data: null }),
       createPortalSession: vi.fn().mockResolvedValue({ data: null }),

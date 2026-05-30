@@ -3,6 +3,7 @@ import type {
   TEmailResult,
   IEmailStrategy,
   TSendEmailOptions,
+  TWelcomeEmailData,
   TInvitationEmailData,
   TMemberNotificationData,
   TWaitlistNotificationData,
@@ -139,6 +140,25 @@ export class EmailService {
       return result.success
     } catch (error: any) {
       logger.error(`[EMAIL SERVICE] Failed to send member notification email:`, error)
+      return false
+    }
+  }
+
+  async welcome(data: TWelcomeEmailData): Promise<boolean> {
+    try {
+      const html = await templates.render(`${EEmailTemplate.welcome}.html`, data)
+      const text = await templates.render(`${EEmailTemplate.welcome}.txt`, data)
+
+      const result = await this.send({
+        to: data.email,
+        subject: `Welcome to Threaded Stack`,
+        html,
+        text,
+      })
+
+      return result.success
+    } catch (error: any) {
+      logger.error(`[EMAIL SERVICE] Failed to send welcome email:`, error)
       return false
     }
   }

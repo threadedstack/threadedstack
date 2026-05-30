@@ -20,9 +20,9 @@ export abstract class BaseService {
   }
 
   /**
-   * Fetch all configured payment plans (static from PlanLimits)
+   * Fetch all configured payment plans
    */
-  abstract fetchPlans(): TPlanResp
+  abstract fetchPlans(): Promise<TPlanResp>
 
   /**
    * Create a customer in the payment provider
