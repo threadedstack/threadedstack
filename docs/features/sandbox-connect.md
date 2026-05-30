@@ -9,9 +9,8 @@ Sandbox Connect is the **primary interaction surface** for Threaded Stack. The r
 | Surface | Interface | Audience |
 |---------|-----------|----------|
 | **Sandbox Connect** | **Direct container access via `tsa run`** | **Developers using off-the-shelf AI tools** |
-| TSA CLI (`tsa chat`) | Terminal TUI | Developers using the built-in agent chat |
-| Threads web app | Browser | Non-developers |
-| API (SSE/WebSocket) | Programmatic | Integrations |
+| TSA CLI | Terminal TUI | Developers managing sandboxes from the command line |
+| Threads web app | Browser | End users interacting with sandbox sessions |
 
 ### Connection Path
 

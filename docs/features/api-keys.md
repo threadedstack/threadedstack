@@ -24,7 +24,7 @@ Each API key has a permission level that determines what operations it can perfo
 | Permission | Role Equivalent | What It Allows |
 |------------|-----------------|----------------|
 | `admin` | Admin | Full CRUD on all org resources — members, secrets, providers, settings |
-| `write` | Member | Create and edit resources — projects, agents, endpoints, threads |
+| `write` | Member | Create and edit resources — projects, sandboxes, endpoints, threads |
 | `read` | Viewer | Read-only access to org resources |
 
 Permission levels follow the same hierarchy as user roles. An `admin` key can do everything a `write` key can, plus administrative operations.
@@ -53,14 +53,14 @@ curl -H "Authorization: Bearer tdsk_<api-key>" \
   https://px.threadedstack.app/_/orgs
 ```
 
-**Example -- create a thread:**
+**Example -- create a sandbox:**
 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer tdsk_<api-key>" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Thread"}' \
-  https://px.threadedstack.app/_/orgs/<org-id>/agents/<agent-id>/threads
+  -d '{"name": "My Sandbox"}' \
+  https://px.threadedstack.app/_/orgs/<org-id>/sandboxes
 ```
 
 API keys work anywhere a JWT token would -- all authenticated endpoints accept both forms of authentication.

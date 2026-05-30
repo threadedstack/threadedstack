@@ -33,7 +33,6 @@ flowchart LR
     direction LR
     Proxy["<b>Proxy</b><br/>Forwards requests to external URLs"]
     FaaS["<b>FaaS</b><br/>Executes your custom function in a secure sandbox"]
-    Agent["<b>Agent</b><br/>Runs an AI agent with tools and LLM integration"]
   end
 ```
 
@@ -115,11 +114,9 @@ flowchart TD
       FuncB["Function B name: calc lang: JS"]
       EP1["FaaS Endpoint 1 path: /api/greet method: POST"]
       EP2["FaaS Endpoint 2 path: /api/calc method: GET"]
-      Agent["Agent (uses Function A as tool)"]
 
       EP1 -->|"references"| FuncA
       EP2 -->|"references"| FuncB
-      Agent -->|"uses as tool"| FuncA
     end
   end
 ```
@@ -128,7 +125,6 @@ flowchart TD
 - A **Project** contains both Functions and Endpoints
 - A **FaaS Endpoint** references exactly one Function (via `functionId`)
 - A **Function** can be used by multiple Endpoints
-- A **Function** can also be used by Agents as a tool
 - Both are scoped to a Project -- you cannot use a function from Project A in an endpoint in Project B
 
 ---
@@ -185,7 +181,6 @@ curl -X POST \
 | `inputSchema` | No | array | Parameter definitions for documentation |
 | `dependencies` | No | object | NPM package dependencies |
 | `branch` | No | string | Git branch reference (default: `"main"`) |
-| `agentIds` | No | string[] | Link this function to agents as a tool |
 
 ---
 

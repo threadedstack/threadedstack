@@ -93,7 +93,7 @@ const Layout = (props: any) => {
         <PermissionsProvider role={role}>
           <LayoutContainer className='tdsk-layout-container'>
             <Header navItems={filteredHeaderItems} />
-            {resolvedRole === null ? (
+            {activeOrgId && resolvedRole === null ? (
               <Box
                 sx={{
                   flex: 1,
@@ -102,7 +102,7 @@ const Layout = (props: any) => {
                   justifyContent: 'center',
                 }}
               />
-            ) : !has('adminPanel:read') ? (
+            ) : activeOrgId && !has('adminPanel:read') ? (
               <Box
                 sx={{
                   display: 'flex',

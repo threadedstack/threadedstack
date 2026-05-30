@@ -103,7 +103,7 @@ All organization endpoints are under `/_/orgs`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/_/orgs/:orgId/quickstart` | Create Provider + Secret + Project + Agent + Endpoint in a single transaction (admin+) |
+| POST | `/_/orgs/:orgId/quickstart` | Create Provider + Secret + Project + Sandbox in a single transaction (admin+) |
 
 **Quickstart body:**
 
@@ -111,12 +111,7 @@ All organization endpoints are under `/_/orgs`.
 {
   "providerBrand": "anthropic",
   "apiKey": "sk-...",
-  "projectName": "My Project",
-  "agentName": "My Agent",
-  "model": "claude-sonnet-4-20250514",
-  "maxTokens": 100000,
-  "systemPrompt": "You are a helpful assistant.",
-  "agentDescription": "General purpose agent"
+  "projectName": "My Project"
 }
 ```
 
@@ -213,71 +208,33 @@ Secrets can be managed at both the organization and project level. Secret values
 |--------|------|-------------|
 | POST | `/_/providers/:brand/models` | Fetch available models for a provider brand (e.g., `anthropic`, `openai`, `google`) |
 
-#### Agents (Org-Scoped)
+#### Threads (Org-Scoped)
+
+Threads are scoped under organizations.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/_/orgs/:orgId/agents` | List agents for an organization |
-| POST | `/_/orgs/:orgId/agents` | Create an agent |
-| GET | `/_/orgs/:orgId/agents/:id` | Get an agent by ID |
-| PUT | `/_/orgs/:orgId/agents/:id` | Update an agent |
-| DELETE | `/_/orgs/:orgId/agents/:id` | Delete an agent |
-| POST | `/_/orgs/:orgId/agents/:id/run` | Run an agent with SSE streaming |
-
-**Agent run body:**
-
-```json
-{
-  "prompt": "Hello, how can you help me?",
-  "threadId": "optional-existing-thread-id",
-  "providerId": "optional-provider-override-id"
-}
-```
-
-#### Agent Project Config
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/_/orgs/:orgId/projects/:projectId/agents/:agentId/config` | Get agent-project configuration |
-| PUT | `/_/orgs/:orgId/projects/:projectId/agents/:agentId/config` | Create or update agent-project configuration |
-| DELETE | `/_/orgs/:orgId/projects/:projectId/agents/:agentId/config` | Delete agent-project configuration |
-
-#### OpenAI-Compatible Endpoints
-
-Each agent exposes OpenAI-compatible endpoints for integration with tools that use the OpenAI API format.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/_/agents/:id/v1/models` | List models available to the agent (OpenAI format) |
-| POST | `/_/agents/:id/v1/chat/completions` | Chat completions (OpenAI format, supports streaming) |
-
-#### Threads (Agent-Scoped)
-
-Threads are scoped under agents within an organization.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/_/orgs/:orgId/agents/:agentId/threads` | List threads for an agent |
-| POST | `/_/orgs/:orgId/agents/:agentId/threads` | Create a new thread |
-| GET | `/_/orgs/:orgId/agents/:agentId/threads/:id` | Get a thread by ID (supports `?include=branches`) |
-| PUT | `/_/orgs/:orgId/agents/:agentId/threads/:id` | Update a thread |
-| DELETE | `/_/orgs/:orgId/agents/:agentId/threads/:id` | Delete a thread |
-| POST | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/branch` | Branch a thread from a specific message |
+| GET | `/_/orgs/:orgId/threads` | List threads for an organization |
+| POST | `/_/orgs/:orgId/threads` | Create a new thread |
+| GET | `/_/orgs/:orgId/threads/:id` | Get a thread by ID (supports `?include=branches`) |
+| PUT | `/_/orgs/:orgId/threads/:id` | Update a thread |
+| DELETE | `/_/orgs/:orgId/threads/:id` | Delete a thread |
+| POST | `/_/orgs/:orgId/threads/:threadId/branch` | Branch a thread from a specific message |
 
 #### Messages (Thread-Scoped)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages` | List messages in a thread |
-| POST | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages` | Create a message |
-| PUT | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages/:messageId` | Update a message |
-| DELETE | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages/:messageId` | Delete a message |
+| GET | `/_/orgs/:orgId/threads/:threadId/messages` | List messages in a thread |
+| POST | `/_/orgs/:orgId/threads/:threadId/messages` | Create a message |
+| PUT | `/_/orgs/:orgId/threads/:threadId/messages/:messageId` | Update a message |
+| DELETE | `/_/orgs/:orgId/threads/:threadId/messages/:messageId` | Delete a message |
 
 #### File Uploads (Thread-Scoped)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/files` | Upload a file to a thread |
+| POST | `/_/orgs/:orgId/threads/:threadId/files` | Upload a file to a thread |
 
 **Upload body:**
 
@@ -310,8 +267,6 @@ Project-scoped domain endpoints follow the same pattern under `/_/orgs/:orgId/pr
 | GET | `/_/orgs/:orgId/skills/:skillId` | Get a skill by ID |
 | PUT | `/_/orgs/:orgId/skills/:skillId` | Update a skill |
 | DELETE | `/_/orgs/:orgId/skills/:skillId` | Delete a skill |
-| POST | `/_/orgs/:orgId/skills/:skillId/agents/:agentId` | Attach a skill to an agent |
-| DELETE | `/_/orgs/:orgId/skills/:skillId/agents/:agentId` | Detach a skill from an agent |
 
 #### Sandboxes (Project-Scoped)
 
@@ -444,24 +399,9 @@ See [Sandbox Connect](../features/sandbox-connect.md) for details on sandbox con
 |--------|------|-------------|
 | POST | `/_/payments/webhooks` | Stripe webhook handler (raw body, signature verified) |
 
-### AI Sessions
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/_/ai/sessions` | Create an LLM session (returns a session token for WebSocket use) |
-
-**Session body:**
-
-```json
-{
-  "agentId": "agent-uuid",
-  "projectId": "optional-project-uuid"
-}
-```
-
 ### Proxy Engine
 
-The proxy engine dispatches requests to configured endpoints (proxy, FaaS, or agent type) based on the project and endpoint IDs.
+The proxy engine dispatches requests to configured endpoints (proxy or FaaS type) based on the project and endpoint IDs.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -472,102 +412,6 @@ Public endpoints skip authentication. Non-public endpoints authenticate via prox
 ---
 
 ## Streaming Endpoints
-
-### SSE -- Agent Run
-
-**Endpoint:** `POST /_/orgs/:orgId/agents/:id/run`
-
-Runs an agent and streams the response as Server-Sent Events.
-
-**Connection setup:**
-
-```bash
-curl -N -X POST https://local.threadedstack.app/_/orgs/:orgId/agents/:id/run \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Hello"}'
-```
-
-**Event format:**
-
-Each SSE event is a JSON object with a `type` field:
-
-```text
-data: {"type":"start","data":{}}
-
-data: {"type":"text_start","data":{}}
-
-data: {"type":"text_delta","data":{"text":"Hello"}}
-
-data: {"type":"text_delta","data":{"text":" there!"}}
-
-data: {"type":"text_end","data":{}}
-
-data: {"type":"thinking_start","data":{}}
-
-data: {"type":"thinking_delta","data":{"text":"Let me consider..."}}
-
-data: {"type":"thinking_end","data":{}}
-
-data: {"type":"toolcall_start","data":{"name":"search","id":"call_123"}}
-
-data: {"type":"toolcall_delta","data":{"text":"{\"query\":\"..."}}
-
-data: {"type":"toolcall_end","data":{}}
-
-data: {"type":"done","data":{}}
-```
-
-**Event types:**
-
-| Type | Description |
-|------|-------------|
-| `start` | Stream started |
-| `text_start` | Text content block started |
-| `text_delta` | Incremental text content |
-| `text_end` | Text content block ended |
-| `thinking_start` | Thinking/reasoning block started |
-| `thinking_delta` | Incremental thinking content |
-| `thinking_end` | Thinking/reasoning block ended |
-| `toolcall_start` | Tool call started (includes tool name and call ID) |
-| `toolcall_delta` | Incremental tool call arguments |
-| `toolcall_end` | Tool call ended |
-| `done` | Stream complete |
-| `error` | An error occurred |
-
-### WebSocket -- AI Chat
-
-**Endpoint:** `WS /ai/ws?token=<session-token>`
-
-Real-time bidirectional communication for AI agent execution.
-
-**Connection setup:**
-
-1. Create a session via `POST /_/ai/sessions` with JWT/API key auth.
-2. Connect to the WebSocket with the returned session token:
-
-```javascript
-const ws = new WebSocket("wss://local.threadedstack.app/ai/ws?token=<session-token>");
-
-ws.onopen = () => {
-  ws.send(JSON.stringify({ prompt: "Hello" }));
-};
-
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  // data.type matches the same event types as SSE (text_delta, done, etc.)
-};
-```
-
-**Message format:**
-
-WebSocket messages use the same event type structure as SSE events. Send messages as JSON with a `prompt` field. Responses arrive as JSON objects with `type` and `data` fields matching the SSE event types listed above.
-
-**Close codes:**
-
-| Code | Meaning |
-|------|---------|
-| 4001 | Session token missing or invalid |
 
 ### WebSocket -- Sandbox Shell
 
@@ -663,7 +507,7 @@ The `code` field is present when a specific error code was set. Database errors 
 
 ### UUID Validation
 
-All `:id`, `:orgId`, `:projectId`, `:agentId`, `:threadId`, and similar path parameters are automatically validated as UUIDs. Invalid UUID format returns:
+All `:id`, `:orgId`, `:projectId`, `:threadId`, and similar path parameters are automatically validated as UUIDs. Invalid UUID format returns:
 
 ```json
 {

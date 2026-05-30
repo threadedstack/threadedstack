@@ -2,7 +2,7 @@
 
 ## What Are Providers
 
-Providers are configurations for external AI model services or API services. They store the connection details and credentials needed to call these services on behalf of your agents and sandboxes. Providers are scoped to an organization and shared across all agents and projects within that org.
+Providers are configurations for external AI model services or API services. They store the connection details and credentials needed to call these services on behalf of your sandboxes and endpoints. Providers are scoped to an organization and shared across all projects within that org.
 
 Each provider has a **brand** (the service it connects to), a **type** (such as `ai` for AI model providers), and a linked **secret** containing the API key or authentication credentials.
 
@@ -39,18 +39,7 @@ From the Admin UI:
 7. Optionally add custom **headers** or **body parameters** for requests sent to this provider.
 8. Click **Save**.
 
-Once created, the provider is available to all agents and sandboxes in the organization.
-
-## Linking Providers to Agents
-
-Agents connect to providers through a priority-based linking system:
-
-- Each agent can be linked to one or more providers.
-- Each link has a **priority** value. Priority `0` is the primary provider, used by default for all LLM requests.
-- Each agent-provider link can **override the model** -- for example, linking an Anthropic provider but specifying `claude-sonnet-4-20250514` instead of the provider's default model.
-- Multiple providers enable **failover**: if the primary provider returns an error, the agent can fall back to the next provider in priority order.
-
-To link a provider to an agent, open the agent's configuration in the Admin UI and use the **Providers** section to add and prioritize providers.
+Once created, the provider is available to all sandboxes in the organization.
 
 ## Linking Providers to Sandboxes
 
@@ -86,7 +75,7 @@ If the referenced secret is rotated, all providers using that secret template au
 
 ## Listing Available Models
 
-You can query the available models for any supported brand. This is useful for populating model selection dropdowns or validating model names before configuring an agent.
+You can query the available models for any supported brand. This is useful for populating model selection dropdowns or validating model names before configuring a sandbox or provider.
 
 The models endpoint returns the list of models that the brand currently supports, including model IDs and display names.
 

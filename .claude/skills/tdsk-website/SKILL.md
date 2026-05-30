@@ -53,7 +53,7 @@ Two layouts, all pages lazy-loaded with `React.lazy()`:
 
 ## Documentation System
 
-Docs are loaded from root `/docs` directory (monorepo level, NOT inside `repos/website/`). Excluded dirs: `superpowers`, `plans`, `meta`, `payments`, `tech`, `endpoints`.
+Docs are loaded from root `/docs` directory (monorepo level, NOT inside `repos/website/`). The `docs/internal/` subdirectory is excluded and contains developer, meta, superpowers, payments, research, endpoints, business, and plans directories.
 
 **Loading flow**: `docsContent.ts` uses `import.meta.glob()` to discover `_meta.json` + `.md/.mdx` files at build time. `docsLoader.ts` builds navigation from metadata and maps URL slugs to lazy MDX imports. `DocsPage.tsx` reads slug from `useParams()`, dynamically imports and renders with `<MDXProvider>`.
 

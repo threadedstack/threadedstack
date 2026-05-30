@@ -2,15 +2,15 @@
   "label": "Features",
   "order": 2,
   "pages": [
-    "organizations",
-    "providers",
-    "proxy-endpoints",
-    "faas-endpoints",
-    "threads",
-    "secrets",
-    "api-keys",
     "sandbox-connect",
     "session-sharing",
-    "billing"
+    "secrets",
+    "providers",
+    "organizations",
+    "threads",
+    "api-keys",
+    "billing",
+    "proxy-endpoints",
+    "faas-endpoints"
   ]
 }

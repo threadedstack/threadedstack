@@ -10,7 +10,7 @@ Secrets are scoped using the **Exclusive Arc** pattern: each secret belongs to e
 
 ### Create
 
-1. Client sends `POST /secrets` with `name`, `value`, and a scope identifier (`orgId`, `projectId`, `providerId`, or `agentId`).
+1. Client sends `POST /secrets` with `name`, `value`, and a scope identifier (`orgId`, `projectId`, or `providerId`).
 2. Backend validates the exclusive arc -- exactly one owner field must be set (or the org+provider dual-ownership variant).
 3. Backend checks the caller has `create` permission on the `secret` resource within the target scope.
 4. A unique encryption key is derived for the scope owner, and the value is encrypted with AES-256-GCM.
@@ -41,7 +41,7 @@ Rotation is an in-place re-encrypt: the old ciphertext is overwritten. All refer
 
 ## Encryption
 
-All secret values are encrypted at rest using **AES-256-GCM** with tamper detection. Each scope owner (organization, project, provider, or agent) gets a unique derived encryption key, so compromising one entity's key cannot decrypt another entity's secrets.
+All secret values are encrypted at rest using **AES-256-GCM** with tamper detection. Each scope owner (organization, project, or provider) gets a unique derived encryption key, so compromising one entity's key cannot decrypt another entity's secrets.
 
 ### How It Works
 
@@ -57,10 +57,9 @@ Secrets use the **Exclusive Arc** pattern with four scope levels. A database con
 
 | Scope | Description |
 |-------|-------------|
-| Organization | Shared across the entire org. Available to all endpoints and agents within the org. |
+| Organization | Shared across the entire org. Available to all endpoints and sandboxes within the org. |
 | Project | Scoped to a single project. Available to endpoints within that project. |
 | Provider | Tied to a specific LLM or API provider. Used for provider API keys and auth headers. |
-| Agent | Dedicated to a single agent. Isolated from other agents in the same org. |
 
 ### Dual Ownership Exception
 
@@ -68,7 +67,7 @@ Provider secrets support a dual-ownership mode where both organization and provi
 
 ### Scope Resolution During Decryption
 
-When decrypting, the system determines the correct encryption key using scope priority order: agent > provider > project > organization. If decryption fails with the scope owner's key (e.g., a quickstart-created secret was encrypted at the org level but stored as provider-scoped), it falls back to decrypting with the org-level key.
+When decrypting, the system determines the correct encryption key using scope priority order: provider > project > organization. If decryption fails with the scope owner's key (e.g., a quickstart-created secret was encrypted at the org level but stored as provider-scoped), it falls back to decrypting with the org-level key.
 
 ## Placeholder Mechanisms
 
@@ -95,7 +94,7 @@ Threaded Stack has **two distinct placeholder systems** for injecting secrets in
 
 **When used:** Inside sandbox pods, where user code runs in isolation and must never have access to real secret values. This applies to:
 
-- **Agent sandboxes** -- when an agent executes code inside a K8s pod, any secrets the sandbox needs are replaced with opaque placeholder tokens before the pod starts.
+- **Sandbox pods** -- when code executes inside a K8s pod, any secrets the sandbox needs are replaced with opaque placeholder tokens before the pod starts.
 
 **How it works:**
 
@@ -113,7 +112,7 @@ Threaded Stack has **two distinct placeholder systems** for injecting secrets in
 | Execution context | Backend process (trusted) | Sandbox pod (untrusted user code) |
 | Resolution timing | Before the request leaves the backend | As traffic exits the sandbox through the egress proxy |
 | Secret exposure | Backend decrypts in-process; plaintext lives only in memory briefly | Plaintext never enters the sandbox; replaced at the network boundary |
-| Use case | Provider config, proxy endpoints, header injection | Agent sandboxes running arbitrary user code |
+| Use case | Provider config, proxy endpoints, header injection | Sandbox pods running arbitrary user code |
 
 Config templates are sufficient when the backend itself is making the request (proxy endpoints, provider calls). Egress tokens are necessary when user-authored code running in an isolated sandbox needs to authenticate with external services without ever seeing the real credentials.
 
@@ -129,17 +128,6 @@ flowchart TD
     P5["5. Replace {{ name:id }} in custom headers"]
     P6["6. Forward to upstream with real values"]
     P1 --> P2 --> P3 --> P4 --> P5 --> P6
-  end
-
-  subgraph Agent["Agent Execution (SSE)"]
-    A1["1. Agent run request arrives"]
-    A2["2. Load agent config and provider"]
-    A3["3. Decrypt provider API key"]
-    A4["4. Replace {{ }} in headers"]
-    A5["5. Replace {{ }} in body params"]
-    A6["6. Build LLM config with real API key"]
-    A7["7. Stream request to LLM provider"]
-    A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
   end
 
   subgraph Sandbox["Sandbox (K8s + Egress)"]
@@ -160,7 +148,6 @@ flowchart TD
 
 - **Admin+ role** required.
 - For provider-scoped secrets, the provider must belong to the caller's org.
-- For agent-scoped secrets, the agent must belong to the caller's org.
 
 ### Who Can Read Secret Metadata
 

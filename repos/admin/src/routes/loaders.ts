@@ -103,8 +103,8 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
 
   setActiveOrgId(orgId)
-  safeFetch(() => fetchOrg(orgId))
-  await safeFetch(() => fetchProjects({ orgId }))
+  await criticalFetch(() => fetchOrg(orgId))
+  safeFetch(() => fetchProjects({ orgId }))
   return null
 }
 

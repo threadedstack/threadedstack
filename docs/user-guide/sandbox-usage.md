@@ -4,7 +4,7 @@
 
 Sandboxes are secure, managed execution environments where AI tools run without access to your raw credentials. They are the **primary way to use Threaded Stack** — pick your AI tool of choice (Claude Code, Codex, OpenCode, or any custom tool), and the platform handles the rest: pod orchestration, secret injection, file sync, and SSH connectivity.
 
-Every sandbox -- whether running an AI coding tool interactively or hosting an automated agent -- operates under the same security model:
+Every sandbox operates under the same security model:
 
 - **Isolation**: Code executes in its own environment, separated from other workloads and the host system.
 - **Secret injection at the network layer**: Your code never sees real API keys or credentials. Instead, it receives opaque placeholder tokens (`tdsk_ph_*`). When the code makes outbound HTTP/HTTPS requests, a transparent man-in-the-middle (MITM) egress proxy intercepts the traffic and swaps the placeholders for the actual secret values before forwarding to the external service.
@@ -160,7 +160,7 @@ The Local provider runs entirely in-process with no external dependencies. It is
 
 ### Kubernetes Provider (Production)
 
-The Kubernetes provider runs code inside dedicated K8s pods. It is used in production and staging environments for agent hosting, sandbox workspaces, and any workload that requires real network access with secret injection.
+The Kubernetes provider runs code inside dedicated K8s pods. It is used in production and staging environments for sandbox workspaces and any workload that requires real network access with secret injection.
 
 **How it works:**
 
@@ -172,7 +172,7 @@ The Kubernetes provider runs code inside dedicated K8s pods. It is used in produ
 **When it is used:**
 
 - Production and staging deployments.
-- AI agent execution that requires outbound API calls with real credentials.
+- AI tool execution that requires outbound API calls with real credentials.
 - Any workload that needs full container isolation, configurable resource limits, or access to secrets.
 
 **Capabilities:**
@@ -239,25 +239,25 @@ When your FaaS endpoint is configured with secrets, those secrets are available 
 
 ---
 
-## Using Sandboxes for Agents
+## Sandbox Pod Lifecycle
 
-AI agents in Threaded Stack can execute code and make API calls within Kubernetes sandbox pods. This gives agents access to real tools and external services while keeping credentials secure.
+AI tools in Threaded Stack execute code and make API calls within Kubernetes sandbox pods. This gives tools access to real external services while keeping credentials secure.
 
-### How Agent Sandboxes Work
+### How Sandbox Pods Work
 
 1. **A sandbox configuration is created** specifying the Docker image, resource limits, secrets to attach, and available runtimes.
-2. **When an agent runs**, the `SandboxService` starts a pod from the configuration:
+2. **When a session starts**, the `SandboxService` starts a pod from the configuration:
    - A unique pod name is generated (`tdsk-sb-<id>-<suffix>`).
    - Placeholder tokens are generated for each attached secret.
    - The pod manifest is built with the sandbox container, the init container (network rules setup), and the CA certificate volume mount.
    - The pod is created via the K8s API.
-3. **The agent executes tool calls** inside the pod via the `KubeSandbox` interface -- running shell commands, reading/writing files, and evaluating code.
-4. **Outbound API calls** made by agent code are intercepted by the MITM proxy, which replaces placeholder tokens with real secret values before forwarding to external services.
-5. **When the agent finishes** (or the session ends), the pod is stopped and deleted.
+3. **The AI tool executes commands** inside the pod via the `KubeSandbox` interface -- running shell commands, reading/writing files, and evaluating code.
+4. **Outbound API calls** made by sandbox code are intercepted by the MITM proxy, which replaces placeholder tokens with real secret values before forwarding to external services.
+5. **When the session ends**, the pod is stopped and deleted.
 
 ### MITM Proxy Integration
 
-The MITM egress proxy is what makes sandbox security work transparently for agents. Here is what happens when agent code inside a pod makes an HTTPS request:
+The MITM egress proxy is what makes sandbox security work transparently. Here is what happens when code inside a pod makes an HTTPS request:
 
 1. The request leaves the sandbox container on port 443.
 2. The init container's network rules redirect it to the egress proxy service.
@@ -520,7 +520,7 @@ When `sync.autoStart: true` is set in your config, `tsa ssh` automatically start
 
 ### How Credentials Stay Secure
 
-The security model remains intact during direct SSH access. The network redirection rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks the privileges needed to do so.
+The security model remains intact during direct SSH access. The network redirection rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from AI tool code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks the privileges needed to do so.
 
 ### Copying Sandboxes
 

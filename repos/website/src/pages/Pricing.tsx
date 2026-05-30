@@ -212,15 +212,15 @@ const Pricing = () => {
               variant='h2'
               sx={{ mb: 2, fontWeight: 700 }}
             >
-              Simple, Transparent Pricing
+              Start free. Pay only when you scale.
             </Typography>
             <Typography
               variant='body1'
               color='text.secondary'
               sx={{ maxWidth: 560, mx: 'auto' }}
             >
-              Start free, scale as you grow. Every plan includes the full platform; you
-              only pay for higher limits.
+              Every plan includes managed sandboxes, zero-trust credential injection, and
+              file sync. Higher tiers unlock more sessions, projects, and team seats.
             </Typography>
           </Container>
         </Box>

@@ -20,8 +20,8 @@ const Pricing = () => {
     >
       <SectionHeader
         overline='PRICING'
-        title='Simple, Transparent Pricing'
-        subtitle='Start free, scale as you grow. No hidden fees.'
+        title='Start free. Pay only when you scale.'
+        subtitle='Every plan includes managed sandboxes, zero-trust credential injection, and file sync.'
       />
       <Box sx={{ mb: 4 }}>
         <PricingTierGrid plans={plans} />

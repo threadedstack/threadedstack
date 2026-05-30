@@ -1,6 +1,6 @@
 # Organizations
 
-Organizations are the top-level container in Threaded Stack. Every resource in the platform -- projects, secrets, providers, agents, endpoints, API keys, domains -- belongs to an organization. An org's subscription tier determines the quotas and limits that govern all resources within it.
+Organizations are the top-level container in Threaded Stack. Every resource in the platform -- projects, secrets, providers, sandboxes, endpoints, API keys, domains -- belongs to an organization. An org's subscription tier determines the quotas and limits that govern all resources within it.
 
 ## The Shared Entity Model
 
@@ -22,12 +22,10 @@ flowchart TD
   Projects --> Endpoints
   Projects --> Functions
   Projects --> Secrets_Proj["Secrets (project-scoped)"]
-  Projects --> Agents
+  Projects --> Sandboxes
   Projects --> Domains_Proj["Domains"]
 
-  Agents --> Threads
-  Threads --> Messages
-  Agents --> AgentSecrets["Agent Secrets"]
+  Sandboxes --> Sessions["Sandbox Sessions"]
 ```
 
 Deletion of an org cascades to all owned resources.
@@ -61,7 +59,7 @@ Roles are strictly hierarchical. Higher roles inherit all permissions of lower r
 | Level | Role | Description |
 |-------|------|-------------|
 | 0 | `viewer` | Read-only access to org resources |
-| 1 | `member` | Create and edit resources (projects, agents, endpoints, threads) |
+| 1 | `member` | Create and edit resources (projects, sandboxes, endpoints, threads) |
 | 2 | `admin` | Manage members, secrets, providers, API keys, domains, settings |
 | 3 | `owner` | Delete the org, remove users, transfer ownership |
 | 4 | `super` | Platform-wide admin -- bypasses all permission checks |
@@ -148,10 +146,10 @@ Projects are the primary unit of resource scoping within an org. Each project be
 
 Projects contain their own scoped resources, all managed through nested endpoints under `/_/orgs/:orgId/projects/:projectId/`:
 
-- **Endpoints** -- API proxy, FaaS, and agent endpoints
+- **Endpoints** -- API proxy and FaaS endpoints
 - **Functions** -- Serverless function definitions
 - **Secrets** -- Project-scoped secrets (separate from org-scoped secrets)
-- **Agents** -- AI agents with per-project configuration
+- **Sandboxes** -- Managed sandbox configurations for AI coding tools
 - **Domains** -- Custom domains for project endpoints
 - **Members** -- Project-level role assignments (add, list, remove, update role)
 
@@ -167,25 +165,17 @@ Org-level resources are available to all projects within the org. This propagati
 
 ### Secrets
 
-Each secret belongs to exactly one of: org, project, provider, or agent (with one exception: an org+provider combination is allowed for provider secrets scoped to an org).
+Each secret belongs to exactly one of: org, project, or provider (with one exception: an org+provider combination is allowed for provider secrets scoped to an org).
 
-- **Org secrets** are accessible to all projects, agents, and endpoints within the org
+- **Org secrets** are accessible to all projects, sandboxes, and endpoints within the org
 - **Project secrets** are scoped to that project only
 - **Provider secrets** are tied to a specific provider configuration
-- **Agent secrets** are tied to a specific agent
 
 The same CRUD endpoints serve both org-level and project-level contexts, available at both `/_/orgs/:orgId/secrets` and `/_/orgs/:orgId/projects/:projectId/secrets`.
 
 ### Providers
 
-Providers (external service configurations like OpenAI, Anthropic, etc.) are org-scoped and available to all agents within the org. There is no project-level provider scoping; providers are shared across the entire org.
-
-### Agents
-
-Agents can exist at both the org level and the project level:
-
-- **Org agents** (`/_/orgs/:orgId/agents`) -- Managed directly under the org, with threads and run capability
-- **Project agents** (`/_/orgs/:orgId/projects/:projectId/agents`) -- Linked to a project with per-project configuration
+Providers (external service configurations like OpenAI, Anthropic, etc.) are org-scoped and available to all sandboxes within the org. There is no project-level provider scoping; providers are shared across the entire org.
 
 ## Quotas
 

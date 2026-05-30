@@ -14,46 +14,46 @@ const features = [
     icon: CloudIcon,
     title: 'Managed Sandboxes',
     description:
-      'Pre-configured K8s pods for Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or your own custom runtime. SSH-enabled with configurable resources, idle timeouts, and automatic file sync.',
+      'One command to launch a sandboxed Claude Code, Codex, or OpenCode session. Pre-configured pods with SSH, file sync, and automatic shutdown.',
   },
   {
     icon: SecurityIcon,
     title: 'Zero-Trust Egress Proxy',
     description:
-      'All outbound traffic from sandbox pods passes through an encrypted MITM proxy. Placeholder tokens are resolved to real secrets server-side — AI tools never see actual credentials.',
+      'AI tools never see your real API keys. Outbound requests pass through a MITM proxy that swaps placeholder tokens for real credentials server-side.',
   },
   {
     icon: VpnKeyIcon,
     title: 'Secret Management',
     description:
-      'AES-256-GCM encrypted secrets with fine-grained scoping. Injected at runtime via environment variables, files, or MITM replacement. Never exposed to client code or AI tools.',
+      'Encrypted at rest, injected at runtime, redacted everywhere else. Secrets are scoped per-org, per-project, or per-provider.',
   },
   {
     icon: SyncIcon,
     title: 'Bidirectional File Sync',
     description:
-      'Sync files between your local machine and the sandbox pod in real-time. Edit locally, execute remotely — or let the AI tool generate code and pull it back instantly.',
+      'Edit locally, run remotely. Real-time Mutagen sync keeps your laptop and sandbox in lockstep. AI-generated changes appear on your filesystem instantly.',
   },
   {
     icon: BusinessIcon,
     title: 'Team Management',
     description:
-      'Multi-tenant organization and project hierarchy with role-based access control. Centralize sandbox configurations, secrets, and provider credentials across your engineering team.',
+      'One org, shared sandboxes, role-based access. Configure credentials once; every developer gets the right setup automatically.',
   },
   {
     icon: ScreenShareIcon,
     title: 'Session Sharing',
     description:
-      'Share live terminal sessions across CLI and browser in real-time. Multiple users collaborate on the same sandbox with public/private visibility and buffered output replay.',
+      'Watch an AI tool work in real-time, from the CLI or browser. Share sessions with teammates, reconnect without losing context.',
   },
 ]
 
 const Features = () => (
   <SectionContainer id='features'>
     <SectionHeader
-      overline='PLATFORM CAPABILITIES'
-      title='Secure AI Tool execution'
-      subtitle='A managed platform that handles environments, credentials, and collaboration, letting you and your team move faster.'
+      overline='WHAT YOU GET'
+      title='Everything your team needs to run AI tools safely'
+      subtitle='Managed sandboxes, zero-trust credentials, real-time file sync, and team collaboration. All from a single platform.'
     />
     <Grid
       container

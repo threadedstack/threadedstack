@@ -17,6 +17,8 @@ const DocsPage = () => {
     setContent(null)
     setNotFound(false)
 
+    window.scrollTo(0, 0)
+
     const loader = findContentModule(slug)
     if (loader) {
       loader()

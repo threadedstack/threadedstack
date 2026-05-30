@@ -1,16 +1,22 @@
+import type { ComponentType } from 'react'
+
 import Box from '@mui/material/Box'
-import Container from '@mui/material/Container'
-import Typography from '@mui/material/Typography'
+import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid'
 import Link from '@mui/material/Link'
-import Chip from '@mui/material/Chip'
+import Container from '@mui/material/Container'
+import Typography from '@mui/material/Typography'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
+import SchoolIcon from '@mui/icons-material/School'
+import CompareIcon from '@mui/icons-material/Compare'
+import GppGoodIcon from '@mui/icons-material/GppGood'
 import BusinessIcon from '@mui/icons-material/Business'
-import CloudQueueIcon from '@mui/icons-material/CloudQueue'
-import ScreenShareIcon from '@mui/icons-material/ScreenShare'
-import type { ComponentType } from 'react'
-import CodeBlock from '@TAF/components/Shared/CodeBlock'
 import PageMeta from '@TAF/components/Shared/PageMeta'
+import PageHero from '@TAF/components/Shared/PageHero'
+import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import CodeBlock from '@TAF/components/Shared/CodeBlock'
+import IconBadge from '@TAF/components/Shared/IconBadge'
+import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 
 type UseCaseSection = {
   icon: ComponentType<any>
@@ -18,7 +24,7 @@ type UseCaseSection = {
   paragraphs: string[]
   scenario: string
   features: string[]
-  code: string
+  code?: string
   codeLang?: string
   docsLink: string
 }
@@ -144,7 +150,73 @@ tsa sessions connect sess_k8j2m
     codeLang: 'bash',
     docsLink: '/docs/features/session-sharing',
   },
+  {
+    icon: SchoolIcon,
+    title: 'AI Onboarding',
+    paragraphs: [
+      'New engineers launch a sandbox and start coding with AI on day one. No environment setup guides, no credential sharing, no Slack messages asking "how do I configure Claude Code?"',
+      'Threaded Stack sandbox presets include everything a developer needs: the AI tool runtime, provider credentials, file sync, and SSH access. A single tsa run command replaces hours of onboarding documentation and environment configuration.',
+      'Organizations define sandbox presets once. Every new team member inherits the same configuration automatically. When credentials rotate or tools update, the change propagates instantly without per-developer intervention.',
+    ],
+    scenario:
+      'A startup hires five engineers in a single month. Instead of each spending a day configuring AI tools, they run tsa login and tsa run on their first morning. By lunch, all five are coding with Claude Code using the same credentials, the same project files, and the same sandbox configuration.',
+    features: [
+      'Managed Sandboxes',
+      'TSA CLI',
+      'Team Management',
+      'Provider Integrations',
+    ],
+    docsLink: '/docs/user-guide/getting-started',
+  },
+  {
+    icon: GppGoodIcon,
+    title: 'Security & Compliance',
+    paragraphs: [
+      'Audit every outbound API call from every sandbox. Know which AI tools accessed which providers, when, and with what credentials. Domain allowlists ensure credentials only reach approved endpoints.',
+      'The MITM egress proxy logs every request that passes through it, including the source sandbox, destination domain, and which placeholder tokens were resolved. Security teams get full visibility into how AI tools interact with external services without slowing developers down.',
+      'Secrets are encrypted at rest with AES-256-GCM and never written to disk inside sandboxes. Combined with per-secret domain restrictions and role-based access control, Threaded Stack provides the audit trail and control surface that compliance teams require.',
+    ],
+    scenario:
+      'A fintech company adopts AI coding tools but needs to demonstrate to auditors that API keys are never exposed to end-user code. They deploy Threaded Stack, configure domain allowlists for each provider credential, and present the egress proxy audit logs as evidence of credential isolation.',
+    features: [
+      'Zero-Trust Egress Proxy',
+      'Secret Management',
+      'Team Management',
+      'Provider Integrations',
+    ],
+    docsLink: '/docs/architecture/security-model',
+  },
+  {
+    icon: CompareIcon,
+    title: 'Multi-Tool Evaluation',
+    paragraphs: [
+      'Comparing Claude Code vs Codex vs OpenCode? Run all three in parallel sandboxes with the same credentials and project files. Switch runtimes without reconfiguring anything.',
+      'Threaded Stack separates sandbox configuration from runtime selection. The same project files, secrets, and provider credentials work across all supported runtimes. Switching from Claude Code to Codex is a one-line change in the sandbox preset.',
+      'Teams evaluating AI coding tools can run controlled comparisons: same codebase, same credentials, same environment. The only variable is the AI tool itself, giving objective data on which tool performs best for their specific workflows.',
+    ],
+    scenario:
+      'An engineering team wants to compare Claude Code and Codex for their monorepo workflow. They create two sandbox presets with identical configurations but different runtimes, run both in parallel, and compare the results side by side using shared session viewing.',
+    features: [
+      'Managed Sandboxes',
+      'Session Sharing',
+      'Provider Integrations',
+      'File Sync',
+    ],
+    docsLink: '/docs/features/sandbox-connect',
+  },
 ]
+
+const altBgSx = (t: any) =>
+  t.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+
+const scenarioBoxSx = {
+  p: 2.5,
+  mb: 2.5,
+  borderRadius: 2,
+  border: 1,
+  borderColor: 'divider',
+  bgcolor: altBgSx,
+} as const
 
 const UseCases = () => (
   <>
@@ -153,180 +225,93 @@ const UseCases = () => (
       description='Discover how engineering teams use Threaded Stack to run AI tools in secure, managed sandbox environments with centralized credential management and real-time collaboration.'
     />
     <Box>
-      {/* Mini Hero */}
-      <Box
-        sx={{
-          py: { xs: 8, md: 12 },
-          bgcolor: (t) => (t.palette.mode === 'dark' ? '#1A1D21' : '#FAFBFC'),
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      <PageHero
+        overline='USE CASES'
+        title='Built for How Teams Actually Use AI Tools'
+        subtitle='See how engineering teams standardize and secure their AI coding tool environments.'
+      />
+
+      {useCaseSections.map((section, idx) => (
         <Box
+          key={section.title}
+          component='section'
           sx={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: (t) =>
-              t.palette.mode === 'dark'
-                ? 'radial-gradient(ellipse at 50% 50%, rgba(51,112,222,0.06) 0%, transparent 60%)'
-                : 'radial-gradient(ellipse at 50% 50%, rgba(51,112,222,0.03) 0%, transparent 60%)',
+            py: { xs: 6, md: 10 },
+            bgcolor: idx % 2 === 0 ? 'transparent' : altBgSx,
           }}
-        />
-        <Container
-          maxWidth='lg'
-          sx={{ position: 'relative', textAlign: 'center' }}
         >
-          <Typography
-            variant='overline'
-            sx={{
-              color: 'primary.main',
-              letterSpacing: 3,
-              fontWeight: 600,
-              mb: 2,
-              display: 'block',
-            }}
-          >
-            USE CASES
-          </Typography>
-          <Typography
-            variant='h2'
-            sx={{ mb: 2, fontWeight: 700 }}
-          >
-            Built for How Teams Actually Use AI Tools
-          </Typography>
-          <Typography
-            variant='body1'
-            color='text.secondary'
-            sx={{ maxWidth: 560, mx: 'auto' }}
-          >
-            See how engineering teams standardize and secure their AI coding tool
-            environments.
-          </Typography>
-        </Container>
-      </Box>
-
-      {/* Use Case Sections */}
-      {useCaseSections.map((section, idx) => {
-        const Icon = section.icon
-        const reverse = idx % 2 === 1
-
-        return (
-          <Box
-            key={section.title}
-            component='section'
-            sx={{
-              py: { xs: 6, md: 10 },
-              bgcolor:
-                idx % 2 === 0
-                  ? 'transparent'
-                  : (t) =>
-                      t.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.02)'
-                        : 'rgba(0,0,0,0.02)',
-            }}
-          >
-            <Container maxWidth='lg'>
+          <Container maxWidth='lg'>
+            <Grid
+              container
+              spacing={6}
+              alignItems='flex-start'
+              direction={idx % 2 === 1 ? 'row-reverse' : 'row'}
+            >
               <Grid
-                container
-                spacing={6}
-                alignItems='flex-start'
-                direction={reverse ? 'row-reverse' : 'row'}
+                item
+                xs={12}
+                md={section.code ? 6 : 12}
               >
-                {/* Text Column */}
-                <Grid
-                  item
-                  xs={12}
-                  md={6}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                    <Box
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: (t) =>
-                          t.palette.mode === 'dark'
-                            ? 'rgba(51,112,222,0.12)'
-                            : 'rgba(51,112,222,0.08)',
-                      }}
-                    >
-                      <Icon sx={{ fontSize: 26, color: 'primary.main' }} />
-                    </Box>
-                    <Typography
-                      variant='h4'
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {section.title}
-                    </Typography>
-                  </Box>
-
-                  {section.paragraphs.map((p, pIdx) => (
-                    <Typography
-                      key={pIdx}
-                      variant='body1'
-                      color='text.secondary'
-                      sx={{ mb: 2, lineHeight: 1.8 }}
-                    >
-                      {p}
-                    </Typography>
-                  ))}
-
-                  {/* Scenario walkthrough */}
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      mb: 2.5,
-                      borderRadius: 2,
-                      border: 1,
-                      borderColor: 'divider',
-                      bgcolor: (t) =>
-                        t.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.02)'
-                          : 'rgba(0,0,0,0.02)',
-                    }}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <IconBadge icon={section.icon} />
+                  <Typography
+                    variant='h4'
+                    sx={{ fontWeight: 700 }}
                   >
-                    <Typography
-                      variant='subtitle2'
-                      sx={{ mb: 1, fontWeight: 700 }}
-                    >
-                      Example Scenario
-                    </Typography>
-                    <Typography
-                      variant='body2'
-                      color='text.secondary'
-                      sx={{ lineHeight: 1.7 }}
-                    >
-                      {section.scenario}
-                    </Typography>
-                  </Box>
+                    {section.title}
+                  </Typography>
+                </Box>
 
-                  {/* Feature callouts */}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                    {section.features.map((f) => (
-                      <Chip
-                        key={f}
-                        label={f}
-                        size='small'
-                        variant='outlined'
-                        color='primary'
-                      />
-                    ))}
-                  </Box>
+                {section.paragraphs.map((p, pIdx) => (
+                  <Typography
+                    key={pIdx}
+                    variant='body1'
+                    color='text.secondary'
+                    sx={{ mb: 2, lineHeight: 1.8 }}
+                  >
+                    {p}
+                  </Typography>
+                ))}
 
-                  <Link
-                    href={section.docsLink}
-                    color='primary'
+                <Box sx={scenarioBoxSx}>
+                  <Typography
+                    variant='subtitle2'
+                    sx={{ mb: 1, fontWeight: 700 }}
+                  >
+                    Example Scenario
+                  </Typography>
+                  <Typography
                     variant='body2'
-                    sx={{ fontWeight: 600 }}
+                    color='text.secondary'
+                    sx={{ lineHeight: 1.7 }}
                   >
-                    Read the docs &rarr;
-                  </Link>
-                </Grid>
+                    {section.scenario}
+                  </Typography>
+                </Box>
 
-                {/* Code Column */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                  {section.features.map((f) => (
+                    <Chip
+                      key={f}
+                      label={f}
+                      size='small'
+                      variant='outlined'
+                      color='primary'
+                    />
+                  ))}
+                </Box>
+
+                <Link
+                  href={section.docsLink}
+                  color='primary'
+                  variant='body2'
+                  sx={{ fontWeight: 600 }}
+                >
+                  Read the docs &rarr;
+                </Link>
+              </Grid>
+
+              {section.code && (
                 <Grid
                   item
                   xs={12}
@@ -337,11 +322,11 @@ const UseCases = () => (
                     language={section.codeLang || 'typescript'}
                   />
                 </Grid>
-              </Grid>
-            </Container>
-          </Box>
-        )
-      })}
+              )}
+            </Grid>
+          </Container>
+        </Box>
+      ))}
     </Box>
   </>
 )

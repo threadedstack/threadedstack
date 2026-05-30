@@ -4,22 +4,30 @@ import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Link from '@mui/material/Link'
 import { RobotIcon } from '@tdsk/components'
+import Accordion from '@mui/material/Accordion'
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import CloudIcon from '@mui/icons-material/Cloud'
 import SyncIcon from '@mui/icons-material/Sync'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import PageMeta from '@TAF/components/Shared/PageMeta'
+import PageHero from '@TAF/components/Shared/PageHero'
 import SecurityIcon from '@mui/icons-material/Security'
 import BusinessIcon from '@mui/icons-material/Business'
 import CodeBlock from '@TAF/components/Shared/CodeBlock'
+import IconBadge from '@TAF/components/Shared/IconBadge'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import AccordionSummary from '@mui/material/AccordionSummary'
 import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 
 type FeatureSection = {
   code: string
   title: string
+  benefit: string
   docsLink: string
   codeLang?: string
+  expansion: string
   paragraphs: string[]
   icon: ComponentType<any>
 }
@@ -28,6 +36,10 @@ const featureSections: FeatureSection[] = [
   {
     icon: CloudIcon,
     title: 'Managed Sandboxes',
+    benefit:
+      'One command to launch a sandboxed AI tool with SSH, file sync, and automatic shutdown.',
+    expansion:
+      'Every organization starts with six built-in presets: Claude Code, Codex, OpenCode, Antigravity, OpenClaw, and a base preset for custom runtimes. Sandboxes run as isolated K8s pods with configurable resources, idle timeouts, and per-project overrides.',
     paragraphs: [
       'Threaded Stack sandboxes are isolated K8s pods pre-configured to run AI tools. Each sandbox includes SSH access, a configurable working directory, resource limits (CPU/memory), and automatic idle shutdown. Six built-in presets cover the major AI tools — Claude Code, Codex, OpenCode, Antigravity, OpenClaw — plus a base preset for custom runtimes.',
       'Sandboxes are created per-organization and can be assigned to specific projects with per-project configuration overrides. This means a single sandbox definition can be reused across multiple projects, each with their own git repos, init scripts, and resource allocations.',
@@ -54,6 +66,10 @@ tsa run claude-code
   {
     icon: SecurityIcon,
     title: 'Zero-Trust Egress Proxy',
+    benefit:
+      'Your AI tools work with placeholder tokens. Real credentials exist only in proxy memory for milliseconds.',
+    expansion:
+      'Every outbound HTTP request passes through an encrypted MITM proxy that replaces placeholder tokens with real secrets before forwarding. The sandbox never has access to actual credentials, even if the AI tool tries to print its environment.',
     paragraphs: [
       "Every outbound HTTP request from a sandbox pod passes through Threaded Stack's MITM egress proxy. The proxy inspects outbound traffic for placeholder tokens — strings matching the pattern tdsk_ph_* — and resolves them to real secret values before forwarding the request to its destination. This happens transparently; the AI tool inside the sandbox has no knowledge that its credentials are placeholders.",
       "This architecture provides defense-in-depth. Even if an AI coding tool is manipulated into revealing its environment variables or attempting credential exfiltration, it can only access placeholder values. The real credentials exist exclusively within the egress proxy's memory during the brief moment of request forwarding. They are never written to disk, never logged, and never exposed to the sandbox filesystem.",
@@ -80,6 +96,9 @@ curl -H "Authorization: Bearer $ANTHROPIC_API_KEY" \\
   {
     icon: VpnKeyIcon,
     title: 'Secret Management',
+    benefit: 'Encrypted at rest, injected at runtime, redacted everywhere else.',
+    expansion:
+      'Secrets use AES-256-GCM encryption with per-entity derived keys. Three injection mechanisms (environment variable, file, and MITM proxy) give fine-grained control over how credentials reach each AI tool.',
     paragraphs: [
       'Secrets in Threaded Stack are encrypted at rest using AES-256-GCM with keys derived via HKDF from a master key. When a secret is created, it is encrypted immediately and the plaintext is never stored in the database. Secrets are scoped using an exclusive-arc pattern: each secret belongs to exactly one of an organization, project, or provider context.',
       'At runtime, secrets can be injected into sandbox pods through three mechanisms: direct environment variable injection, file-based injection (writing the secret to a specified path inside the container), or MITM injection via the egress proxy. The injection method is configurable per-secret and per-provider brand, allowing fine-grained control over how credentials reach the AI tool.',
@@ -109,6 +128,10 @@ curl -H "Authorization: Bearer $ANTHROPIC_API_KEY" \\
   {
     icon: RobotIcon,
     title: '21+ Provider Integrations',
+    benefit:
+      'Configure provider credentials once. Every sandbox gets the right environment variables automatically.',
+    expansion:
+      'Threaded Stack maps provider credentials to the correct environment variables for each runtime. Anthropic keys for Claude Code, OpenAI keys for Codex, Google keys for Antigravity. No manual env var configuration.',
     paragraphs: [
       'Each sandbox runtime has a mapping of supported LLM provider brands and the environment variables required to authenticate with them. Threaded Stack supports Anthropic (direct, via Bedrock, via Vertex), OpenAI, Google (Gemini API and Vertex AI), OpenRouter, Z.AI, Ollama (local and cloud), and custom providers with configurable base URLs.',
       'When you configure a provider credential for a sandbox, Threaded Stack automatically maps it to the correct environment variables for that runtime. For example, configuring an Anthropic credential for a Claude Code sandbox sets ANTHROPIC_API_KEY; the same credential configured for Bedrock access additionally sets AWS_REGION, CLAUDE_CODE_USE_BEDROCK, and the required AWS credential variables.',
@@ -142,6 +165,10 @@ curl -H "Authorization: Bearer $ANTHROPIC_API_KEY" \\
   {
     icon: SyncIcon,
     title: 'Bidirectional File Sync',
+    benefit:
+      'Edit locally, run remotely. AI-generated changes appear on your filesystem instantly.',
+    expansion:
+      "Mutagen-powered real-time sync keeps your local project and the sandbox's /workspace mount in lockstep. Configurable ignore patterns, conflict resolution, and pause/resume controls.",
     paragraphs: [
       "Threaded Stack uses Mutagen under the hood to provide real-time bidirectional file synchronization between your local machine and the sandbox pod. When you run tsa run, your local project directory is synced to the sandbox's /workspace mount. Any file you edit locally appears in the sandbox immediately; any file the AI tool generates or modifies appears on your local filesystem just as quickly.",
       'Sync is configurable with ignore patterns (to exclude node_modules, build artifacts, etc.), conflict resolution strategies, and watch mode. The tsa sync command provides status, pause/resume, and force-resync capabilities for fine-grained control.',
@@ -169,6 +196,10 @@ tsa sync flush`,
   {
     icon: BusinessIcon,
     title: 'Team Management',
+    benefit:
+      'Configure credentials once; every developer gets the right setup automatically.',
+    expansion:
+      'Multi-tenant organizations with project-level overrides, role-based access control, and subscription-based quotas. Admins manage infrastructure; developers launch sandboxes.',
     paragraphs: [
       "Threaded Stack's multi-tenant design provides complete isolation between organizations. Each org has its own sandboxes, secrets, provider configurations, and member roster. Within an organization, projects offer a second level of grouping — sandbox configurations can be overridden per-project, and secrets can be scoped to individual projects.",
       'Role-based access control governs what each member can do. Admins manage org-wide settings, secrets, and sandbox configurations. Members can launch and use sandboxes but cannot modify credentials or infrastructure settings. This separation ensures that developers are productive without being exposed to sensitive configuration details.',
@@ -194,6 +225,9 @@ tsa sync flush`,
   {
     icon: ScreenShareIcon,
     title: 'Session Sharing',
+    benefit: 'Watch an AI tool work in real-time, from the CLI or browser.',
+    expansion:
+      'Multiple users attach to the same sandbox session with live PTY output. Public or private visibility, detach/reconnect with output replay, and cross-platform access between CLI and web.',
     paragraphs: [
       'When a sandbox session is running, any authorized user can attach to it from the TSA CLI or the Threads web UI. Every connected client sees the same PTY output in real time — keystrokes, command output, and control sequences are broadcast to all participants with minimal latency.',
       'Sessions support per-session visibility controls. Mark a session as public to allow any org member to connect, or keep it private so only the session owner can attach. Each session tracks its connected clients, and users can detach at any time without terminating the underlying process. When they reconnect, buffered terminal output is replayed so they never miss what happened while away.',
@@ -220,6 +254,21 @@ tsa sessions list
   },
 ]
 
+const altBgSx = (t: any) =>
+  t.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+
+const accordionSx = {
+  mb: 2,
+  bgcolor: 'transparent',
+  '&::before': { display: 'none' },
+} as const
+
+const accordionSummarySx = {
+  px: 0,
+  minHeight: 'auto',
+  '& .MuiAccordionSummary-content': { my: 0 },
+} as const
+
 const Features = () => (
   <>
     <PageMeta
@@ -227,156 +276,115 @@ const Features = () => (
       description="Explore Threaded Stack's platform capabilities: managed sandboxes, zero-trust egress proxy, secret management, provider integrations, file sync, team management, and real-time session sharing."
     />
     <Box>
-      {/* Mini Hero */}
-      <Box
-        sx={{
-          py: { xs: 8, md: 12 },
-          bgcolor: (t) => (t.palette.mode === 'dark' ? '#1A1D21' : '#FAFBFC'),
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      <PageHero
+        overline='PLATFORM CAPABILITIES'
+        title='The Sandbox Platform, Under the Hood'
+        subtitle='A deep dive into how Threaded Stack secures your AI tools, manages credentials, and keeps your team in sync.'
+      />
+
+      {featureSections.map((section, idx) => (
         <Box
+          key={section.title}
+          component='section'
           sx={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: (t) =>
-              t.palette.mode === 'dark'
-                ? 'radial-gradient(ellipse at 50% 50%, rgba(51,112,222,0.06) 0%, transparent 60%)'
-                : 'radial-gradient(ellipse at 50% 50%, rgba(51,112,222,0.03) 0%, transparent 60%)',
+            py: { xs: 6, md: 10 },
+            bgcolor: idx % 2 === 0 ? 'transparent' : altBgSx,
           }}
-        />
-        <Container
-          maxWidth='lg'
-          sx={{ position: 'relative', textAlign: 'center' }}
         >
-          <Typography
-            variant='overline'
-            sx={{
-              color: 'primary.main',
-              letterSpacing: 3,
-              fontWeight: 600,
-              mb: 2,
-              display: 'block',
-            }}
-          >
-            PLATFORM CAPABILITIES
-          </Typography>
-          <Typography
-            variant='h2'
-            sx={{ mb: 2, fontWeight: 700 }}
-          >
-            The Sandbox Platform, Under the Hood
-          </Typography>
-          <Typography
-            variant='body1'
-            color='text.secondary'
-            sx={{ maxWidth: 560, mx: 'auto' }}
-          >
-            A deep dive into the systems that make Threaded Stack the most secure way to
-            run AI tools.
-          </Typography>
-        </Container>
-      </Box>
-
-      {/* Feature Sections */}
-      {featureSections.map((section, idx) => {
-        const Icon = section.icon
-        const reverse = idx % 2 === 1
-
-        return (
-          <Box
-            key={section.title}
-            component='section'
-            sx={{
-              py: { xs: 6, md: 10 },
-              bgcolor:
-                idx % 2 === 0
-                  ? 'transparent'
-                  : (t) =>
-                      t.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.02)'
-                        : 'rgba(0,0,0,0.02)',
-            }}
-          >
-            <Container maxWidth='lg'>
+          <Container maxWidth='lg'>
+            <Grid
+              container
+              spacing={6}
+              alignItems='center'
+              direction={idx % 2 === 1 ? 'row-reverse' : 'row'}
+            >
               <Grid
-                container
-                spacing={6}
-                alignItems='center'
-                direction={reverse ? 'row-reverse' : 'row'}
+                item
+                xs={12}
+                md={6}
               >
-                {/* Text Column */}
-                <Grid
-                  item
-                  xs={12}
-                  md={6}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                    <Box
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: (t) =>
-                          t.palette.mode === 'dark'
-                            ? 'rgba(51,112,222,0.12)'
-                            : 'rgba(51,112,222,0.08)',
-                      }}
-                    >
-                      <Icon sx={{ fontSize: 26, color: 'primary.main' }} />
-                    </Box>
-                    <Typography
-                      variant='h4'
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {section.title}
-                    </Typography>
-                  </Box>
-
-                  {section.paragraphs.map((p, pIdx) => (
-                    <Typography
-                      key={pIdx}
-                      variant='body1'
-                      color='text.secondary'
-                      sx={{
-                        mb: pIdx < section.paragraphs.length - 1 ? 2 : 3,
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      {p}
-                    </Typography>
-                  ))}
-
-                  <Link
-                    href={section.docsLink}
-                    color='primary'
-                    variant='body2'
-                    sx={{ fontWeight: 600 }}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <IconBadge icon={section.icon} />
+                  <Typography
+                    variant='h4'
+                    sx={{ fontWeight: 700 }}
                   >
-                    Read the docs &rarr;
-                  </Link>
-                </Grid>
+                    {section.title}
+                  </Typography>
+                </Box>
 
-                {/* Code Column */}
-                <Grid
-                  item
-                  xs={12}
-                  md={6}
+                <Typography
+                  variant='h6'
+                  sx={{ mb: 1.5, fontWeight: 600, lineHeight: 1.5 }}
                 >
-                  <CodeBlock
-                    code={section.code}
-                    language={section.codeLang || 'typescript'}
-                  />
-                </Grid>
+                  {section.benefit}
+                </Typography>
+                <Typography
+                  variant='body1'
+                  color='text.secondary'
+                  sx={{ mb: 2, lineHeight: 1.8 }}
+                >
+                  {section.expansion}
+                </Typography>
+
+                <Accordion
+                  disableGutters
+                  elevation={0}
+                  sx={accordionSx}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    sx={accordionSummarySx}
+                  >
+                    <Typography
+                      variant='body2'
+                      color='primary'
+                      sx={{ fontWeight: 600 }}
+                    >
+                      Under the hood
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ px: 0, pt: 1 }}>
+                    {section.paragraphs.map((p, pIdx) => (
+                      <Typography
+                        key={pIdx}
+                        variant='body2'
+                        color='text.secondary'
+                        sx={{
+                          mb: pIdx < section.paragraphs.length - 1 ? 1.5 : 0,
+                          lineHeight: 1.8,
+                        }}
+                      >
+                        {p}
+                      </Typography>
+                    ))}
+                  </AccordionDetails>
+                </Accordion>
+
+                <Link
+                  href={section.docsLink}
+                  color='primary'
+                  variant='body2'
+                  sx={{ fontWeight: 600 }}
+                >
+                  Read the docs &rarr;
+                </Link>
               </Grid>
-            </Container>
-          </Box>
-        )
-      })}
+
+              <Grid
+                item
+                xs={12}
+                md={6}
+              >
+                <CodeBlock
+                  code={section.code}
+                  language={section.codeLang || 'typescript'}
+                />
+              </Grid>
+            </Grid>
+          </Container>
+        </Box>
+      ))}
     </Box>
   </>
 )

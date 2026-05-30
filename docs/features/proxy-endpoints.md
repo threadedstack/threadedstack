@@ -52,7 +52,6 @@ Threaded Stack supports three endpoint types. This document focuses on **Proxy**
 |------|-------------|
 | **Proxy** | Forwards HTTP requests to an external URL with auth, headers, and retries |
 | **FaaS** | Runs a sandboxed JavaScript/TypeScript function |
-| **Agent** | Executes an AI agent with LLM streaming |
 
 ---
 
@@ -72,7 +71,6 @@ flowchart LR
   Backend --> Dispatcher["Endpoint Dispatcher"]
   Dispatcher --> ProxyEP["Proxy Endpoint"]
   Dispatcher --> FaaSEP["FaaS Endpoint"]
-  Dispatcher --> AgentEP["Agent Endpoint"]
 
   ProxyEP --> ProxySvc["ProxyService Auth injection Secret resolution OAuth 2.0 cache Domain validation"]
   ProxySvc --> ExtAPI["External API (target)"]
@@ -334,7 +332,6 @@ Secrets belong to exactly one scope (exclusive arc pattern):
 | **Organization** | Available to all projects in the org |
 | **Project** | Available only within that project |
 | **Provider** | Scoped to a specific LLM provider |
-| **Agent** | Scoped to a specific AI agent |
 
 Proxy endpoints fetch secrets scoped to their **project** (and the project's org).
 

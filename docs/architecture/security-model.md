@@ -2,7 +2,7 @@
 
 ## Security Philosophy
 
-Threaded Stack follows a **defense-in-depth** strategy built around one core invariant: **AI agents and end users never see raw credentials**. Secrets are encrypted at rest using AES-256-GCM, decrypted only at the point of use, and injected outside the agent's execution context. If any single layer is compromised, multiple additional barriers remain.
+Threaded Stack follows a **defense-in-depth** strategy built around one core invariant: **sandbox code and end users never see raw credentials**. Secrets are encrypted at rest using AES-256-GCM, decrypted only at the point of use, and injected outside the sandbox execution context. If any single layer is compromised, multiple additional barriers remain.
 
 The system enforces this through five reinforcing layers:
 
@@ -10,12 +10,12 @@ The system enforces this through five reinforcing layers:
 2. **Hash-only authentication** -- API keys are stored as SHA-256 hashes; raw keys are shown once at creation and never persisted.
 3. **Just-in-time injection** -- Secrets are decrypted and injected into outbound requests at the last possible moment, then immediately discarded.
 4. **Egress interception** -- All outbound traffic from sandboxed code passes through a MITM proxy that replaces placeholder tokens with real values, ensuring the sandbox code only ever handles opaque tokens.
-5. **Scoped access** -- Secrets are bound to exactly one entity (org, project, provider, or agent) via exclusive arc constraints enforced at the database level.
+5. **Scoped access** -- Secrets are bound to exactly one entity (org, project, or provider) via exclusive arc constraints enforced at the database level.
 
 
 ## Encryption at Rest
 
-All secret values are encrypted with AES-256-GCM before being stored in the database. Each entity (organization, project, provider, or agent) receives its own derived encryption key through HKDF key derivation from the platform master key. This isolation means that compromising one entity's derived key cannot be used to decrypt any other entity's secrets.
+All secret values are encrypted with AES-256-GCM before being stored in the database. Each entity (organization, project, or provider) receives its own derived encryption key through HKDF key derivation from the platform master key. This isolation means that compromising one entity's derived key cannot be used to decrypt any other entity's secrets.
 
 
 ## API Key Security
@@ -29,7 +29,7 @@ A short prefix (first 12 characters) is stored alongside the hash for display pu
 
 ## JIT Secret Injection
 
-Just-in-time (JIT) secret injection keeps credentials out of agent and function code. There are two injection paths depending on the execution context.
+Just-in-time (JIT) secret injection keeps credentials out of sandbox and function code. There are two injection paths depending on the execution context.
 
 ### Server-Side Resolution (Proxy/FaaS Endpoints)
 
@@ -83,7 +83,6 @@ Secrets follow the **exclusive arc** pattern -- each secret belongs to exactly o
 | **Organization** | All members of the org | Shared API keys, org-wide credentials |
 | **Project** | Project members only | Project-specific service credentials |
 | **Provider** | Provider context only | LLM API keys tied to a specific provider config |
-| **Agent** | Agent execution context only | Agent-specific credentials |
 
 Scope determines which derived encryption key is used. When resolving secrets for an operation, provider-scoped secrets take precedence over org-scoped secrets when names collide.
 

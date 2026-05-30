@@ -6,7 +6,11 @@ import { Link as RouterLink } from 'react-router'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
+import SchoolIcon from '@mui/icons-material/School'
+import CompareIcon from '@mui/icons-material/Compare'
+import GppGoodIcon from '@mui/icons-material/GppGood'
 import BusinessIcon from '@mui/icons-material/Business'
+import IconBadge from '@TAF/components/Shared/IconBadge'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import ScreenShareIcon from '@mui/icons-material/ScreenShare'
 import SectionHeader from '@TAF/components/Shared/SectionHeader'
@@ -32,6 +36,24 @@ const useCases = [
     icon: ScreenShareIcon,
     title: `Collaborative AI Sessions`,
     description: `Share live AI tool sessions with teammates in real-time. Pair-program with AI from the CLI or browser — public sessions let your whole team observe and learn from AI-assisted workflows.`,
+  },
+  {
+    icon: SchoolIcon,
+    title: 'AI Onboarding',
+    description:
+      'New engineers launch a sandbox and start coding with AI on day one. No environment setup, no credential sharing, no configuration guides.',
+  },
+  {
+    icon: GppGoodIcon,
+    title: 'Security & Compliance',
+    description:
+      'Audit every outbound API call from every sandbox. Domain allowlists ensure credentials only reach approved endpoints. Full egress proxy logging.',
+  },
+  {
+    icon: CompareIcon,
+    title: 'Multi-Tool Evaluation',
+    description:
+      'Run Claude Code, Codex, and OpenCode in parallel sandboxes with identical configurations. Compare tools objectively without reconfiguring anything.',
   },
 ]
 
@@ -61,22 +83,12 @@ const UseCases = () => (
             }}
           >
             <CardContent sx={{ p: 4 }}>
-              <Box
-                sx={{
-                  mb: 2,
-                  width: 56,
-                  height: 56,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: (t) =>
-                    t.palette.mode === 'dark'
-                      ? 'rgba(51,112,222,0.12)'
-                      : 'rgba(51,112,222,0.08)',
-                }}
-              >
-                <uc.icon sx={{ fontSize: 32, color: 'primary.main' }} />
+              <Box sx={{ mb: 2 }}>
+                <IconBadge
+                  icon={uc.icon}
+                  size={56}
+                  iconSize={32}
+                />
               </Box>
               <Typography
                 variant='h5'

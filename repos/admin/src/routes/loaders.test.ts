@@ -63,6 +63,7 @@ vi.mock('@TAF/state/accessors', () => ({
 
 // --- Fetch action mocks ---
 const mockFetchOrgs = vi.fn()
+const mockFetchOrg = vi.fn()
 const mockFetchProjects = vi.fn()
 const mockFetchProviders = vi.fn()
 const mockFetchSandboxes = vi.fn()
@@ -83,6 +84,9 @@ const mockFetchOverrides = vi.fn()
 
 vi.mock('@TAF/actions/orgs/api/fetchOrgs', () => ({
   fetchOrgs: () => mockFetchOrgs(),
+}))
+vi.mock('@TAF/actions/orgs/api/fetchOrg', () => ({
+  fetchOrg: (...args: any[]) => mockFetchOrg(...args),
 }))
 vi.mock('@TAF/actions/projects/api/fetchProjects', () => ({
   fetchProjects: (...args: any[]) => mockFetchProjects(...args),
@@ -211,12 +215,29 @@ describe('loaders', () => {
   // orgScopeLoader
   // ---------------------------------------------------------------------------
   describe('orgScopeLoader', () => {
+    beforeEach(() => {
+      mockFetchOrg.mockResolvedValue({ org: { id: 'org-123' } })
+    })
+
     it('should set activeOrgId from params', async () => {
       mockGetProjects.mockReturnValue({ p1: {} })
 
       await orgScopeLoader(makeArgs({ orgId: 'org-123' }))
 
       expect(mockSetActiveOrgId).toHaveBeenCalledWith('org-123')
+    })
+
+    it('should await fetchOrg with the org ID', async () => {
+      await orgScopeLoader(makeArgs({ orgId: 'org-123' }))
+
+      expect(mockFetchOrg).toHaveBeenCalledWith('org-123')
+    })
+
+    it('should throw when fetchOrg returns error', async () => {
+      const error = new Error('Org fetch failed')
+      mockFetchOrg.mockResolvedValue({ error })
+
+      await expect(orgScopeLoader(makeArgs({ orgId: 'org-123' }))).rejects.toThrow(error)
     })
 
     it('should fetch projects when not loaded', async () => {

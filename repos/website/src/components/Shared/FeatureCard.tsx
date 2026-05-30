@@ -1,16 +1,18 @@
 import type { ComponentType } from 'react'
+
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
+import IconBadge from '@TAF/components/Shared/IconBadge'
 
 type Props = {
   title: string
   description: string
-  icon: ComponentType<any>
+  icon: ComponentType<{ sx?: object }>
 }
 
-const FeatureCard = ({ icon: Icon, title, description }: Props) => (
+const FeatureCard = ({ icon, title, description }: Props) => (
   <Card
     sx={{
       height: '100%',
@@ -19,20 +21,12 @@ const FeatureCard = ({ icon: Icon, title, description }: Props) => (
     }}
   >
     <CardContent sx={{ p: 3 }}>
-      <Box
-        sx={{
-          mb: 2,
-          width: 48,
-          height: 48,
-          borderRadius: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: (t) =>
-            t.palette.mode === 'dark' ? 'rgba(51,112,222,0.12)' : 'rgba(51,112,222,0.08)',
-        }}
-      >
-        <Icon sx={{ fontSize: 28, color: 'primary.main' }} />
+      <Box sx={{ mb: 2 }}>
+        <IconBadge
+          icon={icon}
+          size={48}
+          iconSize={28}
+        />
       </Box>
       <Typography
         variant='h6'

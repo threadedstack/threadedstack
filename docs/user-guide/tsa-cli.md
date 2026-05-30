@@ -1,19 +1,16 @@
-# tsa -- Threaded Stack Agent CLI
+# tsa -- Threaded Stack CLI
 
 ## What is tsa
 
-`tsa` is the Threaded Stack CLI for running AI tools in managed sandboxes and interacting with AI agents from the command line. The recommended entry point is `tsa run`, which starts a sandbox, syncs files, and launches your AI tool in one command.
+`tsa` is the Threaded Stack CLI for running AI tools in managed sandboxes from the command line. The recommended entry point is `tsa run`, which starts a sandbox, syncs files, and launches your AI tool in one command.
 
-`tsa` handles sandbox lifecycle, SSH tunneling, file sync, and agent chat sessions. API keys never leave the server.
+`tsa` handles sandbox lifecycle, SSH tunneling, and file sync. API keys never leave the server.
 
 Key capabilities:
 
-- **`tsa run`** — start a sandbox, sync files, and launch an AI tool (Claude Code, Codex, OpenCode, or custom)
-- **`tsa ssh`** — SSH into a running sandbox for manual access
-- **`tsa sync`** — bidirectional file synchronization via Mutagen
-- Interactive chat sessions with AI agents (`tsa chat`)
-- Real-time streaming responses with markdown rendering
-- Tool call visualization (file reads, shell commands, web fetches)
+- **`tsa run`** -- start a sandbox, sync files, and launch an AI tool (Claude Code, Codex, OpenCode, or custom)
+- **`tsa ssh`** -- SSH into a running sandbox for manual access
+- **`tsa sync`** -- bidirectional file synchronization via Mutagen
 - Context file injection from `AGENTS.md` and `.tdsk/context/`
 - Thread management (create, switch, fork/branch, list)
 - Two-layer configuration (global + per-project)
@@ -171,14 +168,6 @@ These are invoked from your shell as `tsa <command>`.
 | `--new` | `-n` | Start sync on a new instance |
 | `--all` | — | Stop sync for all instances of a sandbox (`stop` subcommand only) |
 
-**Agent commands:**
-
-| Command | Alias | Description | Auth Required |
-|---------|-------|-------------|:---:|
-| `tsa chat` | `ch` | Start interactive chat session | Yes |
-| `tsa agents` | `ag` | List available agents | Yes |
-| `tsa threads <agent-id>` | `th` | List threads for an agent | Yes |
-
 **General commands:**
 
 | Command | Alias | Description | Auth Required |
@@ -189,7 +178,7 @@ These are invoked from your shell as `tsa <command>`.
 | `tsa help` | `-h`, `--help` | Show available commands | No |
 | `tsa --version` | `-v` | Show version | No |
 
-Running `tsa` with no arguments launches the `chat` command.
+Running `tsa` with no arguments shows the help output.
 
 ### Common usage patterns
 
@@ -230,14 +219,6 @@ tsa sync status
 # List sessions grouped by instance
 tsa sessions list <sandbox-id>
 
-# List agents in your org
-tsa agents
-
-# Start a chat session with an agent
-tsa chat --agent agent_xyz789
-
-# Resume a specific thread
-tsa chat --thread thread_abc123
 ```
 
 ## Session Sharing
@@ -352,114 +333,6 @@ tsa sync sb_abc123 --instance d4e5
 tsa sync stop sb_abc123 --all
 ```
 
-## Interactive Chat
-
-### Chat Session Lifecycle
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant TSA as tsa CLI
-  participant Proxy as Auth Proxy
-  participant Backend
-
-  User->>TSA: tsa chat --agent <id>;
-  TSA->>Proxy: GET /_/orgs (validate auth)
-  Proxy->>Backend: Forward
-  Backend-->>TSA: Org list
-
-  TSA->>Proxy: POST /_/ai/sessions {agentId}
-  Proxy->>Backend: Forward
-  Backend-->>TSA: {token: session-jwt}
-
-  TSA->>Backend: WS /ai/ws?token=jwt
-  Note over TSA,Backend: WebSocket connected
-
-  User->>TSA: Type message
-  TSA->>Backend: {type: prompt, message: ...}
-  Backend-->>TSA: {type: text_delta}
-  Backend-->>TSA: {type: done}
-  TSA-->>User: Rendered response
-```
-
-Running `tsa chat` (or just `tsa`) launches the interactive terminal UI. The session goes through several phases:
-
-1. **Login** -- If not authenticated, prompts for an API key. Pre-auth slash commands (`/login`, `/help`, `/exit`) are available.
-2. **Loading** -- Connects to the backend and fetches agent data.
-3. **Agent Selection** -- If `--agent` was not specified, displays a list of available agents. Auto-selects if only one agent exists.
-4. **Chat** -- The main chat interface with a prompt, message history, and streaming responses.
-
-### The chat interface
-
-```mermaid
-flowchart TD
-  subgraph ChatUI["Chat Interface"]
-    Header["Agent: my-agent | Provider: openai | Model: gpt Thread: thread_abc123 | Status: connected"]
-    Messages["&gt; What files are in the project?<br/>Read file (src/index.ts) ............ OK<br/>Listed directory (src/) ............. OK<br/>The project contains:<br/>- src/index.ts<br/>- src/utils.ts"]
-    Prompt["&gt; _"]
-  end
-```
-
-- Type a message at the `>` prompt and press Enter to send.
-- Responses stream in real-time with markdown rendering.
-- Tool calls (file reads, shell commands, web fetches) display with a spinner while executing, then show success or error status.
-- Use `/verbose` to toggle detailed tool output (shows tool results inline).
-
-### Message flow
-
-1. You type a message at the prompt.
-2. `tsa` creates a session with the backend, which resolves the provider API key and returns a session token.
-3. A thread is created if one does not exist.
-4. Any context files (`AGENTS.md`, `.tdsk/context/*`, manually added) are prepended to the prompt as XML `<context>` blocks.
-5. The agent's ReAct loop runs locally, with LLM calls proxied through the backend WebSocket (`/ai/ws`) using the session token. The backend injects the API key server-side.
-6. Streaming events update the UI in real-time: text chunks, tool call starts, tool results, and errors.
-7. Messages are persisted to the backend via HTTP.
-
-### Slash commands
-
-Inside the chat session, type `/` followed by a command name. These are distinct from the CLI commands and control the active session.
-
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `/help` | `/h` | Show available slash commands |
-| `/exit` | `/quit`, `/q` | Exit the TSA cli |
-| `/login` | `/li` | Authenticate with an API key |
-| `/logout` | `/lo` | Remove credentials |
-| `/clear` | `/cl` | Clear screen and start a new thread |
-| `/new` | `/n` | Start a new conversation thread |
-| `/agent` | `/a` | Switch to a different agent (interactive picker or `/agent <id>`) |
-| `/switch` | `/sw` | Switch to a different thread (interactive picker or `/switch <id>`) |
-| `/threads` | `/t` | List and select conversation threads |
-| `/provider` | `/p` | Switch LLM provider (`/provider <id>`) |
-| `/verbose` | `/v` | Toggle verbose output (shows tool results) |
-| `/info` | `/i` | Show current session info (org, agent, thread, connection) |
-| `/context` | `/ctx` | List loaded context files |
-| `/add` | -- | Add a context file (`/add <file-path>`) |
-| `/remove` | `/rm` | Remove a context file by index (`/remove <index>`) |
-| `/history` | `/hist` | Show conversation history |
-| `/fork` | `/br` | Branch current thread at a message (`/fork [messageId]`) |
-| `/tree` | -- | Display the thread branch tree |
-| `/projects` | `/proj` | Switch project |
-
-**Pre-auth commands** (available before logging in): `/login`, `/help`, `/exit`.
-
-### Thread branching
-
-`tsa` supports branching conversations at any message:
-
-```text
-/fork              # Branch at the last message
-/fork msg_abc123   # Branch at a specific message ID
-```
-
-View the branch tree with `/tree`:
-
-```text
-/tree
-```
-
-This displays a visual tree of threads and their branch points.
-
 ## Configuration
 
 `tsa` uses a two-layer YAML configuration system. Project-level config overrides global config for shared keys.
@@ -469,8 +342,8 @@ This displays a visual tree of threads and their branch points.
 | Path | Purpose |
 |------|---------|
 | `~/.config/tdsk/tsa.yaml` | Global config (auth, display, behavior, hooks, tools) |
-| `.tdsk/config.yaml` | Project config (org, agent, context paths, hooks, tools) |
-| `AGENTS.md` | Auto-detected agent context file (project root) |
+| `.tdsk/config.yaml` | Project config (org, context paths, hooks, tools) |
+| `AGENTS.md` | Auto-detected context file (project root) |
 | `.tdsk/context/` | Auto-detected context files directory |
 
 ### Global config (`~/.config/tdsk/tsa.yaml`)
@@ -482,9 +355,8 @@ auth:
   proxyUrl: "https://px.threadedstack.app"
   insecure: false
 
-# Default IDs (used when --org/--agent not specified)
+# Default IDs (used when --org not specified)
 org: "org_xxx"
-agent: "agent_xxx"
 project: "proj_xxx"
 
 # Display preferences
@@ -526,7 +398,6 @@ Place this file in your project root to set project-specific defaults:
 
 ```yaml
 org: "org_xxx"
-agent: "agent_xxx"
 context: ["./docs/api.md"]
 
 hooks:
@@ -541,15 +412,15 @@ tools:
 
 When both global and project configs exist:
 
-- `org` and `agent` from project config **override** global values.
+- `org` from project config **overrides** the global value.
 - `hooks` are **merged** per-key (project wins on conflicts).
 - `tools.confirm` and `tools.block` arrays are **concatenated** (both global and project entries apply).
 
 ### Context files
 
-`tsa` automatically detects and injects context files into agent prompts:
+`tsa` automatically detects and injects context files into prompts:
 
-- **`AGENTS.md`** -- If present at the project root, its contents are prepended to every prompt.
+- **`AGENTS.md`** -- If present at the project root, its contents are injected as context.
 - **`.tdsk/context/`** -- All files in this directory are loaded and injected.
 - **Manual** -- Use `/add <path>` during a session to add files on the fly.
 
@@ -557,7 +428,7 @@ Context is injected as XML blocks:
 
 ```xml
 <context>--- AGENTS.md ---
-Your agent context here...
+Your context here...
 </context>
 ```
 
@@ -578,7 +449,7 @@ Hooks execute shell commands on specific events. They run via `/bin/sh -c` with 
 |------|---------------|
 | `onSessionStart` | A chat session begins |
 | `onSessionEnd` | A chat session ends |
-| `onToolCall` | An agent tool is invoked |
+| `onToolCall` | A tool is invoked |
 | `onToolResult` | A tool returns a result |
 | `onError` | An error occurs |
 | `onMessage` | A message is sent or received |

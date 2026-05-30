@@ -3,10 +3,10 @@
   "order": 3,
   "pages": [
     "getting-started",
-    { "slug": "admin-ui", "label": "Admin Dashboard" },
-    "api-reference",
+    "sandbox-usage",
     { "slug": "tsa-cli", "label": "TSA CLI" },
+    { "slug": "admin-ui", "label": "Admin Dashboard" },
     { "slug": "threads-app", "label": "Threads App" },
-    "sandbox-usage"
+    "api-reference"
   ]
 }

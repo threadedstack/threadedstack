@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Threaded Stack Admin Dashboard is a web application that serves as the primary interface for managing your organizations, projects, agents, endpoints, secrets, and billing.
+The Threaded Stack Admin Dashboard is a web application that serves as the primary interface for managing your organizations, projects, sandboxes, endpoints, secrets, and billing.
 
 **Access**: Open the dashboard in your browser. All routes beyond the login screen require authentication via one of the supported social login providers (GitHub, Google, or Vercel). After signing in, the dashboard loads your organizations and presents the main workspace.
 
@@ -32,9 +32,8 @@ When you select an organization, the sidebar updates to show organization-level 
 
 **Resources**
 - Sandboxes -- Managed execution environments with runtime presets (listed first)
-- Projects -- workspaces that contain endpoints, functions, and agents
+- Projects -- workspaces that contain endpoints and functions
 - Providers -- AI model providers (OpenAI, Anthropic, etc.) and their API key configuration
-- Skills -- Reusable agent skill definitions
 
 ![Sandbox list view](./images/admin-sandbox-list.png)
 
@@ -46,11 +45,6 @@ When you select an organization, the sidebar updates to show organization-level 
 - Domains -- Custom domain verification and management
 
 ![Provider configuration](./images/admin-provider-config.png)
-
-**AI**
-- Agents -- AI agents scoped to this organization
-
-![Agent configuration](./images/admin-agent-config.png)
 
 **Management**
 - Members -- Organization member list, invitations, and role assignment
@@ -64,16 +58,13 @@ When you navigate into a project, the sidebar updates again:
 
 **Resources**
 - Sandboxes -- Sandbox configs scoped to this project (listed first)
-- Endpoints -- HTTP endpoints (Proxy, FaaS, or Agent type)
+- Endpoints -- HTTP endpoints (Proxy or FaaS type)
 - Functions -- Serverless function code that endpoints can execute
 
 **Security**
 - Secrets -- Project-scoped secrets
 - API Keys -- Project-scoped API keys
 - Domains -- Project-level domain bindings
-
-**AI**
-- Agents -- Agents assigned to this project (with per-project config overrides)
 
 **Management**
 - Members -- Project member management
@@ -106,7 +97,7 @@ After successful authentication, the dashboard fetches your session token and us
 
 ## Organization Management
 
-Organizations are the top-level container in Threaded Stack. All resources (projects, providers, secrets, agents) belong to an organization.
+Organizations are the top-level container in Threaded Stack. All resources (projects, providers, secrets, sandboxes) belong to an organization.
 
 ### Creating an Organization
 
@@ -140,7 +131,7 @@ Member invitations respect your subscription's seat limits. If you are on the Fr
 
 Navigate to **Secrets** (`/orgs/:orgId/secrets`).
 
-Secrets are encrypted key-value pairs stored server-side. They are never exposed to client-side code or AI agents directly -- the backend injects them at runtime.
+Secrets are encrypted key-value pairs stored server-side. They are never exposed to client-side code or sandbox environments directly -- the backend injects them at runtime.
 
 **Creating a secret:**
 1. Click **Add Secret**.
@@ -153,7 +144,7 @@ When editing, the current value is masked. You can toggle visibility with the ey
 
 Navigate to **Providers** (`/orgs/:orgId/providers`).
 
-Providers represent external services (AI model providers, APIs, etc.) that your agents and endpoints connect to.
+Providers represent external services (AI model providers, APIs, etc.) that your sandboxes and endpoints connect to.
 
 **Creating a provider:**
 1. Click **Add Provider**.
@@ -202,7 +193,7 @@ Resources with unlimited allocation on your plan show no progress bar.
 
 ## Project Management
 
-Projects are workspaces within an organization that group related endpoints, functions, agents, and secrets.
+Projects are workspaces within an organization that group related endpoints, functions, sandboxes, and secrets.
 
 ### Creating a Project
 
@@ -233,12 +224,11 @@ Endpoints are HTTP routes that handle incoming requests. Each endpoint has a nam
 |---|---|
 | **Proxy** | Forwards requests to an external URL. Configure the target URL, headers, and path rewriting. |
 | **FaaS** | Executes a serverless function. Link a function from the project's function library. |
-| **Agent** | Routes requests to an AI agent. The agent processes the input and streams a response. |
 
 **Creating an endpoint:**
 1. Click **Add Endpoint**.
 2. In the drawer, fill in the **Name**, **Path** (the URL route), and **HTTP Method**.
-3. Select the **Endpoint Type** (Proxy, FaaS, or Agent).
+3. Select the **Endpoint Type** (Proxy or FaaS).
 4. Configure the type-specific settings in the form that appears below.
 5. Optionally mark the endpoint as **Public** (no authentication required).
 6. Click **Save**.
@@ -268,13 +258,7 @@ Functions are serverless code blocks that FaaS endpoints execute. They support T
 
 Navigate to **Secrets** (`/orgs/:orgId/projects/:projectId/secrets`).
 
-Project secrets work the same as organization secrets but are scoped to the project. Both org-level and project-level secrets are available to agents and endpoints within the project.
-
-### Project Agents
-
-Navigate to **Agents** (`/orgs/:orgId/projects/:projectId/agents`).
-
-This page lists agents assigned to this project. Agents are defined at the organization level but can be assigned to one or more projects. When viewing an agent within a project, you can apply **project-level configuration overrides** (system prompt, model settings, tools, functions) that only affect the agent's behavior in this project.
+Project secrets work the same as organization secrets but are scoped to the project. Both org-level and project-level secrets are available to sandboxes and endpoints within the project.
 
 ### Project Members and API Keys
 
@@ -415,84 +399,6 @@ Click the **copy** button on any sandbox row to create a duplicate. The copy get
 
 ---
 
-## Agent Configuration
-
-Agents are AI-powered assistants that process user input, execute tools, call functions, and generate responses. They are defined at the organization level and assigned to projects.
-
-### Creating an Agent
-
-1. Navigate to **Agents** in the organization or project sidebar.
-2. Click **Create Agent**.
-3. Fill in the agent configuration form (described below).
-4. Click **Save**.
-
-### Agent Configuration Form
-
-The agent drawer contains the following sections:
-
-**Basic Info**
-- **Name** -- a human-readable name for the agent
-- **Description** -- optional description of the agent's purpose
-- **Providers** -- select one or more AI providers (configured under Organization Providers). Each provider can have a specific **Model** selected (e.g., `gpt-4o`, `claude-sonnet-4-20250514`).
-
-**Project Assignment**
-- Select which projects this agent should be available in. An agent can belong to multiple projects.
-
-**Model Configuration**
-- **Max Tokens** -- maximum number of tokens in the response (default: 100,000)
-- **Temperature** -- controls randomness in responses (0.0 = deterministic, 1.0 = creative, default: 0.7)
-
-**System Prompt**
-- A Monaco editor for writing the agent's system prompt in Markdown. This defines the agent's persona, capabilities, and behavioral guidelines.
-
-**Tools**
-- Select from the available built-in tools that the agent can invoke during conversations.
-
-**Functions** (project context only)
-- Select functions from the project's function library that the agent can call.
-
-**Environment Variables**
-- Key-value pairs injected into the agent's execution environment. Values can reference secrets using the `{{secret-name}}` template syntax.
-
-**Web Provider**
-- Configure a web browser provider for agents that need web access. Select a provider type and optionally link a secret for authentication.
-
-**Secrets**
-- Attach organization or project secrets to the agent. These are injected server-side at runtime.
-
-**Settings**
-- **Active** -- toggle whether the agent is enabled
-- **Streaming** -- toggle SSE streaming for responses (enabled by default)
-
-### Agent Detail View
-
-Click an agent name to open its detail page with tabs:
-
-- **Detail** -- view and edit the agent's configuration
-- **Threads** -- browse conversation threads for this agent
-- **Chat** -- open a live chat interface to interact with the agent
-- **Skills** -- manage skills attached to the agent
-- **Schedules** -- manage scheduled runs for the agent
-
-### Chatting with an Agent
-
-Navigate to an agent's **Chat** tab or open a thread's chat view. The chat interface supports:
-
-- Typing messages in the input field and pressing Enter or clicking Send
-- Real-time **SSE streaming** -- responses appear token by token as the agent generates them
-- **Tool call display** -- when the agent invokes a tool, the tool name, arguments, and result are shown inline
-- **Thread management** -- conversations are persisted as threads. Create new threads or continue existing ones.
-
-### Project-Level Overrides
-
-When editing an agent from within a project context, the drawer enters **Project Override Mode**. In this mode:
-
-- Identity fields (name, providers) are inherited from the org-level agent definition and cannot be changed.
-- You can override: system prompt, model settings, tools, functions, and environment variables.
-- Overrides only affect the agent's behavior within that specific project.
-
----
-
 ## Billing and Quotas
 
 Navigate to **Billing** from the header menu or sidebar (`/billing`).
@@ -554,13 +460,13 @@ To increase limits, upgrade your plan from the Billing page.
 
 ## Quickstart Wizard
 
-First-time users see a **Quickstart** option that walks through setting up a working agent in three steps:
+First-time users see a **Quickstart** option that walks through setting up a working sandbox in three steps:
 
-1. **AI Provider** -- configure an AI provider by selecting a brand (e.g., OpenAI) and entering your API key. This creates both a provider and a secret in one step.
-2. **Project & Agent** -- create a project and an agent simultaneously. Enter names, select the provider you just created, and optionally set a system prompt.
-3. **Review & Create** -- review your configuration and submit. The wizard creates the provider, secret, project, and agent in a single operation.
+1. **AI Provider** -- configure an AI provider by selecting a brand (e.g., OpenAI, Anthropic) and entering your API key. This creates both a provider and a secret in one step.
+2. **Project & Sandbox** -- create a project and configure your sandbox. Enter names, select the provider you just created, and choose your AI tool runtime.
+3. **Review & Create** -- review your configuration and submit. The wizard creates the provider, secret, project, and sandbox in a single operation.
 
-After completion, you are dropped into the agent's chat view, ready to start a conversation.
+After completion, you can connect to your sandbox and start working.
 
 ---
 

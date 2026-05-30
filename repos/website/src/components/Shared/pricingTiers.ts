@@ -36,7 +36,7 @@ type TierMeta = {
 
 const tierMeta: Record<string, TierMeta> = {
   free: {
-    description: `For experimenting and learning.`,
+    description: `Try Threaded Stack with one sandbox session. No credit card.`,
     cta: `Get Started Free`,
     support: `Community Support`,
     customDomains: false,
@@ -45,20 +45,20 @@ const tierMeta: Record<string, TierMeta> = {
     cta: `Start Solo`,
     customDomains: false,
     support: `Email Support`,
-    description: `For solo developers shipping real projects.`,
+    description: `For developers who use AI tools daily and need more than one session.`,
   },
   pro: {
     cta: `Start Pro`,
     highlighted: true,
     customDomains: true,
     support: `Priority Support`,
-    description: `For small teams building together.`,
+    description: `For teams sharing credentials, sandboxes, and sessions across projects.`,
   },
   team: {
     cta: `Start Team`,
     customDomains: true,
     support: `Dedicated Support`,
-    description: `For organizations at scale.`,
+    description: `Unlimited everything. Dedicated support. Custom domains.`,
   },
 }
 

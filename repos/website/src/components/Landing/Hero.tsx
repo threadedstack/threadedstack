@@ -111,7 +111,7 @@ const Hero = () => {
                 fontSize: '0.75rem',
               }}
             >
-              PERMISSIONED, ISOLATED, SECURE AI SANDBOXES
+              THE SANDBOX PLATFORM FOR AI CODING AGENTS
             </Typography>
 
             {/* Headline with gradient text */}
@@ -125,7 +125,7 @@ const Hero = () => {
               }}
             >
               <span className={isDark ? 'gradient-text-dark' : 'gradient-text-light'}>
-                Unleash AI with Confidence
+                Your AI tools. Your rules. One platform.
               </span>
             </Typography>
 
@@ -135,9 +135,9 @@ const Hero = () => {
               color='text.secondary'
               sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
             >
-              Run AI tools in managed K8s pods with zero-trust credential injection. Full
-              support for Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or custom
-              tooling.
+              Run Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or your own tooling
+              in managed sandboxes with zero-trust credential injection. Secrets never
+              touch your AI tools.
             </Typography>
 
             {/* CTAs */}
