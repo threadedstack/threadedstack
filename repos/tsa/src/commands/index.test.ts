@@ -3,6 +3,7 @@ import type { TSlashCommandContext } from '@TSA/types'
 import { infoCommand } from './info'
 import { clearCommand } from './clear'
 import { projectsCommand } from './projects'
+import { AgentsEnabled } from '@TSA/constants/values'
 import { describe, it, expect, vi } from 'vitest'
 import { switchAgentCommand } from './switchAgent'
 import { listThreadsCommand } from './listThreads'
@@ -112,7 +113,7 @@ describe(`/projects command`, () => {
   })
 })
 
-describe(`/agent command`, () => {
+describe.skipIf(!AgentsEnabled)(`/agent command`, () => {
   it(`sets agentId directly when args provided`, async () => {
     const ctx = makeCtx()
 
@@ -151,7 +152,7 @@ describe(`/agent command`, () => {
   })
 })
 
-describe(`/threads command`, () => {
+describe.skipIf(!AgentsEnabled)(`/threads command`, () => {
   it(`calls showMenu with thread items`, async () => {
     const threads = [
       { id: `t1`, name: `Chat 1`, createdAt: `2026-01-01` },

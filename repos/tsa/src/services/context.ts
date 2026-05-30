@@ -1,6 +1,7 @@
 import type { TContextFile } from '@TSA/types'
 
 import { join, basename } from 'node:path'
+import { AgentsEnabled } from '@TSA/constants/values'
 import { AgentsFile, ContextDir } from '@TSA/constants/paths'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 
@@ -25,8 +26,14 @@ export class ContextLoader {
   static autoDetect(cwd: string): TContextFile[] {
     const files: TContextFile[] = []
 
-    const agentsFile = ContextLoader.#readFile(join(cwd, AgentsFile), AgentsFile, 'auto')
-    if (agentsFile) files.push(agentsFile)
+    if (AgentsEnabled) {
+      const agentsFile = ContextLoader.#readFile(
+        join(cwd, AgentsFile),
+        AgentsFile,
+        'auto'
+      )
+      if (agentsFile) files.push(agentsFile)
+    }
 
     const contextDir = join(cwd, ContextDir)
     if (existsSync(contextDir)) {

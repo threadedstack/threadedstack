@@ -1,7 +1,8 @@
 import type { TSlashCommandContext } from '@TSA/types'
 
-import { describe, it, expect, vi } from 'vitest'
 import { forkCommand } from './fork'
+import { AgentsEnabled } from '@TSA/constants/values'
+import { describe, it, expect, vi } from 'vitest'
 
 const makeCtx = (
   overrides: Partial<TSlashCommandContext> = {}
@@ -45,7 +46,7 @@ const makeCtx = (
   ...overrides,
 })
 
-describe(`/fork command`, () => {
+describe.skipIf(!AgentsEnabled)(`/fork command`, () => {
   it(`should have correct name, aliases, and description`, () => {
     expect(forkCommand.name).toBe(`fork`)
     expect(forkCommand.aliases).toContain(`br`)

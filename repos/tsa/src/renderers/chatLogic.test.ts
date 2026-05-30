@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { TChatLogicOpts } from './chatLogic'
+
+import { AgentsEnabled } from '@TSA/constants/values'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Module-level mocks ───────────────────────────────────────────────
 
@@ -70,7 +72,7 @@ const makeChatLogic = (overrides: Partial<TChatLogicOpts> = {}) =>
 
 const ok = <T>(data: T) => ({ ok: true, status: 200, data })
 
-describe(`ChatLogic`, () => {
+describe.skipIf(!AgentsEnabled)(`ChatLogic`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListOrgs.mockResolvedValue(ok([{ id: `org-1`, name: `Test Org` }]))

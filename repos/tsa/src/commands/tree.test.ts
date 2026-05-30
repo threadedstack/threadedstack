@@ -1,7 +1,8 @@
 import type { TSlashCommandContext } from '@TSA/types'
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { treeCommand } from './tree'
+import { AgentsEnabled } from '@TSA/constants/values'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const makeCtx = (
   overrides: Partial<TSlashCommandContext> = {}
@@ -45,7 +46,7 @@ const makeCtx = (
   ...overrides,
 })
 
-describe(`/tree command`, () => {
+describe.skipIf(!AgentsEnabled)(`/tree command`, () => {
   it(`should have correct name, aliases, and description`, () => {
     expect(treeCommand.name).toBe(`tree`)
     expect(treeCommand.aliases).toContain(`tr`)

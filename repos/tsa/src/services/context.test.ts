@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ContextLoader } from './context'
+import { AgentsEnabled } from '@TSA/constants/values'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
@@ -13,7 +14,7 @@ describe('ContextLoader', () => {
     vi.clearAllMocks()
   })
 
-  it('autoDetect finds AGENTS.md in cwd', async () => {
+  it.skipIf(!AgentsEnabled)('autoDetect finds AGENTS.md in cwd', async () => {
     const fs = await import('node:fs')
     vi.mocked(fs.existsSync).mockImplementation((p: any) => {
       return String(p).endsWith('AGENTS.md')

@@ -20,10 +20,10 @@ import { switchThreadCommand } from './switchThread'
 import { removeContextCommand } from './removeContext'
 import { switchProviderCommand } from './switchProvider'
 
+import { AgentsEnabled } from '@TSA/constants/values'
+
 /** All commands except help (help imports this to avoid circular deps) */
 export const registeredCommands: TSlashCommand[] = [
-  treeCommand,
-  forkCommand,
   infoCommand,
   exitCommand,
   loginCommand,
@@ -34,11 +34,17 @@ export const registeredCommands: TSlashCommand[] = [
   historyCommand,
   verboseCommand,
   projectsCommand,
-  newThreadCommand,
   addContextCommand,
-  listThreadsCommand,
-  switchAgentCommand,
-  switchThreadCommand,
   removeContextCommand,
   switchProviderCommand,
+  ...(AgentsEnabled
+    ? [
+        treeCommand,
+        forkCommand,
+        newThreadCommand,
+        listThreadsCommand,
+        switchAgentCommand,
+        switchThreadCommand,
+      ]
+    : []),
 ]

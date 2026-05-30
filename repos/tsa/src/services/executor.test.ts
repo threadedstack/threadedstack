@@ -1,8 +1,9 @@
 import type { ApiClient } from '@TSA/services/api'
 
 import WebSocket from 'ws'
-import { Executor } from '@TSA/services/executor'
 import { EWSEventType } from '@tdsk/domain'
+import { Executor } from '@TSA/services/executor'
+import { AgentsEnabled } from '@TSA/constants/values'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock WebSocket
@@ -59,7 +60,7 @@ const makeClient = () =>
     getThread: vi.fn(),
   }) as unknown as ApiClient
 
-describe(`Executor (WebSocket)`, () => {
+describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
   let executor: Executor
   let client: ReturnType<typeof makeClient>
 

@@ -13,19 +13,18 @@ import { agents } from './agents'
 import { sandbox } from './sandbox'
 import { threads } from './threads'
 import { sessions } from './sessions'
+import { AgentsEnabled } from '@TSA/constants/values'
 
 export const tasks: TTasks = {
   ssh,
   sync,
-  chat,
   help,
   login,
   proxy,
   ports,
   logout,
   status,
-  agents,
   sandbox,
-  threads,
   sessions,
+  ...(AgentsEnabled ? { agents, threads, chat } : {}),
 }

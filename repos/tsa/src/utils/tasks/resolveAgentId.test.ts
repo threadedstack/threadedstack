@@ -1,7 +1,8 @@
 import type { ApiClient } from '@TSA/services/api'
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveAgentId } from './resolveAgentId'
+import { AgentsEnabled } from '@TSA/constants/values'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const makeAgent = (id: string, name: string, model?: string) => ({
   id,
@@ -19,13 +20,13 @@ const makeClient = (agents: any[] | null, error?: any) =>
     }),
   }) as unknown as ApiClient
 
-describe(`resolveAgentId`, () => {
+describe.skipIf(!AgentsEnabled)(`resolveAgentId`, () => {
   let originalIsTTY: boolean | undefined
   let stdoutSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     originalIsTTY = process.stdin.isTTY
-    stdoutSpy = vi.spyOn(process.stdout, `write`).mockImplementation(() => true)
+    stdoutSpy = vi.spyOn(process.stdout, `write`).mockImplementation(() => true) as any
   })
 
   afterEach(() => {

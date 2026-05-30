@@ -1,5 +1,6 @@
 import { cli } from './cli'
 import { Version } from '@TSA/constants/version'
+import { AgentsEnabled } from '@TSA/constants/values'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockLoadGlobal = vi.fn()
@@ -152,11 +153,13 @@ describe(`main`, () => {
       const text = joined()
       expect(text).toContain(`login`)
       expect(text).toContain(`logout`)
-      expect(text).toContain(`chat`)
-      expect(text).toContain(`agents`)
-      expect(text).toContain(`threads`)
       expect(text).toContain(`status`)
       expect(text).toContain(`help`)
+      if (AgentsEnabled) {
+        expect(text).toContain(`chat`)
+        expect(text).toContain(`agents`)
+        expect(text).toContain(`threads`)
+      }
     })
   })
 
@@ -274,7 +277,7 @@ describe(`main`, () => {
     })
   })
 
-  describe(`agents command`, () => {
+  describe.skipIf(!AgentsEnabled)(`agents command`, () => {
     it(`should require auth`, async () => {
       setArgv(`agents`)
       setLoggedOut()
@@ -382,7 +385,7 @@ describe(`main`, () => {
     })
   })
 
-  describe(`threads command`, () => {
+  describe.skipIf(!AgentsEnabled)(`threads command`, () => {
     it(`should require auth`, async () => {
       setArgv(`threads`, `agent-1`)
       setLoggedOut()
@@ -499,7 +502,7 @@ describe(`main`, () => {
     })
   })
 
-  describe(`chat command`, () => {
+  describe.skipIf(!AgentsEnabled)(`chat command`, () => {
     it(`should start pi-tui chat when not logged in (TSA handles auth)`, async () => {
       setArgv(`chat`)
       setLoggedOut()
@@ -584,7 +587,7 @@ describe(`main`, () => {
     })
   })
 
-  describe(`config defaults`, () => {
+  describe.skipIf(!AgentsEnabled)(`config defaults`, () => {
     it(`should use config org as default when no --org flag`, async () => {
       setArgv(`chat`)
       mockLoadGlobal.mockReturnValue({ auth: makeCreds() })

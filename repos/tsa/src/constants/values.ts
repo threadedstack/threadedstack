@@ -1,5 +1,9 @@
 import type { TThemeColors, TConnectionStatus } from '@TSA/types'
+
 import { EConnectionStatus } from '@TSA/types'
+import { isFeatureEnabled } from '@tdsk/domain'
+
+export const AgentsEnabled = isFeatureEnabled('agents')
 
 export const ApiKeyPrefix = `tdsk_`
 
