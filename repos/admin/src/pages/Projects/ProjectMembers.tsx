@@ -3,9 +3,9 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
 import { Page } from '@TAF/pages/Page/Page'
-import { ProjectRoles } from '@TAF/constants/values'
 import { listOrgUsers } from '@TAF/actions/users'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
+import { ProjectRoles } from '@TAF/constants/values'
 import { useState, useEffect, useMemo } from 'react'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { UserSelectorSingle } from '@TAF/components/Selectors'
@@ -13,9 +13,14 @@ import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
-import { ERoleType, EPermScope, buildScopedPermissions } from '@tdsk/domain'
 import { PermissionsPicker } from '@TAF/components/Permissions/PermissionsPicker'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  ERoleType,
+  EPermScope,
+  EPermResource,
+  buildScopedPermissions,
+} from '@tdsk/domain'
 import {
   Drawer,
   TextInput,
@@ -64,7 +69,7 @@ export const ProjectMembers = () => {
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
   const [projectMembersMap] = useActiveProjectMembers()
-  const { canInviteUsers } = usePermissions()
+  const { canInviteUsers, canManage } = usePermissions()
 
   const orgUsers = useMemo(() => orgUsersMap?.[orgId] || [], [orgUsersMap, orgId])
 
@@ -277,6 +282,7 @@ export const ProjectMembers = () => {
           icon={<DeleteIcon fontSize='small' />}
           size='small'
           color='error'
+          disabled={!canManage(EPermResource.project)}
           onClick={(e) => {
             e.stopPropagation()
             onRemoveClick(member)
@@ -298,6 +304,7 @@ export const ProjectMembers = () => {
         title='Project Members'
         actionLabel='Add Member'
         actionIcon={<PersonAddIcon />}
+        actionDisabled={!canManage(EPermResource.project)}
         setSearchQuery={setSearchQuery}
         searchPlaceholder='Search members by name or email...'
       >

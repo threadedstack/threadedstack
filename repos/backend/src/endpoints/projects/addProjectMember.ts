@@ -1,64 +1,22 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
-import type { TPermission } from '@tdsk/domain'
-import type { TDatabase } from '@tdsk/database'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { InviteService } from '@TBE/services/invite'
+import { applyOverrides } from '@TBE/utils/auth/applyOverrides'
+import { validateOverrides } from '@TBE/utils/auth/validateOverrides'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
   EPermScope,
+  PlanLimits,
   EPermAction,
   EPermResource,
   canManageRole,
-  isValidEffect,
-  isValidPermission,
+  ESubscriptionTier,
 } from '@tdsk/domain'
-
-type TOverrideEntry = { permission: TPermission; effect: `grant` | `deny` }
-
-/**
- * TODO: Refactor this out of the endpoint file
- * Should be in the services or middleware
- */
-function validateOverrides(overrides: TOverrideEntry[]): void {
-  for (const po of overrides) {
-    if (!isValidPermission(po.permission))
-      throw new Exception(400, `Invalid permission: ${po.permission}`)
-    if (!isValidEffect(po.effect))
-      throw new Exception(400, `Invalid effect: ${po.effect}. Must be 'grant' or 'deny'`)
-  }
-}
-
-/**
- * TODO: Refactor this out of the endpoint file
- * Should be in the services or database
- */
-async function applyOverrides(
-  db: TDatabase,
-  overrides: TOverrideEntry[],
-  opts: { userId: string; projectId: string; grantedBy: string }
-): Promise<string[]> {
-  const warnings: string[] = []
-  for (const po of overrides) {
-    const { error: poErr } = await db.services.permissionOverride.create({
-      effect: po.effect,
-      userId: opts.userId,
-      projectId: opts.projectId,
-      grantedBy: opts.grantedBy,
-      permission: po.permission,
-    })
-    if (poErr) {
-      logger.error(`Failed to create permission override:`, poErr)
-      warnings.push(`Failed to set ${po.permission} override`)
-    }
-  }
-  return warnings
-}
 
 function jsonWithWarnings(
   res: Response,
@@ -98,7 +56,8 @@ export const addProjectMember: TEndpointConfig = {
         `Invalid role type. Must be one of: ${validRoles.join(', ')}`
       )
 
-    if (permissionOverrides?.length) validateOverrides(permissionOverrides)
+    if (permissionOverrides?.length)
+      await validateOverrides(permissionOverrides, req, orgId)
 
     const currentUserRole = await getUserRole(req, { orgId, projectId })
     const targetRole = roleType as ERoleType
@@ -130,6 +89,41 @@ export const addProjectMember: TEndpointConfig = {
         throw new Exception(500, `Failed to look up organization: ${orgError.message}`)
       if (!org) throw new Exception(404, `Organization not found`)
 
+      // Check seat capacity before creating any new org membership via invitation
+      if (org.ownerId) {
+        const { data: ownerSub, error: subErr } =
+          await db.services.subscription.findByUser(org.ownerId)
+        if (subErr)
+          throw new Exception(
+            500,
+            `Failed to verify subscription status: ${subErr.message}`
+          )
+        const tier = (ownerSub?.tier || `free`) as ESubscriptionTier
+        const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+
+        if (!limits.additionalSeats && limits.seats <= 1)
+          throw new Exception(
+            403,
+            `Your plan does not allow inviting additional members. Upgrade to a Pro or Team plan.`
+          )
+
+        if (limits.seats !== -1) {
+          const { data: members, error: membersError } =
+            await db.services.role.getOrgMembers(orgId)
+          if (membersError)
+            throw new Exception(
+              500,
+              `Failed to verify seat capacity: ${membersError.message}`
+            )
+          const currentMembers = Array.isArray(members) ? members.length : 0
+          if (currentMembers >= limits.seats)
+            throw new Exception(
+              403,
+              `Seat limit reached (${currentMembers}/${limits.seats}). Upgrade your plan to add more members.`
+            )
+        }
+      }
+
       if (existingUser) {
         const { data: isOrgMember, error: memberErr } =
           await db.services.role.isOrgMember(existingUser.id, orgId)
@@ -137,6 +131,16 @@ export const addProjectMember: TEndpointConfig = {
           throw new Exception(500, `Failed to check org membership: ${memberErr.message}`)
 
         if (isOrgMember) {
+          const { data: isAlreadyMember, error: memberCheckErr } =
+            await db.services.role.isProjectMember(existingUser.id, projectId)
+          if (memberCheckErr)
+            throw new Exception(
+              500,
+              `Failed to check project membership: ${memberCheckErr.message}`
+            )
+          if (isAlreadyMember)
+            throw new Exception(409, `User is already a project member`)
+
           const { data, error } = await db.services.role.create({
             projectId,
             userId: existingUser.id,
@@ -215,10 +219,21 @@ export const addProjectMember: TEndpointConfig = {
         `User must be an organization member before being added to a project`
       )
 
-    const { data: existingProject, error: projectError } =
+    const { error: projectError, data: existingProject } =
       await db.services.project.get(projectId)
+
     if (projectError) throw new Exception(500, projectError.message)
     if (!existingProject) throw new Exception(404, `Project not found`)
+
+    const { data: isAlreadyMember, error: memberCheckErr } =
+      await db.services.role.isProjectMember(userId, projectId)
+
+    if (memberCheckErr)
+      throw new Exception(
+        500,
+        `Failed to check project membership: ${memberCheckErr.message}`
+      )
+    if (isAlreadyMember) throw new Exception(409, `User is already a project member`)
 
     const { data, error } = await db.services.role.create({
       projectId,

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
@@ -57,6 +58,19 @@ export const removeProjectMember: TEndpointConfig = {
 
     const { error } = await db.services.role.removeFromProject(userId, projectId)
     if (error) throw new Exception(500, error.message)
+
+    // Cleanup permission overrides for the removed member (non-fatal)
+    const { error: cleanupErr } = await db.services.permissionOverride.deleteForUser(
+      userId,
+      {
+        projectId,
+      }
+    )
+    if (cleanupErr)
+      logger.error(
+        `[removeProjectMember] Failed to cleanup permission overrides for user ${userId} in project ${projectId}:`,
+        cleanupErr
+      )
 
     res.status(200).json({ data: targetRole })
   },

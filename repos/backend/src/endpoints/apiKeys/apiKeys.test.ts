@@ -612,14 +612,14 @@ describe(`API Keys endpoints`, () => {
       }
       const createdApiKey = new ApiKey({
         id: `scope-key-1`,
-        name: `Good Scope Key`,
-        keyHash: `hash`,
-        keyPrefix: `tdsk_scop`,
-        permissions: [`project:read`, `agent:exec`, `sandbox:connect`],
         active: true,
+        keyHash: `hash`,
         projectId: `proj-1`,
+        name: `Good Scope Key`,
+        keyPrefix: `tdsk_scop`,
         userId: `test-user-id`,
         createdAt: new Date(),
+        permissions: [`project:read`, `agent:exec`, `sandbox:connect`],
       })
 
       const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
@@ -638,18 +638,18 @@ describe(`API Keys endpoints`, () => {
 
       mockReq.body = {
         name: `Org Key`,
-        permissions: [`org:delete`, `subscription:manage`, `project:read`],
+        permissions: [`org:delete`, `invitation:manage`, `project:read`],
       }
       const createdApiKey = new ApiKey({
         id: `org-key-1`,
         name: `Org Key`,
         keyHash: `hash`,
-        keyPrefix: `tdsk_orgk`,
-        permissions: [`org:delete`, `subscription:manage`, `project:read`],
         active: true,
         orgId: `org-123`,
+        keyPrefix: `tdsk_orgk`,
         userId: `test-user-id`,
         createdAt: new Date(),
+        permissions: [`org:delete`, `invitation:manage`, `project:read`],
       })
 
       const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<

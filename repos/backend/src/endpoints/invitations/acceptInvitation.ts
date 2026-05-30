@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
+import { applyInviteRolesAndOverrides } from '@TBE/utils/auth/applyInviteRolesAndOverrides'
 
 /**
  * POST /_/invitations/accept - Accept an organization invitation
@@ -52,19 +53,22 @@ export const acceptInvitation: TEndpointConfig = {
       )
 
     // Check if user is already a member
-    const { data: existingRole } = await db.services.role.getOrgRole(
+    const { data: existingRole, error: roleCheckErr } = await db.services.role.getOrgRole(
       user.id,
       invitation.orgId
     )
+    if (roleCheckErr)
+      throw new Exception(500, `Failed to verify org membership: ${roleCheckErr.message}`)
 
     if (existingRole) {
-      if (invitation.isPending()) {
-        await db.services.invitation.accept(invitation.id, user.id)
-      }
+      const alreadyMemberWarnings: string[] = []
+      await db.services.invitation.accept(invitation.id, user.id)
+      await applyInviteRolesAndOverrides(db, invitation, user.id, alreadyMemberWarnings)
       res.status(200).json({
         success: true,
         data: existingRole,
         message: `You are already a member of this organization`,
+        ...(alreadyMemberWarnings.length && { warnings: alreadyMemberWarnings }),
       })
       return
     }
@@ -80,37 +84,7 @@ export const acceptInvitation: TEndpointConfig = {
 
     const warnings: string[] = []
 
-    if (invitation.projectRoles?.length) {
-      for (const pr of invitation.projectRoles) {
-        const { error: prErr } = await db.services.role.create({
-          projectId: pr.projectId,
-          userId: user.id,
-          type: pr.roleType,
-        })
-        if (prErr) {
-          logger.error(`Failed to create project role for ${pr.projectId}:`, prErr)
-          warnings.push(`Failed to set up project access for ${pr.projectId}`)
-        }
-      }
-    }
-
-    if (invitation.permissionOverrides?.length) {
-      for (const po of invitation.permissionOverrides) {
-        const { error: poErr } = await db.services.permissionOverride.create({
-          userId: user.id,
-          permission: po.permission,
-          effect: po.effect,
-          reason: po.reason,
-          expiresAt: po.expiresAt,
-          grantedBy: invitation.invitedBy,
-          ...(po.projectId ? { projectId: po.projectId } : { orgId: invitation.orgId }),
-        })
-        if (poErr) {
-          logger.error(`Failed to create permission override:`, poErr)
-          warnings.push(`Failed to set ${po.permission} permission override`)
-        }
-      }
-    }
+    await applyInviteRolesAndOverrides(db, invitation, user.id, warnings)
 
     const { error: acceptError } = await db.services.invitation.accept(
       invitation.id,

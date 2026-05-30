@@ -2,8 +2,16 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { hasMinRole, isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
+import {
+  hasMinRole,
+  isSuperAdmin,
+  ERoleType,
+  Exception,
+  EPermAction,
+  EPermResource,
+} from '@tdsk/domain'
 
 /**
  * GET /Projects - List all Projects
@@ -13,6 +21,7 @@ import { hasMinRole, isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
 export const listProjects: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const orgId = req.params.orgId

@@ -86,7 +86,6 @@ export const RoleTemplates: Record<Exclude<ERoleType, 'super'>, TPermission[]> =
     `endpoint:update`,
     `adminPanel:read`,
     `invitation:read`,
-    `subscription:read`,
     `sandboxSession:read`,
     `sandboxSession:create`,
   ],
@@ -142,9 +141,6 @@ export const RoleTemplates: Record<Exclude<ERoleType, 'super'>, TPermission[]> =
     `invitation:update`,
     `invitation:delete`,
     `invitation:manage`,
-    `subscription:create`,
-    `subscription:update`,
-    `subscription:manage`,
     `sandboxSession:manage`,
   ],
   [ERoleType.owner]: [
@@ -154,7 +150,6 @@ export const RoleTemplates: Record<Exclude<ERoleType, 'super'>, TPermission[]> =
     `role:delete`,
     `quota:create`,
     `quota:delete`,
-    `subscription:delete`,
   ],
 }
 

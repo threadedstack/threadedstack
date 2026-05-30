@@ -29,6 +29,13 @@ export type TInvitationPermOverride = {
   effect: `grant` | `deny`
 }
 
+export type TOverrideEntry = {
+  permission: TPermission
+  effect: `grant` | `deny`
+  reason?: string
+  expiresAt?: string
+}
+
 /**
  * Create invitation request
  */

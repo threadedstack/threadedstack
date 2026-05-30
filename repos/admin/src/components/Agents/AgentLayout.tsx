@@ -4,10 +4,11 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { EAgentDetailTab } from '@TAF/types'
-import { isFeatureEnabled } from '@tdsk/domain'
 import { Button, ConfirmDelete } from '@tdsk/components'
+import { isFeatureEnabled, EPermResource } from '@tdsk/domain'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { Outlet, useParams, useNavigate, useLocation } from 'react-router'
 import { AgentBreadcrumbs } from '@TAF/components/Agents/AgentBreadcrumbs'
 import { Box, Tab, Tabs, Card, Chip, Typography, CardContent } from '@mui/material'
@@ -30,6 +31,7 @@ export const AgentLayout = () => {
   const [projectId] = useActiveProjectId()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const { canUpdate, canDelete, canExec } = usePermissions()
 
   const agentsPath = `/orgs/${orgId}/projects/${projectId}/agents`
   const agentPath = `${agentsPath}/${agentId}`
@@ -119,6 +121,7 @@ export const AgentLayout = () => {
           variant='outlined'
           Icon={<ChatIcon />}
           onClick={onChat}
+          disabled={!canExec(EPermResource.agent)}
         >
           Chat
         </Button>
@@ -126,6 +129,7 @@ export const AgentLayout = () => {
           variant='text'
           Icon={<EditIcon />}
           onClick={onEditClick}
+          disabled={!canUpdate(EPermResource.agent)}
           sx={{
             color: 'text.disabled',
             '&:hover': {
@@ -141,6 +145,7 @@ export const AgentLayout = () => {
           variant='text'
           onClick={onDeleteClick}
           Icon={<DeleteIcon />}
+          disabled={!canDelete(EPermResource.agent)}
           sx={{
             color: 'text.disabled',
             '&:hover': {

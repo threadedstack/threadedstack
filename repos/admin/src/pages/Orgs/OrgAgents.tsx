@@ -2,17 +2,19 @@ import { toast } from 'sonner'
 import type { Agent } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
+import { useState, useMemo } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
-import { useState, useMemo } from 'react'
-import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
+import { EPermResource } from '@tdsk/domain'
+import { Box, Chip, Typography } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { useActiveOrgId, useOrgAgents, useProviders } from '@TAF/state/selectors'
-import { Box, Chip, Typography } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -27,6 +29,7 @@ export const OrgAgents = (props: TOrgAgents) => {
   const [orgId] = useActiveOrgId()
   const [providers] = useProviders()
   const [loading, setLoading] = useState(false)
+  const { canCreate, canUpdate, canDelete } = usePermissions()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -209,6 +212,7 @@ export const OrgAgents = (props: TOrgAgents) => {
             icon={<EditIcon fontSize='small' />}
             size='small'
             color='primary'
+            disabled={!canUpdate(EPermResource.agent)}
             onClick={(e) => {
               e.stopPropagation()
               onOpenEdit(agent)
@@ -219,6 +223,7 @@ export const OrgAgents = (props: TOrgAgents) => {
             icon={<DeleteIcon fontSize='small' />}
             size='small'
             color='error'
+            disabled={!canDelete(EPermResource.agent)}
             onClick={(e) => {
               e.stopPropagation()
               onDeleteClick(agent)
@@ -242,11 +247,12 @@ export const OrgAgents = (props: TOrgAgents) => {
         searchCount={0}
         onAction={onOpenCreate}
         actionLabel='Create Agent'
+        actionDisabled={!canCreate(EPermResource.agent)}
       >
         {totalCount === 0 && (
           <EmptyState
             actionIcon={<AddIcon />}
-            onAction={onOpenCreate}
+            onAction={canCreate(EPermResource.agent) ? onOpenCreate : undefined}
             actionLabel='Create Agent'
             message='No agents yet. Create your first AI agent to get started.'
           />

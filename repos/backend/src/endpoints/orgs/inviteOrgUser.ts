@@ -6,6 +6,7 @@ import { EPMethod } from '@TBE/types'
 import { InviteService } from '@TBE/services/invite'
 import { authorize } from '@TBE/middleware/authorize'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 import {
   Exception,
   ERoleType,
@@ -106,6 +107,9 @@ export const inviteOrgUser: TEndpointConfig = {
     }
 
     if (permissionOverrides?.length) {
+      const callerPerms = permissionOverrides.some((po) => po.effect === 'grant')
+        ? await resolveEffectivePermissions(req, { orgId })
+        : null
       for (const po of permissionOverrides) {
         if (!isValidPermission(po.permission as string))
           throw new Exception(400, `Invalid permission: ${po.permission}`)
@@ -114,6 +118,17 @@ export const inviteOrgUser: TEndpointConfig = {
             400,
             `Invalid effect: ${po.effect}. Must be 'grant' or 'deny'`
           )
+        if (po.effect === `grant`) {
+          if (!callerPerms)
+            throw new Exception(500, `Failed to resolve caller permissions`)
+          if (callerPerms !== 'super' && !callerPerms.has(po.permission)) {
+            throw new Exception(
+              403,
+              `Cannot grant a permission you do not have: ${po.permission}`,
+              `FORBIDDEN`
+            )
+          }
+        }
       }
     }
 

@@ -46,6 +46,13 @@ describe(`Org Members endpoints`, () => {
               getOrgMembers: vi.fn(),
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
               removeFromOrg: vi.fn(),
+              removeFromProject: vi.fn().mockResolvedValue({ data: true }),
+            },
+            project: {
+              list: vi.fn().mockResolvedValue({ data: [] }),
+            },
+            permissionOverride: {
+              deleteForUser: vi.fn().mockResolvedValue({ data: 0 }),
             },
           },
         },

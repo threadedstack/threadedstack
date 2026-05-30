@@ -47,10 +47,13 @@ describe(`Project Members endpoints`, () => {
                 .mockResolvedValue({ data: { type: ERoleType.admin } }),
               getProjectMembers: vi.fn(),
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
-              isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+              isProjectMember: vi.fn().mockResolvedValue({ data: false }),
               create: vi.fn(),
               removeFromProject: vi.fn(),
               updateProjectRole: vi.fn(),
+            },
+            permissionOverride: {
+              deleteForUser: vi.fn().mockResolvedValue({ data: 0 }),
             },
           },
         },
@@ -180,6 +183,8 @@ describe(`Project Members endpoints`, () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
       const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
       >
@@ -188,6 +193,7 @@ describe(`Project Members endpoints`, () => {
       >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
+      mockIsProjectMember.mockResolvedValue({ data: false })
       mockGetProject.mockResolvedValue({
         data: { id: `project-1`, name: `Test Project` },
       })
@@ -216,6 +222,8 @@ describe(`Project Members endpoints`, () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
       const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
       >
@@ -224,6 +232,7 @@ describe(`Project Members endpoints`, () => {
       >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
+      mockIsProjectMember.mockResolvedValue({ data: false })
       mockGetProject.mockResolvedValue({
         data: { id: `project-1`, name: `Test Project` },
       })
@@ -332,6 +341,8 @@ describe(`Project Members endpoints`, () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
       const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
       >
@@ -340,6 +351,7 @@ describe(`Project Members endpoints`, () => {
       >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
+      mockIsProjectMember.mockResolvedValue({ data: false })
       mockGetProject.mockResolvedValue({
         data: { id: `project-1`, name: `Test Project` },
       })
@@ -348,6 +360,28 @@ describe(`Project Members endpoints`, () => {
       await expect(
         addProjectMember.action(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Unique constraint violation`)
+    })
+
+    it(`should throw 409 when user is already a project member (userId path)`, async () => {
+      mockReq.body = { userId: `user-2`, roleType: ERoleType.member }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
+      const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockIsProjectMember.mockResolvedValue({ data: true })
+      mockGetProject.mockResolvedValue({
+        data: { id: `project-1`, name: `Test Project` },
+      })
+
+      await expect(
+        addProjectMember.action(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`User is already a project member`)
     })
   })
 

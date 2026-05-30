@@ -1,6 +1,7 @@
 import type { TOrgWithRole } from '@tdsk/domain'
 
 import { storage } from '@TTH/services/storage'
+import { fetchOrg } from '@TTH/actions/orgs/fetchOrg'
 import { monitorService } from '@TTH/services/monitorService'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
@@ -12,6 +13,7 @@ import {
   setProjects,
   setActiveOrgRole,
   resetActiveProjectId,
+  resetActiveOrgResolvedPerms,
 } from '@TTH/state/accessors'
 
 export const selectOrg = async (orgId: string) => {
@@ -21,6 +23,9 @@ export const selectOrg = async (orgId: string) => {
   setProjects([])
   resetActiveProjectId()
   storage.remove(ActiveProjectIdStorageKey)
+
+  // Reset resolved permissions for the previous org before setting the new org's role
+  resetActiveOrgResolvedPerms()
 
   // Set the user's role for the newly selected org
   const orgs = getOrgs()
@@ -34,6 +39,13 @@ export const selectOrg = async (orgId: string) => {
 
   if (sandboxResult.data) setSandboxes(sandboxResult.data)
   if (projectResult.data) setProjects(projectResult.data)
+
+  fetchOrg(orgId).catch((err: unknown) => {
+    console.warn(
+      `[selectOrg] Failed to load org permissions:`,
+      err instanceof Error ? err.message : err
+    )
+  })
 
   monitorService.connect(orgId)
 }

@@ -2,10 +2,16 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
-import { EAIProviderBrand, AIProviderTemplates } from '@tdsk/domain'
+import {
+  Exception,
+  EPermAction,
+  EPermResource,
+  EAIProviderBrand,
+  AIProviderTemplates,
+} from '@tdsk/domain'
 
 const validBrands = new Set(Object.values(EAIProviderBrand))
 
@@ -22,6 +28,7 @@ const validBrands = new Set(Object.values(EAIProviderBrand))
 export const fetchModels: TEndpointConfig = {
   path: `/:brand/models`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.read, EPermResource.provider)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { brand } = req.params
     const { baseUrl } = req.body || {}

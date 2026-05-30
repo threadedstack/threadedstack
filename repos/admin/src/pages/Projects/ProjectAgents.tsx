@@ -2,10 +2,12 @@ import { toast } from 'sonner'
 import type { Agent } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { Page } from '@TAF/pages/Page/Page'
 import { nav } from '@TAF/services/nav'
-import { ConfirmDelete } from '@tdsk/components'
 import { useState, useMemo } from 'react'
+import { Page } from '@TAF/pages/Page/Page'
+import { EPermResource } from '@tdsk/domain'
+import { ConfirmDelete } from '@tdsk/components'
+import { Box, Chip, Typography } from '@mui/material'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
@@ -13,12 +15,12 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
-  useActiveOrgId,
-  useActiveProjectId,
-  useProjectAgents,
   useProviders,
+  useActiveOrgId,
+  useProjectAgents,
+  useActiveProjectId,
 } from '@TAF/state/selectors'
-import { Box, Chip, Typography } from '@mui/material'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import {
   Add as AddIcon,
   Chat as ChatIcon,
@@ -30,15 +32,16 @@ import {
 export type TProjectAgents = {}
 
 export const ProjectAgents = (props: TProjectAgents) => {
-  const [agents] = useProjectAgents()
   const [orgId] = useActiveOrgId()
   const [providers] = useProviders()
+  const [agents] = useProjectAgents()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
+  const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
 
   const getProviderName = (providerId: string) => {
@@ -208,6 +211,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
             icon={<ChatIcon fontSize='small' />}
             size='small'
             color='info'
+            disabled={!canExec(EPermResource.agent)}
             onClick={(e) => {
               e.stopPropagation()
               nav.to(`/orgs/${orgId}/projects/${projectId}/agents/${agent.id}/chat`)
@@ -218,6 +222,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
             icon={<EditIcon fontSize='small' />}
             size='small'
             color='primary'
+            disabled={!canUpdate(EPermResource.agent)}
             onClick={(e) => {
               e.stopPropagation()
               onOpenEdit(agent)
@@ -228,6 +233,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
             icon={<DeleteIcon fontSize='small' />}
             size='small'
             color='error'
+            disabled={!canDelete(EPermResource.agent)}
             onClick={(e) => {
               e.stopPropagation()
               onDeleteClick(agent)
@@ -251,11 +257,12 @@ export const ProjectAgents = (props: TProjectAgents) => {
         searchCount={0}
         onAction={onOpenCreate}
         actionLabel='Create Agent'
+        actionDisabled={!canCreate(EPermResource.agent)}
       >
         {totalCount === 0 && (
           <EmptyState
             actionIcon={<AddIcon />}
-            onAction={onOpenCreate}
+            onAction={canCreate(EPermResource.agent) ? onOpenCreate : undefined}
             actionLabel='Create Agent'
             message='No agents yet. Create your first AI agent to get started.'
           />

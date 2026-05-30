@@ -7,7 +7,7 @@ import type {
 } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
-import { eq, and, lt, isNotNull } from 'drizzle-orm'
+import { eq, and, or, lt, isNotNull } from 'drizzle-orm'
 import { permissionOverrides } from '@TDB/schemas/permissionOverrides'
 import { PermissionOverride as PermissionOverrideModel } from '@tdsk/domain'
 
@@ -98,6 +98,36 @@ export class PermissionOverride extends Base<
             lt(permissionOverrides.expiresAt, new Date().toISOString())
           )
         )
+        .returning()
+
+      return { data: result.length }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Delete all overrides for a user in a given scope (org or project)
+   */
+  async deleteForUser(
+    userId: string,
+    scope: { orgId: string; projectId?: never } | { projectId: string; orgId?: never }
+  ): Promise<TDBApiResType<number>> {
+    if (!scope.orgId && !scope.projectId) return { data: 0 }
+
+    try {
+      const conditions = [eq(permissionOverrides.userId, userId)]
+
+      const scopeConditions = []
+      if (scope.orgId) scopeConditions.push(eq(permissionOverrides.orgId, scope.orgId))
+      if (scope.projectId)
+        scopeConditions.push(eq(permissionOverrides.projectId, scope.projectId))
+
+      if (scopeConditions.length > 0) conditions.push(or(...scopeConditions)!)
+
+      const result = await this.db
+        .delete(permissionOverrides)
+        .where(and(...conditions))
         .returning()
 
       return { data: result.length }

@@ -5,6 +5,7 @@ import { WaitlistedCode } from '@tdsk/domain'
 import { apiService } from '@TTH/services/api'
 import { orgsApi } from '@TTH/services/orgsApi'
 import { storage } from '@TTH/services/storage'
+import { fetchOrg } from '@TTH/actions/orgs/fetchOrg'
 import { monitorService } from '@TTH/services/monitorService'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
@@ -59,6 +60,13 @@ const initOnce = async () => {
 
   const selectedOrg = orgsResult.data?.find((o) => o.id === orgId)
   setActiveOrgRole((selectedOrg as TOrgWithRole)?.userRole ?? null)
+
+  fetchOrg(orgId).catch((err: unknown) => {
+    console.warn(
+      `[init] Failed to load org permissions:`,
+      err instanceof Error ? err.message : err
+    )
+  })
 
   const [sandboxResult, projectResult] = await Promise.all([
     listSandboxes({ orgId }),

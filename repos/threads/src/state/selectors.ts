@@ -16,6 +16,7 @@ import {
   activeProjectIdState,
   contextPanelOpenState,
   permissionOverridesState,
+  activeOrgResolvedPermsState,
 } from '@TTH/state/app'
 import {
   savingFilesState,
@@ -52,6 +53,7 @@ export const useWaitlisted = () => useReadOnly(waitlistedState)
 export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
 export const useFileTreeOpen = () => useReadOnly(fileTreeOpenState)
 export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
+export const useActiveOrgResolvedPerms = () => useReadOnly(activeOrgResolvedPermsState)
 export const useOpenEditorFiles = () => useReadOnly(openEditorFilesState)
 export const useContextPanelOpen = () => useReadOnly(contextPanelOpenState)
 export const useActiveEditorFile = () => useReadOnly(activeEditorFileState)

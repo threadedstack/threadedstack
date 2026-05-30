@@ -4,6 +4,7 @@ import type { TOrgWithRole } from '@tdsk/domain'
 import { toast } from 'sonner'
 import { init } from '@TTH/actions/init'
 import { storage } from '@TTH/services/storage'
+import { fetchOrg } from '@TTH/actions/orgs/fetchOrg'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import { fetchInstances } from '@TTH/actions/sandboxes/fetchInstances'
@@ -20,6 +21,7 @@ import {
   setActiveOrgRole,
   setActiveProjectId,
   resetActiveProjectId,
+  resetActiveOrgResolvedPerms,
 } from '@TTH/state/accessors'
 
 const safeFetch = (fn: () => Promise<any>, context?: string) => {
@@ -60,6 +62,9 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
     const selectedOrg = orgs.find((o) => o.id === orgId)
     setActiveOrgRole((selectedOrg as TOrgWithRole)?.userRole ?? null)
 
+    // Clear resolved permissions for the previous org before fetching the new org's permissions
+    resetActiveOrgResolvedPerms()
+
     // Clear and re-fetch scoped data when switching orgs
     setSandboxes([])
     setProjects([])
@@ -78,6 +83,8 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
       if (projectResult.data) setProjects(projectResult.data)
     }, `projects`)
   }
+
+  safeFetch(() => fetchOrg(orgId), `org`)
 
   return null
 }

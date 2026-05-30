@@ -4,6 +4,7 @@ import type {
   Sandbox,
   Project,
   TRoleType,
+  TPermission,
   Organization,
   TPortsResponse,
   TSandboxSession,
@@ -49,6 +50,8 @@ import {
   contextPanelOpenState,
   defPermissionOverrides,
   permissionOverridesState,
+  defActiveOrgResolvedPerms,
+  activeOrgResolvedPermsState,
 } from '@TTH/state/app'
 
 import {
@@ -113,6 +116,12 @@ export const resetPermissionOverrides = () =>
   store.set(permissionOverridesState, defPermissionOverrides)
 export const setPermissionOverrides = (overrides: PermissionOverride[] | undefined) =>
   store.set(permissionOverridesState, overrides)
+
+export const getActiveOrgResolvedPerms = () => store.get(activeOrgResolvedPermsState)
+export const resetActiveOrgResolvedPerms = () =>
+  store.set(activeOrgResolvedPermsState, defActiveOrgResolvedPerms)
+export const setActiveOrgResolvedPerms = (perms: TPermission[] | `super` | undefined) =>
+  store.set(activeOrgResolvedPermsState, perms)
 
 export const getContextPanelOpen = () => store.get(contextPanelOpenState)
 export const resetContextPanelOpen = () =>

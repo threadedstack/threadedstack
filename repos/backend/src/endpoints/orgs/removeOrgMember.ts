@@ -68,6 +68,42 @@ export const removeOrgMember: TEndpointConfig = {
     const { error } = await db.services.role.removeFromOrg(userId, orgId)
     if (error) throw new Exception(500, error.message)
 
+    // Cleanup project-scoped roles and permission overrides for the removed member (non-fatal)
+    try {
+      const { data: orgProjects } = await db.services.project.list({ where: { orgId } })
+      if (orgProjects?.length) {
+        await Promise.all(
+          orgProjects.map(async (project) => {
+            const pid = project.id
+            const { error: roleErr } = await db.services.role.removeFromProject(
+              userId,
+              pid
+            )
+            if (roleErr)
+              logger.error(
+                `[removeOrgMember] Failed to cleanup project role for user ${userId} in project ${pid}:`,
+                roleErr
+              )
+
+            const { error: overrideErr } =
+              await db.services.permissionOverride.deleteForUser(userId, {
+                projectId: pid,
+              })
+            if (overrideErr)
+              logger.error(
+                `[removeOrgMember] Failed to cleanup permission overrides for user ${userId} in project ${pid}:`,
+                overrideErr
+              )
+          })
+        )
+      }
+    } catch (cleanupErr) {
+      logger.error(
+        `[removeOrgMember] Failed to cleanup project data for user ${userId} in org ${orgId}:`,
+        cleanupErr
+      )
+    }
+
     // Decrement seat quantity on Stripe if the removed member was a paid seat
     try {
       if (existingOrg.ownerId) {

@@ -1,4 +1,10 @@
-import type { Organization, Project, TRoleType, PermissionOverride } from '@tdsk/domain'
+import type {
+  Organization,
+  Project,
+  TRoleType,
+  TPermission,
+  PermissionOverride,
+} from '@tdsk/domain'
 
 import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
@@ -17,6 +23,11 @@ export const activeProjectIdState = atomWithReset<string>(defActiveProjectId)
 
 export const defActiveOrgRole: TRoleType | null = null
 export const activeOrgRoleState = atomWithReset<TRoleType | null>(defActiveOrgRole)
+
+export const defActiveOrgResolvedPerms: TPermission[] | `super` | undefined = undefined
+export const activeOrgResolvedPermsState = atomWithReset<
+  TPermission[] | `super` | undefined
+>(defActiveOrgResolvedPerms)
 
 export const activeOrgState = atom<Organization | undefined>((get) => {
   const orgId = get(orgIdState)

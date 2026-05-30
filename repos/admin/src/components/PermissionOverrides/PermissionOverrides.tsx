@@ -5,9 +5,11 @@ import { toast } from 'sonner'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { Text, ConfirmDelete, DataTableSkeleton } from '@tdsk/components'
 import { usePermissionOverrides, useOrgUsers } from '@TAF/state/selectors'
 import { deleteOverride } from '@TAF/actions/permissionOverrides/api/deleteOverride'
@@ -53,6 +55,7 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
   const [overrides] = usePermissionOverrides()
   const isInitialLoading = overrides === undefined
   const overridesList = useMemo(() => overrides || [], [overrides])
+  const { canManage } = usePermissions()
 
   const [error, setError] = useState<Error>()
   const [loading, setLoading] = useState(false)
@@ -212,6 +215,7 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
             size='small'
             color='primary'
             tooltip='Edit Override'
+            disabled={!canManage(EPermResource.role)}
             icon={<EditIcon sx={styles.table.actions.icon} />}
             onClick={(e) => {
               e.stopPropagation()
@@ -223,6 +227,7 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
             size='small'
             color='error'
             tooltip='Delete Override'
+            disabled={!canManage(EPermResource.role)}
             icon={<DeleteIcon sx={styles.table.actions.icon} />}
             onClick={(e) => {
               e.stopPropagation()
@@ -246,6 +251,7 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
       setSearchQuery={setSearchQuery}
       onAction={overridesList.length > 0 && onCreateOverride}
       actionLabel={overridesList.length > 0 && 'Add Override'}
+      actionDisabled={!canManage(EPermResource.role)}
       count={isInitialLoading ? undefined : overridesList.length}
       searchPlaceholder='Search by user, permission, or reason...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
@@ -256,7 +262,7 @@ export const PermissionOverrides = (props: PermissionOverrides) => {
         <EmptyState
           actionIcon={<AddIcon />}
           actionLabel='Add Override'
-          onAction={onCreateOverride}
+          onAction={canManage(EPermResource.role) ? onCreateOverride : undefined}
           message='No permission overrides yet. Add an override to grant or deny specific permissions for a user.'
         />
       )}
