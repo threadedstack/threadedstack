@@ -4,17 +4,7 @@ import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
 
 type DocsAssetsOptions = { docsRoot: string }
 
-const SkipDirs = [
-  'superpowers',
-  'node_modules',
-  'plans',
-  'meta',
-  'payments',
-  'tech',
-  'endpoints',
-  'business',
-  'developer',
-]
+const SkipDirs = ['internal', 'node_modules']
 
 export function vitePluginDocsAssets(options: DocsAssetsOptions): Plugin {
   const { docsRoot } = options

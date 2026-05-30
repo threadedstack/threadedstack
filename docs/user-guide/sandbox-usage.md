@@ -69,14 +69,16 @@ tsa run <sandbox-id> --org <org-id>
 
 ## Built-In Sandbox Presets
 
-Every new organization is seeded with four ready-to-use sandbox configs:
+Every new organization is seeded with six ready-to-use sandbox configs:
 
 | Preset | Runtime | What It Runs |
 |--------|---------|-------------|
 | Claude Code | `claude-code` | Anthropic's Claude Code CLI |
 | Codex | `codex` | OpenAI's Codex CLI |
 | OpenCode | `opencode` | Open-source AI coding tool |
-| Base | `custom` | Plain sandbox with SSH — bring your own runtime |
+| Antigravity | `antigravity` | Google's Antigravity CLI |
+| OpenClaw | `openclaw` | Open-source AI agent platform |
+| Base | `custom` | Plain sandbox with SSH, bring your own runtime |
 
 These presets:
 - Are marked `builtIn: true` in the system
@@ -98,7 +100,11 @@ Each sandbox has a **runtime** that determines which AI tool is launched by `tsa
 | Claude Code | `claude-code` | Anthropic's Claude Code CLI |
 | Codex | `codex` | OpenAI's Codex CLI |
 | OpenCode | `opencode` | Open-source AI coding tool |
+| Antigravity | `antigravity` | Google's Antigravity CLI |
+| OpenClaw | `openclaw` | Open-source AI agent platform |
 | Custom | `custom` | You specify the command |
+
+> **Best practice:** Start with the built-in presets. Only create custom runtimes when a built-in preset does not support your tool.
 
 ### Two-Command Model
 
@@ -108,6 +114,8 @@ Sandboxes use two separate commands:
 2. **Runtime command** — Runs when you execute `tsa run`. This is the AI tool itself.
 
 An optional **init script** runs between container start and "ready" state. Use it for setup tasks like installing extra dependencies, configuring git, or cloning a project.
+
+> **Best practice:** Keep init scripts short. Long init scripts delay sandbox startup and frustrate developers. Move heavy setup into a custom Docker image instead.
 
 ### Custom Runtimes
 
@@ -477,6 +485,8 @@ sync:
 | `one-way-safe` | Local → sandbox only. Existing sandbox files are never deleted or overwritten. |
 | `two-way-safe` | Bidirectional. Conflicts are flagged, not overwritten. |
 | `two-way-resolved` | Bidirectional. Local wins on conflict. |
+
+> **Best practice:** Use `two-way-safe` sync mode unless you have a specific reason not to. It prevents accidental overwrites in both directions and flags conflicts for manual resolution.
 
 #### Ignore Patterns
 

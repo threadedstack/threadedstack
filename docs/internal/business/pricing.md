@@ -18,24 +18,9 @@ In short:
 
 ## Tier Comparison
 
-Threaded Stack offers four subscription tiers. All limits below are sourced directly from the plan definitions in the codebase. A value of "Unlimited" means there is no cap on that resource.
+Threaded Stack offers four subscription tiers: **Free**, **Solo**, **Pro**, and **Team**. Current pricing, limits, and feature breakdowns are available on the [Pricing page](/pricing), which loads live data from the backend API.
 
-| | **Free** | **Solo** | **Pro** | **Team** |
-|---|---|---|---|---|
-| **Price** | $0/mo | $20/mo | $50/mo | $150/mo |
-| **Target User** | Experimenting and learning | Solo devs shipping real projects | Small teams building together | Organizations at scale |
-| **Organizations** | 1 | 2 | 5 | Unlimited |
-| **Projects** | 2 | 10 | 50 | Unlimited |
-| **Included Seats** | 1 | 1 | 3 | 10 |
-| **Additional Seats** | No | No | Yes (+$10/seat/mo) | Yes (+$8/seat/mo) |
-| **Endpoints** | 3 | 20 | Unlimited | Unlimited |
-| **Threads** | 100 | 1,000 | Unlimited | Unlimited |
-| **Messages** | 500 | 10,000 | Unlimited | Unlimited |
-| **Compute Units** | 1,000 | 10,000 | 100,000 | Unlimited |
-| **Secrets** | 5 | 25 | Unlimited | Unlimited |
-| **Retention** | 7 days | 30 days | 90 days | 365 days |
-| **Custom Domains** | No | No | Yes | Yes |
-| **Support** | Community | Email | Priority | Dedicated |
+> **Note:** Canonical pricing is defined in `repos/domain/src/constants/plans.ts` and served via the backend API. The pricing page and admin dashboard both read from this source. Do not hardcode prices in documentation.
 
 ---
 

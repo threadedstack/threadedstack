@@ -78,7 +78,7 @@ A terminal-native TUI compiled to a standalone binary. Developers authenticate w
 
 A browser-based interface for non-developer users to interact with AI agents through a conversation-oriented UI. Built as a separate SPA. Shares authentication infrastructure with the admin dashboard via Neon Auth.
 
-**Status:** Partially built -- has routing, auth, state management, and page scaffolding. Completion is in progress for beta launch.
+Built as a separate SPA with routing, auth, state management, and page scaffolding.
 
 ### 4. API (SSE / WebSocket)
 

@@ -1,10 +1,18 @@
 # Threaded Stack Documentation
 
-Threaded Stack is an **AI operations layer** for companies integrating AI tools into their workflows. It sits alongside existing tooling and solves the governance, security, and sharing problems that come with deploying AI tools across an organization.
+Threaded Stack is a managed platform for running AI coding tools like Claude Code, Codex, OpenCode, Antigravity, and OpenClaw. It handles sandboxed execution, credential injection, and team collaboration so your engineering team can use AI tools without managing infrastructure or exposing secrets.
 
-**Key differentiator:** "Bring your own AI tool, we make it secure and managed." Managed sandboxes run your AI tool of choice — Claude Code, Codex, OpenCode, or any tool that runs in a container. All traffic routes through a transparent MITM proxy, so the tool works normally but never sees real credentials.
+**Bring your own AI tool, we make it secure and managed.** Managed sandboxes run your AI tool of choice in isolated containers. All traffic routes through a transparent MITM proxy, so the tool works normally but never sees real credentials.
 
-**Quickest path to value:** Create an organization, pick a built-in sandbox preset (Claude Code, Codex, or OpenCode are seeded automatically), and run `tsa run <sandbox-id>` from your terminal. The CLI starts the sandbox, syncs your files, and launches the AI tool — all in one command.
+**Quickest path to value:** Create an organization, pick a built-in sandbox preset, and run `tsa run <sandbox-id>` from your terminal. The CLI starts the sandbox, syncs your files, and launches the AI tool in one command.
+
+---
+
+## Start Here
+
+1. **[Getting Started](user-guide/getting-started.md)** -- Sign up and launch your first sandbox in 5 minutes
+2. **[Sandbox Usage](user-guide/sandbox-usage.md)** -- Everything about sandboxes: runtimes, file sync, sessions
+3. **[Security Model](architecture/security-model.md)** -- How credentials are protected end-to-end
 
 ---
 

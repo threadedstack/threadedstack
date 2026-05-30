@@ -46,14 +46,7 @@ The user receives a beta invitation link. They sign up using social login (GitHu
 
 ### Step 2: Pick a Plan
 
-Immediately after sign-up, the user selects a subscription tier:
-
-| Tier | Price | Seats | Target |
-|------|-------|-------|--------|
-| **Free** | $0/mo | 1 | Exploration and evaluation |
-| **Solo** | $15/mo | 1 | Individual developers shipping real projects |
-| **Pro** | $39/mo | 3 included (+$10/seat) | Small teams building together |
-| **Team** | $99/mo | 10 included (+$8/seat) | Organizations at scale |
+Immediately after sign-up, the user selects a subscription tier. See the [Pricing page](/pricing) for current plan details, limits, and seat pricing. Canonical pricing is defined in `repos/domain/src/constants/plans.ts` and served via the backend API.
 
 Paid tiers redirect to Stripe hosted checkout. Free tier users get a subscription record in the database immediately with no Stripe interaction.
 
