@@ -142,7 +142,8 @@
       "Bash(command *)",
       "Bash(tee *)",
       "Bash(xargs -I {} date -r {})",
-      "Bash(civo version *)"
+      "Bash(civo version *)",
+      "Bash(~/.config/tdsk/bin/mutagen *)"
     ]
   },
   "sandbox": {

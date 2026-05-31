@@ -106,9 +106,13 @@ const ensureProxyWrapper = (): void => {
 
   const tsaBin = resolveTsaBin()
   const lastPath = tsaBin.includes(` `) ? tsaBin.split(` `).pop()! : tsaBin
+
+  // TODO: Need to validate how the tsa executable is resolved when compiled
   const pkgRoot = lastPath.includes(`/dist/`)
     ? lastPath.slice(0, lastPath.indexOf(`/dist/`))
-    : dirname(lastPath)
+    : lastPath.includes(`/src/`)
+      ? lastPath.slice(0, lastPath.indexOf(`/src/`))
+      : dirname(lastPath)
   const wrapper = [
     `#!/bin/sh`,
     `cd "${pkgRoot}" 2>/dev/null`,

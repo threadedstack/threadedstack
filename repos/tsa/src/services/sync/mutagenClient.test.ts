@@ -55,7 +55,7 @@ describe(`CliDriver`, () => {
       expect(args[1]).toBe(`create`)
       expect(args).toContain(`--name=app-source`)
       expect(args).toContain(`--mode=two-way-resolved`)
-      expect(args).toContain(`--stage-mode-beta=neighboring`)
+      expect(args).toContain(`--stage-mode-beta=internal`)
       expect(args).toContain(`--ignore=.git/`)
       expect(args).toContain(`--ignore=node_modules/`)
       expect(args).toContain(`--label=sandboxId=sb_abc123`)
@@ -131,16 +131,21 @@ describe(`CliDriver`, () => {
   })
 
   describe(`listSessions`, () => {
-    it(`calls mutagen sync list without filter when no labels`, async () => {
+    it(`calls mutagen sync list --long without filter when no labels`, async () => {
       await driver.listSessions()
       const [, args] = mockExecFileAsync.mock.calls[0]
-      expect(args).toEqual([`sync`, `list`])
+      expect(args).toEqual([`sync`, `list`, `--long`])
     })
 
     it(`adds label-selector when labels provided`, async () => {
       await driver.listSessions({ sandboxId: `sb_abc123` })
       const [, args] = mockExecFileAsync.mock.calls[0]
-      expect(args).toEqual([`sync`, `list`, `--label-selector=sandboxId=sb_abc123`])
+      expect(args).toEqual([
+        `sync`,
+        `list`,
+        `--long`,
+        `--label-selector=sandboxId=sb_abc123`,
+      ])
     })
   })
 
@@ -191,6 +196,46 @@ describe(`CliDriver`, () => {
         sandboxId: `sb_abc123`,
         ruleName: `app-source`,
         orgId: `org_1`,
+      })
+    })
+
+    it(`parses multi-line --long format with URL prefix`, async () => {
+      mockExecFileAsync.mockResolvedValue({
+        stdout: [
+          `--------------------------------------------------------------------------------`,
+          `Name: default`,
+          `Identifier: sync_s8eQBWW`,
+          `Labels:`,
+          `\tinstanceId: tdsk-sb-sb000-9qlj`,
+          `\torgId: og_001`,
+          `\truleName: default`,
+          `\tsandboxId: sb_001`,
+          `Configuration:`,
+          `\tSynchronization mode: Two Way Resolved`,
+          `Alpha:`,
+          `\tURL: /home/user/project`,
+          `\tConnected: Yes`,
+          `Beta:`,
+          `\tURL: sandbox@sb_001--tdsk-sb-sb000-9qlj:/workspace`,
+          `\tConnected: Yes`,
+          `Status: Watching for changes`,
+          `--------------------------------------------------------------------------------`,
+        ].join(`\n`),
+        stderr: ``,
+      })
+
+      const sessions = await driver.listSessions()
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0].name).toBe(`default`)
+      expect(sessions[0].source).toBe(`/home/user/project`)
+      expect(sessions[0].target).toBe(`sandbox@sb_001--tdsk-sb-sb000-9qlj:/workspace`)
+      expect(sessions[0].mode).toBe(`two-way-resolved`)
+      expect(sessions[0].status).toBe(`watching`)
+      expect(sessions[0].labels).toEqual({
+        instanceId: `tdsk-sb-sb000-9qlj`,
+        orgId: `og_001`,
+        ruleName: `default`,
+        sandboxId: `sb_001`,
       })
     })
 

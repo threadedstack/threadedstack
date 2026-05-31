@@ -222,7 +222,7 @@ export class CliDriver implements IMutagenClient {
       `create`,
       `--name=${opts.name}`,
       `--mode=${opts.mode}`,
-      `--stage-mode-beta=${opts.stageMode || `neighboring`}`,
+      `--stage-mode-beta=${opts.stageMode || `internal`}`,
       ...opts.ignores.map((i) => `--ignore=${i}`),
       ...Object.entries(opts.labels).map(([k, v]) => `--label=${k}=${v}`),
       opts.source,
@@ -259,7 +259,7 @@ export class CliDriver implements IMutagenClient {
   }
 
   async listSessions(labels?: Record<string, string>): Promise<TSyncSession[]> {
-    const args = [`sync`, `list`]
+    const args = [`sync`, `list`, `--long`]
     if (labels) {
       const selector = Object.entries(labels)
         .map(([k, v]) => `${k}=${v}`)
@@ -296,11 +296,11 @@ export class CliDriver implements IMutagenClient {
       const statusMatch = block.match(/Status:\s*(.+)/i)
       const alphaMatch = block.match(/Alpha:\s*(.+)/i)
       const betaMatch = block.match(/Beta:\s*(.+)/i)
-      const modeMatch = block.match(/Mode:\s*(.+)/i)
+      const modeMatch =
+        block.match(/Synchronization mode:\s*(.+)/i) || block.match(/Mode:\s*(.+)/i)
 
-      // Parse labels from "Labels:" block — each label on its own indented line as "key: value"
       const labels: Record<string, string> = {}
-      const labelsSection = block.match(/Labels:\s*\n((?:\s+.+\n?)*)/i)
+      const labelsSection = block.match(/Labels:\s*\n((?:[\t ]+.+\n?)*)/i)
       if (labelsSection) {
         for (const line of labelsSection[1].split(`\n`)) {
           const kv = line.trim().match(/^(\w+):\s*(.+)$/)
@@ -313,8 +313,8 @@ export class CliDriver implements IMutagenClient {
           id: idMatch?.[1]?.trim() || nameMatch[1].trim(),
           name: nameMatch[1].trim(),
           status: this.#mapStatus(statusMatch?.[1]?.trim()),
-          source: alphaMatch?.[1]?.trim(),
-          target: betaMatch?.[1]?.trim(),
+          source: this.#stripUrl(alphaMatch?.[1]?.trim()),
+          target: this.#stripUrl(betaMatch?.[1]?.trim()),
           mode: this.#parseMode(modeMatch?.[1]?.trim()),
           labels,
         })
@@ -322,6 +322,11 @@ export class CliDriver implements IMutagenClient {
     }
 
     return sessions
+  }
+
+  #stripUrl(raw?: string): string | undefined {
+    if (!raw) return undefined
+    return raw.startsWith(`URL: `) ? raw.slice(5) : raw
   }
 
   #parseMode(raw?: string): TSyncMode | undefined {
