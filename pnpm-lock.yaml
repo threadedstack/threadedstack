@@ -1024,6 +1024,22 @@ importers:
       ws:
         specifier: 8.19.0
         version: 8.19.0
+    optionalDependencies:
+      '@tdsk/tsa-darwin-arm64':
+        specifier: 0.1.2
+        version: 0.1.2
+      '@tdsk/tsa-darwin-x64':
+        specifier: 0.1.2
+        version: 0.1.2
+      '@tdsk/tsa-linux-arm64':
+        specifier: 0.1.2
+        version: 0.1.2
+      '@tdsk/tsa-linux-x64':
+        specifier: 0.1.2
+        version: 0.1.2
+      '@tdsk/tsa-win32-x64':
+        specifier: 0.1.2
+        version: 0.1.2
 
   repos/website:
     dependencies:
@@ -5203,6 +5219,31 @@ packages:
     resolution: {integrity: sha512-bpMGOmV4OPmif7TNMteU/Ehf/hoC0Kf98PDc0F4BZkFrEapRMEqI/V6YS0lyzwSV6PQpY1y4xxArUIfBW5LVxQ==}
     peerDependencies:
       react: ^18 || ^19
+
+  '@tdsk/tsa-darwin-arm64@0.1.2':
+    resolution: {integrity: sha512-hbi8xVXA+UJs7++0z2/+LMxrn3iJ3SNmeBPKI8eFXsAhzDqXl0FP7fRn08RJ6+fDNicpPeK4g+0JAnAUjcPRYg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tdsk/tsa-darwin-x64@0.1.2':
+    resolution: {integrity: sha512-UWxoYOuW8lmuqwRAUTO+qWRD6ia+6Q9ql5Ie97ROn92F4RpqxGaYMDIfWORZQU3RSycTzhrUm+hVwjf+VIuLtw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tdsk/tsa-linux-arm64@0.1.2':
+    resolution: {integrity: sha512-mZ+ylIPQDaUSxkYi3ahsnRjgXCgpEAhOk5N+h3QXOBCHSt6Cur/LbINnP7Qi2EjtqQpsvxYOX2Ltws6/1gYoKw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@tdsk/tsa-linux-x64@0.1.2':
+    resolution: {integrity: sha512-OgOUYcsPxIhHcqibx7KwhzIZChXlgeyiDZ68X8b0VMhVGChjLQ/sdWPC/SZGdwSCzLFGZeBGjQn3R3+wrY8tEQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@tdsk/tsa-win32-x64@0.1.2':
+    resolution: {integrity: sha512-P7EOyIHaq6qXPCEViyFsMpz19KObB38HgCkc3Xjx7LXMqXbb4b32DP/UHph0U0kudVKR0cg6Lbo8GDvnwNM1nQ==}
+    cpu: [x64]
+    os: [win32]
 
   '@testing-library/dom@9.3.4':
     resolution: {integrity: sha512-FlS4ZWlp97iiNWig0Muq8p+3rVDjRiYE+YKGbAqXOu9nwJFFOdL00kFpz42M+4huzYi86vAK1sOOfyOG45muIQ==}
@@ -17129,6 +17170,21 @@ snapshots:
     dependencies:
       '@tanstack/query-core': 5.90.16
       react: 18.3.1
+
+  '@tdsk/tsa-darwin-arm64@0.1.2':
+    optional: true
+
+  '@tdsk/tsa-darwin-x64@0.1.2':
+    optional: true
+
+  '@tdsk/tsa-linux-arm64@0.1.2':
+    optional: true
+
+  '@tdsk/tsa-linux-x64@0.1.2':
+    optional: true
+
+  '@tdsk/tsa-win32-x64@0.1.2':
+    optional: true
 
   '@testing-library/dom@9.3.4':
     dependencies:
