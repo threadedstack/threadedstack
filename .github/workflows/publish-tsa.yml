@@ -88,6 +88,7 @@ jobs:
         if: inputs.dry_run != true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: cd repos/tsa && npx semantic-release-plus
 
       - name: Dry run — build and inspect

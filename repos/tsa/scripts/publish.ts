@@ -7,12 +7,17 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const root = resolve(import.meta.dirname, `..`)
 
 const versionIdx = process.argv.indexOf(`--version`)
-const version = versionIdx !== -1 ? process.argv[versionIdx + 1] : null
+const version = versionIdx !== -1
+  ? process.argv[versionIdx + 1]
+  : JSON.parse(readFileSync(join(root, `package.json`), `utf-8`)).version
 
 if (!version) {
-  console.error(`Usage: bun run scripts/publish.ts --version <version>`)
+  console.error(`Usage: bun run scripts/publish.ts [--version <version>] [--otp <code>]`)
   process.exit(1)
 }
+
+const otpIdx = process.argv.indexOf(`--otp`)
+const otp = otpIdx !== -1 ? process.argv[otpIdx + 1] : ``
 
 const Platforms = [
   `darwin-arm64`,
@@ -54,7 +59,15 @@ for (const platform of Platforms) {
   const pkgDir = join(root, `npm`, platform)
   console.log(`  Publishing @tdsk/tsa-${platform}...`)
   const provenance = process.env.GITHUB_ACTIONS ? `--provenance` : ``
-  await $`npm publish --access public ${provenance}`.cwd(pkgDir)
+  const otpFlag = otp ? `--otp=${otp}` : ``
+  await $`npm publish --access public ${provenance} ${otpFlag}`.cwd(pkgDir)
 }
 
-console.log(`\nPlatform packages published. Main package will be published by semantic-release.`)
+if (process.env.GITHUB_ACTIONS) {
+  console.log(`\nPlatform packages published. Main package will be published by semantic-release.`)
+} else {
+  console.log(`\nPublishing main @tdsk/tsa package...`)
+  const otpFlag = otp ? `--otp=${otp}` : ``
+  await $`npm publish --access public ${otpFlag}`.cwd(root)
+  console.log(`\nAll packages published successfully!`)
+}

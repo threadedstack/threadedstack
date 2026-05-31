@@ -1,6 +1,6 @@
 {
   "name": "@tdsk/tsa",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Terminal CLI for managing Threaded Stack sandboxes and AI agents",
   "type": "module",
   "bin": {
@@ -20,6 +20,7 @@
     "build": "bun run scripts/build.ts",
     "compile": "bun run scripts/build.ts --compile",
     "build:publish": "bun run scripts/build.ts --publish",
+    "pub": "bun run scripts/publish.ts",
     "clean": "pnpm clean:dist && pnpm clean:nm",
     "clean:dist": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
@@ -57,11 +58,11 @@
     "access": "public"
   },
   "optionalDependencies": {
-    "@tdsk/tsa-darwin-arm64": "0.1.1",
-    "@tdsk/tsa-darwin-x64": "0.1.1",
-    "@tdsk/tsa-linux-x64": "0.1.1",
-    "@tdsk/tsa-linux-arm64": "0.1.1",
-    "@tdsk/tsa-win32-x64": "0.1.1"
+    "@tdsk/tsa-darwin-arm64": "0.1.2",
+    "@tdsk/tsa-darwin-x64": "0.1.2",
+    "@tdsk/tsa-linux-x64": "0.1.2",
+    "@tdsk/tsa-linux-arm64": "0.1.2",
+    "@tdsk/tsa-win32-x64": "0.1.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

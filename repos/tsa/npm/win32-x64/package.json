@@ -1,6 +1,6 @@
 {
   "name": "@tdsk/tsa-win32-x64",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TSA CLI binary for Windows x64",
   "os": [
     "win32"

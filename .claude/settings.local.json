@@ -143,7 +143,15 @@
       "Bash(tee *)",
       "Bash(xargs -I {} date -r {})",
       "Bash(civo version *)",
-      "Bash(~/.config/tdsk/bin/mutagen *)"
+      "Bash(~/.config/tdsk/bin/mutagen *)",
+      "Bash(npm whoami *)",
+      "Bash(npm config *)",
+      "Bash(npm access *)",
+      "Bash(cat .gitignore)",
+      "Bash(ls -la npm/darwin-arm64/.npmignore)",
+      "Bash(cat npm/darwin-arm64/.npmignore)",
+      "Bash(ls -la .npmrc)",
+      "Bash(cat .npmrc)"
     ]
   },
   "sandbox": {

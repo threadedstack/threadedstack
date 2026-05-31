@@ -11,6 +11,10 @@ vi.mock(`util`, () => ({
   promisify: () => mockExecFileAsync,
 }))
 
+vi.mock(`@TSA/services/sync/sshConfig`, () => ({
+  ensureSshConfig: vi.fn(),
+}))
+
 vi.mock(`fs`, async () => {
   const actual = await vi.importActual<typeof import('fs')>(`fs`)
   return {

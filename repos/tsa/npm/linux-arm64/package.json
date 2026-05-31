@@ -1,6 +1,6 @@
 {
   "name": "@tdsk/tsa-linux-arm64",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TSA CLI binary for Linux ARM64",
   "os": [
     "linux"
