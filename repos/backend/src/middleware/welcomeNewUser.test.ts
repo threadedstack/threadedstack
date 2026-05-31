@@ -47,8 +47,10 @@ describe(`welcomeNewUser middleware`, () => {
           db: { services: { user: { update: mockUserUpdate } } },
           email: { welcome: mockWelcome },
           config: {
-            adminUrl: `https://app.threadedstack.com`,
-            threadsUrl: `https://threads.threadedstack.com`,
+            urls: {
+              admin: `https://app.threadedstack.com`,
+              threads: `https://threads.threadedstack.com`,
+            },
           },
         },
       },

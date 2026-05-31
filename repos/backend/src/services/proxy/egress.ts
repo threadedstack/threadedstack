@@ -250,12 +250,26 @@ export class EgressProxy {
     return result
   }
 
-  /**
-   * Handle a single connection from the front TCP server.
-   * Peeks at the first bytes to determine protocol, then routes accordingly.
-   */
+  private destroyPair(a: net.Socket, b: net.Socket): void {
+    if (!a.destroyed) {
+      a.unpipe()
+      a.destroy()
+    }
+    if (!b.destroyed) {
+      b.unpipe()
+      b.destroy()
+    }
+  }
+
   private handleConnection(clientSocket: net.Socket): void {
+    clientSocket.setNoDelay(true)
+
+    const idleTimeout = setTimeout(() => {
+      if (!clientSocket.destroyed) clientSocket.destroy()
+    }, 30_000)
+
     clientSocket.once(`data`, (firstChunk: Buffer) => {
+      clearTimeout(idleTimeout)
       if (firstChunk[0] === 0x16) {
         this.handleTLSConnection(clientSocket, firstChunk)
       } else {
@@ -264,18 +278,16 @@ export class EgressProxy {
     })
 
     clientSocket.on(`error`, (err) => {
-      logger.debug(`[EgressProxy] Client socket error:`, err.message)
+      clearTimeout(idleTimeout)
+      if (err.message !== `read ECONNRESET`)
+        logger.debug(`[EgressProxy] Client socket error:`, err.message)
     })
   }
 
-  /**
-   * Pipe an HTTP connection directly to the internal MITM proxy.
-   * Injects X-TDSK-Real-IP header so handleRequest can identify the sandbox pod.
-   */
   private handleHTTPConnection(clientSocket: net.Socket, firstChunk: Buffer): void {
     const realIp = clientSocket.remoteAddress || ``
     const mitmSocket = net.connect(this.mitmPort, `127.0.0.1`, () => {
-      // Inject real client IP header after the HTTP request line
+      mitmSocket.setNoDelay(true)
       const crlfPos = firstChunk.indexOf(`\r\n`)
       if (crlfPos > 0) {
         const headerLine = Buffer.from(`${RealIpHeader}: ${realIp}\r\n`)
@@ -291,28 +303,34 @@ export class EgressProxy {
       clientSocket.pipe(mitmSocket)
       mitmSocket.pipe(clientSocket)
     })
-    mitmSocket.on(`error`, () => clientSocket.destroy())
-    clientSocket.on(`error`, () => mitmSocket.destroy())
+    mitmSocket.on(`error`, () => this.destroyPair(mitmSocket, clientSocket))
+    clientSocket.on(`error`, () => this.destroyPair(clientSocket, mitmSocket))
   }
 
-  /**
-   * Convert a transparent TLS connection into an HTTP CONNECT tunnel.
-   * Extracts the SNI hostname from the ClientHello, sends CONNECT to the
-   * MITM proxy, waits for 200, then forwards the original TLS data.
-   * Includes X-TDSK-Real-IP header so handleRequest can identify the sandbox pod.
-   */
   private handleTLSConnection(clientSocket: net.Socket, firstChunk: Buffer): void {
     const sni = extractSNI(firstChunk) || `unknown`
     const realIp = clientSocket.remoteAddress || ``
 
+    let tunnelReady = false
+
+    const connectTimeout = setTimeout(() => {
+      if (!tunnelReady) {
+        logger.debug(`[EgressProxy] CONNECT tunnel timeout for ${sni}`)
+        this.destroyPair(clientSocket, mitmSocket)
+      }
+    }, 15_000)
+
     const mitmSocket = net.connect(this.mitmPort, `127.0.0.1`, () => {
+      mitmSocket.setNoDelay(true)
       mitmSocket.write(
         `CONNECT ${sni}:443 HTTP/1.1\r\nHost: ${sni}:443\r\n${RealIpHeader}: ${realIp}\r\n\r\n`
       )
     })
 
     mitmSocket.once(`data`, (response: Buffer) => {
+      clearTimeout(connectTimeout)
       if (response.toString().includes(`200`)) {
+        tunnelReady = true
         mitmSocket.write(firstChunk)
         clientSocket.pipe(mitmSocket)
         mitmSocket.pipe(clientSocket)
@@ -321,13 +339,18 @@ export class EgressProxy {
           `[EgressProxy] CONNECT rejected for ${sni}:`,
           response.toString().trim()
         )
-        clientSocket.destroy()
-        mitmSocket.destroy()
+        this.destroyPair(clientSocket, mitmSocket)
       }
     })
 
-    mitmSocket.on(`error`, () => clientSocket.destroy())
-    clientSocket.on(`error`, () => mitmSocket.destroy())
+    mitmSocket.on(`error`, () => {
+      clearTimeout(connectTimeout)
+      this.destroyPair(mitmSocket, clientSocket)
+    })
+    clientSocket.on(`error`, () => {
+      clearTimeout(connectTimeout)
+      this.destroyPair(clientSocket, mitmSocket)
+    })
   }
 
   async start(): Promise<void> {

@@ -169,7 +169,7 @@ describe(`CliDriver`, () => {
           `Identifier: sync_abc123`,
           `Alpha: /home/user/src`,
           `Beta: sandbox@sb_abc123:/workspace/src`,
-          `Mode: One Way Replica`,
+          `Mode: Two Way Resolved`,
           `Status: Watching for changes`,
           `Labels:`,
           `  sandboxId: sb_abc123`,

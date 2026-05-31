@@ -70,10 +70,8 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Admin UI
 
-* Setup wizard is very broken
-* Hide domains in navigation behind a feature flag
 * Add a warning when an AI provider is added to a sandbox and it doesn't have an auth secret and allow the user to select/add one from the same UI
-
+* Providers page currently shows a list of all providers. Instead there should be tabs to switch between provider types
 
 
 ## Sandbox

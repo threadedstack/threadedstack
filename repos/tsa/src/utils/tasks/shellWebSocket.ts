@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import { themed } from '@TSA/theme'
 import { EShellMsg } from '@tdsk/domain'
+import { isStr } from '@keg-hub/jsutils/isStr'
 import { ShellConnectMsgs } from '@TSA/constants/shell'
 
 type TShellConnectOptions = {
@@ -145,13 +146,14 @@ export const connectShellWebSocket = async (
       }
     }, 30_000)
 
-    ws.on(`message`, (data: Buffer | string) => {
-      if (typeof data === `string`) {
+    ws.on(`message`, (data: Buffer, isBinary: boolean) => {
+      if (!isBinary) {
+        const text = isStr(data) ? data : data.toString(`utf8`)
         let msg: Record<string, any>
         try {
-          msg = JSON.parse(data)
+          msg = JSON.parse(text)
         } catch {
-          process.stdout.write(data)
+          process.stdout.write(text)
           return
         }
 
@@ -188,7 +190,7 @@ export const connectShellWebSocket = async (
         return
       }
 
-      process.stdout.write(data as Buffer)
+      process.stdout.write(data)
     })
 
     ws.on(`close`, (code: number, reason: Buffer) => {
