@@ -31,10 +31,10 @@ export type TSyncRule = {
 export type TSyncRuleOverride = { name: string } & Partial<Omit<TSyncRule, 'name'>>
 
 export type TSyncConfig = {
-  autoStart?: boolean
+  enabled?: boolean
   rules?: TSyncRule[]
   defaultIgnores?: string[]
-  sandboxes?: Record<string, { rules?: TSyncRuleOverride[] }>
+  sandboxes?: Record<string, { enabled?: boolean; rules?: TSyncRuleOverride[] }>
 }
 
 export type TSyncSessionLabels = {

@@ -20,9 +20,66 @@ import {
 const getAlias = (sandbox: any, projectId: string): string =>
   sandbox.projectConfigs?.find((pc: any) => pc.projectId === projectId)?.alias || ``
 
+const listTask: TTask = {
+  name: `list`,
+  alias: [`ls`],
+  description: `List available sandboxes`,
+  example: `tsa sandbox list [--org <id>] [--project <id>]`,
+  options: {
+    ...SandboxOptions,
+  },
+  action: ensureAuth(async ({ params, auth, config }) => {
+    const client = new ApiClient(auth)
+    const base = await resolveContext({
+      client,
+      config,
+      skipSandbox: true,
+      explicitOrg: params.org as string | undefined,
+      explicitProject: params.project as string | undefined,
+    })
+    const { orgId, projectId } = base
+
+    const { data: list, error } = await client.listSandboxes(orgId, projectId)
+    if (error || !list) {
+      const msg = error?.message || `Failed to list sandboxes`
+      process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+      process.exit(1)
+    }
+
+    if (!list.length) {
+      process.stdout.write(`${themed(`muted`, `No sandboxes found`)}\n`)
+      return
+    }
+
+    process.stdout.write(`\n${themed(`bold`, `Sandboxes:`)}\n`)
+    const nameW = 20
+    const aliasW = 22
+    const runtimeW = 20
+    process.stdout.write(
+      `  ${'Name'.padEnd(nameW)} ${'Alias'.padEnd(aliasW)} ${'Runtime'.padEnd(runtimeW)} ID\n`
+    )
+    process.stdout.write(
+      `  ${`─`.repeat(nameW)} ${`─`.repeat(aliasW)} ${`─`.repeat(runtimeW)} ${'─'.repeat(12)}\n`
+    )
+    for (const sb of list) {
+      const name = (sb.name || `unnamed`).slice(0, nameW).padEnd(nameW)
+      const alias = (getAlias(sb, projectId) || `-`).slice(0, aliasW).padEnd(aliasW)
+      const runtime = (sb.config?.runtimeCommand || `-`)
+        .slice(0, runtimeW)
+        .padEnd(runtimeW)
+      process.stdout.write(
+        `  ${name} ${themed(`success`, alias)} ${themed(`muted`, runtime)} ${themed(`muted`, sb.id)}\n`
+      )
+    }
+    process.stdout.write(`\n`)
+
+    if (config) saveContext(config, orgId, projectId)
+  }),
+}
+
 export const sandbox: TTask = {
   name: `sandbox`,
-  alias: [`sb`, `run`],
+  alias: [`sb`, `run`, `sandboxes`],
   description: `Start a sandbox, sync files, and launch its configured AI tool`,
   example: `tsa sandbox [<sandbox>] [--org <id>] [--project <id>] [--instance <id>] [--new] [--no-sync]`,
   options: {
@@ -34,12 +91,9 @@ export const sandbox: TTask = {
       alias: [`nosync`],
       type: `bool`,
     },
-    list: {
-      example: `--list`,
-      description: `List available sandboxes and exit`,
-      alias: [`ls`],
-      type: `bool`,
-    },
+  },
+  tasks: {
+    list: listTask,
   },
   action: ensureAuth(async ({ params, auth, config, options }) => {
     const explicitSandboxId = params.sandbox || options?.[0]
@@ -53,45 +107,6 @@ export const sandbox: TTask = {
       explicitProject: params.project as string | undefined,
     })
     const { orgId, projectId } = base
-
-    if (params.list) {
-      const { data: list, error } = await client.listSandboxes(orgId, projectId)
-      if (error || !list) {
-        const msg = error?.message || `Failed to list sandboxes`
-        process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
-        process.exit(1)
-      }
-
-      if (!list.length) {
-        process.stdout.write(`${themed(`muted`, `No sandboxes found`)}\n`)
-        return
-      }
-
-      process.stdout.write(`\n${themed(`bold`, `Sandboxes:`)}\n`)
-      const nameW = 20
-      const aliasW = 22
-      const runtimeW = 20
-      process.stdout.write(
-        `  ${'Name'.padEnd(nameW)} ${'Alias'.padEnd(aliasW)} ${'Runtime'.padEnd(runtimeW)} ID\n`
-      )
-      process.stdout.write(
-        `  ${`─`.repeat(nameW)} ${`─`.repeat(aliasW)} ${`─`.repeat(runtimeW)} ${'─'.repeat(12)}\n`
-      )
-      for (const sb of list) {
-        const name = (sb.name || `unnamed`).slice(0, nameW).padEnd(nameW)
-        const alias = (getAlias(sb, projectId) || `-`).slice(0, aliasW).padEnd(aliasW)
-        const runtime = (sb.config?.runtimeCommand || `-`)
-          .slice(0, runtimeW)
-          .padEnd(runtimeW)
-        process.stdout.write(
-          `  ${name} ${themed(`success`, alias)} ${themed(`muted`, runtime)} ${themed(`muted`, sb.id)}\n`
-        )
-      }
-      process.stdout.write(`\n`)
-
-      if (config) saveContext(config, orgId, projectId)
-      return
-    }
 
     let sandboxId: string
     try {

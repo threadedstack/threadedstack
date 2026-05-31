@@ -310,15 +310,76 @@ const cleanupTask: TTask = {
   }),
 }
 
+const listTask: TTask = {
+  name: `list`,
+  alias: [`ls`, `l`],
+  description: `List active sync sessions`,
+  example: `tsa sync list [sandbox-id]`,
+  action: ensureAuth(async ({ options }) => {
+    const sandboxId = options?.[0] as string | undefined
+    let sessions: Awaited<ReturnType<typeof manager.status>>
+    try {
+      sessions = await manager.status(sandboxId)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (sessions.length === 0) {
+      process.stdout.write(`${themed(`muted`, `No active file sync sessions`)}\n`)
+      return
+    }
+
+    const grouped = new Map<string, Map<string, typeof sessions>>()
+    for (const s of sessions) {
+      const sbKey = s.labels?.sandboxId || `unknown`
+      const instKey = s.labels?.instanceId || ``
+      if (!grouped.has(sbKey)) grouped.set(sbKey, new Map())
+      const instMap = grouped.get(sbKey)!
+      if (!instMap.has(instKey)) instMap.set(instKey, [])
+      instMap.get(instKey)!.push(s)
+    }
+
+    process.stdout.write(`\n${themed(`bold`, `File Sync`)} (${sessions.length} active)\n`)
+
+    for (const [sbId, instMap] of grouped) {
+      process.stdout.write(`\n  ${themed(`primary`, `Sandbox:`)} ${sbId}\n`)
+      for (const [instId, group] of instMap) {
+        if (instId) {
+          process.stdout.write(`  ${themed(`muted`, `Instance:`)} ${instId.slice(-16)}\n`)
+        }
+        for (const s of group) {
+          const icon = s.status === `errored` || s.status === `disconnected` ? `!` : `*`
+          const color =
+            s.status === `errored` || s.status === `disconnected` ? `warning` : `success`
+          const src = s.source || `?`
+          const tgt = s.target || `?`
+          const mode = s.mode || `?`
+          const indent = instId ? `    ` : `  `
+          process.stdout.write(
+            `${indent}${themed(color as any, icon)} ${s.name.padEnd(14)} ${themed(`muted`, mode.padEnd(18))} ${themed(color as any, s.status)}\n` +
+              `${indent}  ${src} -> ${tgt}\n`
+          )
+        }
+      }
+    }
+
+    process.stdout.write(
+      `\n${themed(`muted`, `Use "tsa sync stop" to stop, or "tsa sync flush" to force sync`)}\n\n`
+    )
+  }),
+}
+
 export const sync: TTask = {
   name: `sync`,
   alias: [`sy`],
   description: `Sync files with a K8s sandbox`,
   example: `tsa sync <sandbox-id> [--source ./src] [--target /workspace/src] [--instance <id>] [--new]`,
   tasks: {
+    list: listTask,
     stop: stopTask,
-    status: statusTask,
     flush: flushTask,
+    status: statusTask,
     cleanup: cleanupTask,
   },
   options: {

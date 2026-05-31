@@ -21,7 +21,7 @@ Key capabilities:
 ```mermaid
 flowchart TD
   Login["tsa login (API key or browser)"]
-  List["tsa run --list (list available)"]
+  List["tsa sandbox list (list available)"]
   Run["tsa run &lt;sandbox-id&gt;"]
   Start["Start sandbox pod (if not running)"]
   Sync["Start file sync (Mutagen)"]
@@ -124,8 +124,10 @@ These are invoked from your shell as `tsa <command>`.
 | Command | Alias | Description | Auth Required |
 |---------|-------|-------------|:---:|
 | `tsa run <sandbox-id>` | `sb` | Start sandbox + sync files + launch AI tool | Yes |
+| `tsa sandbox list` | `ls` | List available sandboxes with name, runtime, and ID | Yes |
 | `tsa ssh <sandbox-id>` | -- | SSH into a running sandbox (plain shell) | Yes |
 | `tsa sync <sandbox-id>` | `sy` | Start file sync with a sandbox | Yes |
+| `tsa sync list [sandbox-id]` | `ls`, `l` | List active sync sessions | Yes |
 | `tsa sync stop <sandbox-id>` | -- | Stop file sync for a sandbox instance | Yes |
 | `tsa sync status [sandbox-id]` | -- | Show sync status (grouped by instance) | Yes |
 | `tsa sync flush <sandbox-id>` | -- | Trigger immediate sync for an instance | Yes |
@@ -145,7 +147,6 @@ These are invoked from your shell as `tsa <command>`.
 
 | Flag | Alias | Description |
 |------|-------|-------------|
-| `--list` | — | List available sandboxes with name, runtime, and ID |
 | `--no-sync` | — | Skip automatic file synchronization |
 | `--new` | `-n` | Force creation of a new instance (skips session discovery) |
 | `--instance <id>` | `--instanceId`, `--inst` | Select a specific running instance |
@@ -237,7 +238,10 @@ tsa sync stop <sandbox-id> --instance abc123
 # Stop sync for all instances of a sandbox
 tsa sync stop <sandbox-id> --all
 
-# Show sync status grouped by instance
+# List active sync sessions
+tsa sync list
+
+# Show detailed sync status grouped by instance
 tsa sync status
 
 # List sessions grouped by instance
@@ -421,8 +425,9 @@ behavior:
   maxHistory: 50       # Max input history entries
   confirmTools: false
 
-# File sync rules
+# File sync (starts automatically; syncs cwd to /workspace by default)
 sync:
+  enabled: true                  # Set to false to disable auto-sync globally
   rules:
     - name: "project-sync"
       source: "./src"
@@ -432,6 +437,7 @@ sync:
   defaultIgnores: ["node_modules", ".git", "dist"]
   sandboxes:
     "<sandbox-id>":
+      enabled: false             # Disable auto-sync for this sandbox only
       rules:                     # Per-sandbox rule overrides
         - name: "custom-sync"
           source: "./custom"
@@ -475,7 +481,7 @@ When both global and project configs exist:
 - `org` from project config **overrides** the global value.
 - `hooks` are **merged** per-key (project wins on conflicts).
 - `tools.confirm` and `tools.block` arrays are **concatenated** (both global and project entries apply).
-- `sync.rules` from global config are used as the base; per-sandbox overrides in `sync.sandboxes` take precedence for matching sandboxes.
+- `sync` from global config is used as the base. Per-sandbox `enabled` and `rules` overrides in `sync.sandboxes` take precedence for matching sandboxes. When no `sync.rules` are defined, a default rule syncs `cwd` to the sandbox's workdir.
 
 ### Context files
 

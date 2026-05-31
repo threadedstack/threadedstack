@@ -569,7 +569,7 @@ describe(`main`, () => {
 
   describe(`default command`, () => {
     it(`should default to sandbox when first arg is a value flag`, async () => {
-      setArgv(`--list`, `--org`, `org1`)
+      setArgv(`--no-sync`, `--org`, `org1`)
       setLoggedIn()
       mockFetch
         .mockResolvedValueOnce({
@@ -583,7 +583,7 @@ describe(`main`, () => {
 
       await runMain()
 
-      expect(joined()).toContain(`No sandboxes found`)
+      expect(joinedErr()).toContain(`Sandbox not found`)
     })
   })
 

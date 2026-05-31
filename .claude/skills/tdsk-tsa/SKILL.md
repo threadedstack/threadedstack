@@ -263,6 +263,7 @@ tsa help | --help | -h | --version | -v
 ```bash
 pnpm build           # Bundle via bun (bun build → dist/index.js)
 pnpm compile         # Native binary (bun build --compile → dist/tsa)
+pnpm tsz             # Run the tsa cli code directly without needing to compile if first
 ```
 
 Build-time version injection: `__TDSK_TSA_VERSION__` defined in `scripts/build.ts`, consumed by `src/constants/version.ts`. Falls back to package.json when running from source.

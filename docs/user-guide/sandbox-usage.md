@@ -27,7 +27,7 @@ tsa login tdsk_<api-key>
 ### 2. List Available Sandboxes
 
 ```bash
-tsa run --list
+tsa sandbox list
 ```
 
 This shows all sandbox configs in your organization with their name, runtime, and ID. Every new organization comes with six built-in presets: Claude Code, Codex, OpenCode, Antigravity, OpenClaw, and Base.
@@ -61,7 +61,7 @@ tsa run <sandbox-id> --org <org-id>
 | | `tsa run` | `tsa ssh` |
 |---|---|---|
 | Starts pod | Yes | Yes |
-| Syncs files | Yes (unless `--no-sync`) | Only if `sync.autoStart: true` |
+| Syncs files | Yes (unless `--no-sync`) | Only if `sync.enabled` is not `false` |
 | Launches AI tool | Yes (executes `runtimeCommand`) | No (opens plain shell) |
 | Recommended for | Daily AI-assisted development | Debugging, manual setup |
 
@@ -446,7 +446,10 @@ tsa sync <sandbox-id> --source ./src --target /workspace/src
 # Background mode
 tsa sync <sandbox-id> --daemon
 
-# Check sync status
+# List active sync sessions
+tsa sync list
+
+# Check sync status (detailed)
 tsa sync status
 
 # Stop syncing
@@ -458,11 +461,12 @@ tsa sync flush <sandbox-id>
 
 ### Sync Configuration
 
-Define sync rules in `~/.config/tdsk/tsa.yaml`:
+File sync starts automatically when you run `tsa run` or `tsa ssh`. With no configuration, it syncs your current working directory to the sandbox's `/workspace` directory using `two-way-resolved` mode.
+
+To customize sync behavior, define rules in `~/.config/tdsk/tsa.yaml`:
 
 ```yaml
 sync:
-  autoStart: true  # Auto-start sync when connecting via tsa ssh
   rules:
     - name: project
       source: ./src
@@ -475,6 +479,13 @@ sync:
       source: ./config
       target: /workspace/config
       mode: two-way-safe
+```
+
+To disable auto-sync globally, set `enabled: false`:
+
+```yaml
+sync:
+  enabled: false
 ```
 
 #### Sync Modes
@@ -503,12 +514,14 @@ ignores:
 
 #### Per-Sandbox Overrides
 
-Override sync rules for specific sandboxes:
+Override sync rules or disable sync for specific sandboxes:
 
 ```yaml
 sync:
   sandboxes:
     sb_a1b2c3d:
+      enabled: false  # Disable auto-sync for this sandbox only
+    sb_e5f6g7h:
       rules:
         - name: project
           source: ./custom-src
@@ -518,7 +531,7 @@ sync:
 
 ### Auto-Sync
 
-When `sync.autoStart: true` is set in your config, `tsa ssh` automatically starts file sync when you connect and stops it when the SSH session ends. No separate `tsa sync` command is needed.
+File sync starts automatically when connecting via `tsa run` or `tsa ssh`. No configuration is needed for the default behavior (syncs `cwd` to `/workspace`). To disable auto-sync, set `sync.enabled: false` globally or per-sandbox. You can also pass `--no-sync` to `tsa run` for a one-off skip.
 
 ### How Credentials Stay Secure
 
@@ -646,11 +659,12 @@ Session fields:
 
 ```bash
 tsa run <sandbox-id> [--org <id>]            # Start sandbox + sync + launch AI tool (recommended)
-tsa run --list [--org <id>]                  # List available sandboxes
+tsa sandbox list [--org <id>]                 # List available sandboxes
 tsa ssh <sandbox-id> [--org <id>]            # SSH into sandbox (plain shell)
 tsa sync <sandbox-id> [options]              # Start file sync
+tsa sync list                                # List active sync sessions
 tsa sync stop <sandbox-id>                   # Stop file sync
-tsa sync status [sandbox-id]                 # Show sync status
+tsa sync status [sandbox-id]                 # Show sync status (detailed)
 tsa sync flush <sandbox-id>                  # Force immediate sync
 tsa sandboxes [--org <id>]                   # List sandboxes
 tsa proxy <sandbox-id>                       # SSH ProxyCommand (internal)

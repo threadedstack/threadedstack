@@ -1,26 +1,26 @@
-import type { TSyncConfig } from '@tdsk/domain'
+import type { TSyncConfig, TSyncRule } from '@tdsk/domain'
 import type { ApiClient } from '@TSA/services/api'
 
 import { existsSync } from 'fs'
 import { themed } from '@TSA/theme'
 import { CliDriver } from '@TSA/services/sync/mutagenClient'
 import { SyncManager } from '@TSA/services/sync/syncManager'
+import { DefSyncMode, DefSyncTarget } from '@TSA/constants/sync'
 import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
 
-/**
- * Creates a fresh SyncManager and tracking state for a sync lifecycle.
- */
 export const createSyncContext = () => {
   const driver = new CliDriver()
   const manager = new SyncManager(driver)
   return { manager, started: false }
 }
 
-/**
- * Auto-starts file sync if the config has autoStart enabled and rules defined.
- * Best-effort: sync failures do not block the caller (except auth errors, which re-throw).
- * Mutates `ctx.started` to true when sessions are successfully created.
- */
+const buildDefaultRule = (cwd: string, target?: string): TSyncRule => ({
+  name: `default`,
+  source: cwd,
+  target: target || DefSyncTarget,
+  mode: DefSyncMode,
+})
+
 export const autoStartSync = async (
   ctx: { manager: SyncManager; started: boolean },
   syncConfig: TSyncConfig | undefined,
@@ -29,7 +29,10 @@ export const autoStartSync = async (
   sandboxId: string,
   instanceId?: string
 ): Promise<void> => {
-  if (!syncConfig?.autoStart || !syncConfig?.rules?.length) return
+  if (syncConfig?.enabled === false) return
+
+  const sandboxOverride = syncConfig?.sandboxes?.[sandboxId]
+  if (sandboxOverride?.enabled === false) return
 
   try {
     const { data: sandbox, error: sandboxError } = await client.getSandbox(
@@ -42,16 +45,23 @@ export const autoStartSync = async (
       )
     }
 
-    const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
     const sandboxWorkdir = sandbox?.config?.workdir
-    const syncDefaults = sandbox?.config?.sync
+    const sandboxSyncDefaults = sandbox?.config?.sync
       ? sandboxWorkdir && !sandbox.config.sync.targetBase
         ? { ...sandbox.config.sync, targetBase: sandboxWorkdir }
         : sandbox.config.sync
       : sandboxWorkdir
         ? { targetBase: sandboxWorkdir }
         : undefined
-    const rules = mergeRules(syncConfig.rules, syncDefaults, overrides)
+
+    let rules: TSyncRule[]
+    if (syncConfig?.rules?.length) {
+      const overrides = syncConfig.sandboxes?.[sandboxId]?.rules
+      rules = mergeRules(syncConfig.rules, sandboxSyncDefaults, overrides)
+    } else {
+      const target = sandboxSyncDefaults?.targetBase || sandboxWorkdir
+      rules = [buildDefaultRule(process.cwd(), target)]
+    }
 
     const cwd = process.cwd()
     for (const rule of rules) {
@@ -65,7 +75,7 @@ export const autoStartSync = async (
         orgId,
         validRules,
         sandbox?.config?.sync,
-        syncConfig.defaultIgnores,
+        syncConfig?.defaultIgnores,
         undefined,
         instanceId
       )

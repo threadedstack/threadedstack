@@ -85,7 +85,7 @@ The `tsa sync` command provides bidirectional file synchronization between the l
   - `one-way-safe` (local → sandbox, no deletes/overwrites)
 - **Rule-based configuration**: Sync rules are defined in `~/.config/tdsk/tsa.yaml` under `sync.rules`, specifying source/target paths, mode, and ignore patterns.
 - **Ignore patterns**: Built-in defaults (`.git/`, `node_modules/`, `.DS_Store`, etc.) are merged with user-defined patterns. `!` prefix negates a pattern.
-- **Auto-sync**: When `sync.autoStart: true` is set in the config, `tsa ssh` automatically starts file sync on connect and stops it on disconnect.
+- **Auto-sync**: File sync starts automatically on `tsa sandbox` and `tsa ssh`. When no rules are configured, a default rule syncs `cwd` to the sandbox's workdir. Set `sync.enabled: false` globally or per-sandbox to disable.
 - **Daemon mode**: `tsa sync <id> --daemon` starts sync in the background. `tsa sync stop <id>` stops it.
 - **Session deduplication**: Won't create duplicate Mutagen sessions for the same sync rule.
 - **Per-sandbox overrides**: Sandbox-specific sync defaults can be stored in the sandbox config's `config.sync` JSONB field, and per-sandbox rule overrides can be set via `sync.sandboxes.<id>.rules` in `tsa.yaml`.
