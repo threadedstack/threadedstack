@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "",
   "main": "index.js",
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
     "biome": "biome",
     "bypass": "HUSKY=0 git commit -m ",
