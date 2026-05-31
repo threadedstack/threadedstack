@@ -12,6 +12,8 @@ The Threads App is a standalone, browser-based interface designed for end users 
 
 Sign in with any supported social login provider or email, and you are immediately taken to the app. Sessions are maintained automatically -- you stay signed in across browser tabs and page refreshes.
 
+The Threads App also handles CLI token authorization. When you run `tsa login` (browser login) from the CLI, the browser opens the Threads App to complete the OAuth flow and pass credentials back to the CLI.
+
 ### Supported Login Providers
 
 - GitHub
@@ -23,7 +25,7 @@ Sign in with any supported social login provider or email, and you are immediate
 
 ### Home Page
 
-The home page is the primary landing point after login, surfacing thread listings and sandbox sessions.
+After login, the app navigates to your organization's project list. If you belong to multiple organizations, you select one first. Each project displays its available sandbox configurations as cards, giving you a quick entry point to start or connect to sandbox sessions.
 
 ![Threads home view](./images/threads-home.png)
 
@@ -41,21 +43,59 @@ The app includes a responsive sidebar that adapts to screen size:
 - **Desktop** -- A persistent sidebar panel on the left side of the layout.
 - **Mobile** -- A drawer-based sidebar toggled by a floating action button in the bottom-left corner.
 
-The sidebar provides navigation to threads, sandbox sessions, and settings.
+The sidebar provides navigation to organizations, projects, sandboxes, instances, sessions, and settings.
 
-### Thread Conversations
+### Session Workspace
 
-Thread conversations are the core of the Threads App. Within a thread, you can:
+The session workspace is the primary view when connected to a sandbox. It combines a terminal, file browser, code editor, activity feed, and port management into a single layout. The workspace opens when you click a session in the sidebar or start a new session on a sandbox instance.
 
-- **Create threads** to start a new conversation.
-- **List threads** to browse previous conversations.
-- **View messages** within a thread, rendered by content type (text, images, tool calls, artifacts, and more).
-- **Send messages** to continue a conversation.
-- **Branch threads** at any message to fork a conversation and explore different directions. Branching copies all messages up to the branch point into a new thread while preserving the original.
-- **Upload files** to a thread (up to 25 MB per file).
-- **Delete threads and messages** to manage conversation history.
+#### Terminal
 
-Each thread is scoped to an organization, and users can only see their own threads.
+The terminal pane provides a full interactive shell powered by xterm.js. It connects to the sandbox pod via WebSocket and supports:
+
+- Real-time input and output with ANSI color rendering
+- Automatic terminal resizing to fit the viewport
+- PTY buffer replay when reconnecting to idle sessions
+- Customizable font family, font size, cursor style, scrollback, and theme via the terminal settings panel
+
+#### File Tree
+
+The left panel displays a hierarchical file browser showing the sandbox pod's filesystem. You can:
+
+- **Browse directories** by expanding and collapsing tree nodes
+- **Open files** in the code editor by clicking them
+- **Create files and folders** via the context menu or inline input
+- **Rename files** with inline editing
+- **Delete files** with a confirmation dialog
+
+The file tree updates in real-time as files change inside the sandbox.
+
+#### Code Editor
+
+Clicking a file in the file tree opens it in the code editor pane. The editor supports:
+
+- **Tabbed editing** for multiple open files
+- **Syntax highlighting** based on file extension
+- **Status bar** showing file path and editor state
+
+#### Activity Feed
+
+The activity feed displays a chronological stream of events from the sandbox session. Cards include:
+
+- **Prompt cards** -- AI tool prompts and instructions
+- **Output cards** -- Command output and responses
+- **Action cards** -- Tool calls and their results
+- **User input cards** -- Your typed inputs
+- **Idle markers** -- Visual separators for periods of inactivity
+
+#### Port Management
+
+The ports section lets you expose sandbox ports for external access directly from the browser:
+
+- **List ports** -- View detected and exposed ports on the running instance
+- **Expose a port** -- Make a port accessible via a public URL
+- **Remove a port** -- Close an exposed port
+- **Open URL** -- Navigate to the public URL for an exposed port
 
 ### Sandbox Sessions
 
@@ -124,6 +164,14 @@ Sessions are grouped by the instance they belong to. This makes it clear which p
 
 Users can start a new instance from the sandbox context menu or when connecting to a sandbox that already has running instances. If multiple instances are available, the UI prompts the user to select which instance to connect to before opening a session.
 
+#### Instance Lifecycle Controls
+
+The instance detail page provides lifecycle controls for managing running instances:
+
+- **Stop** -- Stops the instance and deletes the pod. If other users have active sessions, you must confirm with the force option.
+- **Restart** -- Stops and restarts the instance, preserving the session history in the sidebar.
+- **Recreate** -- Destroys the instance completely and creates a fresh one from the sandbox configuration. All in-container state is lost.
+
 ## Relationship to Admin UI
 
 The Threads App and the Admin Dashboard are distinct applications serving different audiences within the same platform. An administrator uses the Admin Dashboard to create an organization, configure sandboxes with provider keys, and invite team members. Those team members then use the Threads App to launch sandbox sessions and have conversations -- without needing access to the underlying configuration.
@@ -132,6 +180,6 @@ The Threads App and the Admin Dashboard are distinct applications serving differ
 |--------|----------------|-------------|
 | **Audience** | Developers, administrators, org owners | End users, team members, non-technical users |
 | **Purpose** | Configure and manage platform resources | Interact with sandbox sessions and conversations |
-| **Key Activities** | Create orgs, configure sandboxes, manage secrets and providers, set up endpoints, manage billing and quotas, invite users | Launch sandbox sessions, browse thread history, branch conversations |
+| **Key Activities** | Create orgs, configure sandboxes, manage secrets and providers, set up endpoints, manage billing and quotas, invite users | Launch sandbox sessions, browse files, manage ports, view activity history |
 
 Both apps share a common authentication system and communicate with the same backend API.

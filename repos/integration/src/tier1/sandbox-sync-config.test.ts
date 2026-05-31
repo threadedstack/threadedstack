@@ -20,7 +20,7 @@ describe('Tier 1: Sandbox config.sync round-trip', () => {
 
   const syncDefaults = {
     targetBase: '/workspace/app',
-    mode: 'one-way-replica' as const,
+    mode: 'two-way-resolved' as const,
     ignores: ['dist/', '*.log'],
   }
 
@@ -46,7 +46,7 @@ describe('Tier 1: Sandbox config.sync round-trip', () => {
     expect(res.ok).toBe(true)
     expect(res.data.config.sync).toBeDefined()
     expect(res.data.config.sync.targetBase).toBe('/workspace/app')
-    expect(res.data.config.sync.mode).toBe('one-way-replica')
+    expect(res.data.config.sync.mode).toBe('two-way-resolved')
     expect(res.data.config.sync.ignores).toEqual(['dist/', '*.log'])
     createdSandboxIds.push(res.data.id)
   })
@@ -63,7 +63,7 @@ describe('Tier 1: Sandbox config.sync round-trip', () => {
     expect(res.status).toBe(200)
     expect(res.data.config.sync).toBeDefined()
     expect(res.data.config.sync.targetBase).toBe('/workspace/app')
-    expect(res.data.config.sync.mode).toBe('one-way-replica')
+    expect(res.data.config.sync.mode).toBe('two-way-resolved')
     expect(res.data.config.sync.ignores).toEqual(['dist/', '*.log'])
   })
 

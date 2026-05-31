@@ -17,11 +17,11 @@ Sandbox Connect is the **primary interaction surface** for Threaded Stack. The r
 ```mermaid
 flowchart LR
   TSA["tsa ssh / tsa run"]
-  WS["WebSocket Tunnel"]
+  WS["WebSocket"]
   Caddy["Caddy TLS"]
   Proxy["Auth Proxy"]
   Backend["Backend"]
-  Pod["Pod (OpenSSH)"]
+  Pod["Pod (Shell)"]
 
   TSA --> WS --> Caddy --> Proxy --> Backend --> Pod
 ```

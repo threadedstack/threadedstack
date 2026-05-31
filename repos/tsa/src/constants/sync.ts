@@ -3,7 +3,7 @@ import { homedir } from 'os'
 import { DefaultWorkdir } from '@tdsk/domain'
 
 export const DefSyncTarget = DefaultWorkdir
-export const DefSyncMode = `one-way-replica` as const
+export const DefSyncMode = `two-way-resolved` as const
 
 export const DefSyncIgnores = [
   `*~`,

@@ -4,34 +4,33 @@
 
 `tsa` is the Threaded Stack CLI for running AI tools in managed sandboxes from the command line. The recommended entry point is `tsa run`, which starts a sandbox, syncs files, and launches your AI tool in one command.
 
-`tsa` handles sandbox lifecycle, SSH tunneling, and file sync. API keys never leave the server.
+`tsa` handles sandbox lifecycle, WebSocket connections, and file sync. API keys never leave the server.
 
 Key capabilities:
 
-- **`tsa run`** -- start a sandbox, sync files, and launch an AI tool (Claude Code, Codex, OpenCode, or custom)
+- **`tsa run`** -- start a sandbox, sync files, and launch an AI tool (Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or custom)
 - **`tsa ssh`** -- SSH into a running sandbox for manual access
-- **`tsa sync`** -- bidirectional file synchronization via Mutagen
+- **`tsa sync`** -- file synchronization via Mutagen (two-way-resolved by default, configurable)
+- **`tsa ports`** -- manage exposed ports on running sandbox instances
 - Context file injection from `AGENTS.md` and `.tdsk/context/`
-- Thread management (create, switch, fork/branch, list)
 - Two-layer configuration (global + per-project)
-- Lifecycle hooks triggered on session, tool, and error events
-- Slash command system for in-session control
+- Browser login and API key authentication
 
 ### `tsa run` Workflow
 
 ```mermaid
 flowchart TD
-  Login["tsa login &lt;api-key&gt;"]
-  List["tsa sandboxes (list available)"]
+  Login["tsa login (API key or browser)"]
+  List["tsa run --list (list available)"]
   Run["tsa run &lt;sandbox-id&gt;"]
   Start["Start sandbox pod (if not running)"]
-  Sync["Start file sync (Mutagen bidirectional)"]
-  SSH["SSH into pod"]
+  Sync["Start file sync (Mutagen)"]
+  Connect["Connect via WebSocket shell"]
   Launch["Launch runtime (e.g. claude, codex)"]
   Work["Interactive AI tool session"]
 
   Login --> List --> Run
-  Run --> Start --> Sync --> SSH --> Launch --> Work
+  Run --> Start --> Sync --> Connect --> Launch --> Work$two-way-resolved$
 ```
 
 ## Installation
@@ -45,19 +44,24 @@ tsa --help
 
 ## Authentication
 
-`tsa` authenticates against the Threaded Stack API using API keys (prefixed `tdsk_`). On login, the key is validated by fetching `/_/orgs` through the proxy. Credentials are stored in a YAML config file at `~/.config/tdsk/tsa.yaml` with `0600` permissions.
+`tsa` authenticates against the Threaded Stack API using either an API key or browser-based OAuth login. Credentials are stored in a YAML config file at `~/.config/tdsk/tsa.yaml` with `0600` permissions.
 
 ### Log in
 
+There are two ways to authenticate:
+
+**API key login** -- Pass an API key (prefixed `tdsk_`) directly. The key is validated by fetching `/_/orgs` through the proxy.
+
 ```bash
 tsa login <api-key>
-```
-
-The API key can be passed as a positional argument or with `--apiKey`:
-
-```bash
 tsa login tdsk_abc123def456
 tsa login --apiKey tdsk_abc123def456
+```
+
+**Browser login** -- Run `tsa login` without arguments. This opens your browser for OAuth sign-in, then creates a long-lived session key so you stay authenticated across CLI restarts.
+
+```bash
+tsa login
 ```
 
 **Options:**
@@ -104,6 +108,9 @@ auth:
   apiKey: "tdsk_..."
   proxyUrl: "https://px.threadedstack.app"
   insecure: false
+  token: "..."              # Browser session token (short-lived, managed automatically)
+  expiresAt: "..."          # Token expiration timestamp
+  sessionKeyId: "..."       # Long-lived session key ID (created after browser login)
 ```
 
 ## Key Commands
@@ -116,19 +123,23 @@ These are invoked from your shell as `tsa <command>`.
 
 | Command | Alias | Description | Auth Required |
 |---------|-------|-------------|:---:|
-| `tsa run <sandbox-id>` | — | Start sandbox + sync files + launch AI tool | Yes |
-| `tsa sandboxes` | `sb` | List available sandbox configs | Yes |
-| `tsa ssh <sandbox-id>` | — | SSH into a running sandbox (plain shell) | Yes |
+| `tsa run <sandbox-id>` | `sb` | Start sandbox + sync files + launch AI tool | Yes |
+| `tsa ssh <sandbox-id>` | -- | SSH into a running sandbox (plain shell) | Yes |
 | `tsa sync <sandbox-id>` | `sy` | Start file sync with a sandbox | Yes |
-| `tsa sync stop <sandbox-id>` | — | Stop file sync for a sandbox instance | Yes |
-| `tsa sync status [sandbox-id]` | — | Show sync status (grouped by instance) | Yes |
-| `tsa sync flush <sandbox-id>` | — | Trigger immediate sync for an instance | Yes |
+| `tsa sync stop <sandbox-id>` | -- | Stop file sync for a sandbox instance | Yes |
+| `tsa sync status [sandbox-id]` | -- | Show sync status (grouped by instance) | Yes |
+| `tsa sync flush <sandbox-id>` | -- | Trigger immediate sync for an instance | Yes |
+| `tsa sync cleanup` | -- | Terminate orphaned sync sessions (errored/disconnected) | Yes |
+| `tsa ports [<sandbox>]` | `port`, `po` | List exposed and detected ports on an instance | Yes |
+| `tsa ports add <port>` | `expose` | Expose a port on a running sandbox instance | Yes |
+| `tsa ports remove <port>` | `rm`, `unexpose` | Remove an exposed port | Yes |
+| `tsa ports open <port>` | -- | Print the URL for an exposed port | Yes |
 | `tsa sessions list <sandbox-id>` | `session` | List active sessions (grouped by instance) | Yes |
-| `tsa sessions start <sandbox-id>` | — | Start a new session on a sandbox instance | Yes |
+| `tsa sessions start <sandbox-id>` | -- | Start a new session on a sandbox instance | Yes |
 | `tsa sessions connect <id>` | `join`, `attach` | Attach to an existing session | Yes |
 | `tsa sessions share [<id>]` | -- | Make a session public | Yes |
 | `tsa sessions unshare [<id>]` | -- | Make a session private | Yes |
-| `tsa proxy <sandbox-id> [instance-id]` | — | Internal SSH ProxyCommand (accepts optional instance ID) | Yes |
+| `tsa proxy <sandbox-id> [instance-id]` | -- | Internal SSH ProxyCommand (accepts optional instance ID) | Yes |
 
 **`tsa run` flags:**
 
@@ -166,13 +177,26 @@ These are invoked from your shell as `tsa <command>`.
 |------|-------|-------------|
 | `--instance <id>` | `--instanceId`, `--inst` | Target a specific instance for sync operations |
 | `--new` | `-n` | Start sync on a new instance |
-| `--all` | — | Stop sync for all instances of a sandbox (`stop` subcommand only) |
+| `--all` | `-a` | Stop sync for all instances of a sandbox (`stop` subcommand only) |
+| `--daemon` | `-d` | Run sync in background (returns immediately) |
+| `--source <path>` | `-s`, `--src` | Local source path (single-rule shorthand, overrides config rules) |
+| `--target <path>` | `-t`, `--tgt` | Remote target path (default: `/workspace`) |
+| `--mode <mode>` | `-m` | Sync mode: `two-way-resolved` (default), `two-way-safe`, `one-way-replica`, `one-way-safe` |
+| `--ignore <patterns>` | `-i` | Ignore patterns (repeatable) |
+| `--noDefaults` | -- | Skip default ignore patterns |
+| `--sessionName <name>` | `--sn` | Name for the sync session |
+
+**`tsa ports` flags:**
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--protocol <proto>` | `--proto` | Port protocol: `http` (default) or `https` (`add` subcommand only) |
 
 **General commands:**
 
 | Command | Alias | Description | Auth Required |
 |---------|-------|-------------|:---:|
-| `tsa login <key>` | `li` | Authenticate with API key | No |
+| `tsa login [<key>]` | `li` | Authenticate with API key or browser login | No |
 | `tsa logout` | `lo` | Remove stored credentials | No |
 | `tsa status` | `st` | Show authentication status | No |
 | `tsa help` | `-h`, `--help` | Show available commands | No |
@@ -218,6 +242,30 @@ tsa sync status
 
 # List sessions grouped by instance
 tsa sessions list <sandbox-id>
+
+# Browser login (opens browser for OAuth)
+tsa login
+
+# List ports on a sandbox instance
+tsa ports <sandbox-id>
+
+# Expose port 3000 on a running sandbox
+tsa ports add 3000 --sandbox <sandbox-id>
+
+# Get URL for an exposed port
+tsa ports open 3000 --sandbox <sandbox-id>
+
+# Remove an exposed port
+tsa ports remove 3000 --sandbox <sandbox-id>
+
+# Start sync with explicit source and target
+tsa sync <sandbox-id> --source ./src --target /workspace/src
+
+# Start sync in background (daemon mode)
+tsa sync <sandbox-id> --daemon
+
+# Clean up orphaned sync sessions
+tsa sync cleanup
 
 ```
 
@@ -305,10 +353,11 @@ All sandbox commands are instance-aware:
 
 - **`tsa run`** and **`tsa ssh`** resolve a single instance before connecting.
 - **`tsa sessions list`** groups sessions by instance, showing which instance each session belongs to.
-- **`tsa sessions connect`** auto-detects the instance from session metadata — no `--instance` flag required.
+- **`tsa sessions connect`** auto-detects the instance from session metadata -- no `--instance` flag required.
 - **`tsa sync start`** and **`tsa sync stop`** target a specific instance. Use `--all` with `stop` to halt sync across every instance of a sandbox.
 - **`tsa sync status`** displays sync state grouped by instance.
 - **`tsa sync flush`** triggers an immediate sync cycle for a specific instance.
+- **`tsa ports`** resolves the target instance before listing or managing ports.
 - **`tsa proxy`** accepts an optional positional instance ID (`tsa proxy <sandbox-id> [instance-id]`) for use as an SSH `ProxyCommand`.
 
 ### Examples
@@ -372,10 +421,21 @@ behavior:
   maxHistory: 50       # Max input history entries
   confirmTools: false
 
-# Sandbox settings
-sandbox:
-  provider: "local"    # local | e2b
-  timeout: 300000      # 5 minutes
+# File sync rules
+sync:
+  rules:
+    - name: "project-sync"
+      source: "./src"
+      target: "/workspace/src"
+      mode: "two-way-resolved"    # one-way-replica | one-way-safe | two-way-safe | two-way-resolved
+      ignores: ["node_modules", ".git"]
+  defaultIgnores: ["node_modules", ".git", "dist"]
+  sandboxes:
+    "<sandbox-id>":
+      rules:                     # Per-sandbox rule overrides
+        - name: "custom-sync"
+          source: "./custom"
+          target: "/workspace/custom"
 
 # Lifecycle hooks (shell commands)
 hooks:
@@ -415,14 +475,14 @@ When both global and project configs exist:
 - `org` from project config **overrides** the global value.
 - `hooks` are **merged** per-key (project wins on conflicts).
 - `tools.confirm` and `tools.block` arrays are **concatenated** (both global and project entries apply).
+- `sync.rules` from global config are used as the base; per-sandbox overrides in `sync.sandboxes` take precedence for matching sandboxes.
 
 ### Context files
 
-`tsa` automatically detects and injects context files into prompts:
+`tsa` automatically detects and injects context files when connecting to sandboxes:
 
-- **`AGENTS.md`** -- If present at the project root, its contents are injected as context.
+- **`AGENTS.md`** -- If present at the project root, its contents are injected as context. This is a convention shared with Claude Code, Codex, and other AI tools.
 - **`.tdsk/context/`** -- All files in this directory are loaded and injected.
-- **Manual** -- Use `/add <path>` during a session to add files on the fly.
 
 Context is injected as XML blocks:
 

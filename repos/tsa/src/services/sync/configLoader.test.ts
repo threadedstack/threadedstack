@@ -6,7 +6,12 @@ import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
 describe(`mergeRules`, () => {
   it(`returns config rules when no sandbox defaults exist`, () => {
     const rules: TSyncRule[] = [
-      { name: `app`, source: `./src`, target: `/workspace/src`, mode: `one-way-replica` },
+      {
+        name: `app`,
+        source: `./src`,
+        target: `/workspace/src`,
+        mode: `two-way-resolved`,
+      },
     ]
     const result = mergeRules(rules, undefined, undefined)
     expect(result).toEqual(rules)
@@ -57,10 +62,10 @@ describe(`mergeRules`, () => {
     expect(result[0].target).toBe(`/workspace`)
   })
 
-  it(`falls back to one-way-replica as default mode`, () => {
+  it(`falls back to two-way-resolved as default mode`, () => {
     const rules: TSyncRule[] = [{ name: `app`, source: `./src` }]
     const result = mergeRules(rules, undefined, undefined)
-    expect(result[0].mode).toBe(`one-way-replica`)
+    expect(result[0].mode).toBe(`two-way-resolved`)
   })
 })
 

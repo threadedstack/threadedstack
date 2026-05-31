@@ -10,7 +10,7 @@ const mockClient: IMutagenClient = {
     status: `watching`,
     source: ``,
     target: ``,
-    mode: `one-way-replica`,
+    mode: `two-way-resolved`,
     labels: {},
   }),
   terminateSession: vi.fn().mockResolvedValue(undefined),
@@ -38,7 +38,7 @@ describe(`SyncManager`, () => {
           name: `app`,
           source: `/src`,
           target: `/workspace/src`,
-          mode: `one-way-replica`,
+          mode: `two-way-resolved`,
         },
       ]
 

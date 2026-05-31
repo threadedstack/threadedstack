@@ -351,10 +351,10 @@ export const sync: TTask = {
       default: DefaultWorkdir,
     },
     mode: {
-      description: `Sync mode`,
       alias: [`m`],
+      description: `Sync mode`,
+      default: `two-way-resolved`,
       allowed: [`one-way-replica`, `one-way-safe`, `two-way-safe`, `two-way-resolved`],
-      default: `one-way-replica`,
     },
     ignore: {
       description: `Ignore patterns (repeatable)`,
@@ -476,7 +476,7 @@ export const sync: TTask = {
           name: (params.sessionName as string) || `cli-sync`,
           source: params.source as string,
           target: (params.target as string) || connectResp?.workdir || DefaultWorkdir,
-          mode: (params.mode as TSyncMode) || `one-way-replica`,
+          mode: (params.mode as TSyncMode) || `two-way-resolved`,
           ignores: (params.ignore as string[]) || [],
         },
       ]

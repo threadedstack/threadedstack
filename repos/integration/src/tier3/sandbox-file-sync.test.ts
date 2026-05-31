@@ -71,7 +71,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     ports: { '3000': { protocol: 'http' } },
     sync: {
       targetBase: '/workspace/synced',
-      mode: 'one-way-replica' as const,
+      mode: 'two-way-resolved' as const,
       ignores: ['*.tmp'],
     },
     resources: {
@@ -185,7 +185,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     expect(res.status).toBe(200)
     expect(res.data.config.sync).toBeDefined()
     expect(res.data.config.sync.targetBase).toBe('/workspace/synced')
-    expect(res.data.config.sync.mode).toBe('one-way-replica')
+    expect(res.data.config.sync.mode).toBe('two-way-resolved')
     expect(res.data.config.sync.ignores).toEqual(['*.tmp'])
   })
 
@@ -195,7 +195,7 @@ describe('Tier 3: Sandbox File Sync', () => {
     const merged = mergeRules(rules, defaults, undefined)
 
     expect(merged[0].target).toBe('/workspace/synced')
-    expect(merged[0].mode).toBe('one-way-replica')
+    expect(merged[0].mode).toBe('two-way-resolved')
   })
 
   test('resolveIgnores merges builtins with sandbox ignores', () => {
@@ -219,7 +219,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       name: 'integration-test',
       source: localDir,
       target: '/workspace/synced',
-      mode: 'one-way-replica',
+      mode: 'two-way-resolved',
       ignores: ['*.tmp'],
     }]
 
@@ -334,7 +334,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       name: 'dedup-test',
       source: localDir,
       target: '/workspace/synced',
-      mode: 'one-way-replica',
+      mode: 'two-way-resolved',
     }]
 
     const first = await manager.startAll(

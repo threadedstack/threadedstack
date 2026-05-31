@@ -78,7 +78,11 @@ The SSH config at `~/.ssh/config` is automatically managed by the CLI. A `Host s
 
 The `tsa sync` command provides bidirectional file synchronization between the local machine and a sandbox pod using [Mutagen](https://mutagen.io/).
 
-- **Sync modes**: `one-way-replica` (local → sandbox, sandbox overwritten), `one-way-safe` (local → sandbox, no deletes/overwrites), `two-way-safe` (bidirectional, conflicts flagged), `two-way-resolved` (bidirectional, local wins on conflict).
+- **Sync modes**:
+  - `two-way-resolved` (bidirectional, local wins on conflict) **Default**.
+  - `two-way-safe` (bidirectional, conflicts flagged)
+  - `one-way-replica` (local → sandbox, sandbox overwritten)
+  - `one-way-safe` (local → sandbox, no deletes/overwrites)
 - **Rule-based configuration**: Sync rules are defined in `~/.config/tdsk/tsa.yaml` under `sync.rules`, specifying source/target paths, mode, and ignore patterns.
 - **Ignore patterns**: Built-in defaults (`.git/`, `node_modules/`, `.DS_Store`, etc.) are merged with user-defined patterns. `!` prefix negates a pattern.
 - **Auto-sync**: When `sync.autoStart: true` is set in the config, `tsa ssh` automatically starts file sync on connect and stops it on disconnect.

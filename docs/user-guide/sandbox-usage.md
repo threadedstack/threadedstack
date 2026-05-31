@@ -467,7 +467,7 @@ sync:
     - name: project
       source: ./src
       target: /workspace/src
-      mode: one-way-replica
+      mode: two-way-resolved
       ignores:
         - dist/
         - "*.log"
@@ -481,12 +481,14 @@ sync:
 
 | Mode | Behavior |
 |------|----------|
+| `two-way-resolved` | Bidirectional. Local wins on conflict. **Default** |
+| `two-way-safe` | Bidirectional. Conflicts are flagged, not overwritten. |
 | `one-way-replica` | Local → sandbox only. Sandbox changes are overwritten. |
 | `one-way-safe` | Local → sandbox only. Existing sandbox files are never deleted or overwritten. |
-| `two-way-safe` | Bidirectional. Conflicts are flagged, not overwritten. |
-| `two-way-resolved` | Bidirectional. Local wins on conflict. |
 
-> **Best practice:** Use `two-way-safe` sync mode unless you have a specific reason not to. It prevents accidental overwrites in both directions and flags conflicts for manual resolution.
+> **Best practice:** By default `two-way-resolved` sync mode is used to ensure changes from the User and the AI tool are always in sync. In cases of conflict, the users local changes always wins.
+> Use `two-way-safe` sync mode to prevent accidental overwrites in both directions. This mode will flag conflicts and require manual resolution.
+
 
 #### Ignore Patterns
 

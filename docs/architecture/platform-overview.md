@@ -68,11 +68,11 @@ Each route gets exactly one auth mechanism -- never multiple:
 
 ### 1. Sandbox Connect (Primary)
 
-The recommended way to use Threaded Stack. Developers run `tsa run <sandbox-id>` to start a managed sandbox, sync files, and launch their AI tool of choice (Claude Code, Codex, OpenCode, or custom). Every new organization is seeded with four built-in sandbox presets that are immediately startable. `tsa ssh <sandbox-id>` provides plain SSH access without launching a runtime. All sandbox traffic routes through the MITM proxy for transparent secret injection.
+The recommended way to use Threaded Stack. Developers run `tsa run <sandbox-id>` to start a managed sandbox, sync files, and launch their AI tool of choice (Claude Code, Codex, OpenCode, Antigravity, OpenClaw, or custom). Every new organization is seeded with six built-in sandbox presets that are immediately startable. `tsa ssh <sandbox-id>` provides plain SSH access without launching a runtime. All sandbox traffic routes through the MITM proxy for transparent secret injection.
 
 ### 2. TSA CLI
 
-A terminal-native TUI compiled to a standalone binary. Developers authenticate with an API key (`tsa login <key>`), browse sandboxes, and launch sandbox sessions. Supports context injection, slash commands, lifecycle hooks, and YAML-based configuration.
+A terminal-native TUI compiled to a standalone binary. Developers authenticate with an API key or browser login (`tsa login`), browse sandboxes, and launch sandbox sessions. Supports context injection, port management, file sync, and YAML-based configuration.
 
 ### 3. Threads Web App
 

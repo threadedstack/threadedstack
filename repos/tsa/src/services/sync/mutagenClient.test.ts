@@ -40,7 +40,7 @@ describe(`CliDriver`, () => {
         source: `/home/user/src`,
         target: `/workspace/src`,
         sandboxId: `sb_abc123`,
-        mode: `one-way-replica`,
+        mode: `two-way-resolved`,
         ignores: [`.git/`, `node_modules/`],
         labels: { sandboxId: `sb_abc123`, ruleName: `app-source`, orgId: `org_1` },
       }
@@ -54,7 +54,7 @@ describe(`CliDriver`, () => {
       expect(args[0]).toBe(`sync`)
       expect(args[1]).toBe(`create`)
       expect(args).toContain(`--name=app-source`)
-      expect(args).toContain(`--mode=one-way-replica`)
+      expect(args).toContain(`--mode=two-way-resolved`)
       expect(args).toContain(`--stage-mode-beta=neighboring`)
       expect(args).toContain(`--ignore=.git/`)
       expect(args).toContain(`--ignore=node_modules/`)
@@ -86,7 +86,7 @@ describe(`CliDriver`, () => {
         source: `/src`,
         target: `/dst`,
         sandboxId: `sb_1`,
-        mode: `one-way-replica`,
+        mode: `two-way-resolved`,
         ignores: [],
         labels: { sandboxId: `sb_1`, ruleName: `test`, orgId: `org_1` },
       })
@@ -186,7 +186,7 @@ describe(`CliDriver`, () => {
       expect(sessions[0].status).toBe(`watching`)
       expect(sessions[0].source).toBe(`/home/user/src`)
       expect(sessions[0].target).toBe(`sandbox@sb_abc123:/workspace/src`)
-      expect(sessions[0].mode).toBe(`one-way-replica`)
+      expect(sessions[0].mode).toBe(`two-way-resolved`)
       expect(sessions[0].labels).toEqual({
         sandboxId: `sb_abc123`,
         ruleName: `app-source`,
