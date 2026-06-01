@@ -87,6 +87,18 @@
 }
 
 # ---------------------------------------------------------
+# Sandbox Subdomains (Local Development)
+# ---------------------------------------------------------
+*.sandbox.local.{$TDSK_HOST_DOMAIN:threadedstack.app} {
+	tls {
+		issuer internal {
+			lifetime 365d
+		}
+	}
+	import app_logic
+}
+
+# ---------------------------------------------------------
 # Sandbox Subdomains (Production)
 # ---------------------------------------------------------
 *.sandbox.{$TDSK_HOST_DOMAIN:threadedstack.app} {

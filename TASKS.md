@@ -402,6 +402,66 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 ---
 
+## TSA
+
+### [P2] Brittle ProxyWrapper binary resolution in `sshConfig.ts`
+
+* **Repos**: tsa
+* **Key files**: `repos/tsa/src/services/sync/sshConfig.ts` (lines 37-136), `repos/tsa/src/utils/tasks/spawnSsh.ts` (lines 6-12)
+* `resolveTsaBin()` (lines 37-102) uses 5 cascading strategies to locate the `tsa` binary via `process.argv` parsing, relative path probing, and cwd-based guessing. `ensureProxyWrapper()` (lines 104-136) then extracts `pkgRoot` from the resolved path by string-slicing on `/dist/` or `/src/` substrings (lines 111-115, confirmed fragile by TODO comment on line 110). When any assumption breaks (different directory structure, symlinked binary, running from unexpected location), the wrapper script writes an incorrect `cd` target and SSH connections silently fail. Separately, `spawnSsh.ts` `buildProxyCommand()` (line 7) has its own `process.argv`-based binary resolution that can diverge from `sshConfig.ts`
+* **Fix**:
+  1. Consolidate binary resolution into a single shared utility (e.g., `repos/tsa/src/utils/resolveTsaBin.ts`) used by both `sshConfig.ts` and `spawnSsh.ts`
+  2. Add a deterministic resolution strategy: check for `TDSK_TSA_BIN` env var first, then config file path, then compiled binary on PATH, then the current cascading fallbacks
+  3. Remove `pkgRoot` string-slicing in `ensureProxyWrapper`: the wrapper should invoke `tsa proxy` by its resolved absolute path directly without needing to `cd` to a package root
+  4. Have `spawnSsh.ts` `buildProxyCommand()` reuse the shared utility instead of its own `process.argv[0]`/`process.argv[1]` logic
+  5. Update `repos/tsa/src/services/sync/sshConfig.test.ts` to cover new resolution paths
+* **Files**:
+  * `repos/tsa/src/services/sync/sshConfig.ts` — refactor `resolveTsaBin()` and `ensureProxyWrapper()` to use shared utility, remove `pkgRoot` string-slicing
+  * `repos/tsa/src/utils/tasks/spawnSsh.ts` — replace `buildProxyCommand()` argv logic with shared utility
+  * New: `repos/tsa/src/utils/resolveTsaBin.ts` — shared binary resolution utility
+  * `repos/tsa/src/services/sync/sshConfig.test.ts` — update tests for new resolution logic
+
+### [P3] SSH key injection via shell commands in pod
+
+* **Repos**: tsa, backend
+* **Key files**: `repos/tsa/src/utils/tasks/sandboxConnect.ts` (lines 31-52), `repos/tsa/src/services/sync/sshConfig.ts` (lines 138-168), `repos/tsa/src/services/api.ts` (`injectSshKey` method)
+* TSA generates a persistent Ed25519 keypair at `~/.config/tdsk/sandbox_key[.pub]` (sshConfig.ts lines 138-168). Before each SSH connection, `sandboxConnect.ts` sends the public key to the backend via `injectSshKey()`, which calls `execInSandbox()` to run shell commands inside the pod (`mkdir -p ~/.ssh && echo '<pubkey>' > ~/.ssh/authorized_keys && chmod 700 ~/.ssh && ...`). This approach works but has drawbacks: (1) the persistent keypair is shared across all sandboxes with no rotation, (2) key injection relies on shell command execution in the pod (tied to the shell injection risk already tracked in the Sandbox section), (3) if `execInSandbox` fails silently, SSH auth fails with no clear error
+* **Fix**:
+  1. Investigate using K8s Secret volume mounts to inject the public key at pod creation time instead of runtime `execInSandbox` calls
+  2. Consider ephemeral per-session keypairs instead of a single persistent key, with automatic cleanup on session end
+  3. If keeping runtime injection, add a verification step (e.g., `test -f ~/.ssh/authorized_keys`) and surface clear errors on failure
+  4. Add key rotation support (regenerate keypair on `tsa login` or after a configurable TTL)
+* **Files**:
+  * `repos/tsa/src/services/sync/sshConfig.ts` — key generation and rotation logic
+  * `repos/tsa/src/utils/tasks/sandboxConnect.ts` — key injection flow
+  * `repos/tsa/src/services/api.ts` — `injectSshKey` method
+  * `repos/backend/src/services/sandboxes/sandbox.ts` — pod manifest key injection (if using volume mount approach)
+  * `repos/sandbox/src/kube/podManifest.ts` — pod spec for Secret volume mount
+
+### [P2] Auto-resolve instance ID from session ID across project
+
+* **Repos**: tsa, backend, database
+* **Key files**: `repos/tsa/src/tasks/sessions.ts` (lines 17-48, 277-356), `repos/backend/src/endpoints/sandboxes/onShellConnect.ts` (line 461), `repos/backend/src/services/sandboxes/sandbox.ts` (lines 565-571), `repos/database/src/schemas/sandboxSessions.ts`
+* When a user runs `tsa sessions connect <session-id>` without `--sandbox`, `resolveSessionSandbox()` (lines 17-48) loops through ALL sandboxes in the project making N+1 API calls (1 to list sandboxes, then 1 per sandbox to check its sessions). For projects with many sandboxes this is slow. Other TSA commands (`sandbox`, `ssh`, `sync`) do not support session-based resolution at all. Additionally, session IDs are generated with `nanoid(16)` at `onShellConnect.ts:461` with no collision detection or uniqueness validation. While statistically unlikely, collisions across concurrent org instances would cause auto-resolution to return the wrong instance. The backend's `findInstanceForSession()` (sandbox.ts line 565) mitigates this by requiring both `sessionId` AND `sandboxId`, but the TSA auto-resolution path searches by `sessionId` alone
+* **Fix**:
+  1. Add a backend endpoint `GET /_/orgs/:orgId/projects/:projectId/sessions/:sessionId/resolve` that resolves a session ID to its sandbox, instance, and session metadata in a single call by scanning in-memory sessions across all sandbox service instances
+  2. Update `resolveSessionSandbox()` in TSA to call the new endpoint instead of N+1 scanning
+  3. Add session ID uniqueness validation in `onShellConnect.ts`: before assigning `nanoid(16)`, check active sessions for collisions (or use a scoped ID format like `<sandboxId>-<nanoid>`)
+  4. Add `--session <id>` option to `tsa sandbox`, `tsa ssh`, and `tsa sync` commands that auto-resolves sandbox and instance from the session ID
+  5. Add TSA `api.ts` method `resolveSession(orgId, projectId, sessionId)` to call the new endpoint
+* **Files**:
+  * New: `repos/backend/src/endpoints/sandboxes/resolveSession.ts` — new endpoint for single-call session resolution
+  * `repos/backend/src/services/sandboxes/sandbox.ts` — add `findSessionAcrossProject()` method that searches all instances
+  * `repos/backend/src/endpoints/sandboxes/onShellConnect.ts` — add session ID collision check at generation
+  * `repos/tsa/src/tasks/sessions.ts` — update `resolveSessionSandbox()` to use new endpoint
+  * `repos/tsa/src/services/api.ts` — add `resolveSession()` API method
+  * `repos/tsa/src/tasks/sandbox.ts` — add `--session` option
+  * `repos/tsa/src/tasks/ssh.ts` — add `--session` option
+  * `repos/tsa/src/tasks/sync.ts` — add `--session` option
+  * `repos/tsa/src/constants/options.ts` — add `SessionOptions` definition
+
+---
+
 ## General
 
 ### [P4] Sandbox: Pool process exit cleanup

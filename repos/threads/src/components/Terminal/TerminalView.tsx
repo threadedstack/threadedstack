@@ -186,6 +186,9 @@ export const TerminalView = (props: TTerminalView) => {
         '& .xterm': {
           height: `100%`,
         },
+        [`& .xterm-scrollable-element`]: {
+          padding: `5px`,
+        },
       }}
     />
   )

@@ -405,6 +405,7 @@ deployments:
               - delete
               - get
               - list
+              - patch
               - watch
           binding:
             name: tdsk-sandbox-manager-binding
