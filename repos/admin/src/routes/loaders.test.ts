@@ -29,6 +29,12 @@ const mockSetActiveProjectId = vi.fn()
 const mockSetActiveEndpointId = vi.fn()
 const mockSetActiveAgentId = vi.fn()
 const mockSetActiveThreadId = vi.fn()
+const mockGetSubscription = vi.fn()
+const mockGetPaymentPlans = vi.fn()
+const mockGetInvoices = vi.fn()
+const mockResetSubscription = vi.fn()
+const mockResetPaymentPlans = vi.fn()
+const mockResetInvoices = vi.fn()
 
 vi.mock('@TAF/state/accessors', () => ({
   getOrgs: () => mockGetOrgs(),
@@ -59,6 +65,23 @@ vi.mock('@TAF/state/accessors', () => ({
   setActiveEndpointId: (...args: any[]) => mockSetActiveEndpointId(...args),
   setActiveAgentId: (...args: any[]) => mockSetActiveAgentId(...args),
   setActiveThreadId: (...args: any[]) => mockSetActiveThreadId(...args),
+  getSubscription: () => mockGetSubscription(),
+  getPaymentPlans: () => mockGetPaymentPlans(),
+  getInvoices: () => mockGetInvoices(),
+  resetSubscription: () => mockResetSubscription(),
+  resetPaymentPlans: () => mockResetPaymentPlans(),
+  resetInvoices: () => mockResetInvoices(),
+}))
+
+const mockToastSuccess = vi.fn()
+const mockToastError = vi.fn()
+const mockToastInfo = vi.fn()
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...args: any[]) => mockToastSuccess(...args),
+    error: (...args: any[]) => mockToastError(...args),
+    info: (...args: any[]) => mockToastInfo(...args),
+  },
 }))
 
 // --- Fetch action mocks ---
@@ -140,8 +163,22 @@ vi.mock('@TAF/actions/projectMembers/api/listProjectMembers', () => ({
   listProjectMembers: (...args: any[]) => mockListProjectMembers(...args),
 }))
 
+const mockFetchCurrentSubscription = vi.fn()
+const mockFetchPaymentPlans = vi.fn()
+const mockFetchInvoices = vi.fn()
+vi.mock('@TAF/actions/subscriptions/api/fetchCurrentSubscription', () => ({
+  fetchCurrentSubscription: () => mockFetchCurrentSubscription(),
+}))
+vi.mock('@TAF/actions/subscriptions/api/fetchPaymentPlans', () => ({
+  fetchPaymentPlans: () => mockFetchPaymentPlans(),
+}))
+vi.mock('@TAF/actions/subscriptions/api/fetchInvoices', () => ({
+  fetchInvoices: () => mockFetchInvoices(),
+}))
+
 import {
   rootLoader,
+  billingLoader,
   orgScopeLoader,
   orgProvidersLoader,
   orgSecretsLoader,
@@ -172,6 +209,12 @@ const makeArgs = (params: Record<string, string> = {}) =>
   ({
     params,
     request: new Request('http://test'),
+  }) as unknown as LoaderFunctionArgs
+
+const makeReqArgs = (url: string) =>
+  ({
+    params: {},
+    request: new Request(url),
   }) as unknown as LoaderFunctionArgs
 
 describe('loaders', () => {
@@ -542,6 +585,122 @@ describe('loaders', () => {
 
       const result = await orgUsageLoader(makeArgs({ orgId: 'org-1' }))
       expect(result).toBeNull()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // billingLoader
+  // ---------------------------------------------------------------------------
+  describe('billingLoader', () => {
+    beforeEach(() => {
+      mockGetSubscription.mockReturnValue(undefined)
+      mockGetPaymentPlans.mockReturnValue(undefined)
+      mockGetInvoices.mockReturnValue(undefined)
+      mockFetchCurrentSubscription.mockResolvedValue({ data: { tier: 'free' } })
+      mockFetchPaymentPlans.mockResolvedValue({ data: [] })
+      mockFetchInvoices.mockResolvedValue({ data: [] })
+    })
+
+    it('fires all three fetches and returns null on first load', async () => {
+      const result = await billingLoader(makeReqArgs('http://test/billing'))
+
+      expect(result).toBeNull()
+      expect(mockFetchCurrentSubscription).toHaveBeenCalledTimes(1)
+      expect(mockFetchPaymentPlans).toHaveBeenCalledTimes(1)
+      expect(mockFetchInvoices).toHaveBeenCalledTimes(1)
+      expect(mockResetSubscription).not.toHaveBeenCalled()
+      expect(mockResetPaymentPlans).not.toHaveBeenCalled()
+      expect(mockResetInvoices).not.toHaveBeenCalled()
+    })
+
+    it('skips fetches when state is already populated', async () => {
+      mockGetSubscription.mockReturnValue({ tier: 'pro' })
+      mockGetPaymentPlans.mockReturnValue([{ id: 'p1' }])
+      mockGetInvoices.mockReturnValue([{ id: 'i1' }])
+
+      await billingLoader(makeReqArgs('http://test/billing'))
+
+      expect(mockFetchCurrentSubscription).not.toHaveBeenCalled()
+      expect(mockFetchPaymentPlans).not.toHaveBeenCalled()
+      expect(mockFetchInvoices).not.toHaveBeenCalled()
+    })
+
+    it('treats empty array as fetched (does not refetch)', async () => {
+      mockGetPaymentPlans.mockReturnValue([])
+      mockGetInvoices.mockReturnValue([])
+      mockGetSubscription.mockReturnValue({ tier: 'free' })
+
+      await billingLoader(makeReqArgs('http://test/billing'))
+
+      expect(mockFetchPaymentPlans).not.toHaveBeenCalled()
+      expect(mockFetchInvoices).not.toHaveBeenCalled()
+    })
+
+    it('surfaces fetch errors via toast.error per resource', async () => {
+      const subErr = new Error('sub down')
+      const plansErr = new Error('plans down')
+      mockFetchCurrentSubscription.mockResolvedValue({ error: subErr })
+      mockFetchPaymentPlans.mockResolvedValue({ error: plansErr })
+      mockFetchInvoices.mockResolvedValue({ data: [] })
+
+      const result = await billingLoader(makeReqArgs('http://test/billing'))
+
+      expect(result).toBeNull()
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Failed to load subscription',
+        expect.objectContaining({
+          id: 'billing-fetch-subscription',
+          description: 'sub down',
+        })
+      )
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Failed to load plans',
+        expect.objectContaining({
+          id: 'billing-fetch-plans',
+          description: 'plans down',
+        })
+      )
+    })
+
+    it('handles ?success=true by toasting, resetting state, and redirecting', async () => {
+      const result = await billingLoader(makeReqArgs('http://test/billing?success=true'))
+
+      expect(result).toBeInstanceOf(Response)
+      expect((result as Response).status).toBe(302)
+      expect((result as Response).headers.get('location')).toBe('/billing')
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'Subscription Updated',
+        expect.objectContaining({ id: 'billing-success' })
+      )
+      expect(mockResetSubscription).toHaveBeenCalledTimes(1)
+      expect(mockResetPaymentPlans).toHaveBeenCalledTimes(1)
+      expect(mockResetInvoices).toHaveBeenCalledTimes(1)
+      expect(mockFetchCurrentSubscription).not.toHaveBeenCalled()
+    })
+
+    it('handles ?cancelled=true by toasting info and redirecting without resets', async () => {
+      const result = await billingLoader(
+        makeReqArgs('http://test/billing?cancelled=true')
+      )
+
+      expect(result).toBeInstanceOf(Response)
+      expect((result as Response).status).toBe(302)
+      expect((result as Response).headers.get('location')).toBe('/billing')
+      expect(mockToastInfo).toHaveBeenCalledWith(
+        'Checkout Cancelled',
+        expect.objectContaining({ id: 'billing-cancelled' })
+      )
+      expect(mockResetSubscription).not.toHaveBeenCalled()
+      expect(mockResetPaymentPlans).not.toHaveBeenCalled()
+      expect(mockResetInvoices).not.toHaveBeenCalled()
+      expect(mockFetchCurrentSubscription).not.toHaveBeenCalled()
+    })
+
+    it('treats success as taking precedence over cancelled', async () => {
+      await billingLoader(makeReqArgs('http://test/billing?success=true&cancelled=true'))
+
+      expect(mockToastSuccess).toHaveBeenCalled()
+      expect(mockToastInfo).not.toHaveBeenCalled()
     })
   })
 

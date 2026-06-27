@@ -35,7 +35,7 @@ export const CurrentPlan = (props: TCurrentPlan) => {
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
 
-  const currentPlan = plans.find((p) => p.id === subscription?.tier)
+  const currentPlan = plans?.find((p) => p.id === subscription?.tier)
   const canCancel =
     subscription &&
     subscription.tier !== ESubscriptionTier.free &&

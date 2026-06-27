@@ -127,19 +127,12 @@ test.describe('Billing Page', () => {
     expect(errors).toEqual([])
   })
 
-  test('should show loading skeletons initially', async ({ authenticatedPage: page }) => {
+  test('should render tabs after loader resolves', async ({ authenticatedPage: page }) => {
     const errors = collectErrors(page)
 
-    // Navigate but don't wait for networkidle — we want to catch the loading state
     await page.goto('/billing')
     await expect(page.locator(`.${PAGE_CLASS}`)).toBeVisible({ timeout: 15_000 })
-
-    // Either loading skeletons are visible or data has already loaded (tabs visible)
-    const hasSkeleton = await page.locator('.MuiSkeleton-root').first().isVisible().catch(() => false)
-    const hasTabs = await page.locator('[role="tablist"]').isVisible().catch(() => false)
-
-    // One of the two states must be true
-    expect(hasSkeleton || hasTabs).toBeTruthy()
+    await expect(page.locator('[role="tablist"]')).toBeVisible({ timeout: 15_000 })
 
     expect(errors).toEqual([])
   })

@@ -211,11 +211,11 @@ export const setSubscription = (subscription: Subscription | null) =>
   store.set(subscriptionState, subscription)
 
 export const getPaymentPlans = () => store.get(paymentPlansState)
-export const resetPaymentPlans = () => store.set(paymentPlansState, [])
+export const resetPaymentPlans = () => store.set(paymentPlansState, undefined)
 export const setPaymentPlans = (plans: Plan[]) => store.set(paymentPlansState, plans)
 
 export const getInvoices = () => store.get(invoicesState)
-export const resetInvoices = () => store.set(invoicesState, [])
+export const resetInvoices = () => store.set(invoicesState, undefined)
 export const setInvoices = (invoices: Invoice[]) => store.set(invoicesState, invoices)
 
 export const getOrgQuota = () => store.get(orgQuotaState)

@@ -9,6 +9,7 @@ import { RequireRole } from '@TAF/components/Permissions/RequireRole'
 import { Navigate, createBrowserRouter, useRouteError } from 'react-router'
 import {
   rootLoader,
+  billingLoader,
   orgScopeLoader,
   orgUsageLoader,
   orgAgentsLoader,
@@ -136,6 +137,7 @@ export const createRoutes = () =>
         },
         {
           path: 'billing',
+          loader: billingLoader,
           Component: () => <SuspensePage Component={Billing} />,
         },
         {

@@ -37,7 +37,7 @@ export class SubscriptionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: new Subscription(resp.data),
+      data: resp.data ? new Subscription(resp.data) : undefined,
     }
   }
 
@@ -56,7 +56,7 @@ export class SubscriptionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data.map((item) => new Plan(item)),
+      data: resp.data?.map((item) => new Plan(item)) ?? [],
     }
   }
 

@@ -1,5 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router'
 
+import { toast } from 'sonner'
+import { redirect } from 'react-router'
 import { WaitlistedCode } from '@tdsk/domain'
 import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
@@ -10,6 +12,7 @@ import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { fetchDomains } from '@TAF/actions/domains/api/fetchDomains'
 import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
+import { fetchInvoices } from '@TAF/actions/subscriptions/api/fetchInvoices'
 import { fetchOrgQuota } from '@TAF/actions/quotas/api/fetchOrgQuota'
 import { fetchOrgLimits } from '@TAF/actions/quotas/api/fetchOrgLimits'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
@@ -19,11 +22,14 @@ import { fetchSchedules } from '@TAF/actions/schedules/api/fetchSchedules'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
 import { fetchOverrides } from '@TAF/actions/permissionOverrides/api/fetchOverrides'
+import { fetchPaymentPlans } from '@TAF/actions/subscriptions/api/fetchPaymentPlans'
 import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectMembers'
+import { fetchCurrentSubscription } from '@TAF/actions/subscriptions/api/fetchCurrentSubscription'
 import {
   getOrgs,
   getSkills,
   getApiKeys,
+  getInvoices,
   getOrgUsers,
   getOrgQuota,
   getProjects,
@@ -32,13 +38,18 @@ import {
   getWaitlisted,
   setWaitlisted,
   getOrgSecrets,
+  resetInvoices,
   setActiveOrgId,
   setActiveAgentId,
+  getSubscription,
+  getPaymentPlans,
+  resetSubscription,
   getContextAgents,
   getContextThreads,
   getContextDomains,
   getProjectSecrets,
   setActiveThreadId,
+  resetPaymentPlans,
   setActiveProjectId,
   getProjectEndpoints,
   getContextSchedules,
@@ -234,6 +245,59 @@ export const orgUsageLoader = async ({ params }: LoaderFunctionArgs) => {
 
   if (!getOrgQuota()) await safeFetch(() => fetchOrgQuota(orgId))
   if (!getOrgLimits()) await safeFetch(() => fetchOrgLimits(orgId))
+  return null
+}
+
+// --- Billing Page Loader ---
+
+export const billingLoader = async ({ request }: LoaderFunctionArgs) => {
+  const url = new URL(request.url)
+  const success = url.searchParams.get(`success`) === `true`
+  const cancelled = url.searchParams.get(`cancelled`) === `true`
+
+  if (success) {
+    toast.success(`Subscription Updated`, {
+      id: `billing-success`,
+      description: `Your subscription has been successfully updated.`,
+    })
+    resetSubscription()
+    resetPaymentPlans()
+    resetInvoices()
+    return redirect(`/billing`)
+  }
+
+  if (cancelled) {
+    toast.info(`Checkout Cancelled`, {
+      id: `billing-cancelled`,
+      description: `You cancelled the checkout process.`,
+    })
+    return redirect(`/billing`)
+  }
+
+  const reportFetchError = (label: string, err: Error) =>
+    toast.error(`Failed to load ${label}`, {
+      id: `billing-fetch-${label}`,
+      description: err.message,
+    })
+
+  await Promise.all([
+    getSubscription()
+      ? Promise.resolve()
+      : fetchCurrentSubscription().then(
+          (resp) => resp?.error && reportFetchError(`subscription`, resp.error)
+        ),
+    getPaymentPlans()
+      ? Promise.resolve()
+      : fetchPaymentPlans().then(
+          (resp) => resp?.error && reportFetchError(`plans`, resp.error)
+        ),
+    getInvoices()
+      ? Promise.resolve()
+      : fetchInvoices().then(
+          (resp) => resp?.error && reportFetchError(`invoices`, resp.error)
+        ),
+  ])
+
   return null
 }
 
