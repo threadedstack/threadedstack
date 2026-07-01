@@ -7,6 +7,7 @@ import { Executor } from '@tdsk/tsa/services/executor'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: TSA Executor — Session & Thread Orchestration
@@ -15,7 +16,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  * and thread creation against the live backend. Does NOT require a real LLM key
  * since session/thread creation use the backend admin API (API key auth), not LLM calls.
  */
-describe('Tier 3: TSA Executor — session orchestration (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: TSA Executor — session orchestration (live)', () => {
   const ctx = readContext()
   let executor: Executor
 

@@ -121,18 +121,12 @@ describe(`Quota Endpoints`, () => {
         data: {
           orgId: mockOrgId,
           period: expect.stringMatching(/^\d{4}-\d{2}$/),
-          price: 0,
-          retention: 0,
-          organizations: 0,
           projects: 0,
-          members: 0,
-          endpoints: 0,
+          compute: 0,
           threads: 0,
           messages: 0,
-          functionCalls: 0,
-          runtime: 0,
-          orgSecrets: 0,
-          projectSecrets: 0,
+          endpoints: 0,
+          secrets: 0,
         },
       })
     })

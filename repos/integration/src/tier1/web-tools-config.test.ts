@@ -5,6 +5,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Web Tools Configuration
@@ -12,8 +13,12 @@ import { env } from '../utils/env'
  * Validates API contract for the webFetch/webSearch tools and
  * webProvider environment config on agents.
  * No LLM required — uses quickstart with a real provider key for pure CRUD validation.
+ *
+ * Gated by the `agents` feature flag: every test in this suite mutates a real
+ * agent (tools[], environment.webProvider, project agent-config overrides), so
+ * when agents are disabled platform-wide the suite cannot run at all.
  */
-describe('Tier 1: Web Tools Configuration', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Web Tools Configuration', () => {
   const ctx = readContext()
 
   let orgId = ''

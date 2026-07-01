@@ -93,6 +93,7 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
 
             <ProviderLinkList
               onAdd={onAdd}
+              orgId={orgId}
               disabled={disabled}
               addLabel={addLabel}
               emptyMessage={null}

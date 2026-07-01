@@ -1,15 +1,30 @@
 import { describe, test, expect } from 'vitest'
 import { get, post, del } from '../utils/api-client'
-import { readContext } from '../utils/test-context'
 
 /**
  * Tier 3: Subscription Lifecycle
  *
- * Tests the subscription endpoints: current subscription, plans listing,
- * checkout session creation, and cancel behavior.
+ * GET endpoints (current, plans) are reachable via API key auth.
+ *
+ * Mutating endpoints (checkout, update, cancel, portal) intentionally reject
+ * API key authentication and return 403 BEFORE any body validation —
+ * see `repos/backend/src/endpoints/subscriptions/*.ts`:
+ *
+ *   if (fromAuthHeaders(req).apiKeyId)
+ *     throw new Exception(403, `Subscription endpoints do not accept API key authentication`)
+ *
+ * Integration tests authenticate via TDSK_IT_API_KEY, so every POST/DELETE here
+ * is expected to be blocked at the API-key guard.
+ *
+ * The mutation LOGIC (checkout, update, cancel, portal, tier validation,
+ * downgrade-to-free) is covered by backend unit tests that mock auth without
+ * an api-key id + stub Stripe — see
+ * `repos/backend/src/endpoints/subscriptions/subscriptions.test.ts`.
+ * What no test covers is the real end-to-end Stripe network lifecycle, which
+ * requires JWT auth + a live Stripe test account (a Playwright/e2e tier that
+ * does not exist yet).
  */
 describe('Tier 3: Subscription Lifecycle', () => {
-  const ctx = readContext()
 
   test('GET /subscriptions/current — returns subscription with tier', async () => {
     const res = await get<{ tier: string; userId: string; status: string }>(
@@ -60,18 +75,17 @@ describe('Tier 3: Subscription Lifecycle', () => {
     }
   })
 
-  test('POST /subscriptions/checkout — rejects missing fields', async () => {
+  test('POST /subscriptions/checkout — rejects API key auth with 403 (missing fields)', async () => {
     const res = await post<{ error?: string }>(
       '/subscriptions/checkout',
       { tier: 'pro' }
     )
 
-    // Should fail because successUrl and cancelUrl are missing
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/checkout — rejects invalid tier', async () => {
+  test('POST /subscriptions/checkout — rejects API key auth with 403 (invalid tier)', async () => {
     const res = await post<{ error?: string }>(
       '/subscriptions/checkout',
       {
@@ -82,10 +96,10 @@ describe('Tier 3: Subscription Lifecycle', () => {
     )
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/checkout — rejects free tier checkout', async () => {
+  test('POST /subscriptions/checkout — rejects API key auth with 403 (free tier)', async () => {
     const res = await post<{ error?: string }>(
       '/subscriptions/checkout',
       {
@@ -96,10 +110,10 @@ describe('Tier 3: Subscription Lifecycle', () => {
     )
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/checkout — accepts valid tier with required fields', async () => {
+  test('POST /subscriptions/checkout — rejects API key auth with 403 (valid tier + URLs)', async () => {
     const res = await post<Record<string, unknown>>(
       '/subscriptions/checkout',
       {
@@ -109,43 +123,21 @@ describe('Tier 3: Subscription Lifecycle', () => {
       }
     )
 
-    // This will either:
-    // - 200 with a checkout session URL (if Stripe is configured)
-    // - 200 with an update message (if user already has a subscription)
-    // - 500 if Stripe is not configured in the test environment
-    // We accept all of these as valid behavior
-    expect([200, 500]).toContain(res.status)
-
-    if (res.status === 200 && res.data) {
-      // If successful, should have either a URL or an update confirmation
-      const data = res.data
-      const hasUrl = typeof data.url === 'string'
-      const hasUpdated = data.updated === true
-      expect(hasUrl || hasUpdated).toBe(true)
-    }
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(403)
   })
 
-  test('DELETE /subscriptions/current — cancel returns error for free tier user', async () => {
-    // A free tier user with no Stripe subscription ID should get 404
-    const currentRes = await get<{ tier: string; stripeSubscriptionId?: string }>(
-      '/subscriptions/current'
-    )
+  test('DELETE /subscriptions/current — rejects API key auth with 403', async () => {
+    const res = await del('/subscriptions/current')
 
-    if (currentRes.data?.tier === 'free' && !currentRes.data?.stripeSubscriptionId) {
-      const res = await del('/subscriptions/current')
-      expect(res.status).toBe(404)
-    }
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/portal — returns error without active subscription', async () => {
-    // Free tier users without a Stripe customer ID should get 404
-    const currentRes = await get<{ tier: string; stripeCustomerId?: string }>(
-      '/subscriptions/current'
-    )
+  test('POST /subscriptions/portal — rejects API key auth with 403', async () => {
+    const res = await post('/subscriptions/portal')
 
-    if (!currentRes.data?.stripeCustomerId) {
-      const res = await post('/subscriptions/portal')
-      expect(res.status).toBe(404)
-    }
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(403)
   })
 })

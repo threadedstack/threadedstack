@@ -6,6 +6,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Thread File Upload
@@ -15,7 +16,7 @@ import { env } from '../utils/env'
  * Covers fix I5: `agentId` validation guard in uploadFile endpoint.
  * Also validates body parameter validation (fileName, data, mimeType).
  */
-describe('Tier 1: Thread File Upload (I5 fix)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Thread File Upload (I5 fix)', () => {
   const ctx = readContext()
   let agentId = ''
   let threadId = ''

@@ -111,16 +111,17 @@ export class ProvidersApi extends BaseApi {
   }
 
   /**
-   * Fetch available models for a provider brand
-   * Uses top-level /providers/:brand/models (not org-scoped)
+   * Fetch available models for a provider brand within an org.
+   * Mounts at /_/orgs/:orgId/providers/:brand/models on the backend.
    */
   async fetchModels(
+    orgId: string,
     brand: string,
-    opts?: { baseUrl?: string; providerKey?: string }
+    opts?: { baseUrl?: string }
   ): Promise<TApiRes<TProviderModel[]>> {
     const resp = await this.api.post<TProviderModel[]>({
-      path: `/providers/${brand}/models`,
-      data: { baseUrl: opts?.baseUrl, providerKey: opts?.providerKey },
+      path: `${this.#path(orgId)}/${brand}/models`,
+      data: { baseUrl: opts?.baseUrl },
     })
 
     resp.error && (await this._onError(resp.error, `Failed to fetch Provider models`))

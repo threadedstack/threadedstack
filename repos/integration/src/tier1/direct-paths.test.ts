@@ -13,8 +13,8 @@ import { readContext } from '../utils/test-context'
  * mounts are wired up correctly and return the expected responses.
  *
  * Route mounting (from accounts.ts):
- *   Direct mounts: orgs, users, agents, assets, subscriptions, invitations, providers (models only)
- *   Org-scoped only: projects, sandboxes, providers (CRUD), secrets, api-keys, endpoints, functions, skills, schedules
+ *   Direct mounts: orgs, users, agents (OpenAI-compat routes only), assets, subscriptions, invitations
+ *   Org-scoped only: projects, sandboxes, providers (incl. models), secrets, api-keys, endpoints, functions, skills, schedules
  */
 describe('Tier 1: Direct Path Equivalence', () => {
   const ctx = readContext()
@@ -82,13 +82,15 @@ describe('Tier 1: Direct Path Equivalence', () => {
   // -------------------------------------------------------------------------
 
   describe('direct paths that require scoping params', () => {
-    test('GET /_/agents without orgId in path returns 400', async () => {
-      // The agents direct mount reuses listAgents which reads orgId from
-      // req.params.orgId — that param is absent on the direct path, so the
-      // handler throws 400 "orgId parameter required".
+    test('GET /_/agents returns 404 when agents feature flag is disabled', async () => {
+      // The /agents router is wrapped with featureGate('agents'), which
+      // returns 404 (not 403) when the flag is off — intentional, to avoid
+      // leaking feature existence. The agents flag is OFF in this environment.
+      // See repos/backend/src/middleware/featureGate.ts and
+      //     repos/backend/src/endpoints/agents/agents.ts.
       const res = await get('/agents')
 
-      expect(res.status).toBe(400)
+      expect(res.status).toBe(404)
       expect(res.ok).toBe(false)
     })
 
@@ -188,11 +190,15 @@ describe('Tier 1: Direct Path Equivalence', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('GET /_/subscriptions/plans without auth returns 401', async () => {
-      const res = await get('/subscriptions/plans', { noAuth: true })
+    test('GET /_/subscriptions/plans is a public route (200 without auth)', async () => {
+      // /subscriptions/plans is listed in AuthIgnore (backend/src/constants/values.ts),
+      // so the authenticate middleware short-circuits via shouldIgnore() and the
+      // handler responds with the plans list — no JWT or API key required.
+      const res = await get<Record<string, any>[]>('/subscriptions/plans', { noAuth: true })
 
-      expect(res.status).toBe(401)
-      expect(res.ok).toBe(false)
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+      expect(Array.isArray(res.data)).toBe(true)
     })
 
     test('GET /_/invitations/me without auth returns 401', async () => {

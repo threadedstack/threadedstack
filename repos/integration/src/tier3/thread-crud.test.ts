@@ -6,8 +6,9 @@ import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
-describe('Tier 3: Thread CRUD Flow', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Thread CRUD Flow', () => {
   const ctx = readContext()
   let agentId = ''
   let threadId = ''

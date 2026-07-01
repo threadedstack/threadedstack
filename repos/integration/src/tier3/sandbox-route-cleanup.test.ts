@@ -14,6 +14,7 @@ import {
 } from '../utils/sandbox-helpers'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Sandbox Route Map Cleanup
@@ -30,7 +31,7 @@ import { uniqueName } from '../utils/unique-name'
  * 2. Stop pod → subdomain returns 404 (route cleaned up, not stale timeout)
  * 3. Verify WS /ai/ws still works after stale routes are gone
  */
-describe('Tier 3: Sandbox Route Map Cleanup', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Sandbox Route Map Cleanup', () => {
   const ctx = readContext()
 
   let sandboxId = ''

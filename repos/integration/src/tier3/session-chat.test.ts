@@ -3,7 +3,7 @@ import { env } from '../utils/env'
 import { post, get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeWS } from '../utils/ws-client'
-import { EWSEventType } from '@tdsk/domain'
+import { EWSEventType, isFeatureEnabled } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
@@ -22,7 +22,7 @@ import type { TFixtureResult } from '../utils/fixtures'
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 3: WebSocket Session Chat Flow', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: WebSocket Session Chat Flow', () => {
   const ctx = readContext()
   const threadIds: string[] = []
   let agentId = ''

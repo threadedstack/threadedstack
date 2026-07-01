@@ -1,3 +1,5 @@
+import { ERoleType, buildRolePermissions } from '@tdsk/domain'
+
 import { env } from '../utils/env'
 import { loadEnvs } from '../utils/loadEnvs'
 import { checkHealth } from '../utils/health'
@@ -258,12 +260,19 @@ export default async function setup() {
     type: m.type,
   }))
 
-  // Use the dedicated admin user from env vars
+  // Use the dedicated admin user from env vars when configured. When env
+  // doesn't supply TDSK_IT_ADMIN_USER/TDSK_IT_MEMBER_USER, the dependent
+  // role-hierarchy tests gate on `ctx.adminApiKey`/`ctx.memberApiKey` via
+  // `describe.skipIf(!ctx.adminApiKey)` and run cleanly.
   if (env.adminUserId) {
     adminUserId = env.adminUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
-      { name: 'integration-admin', role: 'admin', scopes: 'admin', userId: adminUserId }
+      {
+        name: 'integration-admin',
+        userId: adminUserId,
+        permissions: buildRolePermissions(ERoleType.admin),
+      }
     )
 
     if (keyRes.ok && keyRes.data) {
@@ -289,7 +298,11 @@ export default async function setup() {
     memberUserId = env.memberUserId
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
-      { name: 'integration-member', role: 'member', scopes: 'read,write', userId: memberUserId }
+      {
+        name: 'integration-member',
+        userId: memberUserId,
+        permissions: buildRolePermissions(ERoleType.member),
+      }
     )
 
     if (keyRes.ok && keyRes.data) {

@@ -133,9 +133,19 @@ describe('Tier 3: Sandbox File Sync', () => {
       // ApiClient.injectSshKey in repos/tsa/src/services/api.ts — keep them in sync.
       const publicKey = getPublicKey()
       const escaped = publicKey.replace(/'/g, `'\\''`)
-      const sshKeyRes = await execInPod(
+      await execInPod(
         ctx.orgId, projectId, sandboxId, instanceId,
         `mkdir -p ${SandboxHomePath}/.ssh && echo '${escaped}' > ${SandboxHomePath}/.ssh/authorized_keys && chmod 700 ${SandboxHomePath}/.ssh && chmod 600 ${SandboxHomePath}/.ssh/authorized_keys && chown -R sandbox:sandbox ${SandboxHomePath}/.ssh`
+      )
+
+      // Pre-create the Mutagen sync target directory. With stage-mode-beta=internal
+      // (set in CliDriver) Mutagen creates its staging dir inside the sync target,
+      // which means the target must exist before the session can connect. Without
+      // this the beta endpoint fails with "unable to initialize stager: ... no such
+      // file or directory" and the whole session stays disconnected.
+      await execInPod(
+        ctx.orgId, projectId, sandboxId, instanceId,
+        `mkdir -p ${sandboxConfig.sync.targetBase} && chown sandbox:sandbox ${sandboxConfig.sync.targetBase}`
       )
     } catch (err) {
       console.error('[sandbox-file-sync] Setup failed:', (err as Error).message)

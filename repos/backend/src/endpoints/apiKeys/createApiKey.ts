@@ -20,6 +20,10 @@ import {
 /**
  * Validate that requested permissions are a subset of the target's effective permissions.
  * No-ops when there are no requested permissions or target is a super admin.
+ *
+ * `targetUserId` is forwarded as an explicit parameter rather than spread
+ * onto a copy of `req` — spreading an Express `Request` drops prototype
+ * getters (notably `req.app`), which crashes the downstream lookup.
  */
 const validatePermissionsSubset = async (
   req: TRequest,
@@ -29,10 +33,7 @@ const validatePermissionsSubset = async (
 ): Promise<void> => {
   if (requestedPermissions.length === 0) return
 
-  const targetReq = targetUserId
-    ? ({ ...req, user: { ...req.user, id: targetUserId } } as TRequest)
-    : req
-  const targetPerms = await resolveEffectivePermissions(targetReq, context)
+  const targetPerms = await resolveEffectivePermissions(req, context, targetUserId)
   if (targetPerms === 'super') return
 
   const permCheck = validateApiKeyPermissions(requestedPermissions, targetPerms)
@@ -86,6 +87,22 @@ export const createApiKey: TEndpointConfig = {
         const managePermission: TPermission = `${EPermResource.apiKey}:${EPermAction.manage}`
         if (!callerPermissions.has(managePermission))
           throw new Exception(403, `Only admins can create API keys for other users`)
+
+        // Bound the requested permissions by the CALLER's own effective
+        // (key-intersected) permissions — a key can never mint a key more
+        // powerful than itself, even when creating for a higher-privileged
+        // target user. The subset-against-target check still runs below, so
+        // the new key is bounded by BOTH the caller and the target.
+        const callerCheck = validateApiKeyPermissions(
+          requestedPermissions,
+          callerPermissions
+        )
+        if (!callerCheck.valid)
+          throw new Exception(
+            403,
+            `Cannot grant permissions you do not hold: ${callerCheck.invalidPermissions?.join(', ')}`,
+            `FORBIDDEN`
+          )
       }
 
       // Verify target user is a member of the scope

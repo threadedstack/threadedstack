@@ -225,5 +225,70 @@ describe(`authorize middleware`, () => {
       // getProjectRole should NOT have been called with the body value
       expect(mockGetProjectRole).not.toHaveBeenCalledWith(`test-user-id`, `evil-proj-id`)
     })
+
+    it(`should use params.orgId over auth header orgId (URL is canonical)`, async () => {
+      const req = buildMockReq({
+        params: { orgId: `org-from-url` },
+        query: {},
+        body: {},
+        header: vi.fn().mockImplementation((key: string) => {
+          if (key === `X-User-Org-Id`) return `org-from-auth-header`
+          return undefined
+        }),
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      // The role lookup must run against the URL's orgId, not the header's.
+      // Pre-v2 the header was preferred, which let an orgA-bound key probe
+      // orgB resources by URL while permissions resolved in orgA.
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-url`)
+      expect(mockNext).toHaveBeenCalledWith()
+    })
+
+    it(`should use query.orgId over auth header orgId when no params.orgId`, async () => {
+      const req = buildMockReq({
+        params: {},
+        query: { orgId: `org-from-query` },
+        body: {},
+        header: vi.fn().mockImplementation((key: string) => {
+          if (key === `X-User-Org-Id`) return `org-from-auth-header`
+          return undefined
+        }),
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-query`)
+      expect(mockNext).toHaveBeenCalledWith()
+    })
+
+    it(`should use params.projectId over auth header projectId`, async () => {
+      const req = buildMockReq({
+        params: { orgId: `org-1`, projectId: `proj-from-url` },
+        query: {},
+        body: {},
+        header: vi.fn().mockImplementation((key: string) => {
+          if (key === `X-User-Project-Id`) return `proj-from-auth-header`
+          return undefined
+        }),
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.agent)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      const mockGetProjectRole = req.app.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      expect(mockGetProjectRole).toHaveBeenCalledWith(`test-user-id`, `proj-from-url`)
+      expect(mockNext).toHaveBeenCalledWith()
+    })
   })
 })

@@ -6,6 +6,7 @@ import { consumeSSE } from '../utils/sse'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: OpenAI-Compatible API Endpoints
@@ -21,7 +22,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 3: OpenAI-Compatible API', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: OpenAI-Compatible API', () => {
   const ctx = readContext()
   let agentId = ''
   let fixtures: TFixtureResult | null = null

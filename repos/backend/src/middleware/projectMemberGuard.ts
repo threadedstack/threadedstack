@@ -18,14 +18,17 @@ export const projectMemberGuard = () => {
     const projectId = req.params.projectId
 
     if (!projectId || !orgId) {
-      logger.warn({
+      logger.error({
         path: req.path,
         method: req.method,
         orgId: orgId || `(missing)`,
         projectId: projectId || `(missing)`,
-        message: `projectMemberGuard skipped — missing params`,
+        message: `projectMemberGuard requires :orgId and :projectId in URL`,
       })
-      return next()
+      res
+        .status(400)
+        .json({ error: `projectMemberGuard requires :orgId and :projectId in URL` })
+      return
     }
 
     try {

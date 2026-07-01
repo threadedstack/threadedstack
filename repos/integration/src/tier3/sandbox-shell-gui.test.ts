@@ -6,8 +6,8 @@
  *
  * What we test:
  *   1. Shell WebSocket connects and receives `connected` JSON message with
- *      sessionId, threadId, and runtime fields.
- *   2. Shell produces raw binary output (PTY data — not JSON event frames).
+ *      sessionId, runtime, sandboxId, and podOwnerUserId fields.
+ *   2. Shell produces raw binary output (PTY data, not JSON event frames).
  *   3. Binary stdin (echo command) is relayed and produces binary stdout.
  *   4. Resize control message is accepted without closing the connection.
  *   5. `connect` endpoint returns a shellToken suitable for browser auth.
@@ -31,7 +31,6 @@ import { cleanupSandbox } from '../utils/sandbox-helpers'
 interface ShellJsonMsg {
   type: string
   sessionId?: string
-  threadId?: string
   runtime?: string
   sandboxId?: string
   podOwnerUserId?: string
@@ -219,7 +218,7 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
 
   // ─── 1. Connected message fields ─────────────────────────────────────────
 
-  test('receives connected JSON message with sessionId, threadId, and runtime', async () => {
+  test('receives connected JSON message with sessionId, runtime, sandboxId, podOwnerUserId', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const ws = trackWs(openShell(sandboxId))
@@ -232,9 +231,7 @@ describe('Tier 3: Sandbox Shell Session (GUI pipeline)', () => {
     expect((msg.sessionId as string).length).toBeGreaterThan(0)
 
     if (msg.type === 'connected') {
-      // Fresh session — all fields must be present
-      expect(typeof msg.threadId).toBe('string')
-      expect((msg.threadId as string).length).toBeGreaterThan(0)
+      // Fresh session — TSessionIdentity fields per shellSession.types.ts
       expect(typeof msg.runtime).toBe('string')
       expect(msg.sandboxId).toBe(sandboxId)
       expect(typeof msg.podOwnerUserId).toBe('string')

@@ -16,11 +16,14 @@ describe('Tier 1: Subscription Contracts', () => {
 
   // ── Authentication: 401 without auth ──────────────────────────────
 
-  test('GET /subscriptions/plans returns 401 without auth', async () => {
+  test('GET /subscriptions/plans is public and returns 200 without auth', async () => {
+    // /_/subscriptions/plans is in the proxy's PublicRoutes list; pricing is
+    // shown on the marketing site so the plans listing must be reachable
+    // without authentication.
     const res = await get('/subscriptions/plans', { noAuth: true })
 
-    expect(res.ok).toBe(false)
-    expect(res.status).toBe(401)
+    expect(res.ok).toBe(true)
+    expect(res.status).toBe(200)
   })
 
   test('GET /subscriptions/current returns 401 without auth', async () => {

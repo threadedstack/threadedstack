@@ -11,17 +11,20 @@ import { ERoleType, EPermScope, Exception, getHighestRole } from '@tdsk/domain'
 import { resolveEffectivePermissions } from '@TBE/utils/auth/resolveEffectivePermissions'
 
 /**
- * Get user's effective role for the given context
- * Checks org-level and project-level roles, returns highest
- * Returns null for non-members (no role found)
- * Throws on DB errors to prevent silent permission denials
+ * Get user's effective role for the given context.
+ * Checks org-level and project-level roles, returns highest.
+ * Returns null for non-members (no role found).
+ * Throws on DB errors to prevent silent permission denials.
+ *
+ * @param targetUserId optional override (see resolveEffectivePermissions).
  */
 export const getUserRole = async (
   req: TRequest,
-  context: TPermissionContext
+  context: TPermissionContext,
+  targetUserId?: string
 ): Promise<ERoleType | null> => {
   const { db } = req.app.locals
-  const userId = req.user?.id
+  const userId = targetUserId || req.user?.id
 
   if (!userId) return null
 
@@ -75,7 +78,4 @@ export const checkPermission = async (
   const permission: TPermission = `${resource}:${action}`
   if (!permissions.has(permission))
     throw new Exception(403, `Permission denied: requires ${permission}`, `FORBIDDEN`)
-
-    // Cache resolved permissions on request for downstream use
-  ;(req as any).permissions = permissions
 }

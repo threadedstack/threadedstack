@@ -44,6 +44,11 @@ describe(`Agents endpoints`, () => {
               list: vi.fn(),
               get: vi.fn(),
             },
+            secret: {
+              get: vi.fn().mockResolvedValue({
+                data: { id: `s1`, orgId: `org-1` },
+              }),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -257,8 +262,8 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockAgents })
-      mockReq.params = { orgId: `org-1` }
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { orgId: `org-1`, projectId: `project-1` }
+      mockReq.query = {}
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -266,6 +271,19 @@ describe(`Agents endpoints`, () => {
       expect(responseData).toHaveLength(2)
       expect(responseData[0].id).toBe(`agent-1`)
       expect(responseData[1].id).toBe(`agent-3`)
+    })
+
+    it(`should reject 400 when query projectId differs from URL projectId`, async () => {
+      const mockList = mockReq.app?.locals.db.services.agent.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      mockReq.params = { orgId: `org-1`, projectId: `project-1` }
+      mockReq.query = { projectId: `project-2` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `projectId query param does not match URL scope`
+      )
     })
 
     it(`should pass sanitize=false when query param is 'false' and user is admin`, async () => {
@@ -558,7 +576,7 @@ describe(`Agents endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockProjectList).toHaveBeenCalledWith({
-        where: { id: [`project-1`, `project-2`] },
+        where: { id: [`project-1`, `project-2`], orgId: `org-1` },
       })
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -794,6 +812,56 @@ describe(`Agents endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
+    it(`should reject 403 when secretId belongs to a different org`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerInputs: [{ id: `provider-1` }],
+        name: `Cross-Org Attempt`,
+        secretIds: [`s-from-other-org`],
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+
+      const mockSecretGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSecretGet.mockResolvedValue({
+        data: { id: `s-from-other-org`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /does not belong to this organization/
+      )
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it(`should reject 400 when secretId is not found`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerInputs: [{ id: `provider-1` }],
+        name: `Missing Secret`,
+        secretIds: [`s-missing`],
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+
+      const mockSecretGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSecretGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Secret s-missing not found/
+      )
+    })
+
     it(`should return 500 on database error`, async () => {
       mockReq.body = {
         orgId: `org-1`,
@@ -950,7 +1018,7 @@ describe(`Agents endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockProjectList).toHaveBeenCalledWith({
-        where: { id: [`project-1`] },
+        where: { id: [`project-1`], orgId: `org-1` },
       })
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({

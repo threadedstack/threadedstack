@@ -1,17 +1,24 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, beforeAll } from 'vitest'
 import { api } from '../utils/api-client'
+import { detectWebhookMode } from '../utils/webhook-helpers'
 
 /**
  * Tier 3: Webhook Security
  *
- * Tests that the Stripe webhook endpoint enforces header presence
- * and behaves correctly in skip-verification mode (no webhookSecret).
+ * Tests that the Stripe webhook endpoint enforces header presence and handles
+ * forged signatures correctly. Verification mode (webhookSecret on/off) is
+ * detected at runtime so the tests assert the right contract for either mode.
  *
  * The webhook endpoint is at /_/payments/webhooks and expects:
  * - Raw JSON body
- * - stripe-signature header (presence required, verification skipped when no secret)
+ * - stripe-signature header (always required; verified only when webhookSecret is set)
  */
 describe('Tier 3: Webhook Security', () => {
+  let mode: 'verify' | 'skip'
+
+  beforeAll(async () => {
+    mode = await detectWebhookMode()
+  })
 
   test('POST /payments/webhooks rejects request without signature header', async () => {
     const res = await api('/payments/webhooks', {
@@ -23,9 +30,7 @@ describe('Tier 3: Webhook Security', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /payments/webhooks accepts request with signature when verification is skipped', async () => {
-    // In skip-verification mode, any signature header passes.
-    // Unrecognized event types are logged and acknowledged.
+  test('POST /payments/webhooks accepts forged signature per verification mode', async () => {
     const res = await api('/payments/webhooks', {
       method: 'POST',
       body: { type: 'unrecognized.event', data: {} },
@@ -34,8 +39,13 @@ describe('Tier 3: Webhook Security', () => {
       },
     })
 
-    expect(res.status).toBe(200)
-    expect(res.ok).toBe(true)
+    if (mode === 'skip') {
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+    } else {
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    }
   })
 
   test('POST /payments/webhooks rejects request with empty signature', async () => {
@@ -55,8 +65,7 @@ describe('Tier 3: Webhook Security', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /payments/webhooks processes forged signature in skip-verification mode', async () => {
-    // Structurally valid signature with wrong key is accepted when verification is skipped.
+  test('POST /payments/webhooks processes structurally valid forged signature per verification mode', async () => {
     const timestamp = Math.floor(Date.now() / 1000)
     const fakeSignature = `t=${timestamp},v1=${'a'.repeat(64)}`
 
@@ -68,7 +77,12 @@ describe('Tier 3: Webhook Security', () => {
       },
     })
 
-    expect(res.status).toBe(200)
-    expect(res.ok).toBe(true)
+    if (mode === 'skip') {
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+    } else {
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    }
   })
 })

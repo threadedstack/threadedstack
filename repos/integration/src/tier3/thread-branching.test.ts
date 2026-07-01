@@ -5,6 +5,7 @@ import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Thread Branching — End-to-End Integration Tests
@@ -13,7 +14,7 @@ import type { TFixtureResult } from '../utils/fixtures'
  * and verifies the branched thread contains only messages up to the
  * branch point while the original remains unchanged.
  */
-describe('Tier 3: Thread Branching', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: Thread Branching', () => {
   const ctx = readContext()
   let agentId = ''
   let fixtures: TFixtureResult = {}

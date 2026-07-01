@@ -25,7 +25,9 @@ describe('Tier 1: Providers CRUD', () => {
       orgId: ctx.orgId,
       providerBrand: 'anthropic',
       projectName: uniqueName('Providers Test Project'),
-      agentName: uniqueName('Providers Test Agent'),
+      // The `agents` feature flag is off platform-wide; providers tests
+      // only need a project, so skip the (currently-impossible) agent step.
+      createAgent: false,
     })
 
     if (!fixtures.project?.id) {

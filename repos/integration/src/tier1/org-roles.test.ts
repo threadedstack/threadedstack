@@ -202,11 +202,13 @@ describe('Tier 1: Org Role CRUD', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('returns 403 for nonexistent roleId (owner check before lookup)', async () => {
+    test('returns 404 for nonexistent roleId with owner-level key', async () => {
       const res = await del(`/orgs/${ctx.orgId}/roles/${fakeRoleId}`)
 
-      // role.delete requires owner; API keys cap at admin → 403 before 404
-      expect(res.status).toBe(403)
+      // role.delete requires owner. The test API key has owner-level perms,
+      // so auth passes and the lookup returns 404 for the fake role id.
+      // (Admin-scoped keys would 403 instead — see the admin-key test below.)
+      expect(res.status).toBe(404)
       expect(res.ok).toBe(false)
     })
 

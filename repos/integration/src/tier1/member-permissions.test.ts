@@ -1,4 +1,5 @@
 import { describe, test, expect, afterAll } from 'vitest'
+import { isFeatureEnabled } from '@tdsk/domain'
 import { get, post, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
@@ -52,7 +53,7 @@ describe.skipIf(!hasMember)('Tier 1: Member Permission Boundaries', () => {
       expect(Array.isArray(res.data)).toBe(true)
     })
 
-    test('member can list agents', async () => {
+    test.skipIf(!isFeatureEnabled('agents'))('member can list agents', async () => {
       const res = await get(`/orgs/${ctx.orgId}/agents`, memberOpts())
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
@@ -112,10 +113,14 @@ describe.skipIf(!hasMember)('Tier 1: Member Permission Boundaries', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('member cannot create API keys', async () => {
+    test('member cannot create API keys for another user', async () => {
+      // Members CAN create keys for themselves (apiKey:create is in the member
+      // role template). Cross-user creation requires apiKey:manage (admin+),
+      // so target another user here to verify that boundary.
+      const otherUserId = ctx.adminUserId || ctx.userId
       const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/api-keys`,
-        { name: 'member-perm-test-key', scopes: 'member', userId: ctx.memberUserId },
+        { name: 'member-perm-test-key', userId: otherUserId },
         memberOpts()
       )
       if (res.data?.id) accidentalResourceIds.push(res.data.id)

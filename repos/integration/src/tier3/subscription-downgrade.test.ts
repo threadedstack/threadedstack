@@ -1,81 +1,63 @@
 import { describe, test, expect } from 'vitest'
-import { get, post } from '../utils/api-client'
-import { readContext } from '../utils/test-context'
+import { post } from '../utils/api-client'
 
 /**
  * Tier 3: Subscription Downgrade
  *
- * Tests the subscription update endpoint for tier change validation.
- * Verifies that the endpoint validates tier values and handles
- * downgrade/upgrade requests appropriately.
+ * Subscription endpoints intentionally reject API key authentication —
+ * see `repos/backend/src/endpoints/subscriptions/updateSubscription.ts`:
+ *
+ *   if (fromAuthHeaders(req).apiKeyId)
+ *     throw new Exception(403, `Subscription endpoints do not accept API key authentication`)
+ *
+ * Integration tests authenticate via TDSK_IT_API_KEY (`tdsk_*` Bearer token),
+ * so every call to /subscriptions/update from this suite is expected to be
+ * blocked at the API-key guard BEFORE any body validation or Stripe lookup.
+ *
+ * This file documents that contract.
+ *
+ * The downgrade LOGIC (tier validation, downgrade-to-free cancel-at-period-end)
+ * is covered by backend unit tests that mock auth + stub Stripe — see the
+ * `POST /_/subscriptions/update` block in
+ * `repos/backend/src/endpoints/subscriptions/subscriptions.test.ts`.
+ * Only the real end-to-end Stripe network lifecycle (JWT + live Stripe) is
+ * uncovered, and that needs a Playwright/e2e tier that does not exist yet.
  */
 describe('Tier 3: Subscription Downgrade', () => {
-  const ctx = readContext()
-
-  test('POST /subscriptions/update — rejects missing tier field', async () => {
-    const res = await post('/subscriptions/update', {})
+  test('POST /subscriptions/update — rejects API key auth with 403 (missing tier)', async () => {
+    const res = await post<{ error?: string }>('/subscriptions/update', {})
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/update — rejects invalid tier', async () => {
-    const res = await post('/subscriptions/update', {
+  test('POST /subscriptions/update — rejects API key auth with 403 (invalid tier)', async () => {
+    const res = await post<{ error?: string }>('/subscriptions/update', {
       tier: 'nonexistent-tier',
     })
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/update — accepts valid tier value', async () => {
-    // First check current subscription
-    const currentRes = await get<{ tier: string; stripeSubscriptionId?: string }>(
-      '/subscriptions/current'
-    )
-
-    expect(currentRes.status).toBe(200)
-
-    const hasStripeSubscription = !!currentRes.data?.stripeSubscriptionId
-
-    // Attempt to update to a valid tier
+  test('POST /subscriptions/update — rejects API key auth with 403 (valid tier value)', async () => {
     const res = await post<Record<string, unknown>>(
       '/subscriptions/update',
       { tier: 'solo' }
     )
 
-    if (hasStripeSubscription) {
-      // With an active Stripe subscription, update should succeed or
-      // fail if Stripe config is missing
-      expect([200, 500]).toContain(res.status)
-    } else {
-      // Without a Stripe subscription, should get 404
-      expect(res.status).toBe(404)
-    }
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(403)
   })
 
-  test('POST /subscriptions/update — downgrade to free triggers cancellation path', async () => {
-    const currentRes = await get<{ stripeSubscriptionId?: string }>(
-      '/subscriptions/current'
-    )
-
-    const hasStripeSubscription = !!currentRes.data?.stripeSubscriptionId
-
+  test('POST /subscriptions/update — rejects API key auth with 403 (downgrade to free)', async () => {
     const res = await post<Record<string, unknown>>(
       '/subscriptions/update',
       { tier: 'free' }
     )
 
-    if (hasStripeSubscription) {
-      // With active subscription, downgrade to free should cancel
-      expect([200, 500]).toContain(res.status)
-      if (res.status === 200) {
-        expect(res.data.success).toBe(true)
-      }
-    } else {
-      // Without subscription, should get 404
-      expect(res.status).toBe(404)
-    }
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(403)
   })
 
   test('POST /subscriptions/update — requires authentication', async () => {

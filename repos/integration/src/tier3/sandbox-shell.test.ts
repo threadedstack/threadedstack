@@ -221,7 +221,8 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
     expect(msg.sessionId).toBeTruthy()
     if (msg.type === 'connected') {
       expect(msg.sandboxId).toBe(sandboxId)
-      expect(msg.threadId).toBeTruthy()
+      expect(msg.runtime).toBeTruthy()
+      expect(msg.podOwnerUserId).toBeTruthy()
     }
 
     ws.close()

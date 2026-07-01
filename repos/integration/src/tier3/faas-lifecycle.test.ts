@@ -38,7 +38,8 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('FaaS Lifecycle Project'),
-        agentName: uniqueName('FaaS Lifecycle Agent'),
+        // `agents` flag is off platform-wide; only project + provider needed.
+        createAgent: false,
       })
     }
     catch {

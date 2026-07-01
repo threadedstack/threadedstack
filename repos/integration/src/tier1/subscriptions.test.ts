@@ -65,6 +65,9 @@ describe('Tier 1: Subscriptions', () => {
     expect(Array.isArray(res.data)).toBe(true)
   })
 
+  // Subscription mutation endpoints reject API key auth (403) before any
+  // request body validation runs. Integration tests authenticate via API key,
+  // so these endpoints respond 403 regardless of body shape.
   test('POST /subscriptions/checkout with invalid tier returns error', async () => {
     const res = await post('/subscriptions/checkout', {
       tier: 'nonexistent_tier',
@@ -73,7 +76,7 @@ describe('Tier 1: Subscriptions', () => {
     })
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
   test('POST /subscriptions/checkout with missing fields returns error', async () => {
@@ -82,7 +85,7 @@ describe('Tier 1: Subscriptions', () => {
     })
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
   test('POST /subscriptions/checkout for free tier returns error', async () => {
@@ -93,7 +96,7 @@ describe('Tier 1: Subscriptions', () => {
     })
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
   test('POST /subscriptions/update with invalid tier returns error', async () => {
@@ -102,13 +105,13 @@ describe('Tier 1: Subscriptions', () => {
     })
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 
   test('POST /subscriptions/update with missing tier returns error', async () => {
     const res = await post('/subscriptions/update', {})
 
     expect(res.ok).toBe(false)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(403)
   })
 })

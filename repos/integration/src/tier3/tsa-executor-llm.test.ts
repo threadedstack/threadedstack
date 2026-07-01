@@ -5,7 +5,7 @@ import { cleanupThread } from '../utils/tsa-cleanup'
 import { ApiClient } from '@tdsk/tsa/services/api'
 import { Executor } from '@tdsk/tsa/services/executor'
 import { env } from '../utils/env'
-import type { TStreamEvent } from '@tdsk/domain'
+import { isFeatureEnabled, type TStreamEvent } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
@@ -20,7 +20,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  */
 const hasProviderKey = () => !!env.testProviderKey
 
-describe('Tier 3: TSA Executor — LLM E2E (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: TSA Executor — LLM E2E (live)', () => {
   const ctx = readContext()
   let executor: Executor
 

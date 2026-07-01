@@ -7,6 +7,7 @@ import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import type { TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 3: Thread Continuation — End-to-End Integration Tests
@@ -20,7 +21,7 @@ import type { TFixtureResult } from '../utils/fixtures'
 
 const hasLLM = () => !!env.testProviderKey || !!env.testZaiAgentId
 
-describe(`Tier 3: Thread Continuation (live)`, () => {
+describe.skipIf(!isFeatureEnabled('agents'))(`Tier 3: Thread Continuation (live)`, () => {
   const ctx = readContext()
   const threadIds: string[] = []
   let agentId = ``

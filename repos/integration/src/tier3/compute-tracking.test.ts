@@ -35,7 +35,8 @@ describe('Tier 3: Compute Tracking', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('Compute Track Project'),
-        agentName: uniqueName('Compute Track Agent'),
+        // `agents` flag is off platform-wide; only project + provider needed.
+        createAgent: false,
       })
     }
     catch {

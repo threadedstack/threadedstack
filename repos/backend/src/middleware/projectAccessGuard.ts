@@ -16,7 +16,11 @@ export const projectAccessGuard = () => {
       const auth = fromAuthHeaders(req)
       const keyProjectId = auth.projectId
 
-      // Org-scoped key or JWT auth — no project restriction
+      // Org-scoped key or JWT auth — no project restriction.
+      // (We do NOT reject on key.orgId vs URL orgId mismatch: a user may
+      // belong to multiple orgs and use an org-scoped key against a sibling
+      // org. The permission check via `authorize` -> `getUserRole` is the
+      // membership boundary.)
       if (!keyProjectId) return next()
 
       // Project-scoped key — check if the request targets the correct project

@@ -9,6 +9,8 @@ export function featureGate(flag: TFeatureFlagName): RequestHandler {
     logger.debug(
       `[featureGate] Blocked ${req.method} ${req.path} — flag '${flag}' is disabled`
     )
+    // 404 (not 403) is intentional: the route is invisible while the flag is off
+    // so we don't leak feature existence. Do not "fix" this back to 403.
     res.status(404).json({ error: `Not found` })
   }
 }

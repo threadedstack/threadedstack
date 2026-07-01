@@ -6,6 +6,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: Thread Message Ordering & Timestamps
@@ -17,7 +18,7 @@ import { env } from '../utils/env'
  * timestamps from DB records instead of `Date.now()`. This test verifies
  * the DB layer correctly stores and returns ordered timestamps.
  */
-describe('Tier 1: Thread Message Ordering (I3 fix)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Thread Message Ordering (I3 fix)', () => {
   const ctx = readContext()
   let agentId = ''
   let threadId = ''

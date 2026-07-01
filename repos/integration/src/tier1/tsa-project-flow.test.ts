@@ -5,6 +5,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { ApiClient } from '@tdsk/tsa'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: TSA Project Flow — Live Backend Validation
@@ -12,7 +13,7 @@ import { uniqueName } from '../utils/unique-name'
  * Validates the project-related flow used by the TSA:
  * listing projects, project shape, and project-agent association.
  */
-describe('Tier 1: TSA Project Flow (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: TSA Project Flow (live)', () => {
   const ctx = readContext()
   let client: ApiClient
 

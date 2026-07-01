@@ -77,7 +77,7 @@ describe(`resolveEffectivePermissions`, () => {
     }
   })
 
-  it(`should throw 403 when getUserRole returns null (user is not a member)`, async () => {
+  it(`should throw 403 'Not a member of this organization' when only orgId scope and user has no role`, async () => {
     const req = buildMockReq()
     mockGetUserRole.mockResolvedValue(null)
 
@@ -86,7 +86,49 @@ describe(`resolveEffectivePermissions`, () => {
       expect.unreachable(`Should have thrown`)
     } catch (err: any) {
       expect(err.status).toBe(403)
+      expect(err.message).toBe(`Not a member of this organization`)
+    }
+  })
+
+  it(`should throw 403 'Not a member of this project' when only projectId scope and user has no role`, async () => {
+    const req = buildMockReq()
+    mockGetUserRole.mockResolvedValue(null)
+
+    try {
+      await resolveEffectivePermissions(req, { projectId: `proj-1` })
+      expect.unreachable(`Should have thrown`)
+    } catch (err: any) {
+      expect(err.status).toBe(403)
+      expect(err.message).toBe(`Not a member of this project`)
+    }
+  })
+
+  it(`should throw 403 with combined message when both org and project scopes set`, async () => {
+    const req = buildMockReq()
+    mockGetUserRole.mockResolvedValue(null)
+
+    try {
+      await resolveEffectivePermissions(req, {
+        orgId: `org-1`,
+        projectId: `proj-1`,
+      })
+      expect.unreachable(`Should have thrown`)
+    } catch (err: any) {
+      expect(err.status).toBe(403)
       expect(err.message).toBe(`Not a member of this organization or project`)
+    }
+  })
+
+  it(`should throw 400 MISSING_SCOPE when neither orgId nor projectId is set`, async () => {
+    const req = buildMockReq()
+    mockGetUserRole.mockResolvedValue(null)
+
+    try {
+      await resolveEffectivePermissions(req, {})
+      expect.unreachable(`Should have thrown`)
+    } catch (err: any) {
+      expect(err.status).toBe(400)
+      expect(err.code).toBe(`MISSING_SCOPE`)
     }
   })
 
@@ -432,6 +474,31 @@ describe(`resolveEffectivePermissions`, () => {
       expect(err.status).toBe(401)
       expect(err.message).toBe(`API key not found`)
     }
+  })
+
+  it(`should skip API key intersection when resolving permissions for a targetUserId`, async () => {
+    const req = buildMockReq()
+    mockGetUserRole.mockResolvedValue(ERoleType.admin)
+    mockFromAuthHeaders.mockReturnValue({ apiKeyId: `caller-key` })
+
+    const apiKeySvc = req.app.locals.db.services.apiKey
+    const apiKeyGet = apiKeySvc.get as ReturnType<typeof vi.fn>
+    apiKeyGet.mockResolvedValue({
+      data: { permissions: [`sandbox:read`] },
+    })
+
+    const result = await resolveEffectivePermissions(
+      req,
+      { orgId: `org-1` },
+      `target-user`
+    )
+
+    const permissions = result as Set<TPermission>
+    // Caller's key only grants sandbox:read but we're computing the target's
+    // full admin permissions, so the caller's key must NOT shrink them.
+    expect(permissions.has(`sandbox:read`)).toBe(true)
+    expect(permissions.has(`sandbox:delete`)).toBe(true)
+    expect(apiKeyGet).not.toHaveBeenCalled()
   })
 
   it(`should throw 500 when permission override query returns an error`, async () => {

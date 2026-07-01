@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material'
 
 export type TProviderLinkListProps = {
+  orgId: string
   loading?: boolean
   linking?: boolean
   addLabel?: string
@@ -40,6 +41,7 @@ export type TProviderLinkListProps = {
 export const ProviderLinkList = (props: TProviderLinkListProps) => {
   const {
     onAdd,
+    orgId,
     loading,
     linking,
     disabled,
@@ -168,6 +170,7 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                 <Box sx={{ mt: 1, mb: 0.5 }}>
                   <ModelSelect
                     size='small'
+                    orgId={orgId}
                     id={provider.id}
                     disabled={isDisabled}
                     brand={provider.brand}

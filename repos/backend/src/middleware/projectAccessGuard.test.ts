@@ -194,4 +194,20 @@ describe(`projectAccessGuard middleware`, () => {
     })
     expect(mockNext).not.toHaveBeenCalled()
   })
+
+  it(`should pass org-scoped key against any URL orgId (membership is checked by authorize)`, () => {
+    // A user may belong to multiple orgs. An org-scoped API key authenticates
+    // the user; it does not restrict which org URLs they can target. The
+    // `authorize` middleware verifies membership in the URL's org.
+    const req = buildMockReq({
+      headers: { 'X-User-Id': `user-1`, 'X-User-Org-Id': `org-A` },
+      params: { orgId: `org-B`, projectId: `proj-1` },
+    })
+
+    const middleware = projectAccessGuard()
+    middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+    expect(mockNext).toHaveBeenCalledWith()
+    expect(mockStatus).not.toHaveBeenCalled()
+  })
 })

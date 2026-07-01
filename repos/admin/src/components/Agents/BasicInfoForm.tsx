@@ -7,6 +7,7 @@ import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
 
 export type TBasicInfoFormProps = {
   name: string
+  orgId: string
   loading: boolean
   description: string
   providerIds: string[]
@@ -21,6 +22,7 @@ export type TBasicInfoFormProps = {
 export const BasicInfoForm = (props: TBasicInfoFormProps) => {
   const {
     name,
+    orgId,
     loading,
     providerIds,
     aiProviders,
@@ -99,6 +101,7 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
       >
         <ProviderLinkList
           reorderable
+          orgId={orgId}
           loading={loading}
           providers={providers}
           availableProviders={availableProviders}

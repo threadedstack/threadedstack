@@ -7,7 +7,7 @@ import type { TFixtureResult } from '../utils/fixtures'
 import { post } from '../utils/api-client'
 import { tryDelete } from '../utils/cleanup'
 import { ApiClient } from '@tdsk/tsa'
-import { Organization, Agent, Thread, Message } from '@tdsk/domain'
+import { Organization, Agent, Thread, Message, isFeatureEnabled } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -16,7 +16,7 @@ import { uniqueName } from '../utils/unique-name'
  * Validates all ApiClient methods against the live backend:
  * URL construction, auth headers, envelope unwrapping, domain model wrapping.
  */
-describe('Tier 1: TSA ApiClient (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: TSA ApiClient (live)', () => {
   const ctx = readContext()
   let client: ApiClient
 

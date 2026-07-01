@@ -182,12 +182,13 @@ export const OrgSettings = (props: TOrgSettings) => {
             ]}
           />
 
-          {isFeatureEnabled('terminalGui') && (
+          {isFeatureEnabled('terminalGui') && orgId && (
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant='h6'>Generative UI</Typography>
                 <Divider sx={{ my: 2 }} />
                 <GuiConfigForm
+                  orgId={orgId}
                   config={localGuiConfig}
                   orgProviders={orgProviders}
                   onChange={setLocalGuiConfig}

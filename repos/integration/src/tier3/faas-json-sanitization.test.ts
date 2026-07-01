@@ -85,7 +85,8 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('FaaS Sanitize Project'),
-        agentName: uniqueName('FaaS Sanitize Agent'),
+        // `agents` flag is off platform-wide; only project + provider needed.
+        createAgent: false,
       })
     }
     catch {

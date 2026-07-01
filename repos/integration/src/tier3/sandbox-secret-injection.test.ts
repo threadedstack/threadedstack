@@ -17,9 +17,9 @@ import {
  * 2. Create sandbox config with secretIds pointing to that secret
  * 3. Start the pod — backend generates tdsk_ph_* placeholder tokens
  * 4. Read pod annotations via kubectl to discover the placeholder tokens
- * 5. Exec code inside the pod that sends an HTTP request to httpbin.org/headers
+ * 5. Exec code inside the pod that sends an HTTP request to postman-echo.com/headers
  *    with the placeholder token in the Authorization header
- * 6. httpbin.org echoes back the headers it received
+ * 6. postman-echo.com echoes back the headers it received
  * 7. Verify the echoed Authorization header contains the REAL secret value,
  *    NOT the placeholder token — proving the egress proxy replaced it
  */
@@ -128,13 +128,13 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
     const token = tokens.find(t => placeholders[t].secretId === secretId)
     expect(token).toBeDefined()
 
-    // Node script that sends HTTP request to httpbin.org/headers with the placeholder
+    // Node script that sends HTTP request to postman-echo.com/headers with the placeholder
     // token in headers. The egress proxy intercepts, replaces tokens with real secrets,
-    // and httpbin echoes back the received headers for verification.
+    // and postman-echo echoes back the received headers for verification.
     const script = `
 const http = require('http');
 const options = {
-  hostname: 'httpbin.org',
+  hostname: 'postman-echo.com',
   port: 80,
   path: '/headers',
   method: 'GET',
@@ -189,7 +189,7 @@ req.end();
     const script = `
 const http = require('http');
 const options = {
-  hostname: 'httpbin.org',
+  hostname: 'postman-echo.com',
   port: 80,
   path: '/headers',
   method: 'GET',
@@ -242,7 +242,7 @@ req.end();
         if (!projRes.ok) throw new Error(`Project create: HTTP ${projRes.status}`)
         domainProjectId = projRes.data.id
 
-        // Create provider with allowedDomains restricting to httpbin.org
+        // Create provider with allowedDomains restricting to postman-echo.com
         // Use brand 'anthropic' + runtime 'claude-code' so RuntimeProviderEnvMap
         // generates a MITM placeholder (custom runtime has no provider mappings)
         const provRes = await post<Record<string, any>>(
@@ -253,7 +253,7 @@ req.end();
             brand: 'anthropic',
             orgId: ctx.orgId,
             options: {
-              allowedDomains: ['httpbin.org'],
+              allowedDomains: ['postman-echo.com'],
             },
           }
         )
@@ -340,7 +340,7 @@ req.end();
 
       const entry = entries.find(e => e.secretId === domainSecretId)
       expect(entry).toBeDefined()
-      expect(entry!.allowedDomains).toEqual(['httpbin.org'])
+      expect(entry!.allowedDomains).toEqual(['postman-echo.com'])
     })
 
     test('egress proxy swaps secret when destination matches allowedDomains', async () => {
@@ -354,7 +354,7 @@ req.end();
       const script = `
 const http = require('http');
 const options = {
-  hostname: 'httpbin.org',
+  hostname: 'postman-echo.com',
   port: 80,
   path: '/headers',
   method: 'GET',
@@ -409,7 +409,7 @@ req.end();
           if (!projRes.ok) throw new Error(`Project create: HTTP ${projRes.status}`)
           blockedProjectId = projRes.data.id
 
-          // Provider with allowedDomains that does NOT include httpbin.org
+          // Provider with allowedDomains that does NOT include postman-echo.com
           // Use brand 'anthropic' + runtime 'claude-code' so RuntimeProviderEnvMap
           // generates a MITM placeholder (custom runtime has no provider mappings)
           const provRes = await post<Record<string, any>>(
@@ -503,12 +503,12 @@ req.end();
         )
         if (!token) return expect(token).toBeDefined()
 
-        // Send to httpbin.org which echoes headers — but allowedDomains is ['only-this-domain.example.com']
+        // Send to postman-echo.com which echoes headers — but allowedDomains is ['only-this-domain.example.com']
         // so the egress proxy should NOT swap the placeholder token
         const script = `
 const http = require('http');
 const options = {
-  hostname: 'httpbin.org',
+  hostname: 'postman-echo.com',
   port: 80,
   path: '/headers',
   method: 'GET',
@@ -538,7 +538,7 @@ req.end();
         expect(body.headers).toBeDefined()
 
         // The Authorization header should still contain the placeholder token (tdsk_ph_*)
-        // because httpbin.org is NOT in the provider's allowedDomains — proving the
+        // because postman-echo.com is NOT in the provider's allowedDomains — proving the
         // egress proxy correctly blocked the swap
         const authHeader = body.headers.Authorization || body.headers.authorization
         expect(authHeader).toBeDefined()

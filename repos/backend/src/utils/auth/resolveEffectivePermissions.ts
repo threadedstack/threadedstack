@@ -23,19 +23,40 @@ import {
  * 5. If the request was made via API key, intersect the resolved permissions
  *    with the key's permissions so the key can never exceed its own grants.
  *
+ * @param targetUserId optional override for the user whose permissions are
+ *   resolved. Used by `createApiKey` to validate cross-user key requests
+ *   against the target user's effective permissions without mutating the
+ *   request object (spreading an Express `Request` loses prototype getters
+ *   like `req.app`).
  * @returns A Set of effective permissions, or the string 'super'.
  */
 export const resolveEffectivePermissions = async (
   req: TRequest,
-  context: TPermissionContext
+  context: TPermissionContext,
+  targetUserId?: string
 ): Promise<Set<TPermission> | ERoleType.super> => {
   const { db } = req.app.locals
-  const userId = req.user?.id
+  const userId = targetUserId || req.user?.id
   if (!userId) throw new Exception(401, `Authentication required`)
 
-  const userRole = await getUserRole(req, context)
-  if (!userRole)
-    throw new Exception(403, `Not a member of this organization or project`, `FORBIDDEN`)
+  const userRole = await getUserRole(req, context, targetUserId)
+  if (!userRole) {
+    if (context.projectId && !context.orgId)
+      throw new Exception(403, `Not a member of this project`, `FORBIDDEN`)
+    if (context.orgId && !context.projectId)
+      throw new Exception(403, `Not a member of this organization`, `FORBIDDEN`)
+    if (context.orgId && context.projectId)
+      throw new Exception(
+        403,
+        `Not a member of this organization or project`,
+        `FORBIDDEN`
+      )
+    throw new Exception(
+      400,
+      `Permission check requires org or project scope`,
+      `MISSING_SCOPE`
+    )
+  }
   if (isSuperAdmin(userRole)) return ERoleType.super
 
   const scopeId = context.projectId || context.orgId
@@ -50,6 +71,8 @@ export const resolveEffectivePermissions = async (
 
     const { data: overrides, error: overrideErr } =
       await db.services.permissionOverride.getForUser(userId, overrideContext)
+    // ^ permission overrides are looked up against the resolved userId so
+    //   that targetUserId overrides see the right per-user overrides.
     if (overrideErr)
       throw new Exception(
         500,
@@ -64,8 +87,11 @@ export const resolveEffectivePermissions = async (
   }
 
   // If the request was made via API key, intersect resolved permissions
-  // with the key's granted permissions so the key can never exceed its scope
-  const apiKeyId = fromAuthHeaders(req).apiKeyId
+  // with the key's granted permissions so the key can never exceed its scope.
+  // When `targetUserId` is set we are computing a DIFFERENT user's effective
+  // permissions (e.g. for cross-user key validation in createApiKey). The
+  // caller's key bounds the caller, not the target, so skip the intersection.
+  const apiKeyId = targetUserId ? undefined : fromAuthHeaders(req).apiKeyId
   if (apiKeyId) {
     const { data: apiKey, error: keyErr } = await db.services.apiKey.get(apiKeyId)
 

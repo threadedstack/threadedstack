@@ -4,6 +4,7 @@ import { readContext } from '../utils/test-context'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Validates that the backend API returns correctly scoped data per project.
@@ -12,7 +13,7 @@ import { uniqueName } from '../utils/unique-name'
  * Creates two temporary projects, adds an endpoint to each, and verifies
  * that listing endpoints for one project does NOT return the other's.
  */
-describe('Tier 1: Project State Scoping', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Project State Scoping', () => {
   const ctx = readContext()
 
   let fixturesA: TFixtureResult = {}

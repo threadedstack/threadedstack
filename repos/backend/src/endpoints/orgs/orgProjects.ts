@@ -140,6 +140,7 @@ const projectDomains: TEndpointConfig = {
 const projectAgentConfig: TEndpointConfig = {
   path: `/:agentId/config`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard(), projectMemberGuard()],
   endpoints: {
     getAPConfig,
     upsertAPConfig,
@@ -176,6 +177,7 @@ const projectMembers: TEndpointConfig = {
 const projectSandboxConfig: TEndpointConfig = {
   path: `/:sandboxId/config`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard(), projectMemberGuard()],
   endpoints: {
     getSBPConfig,
     upsertSBPConfig,

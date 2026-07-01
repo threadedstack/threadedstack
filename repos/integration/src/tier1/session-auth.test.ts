@@ -7,6 +7,7 @@ import type { TFixtureResult } from '../utils/fixtures'
 import { connectWS, consumeWS } from '../utils/ws-client'
 import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: WebSocket Session Auth
@@ -22,7 +23,7 @@ import { uniqueName } from '../utils/unique-name'
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 1: WebSocket Session Auth', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: WebSocket Session Auth', () => {
   const ctx = readContext()
   const threadIds: string[] = []
   let agentId = ''

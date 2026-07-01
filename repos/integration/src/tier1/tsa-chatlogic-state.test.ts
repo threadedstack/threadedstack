@@ -8,6 +8,7 @@ import { tryDelete } from '../utils/cleanup'
 import { ApiClient } from '@tdsk/tsa'
 import { uniqueName } from '../utils/unique-name'
 import { env } from '../utils/env'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 /**
  * Tier 1: TSA ChatLogic State — Agent & Project Data Shape Validation
@@ -17,7 +18,7 @@ import { env } from '../utils/env'
  * - Agent cache lookup (Bug 1: /agent showed raw ID instead of name in status bar)
  * - Project listing consistency (Bug 3: selecting project with no agents had no recovery path)
  */
-describe('Tier 1: TSA ChatLogic State (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: TSA ChatLogic State (live)', () => {
   const ctx = readContext()
   let client: ApiClient
 

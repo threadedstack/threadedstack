@@ -447,9 +447,10 @@ export const AgentConfigTab = () => {
       </AgentSection>
 
       <AgentSection title='Agent Configuration'>
-        {selectedAgent ? (
+        {selectedAgent && orgId ? (
           <Stack spacing={3}>
             <BasicInfoForm
+              orgId={orgId}
               name={agentName}
               loading={loading}
               aiProviders={aiProviders}

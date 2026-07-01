@@ -5,8 +5,9 @@ import { tryDelete } from '../utils/cleanup'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
-describe('Tier 1: Thread & Message Write Operations', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Thread & Message Write Operations', () => {
   const ctx = readContext()
   let fixtures: TFixtureResult = {}
   let setupFailed = false

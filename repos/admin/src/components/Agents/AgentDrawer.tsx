@@ -367,6 +367,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
           <BasicInfoForm
             name={name}
+            orgId={orgId}
             onNameChange={setName}
             providerIds={providerIds}
             aiProviders={aiProviders}

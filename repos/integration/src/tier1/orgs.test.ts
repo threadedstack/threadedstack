@@ -122,10 +122,13 @@ describe('Tier 1: Org Write Operations', () => {
     expect(res.data.name).toBe(updatedOrgName)
   })
 
-  test('PUT /orgs/:orgId with nonexistent orgId returns 404', async () => {
+  test('PUT /orgs/:orgId with nonexistent orgId returns 403 (non-member)', async () => {
+    // RBAC v2: authorize resolves orgId from URL first; the user has no role
+    // in a nonexistent org, so getUserRole returns null and authorize rejects
+    // with 403 "Not a member of this organization" before any resource lookup.
     const res = await put(`/orgs/${nonexistentOrgId}`, { name: 'ghost' })
 
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(403)
     expect(res.ok).toBe(false)
   })
 
@@ -144,11 +147,21 @@ describe('Tier 1: Org Write Operations', () => {
 
   // --- Delete ---
 
-  test('DELETE /orgs/:orgId deletes org when API key has owner role', async () => {
-    // Default test key has admin role ceiling — create an owner-role key for this test
+  test('DELETE /orgs/:orgId deletes org when API key has org:delete permission', async () => {
+    // RBAC v2: API key permission intersection now enforces the URL's scope.
+    // To delete an org, the key must explicitly grant `org:delete`.
+    // (Pre-fix the test created a key with `role: 'owner', scopes: 'admin'` —
+    // those are no-op body fields. The key had `permissions: []`. The delete
+    // appeared to "work" only because the old code preferred the header-bound
+    // orgId, so the user resolved as `super` in their home org and bypassed
+    // the per-key permission intersection. URL-first precedence makes the
+    // permission grant explicit and required.)
     const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${ctx.orgId}/api-keys`,
-      { name: uniqueName('owner-delete-key'), role: 'owner', scopes: 'admin' }
+      {
+        name: uniqueName('owner-delete-key'),
+        permissions: ['org:delete', 'org:read'],
+      }
     )
     if (!keyRes.ok) {
       console.warn('[orgs] SKIPPED: owner delete test — cannot create owner-role API key')

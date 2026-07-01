@@ -4,14 +4,14 @@ import { EAIProviderBrand } from '@tdsk/domain'
 import { DynamicBrands } from '@TAF/constants/providers'
 import { TextInput, SelectInput } from '@tdsk/components'
 import { fetchProviderModels } from '@TAF/actions/providers'
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { Alert, Box, Typography, CircularProgress } from '@mui/material'
 
 export type TModelSelectProps = {
   id?: string
+  orgId: string
   model: string
   baseUrl?: string
-  apiKey?: string
   disabled?: boolean
   size?: 'small' | 'medium'
   brand: TAIProviderBrand | string
@@ -22,7 +22,7 @@ export const ModelSelect = (props: TModelSelectProps) => {
   const {
     brand,
     model,
-    apiKey,
+    orgId,
     baseUrl,
     disabled,
     onChange,
@@ -32,48 +32,44 @@ export const ModelSelect = (props: TModelSelectProps) => {
 
   const idSuffix = idProp || brand
 
-  const [models, setModels] = useState<TProviderModel[]>([])
+  const [models, setModels] = useState<TProviderModel[] | null>(null)
   const [fetching, setFetching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const modelOptions = useMemo(() => {
-    if (!models.length) return []
-    return models.map((m) => ({
-      value: m.id,
-      label: m.name,
-    }))
+    if (!models?.length) return []
+    return models.map((m) => ({ value: m.id, label: m.name }))
   }, [models])
 
-  const fetchModels = useCallback(
-    async (providerBrand: string) => {
-      if (!DynamicBrands.has(providerBrand)) {
-        setModels([])
-        return
-      }
+  const loadModels = useCallback(async () => {
+    if (!brand || !orgId) return
+    if (!DynamicBrands.has(brand as string)) {
+      setModels([])
+      return
+    }
+    if (brand === EAIProviderBrand.ollama && !baseUrl) {
+      setModels([])
+      return
+    }
+    setFetching(true)
+    setError(null)
+    const resp = await fetchProviderModels({
+      orgId,
+      brand,
+      ...(baseUrl && { baseUrl }),
+    })
+    setFetching(false)
+    if (resp.error) {
+      setError(resp.error.message || `Could not load models for ${brand}`)
+      setModels([])
+      return
+    }
+    setModels(resp.data || [])
+  }, [brand, orgId, baseUrl])
 
-      if (providerBrand === EAIProviderBrand.ollama && !baseUrl) {
-        setModels([])
-        return
-      }
-      setFetching(true)
-      try {
-        const resp = await fetchProviderModels({
-          brand: providerBrand,
-          ...(baseUrl && { baseUrl }),
-          ...(apiKey && { providerKey: apiKey }),
-        })
-        setModels(resp.data || [])
-      } catch (err) {
-        console.warn(`[ModelSelect] Failed to fetch models for ${providerBrand}:`, err)
-        setModels([])
-      }
-      setFetching(false)
-    },
-    [baseUrl, apiKey]
-  )
-
-  useEffect(() => {
-    brand && fetchModels(brand)
-  }, [brand, fetchModels])
+  const handleOpen = useCallback(() => {
+    if (models === null && !fetching) void loadModels()
+  }, [models, fetching, loadModels])
 
   if (fetching) {
     return (
@@ -114,9 +110,18 @@ export const ModelSelect = (props: TModelSelectProps) => {
         disabled={disabled}
         id={`model-input-${idSuffix}`}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={handleOpen}
         placeholder='e.g., gpt-4o, claude-sonnet-4-20250514'
       />
-      {brand === EAIProviderBrand.ollama && !baseUrl && (
+      {error && (
+        <Alert
+          severity='warning'
+          sx={{ fontSize: '0.8rem', py: 0, '& .MuiAlert-message': { py: 0.5 } }}
+        >
+          {error}. Enter a model ID manually.
+        </Alert>
+      )}
+      {brand === EAIProviderBrand.ollama && !baseUrl && !error && (
         <Alert
           severity='info'
           sx={{ fontSize: '0.8rem', py: 0, '& .MuiAlert-message': { py: 0.5 } }}

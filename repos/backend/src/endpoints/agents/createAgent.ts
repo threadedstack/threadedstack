@@ -42,10 +42,36 @@ export const createAgent: TEndpointConfig = {
     agent.orgId = orgId
 
     const { data: projects, error: projErr } = projectIds?.length
-      ? await db.services.project.list({ where: { id: projectIds } })
+      ? await db.services.project.list({ where: { id: projectIds, orgId } })
       : { data: [] }
 
     if (projErr) throw new Exception(500, projErr.message)
+
+    // Reject projectIds that don't belong to this org (filtered out above).
+    if (projectIds?.length && (projects?.length ?? 0) !== projectIds.length) {
+      const foundIds = new Set((projects || []).map((p: { id: string }) => p.id))
+      const missing = projectIds.filter((pid: string) => !foundIds.has(pid))
+      throw new Exception(
+        403,
+        `Projects do not belong to this organization: ${missing.join(', ')}`,
+        `FORBIDDEN`
+      )
+    }
+
+    if (secretIds?.length) {
+      for (const secretId of secretIds) {
+        const { data: secret, error: secretErr } = await db.services.secret.get(secretId)
+        if (secretErr) throw new Exception(500, secretErr.message)
+        if (!secret) throw new Exception(400, `Secret ${secretId} not found`)
+        if (secret.orgId !== orgId)
+          throw new Exception(
+            403,
+            `Secret ${secretId} does not belong to this organization`,
+            `FORBIDDEN`
+          )
+      }
+    }
+
     if (pins?.length) agent.providerInputs = pins
     if (projects?.length) agent.projects = projects
     if (secretIds?.length) agent.secretIds = secretIds

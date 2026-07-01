@@ -7,6 +7,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 
 /**
@@ -22,7 +23,7 @@ import type { TFixtureResult } from '../utils/fixtures'
 
 const hasLLM = () => !!env.testProviderKey || !!env.testZaiAgentId
 
-describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
+describe.skipIf(!isFeatureEnabled('agents'))(`Tier 3: Z.AI Chat Flow (live)`, () => {
   const ctx = readContext()
   const threadIds: string[] = []
   let agentId = ``

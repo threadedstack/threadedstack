@@ -43,7 +43,9 @@ describe('Tier 1: Functions CRUD', () => {
       orgId: ctx.orgId,
       providerBrand: 'anthropic',
       projectName: uniqueName('Functions Test Project'),
-      agentName: uniqueName('Functions Test Agent'),
+      // The `agents` feature flag is off platform-wide; functions tests
+      // only need a project, so skip the (currently-impossible) agent step.
+      createAgent: false,
     })
 
     if (!fixtures.project?.id) {

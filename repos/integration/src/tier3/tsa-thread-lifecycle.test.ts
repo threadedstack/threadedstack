@@ -3,7 +3,7 @@ import { readContext } from '../utils/test-context'
 import { createTestAuth } from '../utils/tsa-auth'
 import { cleanupThread } from '../utils/tsa-cleanup'
 import { ApiClient } from '@tdsk/tsa'
-import { Thread } from '@tdsk/domain'
+import { Thread, isFeatureEnabled } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fixtures'
 
@@ -14,7 +14,7 @@ import { setupFixtures, cleanupFixtures, type TFixtureResult } from '../utils/fi
  * create → list → get → add messages → delete.
  * Verifies deleted threads are no longer retrievable.
  */
-describe('Tier 3: TSA Thread Lifecycle (live)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: TSA Thread Lifecycle (live)', () => {
   const ctx = readContext()
   let client: ApiClient
 

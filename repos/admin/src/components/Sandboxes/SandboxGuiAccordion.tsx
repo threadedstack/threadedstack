@@ -45,6 +45,7 @@ export const SandboxGuiAccordion = (props: TSandboxGuiAccordionProps) => {
             }}
           />
           <GuiConfigForm
+            orgId={form.orgId}
             config={form.sandboxGuiConfig}
             onChange={form.setSandboxGuiConfig}
             disabled={form.loading || !form.guiOverride}

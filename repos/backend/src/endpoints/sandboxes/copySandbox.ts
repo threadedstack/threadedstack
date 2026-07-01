@@ -30,8 +30,18 @@ export const copySandbox: TEndpointConfig = {
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!id) throw new Exception(400, `Sandbox ID is required`)
 
-    const original = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
-    if (original.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
+    const original = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
+    if (original.orgId !== orgId)
+      throw new Exception(
+        403,
+        `Sandbox does not belong to this organization`,
+        `FORBIDDEN`
+      )
 
     const name = req.body.name || `${original.name} (copy)`
     const copy = new Sandbox({

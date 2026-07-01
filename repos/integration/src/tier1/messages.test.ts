@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest'
 import { get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 interface Agent {
   id: string
@@ -12,7 +13,7 @@ interface Thread {
   [key: string]: unknown
 }
 
-describe('Tier 1: Messages', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: Messages', () => {
   const ctx = readContext()
   let firstAgentId: string | undefined
   let firstThreadId: string | undefined

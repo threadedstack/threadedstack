@@ -7,7 +7,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { connectWS, consumeWS, createWSConnection, waitForMessage } from '../utils/ws-client'
 import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
-import { EWSEventType } from '@tdsk/domain'
+import { EWSEventType, isFeatureEnabled } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 
 /**
@@ -28,7 +28,7 @@ import { uniqueName } from '../utils/unique-name'
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 1: WebSocket Lifecycle', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: WebSocket Lifecycle', () => {
   const ctx = readContext()
   let agentId = ''
   let fixtures: TFixtureResult | null = null

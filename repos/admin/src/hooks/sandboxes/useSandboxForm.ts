@@ -546,6 +546,10 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
   })
 
   return {
+    // Scope
+    orgId,
+    projectId,
+
     // Flags
     isEditMode,
     isProjectContext,

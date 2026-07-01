@@ -1,4 +1,5 @@
 import { describe, test, expect, afterAll } from 'vitest'
+import { isFeatureEnabled } from '@tdsk/domain'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
@@ -114,7 +115,7 @@ describe.skipIf(!hasMember)('Tier 1: Project Membership Enforcement', () => {
       expect(res.ok).toBe(false)
     })
 
-    test('member cannot list agents in a non-assigned project', async () => {
+    test.skipIf(!isFeatureEnabled('agents'))('member cannot list agents in a non-assigned project', async () => {
       expect(testProjectId).toBeTruthy()
       const res = await get(
         `/orgs/${ctx.orgId}/projects/${testProjectId}/agents`,

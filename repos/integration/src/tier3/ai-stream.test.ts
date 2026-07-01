@@ -6,7 +6,7 @@ import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { cleanupThread, extractThreadId } from '../utils/tsa-cleanup'
 import { consumeWS, connectWS } from '../utils/ws-client'
-import { EWSEventType } from '@tdsk/domain'
+import { EWSEventType, isFeatureEnabled } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 
@@ -25,7 +25,7 @@ import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
   const ctx = readContext()
   const threadIds: string[] = []
   let agentId = ''

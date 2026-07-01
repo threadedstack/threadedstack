@@ -41,16 +41,25 @@ describe.skipIf(!isFeatureEnabled('skills'))('Tier 1: Skill Lifecycle', () => {
       })
     }
     catch {
-      setupFailed = true
-      return
+      // The `agents` feature flag is off platform-wide so createAgent will 404.
+      // Retry without the agent so skill CRUD tests can still run; attach/detach
+      // tests that depend on `agentId` will skip via their `!agentId` guards.
+      try {
+        fixtures = await setupFixtures({
+          orgId: ctx.orgId,
+          providerBrand: 'zai',
+          apiKey: env.testProviderKey,
+          projectName: uniqueName('Skill Test'),
+          createAgent: false,
+        })
+      }
+      catch {
+        setupFailed = true
+        return
+      }
     }
 
-    if (!fixtures.agent?.id) {
-      setupFailed = true
-      return
-    }
-
-    agentId = fixtures.agent.id
+    agentId = fixtures.agent?.id ?? ''
   })
 
   afterAll(async () => {

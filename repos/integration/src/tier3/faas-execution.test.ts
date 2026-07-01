@@ -59,7 +59,9 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('FaaS Test Project'),
-        agentName: uniqueName('FaaS Test Agent'),
+        // The `agents` feature flag is off platform-wide; FaaS tests only need
+        // a project + provider, so skip the (currently-impossible) agent step.
+        createAgent: false,
       })
     }
     catch {

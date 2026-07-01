@@ -69,7 +69,8 @@ describe('Tier 3: FaaS Edge Cases', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('FaaS Edge Project'),
-        agentName: uniqueName('FaaS Edge Agent'),
+        // `agents` flag is off platform-wide; only project + provider needed.
+        createAgent: false,
       })
     }
     catch {

@@ -10,14 +10,13 @@ import { assets } from '@TBE/endpoints/assets'
 import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
 import { health } from '@TBE/endpoints/base/health'
-import { agents } from '@TBE/endpoints/agents/agents'
+import { agentOaiRoutes } from '@TBE/endpoints/agents/agents'
 import { accessGate } from '@TBE/middleware/accessGate'
 import { authenticate } from '@TBE/middleware/setupAuth'
 import { payments } from '@TBE/endpoints/payments/payments'
 import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { subscriptions } from '@TBE/endpoints/subscriptions'
 import { welcomeNewUser } from '@TBE/middleware/welcomeNewUser'
-import { providerModels } from '@TBE/endpoints/providers/providers'
 import { invitations } from '@TBE/endpoints/invitations/invitations'
 import { setupSubscription } from '@TBE/middleware/setupSubscription'
 
@@ -50,13 +49,12 @@ export const accounts: TEndpointBuilder = (app) => {
       base,
       orgs,
       users,
-      agents,
+      agentOaiRoutes,
       assets,
       health,
       payments,
       invitations,
       subscriptions,
-      providerModels,
     },
   }
 }

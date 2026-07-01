@@ -28,9 +28,14 @@ export const listAgents: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
-    // TODO: investigate if the `req.query.projectId` should actually be used
-    // Should come from the URL when getting project agents list
-    const projectId = (req.params.projectId || req.query.projectId) as string | undefined
+    const projectId = req.params.projectId as string | undefined
+    const queryProjectId = req.query.projectId
+    if (queryProjectId && queryProjectId !== projectId)
+      throw new Exception(
+        400,
+        `projectId query param does not match URL scope`,
+        `SCOPE_MISMATCH`
+      )
     const sanitize = req.query.sanitize !== `false`
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)

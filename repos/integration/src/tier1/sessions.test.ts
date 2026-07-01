@@ -5,11 +5,12 @@ import { readContext } from '../utils/test-context'
 import { setupFixtures, cleanupFixtures } from '../utils/fixtures'
 import type { TFixtureResult } from '../utils/fixtures'
 import { uniqueName } from '../utils/unique-name'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 const getAgentId = () => env.testZaiAgentId || env.testAgentId
 const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
-describe('Tier 1: AI Sessions', () => {
+describe.skipIf(!isFeatureEnabled('agents'))('Tier 1: AI Sessions', () => {
   const ctx = readContext()
   let agentId = ''
   let fixtures: TFixtureResult | null = null

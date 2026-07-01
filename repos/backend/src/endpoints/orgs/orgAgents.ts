@@ -2,6 +2,7 @@ import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { featureGate } from '@TBE/middleware/featureGate'
+import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { getAgent } from '@TBE/endpoints/agents/getAgent'
 import { runAgent } from '@TBE/endpoints/agents/runAgent'
 import { listAgents } from '@TBE/endpoints/agents/listAgents'
@@ -13,7 +14,7 @@ import { deleteAgent } from '@TBE/endpoints/agents/deleteAgent'
 export const orgAgents: TEndpointConfig = {
   path: `/:orgId/agents`,
   method: EPMethod.Use,
-  middleware: [featureGate(`agents`)],
+  middleware: [featureGate(`agents`), projectAccessGuard()],
   endpoints: {
     getAgent,
     runAgent,

@@ -9,17 +9,11 @@ import { updateProvider } from '@TBE/endpoints/providers/updateProvider'
 import { deleteProvider } from '@TBE/endpoints/providers/deleteProvider'
 
 /**
- * This endpoint is exposed at `/_/providers` because it does not need to be organization scoped
- * Currently only the `/:brand/models` endpoint exists but others may be needed in the future
+ * Aggregator used by unit tests for convenient access to all provider
+ * endpoints. The real mount point in production is `orgProviders` at
+ * `/_/orgs/:orgId/providers` (see `repos/backend/src/endpoints/orgs/orgProviders.ts`).
+ * This export is intentionally not registered in `accounts.ts`.
  */
-export const providerModels = {
-  path: `/providers`,
-  method: EPMethod.Use,
-  endpoints: {
-    fetchModels,
-  },
-}
-
 export const providers: TEndpointConfig = {
   path: `/providers`,
   method: EPMethod.Use,

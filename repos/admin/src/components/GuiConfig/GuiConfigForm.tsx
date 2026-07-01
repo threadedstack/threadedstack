@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 
 export type TGuiConfigFormProps = {
+  orgId: string
   config: TGuiConfig | undefined
   orgProviders: { id: string; name: string; brand: string }[]
   disabled?: boolean
@@ -30,7 +31,7 @@ const DefaultConfig: TGuiConfig = {
 }
 
 export const GuiConfigForm = (props: TGuiConfigFormProps) => {
-  const { config, disabled, onChange, orgProviders } = props
+  const { orgId, config, disabled, onChange, orgProviders } = props
 
   const current = config ?? DefaultConfig
   const [promptOpen, setPromptOpen] = useState(false)
@@ -72,6 +73,7 @@ export const GuiConfigForm = (props: TGuiConfigFormProps) => {
 
       <ModelSelect
         size='small'
+        orgId={orgId}
         disabled={isDisabled}
         model={current.model || ''}
         brand={selectedProvider?.brand ?? ''}

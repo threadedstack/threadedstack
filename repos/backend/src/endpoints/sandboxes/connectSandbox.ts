@@ -25,9 +25,6 @@ export const connectSandbox: TEndpointConfig = {
     const { newInstance, instanceId: requestedInstance, sessionId } = req.body
 
     const { projectId } = req.params
-    if (!projectId)
-      throw new Exception(400, `projectId is required to connect to a sandbox`)
-
     const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
     const workdir = sandbox.config.workdir || DefaultWorkdir
     const sandboxId = sandbox.id

@@ -53,7 +53,7 @@ describe(`projectMemberGuard`, () => {
     vi.clearAllMocks()
   })
 
-  it(`should call next when projectId is missing`, async () => {
+  it(`should return 400 when projectId is missing`, async () => {
     const req = buildMockReq({ params: { orgId: `org-1` } })
     const res = buildMockRes()
     const next = vi.fn()
@@ -61,12 +61,20 @@ describe(`projectMemberGuard`, () => {
     const middleware = projectMemberGuard()
     await middleware(req, res, next)
 
-    expect(next).toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
     expect(mockRequireProjectAccess).not.toHaveBeenCalled()
-    expect(mockLoggerWarn).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      error: `projectMemberGuard requires :orgId and :projectId in URL`,
+    })
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `projectMemberGuard requires :orgId and :projectId in URL`,
+      })
+    )
   })
 
-  it(`should call next when orgId is missing`, async () => {
+  it(`should return 400 when orgId is missing`, async () => {
     const req = buildMockReq({ params: { projectId: `project-1` } })
     const res = buildMockRes()
     const next = vi.fn()
@@ -74,12 +82,17 @@ describe(`projectMemberGuard`, () => {
     const middleware = projectMemberGuard()
     await middleware(req, res, next)
 
-    expect(next).toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
     expect(mockRequireProjectAccess).not.toHaveBeenCalled()
-    expect(mockLoggerWarn).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `projectMemberGuard requires :orgId and :projectId in URL`,
+      })
+    )
   })
 
-  it(`should call next when both projectId and orgId are missing`, async () => {
+  it(`should return 400 when both projectId and orgId are missing`, async () => {
     const req = buildMockReq({ params: {} })
     const res = buildMockRes()
     const next = vi.fn()
@@ -87,9 +100,14 @@ describe(`projectMemberGuard`, () => {
     const middleware = projectMemberGuard()
     await middleware(req, res, next)
 
-    expect(next).toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
     expect(mockRequireProjectAccess).not.toHaveBeenCalled()
-    expect(mockLoggerWarn).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `projectMemberGuard requires :orgId and :projectId in URL`,
+      })
+    )
   })
 
   it(`should call requireProjectAccess and next when access is allowed`, async () => {

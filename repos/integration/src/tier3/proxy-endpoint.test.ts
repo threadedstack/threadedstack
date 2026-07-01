@@ -43,7 +43,8 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
         orgId: ctx.orgId,
         providerBrand: 'anthropic',
         projectName: uniqueName('Proxy Test Project'),
-        agentName: uniqueName('Proxy Test Agent'),
+        // `agents` flag is off platform-wide; only project + provider needed.
+        createAgent: false,
       })
     }
     catch {
