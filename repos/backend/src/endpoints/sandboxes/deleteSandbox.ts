@@ -14,7 +14,12 @@ export const deleteSandbox: TEndpointConfig = {
     const { db, sandbox: sbService } = req.app.locals
     const { id } = req.params
 
-    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
 
     if (sbService) {
       const activeSessions = sbService.getShellSessionsForSandbox(sandbox.id)

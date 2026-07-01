@@ -14,7 +14,12 @@ export const getSandbox: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const data = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const data = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
 
     res.status(200).json({ data })
   },

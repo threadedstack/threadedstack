@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { getSandbox } from '@TBE/endpoints/sandboxes/getSandbox'
 import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
 import { monitorToken } from '@TBE/endpoints/sandboxes/monitorToken'
@@ -14,6 +15,7 @@ import { getSandboxSessionOutput } from '@TBE/endpoints/sandboxes/getSandboxSess
 export const orgSandboxes: TEndpointConfig = {
   path: `/:orgId/sandboxes`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     listSandboxes,
     getSandbox,

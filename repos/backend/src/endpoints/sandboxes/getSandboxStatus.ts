@@ -17,7 +17,12 @@ export const getSandboxStatus: TEndpointConfig = {
 
     if (!instanceId) throw new Exception(400, `instanceId query parameter is required`)
 
-    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)

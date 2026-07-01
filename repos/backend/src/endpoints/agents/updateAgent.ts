@@ -93,10 +93,23 @@ export const updateAgent: TEndpointConfig = {
     }
 
     const { data: projects, error: projErr } = projectIds?.length
-      ? await db.services.project.list({ where: { id: projectIds } })
+      ? await db.services.project.list({
+          where: { id: projectIds, orgId: existingAgent.orgId },
+        })
       : { data: [] }
 
     if (projErr) throw new Exception(500, projErr.message)
+
+    // Reject projectIds that don't belong to the agent's org (filtered out above).
+    if (projectIds?.length && (projects?.length ?? 0) !== projectIds.length) {
+      const foundIds = new Set((projects || []).map((p: { id: string }) => p.id))
+      const missing = projectIds.filter((pid: string) => !foundIds.has(pid))
+      throw new Exception(
+        403,
+        `Projects do not belong to this organization: ${missing.join(', ')}`,
+        `FORBIDDEN`
+      )
+    }
 
     const pins = await db.services.provider.validate({
       type: EProvider.ai,

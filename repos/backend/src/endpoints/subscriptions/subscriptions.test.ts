@@ -574,6 +574,53 @@ describe('Subscription endpoints', () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
     })
 
+    it('should cancel at period end when downgrading to free', async () => {
+      mockReq.body = { tier: 'free' }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({
+        data: { stripeSubscriptionId: 'sub_downgrade_free', tier: 'pro' },
+      })
+      const mockUpsertByUser = mockReq.app?.locals.db.services.subscription
+        .upsertByUser as ReturnType<typeof vi.fn>
+      mockUpsertByUser.mockResolvedValue({ data: null })
+
+      const paymentsService = mockReq.app?.locals.payments.service as any
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // Downgrading to free cancels the Stripe subscription at period end and
+      // must NOT resolve a price ID / call updateSubscription.
+      expect(paymentsService.cancelSubscription).toHaveBeenCalledWith(
+        'sub_downgrade_free'
+      )
+      expect(mockUpsertByUser).toHaveBeenCalledWith({
+        userId: 'user_123',
+        cancelAtPeriodEnd: true,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: {
+          success: true,
+          message: 'Subscription will be cancelled at period end',
+        },
+      })
+    })
+
+    it('should reject API key authentication with 403', async () => {
+      mockReq.body = { tier: 'pro' }
+      // `fromAuthHeaders` reads via `req.header(key)`; the proxy sets
+      // `X-User-Api-Key-Id` for API-key auth. Simulate that here.
+      mockReq.header = vi.fn((h: string) =>
+        h === 'X-User-Api-Key-Id' ? 'key_123' : undefined
+      ) as any
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Subscription endpoints do not accept API key authentication'
+      )
+    })
+
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/update')
       expect(ep.method).toBe('post')

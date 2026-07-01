@@ -21,7 +21,12 @@ export const removePort: TEndpointConfig = {
     if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535)
       throw new Exception(400, `Invalid port number`)
 
-    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 

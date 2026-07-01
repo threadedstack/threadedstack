@@ -19,7 +19,12 @@ export const updateSandbox: TEndpointConfig = {
     const { db } = req.app.locals
     const { id } = req.params
 
-    const existing = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const existing = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
 
     const { name, config, projectIds, skillInputs, providerInputs, gitProviderInputs } =
       req.body

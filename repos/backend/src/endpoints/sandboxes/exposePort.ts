@@ -24,7 +24,12 @@ export const exposePort: TEndpointConfig = {
     if (proto !== EProto.http && proto !== EProto.https)
       throw new Exception(400, `protocol must be "http" or "https"`)
 
-    const sandbox = await resolveSandbox(db.services.sandbox, id, req.params.projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      req.params.projectId,
+      req.params.orgId
+    )
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
