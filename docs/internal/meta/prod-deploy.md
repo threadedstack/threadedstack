@@ -149,6 +149,50 @@ curl -s -H "Authorization: Bearer tdsk_<your-api-key>" https://px.threadedstack.
 
 For deploying code changes to an existing cluster.
 
+### 2.0 One-Command Deploy (Recommended)
+
+`tdsk release` is the single, fully-automated path — "deploy the latest changes":
+
+```sh
+tdsk release --env production --confirm
+```
+
+It performs the entire pipeline hands-off:
+
+1. **Preflight** — verifies the `tdsk` kube-context is reachable, required secret ENVs are
+   present in `~/.config/tdsk/values.yaml`, essential K8s secrets exist (`tdsk-master-key`,
+   `tdsk-db-cfg`, `docker-auth-pull`), and (for frontends) that the `firebase` CLI is
+   installed. Aborts early with actionable messages if anything is missing.
+2. **Change detection** — reads the currently-deployed git SHA from the backend
+   deployment's image tag and diffs it against `HEAD`, mapping changed files to the exact
+   image contexts, frontends, and DB schema that need work. Only what changed is built and
+   deployed. (Falls back to building everything if the deployed SHA can't be determined.)
+3. **Image tag** — computes `sha-<short>` from `HEAD` and pins it. Changed images build +
+   push multi-arch to `ghcr.io` tagged both `sha-<short>` and `latest`; unchanged services
+   keep the tag they are already running, so a deployment never points at an unbuilt image.
+4. **Database** — pushes additive schema changes non-interactively. Destructive changes
+   abort the deploy with instructions to run `tdsk db push --env production` manually.
+5. **Deploy** — records the current images (rollback baseline), then `devspace deploy` with
+   the production profile pinned to the resolved per-service tags.
+6. **Verify + rollback** — waits for rollout, health-checks the proxy (`/health` = 200) and
+   backend (`/_/health` = 200/401). On failure it captures pod logs, rolls back every
+   service to its previous image via `kubectl set image`, and exits non-zero.
+7. **Frontends** — builds and deploys only the changed SPAs to Firebase Hosting
+   (`--only hosting:<target>`).
+
+Useful flags:
+
+```sh
+tdsk release --env production --confirm --dry-run     # Print the plan + render manifests, no cluster changes
+tdsk release --env production --confirm --all         # Rebuild + deploy everything (skip change detection)
+tdsk release --env production --confirm --no-firebase # K8s + DB only (CI uses this; frontends via GH Actions)
+tdsk release --env production --confirm --no-verify   # Skip health verification / auto-rollback
+```
+
+The `.github/workflows/deploy-production.yml` CI pipeline runs this exact command
+(`tdsk release --env production --confirm --no-firebase`) so CI and local deploys share one
+code path. The manual steps below (2.1–2.6) remain available for partial or debugging deploys.
+
 ### 2.1 Rebuild Changed Images
 
 Only rebuild the images for services you changed:
@@ -296,7 +340,12 @@ Client → Caddy (:443, TLS + PROXY v2) → Proxy (:7118, Auth) → Backend (:58
 ### CLI Quick Reference
 
 ```sh
-# Deploy
+# One-command deploy (detect changes → build → migrate → deploy → verify → rollback → frontends)
+tdsk release --env production --confirm         # Deploy the latest changes
+tdsk release --env production --confirm --dry-run   # Plan + render only, no cluster changes
+tdsk release --env production --confirm --all       # Force full rebuild + deploy
+
+# Deploy (individual steps)
 tdsk deploy apply --env production            # Deploy services
 tdsk deploy apply --env production --dry-run   # Preview without applying
 tdsk deploy status --env production            # Pod and service status
@@ -319,7 +368,13 @@ tdsk kube pod --context <ctx> --env production      # Describe pod
 
 ## 3. CI/CD Automated Deployment
 
-The GitHub Actions workflow (`.github/workflows/deploy-production.yml`) automates deployments when changes are merged to the `production` branch.
+The GitHub Actions workflow (`.github/workflows/deploy-production.yml`) automates deployments when changes are merged to the `production` branch. It prepares the environment (Civo kubeconfig with the context normalized to `tdsk`, GHCR login, assembling `~/.config/tdsk/values.yaml` from GitHub secrets) and then runs the exact same CLI command as a local deploy:
+
+```sh
+tdsk release --env production --confirm --no-firebase
+```
+
+All build/detect/migrate/deploy/verify/rollback logic lives in the CLI, so CI and local deploys never drift. Frontends deploy separately via `firebase-hosting-merge.yml`.
 
 ### 3.1 Required GitHub Secrets
 
@@ -364,7 +419,7 @@ Add these secrets to the repository settings (Settings → Secrets and variables
 Trigger a deployment manually from the GitHub UI:
 1. Go to **Actions** → **Deploy Production**
 2. Click **Run workflow**
-3. Select which images to build (or check "deploy_only" to redeploy without building)
+3. Optionally check **force_all** (rebuild + deploy every image, skipping change detection) or **skip_tests**
 4. Click **Run workflow**
 
 ### 3.3 Automatic Deployment

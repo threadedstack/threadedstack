@@ -1,110 +1,234 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
+import type { TChangedContexts } from '@TSCL/utils/deploy/changedContexts'
+import type { TPreviousImages } from '@TSCL/utils/deploy/verify'
 
 import { Logger } from '@tdsk/logger'
 import { spawn } from '@TSCL/utils/proc/spawn'
 import { devspace } from '@TSCL/utils/devspace'
-import { dbSpawn } from '@TSCL/utils/db/dbSpawn'
+import { pushSafe } from '@TSCL/utils/db/pushSafe'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { docker } from '@TSCL/utils/docker/docker'
+import { imageTag } from '@TSCL/utils/deploy/imageTag'
 import { taskError } from '@TSCL/utils/tasks/error'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
+import { preflight } from '@TSCL/utils/deploy/preflight'
 import { getKubeMeta } from '@TSCL/utils/kube/getKubeMeta'
+import { recordPreviousImages, verifyOrRollback } from '@TSCL/utils/deploy/verify'
+import { detectChanges, everything, isNoop } from '@TSCL/utils/deploy/changedContexts'
+
+/** Extracts the tag portion of a full image reference */
+const parseTag = (image?: string): string | undefined => image?.split(`:`).pop()
+
+/**
+ * Builds the per-context TDSK_*_IMAGE_TAG env map devspace resolves for the
+ * production profile. Changed contexts pin to the new SHA tag; unchanged
+ * contexts keep the tag they are already running (falling back to `latest`,
+ * which every build also pushes) so devspace never points a deployment at an
+ * image that was not built.
+ */
+const deployTagEnvs = (
+  changes: TChangedContexts,
+  newTag: string,
+  previous: TPreviousImages
+): Record<string, string> => {
+  const resolve = (ctx: string) =>
+    changes.docker.includes(ctx) ? newTag : parseTag(previous[ctx]) || `latest`
+
+  return {
+    TDSK_IMAGE_TAG: newTag,
+    TDSK_PX_IMAGE_TAG: resolve(`proxy`),
+    TDSK_BE_IMAGE_TAG: resolve(`backend`),
+    TDSK_CADDY_IMAGE_TAG: resolve(`caddy`),
+    TDSK_SB_IMAGE_TAG: resolve(`sandbox`),
+    TDSK_SB_INIT_IMAGE_TAG: resolve(`init`),
+  }
+}
+
+/** Aborts the release when a spawned sub-command exits non-zero */
+const ensure = (code: number, label: string) => {
+  if (code !== 0) taskError(`${label} failed (exit code ${code})`)
+}
+
+const logScope = (changes: TChangedContexts) => {
+  Logger.pair(`  Reason`, changes.reason)
+  Logger.pair(`  Images`, changes.docker.join(`, `) || `(none)`)
+  Logger.pair(`  Frontends`, changes.firebase.join(`, `) || `(none)`)
+  Logger.pair(`  DB push`, changes.db ? `yes` : `no`)
+  Logger.pair(`  Config deploy`, changes.deployConfig ? `yes` : `no`)
+}
 
 const releaseAct: TTaskAction = async (args) => {
   const { params, config } = args
   const env = process.env.NODE_ENV || `local`
 
-  if (!params?.confirm && env !== `local`) {
-    Logger.warn(`\n  This will run the full release pipeline for "${env}":`)
-    Logger.warn(`    1. Push database schema`)
-    Logger.warn(
-      `    2. Build and push Docker images (${config.release.docker.join(`, `)})`
+  if (!params?.confirm && env !== `local`)
+    return taskError(
+      `Release requires --confirm for non-local environments (target: "${env}")`
     )
-    Logger.warn(`    3. Deploy to Kubernetes`)
-    Logger.warn(`    4. Restart pods (${config.release.restart.join(`, `)})`)
-    Logger.warn(`    5. Build and deploy frontends via Firebase`)
-    Logger.warn(`\n  Pass --confirm to proceed.\n`)
-    return taskError(`Release requires --confirm for non-local environments`)
+
+  Logger.info(`\n  Resolving changes to deploy for "${env}"...\n`)
+
+  // 1. Determine what changed since the currently-deployed SHA
+  const changes = params?.all
+    ? everything(`--all flag set — building every target`)
+    : await detectChanges(args)
+
+  logScope(changes)
+
+  if (!params?.all && isNoop(changes)) {
+    Logger.success(
+      `\n  Nothing changed since the deployed version — nothing to deploy.\n`
+    )
+    return
   }
 
-  Logger.info(`\n  Starting release for "${env}"...\n`)
+  const shouldDeploy = changes.docker.length > 0 || changes.deployConfig
 
-  if (params?.database) {
-    Logger.pair(`[1/5]`, `Pushing database schema...`)
-    await dbSpawn({ script: `push`, log: params?.log, config })
+  // 2. Compute the SHA image tag (pinned across build + deploy)
+  const { sha, tag } = await imageTag()
+  Logger.pair(`  Deploy tag`, tag)
+
+  // Dry run: print the plan and render manifests without touching the cluster
+  if (params?.dryRun) {
+    Logger.info(`\n  Dry run — rendering manifests only (no cluster changes).\n`)
+    const tagEnvs = deployTagEnvs(changes, tag, {})
+    await devspace.render({
+      ...args,
+      params: { ...params, envs: { ...(params?.envs || {}), ...tagEnvs } },
+    })
+    return
+  }
+
+  // 3. Preflight — fail fast before any cluster mutation
+  const firebaseInScope = params?.firebase !== false && changes.firebase.length > 0
+  const dbInScope = params?.database !== false && changes.db
+  if (!params?.skipPreflight)
+    await preflight(args, { db: dbInScope, firebase: firebaseInScope })
+
+  Logger.info(`\n  Starting release for "${env}" (${tag})...\n`)
+
+  // 4. [1/5] Database schema (only when schema changed)
+  if (params?.database && changes.db) {
+    Logger.pair(`[1/5]`, `Pushing database schema (additive-only)...`)
+    await pushSafe({ config, log: params?.log })
     Logger.success(`[1/5] Database schema pushed.`)
+  } else {
+    Logger.pair(`[1/5]`, `No schema changes — skipping DB push.`)
   }
 
-  if (params?.docker) {
-    Logger.pair(`[2/5]`, `Building and pushing Docker images...`)
-    await docker.login(args)
-    for (const name of config.release.docker) {
-      Logger.pair(`  Building`, name)
-      try {
-        const ctx = getCtx({ ...args, params: { ...params, context: name } })
+  // 5. [2/5] Build + push only the changed images (tagged sha-<short> AND latest)
+  if (params?.docker && changes.docker.length) {
+    Logger.pair(`[2/5]`, `Building images: ${changes.docker.join(`, `)}`)
+    ensure(await docker.login(args), `docker login`)
+    for (const name of changes.docker) {
+      Logger.pair(`  Building`, `${name} (${tag})`)
+      const ctx = getCtx({ ...args, params: { ...params, context: name } })
+      ctx.tag = tag
+      ensure(
         await docker.build({
           ...args,
           ctx,
           params: {
             ...params,
             push: true,
+            tag: [`latest`],
             platforms: params?.platforms || [`linux/amd64`, `linux/arm64`],
           },
-        })
-      } catch (err) {
-        Logger.error(err)
-        throw err
+        }),
+        `docker build ${name}`
+      )
+    }
+    Logger.success(`[2/5] Images built and pushed.`)
+  } else {
+    Logger.pair(`[2/5]`, `No image changes — skipping build.`)
+  }
+
+  // 6. [3/5] Deploy to Kubernetes.
+  // Record current images first — used both to pin unchanged services to the
+  // tag they are already running and as the rollback baseline. Always recorded
+  // (independent of --verify) so tag pinning is correct even when verify is off.
+  let previous: TPreviousImages = {}
+  if (shouldDeploy && params?.deploy) {
+    previous = await recordPreviousImages(args)
+
+    Logger.pair(`[3/5]`, `Deploying to Kubernetes...`)
+    const tagEnvs = deployTagEnvs(changes, tag, previous)
+    ensure(
+      await devspace.deploy({
+        ...args,
+        params: { ...params, envs: { ...(params?.envs || {}), ...tagEnvs } },
+      }),
+      `devspace deploy`
+    )
+    Logger.success(`[3/5] Deploy applied.`)
+
+    // Config-only deploys with no rebuilt in-cluster image may not roll pods
+    // (e.g. a ConfigMap-only change) — force them to re-read config.
+    const inClusterChanged = changes.docker.filter((ctx) =>
+      config.release.restart.includes(ctx)
+    )
+    if (params?.restart && !inClusterChanged.length && changes.deployConfig) {
+      Logger.pair(
+        `  Restarting`,
+        `${config.release.restart.join(`, `)} for config change`
+      )
+      const meta = getKubeMeta(args, false)
+      const nsArgs = meta.namespace ? [`--namespace`, meta.namespace] : []
+      for (const name of config.release.restart) {
+        const ctx = getCtx({ ...args, params: { ...params, context: name } })
+        if (!ctx.deployment) continue
+        await kubectl.delete.pod(args, [
+          `-l`,
+          `app.kubernetes.io/component=${ctx.deployment}`,
+          ...nsArgs,
+        ])
       }
     }
-    Logger.success(`[2/5] All images built and pushed.`)
+  } else {
+    Logger.pair(`[3/5]`, `No cluster changes — skipping deploy.`)
   }
 
-  if (params?.deploy) {
-    Logger.pair(`[3/5]`, `Deploying to Kubernetes...`)
-    await devspace.deploy(args)
-    Logger.success(`[3/5] Kubernetes deployment complete.`)
+  // 7. [4/5] Verify health, roll back on failure
+  if (shouldDeploy && params?.deploy && params?.verify !== false) {
+    Logger.pair(`[4/5]`, `Verifying deployment health...`)
+    await verifyOrRollback(args, previous)
+  } else {
+    Logger.pair(`[4/5]`, `Health verification skipped.`)
   }
 
-  if (params?.restart) {
-    Logger.pair(`[4/5]`, `Restarting pods...`)
-    const meta = getKubeMeta(args, false)
-    const nsArgs = meta.namespace ? [`--namespace`, meta.namespace] : []
-    for (const name of config.release.restart) {
-      const ctx = getCtx({ ...args, params: { ...params, context: name } })
-      if (!ctx.deployment) continue
-      Logger.pair(`  Restarting`, name)
-      await kubectl.delete.pod(args, [
-        `-l`,
-        `app.kubernetes.io/component=${ctx.deployment}`,
-        ...nsArgs,
-      ])
-    }
-    Logger.success(`[4/5] Pods restarted.`)
-  }
-
-  if (params?.firebase) {
-    Logger.pair(`[5/5]`, `Building frontends and deploying to Firebase...`)
-    for (const app of config.release.firebase) {
+  // 8. [5/5] Build + deploy only the changed frontends via Firebase
+  if (params?.firebase && changes.firebase.length) {
+    Logger.pair(`[5/5]`, `Building frontends: ${changes.firebase.join(`, `)}`)
+    for (const app of changes.firebase) {
       Logger.pair(`  Building`, `@tdsk/${app}`)
-      await spawn({
-        cmd: `pnpm`,
-        log: params?.log,
-        args: [`--filter`, `@tdsk/${app}`, `build`],
-        cwd: config.paths.root,
-      })
+      ensure(
+        await spawn({
+          cmd: `pnpm`,
+          log: params?.log,
+          args: [`--filter`, `@tdsk/${app}`, `build`],
+          cwd: config.paths.root,
+        }),
+        `frontend build @tdsk/${app}`
+      )
     }
-    Logger.pair(`  Deploying`, `Firebase hosting...`)
-    await spawn({
-      cmd: `firebase`,
-      log: params?.log,
-      args: [`deploy`, `--only`, `hosting`, `--project`, `threaded-stack-prod`],
-      cwd: config.paths.root,
-    })
+    const only = changes.firebase.map((app) => `hosting:${app}`).join(`,`)
+    Logger.pair(`  Deploying`, `Firebase (${only})`)
+    ensure(
+      await spawn({
+        cmd: `firebase`,
+        log: params?.log,
+        args: [`deploy`, `--only`, only, `--project`, `threaded-stack-prod`],
+        cwd: config.paths.root,
+      }),
+      `firebase deploy`
+    )
     Logger.success(`[5/5] Firebase deploy complete.`)
+  } else {
+    Logger.pair(`[5/5]`, `No frontend changes — skipping Firebase.`)
   }
 
-  Logger.success(`\n  Release complete for "${env}".\n`)
+  Logger.success(`\n  Release complete for "${env}" (${sha}).\n`)
 }
 
 export const release: TTask = {
@@ -112,7 +236,7 @@ export const release: TTask = {
   alias: [`rel`],
   action: releaseAct,
   example: `tdsk release --env production --confirm`,
-  description: `Full production release: db push, docker build+push, k8s deploy, pod restart, firebase deploy`,
+  description: `Deploy the latest changes: detect changed contexts, build+push SHA-tagged images, push DB schema, deploy, verify health (auto-rollback), and deploy changed frontends`,
   options: {
     confirm: {
       type: `boolean`,
@@ -120,35 +244,55 @@ export const release: TTask = {
       description: `Confirm the release (required for non-local environments)`,
     },
     log: sharedOpts.shared.log,
+    all: {
+      type: `boolean`,
+      alias: [`full`, `rebuild`],
+      description: `Build and deploy every target, skipping change detection`,
+    },
+    skipPreflight: {
+      type: `boolean`,
+      alias: [`sp`],
+      description: `Skip preflight prerequisite checks`,
+    },
+    dryRun: {
+      type: `boolean`,
+      alias: [`dry`, `render`],
+      description: `Print the deploy plan and render manifests without applying`,
+    },
+    verify: {
+      type: `boolean`,
+      default: true,
+      description: `Verify health after deploy and auto-rollback on failure (--no-verify to skip)`,
+    },
     database: {
       type: `boolean`,
       default: true,
       alias: [`db`],
-      description: `Skip the database schema push step`,
+      description: `Push database schema when schema changed (--no-database to skip)`,
     },
     docker: {
       type: `boolean`,
       default: true,
       alias: [`dc`],
-      description: `Skip Docker image build and push step`,
+      description: `Build and push changed images (--no-docker to skip)`,
     },
     deploy: {
       type: `boolean`,
       default: true,
       alias: [`dep`],
-      description: `Skip Kubernetes deployment via DevSpace`,
+      description: `Apply the Kubernetes deployment (--no-deploy to skip)`,
     },
     restart: {
       type: `boolean`,
       default: true,
       alias: [`rt`],
-      description: `Skip pod restart step`,
+      description: `Restart pods for config-only deploys (--no-restart to skip)`,
     },
     firebase: {
       type: `boolean`,
       default: true,
       alias: [`fb`],
-      description: `Skip frontend build and Firebase deploy step`,
+      description: `Build and deploy changed frontends via Firebase (--no-firebase to skip)`,
     },
     namespace: sharedOpts.devspace.namespace,
     kubeContext: sharedOpts.devspace.kubeContext,

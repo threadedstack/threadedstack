@@ -27,8 +27,10 @@ ADD repos/sandbox/package.json ./repos/sandbox/package.json
 ADD repos/database/package.json ./repos/database/package.json
 ADD repos/backend/package.json ./repos/backend/package.json
 ADD repos/domain/package.json ./repos/domain/package.json
-# Build tools for native addons (isolated-vm requires node-gyp compilation on Alpine musl)
-RUN apk add --no-cache python3 make g++
+# Build tools for native addons:
+#  - python3/make/g++ for isolated-vm gyp compile (Alpine musl)
+#  - pkgconf/xz-dev so node-liblzma can resolve `pkg-config --libs liblzma`
+RUN apk add --no-cache python3 make g++ pkgconf xz-dev
 
 RUN pnpm install --prod --offline --frozen-lockfile
 # Compile isolated-vm native addon for Alpine/musl — pnpm install skips
@@ -51,6 +53,8 @@ RUN pnpm --filter=@tdsk/backend --prod deploy /tdsk-runner/repos/backend
 
 # ---- Run Stage  ---- #
 FROM tdsk-base AS tdsk-runner
+# Runtime shared libs for compiled native addons (node-liblzma → liblzma.so)
+RUN apk add --no-cache xz-libs
 WORKDIR /tdsk
 COPY --from=tdsk-build /tdsk-runner /tdsk
 COPY deploy deploy
