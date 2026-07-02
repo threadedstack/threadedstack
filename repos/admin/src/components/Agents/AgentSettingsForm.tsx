@@ -5,12 +5,22 @@ export type TAgentSettingsFormProps = {
   active: boolean
   loading: boolean
   streaming: boolean
+  autonomous?: boolean
   onActiveChange: (value: boolean) => void
   onStreamingChange: (value: boolean) => void
+  onAutonomousChange?: (value: boolean) => void
 }
 
 export const AgentSettingsForm = (props: TAgentSettingsFormProps) => {
-  const { active, loading, streaming, onActiveChange, onStreamingChange } = props
+  const {
+    active,
+    loading,
+    streaming,
+    autonomous,
+    onActiveChange,
+    onStreamingChange,
+    onAutonomousChange,
+  } = props
 
   return (
     <FormSection title='Agent Settings'>
@@ -29,6 +39,16 @@ export const AgentSettingsForm = (props: TAgentSettingsFormProps) => {
         disabled={loading}
         onChange={(e, checked) => onActiveChange(checked)}
       />
+
+      {onAutonomousChange && (
+        <SwitchInput
+          label='Autonomous'
+          disabled={loading}
+          id='agent-autonomous'
+          checked={autonomous ?? false}
+          onChange={(e, checked) => onAutonomousChange(checked)}
+        />
+      )}
     </FormSection>
   )
 }

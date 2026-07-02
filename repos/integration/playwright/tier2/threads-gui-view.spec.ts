@@ -8,7 +8,7 @@
  *   /orgs                                             → Org list page
  *   /orgs/:orgId/projects                             → Projects list page
  *   /orgs/:orgId/projects/:projectId/sandbox/:sandboxId → Sandbox detail page
- *   /orgs/:orgId/projects/:projectId/session/:sessionId → Session page with GUI/Terminal toggle
+ *   /orgs/:orgId/projects/:projectId/instances/:instanceId/session/:sessionId → Session page with GUI/Terminal toggle
  *   /auth/:pathname                                   → Login page (e.g. /auth/sign-in)
  *
  * Auth is intercepted via Neon Auth mock — the same pattern as the admin
@@ -285,10 +285,10 @@ test.describe('Threads app — Terminal AST GUI view', () => {
 
   // -------------------------------------------------------------------------
   // 4. Sandbox page shows "New Instance" button
-  // The sandbox page shows "New Instance" as the primary CTA.
-  // "New Session" only appears within an existing running instance.
+  // The sandbox page shows "Deploy" as the primary CTA for launching a new
+  // instance. "New Session" only appears within an existing running instance.
   // -------------------------------------------------------------------------
-  test('sandbox page shows New Instance button', async ({ threadsPage: page, ctx }) => {
+  test('sandbox page shows Deploy button', async ({ threadsPage: page, ctx }) => {
     const errors = collectErrors(page)
 
     await page.route(`**/sandboxes/${ctx.sandboxId}/sessions`, (route) => {
@@ -309,9 +309,10 @@ test.describe('Threads app — Terminal AST GUI view', () => {
 
     await expect(page.locator('.tdsk-sandbox-page')).toBeVisible({ timeout: 10_000 })
 
-    // The sandbox page renders a "New Instance" button as the primary action
-    const newInstanceBtn = page.getByRole('button', { name: /New Instance/i })
-    await expect(newInstanceBtn).toBeVisible({ timeout: 5_000 })
+    // The sandbox page renders a "Deploy" button as the primary action
+    // for launching a new instance
+    const deployBtn = page.getByRole('button', { name: /^Deploy$/i })
+    await expect(deployBtn).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toHaveLength(0)
   })
@@ -329,7 +330,7 @@ test.describe('Threads app — Terminal AST GUI view', () => {
     const fakeSessionId = 'test-fake-session-00000001'
 
     await page.goto(
-      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/${fakeSessionId}`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-fake-0001/session/${fakeSessionId}`,
       { waitUntil: 'networkidle' }
     )
 
@@ -367,7 +368,7 @@ test.describe('Threads app — Terminal AST GUI view', () => {
     })
 
     await page.goto(
-      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/${fakeSessionId}`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-fake-0001/session/${fakeSessionId}`,
       { waitUntil: 'networkidle' }
     )
 
@@ -401,7 +402,7 @@ test.describe('Threads app — Terminal AST GUI view', () => {
     const fakeSessionId = 'test-no-session-00000002'
 
     await page.goto(
-      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/${fakeSessionId}`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-fake-0001/session/${fakeSessionId}`,
       { waitUntil: 'networkidle' }
     )
 
@@ -454,7 +455,7 @@ test.describe('Threads app — Terminal AST GUI view', () => {
     }
 
     await page.goto(
-      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/${sessionId}`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-live-0001/session/${sessionId}`,
       { waitUntil: 'networkidle' }
     )
 

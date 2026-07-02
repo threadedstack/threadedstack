@@ -60,11 +60,13 @@ test.describe('Project API Keys Page', () => {
     const expirationSelect = drawer.locator('#tdsk-api-key-expiration')
     await expect(expirationSelect).toBeVisible({ timeout: 5000 })
 
-    // Scope checkboxes should be present
-    await expect(drawer.getByText('Scopes')).toBeVisible()
-    await expect(drawer.getByText('Read', { exact: true })).toBeVisible()
-    await expect(drawer.getByText('Write', { exact: true })).toBeVisible()
-    await expect(drawer.getByText('Admin', { exact: true })).toBeVisible()
+    // The PermissionsPicker replaced the legacy Read/Write/Admin scope
+    // checkboxes — assert the picker header and select-all control render
+    await expect(drawer.getByText(/Permissions \(\d+\/\d+\)/)).toBeVisible()
+    await expect(drawer.locator('#tdsk-perm-select-all')).toBeAttached()
+    // At least one permission group with checkboxes should be listed
+    const permCheckboxes = drawer.locator('input[type="checkbox"]')
+    expect(await permCheckboxes.count()).toBeGreaterThan(1)
   })
 
   test('navigating via project sidebar shows API Keys link', async ({

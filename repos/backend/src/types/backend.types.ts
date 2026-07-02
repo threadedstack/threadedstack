@@ -5,6 +5,7 @@ import type { EmailService } from '@TBE/services/email/email'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type { PaymentsService } from '@TBE/services/payments/payments'
 import type { S3Service } from '@TBE/services/s3/s3'
+import type { TScheduleExecutor } from '@TBE/services/scheduler'
 import type {
   TApp as TEApp,
   TAppLocals,
@@ -27,6 +28,7 @@ type TBELocals = TAppLocals<
   SandboxService
 > & {
   s3: S3Service
+  scheduleExecutor?: TScheduleExecutor
 }
 
 export type TApp = TEApp<

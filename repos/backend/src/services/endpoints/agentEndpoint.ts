@@ -106,6 +106,7 @@ export class AgentEndpoint extends BaseEndpoint {
       agentId,
       onEvent,
       threadId,
+      soul: config.soul,
       db: config.db,
       orgId: config.orgId,
       tools: config.tools,

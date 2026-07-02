@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from 'react-router'
 
 import { toast } from 'sonner'
 import { redirect } from 'react-router'
-import { WaitlistedCode } from '@tdsk/domain'
+import { WaitlistedCode, isFeatureEnabled } from '@tdsk/domain'
 import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
 import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
@@ -202,6 +202,9 @@ export const projectSchedulesLoader = async ({ params }: LoaderFunctionArgs) => 
       : Promise.resolve(),
     !getContextSandboxes(projectId)
       ? safeFetch(() => fetchSandboxes({ orgId, projectId }))
+      : Promise.resolve(),
+    isFeatureEnabled(`agents`) && !getContextAgents(`org`)
+      ? safeFetch(() => fetchAgents({ orgId }))
       : Promise.resolve(),
   ])
   return null

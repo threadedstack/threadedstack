@@ -32,6 +32,7 @@ export const createSchedule: TEndpointConfig = {
       prompt,
       command,
       enabled,
+      agentId,
       sandboxId,
       cronExpression,
       maxConsecutiveErrors,
@@ -55,6 +56,12 @@ export const createSchedule: TEndpointConfig = {
     )
     if (linkErr) throw new Exception(404, `Sandbox is not linked to this project`)
 
+    if (agentId) {
+      const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
+      if (agentErr) throw new Exception(500, agentErr.message)
+      if (!agent || agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
+    }
+
     if (type === EScheduleType.shell) {
       if (!command) throw new Exception(400, `command is required for shell schedules`)
     } else if (!prompt)
@@ -69,6 +76,7 @@ export const createSchedule: TEndpointConfig = {
       type,
       prompt,
       command,
+      agentId,
       nextRunAt,
       sandboxId,
       projectId,

@@ -100,6 +100,7 @@ export class Websocket {
     return {
       threadId,
       db: session.db,
+      soul: session.soul,
       tools: session.tools,
       orgId: session.orgId,
       userId: session.userId,

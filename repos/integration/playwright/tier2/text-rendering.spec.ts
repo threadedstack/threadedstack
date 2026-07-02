@@ -246,11 +246,13 @@ test.describe('Text Rendering - Literal Quotes Detection', () => {
     expect(headingText?.trim()).not.toMatch(/^"/)
     expect(headingText?.trim()).not.toMatch(/"$/)
 
-    const quickActionsHeading = page.getByText('Quick Actions').first()
-    await expect(quickActionsHeading).toBeVisible()
-    const quickActionsText = await quickActionsHeading.textContent()
-    expect(quickActionsText?.trim()).not.toMatch(/^"/)
-    expect(quickActionsText?.trim()).not.toMatch(/"$/)
+    // The ActionCards header text is hidden on the workspace page — check the
+    // Endpoints action card label instead for literal quotes
+    const endpointsHeading = page.getByText('Endpoints').first()
+    await expect(endpointsHeading).toBeVisible()
+    const endpointsText = await endpointsHeading.textContent()
+    expect(endpointsText?.trim()).not.toMatch(/^"/)
+    expect(endpointsText?.trim()).not.toMatch(/"$/)
 
     // Check button labels for literal quotes — "View All" button in the Sandboxes panel
     // or any navigation button in the Quick Actions area

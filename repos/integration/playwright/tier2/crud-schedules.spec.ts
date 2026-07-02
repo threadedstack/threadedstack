@@ -59,13 +59,15 @@ test.describe.serial('CRUD Schedules', () => {
     // Select sandbox via EntitySelector autocomplete
     await selectEntityOption(page, 'sandbox-id')
 
-    // Fill cron expression
-    await fillField(page, 'tdsk-schedule-cron-input', cronExpr)
+    // Fill cron expression — the CronInput commits the raw expression
+    // on blur, so blur explicitly after filling
+    await fillField(page, 'cron-expression', cronExpr)
+    await page.locator('#cron-expression').blur()
 
     // Fill prompt
     await fillField(page, 'tdsk-schedule-prompt-input', promptText)
 
-    // Submit the form (enabled defaults to true, leave as-is)
+    // Submit the form (schedules are created enabled by default)
     await submitForm(page, FORM_ID)
 
     // Wait for drawer to close (data is fetched before drawer closes)
@@ -131,8 +133,10 @@ test.describe.serial('CRUD Schedules', () => {
     // Wait for edit drawer to open
     await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
-    // Update the cron expression
-    await fillField(page, 'tdsk-schedule-cron-input', updatedCron)
+    // Update the cron expression — the CronInput commits the raw
+    // expression on blur, so blur explicitly before submitting
+    await fillField(page, 'cron-expression', updatedCron)
+    await page.locator('#cron-expression').blur()
 
     // Submit
     await submitForm(page, FORM_ID)

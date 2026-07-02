@@ -379,6 +379,37 @@ describe(`Agent model`, () => {
     })
   })
 
+  describe(`soul and autonomous`, () => {
+    it(`carries soul and autonomous through the constructor`, () => {
+      const agent = new Agent({
+        name: `Steward`,
+        orgId: `org-1`,
+        soul: `I am the ThreadedStack steward.`,
+        autonomous: true,
+      })
+      expect(agent.soul).toBe(`I am the ThreadedStack steward.`)
+      expect(agent.autonomous).toBe(true)
+    })
+
+    it(`defaults autonomous to false and soul to undefined`, () => {
+      const agent = new Agent({ name: `Plain`, orgId: `org-1` })
+      expect(agent.autonomous).toBe(false)
+      expect(agent.soul).toBeUndefined()
+    })
+
+    it(`preserves soul and autonomous through getEffectiveConfig`, () => {
+      const agent = new Agent({
+        name: `Steward`,
+        orgId: `org-1`,
+        soul: `base soul`,
+        autonomous: true,
+      })
+      const eff = agent.getEffectiveConfig()
+      expect(eff.soul).toBe(`base soul`)
+      expect(eff.autonomous).toBe(true)
+    })
+  })
+
   describe(`removed fields`, () => {
     it(`should NOT have a functions property`, () => {
       const agent = new Agent({

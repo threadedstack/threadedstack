@@ -46,7 +46,11 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   const availablePermissions = useMemo(() => {
     const role = (maxRole as ERoleType) || ERoleType.admin
     const scope = projectId ? EPermScope.project : EPermScope.org
-    return buildScopedPermissions(role, scope)
+    // Super users bypass permission checks, so their role template is empty.
+    // Offer the full owner permission set for key scoping instead — otherwise
+    // the picker renders 0 permissions and the key can never be created.
+    const effectiveRole = role === ERoleType.super ? ERoleType.owner : role
+    return buildScopedPermissions(effectiveRole, scope)
   }, [maxRole, projectId])
 
   const [name, setName] = useState('')

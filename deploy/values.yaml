@@ -364,8 +364,8 @@ env:
   # Org ID to run tests against (required — set in ~/.config/tdsk/values.yaml)
   TDSK_IT_ORG_ID:
 
-  # User ID associated with the test API key
-  TDSK_IT_USER_ID: integration-test-user
+  # User ID associated with the test API key (seeded super/owner user)
+  TDSK_IT_USER_ID: 00000000-0000-0000-0000-000000000000
 
   # Real LLM provider API key for E2E tests that create agents with working providers
   # Required for tier3/agent-multi-provider tests. Set in ~/.config/tdsk/values.yaml

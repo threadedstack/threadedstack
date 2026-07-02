@@ -21,7 +21,7 @@ test.describe('Sub-Navigation Rendering', () => {
     await expect(sidebar).toBeVisible()
 
     // Nav rail should be present
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
     // Should have at least Org section + Settings bottom item
@@ -50,19 +50,24 @@ test.describe('Sub-Navigation Rendering', () => {
   }) => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}`, 'tdsk-org-page')
 
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
+    // The hover expansion animates the absolutely-positioned rail box,
+    // not the fixed-width wrapper
+    const railBox = page.locator('.tdsk-nav-rail-box')
+    await expect(railBox).toBeVisible()
+
     // Get initial width
-    const initialWidth = await navRail.evaluate((el) => el.getBoundingClientRect().width)
+    const initialWidth = await railBox.evaluate((el) => el.getBoundingClientRect().width)
 
     // Hover over the nav rail
-    await navRail.hover()
+    await railBox.hover()
     // Wait for the 500ms animation to complete
     await page.waitForTimeout(600)
 
     // Width should have expanded
-    const hoveredWidth = await navRail.evaluate((el) => el.getBoundingClientRect().width)
+    const hoveredWidth = await railBox.evaluate((el) => el.getBoundingClientRect().width)
     expect(hoveredWidth).toBeGreaterThan(initialWidth)
   })
 })

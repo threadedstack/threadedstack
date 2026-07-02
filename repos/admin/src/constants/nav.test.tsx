@@ -434,8 +434,9 @@ describe(`ProjectNavItems`, () => {
         `Secrets`,
         `Sandboxes`,
         `Domains`,
+        `Agents`,
       ]
-      const memberHidden = [`API Keys`, `Settings`, `Agents`]
+      const memberHidden = [`API Keys`, `Settings`]
       memberVisible.forEach((name) => {
         const item = ProjectNavItems.find((i) => i.text === name)
         expect(item?.visible?.(context)).toBe(true)

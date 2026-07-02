@@ -153,6 +153,7 @@ export class SandboxApi extends BaseApi {
     const resp = await this.api.get<TPortsResponse>({
       path: `${this.#path(orgId, projectId)}/${id}/ports`,
       data: { instanceId },
+      queryKey: [...this.cache.detail(id), `ports`, instanceId],
     })
     resp.error && (await this._onError(resp.error, `Failed to load ports`))
     return resp

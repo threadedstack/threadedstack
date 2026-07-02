@@ -54,6 +54,7 @@ const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 export class AgentRunner {
   #agent: Agent | null = null
   #baseSystemPrompt: string = ``
+  #soul: string = ``
   #sandbox: ISandbox | undefined
   #threadId: string | null = null
   #model: Model<Api> | null = null
@@ -61,6 +62,10 @@ export class AgentRunner {
   #opts: TAgentInitOpts | null = null
   #unsubscribe: (() => void) | undefined
   #pendingPersistence: Promise<any>[] = []
+
+  #composeSystemPrompt(base: string): string {
+    return [this.#soul, base].filter(Boolean).join(`\n\n`)
+  }
 
   /** The threadId this runner was initialized for */
   get threadId(): string | null {
@@ -159,6 +164,8 @@ export class AgentRunner {
 
     // 7. Build pi-mono Agent with convertToLlm filter
     const thinkingLevel = opts.environment?.thinkingLevel
+    this.#soul = opts.soul || ``
+    const composedSystemPrompt = this.#composeSystemPrompt(llmConfig.systemPrompt || ``)
     this.#agent = new Agent({
       streamFn: this.#streamFn,
       sessionId: threadId,
@@ -170,13 +177,13 @@ export class AgentRunner {
         model: this.#model,
         tools: agentTools,
         messages: history as Message[],
-        systemPrompt: llmConfig.systemPrompt || ``,
+        systemPrompt: composedSystemPrompt,
         ...(thinkingLevel && thinkingLevel !== `off` ? { thinkingLevel } : {}),
       },
     })
 
-    // 7b. Store the base system prompt for skill resolution per-turn
-    this.#baseSystemPrompt = llmConfig.systemPrompt || ``
+    // 7b. Store the base system prompt (soul + base) for per-turn skill resolution
+    this.#baseSystemPrompt = composedSystemPrompt
 
     // 8. Subscribe to events — bridge to TStreamEvent + persist messages
     this.#unsubscribe = this.#agent.subscribe((event: AgentEvent) => {
@@ -414,8 +421,8 @@ export class AgentRunner {
     }
 
     if (config.systemPrompt !== undefined) {
-      this.#baseSystemPrompt = config.systemPrompt
-      this.#agent.state.systemPrompt = config.systemPrompt
+      this.#baseSystemPrompt = this.#composeSystemPrompt(config.systemPrompt)
+      this.#agent.state.systemPrompt = this.#baseSystemPrompt
     }
 
     if (config.thinkingLevel) {
@@ -490,6 +497,7 @@ export class AgentRunner {
     this.#threadId = null
     this.#streamFn = null
     this.#baseSystemPrompt = ``
+    this.#soul = ``
   }
 
   /**

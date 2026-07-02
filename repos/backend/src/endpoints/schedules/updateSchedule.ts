@@ -29,6 +29,7 @@ export const updateSchedule: TEndpointConfig = {
       prompt,
       command,
       enabled,
+      agentId,
       sandboxId,
       cronExpression,
       maxConsecutiveErrors,
@@ -46,6 +47,12 @@ export const updateSchedule: TEndpointConfig = {
         projectId
       )
       if (linkErr) throw new Exception(404, `Sandbox is not linked to this project`)
+    }
+
+    if (agentId !== undefined && agentId !== null) {
+      const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
+      if (agentErr) throw new Exception(500, agentErr.message)
+      if (!agent || agent.orgId !== orgId) throw new Exception(404, `Agent not found`)
     }
 
     const resolvedType = type ?? existing.type
@@ -71,6 +78,8 @@ export const updateSchedule: TEndpointConfig = {
       ...(prompt !== undefined && { prompt }),
       ...(command !== undefined && { command }),
       ...(enabled !== undefined && { enabled }),
+      ...(agentId !== undefined && { agentId }),
+      ...(agentId !== undefined && agentId !== existing.agentId && { threadId: null }),
       ...(sandboxId !== undefined && { sandboxId }),
       ...(nextRunAt !== undefined && { nextRunAt }),
       ...(cronExpression !== undefined && { cronExpression }),

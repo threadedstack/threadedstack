@@ -74,6 +74,8 @@ export type TAgentInitOpts = {
   onExecuteFunction?: (functionId: string, input: unknown) => Promise<TFunctionExecResult>
   /** Skills attached to this agent */
   skills?: Skill[]
+  /** Durable identity/constitution, pinned to the top of the system prompt */
+  soul?: string
 }
 
 /**

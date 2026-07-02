@@ -187,11 +187,12 @@ export class EgressProxy {
         )
     }
 
-    // Scan and replace Authorization header
+    // Scan and replace Authorization header — handles both plaintext
+    // placeholders and placeholders embedded in base64 Basic credentials
     const authHeader = outHeaders?.[`authorization`]
     if (authHeader) {
       const header = isArr(authHeader) ? authHeader[0] : authHeader
-      const replaced = await this.replaceTokens(header, placeholders, destHost)
+      const replaced = await this.replaceAuthHeader(header, placeholders, destHost)
       if (replaced !== authHeader)
         ctx.proxyToServerRequestOptions!.headers[`authorization`] = replaced
     }
@@ -217,6 +218,46 @@ export class EgressProxy {
       }
     }
     return null
+  }
+
+  /**
+   * Replace placeholder tokens in an Authorization header value.
+   *
+   * `Basic <base64>` values are decoded first so placeholders embedded in the
+   * base64 credentials (e.g. git smart-HTTP `x-access-token:<token>`) can be
+   * swapped, then re-encoded. Malformed base64 falls through unchanged.
+   * All other values use the existing plaintext replacement.
+   */
+  private async replaceAuthHeader(
+    value: string,
+    placeholders: TPlaceholderMap,
+    destHost?: string
+  ): Promise<string> {
+    const basicMatch = value.match(/^Basic\s+(\S+)\s*$/i)
+    if (!basicMatch) return this.replaceTokens(value, placeholders, destHost)
+
+    const credentials = this.decodeBase64(basicMatch[1])
+    if (credentials === null || !credentials.includes(PhTokenPrefix)) return value
+
+    const replaced = await this.replaceTokens(credentials, placeholders, destHost)
+    return replaced === credentials
+      ? value
+      : `Basic ${Buffer.from(replaced, `utf8`).toString(`base64`)}`
+  }
+
+  /**
+   * Decode a base64 string, returning null when malformed.
+   * Node's Buffer decoding is lenient, so validate the charset first —
+   * malformed input must fall through unchanged, never throw.
+   */
+  private decodeBase64(encoded: string): string | null {
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) return null
+    try {
+      const decoded = Buffer.from(encoded, `base64`)
+      return decoded.length ? decoded.toString(`utf8`) : null
+    } catch {
+      return null
+    }
   }
 
   private async replaceTokens(

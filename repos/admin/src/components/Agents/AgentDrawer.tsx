@@ -101,8 +101,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
   // Form state
   const [name, setName] = useState('')
+  const [soul, setSoul] = useState('')
   const [active, setActive] = useState(true)
   const [streaming, setStreaming] = useState(true)
+  const [autonomous, setAutonomous] = useState(false)
   const [maxTokens, setMaxTokens] = useState(100000)
   const [description, setDescription] = useState('')
   const [temperature, setTemperature] = useState(0.7)
@@ -119,7 +121,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   useEffect(() => {
     if (agent) {
       setName(agent.name || '')
+      setSoul(agent.soul || '')
       setActive(agent.active ?? true)
+      setAutonomous(agent.autonomous ?? false)
       setSelectedTools(agent.tools || [])
       setDescription(agent.description || '')
       setProviderIds(agent.providers?.map((p) => p.id) || [])
@@ -163,8 +167,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     } else {
       // Reset form for new agent
       setName(``)
+      setSoul(``)
       setEnvVars([])
       setActive(true)
+      setAutonomous(false)
       setDescription(``)
       setStreaming(true)
       setProviderIds([])
@@ -226,7 +232,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
       const agentData = {
         name,
+        soul,
         active,
+        autonomous,
         maxTokens,
         description,
         systemPrompt,
@@ -405,6 +413,30 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             onTemperatureChange={setTemperature}
           />
 
+          {!isOverrideMode && (
+            <>
+              <Divider />
+
+              <Box>
+                <Typography
+                  variant='subtitle2'
+                  sx={{ fontWeight: 600, mb: 2 }}
+                >
+                  Soul (Constitution)
+                </Typography>
+                <Code
+                  id='agent-soul'
+                  disabled={loading}
+                  language='markdown'
+                  defaultValue={soul}
+                  options={MonacoOptions}
+                  label='Define the agent&apos;s identity, values, and constitution'
+                  onChange={(value) => setSoul(value || '')}
+                />
+              </Box>
+            </>
+          )}
+
           <Divider />
 
           <Box>
@@ -489,8 +521,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             active={active}
             loading={loading}
             streaming={streaming}
+            autonomous={autonomous}
             onActiveChange={setActive}
             onStreamingChange={setStreaming}
+            onAutonomousChange={isOverrideMode ? undefined : setAutonomous}
           />
         </Stack>
       </form>

@@ -22,9 +22,10 @@ describe.skipIf(!isFeatureEnabled('agents'))(
       const res = await post(`/orgs/${orgId}/agents`, {
         name: uniqueName('rbac-secret-validation'),
         orgId,
-        providerInputs: [
-          { brand: 'openai', model: 'gpt-4o', secretRef: 'OPENAI_KEY' },
-        ],
+        // providerInputs must reference an existing org AI provider by id;
+        // brand/model-only inputs are filtered out by provider.validate().
+        // Uses the seeded anthropic provider so validation reaches secretIds.
+        providerInputs: [{ id: 'pv_0000002' }],
         secretIds: ['sec_DOESNOTEXIST_rbac_test'],
       })
 

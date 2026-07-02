@@ -258,7 +258,7 @@ test.describe(`Threads Session GUI View`, () => {
   }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-fake-00000001`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-0001/session/gui-test-fake-00000001`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -280,7 +280,7 @@ test.describe(`Threads Session GUI View`, () => {
   test(`ViewToggle is absent when no active session`, async ({ sessionPage: page, ctx }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-no-session-00001`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-0001/session/gui-test-no-session-00001`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -300,7 +300,7 @@ test.describe(`Threads Session GUI View`, () => {
   test(`SmartInput is absent when no active session`, async ({ sessionPage: page, ctx }) => {
     const errors = collectErrors(page)
 
-    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-no-session-00002`, {
+    await page.goto(`${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-0001/session/gui-test-no-session-00002`, {
       waitUntil: `networkidle`,
       timeout: 20_000,
     })
@@ -326,7 +326,7 @@ test.describe(`Threads Session GUI View`, () => {
 
     // Navigate with state so the session page knows the sandboxId (enables the button)
     await page.goto(
-      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/session/gui-test-disconnected-00001`,
+      `${THREADS_URL}/orgs/${ctx.orgId}/projects/${ctx.projectId}/instances/inst-test-0001/session/gui-test-disconnected-00001`,
       { waitUntil: `networkidle`, timeout: 20_000 }
     )
 

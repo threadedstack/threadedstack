@@ -28,7 +28,7 @@ const DefaultModels: Partial<Record<string, string>> = {
   anthropic: `claude-sonnet-4-20250514`,
   openai: `gpt-4o`,
   google: `gemini-2.0-flash`,
-  zai: `glm-4.5`,
+  zai: `glm-4.7`,
   ollama: `llama3`,
   custom: `default`,
 }

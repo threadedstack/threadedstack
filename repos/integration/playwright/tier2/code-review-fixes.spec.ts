@@ -232,7 +232,7 @@ test.describe('Fix 7: Manual sub-nav collapse persistence', () => {
     expect(initialWidth).toBeGreaterThan(0)
 
     // Click the active section to manually collapse
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     const activeItem = navRail.locator('.tdsk-rail-item.active')
     const hasActive = (await activeItem.count()) > 0
     test.skip(!hasActive, 'No active rail item found')
@@ -377,7 +377,7 @@ test.describe('Fix 5: Agent nav items render without crash', () => {
     const sidebar = page.locator('.tdsk-admin-sidebar')
     await expect(sidebar).toBeVisible()
 
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
     // Sub-nav panel exists in DOM (may be collapsed but should not crash)

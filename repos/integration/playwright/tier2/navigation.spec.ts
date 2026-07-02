@@ -38,7 +38,7 @@ test.describe('Navigation', () => {
     const sidebar = page.locator('.tdsk-admin-sidebar')
     await expect(sidebar).toBeVisible()
 
-    const navRail = sidebar.locator('.tdsk-icon-rail')
+    const navRail = sidebar.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
     // On a project page, the nav rail should have Org + Project sections + bottom items
@@ -78,18 +78,23 @@ test.describe('Navigation', () => {
     expect(url).toMatch(/\/(orgs)?$/)
   })
 
-  test('nonexistent org with valid ID renders empty state (BUG #46)', async ({
+  test('nonexistent org with valid ID renders route error page (BUG #46)', async ({
     authenticatedPage: page, ctx,
   }) => {
     const fakeOrgId = 'zz00000000'
     await page.goto(`/orgs/${fakeOrgId}/projects`)
     await page.waitForLoadState('networkidle')
-    // Wait for app to settle - the page content container should be visible
-    await expect(page.locator('.tdsk-page-content').first()).toBeVisible({ timeout: 10000 })
 
-    // The page should still render (body visible) even with a nonexistent org.
-    // BUG #46: Shows empty state instead of an error message.
-    await expect(page.locator('body').first()).toBeVisible()
+    // The org scope loader throws for a nonexistent org, so the route
+    // errorElement renders the AppError page instead of a blank empty state.
+    // (BUG #46 originally showed an empty state — the loader refactor now
+    // surfaces an explicit error message, which is the desired behavior.)
+    const errorContainer = page.locator('.prism-app-error-container')
+    await expect(errorContainer).toBeVisible({ timeout: 10000 })
+
+    // The error page should show a non-empty message
+    const errorText = await page.locator('.prism-app-error-text').innerText()
+    expect(errorText.trim().length).toBeGreaterThan(0)
 
     // URL should remain on the requested path (no redirect away)
     expect(page.url()).toContain(`/orgs/${fakeOrgId}`)
@@ -100,25 +105,16 @@ test.describe('Navigation', () => {
   }) => {
     await page.goto('/orgs/not-a-uuid')
     await page.waitForLoadState('networkidle')
-    // Wait for app to settle — org page renders "Org not found" for invalid IDs
-    await expect(page.locator('.tdsk-org-page, .tdsk-page-content').first()).toBeVisible({ timeout: 10000 })
 
-    // The page should render something — either an error message or a redirect
-    await expect(page.locator('body').first()).toBeVisible()
+    // The org scope loader throws for an invalid org id, so the route
+    // errorElement renders the AppError page with the backend error message
+    const errorContainer = page.locator('.prism-app-error-container')
+    await expect(errorContainer).toBeVisible({ timeout: 10000 })
 
-    // Check if we got an error indication or were redirected.
-    const url = page.url()
-    const bodyText = await page.locator('body').innerText()
-
-    const hasErrorIndication =
-      bodyText.toLowerCase().includes('invalid') ||
-      bodyText.toLowerCase().includes('error') ||
-      bodyText.toLowerCase().includes('not found')
-
-    const wasRedirected = !url.includes('not-a-uuid')
-
-    // At least one of these should be true — the app handles the invalid format
-    expect(hasErrorIndication || wasRedirected).toBe(true)
+    // The error page should show a non-empty message — the app handled
+    // the invalid format instead of crashing or rendering a blank page
+    const errorText = await page.locator('.prism-app-error-text').innerText()
+    expect(errorText.trim().length).toBeGreaterThan(0)
   })
 
   test('sidebar on global page shows nav rail with no sections', async ({
@@ -131,7 +127,7 @@ test.describe('Navigation', () => {
     await expect(sidebar).toBeVisible()
 
     // Nav rail should be visible
-    const navRail = sidebar.locator('.tdsk-icon-rail')
+    const navRail = sidebar.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
     // On global pages (no org context), the rail has no section items —

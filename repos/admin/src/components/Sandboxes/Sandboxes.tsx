@@ -336,22 +336,29 @@ export const Sandboxes = (props: TSandboxes) => {
     setDeleting(undefined)
   }
 
-  const filteredSandboxes = useMemo(() => {
+  const visibleSandboxes = useMemo(() => {
     const sandboxArray = sandboxes ? Object.values(sandboxes) : []
-    const visible = sandboxArray.filter(
+    return sandboxArray.filter(
       (sandbox) =>
         !(sandbox.builtIn && sandbox.config?.runtime === ESandboxRuntime.custom)
     )
-    if (!searchQuery.trim()) return visible
+  }, [sandboxes])
+
+  const filteredSandboxes = useMemo(() => {
+    if (!searchQuery.trim()) return visibleSandboxes
     const query = searchQuery.toLowerCase()
-    return visible.filter(
+    return visibleSandboxes.filter(
       (sandbox) =>
         sandbox.name?.toLowerCase().includes(query) ||
         sandbox.config?.image?.toLowerCase().includes(query)
     )
-  }, [sandboxes, searchQuery])
+  }, [visibleSandboxes, searchQuery])
 
-  const sandboxCount = filteredSandboxes.length
+  // Total visible count (NOT search-filtered) — the PageLayout count controls
+  // search bar visibility and the "no configs yet" empty state, so filtering
+  // it by the search query would hide the search bar when a query matches
+  // nothing, making it impossible to clear the search
+  const sandboxCount = visibleSandboxes.length
 
   const columns: TDataTableColumn<Sandbox>[] = [
     {

@@ -26,8 +26,10 @@ test.describe('Profile Page', () => {
 
     // The top card shows an Avatar with display name and email
     // The auth fixture mocks the user as "Integration Test" / "integration@test.local"
-    await expect(page.getByText('Integration Test')).toBeVisible()
-    await expect(page.getByText('integration@test.local')).toBeVisible()
+    // (.first() — the display name renders in both the user card and the
+    // settings menu, so the bare text locator matches multiple elements)
+    await expect(page.getByText('Integration Test').first()).toBeVisible()
+    await expect(page.getByText('integration@test.local').first()).toBeVisible()
 
     expect(errors).toEqual([])
   })

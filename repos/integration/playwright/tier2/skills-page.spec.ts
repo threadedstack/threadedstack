@@ -85,17 +85,16 @@ test.describe('Org Skills Page', () => {
 
     await expect(page.getByText('Create New Skill')).toBeVisible()
     await expect(page.locator('#tdsk-skill-name-input')).toBeVisible()
-    await expect(page.locator('#tdsk-skill-description-input')).toBeVisible()
-    await expect(page.locator('#tdsk-skill-instructions-input')).toBeVisible()
-    await expect(page.locator('#tdsk-skill-tools-input')).toBeVisible()
-    await expect(page.locator('#tdsk-skill-trigger-keywords-input')).toBeVisible()
-    // Scope to the drawer form to avoid matching table header or skill names
-    await expect(page.locator('#skill-form').getByText('Always Active')).toBeVisible()
+    // The redesigned SkillDrawer replaces the individual description /
+    // instructions / tools / keywords inputs with a single markdown editor
+    const form = page.locator('#skill-form')
+    await expect(form.getByText('Skill Content')).toBeVisible()
+    await expect(form.locator('.monaco-editor').first()).toBeVisible({ timeout: 10000 })
 
     await page.keyboard.press('Escape')
   })
 
-  test('SkillDrawer Always Active switch defaults to off', async ({
+  test('SkillDrawer create mode starts empty without legacy fields', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -104,9 +103,13 @@ test.describe('Org Skills Page', () => {
     await page.getByRole('button', { name: 'Create Skill' }).click()
     await page.waitForTimeout(1000)
 
-    // The MUI Switch renders an internal checkbox; target by name attribute
-    const switchControl = page.locator('input[name="skill-active"]')
-    await expect(switchControl).not.toBeChecked()
+    // Name starts empty in create mode
+    await expect(page.locator('#tdsk-skill-name-input')).toHaveValue('')
+
+    // The legacy Always Active switch and extra inputs were removed in the
+    // SkillDrawer redesign (name + markdown content only)
+    await expect(page.locator('input[name="skill-active"]')).toHaveCount(0)
+    await expect(page.locator('#tdsk-skill-description-input')).toHaveCount(0)
 
     await page.keyboard.press('Escape')
   })
@@ -163,7 +166,8 @@ test.describe('Org Skills Page', () => {
 
     const sidebar = page.locator('.tdsk-admin-sidebar')
     await expect(sidebar.getByText('Skills')).toBeVisible()
-    await expect(sidebar.getByText('Schedules')).toBeVisible()
+    // Schedules are project-scoped now — the org sidebar must NOT list them
+    await expect(sidebar.getByText('Schedules')).toHaveCount(0)
   })
 
   test('no unexpected console errors on Skills page', async ({

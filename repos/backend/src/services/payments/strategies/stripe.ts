@@ -340,7 +340,15 @@ export class StripeService extends BaseService {
     // Find user by stripeCustomerId or metadata
     const { data: existingSub } =
       await db.services.subscription.findByStripeCustomerId(customerId)
-    const userId = existingSub?.userId
+    let userId = existingSub?.userId
+
+    // Fall back to the customer's metadata userId — createCheckout persists
+    // the customer ID to the local subscription, but if that persist failed
+    // (or the checkout was initiated externally) the local row won't have it
+    if (!userId) {
+      const customer = await this.#stripe.customers.retrieve(customerId)
+      if (!customer.deleted) userId = (customer as Stripe.Customer).metadata?.userId
+    }
 
     if (!userId) {
       throw new Error(

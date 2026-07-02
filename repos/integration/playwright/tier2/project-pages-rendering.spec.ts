@@ -48,10 +48,11 @@ test.describe('Project Pages', () => {
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
 
-    // Project page renders the project name heading and Sandboxes section
+    // Project page renders the project name heading, the Sandboxes section,
+    // and the Project Information card (the ActionCards header is hidden)
     await expect(page.locator('h1').first()).toBeVisible()
     await expect(page.getByText('Sandboxes').first()).toBeVisible()
-    await expect(page.getByText('Quick Actions').first()).toBeVisible()
+    await expect(page.getByText('Project Information').first()).toBeVisible()
 
     // Verify the page contains project-related content
     expect(page.url()).toContain(`/orgs/${ctx.orgId}/projects/${ctx.projectId}`)

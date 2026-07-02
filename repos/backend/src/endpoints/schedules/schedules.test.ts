@@ -81,6 +81,10 @@ const buildMockReqRes = () => {
     get: vi.fn(),
   }
 
+  const agentService = {
+    get: vi.fn(),
+  }
+
   const s3 = {
     active: true,
     getObject: vi.fn(),
@@ -96,6 +100,7 @@ const buildMockReqRes = () => {
       locals: {
         db: {
           services: {
+            agent: agentService,
             schedule: scheduleService,
             sandbox: sandboxService,
             project: projectService,
@@ -116,6 +121,7 @@ const buildMockReqRes = () => {
     mockRes,
     mockJson,
     mockStatus,
+    agentService,
     scheduleService,
     sandboxService,
     projectService,
@@ -529,6 +535,48 @@ describe(`POST / - createSchedule`, () => {
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(`Create failed`)
   })
+
+  it(`accepts a valid agentId and passes it to schedule.create`, async () => {
+    const {
+      mockReq,
+      mockRes,
+      mockStatus,
+      agentService,
+      sandboxService,
+      scheduleService,
+    } = buildMockReqRes()
+    agentService.get.mockResolvedValue({ data: { id: `ag_1`, orgId: `org-1` } })
+    sandboxService.get.mockResolvedValue({ data: { id: `sb-1`, orgId: `org-1` } })
+    sandboxService.getProjectConfig.mockResolvedValue({ data: {} })
+    scheduleService.create.mockResolvedValue({ data: { id: `sd_1` } })
+    mockReq.body = {
+      agentId: `ag_1`,
+      sandboxId: `sb-1`,
+      prompt: `Review platform state`,
+      cronExpression: `0 * * * *`,
+    }
+    await createSchedule.action(mockReq, mockRes)
+    expect(scheduleService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: `ag_1` })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(201)
+  })
+
+  it(`rejects an agentId belonging to another org`, async () => {
+    const { mockReq, mockRes, agentService, sandboxService } = buildMockReqRes()
+    agentService.get.mockResolvedValue({ data: { id: `ag_1`, orgId: `other-org` } })
+    sandboxService.get.mockResolvedValue({ data: { id: `sb-1`, orgId: `org-1` } })
+    sandboxService.getProjectConfig.mockResolvedValue({ data: {} })
+    mockReq.body = {
+      agentId: `ag_1`,
+      sandboxId: `sb-1`,
+      prompt: `x`,
+      cronExpression: `0 * * * *`,
+    }
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Agent not found`
+    )
+  })
 })
 
 // ── UPDATE SCHEDULE ─────────────────────────────────────────────────
@@ -760,6 +808,29 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `prompt is required for prompt schedules`
+    )
+  })
+
+  it(`clears the continuity threadId when agentId changes`, async () => {
+    const { mockReq, mockRes, agentService, scheduleService } = buildMockReqRes()
+    scheduleService.get.mockResolvedValue({
+      data: {
+        id: `sd_1`,
+        orgId: `org-1`,
+        projectId: `proj-1`,
+        type: `prompt`,
+        prompt: `x`,
+        agentId: `ag_old`,
+        threadId: `th_old`,
+      },
+    })
+    agentService.get.mockResolvedValue({ data: { id: `ag_new`, orgId: `org-1` } })
+    scheduleService.update.mockResolvedValue({ data: { id: `sd_1` } })
+    mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sd_1` } as any
+    mockReq.body = { agentId: `ag_new` }
+    await updateSchedule.action(mockReq, mockRes)
+    expect(scheduleService.update).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: `ag_new`, threadId: null })
     )
   })
 })

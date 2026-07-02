@@ -207,6 +207,16 @@ describe(`AgentDrawer`, () => {
       )
       expect(screen.queryByTestId(`functions-selector`)).toBeNull()
     })
+
+    it(`should show the soul editor section`, () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={mockAgent}
+        />
+      )
+      expect(screen.getByText(`Soul (Constitution)`)).toBeTruthy()
+    })
   })
 
   describe(`Override mode (agent + projectId)`, () => {
@@ -247,6 +257,11 @@ describe(`AgentDrawer`, () => {
     it(`should show functions selector`, () => {
       render(<AgentDrawer {...overrideProps} />)
       expect(screen.getByTestId(`functions-selector`)).toBeTruthy()
+    })
+
+    it(`should hide the soul editor section`, () => {
+      render(<AgentDrawer {...overrideProps} />)
+      expect(screen.queryByText(`Soul (Constitution)`)).toBeNull()
     })
   })
 

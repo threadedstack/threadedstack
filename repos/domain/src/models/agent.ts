@@ -19,7 +19,9 @@ export class Agent extends Base {
   description?: string
   tools: string[] = []
   systemPrompt?: string
+  soul?: string
   active: boolean = true
+  autonomous: boolean = false
   secrets: Secret[] = []
   projects: Project[] = []
   envVars: TAgentEnvVars = {}

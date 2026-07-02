@@ -3,15 +3,15 @@ import type { Schedule, Sandbox } from '@tdsk/domain'
 
 import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
-import { EScheduleType } from '@tdsk/domain'
 import Accordion from '@mui/material/Accordion'
 import Typography from '@mui/material/Typography'
 import { DefaultTemp } from '@TAF/constants/schedule'
 import ToggleButton from '@mui/material/ToggleButton'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
-import { useProjectSandboxes } from '@TAF/state/selectors'
+import { EScheduleType, isFeatureEnabled } from '@tdsk/domain'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { SandboxSelector } from '@TAF/components/Selectors'
+import { useOrgAgents, useProjectSandboxes } from '@TAF/state/selectors'
+import { AgentSelector, SandboxSelector } from '@TAF/components/Selectors'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
@@ -56,6 +56,9 @@ export const ScheduleDrawer = ({
   const [projectSandboxes] = useProjectSandboxes()
   const sandboxes = projectSandboxes ? Object.values(projectSandboxes) : []
 
+  const [orgAgents] = useOrgAgents()
+  const agents = orgAgents ? Object.values(orgAgents) : []
+
   const updateTemp = (update: Partial<TSandboxSchedule>) =>
     setTemp({ ...temp, ...update })
 
@@ -63,6 +66,7 @@ export const ScheduleDrawer = ({
     if (schedule) {
       setTemp({
         prompt: schedule.prompt,
+        agentId: schedule.agentId,
         command: schedule.command,
         sandboxId: schedule.sandboxId,
         enabled: schedule.enabled ?? true,
@@ -103,11 +107,15 @@ export const ScheduleDrawer = ({
     const payload = cleanColl({
       type: temp.type,
       enabled: temp.enabled,
+      agentId: temp.agentId,
       sandboxId: temp.sandboxId,
       cronExpression: temp.cronExpression,
       prompt: temp.type === EScheduleType.prompt ? temp.prompt : undefined,
       command: temp.type === EScheduleType.shell ? temp.command : undefined,
     })
+
+    // cleanColl strips undefined keys, so explicitly send null to clear an existing agent
+    if (isEditMode && schedule?.agentId && !temp.agentId) payload.agentId = null
 
     const result =
       isEditMode && schedule
@@ -195,6 +203,16 @@ export const ScheduleDrawer = ({
                   sandboxId={temp?.sandboxId || ``}
                   onChange={(id) => updateTemp({ sandboxId: id })}
                 />
+
+                {isFeatureEnabled(`agents`) && (
+                  <AgentSelector
+                    allowNone
+                    agents={agents}
+                    loading={loading}
+                    agentId={temp?.agentId || ``}
+                    onChange={(id) => updateTemp({ agentId: id || undefined })}
+                  />
+                )}
 
                 {temp.type === EScheduleType.prompt && (
                   <TextInput

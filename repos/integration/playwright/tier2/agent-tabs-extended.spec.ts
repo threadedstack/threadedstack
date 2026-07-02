@@ -4,7 +4,10 @@ import { isFeatureEnabled } from '@tdsk/domain'
 /**
  * Agent Layout extended tabs integration tests.
  *
- * Validates the 4-tab AgentLayout (Agent, Threads, Skills, Schedules).
+ * Validates the 3-tab AgentLayout (Agent, Threads, Skills).
+ * Schedules were migrated from agent-scoped to project/sandbox-scoped,
+ * so the AgentLayout no longer renders a Schedules tab — that behavior
+ * is asserted here and schedule UI coverage lives in schedules-page.spec.ts.
  * Tests tab rendering, navigation, deep links, tab persistence on
  * refresh, and that tabs are hidden on chat/thread detail pages.
  *
@@ -61,13 +64,12 @@ function collectConsoleErrors(page: import('@playwright/test').Page) {
 
 test.describe('Agent Layout Extended Tabs', () => {
   const hasSkills = isFeatureEnabled('skills')
-  const hasSchedules = isFeatureEnabled('schedules')
 
   test.beforeEach(({}, testInfo) => {
-    test.skip(!hasSkills || !hasSchedules, 'skills and/or schedules feature flags are disabled')
+    test.skip(!hasSkills, 'skills feature flag is disabled')
   })
 
-  test('agent layout renders all 4 tabs', async ({
+  test('agent layout renders all 3 tabs', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -80,10 +82,9 @@ test.describe('Agent Layout Extended Tabs', () => {
     await expect(page.getByRole('tab', { name: /^Agent$/i })).toBeVisible()
     await expect(page.getByRole('tab', { name: /^Threads$/i })).toBeVisible()
     await expect(page.getByRole('tab', { name: /^Skills$/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /^Schedules$/i })).toBeVisible()
 
     const tabs = page.getByRole('tab')
-    expect(await tabs.count()).toBe(4)
+    expect(await tabs.count()).toBe(3)
 
     expect(errors).toEqual([])
   })
@@ -110,7 +111,7 @@ test.describe('Agent Layout Extended Tabs', () => {
     )
   })
 
-  test('clicking Schedules tab navigates to /schedules route', async ({
+  test('Schedules tab is not rendered (schedules are project-scoped)', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -118,18 +119,9 @@ test.describe('Agent Layout Extended Tabs', () => {
     await gotoAndWait(page, agentUrl, 'tdsk-agent-layout-page')
     await waitForAgentLoaded(page)
 
-    await page.getByRole('tab', { name: /^Schedules$/i }).click()
-    await page.waitForLoadState('networkidle')
-
-    expect(page.url()).toContain('/schedules')
-    await expect(page.getByRole('tab', { name: /^Schedules$/i })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    )
-    await expect(page.getByRole('tab', { name: /^Agent$/i })).toHaveAttribute(
-      'aria-selected',
-      'false'
-    )
+    // Schedules moved from agent-scoped to project/sandbox-scoped execution,
+    // so the AgentLayout must NOT render a Schedules tab anymore
+    await expect(page.getByRole('tab', { name: /^Schedules$/i })).toHaveCount(0)
   })
 
   test('deep link to /agents/:id/skills loads with Skills tab active', async ({
@@ -149,25 +141,6 @@ test.describe('Agent Layout Extended Tabs', () => {
       'false'
     )
     expect(page.url()).toContain('/skills')
-  })
-
-  test('deep link to /agents/:id/schedules loads with Schedules tab active', async ({
-    authenticatedPage: page,
-    ctx,
-  }) => {
-    const schedulesUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/schedules`
-    await gotoAndWait(page, schedulesUrl, 'tdsk-agent-layout-page')
-    await waitForAgentLoaded(page)
-
-    await expect(page.getByRole('tab', { name: /^Schedules$/i })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    )
-    await expect(page.getByRole('tab', { name: /^Agent$/i })).toHaveAttribute(
-      'aria-selected',
-      'false'
-    )
-    expect(page.url()).toContain('/schedules')
   })
 
   test('switching from Skills tab back to Agent tab works', async ({

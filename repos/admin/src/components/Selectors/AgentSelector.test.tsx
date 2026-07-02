@@ -125,4 +125,50 @@ describe(`AgentSelector`, () => {
     await user.click(clearBtn)
     expect(onChange).toHaveBeenCalledWith(``)
   })
+
+  it(`should show a None option when allowNone is set`, async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AgentSelector
+        {...defaultProps}
+        allowNone
+      />
+    )
+
+    const input = screen.getByRole(`combobox`)
+    await user.click(input)
+    expect(await screen.findByText(`None`)).toBeTruthy()
+  })
+
+  it(`should call onChange with empty string when None is selected`, async () => {
+    const onChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <AgentSelector
+        {...defaultProps}
+        allowNone
+        agentId='agent-1'
+        onChange={onChange}
+      />
+    )
+
+    const input = screen.getByRole(`combobox`)
+    await user.click(input)
+    const option = await screen.findByText(`None`)
+    await user.click(option)
+    expect(onChange).toHaveBeenCalledWith(``)
+  })
+
+  it(`should not show a None option without allowNone`, async () => {
+    const user = userEvent.setup()
+
+    render(<AgentSelector {...defaultProps} />)
+
+    const input = screen.getByRole(`combobox`)
+    await user.click(input)
+    await screen.findByText(`Support Bot`)
+    expect(screen.queryByText(`None`)).toBeNull()
+  })
 })

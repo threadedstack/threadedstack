@@ -18,6 +18,7 @@ export type TRunStatusCfg = {
 export type TSandboxSchedule = {
   type?: string
   prompt?: string
+  agentId?: string
   command?: string
   sandboxId?: string
   enabled?: boolean

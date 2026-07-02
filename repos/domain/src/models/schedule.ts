@@ -5,6 +5,8 @@ export class Schedule extends Base {
   orgId!: string
   prompt?: string
   userId?: string
+  agentId?: string
+  threadId?: string
   command?: string
   projectId!: string
   sandboxId!: string

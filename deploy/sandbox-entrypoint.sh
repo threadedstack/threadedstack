@@ -21,6 +21,13 @@ for var in $(env | grep '^TDSK_CRED_FILE_' | cut -d= -f1); do
   fi
 done
 
+# 1c. Trust the egress MITM CA system-wide (git/curl use the system store, not
+# NODE_EXTRA_CA_CERTS), so cloning and HTTPS probes work through the proxy.
+if [ -f /usr/local/share/ca-certificates/tdsk-proxy.crt ]; then
+  update-ca-certificates >/dev/null 2>&1 \
+    || echo "[sandbox-entrypoint] WARNING: update-ca-certificates failed" >&2
+fi
+
 # 2. Start SSH server (background daemon)
 /usr/sbin/sshd -p 2222 -e
 
@@ -42,14 +49,13 @@ if [ "$GIT_COUNT" -gt 0 ] 2>/dev/null; then
         REPO_DIR="/workspace"
       fi
 
-      GIT_OPTS=""
-      if [ -n "$TOKEN" ]; then
-        GIT_OPTS="-c http.extraHeader='Authorization: Bearer $TOKEN'"
-      fi
-
       echo "[sandbox-entrypoint] Cloning $REPO (branch: $BRANCH) into $REPO_DIR..."
       if [ -n "$TOKEN" ]; then
-        if ! su -s /bin/bash sandbox -c "exec git -c http.extraHeader=\"Authorization: Bearer \$0\" clone --branch \"\$1\" \"\$2\" \"\$3\"" "$TOKEN" "$BRANCH" "$REPO" "$REPO_DIR" 2>&1; then
+        # GitHub's git smart-HTTP endpoints reject `Bearer <PAT>` but accept
+        # Basic with `x-access-token:<PAT>`. The egress proxy decodes Basic
+        # credentials and swaps the embedded placeholder before forwarding.
+        AUTH=$(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')
+        if ! su -s /bin/bash sandbox -c "exec git -c http.extraHeader=\"Authorization: Basic \$0\" clone --branch \"\$1\" \"\$2\" \"\$3\"" "$AUTH" "$BRANCH" "$REPO" "$REPO_DIR" 2>&1; then
           echo "[sandbox-entrypoint] WARNING: git clone failed for $REPO"
         fi
       else

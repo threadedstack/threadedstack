@@ -206,7 +206,7 @@ describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: OpenAI-Compatible API', ()
         `/agents/${agentId}/v1/chat/completions`,
         {
           messages: [{ role: 'user', content: 'Say hi' }],
-          model: 'glm-4.5-flash',
+          model: 'glm-4.5-air',
           stream: false,
         },
         { timeout: 90_000 }

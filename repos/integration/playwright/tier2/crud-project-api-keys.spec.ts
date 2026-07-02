@@ -42,8 +42,10 @@ test.describe.serial('CRUD Project API Keys', () => {
     // Select expiration (30 days)
     await selectOption(page, 'tdsk-api-key-expiration', '30 days')
 
-    // Check the "write" scope (read is checked by default)
-    await checkBox(page, 'write')
+    // Select all permissions via the PermissionsPicker header checkbox
+    // (the legacy read/write/admin scopes were replaced by granular
+    // permissions in the RBAC overhaul)
+    await checkBox(page, 'tdsk-perm-select-all')
 
     // Submit the form
     await submitForm(page, FORM_ID)
@@ -88,7 +90,7 @@ test.describe.serial('CRUD Project API Keys', () => {
     expect(errors).toEqual([])
   })
 
-  test('READ — should display the project API key with correct scopes', async ({
+  test('READ — should display the project API key with its permissions', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -104,10 +106,12 @@ test.describe.serial('CRUD Project API Keys', () => {
     // Verify key name is visible (no search bar on API keys page)
     await expect(page.getByText(keyName)).toBeVisible({ timeout: 10_000 })
 
-    // Verify scope chips — read is default, write was added
+    // Verify the permissions summary chip renders (granular permissions
+    // replaced the legacy Read Only / Write scope chips)
     const row = page.locator('tr', { has: page.getByText(keyName) })
-    await expect(row.getByText('Read Only')).toBeVisible()
-    await expect(row.getByText('Write')).toBeVisible()
+    const permChip = row.locator('.MuiChip-root').first()
+    await expect(permChip).toBeVisible()
+    await expect(permChip).not.toHaveText('No permissions')
 
     // Verify status is Active
     await expect(row.getByText('Active')).toBeVisible()

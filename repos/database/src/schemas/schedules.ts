@@ -1,6 +1,8 @@
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
+import { agents } from '@TDB/schemas/agents'
+import { threads } from '@TDB/schemas/threads'
 import { base } from '@TDB/utils/schema/base'
 import { ScheduleIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
@@ -31,6 +33,12 @@ export const schedules = pgTable(
     consecutiveErrors: integer(`consecutive_errors`).default(0).notNull(),
     cronExpression: varchar(`cron_expression`, { length: 255 }).notNull(),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `set null` }),
+    agentId: varchar(`agent_id`, { length: 10 }).references(() => agents.id, {
+      onDelete: `set null`,
+    }),
+    threadId: varchar(`thread_id`, { length: 10 }).references(() => threads.id, {
+      onDelete: `set null`,
+    }),
     maxConsecutiveErrors: integer(`max_consecutive_errors`).default(5).notNull(),
     sandboxId: varchar(`sandbox_id`, { length: 10 })
       .references(() => sandboxes.id, { onDelete: `cascade` })
@@ -47,6 +55,7 @@ export const schedules = pgTable(
     index(`schedules_sandbox_id_idx`).on(table.sandboxId),
     index(`schedules_project_id_idx`).on(table.projectId),
     index(`schedules_enabled_next_run_idx`).on(table.enabled, table.nextRunAt),
+    index(`schedules_agent_id_idx`).on(table.agentId),
   ]
 )
 
@@ -66,5 +75,13 @@ export const schedulesRelations = relations(schedules, ({ one }) => ({
   user: one(users, {
     fields: [schedules.userId],
     references: [users.id],
+  }),
+  agent: one(agents, {
+    fields: [schedules.agentId],
+    references: [agents.id],
+  }),
+  thread: one(threads, {
+    fields: [schedules.threadId],
+    references: [threads.id],
   }),
 }))

@@ -9,6 +9,7 @@ export class OrgsApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`orgs`] as const,
     list: () => [...this.cache.all(), `list`] as const,
+    detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
   async list(): Promise<TApiRes<Organization[]>> {
@@ -28,6 +29,7 @@ export class OrgsApi extends BaseApi {
   async get(id: string): Promise<TApiRes<Organization>> {
     const resp = await this.api.get<Organization>({
       path: `${this.#path}/${id}`,
+      queryKey: this.cache.detail(id),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load organization ${id}`))

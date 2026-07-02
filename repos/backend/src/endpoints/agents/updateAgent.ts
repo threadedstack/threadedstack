@@ -19,11 +19,13 @@ export const updateAgent: TEndpointConfig = {
     const { db } = req.app.locals
     const {
       name,
+      soul,
       model,
       tools,
       envVars,
       secretIds,
       maxTokens,
+      autonomous,
       temperature,
       description,
       environment,
@@ -119,6 +121,7 @@ export const updateAgent: TEndpointConfig = {
 
     const agentUpdate: Record<string, unknown> & { id: string } = { id }
     if (name !== undefined) agentUpdate.name = name
+    if (soul !== undefined) agentUpdate.soul = soul
     if (model !== undefined) agentUpdate.model = model
     if (tools !== undefined) agentUpdate.tools = tools
     if (projects?.length) agentUpdate.projects = projects
@@ -126,6 +129,7 @@ export const updateAgent: TEndpointConfig = {
     if (pins !== undefined) agentUpdate.providerInputs = pins
     if (maxTokens !== undefined) agentUpdate.maxTokens = maxTokens
     if (secretIds !== undefined) agentUpdate.secretIds = secretIds
+    if (autonomous !== undefined) agentUpdate.autonomous = autonomous
     if (description !== undefined) agentUpdate.description = description
     if (environment !== undefined) agentUpdate.environment = environment
     if (temperature !== undefined) agentUpdate.temperature = temperature

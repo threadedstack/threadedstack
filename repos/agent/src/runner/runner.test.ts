@@ -1020,6 +1020,19 @@ describe(`AgentRunner`, () => {
     })
   })
 
+  describe(`soul`, () => {
+    it(`prepends the soul above the base system prompt on init`, async () => {
+      const opts = baseOpts()
+      opts.soul = `You are the ThreadedStack steward.`
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+      const ctorArgs = vi.mocked(Agent).mock.calls[0][0]
+      expect(ctorArgs.initialState.systemPrompt).toBe(
+        `You are the ThreadedStack steward.\n\nYou are a helpful assistant`
+      )
+    })
+  })
+
   describe(`instance lifecycle (init/runTurn/destroy)`, () => {
     const baseInitOpts = (): TAgentInitOpts => ({
       agentId: `agent-1`,
@@ -1148,6 +1161,17 @@ describe(`AgentRunner`, () => {
       const agentInstance = vi.mocked(Agent).mock.results[0]?.value
       expect(agentInstance.state.systemPrompt).toBe(`New prompt`)
 
+      await runner.destroy()
+    })
+
+    it(`keeps the soul above a system prompt swapped via updateConfig`, async () => {
+      const runner = new AgentRunner()
+      const init = baseInitOpts()
+      init.soul = `SOUL`
+      await runner.init(init)
+      runner.updateConfig({ systemPrompt: `New base` })
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      expect(agentInstance.state.systemPrompt).toBe(`SOUL\n\nNew base`)
       await runner.destroy()
     })
 

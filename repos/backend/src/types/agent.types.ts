@@ -29,6 +29,7 @@ export type TAgentExecOverrides = TAgentOverrides & {
 export type TAgentRuntimeConfig = {
   skills: Skill[]
   tools?: string[]
+  soul?: string
   db: IAgentRunnerDB
   customFunctions: Function[]
   llmConfig: TLLMAdapterConfig

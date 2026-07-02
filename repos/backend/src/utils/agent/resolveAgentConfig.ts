@@ -144,6 +144,7 @@ export const resolveAgentConfig = async (
 
   return {
     agent,
+    soul: effectiveAgent.soul,
     llmConfig,
     sandboxConfig,
     effectiveAgent,

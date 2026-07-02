@@ -16,6 +16,7 @@ const mockSubscriptionsRetrieve = vi.fn()
 const mockSubscriptionsUpdate = vi.fn()
 const mockWebhooksConstructEvent = vi.fn()
 const mockCustomersCreate = vi.fn()
+const mockCustomersRetrieve = vi.fn()
 const mockCheckoutSessionsCreate = vi.fn()
 const mockBillingPortalSessionsCreate = vi.fn()
 const mockSubscriptionItemsUpdate = vi.fn()
@@ -25,7 +26,7 @@ const mockPricesRetrieve = vi.fn()
 vi.mock(`stripe`, () => {
   return {
     default: vi.fn().mockImplementation(() => ({
-      customers: { create: mockCustomersCreate },
+      customers: { create: mockCustomersCreate, retrieve: mockCustomersRetrieve },
       checkout: { sessions: { create: mockCheckoutSessionsCreate } },
       billingPortal: { sessions: { create: mockBillingPortalSessionsCreate } },
       subscriptions: {
@@ -283,6 +284,55 @@ describe(`StripeService`, () => {
       )
     })
 
+    it(`should fall back to customer metadata userId when no local subscription matches`, async () => {
+      const session = {
+        subscription: `sub_456`,
+        customer: `cus_456`,
+        metadata: { tier: `solo` },
+      }
+
+      mockSubscriptionsRetrieve.mockResolvedValue({
+        status: `active`,
+        cancel_at_period_end: false,
+        items: {
+          data: [
+            {
+              price: { id: `price_solo_123` },
+              current_period_start: 1700000000,
+              current_period_end: 1702592000,
+            },
+          ],
+        },
+      })
+
+      // No local subscription has this stripeCustomerId
+      mockDb.services.subscription.findByStripeCustomerId.mockResolvedValue({
+        data: null,
+      })
+
+      // The Stripe customer carries the userId in metadata
+      mockCustomersRetrieve.mockResolvedValue({
+        id: `cus_456`,
+        deleted: false,
+        metadata: { userId: `user_2` },
+      })
+
+      await service.webhook(mockApp, {
+        type: `checkout.session.completed`,
+        data: { object: session },
+      } as any)
+
+      expect(mockCustomersRetrieve).toHaveBeenCalledWith(`cus_456`)
+      expect(mockDb.services.subscription.upsertByUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: `user_2`,
+          tier: `solo`,
+          stripeCustomerId: `cus_456`,
+          stripeSubscriptionId: `sub_456`,
+        })
+      )
+    })
+
     it(`should dispatch customer.subscription.updated to handleSubscriptionUpdated`, async () => {
       const sub = {
         id: `sub_123`,
@@ -525,6 +575,13 @@ describe(`StripeService`, () => {
 
       mockDb.services.subscription.findByStripeCustomerId.mockResolvedValue({
         data: null,
+      })
+
+      // Metadata fallback also finds no userId on the Stripe customer
+      mockCustomersRetrieve.mockResolvedValue({
+        id: `cus_orphan`,
+        deleted: false,
+        metadata: {},
       })
 
       await expect(

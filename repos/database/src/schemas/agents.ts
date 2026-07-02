@@ -33,6 +33,9 @@ export const agents = pgTable(`agents`, {
   /** System prompt for the agent */
   systemPrompt: text(`system_prompt`),
 
+  /** Durable identity/constitution, pinned to the top of the system prompt */
+  soul: text(`soul`),
+
   /** Model identifier override (optional, uses provider default if not set) */
   model: text(`model`),
 
@@ -50,6 +53,9 @@ export const agents = pgTable(`agents`, {
 
   /** Whether this agent is active and can be used */
   active: boolean(`active`).default(true),
+
+  /** Whether this agent has autonomy faculties (heartbeat/delegation/delivery) enabled */
+  autonomous: boolean(`autonomous`).default(false),
 })
 
 export const agentsRelations = relations(agents, ({ one, many }) => ({

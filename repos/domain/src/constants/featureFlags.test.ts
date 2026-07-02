@@ -10,6 +10,11 @@ describe('FeatureFlags', () => {
     expect(FeatureFlags).toHaveProperty('skills')
   })
 
+  it(`has the agents feature enabled`, () => {
+    expect(FeatureFlags.agents.enabled).toBe(true)
+    expect(isFeatureEnabled(`agents`)).toBe(true)
+  })
+
   it('each flag should have enabled and description', () => {
     for (const [name, def] of Object.entries(FeatureFlags)) {
       expect(typeof def.enabled).toBe('boolean')

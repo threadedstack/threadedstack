@@ -173,14 +173,18 @@ test.describe('Cancel button disabled on drawer open', () => {
 })
 
 test.describe('Project workspace dashboard', () => {
-  test('should display sandbox and thread panels on project workspace page', async ({
+  test('should display action cards and sandbox panel on project workspace page', async ({
     authenticatedPage: page, ctx,
   }) => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
 
-    // Project page renders quick actions and sandboxes section
-    await expect(page.getByText('Quick Actions').first()).toBeVisible()
+    // The workspace renders the ActionCards row (header text hidden) with
+    // Sandboxes / Endpoints / Functions / Secrets cards, then the Sandboxes
+    // panel and the Project Information card
     await expect(page.getByText('Sandboxes').first()).toBeVisible()
+    await expect(page.getByText('Endpoints').first()).toBeVisible()
+    await expect(page.getByText('Functions').first()).toBeVisible()
+    await expect(page.getByText('Project Information').first()).toBeVisible()
   })
 })
 

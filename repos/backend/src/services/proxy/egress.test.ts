@@ -347,6 +347,104 @@ describe(`EgressProxy`, () => {
     })
   })
 
+  // ── Basic-encoded authorization credentials ──
+
+  describe(`Basic authorization credentials`, () => {
+    const setup = (optsOverride: Record<string, unknown> = {}) => {
+      const opts = makeOpts(optsOverride)
+      new EgressProxy(opts as any)
+      const onRequestHandler = mockProxy.onRequest.mock.calls[0][0] as (
+        ctx: any,
+        callback: (...args: any[]) => void
+      ) => void
+      return { opts, onRequestHandler }
+    }
+
+    const encodeBasic = (credentials: string) =>
+      Buffer.from(credentials, `utf8`).toString(`base64`)
+
+    it(`should swap a placeholder embedded in base64 Basic credentials and re-encode`, async () => {
+      const { opts, onRequestHandler } = setup()
+      opts.resolveSecret.mockResolvedValue(`github_pat_real`)
+      const ctx = makeCtx(`10.0.0.5`, {
+        authorization: `Basic ${encodeBasic(`x-access-token:tdsk_ph_token1`)}`,
+      })
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-id-1`)
+      const result = ctx.proxyToServerRequestOptions.headers.authorization as string
+      expect(result).toMatch(/^Basic /)
+      const decoded = Buffer.from(result.slice(`Basic `.length), `base64`).toString(
+        `utf8`
+      )
+      expect(decoded).toBe(`x-access-token:github_pat_real`)
+    })
+
+    it(`should leave Basic credentials WITHOUT a placeholder unchanged`, async () => {
+      const { opts, onRequestHandler } = setup()
+      const header = `Basic ${encodeBasic(`user:plain-password`)}`
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(header)
+    })
+
+    it(`should leave malformed base64 after Basic unchanged without throwing`, async () => {
+      const { opts, onRequestHandler } = setup()
+      const header = `Basic !!!not-valid-base64!!!`
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(header)
+      // No 502 written — malformed base64 must never throw
+      expect(ctx.proxyToClientResponse.writeHead).not.toHaveBeenCalled()
+    })
+
+    it(`should respect domain gating for placeholders inside Basic credentials`, async () => {
+      const routes: TRouteMap = {
+        'sb-basic-gated': {
+          meta: {
+            podIp: `10.0.0.5`,
+            state: `Running` as EContainerState,
+            sandboxId: `basicgate`,
+            podName: `tdsk-sb-basic-gated`,
+          },
+          placeholders: {
+            tdsk_ph_gated: {
+              secretId: `secret-gated`,
+              allowedDomains: [`github.com`],
+            },
+          },
+          ports: {},
+        },
+      }
+      const { opts, onRequestHandler } = setup({ routes })
+      opts.resolveSecret.mockResolvedValue(`real-pat`)
+      const header = `Basic ${encodeBasic(`x-access-token:tdsk_ph_gated`)}`
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      ;(ctx.proxyToServerRequestOptions as any).host = `evil.example.com:443`
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      // Disallowed destination — placeholder stays encoded and unswapped
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
+      expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(header)
+    })
+  })
+
   // ── findPlaceholders (tested indirectly via handleRequest) ──
 
   describe(`findPlaceholders`, () => {

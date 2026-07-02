@@ -1,10 +1,18 @@
 import type { TApp } from '@TBE/types'
+import type { TDatabase } from '@tdsk/database'
 import type { TScheduleExecutor } from '@TBE/services/scheduler/scheduler'
-import type { Schedule, TKubeSandboxConfig, TSandboxRuntimeId } from '@tdsk/domain'
+import type {
+  Schedule,
+  TStreamEvent,
+  TKubeSandboxConfig,
+  TSandboxRuntimeId,
+} from '@tdsk/domain'
 
+import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS } from '@TBE/constants/sandbox'
 import { EScheduleType, SandboxRuntimeConfigs } from '@tdsk/domain'
+import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 
 function resolveScheduleCommand(
   schedule: Schedule,
@@ -35,6 +43,103 @@ function resolveScheduleCommand(
   return template.replace(`{prompt}`, escaped)
 }
 
+/** Race a promise against the shared execution timeout. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${ms / 1000}s`)), ms)
+    timer.unref()
+  })
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer!))
+}
+
+/**
+ * Resolve the durable continuity thread for an agent-backed schedule.
+ * Reuses schedule.threadId when set; otherwise creates one and persists it
+ * back onto the schedule so subsequent heartbeats share the same episodic thread.
+ * A persist failure (error or zero rows matched) throws and fails the run —
+ * otherwise every heartbeat would silently orphan a new thread, defeating
+ * durable continuity.
+ */
+async function resolveContinuityThread(
+  db: TDatabase,
+  schedule: Schedule,
+  orgId: string
+): Promise<string> {
+  if (schedule.threadId) return schedule.threadId
+
+  const { data: thread, error } = await db.services.thread.create({
+    orgId,
+    userId: schedule.userId as string,
+    agentId: schedule.agentId,
+    projectId: schedule.projectId,
+    name: `Heartbeat ${schedule.id}`,
+  })
+  if (error || !thread)
+    throw new Error(`Failed to create continuity thread: ${error?.message || 'unknown'}`)
+
+  const { data: updated, error: updErr } = await db.services.schedule.update({
+    id: schedule.id,
+    threadId: thread.id,
+  })
+  if (updErr || !updated)
+    throw new Error(
+      `Failed to persist continuity thread ${thread.id} on schedule ${schedule.id}: ${updErr?.message || `schedule not found`}`
+    )
+
+  return thread.id
+}
+
+/**
+ * Agent-brain execution path: resolve the agent's config and run the agent
+ * against the durable continuity thread, streaming events to stdout.
+ * Returns the started pod name (if any) so the caller can tear it down.
+ */
+async function runAgentSchedule(
+  app: TApp,
+  schedule: Schedule,
+  onStdout: (chunk: string) => void
+): Promise<{ instanceId?: string }> {
+  const { db } = app.locals
+
+  if (!schedule.agentId) throw new Error(`runAgentSchedule called without agentId`)
+  if (!schedule.prompt)
+    throw new Error(`Schedule ${schedule.id} is agent-backed but has no prompt`)
+  // threads.user_id is NOT NULL while schedules.user_id is nullable (onDelete: set null),
+  // so a missing user must fail loudly here, not as a raw DB constraint error mid-run.
+  if (!schedule.userId)
+    throw new Error(`Schedule ${schedule.id} is agent-backed but has no userId`)
+
+  const config = await resolveAgentConfig(schedule.agentId, db, app, {
+    userId: schedule.userId,
+    projectId: schedule.projectId,
+  })
+
+  const threadId = await resolveContinuityThread(db, schedule, config.orgId)
+
+  const handle = await AgentRunner.run({
+    prompt: schedule.prompt,
+    userId: schedule.userId,
+    agentId: schedule.agentId,
+    threadId,
+    soul: config.soul,
+    db: config.db,
+    orgId: config.orgId,
+    tools: config.tools,
+    skills: config.skills,
+    llmConfig: config.llmConfig,
+    environment: config.environment,
+    sandboxConfig: config.sandboxConfig,
+    onExecuteFunction: config.onExecuteFunction,
+    customFunctions: config.customFunctions || [],
+    onEvent: (event: TStreamEvent) => onStdout(`${JSON.stringify(event)}\n`),
+  })
+
+  await handle.waitForIdle()
+
+  return { instanceId: config.sandboxConfig?.options?.podName as string | undefined }
+}
+
 export function createScheduleExecutor(app: TApp): TScheduleExecutor {
   return async (schedule: Schedule) => {
     const { db, sandbox, s3 } = app.locals
@@ -45,7 +150,9 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
     const start = Date.now()
 
-    if (!schedule.userId)
+    // Agent-backed schedules validate userId inside runAgentSchedule so the
+    // failure is recorded on the run; pod schedules fail fast before pod start
+    if (!schedule.agentId && !schedule.userId)
       throw new Error(
         `Schedule ${schedule.id} has no userId — cannot start pod without ownership`
       )
@@ -87,6 +194,32 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
     }
 
     try {
+      if (schedule.agentId) {
+        const agentRun = await withTimeout(
+          runAgentSchedule(app, schedule, (chunk) => stdoutUpload?.stream.write(chunk)),
+          ExecTimeoutMS
+        )
+        instanceId = agentRun.instanceId
+
+        const uploadOk = await finalizeUploads()
+        const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
+          instanceId,
+          durationMs: Date.now() - start,
+          status: `success`,
+          ...(uploadOk && { stdoutKey, stderrKey }),
+        })
+        completeErr
+          ? logger.error(
+              `[Executor] Failed to write completion record for run ${run.id} (schedule ${schedule.id}): ${completeErr.message}`
+            )
+          : (markedComplete = true)
+
+        logger.info(
+          `[Executor] Schedule ${schedule.id} — agent run completed in ${Date.now() - start}ms`
+        )
+        return
+      }
+
       instanceId = await sandbox.startPod({
         orgId: schedule.orgId,
         userId: schedule.userId,

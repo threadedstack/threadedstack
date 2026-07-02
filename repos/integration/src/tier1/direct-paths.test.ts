@@ -82,16 +82,24 @@ describe('Tier 1: Direct Path Equivalence', () => {
   // -------------------------------------------------------------------------
 
   describe('direct paths that require scoping params', () => {
-    test('GET /_/agents returns 404 when agents feature flag is disabled', async () => {
-      // The /agents router is wrapped with featureGate('agents'), which
-      // returns 404 (not 403) when the flag is off — intentional, to avoid
-      // leaking feature existence. The agents flag is OFF in this environment.
-      // See repos/backend/src/middleware/featureGate.ts and
-      //     repos/backend/src/endpoints/agents/agents.ts.
-      const res = await get('/agents')
+    test('GET /_/agents is no longer 404-by-feature-gate now that agents is enabled', async () => {
+      // The agents routers are wrapped with featureGate('agents'); with the
+      // flag ON requests pass through to the authed handlers. The live direct
+      // /agents mount only exposes the OpenAI-compat subroutes (/:id/v1/*)
+      // — see agentOaiRoutes in repos/backend/src/endpoints/agents/agents.ts —
+      // so the bare path is a plain route-miss 404 regardless of the flag.
+      // The org-scoped list behind the same featureGate('agents') returning
+      // 200 proves the gate passes requests through instead of 404ing them.
+      const direct = await get('/agents')
 
-      expect(res.status).toBe(404)
-      expect(res.ok).toBe(false)
+      expect(direct.status).toBe(404)
+      expect(direct.ok).toBe(false)
+
+      const orgScoped = await get<Record<string, any>[]>(`/orgs/${ctx.orgId}/agents`)
+
+      expect(orgScoped.status).toBe(200)
+      expect(orgScoped.ok).toBe(true)
+      expect(Array.isArray(orgScoped.data)).toBe(true)
     })
 
     test('GET /_/users without orgId query returns non-401 (auth is valid)', async () => {

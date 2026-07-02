@@ -39,7 +39,7 @@ test.describe('Sub-Navigation', () => {
       'tdsk-project-endpoints-page'
     )
 
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     await expect(navRail).toBeVisible()
 
     // Should have Org + Project section items + Settings bottom item
@@ -69,7 +69,7 @@ test.describe('Sub-Navigation', () => {
     const projectContent = await subNavPanel.innerText()
 
     // Click the Org section in the nav rail (Home=0, Org=1, Project=2)
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     const railItems = navRail.locator('.tdsk-rail-item')
     const orgItem = railItems.nth(1)
     await orgItem.click()
@@ -93,7 +93,7 @@ test.describe('Sub-Navigation', () => {
     )
 
     // Click the Org section in the nav rail (Home=0, Org=1, Project=2)
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     const orgItem = navRail.locator('.tdsk-rail-item').nth(1)
     await orgItem.click()
 
@@ -116,7 +116,7 @@ test.describe('Sub-Navigation', () => {
 
     // The Project rail section is visible when on a project page (Home=0, Org=1, Project=2)
     // Click it directly from the project sub-page to navigate to the project root
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     const projectItem = navRail.locator('.tdsk-rail-item').nth(2)
     await expect(projectItem).toBeVisible({ timeout: 5000 })
     await projectItem.click()
@@ -139,7 +139,7 @@ test.describe('Sub-Navigation', () => {
     await expect(subNavPanel).toBeVisible()
 
     // Click the already-active Org section to close
-    const navRail = page.locator('.tdsk-icon-rail')
+    const navRail = page.locator('.tdsk-nav-rail')
     const activeItem = navRail.locator('.tdsk-rail-item.active')
     await activeItem.click()
 

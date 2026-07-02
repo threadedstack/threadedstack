@@ -11,7 +11,6 @@ import {
   apiRequest,
   apiDeleteResource,
   searchInPage,
-  toggleSwitch,
   ensureFullListLoad,
 } from '../utils/crud-helpers'
 import { isFeatureEnabled } from '@tdsk/domain'
@@ -40,17 +39,13 @@ test.describe.serial('CRUD Skills', () => {
     // Fill skill name
     await fillField(page, 'tdsk-skill-name-input', skillName)
 
-    // Fill description
-    await fillField(page, 'tdsk-skill-description-input', 'Playwright CRUD test skill')
-
-    // Fill instructions
-    await fillField(page, 'tdsk-skill-instructions-input', 'Test instructions for automated testing')
-
-    // Fill tools (comma-separated)
-    await fillField(page, 'tdsk-skill-tools-input', 'tool-a, tool-b')
-
-    // Fill trigger keywords (comma-separated)
-    await fillField(page, 'tdsk-skill-trigger-keywords-input', 'test, automation')
+    // The redesigned SkillDrawer uses a single markdown Monaco editor for
+    // the skill content (required by the API) — wait for the lazy-loaded
+    // editor, click into it, and type the instructions
+    const editor = page.locator('.tdsk-drawer .monaco-editor').first()
+    await expect(editor).toBeVisible({ timeout: 15_000 })
+    await editor.click()
+    await page.keyboard.type('Test instructions for automated testing')
 
     // Submit the form
     await submitForm(page, FORM_ID)
