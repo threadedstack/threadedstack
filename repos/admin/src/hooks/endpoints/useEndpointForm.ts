@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
  * Shared hook for endpoint form validation and config exposure
@@ -13,7 +13,7 @@ export const useEndpointForm = <T>(
   onConfigChange: (config: T) => void,
   onValidate: (error: string | null) => void
 ) => {
-  const validateTriggerRef = useRef(0)
+  const [validateTrigger, setValidateTrigger] = useState(0)
 
   // Expose config to parent
   useEffect(() => {
@@ -23,17 +23,17 @@ export const useEndpointForm = <T>(
 
   // Validate when requested
   useEffect(() => {
-    if (validateTriggerRef.current > 0) {
+    if (validateTrigger > 0) {
       const error = validate(state)
       onValidate(error)
-      validateTriggerRef.current = 0
+      setValidateTrigger(0)
     }
-  }, [validateTriggerRef.current, state, validate, onValidate])
+  }, [validateTrigger, state, validate, onValidate])
 
   // Trigger validation from parent
   useEffect(() => {
     if (onValidate) {
-      validateTriggerRef.current++
+      setValidateTrigger((count) => count + 1)
     }
   }, [onValidate])
 }
