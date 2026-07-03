@@ -45,10 +45,8 @@ export const stopSandbox: TEndpointConfig = {
         )
         if (otherSessions.length > 0) {
           res.status(409).json({
-            error: {
-              message: `Active sessions exist on one or more instances`,
-              code: `ACTIVE_SESSIONS`,
-            },
+            error: `Active sessions exist on one or more instances`,
+            code: `ACTIVE_SESSIONS`,
             data: { activeSessions: otherSessions },
           })
           return
@@ -86,7 +84,8 @@ export const stopSandbox: TEndpointConfig = {
     const activeSessions = sb.getSessions(instanceId).filter((s) => s.userId !== userId)
     if (activeSessions.length > 0 && !force) {
       res.status(409).json({
-        error: { message: `Active sessions exist`, code: `ACTIVE_SESSIONS` },
+        error: `Active sessions exist`,
+        code: `ACTIVE_SESSIONS`,
         data: { activeSessions },
       })
       return
