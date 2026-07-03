@@ -39,6 +39,9 @@ export const createSecret: TEndpointConfig = {
 
     // Determine scope ownership and encryption key ref
     let refId: string
+    // Provider row loaded when the secret is provider-linked (dual ownership
+    // or exclusive-arc provider owner), used to backfill provider.secretId
+    let linkedProvider: { orgId: string; secretId?: string | null } | undefined
 
     if (providerId && orgId) {
       // Dual ownership: secret belongs to both org and provider
@@ -57,6 +60,7 @@ export const createSecret: TEndpointConfig = {
         throw new Exception(403, `Provider does not belong to this organization`)
 
       await checkPermission(req, EPermAction.create, EPermResource.secret, { orgId })
+      linkedProvider = provider
       refId = orgId
     } else {
       // Standard exclusive arc: exactly one owner field
@@ -78,6 +82,7 @@ export const createSecret: TEndpointConfig = {
         await checkPermission(req, EPermAction.create, EPermResource.secret, {
           orgId: provider.orgId,
         })
+        linkedProvider = provider
       } else if (owner.name === `agentId`) {
         const { data: agent, error: agentErr } = await db.services.agent.get(owner.value)
         if (agentErr) throw new Exception(500, agentErr.message)
@@ -94,6 +99,15 @@ export const createSecret: TEndpointConfig = {
 
       refId = owner.value
     }
+
+    // The backfill below mutates provider.secretId, so require an explicit
+    // provider:update permission instead of relying on role algebra
+    // (secret:create happening to imply provider:update). Checked BEFORE the
+    // secret row is created so a denial never leaves an unlinked secret behind
+    if (providerId && linkedProvider && !linkedProvider.secretId)
+      await checkPermission(req, EPermAction.update, EPermResource.provider, {
+        orgId: linkedProvider.orgId,
+      })
 
     try {
       // Derive encryption key using the scope ref ID (orgId for dual ownership)
@@ -116,6 +130,24 @@ export const createSecret: TEndpointConfig = {
 
       const { data, error } = await db.services.secret.create(secret)
       if (error) throw new Exception(500, error.message)
+
+      // Backfill the provider's API-key link so a freshly created provider
+      // secret is immediately resolvable (SecretResolver.resolveApiKey reads
+      // provider.secretId directly). An existing different secretId is
+      // preserved, never clobbered: key rotation is an explicit provider
+      // update, which the admin Provider drawer already performs after
+      // creating a replacement secret.
+      if (providerId && linkedProvider && !linkedProvider.secretId) {
+        const { error: linkErr } = await db.services.provider.update({
+          id: providerId,
+          secretId: data.id,
+        })
+        if (linkErr)
+          throw new Exception(
+            500,
+            `Secret created but failed to link it to provider: ${linkErr.message}`
+          )
+      }
 
       res.status(201).json({ data: data.sanitize() })
     } catch (err) {

@@ -25,7 +25,12 @@ export const connectSandbox: TEndpointConfig = {
     const { newInstance, instanceId: requestedInstance, sessionId } = req.body
 
     const { projectId } = req.params
-    const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      projectId,
+      req.params.orgId
+    )
     const workdir = sandbox.config.workdir || DefaultWorkdir
     const sandboxId = sandbox.id
     const maxInstances = sandbox.config.maxInstances ?? DefaultMaxInstances

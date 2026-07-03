@@ -1,0 +1,331 @@
+- generic [ref=f2e2]:
+  - dialog "Select repository permissions" [ref=f2e434]:
+    - generic [ref=f2e436]:
+      - heading "Select repository permissions" [level=1] [ref=f2e439]
+      - generic [ref=f2e440]:
+        - generic [ref=f2e442]:
+          - img [ref=f2e446]
+          - combobox "Search" [expanded] [active] [ref=f2e448]
+        - generic [ref=f2e452]: Items will be filtered as you type
+        - listbox "Select repository permissions" [ref=f2e454]:
+          - option "Actions" [ref=f2e455]:
+            - generic [ref=f2e458]: Actions
+          - option "Administration" [ref=f2e459]:
+            - generic [ref=f2e462]: Administration
+          - option "Agent secrets" [ref=f2e463]:
+            - generic [ref=f2e466]: Agent secrets
+          - option "Agent tasks" [ref=f2e467]:
+            - generic [ref=f2e470]: Agent tasks
+          - option "Agent variables" [ref=f2e471]:
+            - generic [ref=f2e474]: Agent variables
+          - option "Artifact metadata" [ref=f2e475]:
+            - generic [ref=f2e478]: Artifact metadata
+          - option "Attestations" [ref=f2e479]:
+            - generic [ref=f2e482]: Attestations
+          - option "Code quality" [ref=f2e483]:
+            - generic [ref=f2e486]: Code quality
+          - option "Code scanning alerts" [ref=f2e487]:
+            - generic [ref=f2e490]: Code scanning alerts
+          - option "Codespaces" [ref=f2e491]:
+            - generic [ref=f2e494]: Codespaces
+          - option "Codespaces lifecycle admin" [ref=f2e495]:
+            - generic [ref=f2e498]: Codespaces lifecycle admin
+          - option "Codespaces metadata" [ref=f2e499]:
+            - generic [ref=f2e502]: Codespaces metadata
+          - option "Codespaces secrets" [ref=f2e503]:
+            - generic [ref=f2e506]: Codespaces secrets
+          - option "Commit statuses" [ref=f2e507]:
+            - generic [ref=f2e510]: Commit statuses
+          - option "Contents" [ref=f2e511]:
+            - generic [ref=f2e514]: Contents
+          - option "Copilot agent settings" [ref=f2e515]:
+            - generic [ref=f2e518]: Copilot agent settings
+          - option "Custom properties" [ref=f2e519]:
+            - generic [ref=f2e522]: Custom properties
+          - option "Dependabot alerts" [ref=f2e523]:
+            - generic [ref=f2e526]: Dependabot alerts
+          - option "Dependabot secrets" [ref=f2e527]:
+            - generic [ref=f2e530]: Dependabot secrets
+          - option "Deployments" [ref=f2e531]:
+            - generic [ref=f2e534]: Deployments
+          - option "Discussions" [ref=f2e535]:
+            - generic [ref=f2e538]: Discussions
+          - option "Environments" [ref=f2e539]:
+            - generic [ref=f2e542]: Environments
+          - option "Issues" [ref=f2e543]:
+            - generic [ref=f2e546]: Issues
+          - option "License compliance alerts" [ref=f2e547]:
+            - generic [ref=f2e550]: License compliance alerts
+          - option "Merge queues" [ref=f2e551]:
+            - generic [ref=f2e554]: Merge queues
+          - option "Metadata" [ref=f2e555]:
+            - generic [ref=f2e558]: Metadata
+          - option "Pages" [ref=f2e559]:
+            - generic [ref=f2e562]: Pages
+          - option "Pull requests" [ref=f2e563]:
+            - generic [ref=f2e566]: Pull requests
+          - option "Repository security advisories" [ref=f2e567]:
+            - generic [ref=f2e570]: Repository security advisories
+          - option "Secret scanning alert dismissal requests" [ref=f2e571]:
+            - generic [ref=f2e574]: Secret scanning alert dismissal requests
+          - option "Secret scanning alerts" [ref=f2e575]:
+            - generic [ref=f2e578]: Secret scanning alerts
+          - option "Secret scanning push protection bypass requests" [ref=f2e579]:
+            - generic [ref=f2e582]: Secret scanning push protection bypass requests
+          - option "Secrets" [ref=f2e583]:
+            - generic [ref=f2e586]: Secrets
+          - option "Variables" [ref=f2e587]:
+            - generic [ref=f2e590]: Variables
+          - option "Webhooks" [ref=f2e591]:
+            - generic [ref=f2e594]: Webhooks
+          - option "Workflows" [ref=f2e595]:
+            - generic [ref=f2e598]: Workflows
+  - generic [ref=f2e3]:
+    - link "Skip to content" [ref=f2e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner "Global navigation menu" [ref=f2e8]:
+      - generic [ref=f2e9]:
+        - generic [ref=f2e10]:
+          - button "Open menu" [ref=f2e12] [cursor=pointer]:
+            - img [ref=f2e13]
+          - link "Homepage (g then d)" [ref=f2e15] [cursor=pointer]:
+            - /url: /
+            - img [ref=f2e16]
+        - generic [ref=f2e18]:
+          - navigation "Breadcrumbs" [ref=f2e19]:
+            - list [ref=f2e20]:
+              - listitem [ref=f2e21]:
+                - link "Settings" [ref=f2e22] [cursor=pointer]:
+                  - /url: /settings/profile
+                  - generic [ref=f2e23]: Settings
+              - listitem [ref=f2e24]:
+                - link "Developer Settings" [ref=f2e25] [cursor=pointer]:
+                  - /url: /settings/apps
+                  - generic [ref=f2e26]: Developer Settings
+          - button "Search or jump to…" [ref=f2e29] [cursor=pointer]:
+            - generic [ref=f2e30]:
+              - generic:
+                - img
+              - generic [ref=f2e31]:
+                - generic:
+                  - text: Type
+                  - generic: /
+                  - text: to search
+        - generic [ref=f2e32]:
+          - generic [ref=f2e33]:
+            - generic [ref=f2e36]:
+              - link "Chat with Copilot" [ref=f2e38] [cursor=pointer]:
+                - /url: /copilot
+                - img [ref=f2e39]
+              - button "Open Copilot…" [ref=f2e43] [cursor=pointer]:
+                - generic:
+                  - img
+            - button "Create new..." [ref=f2e45] [cursor=pointer]:
+              - generic [ref=f2e46]:
+                - generic:
+                  - img
+              - generic:
+                - img
+            - generic [ref=f2e47]:
+              - link "All issues (g then i)" [ref=f2e48] [cursor=pointer]:
+                - /url: /issues
+                - img [ref=f2e49]
+              - link "All pull requests (g then p)" [ref=f2e52] [cursor=pointer]:
+                - /url: /pulls
+                - img [ref=f2e53]
+              - link "All repositories" [ref=f2e55] [cursor=pointer]:
+                - /url: /repos
+                - img [ref=f2e56]
+          - link "You have no unread notifications (g then n)" [ref=f2e58] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=f2e59]
+          - button "Open user navigation menu" [ref=f2e62] [cursor=pointer]:
+            - img "User avatar" [ref=f2e63]
+  - main [ref=f2e66]:
+    - generic [ref=f2e68]:
+      - navigation "Developer settings" [ref=f2e71]:
+        - list [ref=f2e73]:
+          - listitem [ref=f2e74]:
+            - link "GitHub Apps" [ref=f2e75] [cursor=pointer]:
+              - /url: /settings/apps
+              - generic:
+                - img
+              - generic [ref=f2e76]: GitHub Apps
+          - listitem [ref=f2e77]:
+            - link "OAuth Apps" [ref=f2e78] [cursor=pointer]:
+              - /url: /settings/developers
+              - generic:
+                - img
+              - generic [ref=f2e79]: OAuth Apps
+          - listitem [ref=f2e80]:
+            - button "Personal access tokens" [expanded] [ref=f2e81] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=f2e82]: Personal access tokens
+              - generic:
+                - img
+            - list "Personal access tokens" [ref=f2e83]:
+              - listitem [ref=f2e84]:
+                - link "Fine-grained tokens" [ref=f2e85] [cursor=pointer]:
+                  - /url: /settings/personal-access-tokens
+                  - generic [ref=f2e86]: Fine-grained tokens
+              - listitem [ref=f2e87]:
+                - link "Tokens (classic)" [ref=f2e88] [cursor=pointer]:
+                  - /url: /settings/tokens
+                  - generic [ref=f2e89]: Tokens (classic)
+      - generic [ref=f2e92]:
+        - heading "New fine-grained personal access token" [level=2] [ref=f2e94]
+        - paragraph [ref=f2e95]: Create a fine-grained, repository-scoped token suitable for personal API use and for using Git over HTTPS.
+        - form "personal access token" [ref=f2e96]:
+          - generic [ref=f2e97]:
+            - generic [ref=f2e98]: Token name *
+            - textbox "Token name" [ref=f2e101]: steward-repo-write
+            - generic [ref=f2e345]:
+              - img [ref=f2e347]
+              - generic [ref=f2e349]:
+                - text: "'"
+                - strong [ref=f2e350]: steward-repo-write
+                - text: "' is available."
+            - text: A unique name for this token. May be visible to resource owners or users with possession of the token.
+          - generic [ref=f2e102]:
+            - generic [ref=f2e103]: Description
+            - textbox "Description" [ref=f2e104]
+          - generic [ref=f2e105]:
+            - generic [ref=f2e106]: Resource owner
+            - button "Resource owner" [ref=f2e109] [cursor=pointer]:
+              - generic [ref=f2e111]:
+                - img "@threadedstack-steward" [ref=f2e112]
+                - text: threadedstack
+              - generic:
+                - img
+            - generic [ref=f2e113]: The token will only be able to make changes to resources owned by the selected resource owner. Tokens can always read all public repositories.
+          - generic [ref=f2e248]:
+            - generic [ref=f2e250]:
+              - term [ref=f2e251]: Expiration
+              - definition [ref=f2e252]:
+                - button "366 days (Jul 04, 2027)" [ref=f2e433] [cursor=pointer]:
+                  - generic [ref=f2e258]:
+                    - generic:
+                      - img
+                    - generic [ref=f2e259]: 366 days (Jul 04, 2027)
+                  - generic:
+                    - img
+            - generic [ref=f2e260]: The token will expire on the selected date
+          - generic [ref=f2e128]:
+            - generic [ref=f2e262]:
+              - generic [ref=f2e263]: Request message
+              - textbox "Request message" [ref=f2e265]: "ThreadedStack Steward bot: branch push + PR authoring for threadedstack/threadedstack, gated by required CI checks"
+              - generic [ref=f2e266]: Describe why your personal access token needs access to the threadedstack organization.
+            - generic [ref=f2e267]:
+              - heading "Repository access" [level=3] [ref=f2e269]
+              - radiogroup "Repository access" [ref=f2e271]:
+                - generic [ref=f2e272]: Repository access
+                - generic [ref=f2e273]:
+                  - generic [ref=f2e274]:
+                    - radio "Public repositories" [ref=f2e275] [cursor=pointer]
+                    - generic [ref=f2e276]:
+                      - generic [ref=f2e277] [cursor=pointer]: Public repositories
+                      - generic [ref=f2e278]: Read-only access to public repositories.
+                  - generic [ref=f2e279]:
+                    - radio "All repositories" [ref=f2e280] [cursor=pointer]
+                    - generic [ref=f2e281]:
+                      - generic [ref=f2e282] [cursor=pointer]: All repositories
+                      - generic [ref=f2e283]: This applies to all current and future repositories that you can access in this organization. Also includes public repositories (read-only).
+                  - generic [ref=f2e284]:
+                    - radio "Only select repositories" [checked] [ref=f2e285] [cursor=pointer]
+                    - generic [ref=f2e286]:
+                      - generic [ref=f2e287] [cursor=pointer]: Only select repositories
+                      - generic [ref=f2e288]: Select at least one repository. Max 50 repositories. Also includes public repositories (read-only).
+              - generic [ref=f2e330]:
+                - button "Select repositories 1" [ref=f2e392] [cursor=pointer]:
+                  - generic [ref=f2e334]:
+                    - generic:
+                      - img
+                    - generic [ref=f2e335]:
+                      - text: Select repositories
+                      - generic "Not available" [ref=f2e393]: "1"
+                  - generic:
+                    - img
+                - generic [ref=f2e394]: Selected 1 repository.
+                - generic [ref=f2e397]:
+                  - img [ref=f2e398]
+                  - button "Remove threadedstack" [ref=f2e400] [cursor=pointer]:
+                    - img [ref=f2e403]
+                  - generic [ref=f2e405]:
+                    - generic [ref=f2e406]: threadedstack
+                    - text: /threadedstack
+            - generic [ref=f2e290]:
+              - heading "Permissions" [level=3] [ref=f2e292]
+              - paragraph [ref=f2e293]:
+                - text: Choose the minimal permissions necessary for your needs.
+                - link "Learn more about permissions." [ref=f2e294] [cursor=pointer]:
+                  - /url: https://docs.github.com/rest/overview/permissions-required-for-fine-grained-personal-access-tokens
+              - generic [ref=f2e296]:
+                - heading "Permissions" [level=2] [ref=f2e297]
+                - generic [ref=f2e298]:
+                  - generic [ref=f2e299]:
+                    - button "Repositories (0)" [ref=f2e337] [cursor=pointer]:
+                      - generic [ref=f2e338]:
+                        - generic [ref=f2e340]: Repositories
+                        - generic:
+                          - generic: "0"
+                          - generic: (0)
+                    - button "Organizations (0)" [ref=f2e301] [cursor=pointer]:
+                      - generic [ref=f2e302]:
+                        - generic [ref=f2e304]: Organizations
+                        - generic:
+                          - generic: "0"
+                          - generic: (0)
+                  - button "Add permissions" [expanded] [ref=f2e306] [cursor=pointer]:
+                    - generic [ref=f2e308]:
+                      - img [ref=f2e309]
+                      - text: Add permissions
+                - list "Permissions" [ref=f2e311]:
+                  - listitem "." [ref=f2e312]:
+                    - generic [ref=f2e313]: Permission Blank Slate
+                    - generic [ref=f2e315]:
+                      - img [ref=f2e341]
+                      - heading "No repository permissions added yet" [level=2] [ref=f2e344]
+                      - paragraph [ref=f2e321]: Repository permissions permit access to repositories and related resources.
+            - generic [ref=f2e322]:
+              - button "Generate token and request access" [ref=f2e323] [cursor=pointer]:
+                - generic [ref=f2e325]: Generate token and request access
+              - link "Cancel" [ref=f2e326] [cursor=pointer]:
+                - /url: /settings/personal-access-tokens
+                - generic [ref=f2e328]: Cancel
+  - contentinfo [ref=f2e186]:
+    - heading "Footer" [level=2] [ref=f2e187]
+    - generic [ref=f2e188]:
+      - generic [ref=f2e189]:
+        - link "GitHub Homepage" [ref=f2e190] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=f2e191]
+        - generic [ref=f2e193]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=f2e194]:
+        - heading "Footer navigation" [level=3] [ref=f2e195]
+        - list "Footer navigation" [ref=f2e196]:
+          - listitem [ref=f2e197]:
+            - link "Terms" [ref=f2e198] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=f2e199]:
+            - link "Privacy" [ref=f2e200] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=f2e201]:
+            - link "Security" [ref=f2e202] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=f2e203]:
+            - link "Status" [ref=f2e204] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=f2e205]:
+            - link "Community" [ref=f2e206] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=f2e207]:
+            - link "Docs" [ref=f2e208] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=f2e209]:
+            - link "Contact" [ref=f2e210] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=f2e211]:
+            - button "Manage cookies" [ref=f2e213] [cursor=pointer]
+          - listitem [ref=f2e214]:
+            - button "Do not share my personal information" [ref=f2e216] [cursor=pointer]

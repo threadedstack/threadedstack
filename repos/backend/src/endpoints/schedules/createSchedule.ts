@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
+import { MinScheduleTimeoutMS, MaxScheduleTimeoutMS } from '@TBE/constants/sandbox'
 import {
   Schedule,
   Exception,
@@ -34,6 +35,7 @@ export const createSchedule: TEndpointConfig = {
       enabled,
       agentId,
       sandboxId,
+      timeoutMs,
       cronExpression,
       maxConsecutiveErrors,
       type = EScheduleType.prompt,
@@ -69,6 +71,18 @@ export const createSchedule: TEndpointConfig = {
 
     if (!isValidCron(cronExpression)) throw new Exception(400, `Invalid cron expression`)
 
+    if (
+      timeoutMs !== undefined &&
+      timeoutMs !== null &&
+      (!Number.isInteger(timeoutMs) ||
+        timeoutMs < MinScheduleTimeoutMS ||
+        timeoutMs > MaxScheduleTimeoutMS)
+    )
+      throw new Exception(
+        400,
+        `timeoutMs must be an integer between ${MinScheduleTimeoutMS} and ${MaxScheduleTimeoutMS}`
+      )
+
     const nextRunAt = parseNextRun(cronExpression)
 
     const schedule = new Schedule({
@@ -79,6 +93,7 @@ export const createSchedule: TEndpointConfig = {
       agentId,
       nextRunAt,
       sandboxId,
+      timeoutMs,
       projectId,
       cronExpression,
       userId: req.user?.id,

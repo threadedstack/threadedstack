@@ -107,6 +107,7 @@ export class Websocket {
       skills: session.skills,
       agentId: session.agentId,
       llmConfig: session.llmConfig,
+      llmConfigs: session.llmConfigs,
       environment: session.environment,
       sandboxConfig: session.sandboxConfig,
       customFunctions: session.customFunctions,

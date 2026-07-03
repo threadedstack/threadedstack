@@ -41,6 +41,7 @@ vi.mock(`stripe`, () => {
   }
 })
 
+import StripeSdk from 'stripe'
 import { logger } from '@TBE/utils/logger'
 import { ESubscriptionTier } from '@tdsk/domain'
 import { StripeService } from './stripe'
@@ -1267,6 +1268,82 @@ describe(`StripeService`, () => {
 
       expect(mockWebhooksConstructEvent).not.toHaveBeenCalled()
       expect(result).toEqual(event)
+    })
+  })
+
+  describe(`missing secret key`, () => {
+    const noKeyConfig: TPayConfig = { ...testConfig, secretKey: `` }
+    const notConfiguredMsg = `Payments not configured — missing Stripe secret key`
+
+    it(`should construct without throwing and without creating a Stripe client`, () => {
+      // beforeEach constructs a keyed service, so reset the SDK call history
+      vi.mocked(StripeSdk).mockClear()
+      expect(() => new StripeService(noKeyConfig)).not.toThrow()
+      expect(StripeSdk).not.toHaveBeenCalled()
+    })
+
+    it(`should return a clear error from caught operations when no key is configured`, async () => {
+      const noKeyService = new StripeService(noKeyConfig)
+
+      const { data, error } = await noKeyService.createCustomer(`a@b.com`, `user-1`)
+      expect(data).toBeUndefined()
+      expect(error?.message).toBe(notConfiguredMsg)
+
+      const checkout = await noKeyService.createCheckoutSession(
+        `pro`,
+        `cus_1`,
+        `https://ok`,
+        `https://cancel`
+      )
+      expect(checkout.error?.message).toBe(notConfiguredMsg)
+
+      const portal = await noKeyService.createPortalSession(`cus_1`)
+      expect(portal.error?.message).toBe(notConfiguredMsg)
+
+      const plans = await noKeyService.fetchPlans()
+      expect(plans.data).toBeUndefined()
+      expect(plans.error?.message).toBe(notConfiguredMsg)
+    })
+
+    it(`should throw the clear error from uncaught operations when no key is configured`, async () => {
+      const noKeyService = new StripeService(noKeyConfig)
+
+      await expect(noKeyService.retrieveSubscription(`sub_1`)).rejects.toThrow(
+        notConfiguredMsg
+      )
+      await expect(noKeyService.cancelSubscription(`sub_1`)).rejects.toThrow(
+        notConfiguredMsg
+      )
+      await expect(noKeyService.updateSubscription(`sub_1`, `price_1`)).rejects.toThrow(
+        notConfiguredMsg
+      )
+      await expect(noKeyService.updateSeatQuantity(`sub_1`, 2)).rejects.toThrow(
+        notConfiguredMsg
+      )
+      await expect(noKeyService.getInvoices(`cus_1`)).rejects.toThrow(notConfiguredMsg)
+      expect(() =>
+        new StripeService({
+          ...noKeyConfig,
+          environment: `production`,
+        }).constructWebhookEvent(Buffer.from(`{}`), `sig`)
+      ).toThrow(notConfiguredMsg)
+    })
+
+    it(`should still skip webhook verification in non-production without a client`, () => {
+      const noKeyService = new StripeService({
+        ...noKeyConfig,
+        webhookSecret: ``,
+        environment: `local`,
+      })
+      const event = { type: `invoice.paid`, data: { object: {} } }
+      const payload = Buffer.from(JSON.stringify(event))
+
+      expect(noKeyService.constructWebhookEvent(payload, `t=1,v1=x`)).toEqual(event)
+    })
+
+    it(`should create the Stripe client when a key is configured`, () => {
+      new StripeService(testConfig)
+      expect(StripeSdk).toHaveBeenCalledWith(testConfig.secretKey)
     })
   })
 })

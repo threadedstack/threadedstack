@@ -77,6 +77,9 @@ describe(`enforceQuota middleware`, () => {
                 findByOrgAndPeriod: vi.fn().mockResolvedValue({
                   data: { projects: 0 },
                 }),
+                increment: vi.fn().mockResolvedValue({
+                  data: { projects: 1 },
+                }),
                 incrementIfUnderLimit: vi.fn().mockResolvedValue({
                   data: { projects: 1 },
                 }),
@@ -180,15 +183,63 @@ describe(`enforceQuota middleware`, () => {
     )
   })
 
-  it(`should allow unlimited resources (limit = -1)`, async () => {
+  it(`should allow unlimited resources (limit = -1) while still tracking usage`, async () => {
     const req = buildMockReq()
     const sub = req.app.locals.db.services.subscription as any
     // Team tier has unlimited projects
     sub.findByUser.mockResolvedValue({ data: { tier: `team` } })
 
+    const quota = req.app.locals.db.services.quota as any
+
     await enforceQuota(req, mockRes as TResponse, mockNext as NextFunction)
 
     expect(mockNext).toHaveBeenCalled()
+    expect(mockStatus).not.toHaveBeenCalled()
+    // Tracking is decoupled from enforcement: the counter still increments
+    expect(quota.increment).toHaveBeenCalledWith(`org-1`, expect.any(String), `projects`)
+    expect(quota.incrementIfUnderLimit).not.toHaveBeenCalled()
+    expect(req.quotaIncremented).toEqual({
+      orgId: `org-1`,
+      period: expect.any(String),
+      resource: `projects`,
+    })
+  })
+
+  it(`should not block unlimited requests when usage tracking fails`, async () => {
+    const req = buildMockReq()
+    const sub = req.app.locals.db.services.subscription as any
+    sub.findByUser.mockResolvedValue({ data: { tier: `team` } })
+
+    const quota = req.app.locals.db.services.quota as any
+    quota.increment.mockResolvedValue({ error: new Error(`tracking failed`) })
+
+    await enforceQuota(req, mockRes as TResponse, mockNext as NextFunction)
+
+    // There is no limit to enforce, so the request proceeds
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockStatus).not.toHaveBeenCalled()
+    expect(req.quotaIncremented).toBeUndefined()
+  })
+
+  it(`should register rollback for unlimited-tier tracking on handler failure`, async () => {
+    const req = buildMockReq()
+    const sub = req.app.locals.db.services.subscription as any
+    sub.findByUser.mockResolvedValue({ data: { tier: `team` } })
+
+    const mockOn = mockRes.on as ReturnType<typeof vi.fn>
+    const quota = req.app.locals.db.services.quota as any
+    quota.decrement = vi.fn().mockResolvedValue({ data: { projects: 0 } })
+
+    await enforceQuota(req, mockRes as TResponse, mockNext as NextFunction)
+
+    expect(mockOn).toHaveBeenCalledWith(`finish`, expect.any(Function))
+    const finishCallback = mockOn.mock.calls.find((c: any[]) => c[0] === `finish`)?.[1]
+
+    // Simulate handler failure (status 500)
+    ;(mockRes as any).statusCode = 500
+    finishCallback()
+
+    expect(quota.decrement).toHaveBeenCalledWith(`org-1`, expect.any(String), `projects`)
   })
 
   it(`should handle organizations quota by counting owned orgs`, async () => {

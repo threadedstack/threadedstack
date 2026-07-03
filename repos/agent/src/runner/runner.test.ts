@@ -1,7 +1,7 @@
 import type { AgentEvent } from '@earendil-works/pi-agent-core'
 import type { TAgentRunOpts, TAgentInitOpts } from '@TAG/types'
 
-import { ESandboxType } from '@tdsk/domain'
+import { ESandboxType, EContentType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const {
@@ -14,7 +14,11 @@ const {
   mockAbort,
   mockSteer,
   mockFollowUp,
+  mockLoggerWarn,
+  mockLoggerError,
 } = vi.hoisted(() => ({
+  mockLoggerWarn: vi.fn(),
+  mockLoggerError: vi.fn(),
   mockSubscribe: vi.fn().mockReturnValue(vi.fn()),
   mockPrompt: vi.fn().mockResolvedValue(undefined),
   mockWaitForIdle: vi.fn().mockResolvedValue(undefined),
@@ -83,6 +87,15 @@ vi.mock(`@tdsk/logger`, () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   })),
+}))
+
+vi.mock(`@TAG/utils/logger`, () => ({
+  logger: {
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: mockLoggerWarn,
+    error: mockLoggerError,
+  },
 }))
 
 vi.mock(`@TAG/tools/tools`, () => ({
@@ -270,13 +283,18 @@ describe(`AgentRunner`, () => {
   })
 
   it(`should set up getApiKey from llmConfig.apiKey`, async () => {
+    // Instance API: getApiKey reads the runner's live active config, which is
+    // cleared on destroy — assert while the runner is alive
+    const runner = new AgentRunner()
     const opts = baseOpts()
-    const handle = await AgentRunner.run(opts)
-    await handle.waitForIdle()
+    const { prompt, images, signal, ...initOpts } = opts
+    await runner.init(initOpts)
 
     const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
     expect(agentCtorArgs.getApiKey).toBeDefined()
     expect((agentCtorArgs as any).getApiKey!()).toBe(`sk-test-key`)
+
+    await runner.destroy()
   })
 
   it(`should not set getApiKey when llmConfig.apiKey is absent`, async () => {
@@ -395,12 +413,12 @@ describe(`AgentRunner`, () => {
     expect(mockSandboxClose).toHaveBeenCalledTimes(1)
   })
 
-  it(`should send error event when agent throws`, async () => {
+  it(`should send error event and reject waitForIdle when agent throws`, async () => {
     mockPrompt.mockRejectedValue(new Error(`LLM connection failed`))
 
     const opts = baseOpts()
     const handle = await AgentRunner.run(opts)
-    await handle.waitForIdle()
+    await expect(handle.waitForIdle()).rejects.toThrow(`LLM connection failed`)
 
     expect(opts.onEvent).toHaveBeenCalledWith({
       type: `error`,
@@ -413,7 +431,7 @@ describe(`AgentRunner`, () => {
 
     const opts = baseOpts()
     const handle = await AgentRunner.run(opts)
-    await handle.waitForIdle()
+    await expect(handle.waitForIdle()).rejects.toThrow(`Unknown agent error`)
 
     expect(opts.onEvent).toHaveBeenCalledWith({
       type: `error`,
@@ -429,9 +447,27 @@ describe(`AgentRunner`, () => {
       sandboxConfig: { provider: ESandboxType.local },
     }
     const handle = await AgentRunner.run(opts)
-    await handle.waitForIdle()
+    await expect(handle.waitForIdle()).rejects.toThrow(`Agent crashed`)
 
     expect(mockSandboxClose).toHaveBeenCalledTimes(1)
+  })
+
+  it(`should not crash the process when a rejecting run's handle is never awaited`, async () => {
+    mockPrompt.mockRejectedValue(new Error(`LLM connection failed`))
+
+    const opts = baseOpts()
+    const handle = await AgentRunner.run(opts)
+
+    // Let the run promise settle without ever calling waitForIdle — the
+    // pre-attached catch marks the rejection handled
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(opts.onEvent).toHaveBeenCalledWith({
+      type: `error`,
+      error: `LLM connection failed`,
+    })
+    // The handle still rejects for callers that do await it
+    await expect(handle.waitForIdle()).rejects.toThrow(`LLM connection failed`)
   })
 
   it(`should pass existing messages to convertToLlmMessages`, async () => {
@@ -583,7 +619,7 @@ describe(`AgentRunner`, () => {
       vi.useRealTimers()
     })
 
-    it(`should not retry on permanent errors`, async () => {
+    it(`should not retry on permanent errors and reject with the LLM error`, async () => {
       const agentState = { errorMessage: `Invalid API key` as string | undefined }
 
       vi.mocked(Agent).mockImplementationOnce(
@@ -604,9 +640,14 @@ describe(`AgentRunner`, () => {
 
       const opts = baseOpts()
       const handle = await AgentRunner.run(opts)
-      await handle.waitForIdle()
+      // A permanent LLM error is surfaced: error event + rejection, no retry
+      await expect(handle.waitForIdle()).rejects.toThrow(`Invalid API key`)
 
       expect(mockContinue).not.toHaveBeenCalled()
+      expect(opts.onEvent).toHaveBeenCalledWith({
+        type: `error`,
+        error: `Invalid API key`,
+      })
     })
   })
 
@@ -1426,6 +1467,406 @@ describe(`AgentRunner`, () => {
         expect.objectContaining({ id: `test-model` }),
         80,
         undefined
+      )
+    })
+  })
+
+  describe(`empty-failure turn surfacing (A1)`, () => {
+    const zeroUsage = {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    }
+
+    /** pi's handleRunFailure signature: empty text part, zero usage, stopReason error */
+    const failureMessage = (error?: string, stopReason = `error`) => ({
+      role: `assistant`,
+      content: [{ type: `text`, text: `` }],
+      api: `test`,
+      provider: `test`,
+      model: `test-model`,
+      usage: zeroUsage,
+      stopReason,
+      ...(error ? { errorMessage: error } : {}),
+      timestamp: 1,
+    })
+
+    const successMessage = (text: string) => ({
+      role: `assistant`,
+      content: [{ type: `text`, text }],
+      api: `test`,
+      provider: `test`,
+      model: `test-model`,
+      usage: { ...zeroUsage, output: 12, totalTokens: 12 },
+      stopReason: `stop`,
+      timestamp: 2,
+    })
+
+    /**
+     * Stateful Agent mock emulating pi's failure contract:
+     * - each attempt (prompt/continue) emits turn_end with a failure message
+     *   until `failTimes` attempts have failed, then emits a success message
+     * - continue() enforces pi's real continuation rule: it throws
+     *   `Cannot continue from message role: assistant` on an assistant tail
+     */
+    const buildScriptedAgent = (failTimes: number, error?: string) => {
+      const subscribers: Array<(event: any) => void> = []
+      const state: any = {
+        errorMessage: undefined,
+        systemPrompt: ``,
+        model: {},
+        thinkingLevel: `off`,
+        tools: [],
+        messages: [],
+      }
+      let attempts = 0
+      const emitTurn = () => {
+        attempts++
+        const failed = attempts <= failTimes
+        const msg = failed ? failureMessage(error) : successMessage(`recovered`)
+        state.messages = [...state.messages, msg]
+        state.errorMessage = failed ? error || undefined : undefined
+        for (const fn of subscribers) {
+          fn({ type: `turn_end`, message: msg, toolResults: [] })
+        }
+      }
+
+      return {
+        state,
+        subscribe: vi.fn((fn: (event: any) => void) => {
+          subscribers.push(fn)
+          return vi.fn()
+        }),
+        prompt: vi.fn(async () => {
+          state.messages = [
+            ...state.messages,
+            { role: `user`, content: `Hello agent`, timestamp: 0 },
+          ]
+          emitTurn()
+        }),
+        continue: vi.fn(async () => {
+          const tail = state.messages[state.messages.length - 1]
+          if (tail?.role === `assistant`) {
+            throw new Error(`Cannot continue from message role: assistant`)
+          }
+          emitTurn()
+        }),
+        waitForIdle: vi.fn().mockResolvedValue(undefined),
+        abort: mockAbort,
+        steer: mockSteer,
+        followUp: mockFollowUp,
+      } as any
+    }
+
+    beforeEach(() => {
+      vi.mocked(isTransientError).mockReturnValue(false)
+    })
+
+    it(`emits an error event, persists nothing, and rejects waitForIdle on an errored empty turn`, async () => {
+      const agent = buildScriptedAgent(
+        Number.POSITIVE_INFINITY,
+        `Your credit balance is too low`
+      )
+      vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await expect(handle.waitForIdle()).rejects.toThrow(`Your credit balance is too low`)
+
+      expect(opts.onEvent).toHaveBeenCalledWith({
+        type: `error`,
+        error: `Your credit balance is too low`,
+      })
+      // Only the user message hit the DB — the empty assistant message never did
+      expect(mockDb.createMessage).toHaveBeenCalledTimes(1)
+      expect(mockDb.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: `user` })
+      )
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining(`Skipping persistence of failed assistant message`)
+      )
+    })
+
+    it(`detects the empty signature even without stopReason/errorMessage (zero usage backstop)`, async () => {
+      const agent = buildScriptedAgent(Number.POSITIVE_INFINITY)
+      // Backstop case: no errorMessage and a non-error stopReason
+      agent.prompt = vi.fn(async () => {
+        agent.state.messages = [
+          ...agent.state.messages,
+          { role: `user`, content: `Hello agent`, timestamp: 0 },
+        ]
+        const msg = { ...failureMessage(undefined, `stop`), content: [] }
+        agent.state.messages = [...agent.state.messages, msg]
+        for (const fn of agent.subscribe.mock.calls.map((c: any[]) => c[0])) {
+          fn({ type: `turn_end`, message: msg, toolResults: [] })
+        }
+      })
+      vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await expect(handle.waitForIdle()).rejects.toThrow(`LLM returned an empty response`)
+
+      expect(opts.onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: `error` })
+      )
+      expect(mockDb.createMessage).toHaveBeenCalledTimes(1)
+    })
+
+    it(`does not treat an aborted turn as an LLM failure`, async () => {
+      const subscribers: Array<(event: any) => void> = []
+      const state: any = { errorMessage: `aborted by user`, messages: [] }
+      const agent: any = {
+        state,
+        subscribe: vi.fn((fn: (event: any) => void) => {
+          subscribers.push(fn)
+          return vi.fn()
+        }),
+        prompt: vi.fn(async () => {
+          const msg = failureMessage(`aborted by user`, `aborted`)
+          state.messages = [...state.messages, msg]
+          for (const fn of subscribers) {
+            fn({ type: `turn_end`, message: msg, toolResults: [] })
+          }
+        }),
+        continue: mockContinue,
+        waitForIdle: vi.fn().mockResolvedValue(undefined),
+        abort: mockAbort,
+        steer: mockSteer,
+        followUp: mockFollowUp,
+      }
+      vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      // Aborts resolve normally — no error run, no failover
+      await expect(handle.waitForIdle()).resolves.toBeUndefined()
+
+      expect(mockContinue).not.toHaveBeenCalled()
+      // The empty aborted message is still not persisted
+      expect(mockDb.createMessage).toHaveBeenCalledTimes(1)
+      expect(mockDb.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: `user` })
+      )
+    })
+
+    describe(`runtime provider failover (A4)`, () => {
+      const withChain = () => {
+        const opts = baseOpts()
+        opts.llmConfigs = [
+          opts.llmConfig,
+          {
+            provider: `openai` as any,
+            model: `gpt-4o`,
+            apiKey: `sk-fallback-key`,
+          },
+        ]
+        return opts
+      }
+
+      it(`retries the same turn on the next provider and persists exactly one assistant message`, async () => {
+        const agent = buildScriptedAgent(1, `Provider exploded`)
+        vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+        const opts = withChain()
+        const handle = await AgentRunner.run(opts)
+        await expect(handle.waitForIdle()).resolves.toBeUndefined()
+
+        // One failover attempt via continue() after the failed tail was stripped
+        expect(agent.continue).toHaveBeenCalledTimes(1)
+        expect(getModel).toHaveBeenCalledWith(`openai`, `gpt-4o`)
+        expect(mockLoggerWarn).toHaveBeenCalledWith(
+          expect.stringContaining(`failing over to "openai/gpt-4o"`)
+        )
+
+        // Exactly one assistant message persisted (the recovered one)
+        const assistantWrites = mockDb.createMessage.mock.calls.filter(
+          ([arg]) => arg.type === `assistant`
+        )
+        expect(assistantWrites).toHaveLength(1)
+        expect(opts.onEvent).not.toHaveBeenCalledWith(
+          expect.objectContaining({ type: `error` })
+        )
+      })
+
+      it(`rejects via the A1 path when every provider in the chain fails`, async () => {
+        const agent = buildScriptedAgent(Number.POSITIVE_INFINITY, `Provider exploded`)
+        vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+        const opts = withChain()
+        const handle = await AgentRunner.run(opts)
+        await expect(handle.waitForIdle()).rejects.toThrow(`Provider exploded`)
+
+        // Bounded: exactly one attempt per remaining provider, no loops
+        expect(agent.continue).toHaveBeenCalledTimes(1)
+        expect(opts.onEvent).toHaveBeenCalledWith({
+          type: `error`,
+          error: `Provider exploded`,
+        })
+        const assistantWrites = mockDb.createMessage.mock.calls.filter(
+          ([arg]) => arg.type === `assistant`
+        )
+        expect(assistantWrites).toHaveLength(0)
+      })
+
+      it(`does not fail over when no chain is provided`, async () => {
+        const agent = buildScriptedAgent(Number.POSITIVE_INFINITY, `Provider exploded`)
+        vi.mocked(Agent).mockImplementationOnce(() => agent)
+
+        const opts = baseOpts()
+        const handle = await AgentRunner.run(opts)
+        await expect(handle.waitForIdle()).rejects.toThrow(`Provider exploded`)
+
+        expect(agent.continue).not.toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe(`thread tail sanitization on init (A2)`, () => {
+    const userMsg = (text: string) => ({
+      type: `user`,
+      content: [{ type: EContentType.text, text }],
+    })
+    const assistantMsg = (text: string) => ({
+      type: `assistant`,
+      content: [{ type: EContentType.text, text }],
+    })
+    /** pi's persisted failure signature: a single empty text part */
+    const emptyAssistantMsg = () => ({
+      type: `assistant`,
+      content: [{ type: EContentType.text, text: `` }],
+    })
+    const toolUseAssistantMsg = () => ({
+      type: `assistant`,
+      content: [
+        { type: EContentType.text, text: `Let me check` },
+        { type: EContentType.toolUse, id: `tc-1`, name: `readFile`, input: {} },
+      ],
+    })
+
+    it(`drops an empty assistant tail and proceeds with the run`, async () => {
+      const history = [userMsg(`hi`), assistantMsg(`hello`), emptyAssistantMsg()]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await expect(handle.waitForIdle()).resolves.toBeUndefined()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith(
+        [history[0], history[1]],
+        expect.anything()
+      )
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining(`history sanitized: dropped 1 message(s)`)
+      )
+    })
+
+    it(`keeps a valid trailing assistant message — pi's prompt() accepts an assistant tail`, async () => {
+      const history = [userMsg(`hi`), assistantMsg(`hello`)]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith(history, expect.anything())
+      expect(mockLoggerWarn).not.toHaveBeenCalledWith(
+        expect.stringContaining(`history sanitized`)
+      )
+    })
+
+    it(`drops interior empty assistant messages without reordering`, async () => {
+      const history = [
+        userMsg(`first`),
+        emptyAssistantMsg(),
+        userMsg(`second`),
+        assistantMsg(`answer`),
+      ]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith(
+        [history[0], history[2], history[3]],
+        expect.anything()
+      )
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining(`dropped 1 message(s)`)
+      )
+    })
+
+    it(`drops a dangling assistant tail whose toolUse has no persisted toolResults`, async () => {
+      const history = [userMsg(`run the check`), toolUseAssistantMsg()]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith([history[0]], expect.anything())
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining(`dropped 1 message(s)`)
+      )
+    })
+
+    it(`keeps an interior assistant toolUse message that has persisted toolResults after it`, async () => {
+      const history = [
+        userMsg(`run the check`),
+        toolUseAssistantMsg(),
+        {
+          type: `user`,
+          content: [
+            {
+              type: EContentType.toolResult,
+              toolUseId: `tc-1`,
+              content: `file contents`,
+              isError: false,
+            },
+          ],
+        },
+        assistantMsg(`done`),
+      ]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith(history, expect.anything())
+    })
+
+    it(`drops both an empty tail and the dangling toolUse tail it exposes`, async () => {
+      const history = [userMsg(`go`), toolUseAssistantMsg(), emptyAssistantMsg()]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      expect(convertToLlmMessages).toHaveBeenCalledWith([history[0]], expect.anything())
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining(`dropped 2 message(s)`)
+      )
+    })
+
+    it(`never mutates the DB during sanitization`, async () => {
+      const history = [userMsg(`hi`), emptyAssistantMsg()]
+      mockDb.listMessages.mockResolvedValue({ data: history })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      // Only the new user message write — no deletes/updates exist on the
+      // narrow IAgentRunnerDB interface, and no extra writes happened
+      expect(mockDb.createMessage).toHaveBeenCalledTimes(1)
+      expect(mockDb.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: `user` })
       )
     })
   })

@@ -115,11 +115,48 @@ export const enforceQuota = async (req: TRequest, res: TResponse, next: NextFunc
     const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
     const limit = (limits as Record<string, any>)[resource]
 
-    // If limit is undefined (not a tracked resource) or -1 (unlimited), pass through
-    if (limit === undefined || limit === -1) return next()
+    // If limit is undefined, the resource is not tracked by the plan at all
+    if (limit === undefined) return next()
 
     const period = getBillingPeriod()
     const quotaKey = resource as TQuotaResource
+
+    const registerRollback = () => {
+      res.on(`finish`, () => {
+        if (res.statusCode >= 400 && req.quotaIncremented) {
+          db.services.quota
+            .decrement(orgId, period, quotaKey)
+            .catch((err: unknown) =>
+              logger.error(
+                `[enforceQuota] Failed to rollback quota for ${resource} (org=${orgId}, period=${period}):`,
+                err
+              )
+            )
+        }
+      })
+    }
+
+    // Usage tracking is decoupled from enforcement: unlimited (-1) plans skip
+    // the limit check but still record usage, otherwise usage counters read 0
+    // forever for any org whose owner is on an unlimited tier.
+    if (limit === -1) {
+      const result = await db.services.quota.increment(orgId, period, quotaKey)
+      if (result.error) {
+        // A tracking failure on an unlimited plan must not block the request:
+        // there is no limit to enforce, the counter is informational only
+        logger.error(
+          `[enforceQuota] Failed to track ${quotaKey} usage for org ${orgId}:`,
+          result.error
+        )
+        return next()
+      }
+
+      req.quotaIncremented = { orgId, period, resource: quotaKey }
+      registerRollback()
+
+      return next()
+    }
+
     const result = await db.services.quota.incrementIfUnderLimit(
       orgId,
       period,
@@ -146,19 +183,7 @@ export const enforceQuota = async (req: TRequest, res: TResponse, next: NextFunc
     }
 
     req.quotaIncremented = { orgId, period, resource: quotaKey }
-
-    res.on(`finish`, () => {
-      if (res.statusCode >= 400 && req.quotaIncremented) {
-        db.services.quota
-          .decrement(orgId, period, quotaKey)
-          .catch((err: unknown) =>
-            logger.error(
-              `[enforceQuota] Failed to rollback quota for ${resource} (org=${orgId}, period=${period}):`,
-              err
-            )
-          )
-      }
-    })
+    registerRollback()
 
     next()
   } catch (err) {

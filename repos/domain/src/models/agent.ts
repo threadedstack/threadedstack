@@ -5,6 +5,7 @@ import type {
   TAgentProjectConfig,
 } from '@TDM/types'
 
+import { EAgentBrain } from '@TDM/types'
 import { Base } from '@TDM/models/base'
 import { Secret } from '@TDM/models/secret'
 import { Project } from '@TDM/models/project'
@@ -22,6 +23,7 @@ export class Agent extends Base {
   soul?: string
   active: boolean = true
   autonomous: boolean = false
+  brain: EAgentBrain = EAgentBrain.api
   secrets: Secret[] = []
   projects: Project[] = []
   envVars: TAgentEnvVars = {}

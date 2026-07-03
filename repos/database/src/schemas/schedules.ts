@@ -40,6 +40,7 @@ export const schedules = pgTable(
       onDelete: `set null`,
     }),
     maxConsecutiveErrors: integer(`max_consecutive_errors`).default(5).notNull(),
+    timeoutMs: integer(`timeout_ms`),
     sandboxId: varchar(`sandbox_id`, { length: 10 })
       .references(() => sandboxes.id, { onDelete: `cascade` })
       .notNull(),

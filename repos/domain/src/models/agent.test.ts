@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Agent } from './agent'
 import { Provider } from './provider'
+import { EAgentBrain } from '@TDM/types'
 
 describe(`Agent model`, () => {
   describe(`constructor`, () => {
@@ -407,6 +408,33 @@ describe(`Agent model`, () => {
       const eff = agent.getEffectiveConfig()
       expect(eff.soul).toBe(`base soul`)
       expect(eff.autonomous).toBe(true)
+    })
+  })
+
+  describe(`brain`, () => {
+    it(`carries brain through the constructor`, () => {
+      const agent = new Agent({
+        name: `Steward`,
+        orgId: `org-1`,
+        brain: EAgentBrain.runtime,
+      })
+      expect(agent.brain).toBe(EAgentBrain.runtime)
+    })
+
+    it(`defaults brain to api`, () => {
+      const agent = new Agent({ name: `Plain`, orgId: `org-1` })
+      expect(agent.brain).toBe(EAgentBrain.api)
+    })
+
+    it(`preserves brain through getEffectiveConfig and sanitize`, () => {
+      const agent = new Agent({
+        name: `Steward`,
+        orgId: `org-1`,
+        brain: EAgentBrain.runtime,
+        projectConfigs: [{ agentId: `agent-1`, projectId: `proj-1`, model: `m2` }],
+      })
+      expect(agent.getEffectiveConfig(`proj-1`).brain).toBe(EAgentBrain.runtime)
+      expect(agent.sanitize().brain).toBe(EAgentBrain.runtime)
     })
   })
 

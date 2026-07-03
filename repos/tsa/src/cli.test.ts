@@ -34,6 +34,22 @@ vi.mock(`@TSA/services/browserAuth`, () => ({
   browserLogin: (...args: any[]) => mockBrowserLogin(...args),
 }))
 
+// Mock the mutagen sync layer so logout never shells out to the real mutagen
+// binary (which resolves under $HOME/.config/tdsk/bin, installs itself, and
+// starts a daemon — non-hermetic and times out on a fresh CI HOME)
+const mockSyncStatus = vi.fn()
+const mockTerminateSession = vi.fn()
+vi.mock(`@TSA/services/sync/mutagenClient`, () => ({
+  CliDriver: vi.fn().mockImplementation(() => ({
+    terminateSession: (...args: any[]) => mockTerminateSession(...args),
+  })),
+}))
+vi.mock(`@TSA/services/sync/syncManager`, () => ({
+  SyncManager: vi.fn().mockImplementation(() => ({
+    status: (...args: any[]) => mockSyncStatus(...args),
+  })),
+}))
+
 const mockPiTuiStart = vi.fn()
 const mockPiTuiStop = vi.fn()
 const mockChatLogicInit = vi.fn()
@@ -105,6 +121,8 @@ describe(`main`, () => {
     // Default: loadProject returns empty, merge returns global config
     mockLoadProject.mockReturnValue({})
     mockMerge.mockImplementation((global: any, _project: any) => global)
+    // Default: no active sync sessions to stop on logout
+    mockSyncStatus.mockResolvedValue([])
   })
 
   const setArgv = (...args: string[]) => {

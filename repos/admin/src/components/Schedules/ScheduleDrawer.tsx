@@ -70,6 +70,7 @@ export const ScheduleDrawer = ({
         command: schedule.command,
         sandboxId: schedule.sandboxId,
         enabled: schedule.enabled ?? true,
+        timeoutMs: schedule.timeoutMs ?? undefined,
         cronExpression: schedule.cronExpression,
         type: schedule.type || EScheduleType.prompt,
       })
@@ -109,6 +110,7 @@ export const ScheduleDrawer = ({
       enabled: temp.enabled,
       agentId: temp.agentId,
       sandboxId: temp.sandboxId,
+      timeoutMs: temp.timeoutMs,
       cronExpression: temp.cronExpression,
       prompt: temp.type === EScheduleType.prompt ? temp.prompt : undefined,
       command: temp.type === EScheduleType.shell ? temp.command : undefined,
@@ -116,6 +118,8 @@ export const ScheduleDrawer = ({
 
     // cleanColl strips undefined keys, so explicitly send null to clear an existing agent
     if (isEditMode && schedule?.agentId && !temp.agentId) payload.agentId = null
+    // Same pattern for clearing an existing timeout back to the platform default
+    if (isEditMode && schedule?.timeoutMs && !temp.timeoutMs) payload.timeoutMs = null
 
     const result =
       isEditMode && schedule
@@ -244,6 +248,26 @@ export const ScheduleDrawer = ({
                     onChange={(e) => updateTemp({ command: e.target.value })}
                   />
                 )}
+
+                <TextInput
+                  fullWidth
+                  type='number'
+                  placeholder='30'
+                  disabled={loading}
+                  label='Timeout (minutes)'
+                  id='tdsk-schedule-timeout-input'
+                  helperText='Optional. 1 to 120 minutes; leave empty to use the platform default'
+                  value={temp?.timeoutMs ? String(temp.timeoutMs / 60_000) : ``}
+                  onChange={(e) => {
+                    const minutes = Number(e.target.value)
+                    updateTemp({
+                      timeoutMs:
+                        !e.target.value.trim() || Number.isNaN(minutes) || minutes <= 0
+                          ? undefined
+                          : Math.round(minutes * 60_000),
+                    })
+                  }}
+                />
               </Box>
             </AccordionDetails>
           </Accordion>

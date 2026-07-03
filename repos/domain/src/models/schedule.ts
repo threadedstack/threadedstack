@@ -14,6 +14,7 @@ export class Schedule extends Base {
   cronExpression!: string
   lastRunAt?: string | Date
   nextRunAt?: string | Date
+  timeoutMs?: number | null
   consecutiveErrors: number = 0
   maxConsecutiveErrors: number = 5
   type: EScheduleType = EScheduleType.prompt

@@ -45,6 +45,7 @@ describe(`Secrets endpoints`, () => {
             provider: {
               get: vi.fn(),
               list: vi.fn(),
+              update: vi.fn().mockResolvedValue({ data: {} }),
             },
             agent: {
               get: vi.fn(),
@@ -413,9 +414,10 @@ describe(`Secrets endpoints`, () => {
     })
 
     it(`should return 201 when org+provider dual ownership is used`, async () => {
+      // admin for both the secret:create and provider:update (backfill) checks
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
 
       const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
         typeof vi.fn
@@ -551,9 +553,10 @@ describe(`Secrets endpoints`, () => {
     })
 
     it(`should create provider-scoped secret when providerId is in body and orgId is in route params`, async () => {
+      // admin for both the secret:create and provider:update (backfill) checks
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
 
       const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
         typeof vi.fn
@@ -584,6 +587,236 @@ describe(`Secrets endpoints`, () => {
       expect(mockProviderGet).toHaveBeenCalledWith(`provider-1`)
       expect(mockCreate).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should backfill provider.secretId when dual-ownership secret is created for a provider without one`, async () => {
+      // admin for both the secret:create and provider:update (backfill) checks
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1`, secretId: null } })
+
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+
+      const createdSecret = new Secret({
+        id: `sc_new1`,
+        name: `KEY`,
+        hashKey: `hash`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderUpdate).toHaveBeenCalledWith({
+        id: `provider-1`,
+        secretId: `sc_new1`,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should backfill provider.secretId on the exclusive-arc provider owner path`, async () => {
+      // admin for both the secret:create and provider:update (backfill) checks
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1` } })
+
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+
+      const createdSecret = new Secret({
+        id: `sc_new2`,
+        name: `KEY`,
+        hashKey: `hash`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      // No route orgId and no body orgId: exclusive-arc owner is the provider
+      mockReq.params = {}
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderUpdate).toHaveBeenCalledWith({
+        id: `provider-1`,
+        secretId: `sc_new2`,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should not clobber an existing different provider.secretId`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({
+        data: { orgId: `org-1`, secretId: `sc_existing` },
+      })
+
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+
+      const createdSecret = new Secret({
+        id: `sc_new3`,
+        name: `KEY`,
+        hashKey: `hash`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderUpdate).not.toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should return 500 when the provider.secretId backfill update fails`, async () => {
+      // admin for both the secret:create and provider:update (backfill) checks
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1` } })
+
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+      mockProviderUpdate.mockResolvedValue({ error: new Error(`update failed`) })
+
+      const createdSecret = new Secret({
+        id: `sc_new4`,
+        name: `KEY`,
+        hashKey: `hash`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret created but failed to link it to provider: update failed`
+      )
+    })
+
+    it(`should return 403 and create nothing when the user lacks provider:update for the backfill`, async () => {
+      // Admin role grants secret:create, but a per-user deny override revokes
+      // provider:update — the explicit backfill permission check must fail the
+      // whole request BEFORE the secret row is created (no unlinked secret)
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockGetForUser = mockReq.app?.locals.db.services.permissionOverride
+        .getForUser as ReturnType<typeof vi.fn>
+      mockGetForUser.mockResolvedValue({
+        data: [{ effect: `deny`, permission: `provider:update` }],
+      })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1`, secretId: null } })
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Permission denied: requires provider:update`
+      )
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(mockProviderUpdate).not.toHaveBeenCalled()
+    })
+
+    it(`should not require provider:update when the provider already has a secretId`, async () => {
+      // No backfill happens, so a user denied provider:update can still
+      // create a provider secret — the provider row is never mutated
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockGetForUser = mockReq.app?.locals.db.services.permissionOverride
+        .getForUser as ReturnType<typeof vi.fn>
+      mockGetForUser.mockResolvedValue({
+        data: [{ effect: `deny`, permission: `provider:update` }],
+      })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({
+        data: { orgId: `org-1`, secretId: `sc_existing` },
+      })
+
+      const createdSecret = new Secret({
+        id: `sc_new5`,
+        name: `KEY`,
+        hashKey: `hash`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+      const mockProviderUpdate = mockReq.app?.locals.db.services.provider
+        .update as ReturnType<typeof vi.fn>
+
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = { name: `KEY`, value: `secret`, providerId: `provider-1` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      expect(mockProviderUpdate).not.toHaveBeenCalled()
     })
 
     it(`should return 404 when provider secret references non-existent provider (SEC-007 fix)`, async () => {

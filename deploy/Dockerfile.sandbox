@@ -28,6 +28,20 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && rm -rf /var/lib/apt/lists/*
 
+# GitHub CLI (official apt repo: keyring + apt source + gh)
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# pnpm via corepack — prepare at build time so the pod never downloads it
+# at runtime (egress is fail-closed inside sandboxes)
+RUN corepack enable \
+    && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@latest --activate
+
 # Antigravity CLI (standalone Go binary)
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash \
     && cp /root/.local/bin/agy /usr/local/bin/agy \

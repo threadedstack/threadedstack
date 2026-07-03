@@ -3,7 +3,14 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireOrgSandbox } from '@TBE/utils/agent/requireOrgSandbox'
+import {
+  EProvider,
+  Exception,
+  EAgentBrain,
+  EPermAction,
+  EPermResource,
+} from '@tdsk/domain'
 
 /**
  * POST /_/agents - Create a new agent
@@ -26,13 +33,18 @@ export const createAgent: TEndpointConfig = {
     if (!orgId)
       throw new Exception(400, `Agent must belong to an organization (orgId required)`)
 
+    if (agent.brain !== undefined && !Object.values(EAgentBrain).includes(agent.brain))
+      throw new Exception(400, `Invalid agent brain: ${agent.brain}`)
+
     const pins = await db.services.provider.validate({
       orgId,
       type: EProvider.ai,
       inputs: providerInputs,
     })
 
-    if (!pins?.length)
+    // Runtime-brain agents think via a CLI tool in their body sandbox —
+    // credentials ride on the sandbox provider links, so agent providers are optional
+    if (!pins?.length && agent.brain !== EAgentBrain.runtime)
       throw new Exception(
         400,
         `Agent must have at least one provider (providerInputs required)`
@@ -71,6 +83,9 @@ export const createAgent: TEndpointConfig = {
           )
       }
     }
+
+    // Reject environment.sandboxId references to sandboxes outside this org
+    await requireOrgSandbox(db, agent.environment, orgId)
 
     if (pins?.length) agent.providerInputs = pins
     if (projects?.length) agent.projects = projects

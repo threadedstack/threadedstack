@@ -1,7 +1,5 @@
 import { describe, test, expect, afterAll, beforeAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
-import { readContext } from '../utils/test-context'
-import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
 import { acquireJwt } from '../utils/jwt-auth'
 
@@ -31,20 +29,22 @@ const cleanupOrg = async (orgId: string, apiKey: string) => {
  * The test acquires a JWT from Neon Auth using email/password sign-in.
  */
 describe('Tier 1: Sandbox Org Seeding', () => {
-  const ctx = readContext()
-
   let newOrgId = ''
   let jwt = ''
-  let setupSkipped = false
 
   const jwtOpts = () => (jwt ? { apiKey: jwt } : {})
 
   beforeAll(async () => {
     const token = await acquireJwt()
     if (!token) {
-      console.warn('[sandbox-org-seeding] Could not acquire JWT — skipping suite')
-      setupSkipped = true
-      return
+      // A sign-in failure (e.g. 401) here can hide a real auth regression, so
+      // this suite fails hard instead of silently skipping.
+      throw new Error(
+        '[sandbox-org-seeding] Failed to acquire a user JWT — refusing to skip. ' +
+          'Check TDSK_IT_AUTH_URL / TDSK_IT_USER_EMAIL / TDSK_IT_USER_PASSWORD, that the ' +
+          'test user exists and is verified in Neon Auth, and the [jwt-auth] warnings above ' +
+          'for the exact sign-in failure (a 401 may indicate a real auth regression).'
+      )
     }
     jwt = token
 
@@ -66,9 +66,12 @@ describe('Tier 1: Sandbox Org Seeding', () => {
     )
 
     if (!res.ok) {
-      console.warn(`[sandbox-org-seeding] Org creation failed (${res.status}) — skipping suite`)
-      setupSkipped = true
-      return
+      throw new Error(
+        `[sandbox-org-seeding] Org creation failed (${res.status}): ` +
+          `${JSON.stringify(res.data ?? null)} — refusing to skip. ` +
+          'A 401/403 here may indicate a real auth regression; a 403 quota_exceeded means ' +
+          'stale seed-test-org orgs were not cleaned up.'
+      )
     }
 
     newOrgId = res.data.id
@@ -81,9 +84,6 @@ describe('Tier 1: Sandbox Org Seeding', () => {
   // --- Seeding ---
 
   test('org creation seeds default sandboxes', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()
@@ -99,21 +99,18 @@ describe('Tier 1: Sandbox Org Seeding', () => {
     }
 
     const seededNames = listRes.data.map((s: any) => s.name)
-    for (const expectedName of ['Claude Code', 'Codex', 'OpenCode', 'Antigravity', 'OpenClaw', 'Base']) {
+    for (const expectedName of ['Claude Code', 'Codex', 'OpenCode', 'Antigravity', 'OpenClaw', 'Pi Coding Agent', 'Base']) {
       expect(seededNames.some((n: string) => n.includes(expectedName))).toBe(true)
     }
 
     for (const sandbox of listRes.data) {
-      expect(['claude-code', 'codex', 'opencode', 'antigravity', 'openclaw', 'custom']).toContain(sandbox.config.runtime)
+      expect(['claude-code', 'codex', 'opencode', 'antigravity', 'openclaw', 'pi-coding-agent', 'custom']).toContain(sandbox.config.runtime)
       expect(sandbox.config.image).toBeTruthy()
       expect(sandbox.config.sshEnabled).toBe(true)
     }
   })
 
   test('seeded sandboxes have correct runtime configurations', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()
@@ -140,14 +137,14 @@ describe('Tier 1: Sandbox Org Seeding', () => {
     expect(byRuntime['openclaw']).toBeDefined()
     expect(byRuntime['openclaw'].config.runtimeCommand).toBe('openclaw')
 
+    expect(byRuntime['pi-coding-agent']).toBeDefined()
+    expect(byRuntime['pi-coding-agent'].config.runtimeCommand).toBe('pi')
+
     expect(byRuntime['custom']).toBeDefined()
     expect(byRuntime['custom'].config.runtimeCommand).toBeFalsy()
   })
 
   test('seeded sandboxes have resource limits and idle timeout', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()
@@ -163,9 +160,6 @@ describe('Tier 1: Sandbox Org Seeding', () => {
   })
 
   test('seeded sandboxes are editable', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()
@@ -188,9 +182,6 @@ describe('Tier 1: Sandbox Org Seeding', () => {
   })
 
   test('seeded sandboxes are deletable', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()
@@ -209,9 +200,6 @@ describe('Tier 1: Sandbox Org Seeding', () => {
   })
 
   test('seeded sandboxes are copyable with builtIn=false', async () => {
-    if (setupSkipped) return
-    if (!newOrgId) return expect(newOrgId).toBeTruthy()
-
     const listRes = await get<Record<string, any>[]>(
       `/orgs/${newOrgId}/sandboxes?limit=100`,
       jwtOpts()

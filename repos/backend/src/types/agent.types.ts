@@ -33,6 +33,12 @@ export type TAgentRuntimeConfig = {
   db: IAgentRunnerDB
   customFunctions: Function[]
   llmConfig: TLLMAdapterConfig
+  /**
+   * Priority-ordered provider failover chain — index 0 is always `llmConfig`.
+   * Passed to the AgentRunner so a surfaced LLM failure retries the same turn
+   * on the next provider in the chain.
+   */
+  llmConfigs?: TLLMAdapterConfig[]
   sandboxConfig: TSandboxConfig
   environment?: TAgentEnvironment
   envVars: Record<string, string>
@@ -50,6 +56,12 @@ export type TResolveAgentOpts = {
   projectId?: string
   providerId?: string
   overrides?: TAgentExecOverrides
+  /**
+   * Invoked immediately after resolveAgentConfig starts a pod, BEFORE the
+   * readiness wait or any later step can throw — callers capture the pod name
+   * here so their teardown path can always reap the pod.
+   */
+  onPodStart?: (podName: string) => void
 }
 
 export type TAgentExecOpts = {

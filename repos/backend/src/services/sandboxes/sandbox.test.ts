@@ -9,6 +9,9 @@ import {
 } from '@tdsk/domain'
 
 const sbx = (data: Record<string, any>) => {
+  // startPod refuses sandboxes whose orgId does not match the caller's orgId,
+  // so test fixtures default to the org used by the shared baseOpts
+  data.orgId = data.orgId ?? `org-1`
   data.getEffectiveConfig = function () {
     return this
   }
@@ -349,6 +352,40 @@ describe(`SandboxService`, () => {
       expect(secretIds).toContain(`sec-b`)
     })
 
+    it(`should throw 403 when sandbox record belongs to a different org`, async () => {
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          orgId: `org-other`,
+          config: { image: `node:20` },
+          sandboxProviders: [],
+        }),
+        error: null,
+      })
+
+      await expect(svc.startPod(baseOpts as any)).rejects.toThrow(
+        `Sandbox sb-1 does not belong to this organization`
+      )
+      expect(kube.createPod).not.toHaveBeenCalled()
+
+      try {
+        db.services.sandbox.get.mockResolvedValue({
+          data: sbx({
+            id: `sb-1`,
+            orgId: `org-other`,
+            config: { image: `node:20` },
+            sandboxProviders: [],
+          }),
+          error: null,
+        })
+        await svc.startPod(baseOpts as any)
+        expect.fail(`Expected startPod to throw`)
+      } catch (err) {
+        expect(err).toBeInstanceOf(Exception)
+        expect((err as any).status).toBe(403)
+      }
+    })
+
     it(`should throw when sandbox config not found in DB`, async () => {
       db.services.sandbox.get.mockResolvedValue({
         data: null,
@@ -395,6 +432,7 @@ describe(`SandboxService`, () => {
       const overriddenConfig = { image: `custom:latest`, workdir: `/project-a` }
       const mockSandbox = {
         id: `sb-1`,
+        orgId: `org-1`,
         config: { image: `node:20`, workdir: `/workspace` },
         sandboxProviders: [],
         getEffectiveConfig: vi.fn().mockReturnValue({
@@ -1746,6 +1784,127 @@ describe(`SandboxService`, () => {
       await expect(svc.getSandbox(`pod-a`)).rejects.toThrow(
         `Pod pod-a is not running (state: Terminating)`
       )
+    })
+  })
+
+  describe(`waitForPodReady`, () => {
+    const cloneReadyCmd = `[ -z "$TDSK_GIT_COUNT" ] || [ "$TDSK_GIT_COUNT" = "0" ] || find /workspace -maxdepth 2 -name .git | grep -q .`
+
+    it(`should resolve once the pod transitions Pending → Running`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockImplementation((phase: string) => phase)
+        kube.getPod
+          .mockResolvedValueOnce({ status: { phase: `Pending` } })
+          .mockResolvedValueOnce({ status: { phase: `Pending` } })
+          .mockResolvedValue({ status: { phase: `Running` } })
+
+        const promise = svc.waitForPodReady(`pod-a`)
+        await vi.advanceTimersByTimeAsync(4000)
+
+        await expect(promise).resolves.toBeUndefined()
+        expect(kube.getPod).toHaveBeenCalledTimes(3)
+        expect(MockKubeSandboxInstance.exec).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it(`should throw when the pod never leaves Pending before the timeout`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockReturnValue(EContainerState.Pending)
+        kube.getPod.mockResolvedValue({ status: { phase: `Pending` } })
+
+        const promise = svc.waitForPodReady(`pod-a`, { timeoutMs: 10_000 })
+        const rejection = expect(promise).rejects.toThrow(
+          `Timed out after 10s waiting for pod pod-a to be ready (state: Pending)`
+        )
+        await vi.advanceTimersByTimeAsync(12_000)
+        await rejection
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it(`should throw immediately when the pod is Failed`, async () => {
+      mockToContainerState.mockReturnValue(EContainerState.Failed)
+      kube.getPod.mockResolvedValue({ status: { phase: `Failed` } })
+
+      await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
+        `Pod pod-a will never become ready (state: Failed)`
+      )
+      expect(kube.getPod).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should throw immediately when the pod is Succeeded`, async () => {
+      mockToContainerState.mockReturnValue(EContainerState.Succeeded)
+      kube.getPod.mockResolvedValue({ status: { phase: `Succeeded` } })
+
+      await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
+        `Pod pod-a will never become ready (state: Succeeded)`
+      )
+      expect(kube.getPod).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should throw immediately when the pod is Terminating`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+        status: { phase: `Running` },
+      })
+
+      await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
+        `Pod pod-a will never become ready (state: Terminating)`
+      )
+      expect(kube.getPod).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should poll the in-pod clone check until success when cloneCheck is set`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockReturnValue(EContainerState.Running)
+        kube.getPod.mockResolvedValue({ status: { phase: `Running` } })
+        MockKubeSandboxInstance.exec
+          .mockResolvedValueOnce({ success: false, output: `` })
+          .mockRejectedValueOnce(new Error(`exec transport hiccup`))
+          .mockResolvedValue({ success: true, output: `` })
+
+        const promise = svc.waitForPodReady(`pod-a`, { cloneCheck: true })
+        await vi.advanceTimersByTimeAsync(4000)
+
+        await expect(promise).resolves.toBeUndefined()
+        expect(MockKubeSandboxInstance.exec).toHaveBeenCalledTimes(3)
+        expect(MockKubeSandboxInstance.exec).toHaveBeenCalledWith(cloneReadyCmd)
+        // The exec rejection was swallowed as not-ready, never fatal
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining(`Clone readiness check errored for pod pod-a`),
+          `exec transport hiccup`
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it(`should warn and resolve when the clone check never succeeds before the deadline`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockReturnValue(EContainerState.Running)
+        kube.getPod.mockResolvedValue({ status: { phase: `Running` } })
+        MockKubeSandboxInstance.exec.mockResolvedValue({ success: false, output: `` })
+
+        const promise = svc.waitForPodReady(`pod-a`, {
+          cloneCheck: true,
+          timeoutMs: 6000,
+        })
+        await vi.advanceTimersByTimeAsync(8000)
+
+        await expect(promise).resolves.toBeUndefined()
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining(`Timed out waiting for git clone(s) in pod pod-a`)
+        )
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 

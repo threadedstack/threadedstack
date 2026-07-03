@@ -2,7 +2,7 @@ import type { TKeyValuePair } from '@TAF/types'
 import type { TAiProviderOption } from '@TAF/types/agent.types'
 import type { Agent, TWebProviderBrand, TAgentProjectConfig } from '@tdsk/domain'
 
-import { EProvider } from '@tdsk/domain'
+import { EProvider, EAgentBrain } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
@@ -105,6 +105,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [active, setActive] = useState(true)
   const [streaming, setStreaming] = useState(true)
   const [autonomous, setAutonomous] = useState(false)
+  const [brain, setBrain] = useState<EAgentBrain>(EAgentBrain.api)
   const [maxTokens, setMaxTokens] = useState(100000)
   const [description, setDescription] = useState('')
   const [temperature, setTemperature] = useState(0.7)
@@ -124,6 +125,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSoul(agent.soul || '')
       setActive(agent.active ?? true)
       setAutonomous(agent.autonomous ?? false)
+      setBrain(agent.brain ?? EAgentBrain.api)
       setSelectedTools(agent.tools || [])
       setDescription(agent.description || '')
       setProviderIds(agent.providers?.map((p) => p.id) || [])
@@ -171,6 +173,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setEnvVars([])
       setActive(true)
       setAutonomous(false)
+      setBrain(EAgentBrain.api)
       setDescription(``)
       setStreaming(true)
       setProviderIds([])
@@ -196,7 +199,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!isOverrideMode && !providerIds.length)
+    if (!isOverrideMode && brain !== EAgentBrain.runtime && !providerIds.length)
       return setError(`At least one provider is required`)
     if (!isOverrideMode && !name.trim()) return setError(`Agent name is required`)
 
@@ -233,6 +236,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       const agentData = {
         name,
         soul,
+        brain,
         active,
         autonomous,
         maxTokens,
@@ -518,12 +522,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           <Divider />
 
           <AgentSettingsForm
+            brain={brain}
             active={active}
             loading={loading}
             streaming={streaming}
             autonomous={autonomous}
             onActiveChange={setActive}
             onStreamingChange={setStreaming}
+            onBrainChange={isOverrideMode ? undefined : setBrain}
             onAutonomousChange={isOverrideMode ? undefined : setAutonomous}
           />
         </Stack>

@@ -20,9 +20,10 @@ describe(`RuntimeProviderEnvMap`, () => {
     }
   })
 
-  it(`claude-code supports anthropic, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama, ollamaCloud, deepseek`, () => {
+  it(`claude-code supports anthropic, anthropicOAuth, amazon-bedrock, google-vertex, zai, openrouter, custom, ollama, ollamaCloud, deepseek`, () => {
     const brands = Object.keys(RuntimeProviderEnvMap[ESandboxRuntime.claudeCode]!)
     expect(brands).toContain(`anthropic`)
+    expect(brands).toContain(`anthropic:oauth`)
     expect(brands).toContain(`amazon-bedrock`)
     expect(brands).toContain(`google-vertex`)
     expect(brands).toContain(`zai`)
@@ -188,6 +189,21 @@ describe(`RuntimeProviderEnvMap`, () => {
     expect(brands).toContain(`zai`)
     expect(brands).toContain(`ollama:cloud`)
     expect(brands).toContain(`custom`)
+  })
+
+  it(`claude-code anthropicOAuth injects only CLAUDE_CODE_OAUTH_TOKEN as a required secret`, () => {
+    const entries =
+      RuntimeProviderEnvMap[ESandboxRuntime.claudeCode]![ERuntimeBrand.anthropicOAuth]!
+    expect(entries).toHaveLength(1)
+    const entry = entries[0]
+    expect(entry.envVar).toBe(`CLAUDE_CODE_OAUTH_TOKEN`)
+    expect(entry.source).toBe(`secret`)
+    expect(entry.required).toBe(true)
+    // Claude Code auth precedence is ANTHROPIC_AUTH_TOKEN > ANTHROPIC_API_KEY >
+    // CLAUDE_CODE_OAUTH_TOKEN, so the oauth variant must never inject the other two
+    const envVars = entries.map((e) => e.envVar)
+    expect(envVars).not.toContain(`ANTHROPIC_API_KEY`)
+    expect(envVars).not.toContain(`ANTHROPIC_AUTH_TOKEN`)
   })
 
   it(`claude-code deepseek uses ANTHROPIC_AUTH_TOKEN and Anthropic-compatible base URL`, () => {

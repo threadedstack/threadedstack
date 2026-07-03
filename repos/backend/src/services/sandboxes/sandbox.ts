@@ -21,7 +21,7 @@ import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 import { networkInterfaces } from 'node:os'
 
-import { DefSBConfig } from '@TBE/constants/sandbox'
+import { DefSBConfig, PodReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
@@ -225,6 +225,15 @@ export class SandboxService {
     const { data: rawSandbox, error } = await this.db.services.sandbox.get(sandboxId)
     if (error) throw new Error(error.message)
     if (!rawSandbox) throw new Error(`Sandbox config not found: ${sandboxId}`)
+
+    // Defense in depth: sandbox.get fetches by id alone, so a caller passing a
+    // cross-org sandboxId (e.g. via agent.environment.sandboxId) must be refused
+    if (rawSandbox.orgId !== orgId)
+      throw new Exception(
+        403,
+        `Sandbox ${sandboxId} does not belong to this organization`,
+        `FORBIDDEN`
+      )
 
     const sandbox = projectId ? rawSandbox.getEffectiveConfig(projectId) : rawSandbox
 
@@ -848,6 +857,78 @@ export class SandboxService {
     }
 
     return new KubeSandbox(this.kube, instanceId)
+  }
+
+  /**
+   * Wait for a freshly created pod to become usable.
+   *
+   * Phase wait: polls getPodState until the pod is Running. Throws immediately
+   * for terminal states (Failed / Succeeded / Terminating — they can never
+   * transition to Running) and throws when the deadline elapses first.
+   *
+   * Clone wait (opts.cloneCheck): after the pod is Running, polls an in-pod
+   * shell check (bounded by the same overall deadline) until the entrypoint's
+   * git clones exist in /workspace. A clone-wait timeout only warns and
+   * returns — the pod IS running, and a failed clone is surfaced by the AI
+   * tool itself. Exec errors during polling count as not-ready, never fatal.
+   */
+  async waitForPodReady(
+    instanceId: string,
+    opts?: { timeoutMs?: number; cloneCheck?: boolean }
+  ): Promise<void> {
+    const timeoutMs = opts?.timeoutMs ?? PodReadyTimeoutMS
+    const pollMs = this.config.pollInterval ?? DefSBConfig.pollInterval
+    const deadline = Date.now() + timeoutMs
+    const sleep = () => new Promise((resolve) => setTimeout(resolve, pollMs))
+
+    for (;;) {
+      const state = await this.getPodState(instanceId)
+      if (state === EContainerState.Running) break
+
+      if (
+        state === EContainerState.Failed ||
+        state === EContainerState.Succeeded ||
+        state === EContainerState.Terminating
+      )
+        throw new Error(`Pod ${instanceId} will never become ready (state: ${state})`)
+
+      if (Date.now() + pollMs > deadline)
+        throw new Error(
+          `Timed out after ${timeoutMs / 1000}s waiting for pod ${instanceId} to be ready (state: ${state})`
+        )
+
+      await sleep()
+    }
+
+    if (!opts?.cloneCheck) return
+
+    // The entrypoint clones repos synchronously before running the main
+    // command, so pod phase Running does not imply /workspace is populated.
+    // Exit 0 = no clones configured OR at least one .git dir exists.
+    // Runs inside the pod via the K8s Exec API (KubeSandbox), never on the host.
+    const cloneReadyCmd = `[ -z "$TDSK_GIT_COUNT" ] || [ "$TDSK_GIT_COUNT" = "0" ] || find /workspace -maxdepth 2 -name .git | grep -q .`
+    const sb = new KubeSandbox(this.kube, instanceId)
+
+    for (;;) {
+      try {
+        const result = await sb.exec(cloneReadyCmd)
+        if (result.success) return
+      } catch (err) {
+        logger.warn(
+          `[Sandbox] Clone readiness check errored for pod ${instanceId}, treating as not-ready:`,
+          (err as Error).message
+        )
+      }
+
+      if (Date.now() + pollMs > deadline) {
+        logger.warn(
+          `[Sandbox] Timed out waiting for git clone(s) in pod ${instanceId} — continuing, pod is Running`
+        )
+        return
+      }
+
+      await sleep()
+    }
   }
 
   /**

@@ -39,7 +39,7 @@ export const resolveAgentConfig = async (
   app: TApp,
   opts?: TResolveAgentOpts
 ): Promise<TResolvedAgentConfig> => {
-  const { userId, projectId, providerId, overrides } = opts || {}
+  const { userId, projectId, providerId, overrides, onPodStart } = opts || {}
 
   // 1. Load agent with provider and secrets (unsanitized to access secret values)
   const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
@@ -99,6 +99,54 @@ export const resolveAgentConfig = async (
       effectiveAgent.resolveModel(provider!.id, provider!.options?.model),
   }
 
+  // 8b. Resolve the FULL priority-ordered provider chain into llmConfigs.
+  // Index 0 is always the active llmConfig; the rest are failover candidates.
+  // A broken fallback provider must never take down the primary path, so
+  // fallback resolution failures are warn-logged and the provider is skipped.
+  const llmConfigs: TLLMAdapterConfig[] = [llmConfig]
+  for (const fallback of agent.providers || []) {
+    if (fallback.id === provider.id) continue
+
+    try {
+      const fallbackKey = await secrets.resolveApiKey(agent, fallback)
+      if (!fallbackKey) {
+        logger.warn(
+          `Skipping fallback provider ${fallback.id} for agent ${agentId} — no API key resolved`
+        )
+        continue
+      }
+
+      const fallbackModel = effectiveAgent.resolveModel(
+        fallback.id,
+        fallback.options?.model as string | undefined
+      )
+      if (!fallbackModel) {
+        logger.warn(
+          `Skipping fallback provider ${fallback.id} for agent ${agentId} — no model resolved`
+        )
+        continue
+      }
+
+      llmConfigs.push({
+        apiKey: fallbackKey,
+        model: fallbackModel,
+        headers: await secrets.resolveHeaders(fallback),
+        bodyParams: await secrets.resolveBodyParams(fallback),
+        provider: db.services.provider.resolveAIBrand(fallback),
+        baseUrl: fallback.options?.baseUrl as string | undefined,
+        maxTokens: overrides?.maxTokens || effectiveAgent.maxTokens,
+        systemPrompt: overrides?.systemPrompt || effectiveAgent.systemPrompt,
+        temperature: overrides?.temperature ?? effectiveAgent.environment?.temperature,
+      })
+    } catch (err) {
+      logger.warn(
+        `Skipping fallback provider ${fallback.id} for agent ${agentId} — resolution failed: ${
+          err instanceof Error ? err.message : err
+        }`
+      )
+    }
+  }
+
   // 9. Build sandbox config
   const sandboxProvider = effectiveAgent.environment?.sandboxType || ESandboxType.local
   const sandboxConfig: TSandboxConfig = {
@@ -120,6 +168,16 @@ export const resolveAgentConfig = async (
         projectId: projectId || ``,
         sandboxId: effectiveAgent.environment.sandboxId as string,
       })
+      // Capture the pod name BEFORE anything below can throw, so the caller's
+      // teardown path can always reap the pod (no orphan until the idle reaper)
+      onPodStart?.(startedInstanceId)
+
+      // The pod is created asynchronously (and clones repos before the
+      // entrypoint command runs) — running the agent's first tool call before
+      // it is ready fails with "not running". onPodStart already captured the
+      // pod name, so callers can still reap the pod when this wait throws.
+      await sandbox.waitForPodReady(startedInstanceId, { cloneCheck: true })
+
       sandboxConfig.options = { podName: startedInstanceId }
     }
 
@@ -146,6 +204,7 @@ export const resolveAgentConfig = async (
     agent,
     soul: effectiveAgent.soul,
     llmConfig,
+    llmConfigs,
     sandboxConfig,
     effectiveAgent,
     customFunctions,

@@ -562,6 +562,82 @@ describe(`POST / - createSchedule`, () => {
     expect(mockStatus).toHaveBeenCalledWith(201)
   })
 
+  it(`rejects a timeoutMs below the minimum`, async () => {
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+      timeoutMs: 59_999,
+    }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `timeoutMs must be an integer between 60000 and 7200000`
+    )
+    expect(scheduleService.create).not.toHaveBeenCalled()
+  })
+
+  it(`rejects a timeoutMs above the maximum`, async () => {
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+      timeoutMs: 7_200_001,
+    }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `timeoutMs must be an integer between 60000 and 7200000`
+    )
+    expect(scheduleService.create).not.toHaveBeenCalled()
+  })
+
+  it(`rejects a non-integer timeoutMs`, async () => {
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+      timeoutMs: 90_000.5,
+    }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `timeoutMs must be an integer between 60000 and 7200000`
+    )
+    expect(scheduleService.create).not.toHaveBeenCalled()
+  })
+
+  it(`accepts a valid timeoutMs and passes it to schedule.create`, async () => {
+    scheduleService.create.mockResolvedValue({ data: mockSchedule })
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+      timeoutMs: 3_600_000,
+    }
+
+    await createSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ timeoutMs: 3_600_000 })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(201)
+  })
+
+  it(`accepts a null timeoutMs on create`, async () => {
+    scheduleService.create.mockResolvedValue({ data: mockSchedule })
+    mockReq.body = {
+      cronExpression: `* * * * *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+      timeoutMs: null,
+    }
+
+    await createSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ timeoutMs: null })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(201)
+  })
+
   it(`rejects an agentId belonging to another org`, async () => {
     const { mockReq, mockRes, agentService, sandboxService } = buildMockReqRes()
     agentService.get.mockResolvedValue({ data: { id: `ag_1`, orgId: `other-org` } })
@@ -809,6 +885,67 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `prompt is required for prompt schedules`
     )
+  })
+
+  it(`rejects a timeoutMs below the minimum on update`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+
+    mockReq.body = { timeoutMs: 59_999 }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `timeoutMs must be an integer between 60000 and 7200000`
+    )
+    expect(scheduleService.update).not.toHaveBeenCalled()
+  })
+
+  it(`rejects a timeoutMs above the maximum on update`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+
+    mockReq.body = { timeoutMs: 7_200_001 }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `timeoutMs must be an integer between 60000 and 7200000`
+    )
+    expect(scheduleService.update).not.toHaveBeenCalled()
+  })
+
+  it(`accepts a valid timeoutMs and passes it to schedule.update`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.update.mockResolvedValue({ data: mockSchedule })
+
+    mockReq.body = { timeoutMs: 3_600_000 }
+
+    await updateSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: `sched-1`, timeoutMs: 3_600_000 })
+    )
+  })
+
+  it(`accepts a null timeoutMs to clear the override`, async () => {
+    scheduleService.get.mockResolvedValue({
+      data: { ...mockSchedule, timeoutMs: 3_600_000 },
+    })
+    scheduleService.update.mockResolvedValue({ data: mockSchedule })
+
+    mockReq.body = { timeoutMs: null }
+
+    await updateSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: `sched-1`, timeoutMs: null })
+    )
+  })
+
+  it(`does not include timeoutMs in the update when not provided`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleService.update.mockResolvedValue({ data: mockSchedule })
+
+    mockReq.body = { enabled: false }
+
+    await updateSchedule.action(mockReq, mockRes)
+
+    expect(scheduleService.update.mock.calls[0][0]).not.toHaveProperty(`timeoutMs`)
   })
 
   it(`clears the continuity threadId when agentId changes`, async () => {

@@ -18,6 +18,27 @@ import { createScheduleExecutor } from './executor'
 import { ExecTimeoutMS } from '@TBE/constants/sandbox'
 
 const buildApp = () => {
+  const sbInstance = {
+    execStreaming: vi.fn(
+      async (
+        _cmd: string,
+        _args: string[],
+        opts: {
+          onStdout: (c: string | Buffer) => void
+          onStderr: (c: string | Buffer) => void
+        }
+      ): Promise<{
+        output: string
+        success: boolean
+        exitCode: number
+        error?: string
+      }> => {
+        opts.onStdout(`CLI REPORT`)
+        return { output: ``, success: true, exitCode: 0 }
+      }
+    ),
+    exec: vi.fn().mockResolvedValue({ output: ``, success: true, exitCode: 0 }),
+  }
   const services = {
     scheduleRun: {
       create: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
@@ -25,6 +46,18 @@ const buildApp = () => {
     },
     thread: { create: vi.fn().mockResolvedValue({ data: { id: `th_new` } }) },
     schedule: { update: vi.fn().mockResolvedValue({ data: { id: `sd_1` } }) },
+    agent: {
+      get: vi.fn().mockResolvedValue({ data: { id: `ag_1`, brain: `api` } }),
+    },
+    message: {
+      create: vi.fn().mockResolvedValue({ data: { id: `msg_1` } }),
+      listByThread: vi.fn().mockResolvedValue({ data: [] }),
+    },
+    sandbox: {
+      get: vi.fn().mockResolvedValue({
+        data: { config: { runtime: `claude-code` } },
+      }),
+    },
   }
   const s3 = {
     createUploadStream: vi.fn(() => ({
@@ -32,9 +65,15 @@ const buildApp = () => {
       done: vi.fn().mockResolvedValue(undefined),
     })),
   }
-  const sandbox = { stopPod: vi.fn().mockResolvedValue(undefined) }
+  const sandbox = {
+    stopPod: vi.fn().mockResolvedValue(undefined),
+    startPod: vi.fn().mockResolvedValue(`pod-cli-1`),
+    getSandbox: vi.fn().mockResolvedValue(sbInstance),
+    waitForPodReady: vi.fn().mockResolvedValue(undefined),
+  }
   return {
     services,
+    sbInstance,
     app: { locals: { db: { services }, sandbox, s3, config: { egress: {} } } } as any,
   }
 }
@@ -62,6 +101,10 @@ beforeEach(() => {
     customFunctions: [],
     environment: {},
     llmConfig: { model: `m`, provider: `anthropic` },
+    llmConfigs: [
+      { model: `m`, provider: `anthropic` },
+      { model: `m2`, provider: `openai` },
+    ],
     sandboxConfig: { provider: `local` },
     onExecuteFunction: vi.fn(),
   })
@@ -80,6 +123,11 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
     expect(runArgs.prompt).toBe(`Review platform state`)
     expect(runArgs.agentId).toBe(`ag_1`)
     expect(runArgs.threadId).toBe(`th_new`)
+    // The full provider failover chain flows through to the runner
+    expect(runArgs.llmConfigs).toEqual([
+      { model: `m`, provider: `anthropic` },
+      { model: `m2`, provider: `openai` },
+    ])
     expect(services.schedule.update).toHaveBeenCalledWith({
       id: `sd_1`,
       threadId: `th_new`,
@@ -178,6 +226,90 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
     expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-1`)
   })
 
+  it(`stops the pod when the runner rejects after resolveAgentConfig started it`, async () => {
+    const { app, services } = buildApp()
+    resolveAgentConfigMock.mockImplementation(
+      async (_agentId: unknown, _db: unknown, _app: unknown, opts: any) => {
+        // Pod starts inside resolveAgentConfig — the hook reports it immediately
+        opts?.onPodStart?.(`pod-early`)
+        return {
+          orgId: `org-1`,
+          soul: `SOUL`,
+          db: {},
+          skills: [],
+          tools: [],
+          customFunctions: [],
+          environment: {},
+          llmConfig: { model: `m`, provider: `anthropic` },
+          sandboxConfig: { provider: `kubernetes`, options: { podName: `pod-early` } },
+          onExecuteFunction: vi.fn(),
+        }
+      }
+    )
+    // Runner init throws AFTER the pod exists — pre-hook this leaked the pod
+    runMock.mockRejectedValue(new Error(`runner init exploded`))
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(/runner init exploded/)
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error`, instanceId: `pod-early` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-early`)
+  })
+
+  it(`stops the pod when resolveAgentConfig itself throws after starting it`, async () => {
+    const { app, services } = buildApp()
+    resolveAgentConfigMock.mockImplementation(
+      async (_agentId: unknown, _db: unknown, _app: unknown, opts: any) => {
+        opts?.onPodStart?.(`pod-early`)
+        // e.g. the in-resolve readiness wait failed
+        throw new Error(`Pod pod-early will never become ready (state: Failed)`)
+      }
+    )
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(/never become ready/)
+    expect(runMock).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error`, instanceId: `pod-early` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-early`)
+  })
+
+  it(`records an error run when a surfaced LLM failure rejects waitForIdle`, async () => {
+    const { app, services } = buildApp()
+    runMock.mockResolvedValue({
+      waitForIdle: vi.fn().mockRejectedValue(new Error(`Your credit balance is too low`)),
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(
+      /credit balance is too low/
+    )
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({
+        status: `error`,
+        error: `Your credit balance is too low`,
+      })
+    )
+  })
+
+  it(`loads the agent and records an error when the agent no longer exists`, async () => {
+    const { app, services } = buildApp()
+    services.agent.get.mockResolvedValue({ data: undefined })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(/Agent not found/)
+    expect(runMock).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error` })
+    )
+  })
+
   it(`marks the run as timeout when the agent run exceeds ExecTimeoutMS`, async () => {
     vi.useFakeTimers()
     try {
@@ -199,5 +331,381 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it(`honors schedule.timeoutMs over ExecTimeoutMS on the api-brain path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services } = buildApp()
+      runMock.mockResolvedValue({
+        waitForIdle: vi.fn(() => new Promise(() => {})),
+      })
+      const executor = createScheduleExecutor(app)
+
+      // 120s override — far below the 30-minute ExecTimeoutMS default
+      const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
+      const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
+      await vi.advanceTimersByTimeAsync(121_000)
+      await rejection
+
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `timeout` })
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => {
+  const runtimeAgent = (overrides: Record<string, unknown> = {}) => ({
+    id: `ag_1`,
+    orgId: `org-1`,
+    brain: `runtime`,
+    soul: `CLI SOUL`,
+    environment: { sandboxId: `sb-body` },
+    ...overrides,
+  })
+
+  it(`runs the CLI tool in the agent's body sandbox and persists the report`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule() as any)
+
+    // The CLI brain never uses the pi runner or its provider-backed config
+    expect(runMock).not.toHaveBeenCalled()
+    expect(resolveAgentConfigMock).not.toHaveBeenCalled()
+
+    // Pod started with the agent's body sandbox, not the schedule sandbox
+    expect(app.locals.sandbox.startPod).toHaveBeenCalledWith({
+      orgId: `org-1`,
+      userId: `us_1`,
+      sandboxId: `sb-body`,
+      projectId: `pr-1`,
+      egressOpts: {},
+    })
+
+    // Readiness (phase + clone) wait sits between pod creation and the exec
+    expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
+      cloneCheck: true,
+    })
+    expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
+      app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
+    )
+    expect(app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]).toBeLessThan(
+      app.locals.sandbox.getSandbox.mock.invocationCallOrder[0]
+    )
+
+    // Prompt command template applied with the soul prepended to the payload
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+
+    // User message carries the raw configured prompt; assistant carries stdout
+    expect(services.message.create).toHaveBeenNthCalledWith(1, {
+      threadId: `th_new`,
+      type: `user`,
+      orgId: `org-1`,
+      content: [{ type: `text`, text: `Review platform state` }],
+    })
+    expect(services.message.create).toHaveBeenNthCalledWith(2, {
+      threadId: `th_new`,
+      type: `assistant`,
+      orgId: `org-1`,
+      content: [{ type: `text`, text: `CLI REPORT` }],
+    })
+
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `success`, instanceId: `pod-cli-1` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
+  it(`substitutes the soul into a {soul} placeholder when the template has one`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.sandbox.get.mockResolvedValue({
+      data: {
+        config: {
+          runtime: `custom`,
+          promptCommand: `mytool --soul '{soul}' -p '{prompt}'`,
+        },
+      },
+    })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule() as any)
+
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(`mytool --soul 'CLI SOUL' -p 'Review platform state'`)
+  })
+
+  it(`includes the previous assistant report in the composed command`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.message.listByThread.mockResolvedValue({
+      data: [
+        { type: `user`, content: [{ type: `text`, text: `old prompt` }] },
+        { type: `assistant`, content: [{ type: `text`, text: `OLD REPORT` }] },
+        { type: `user`, content: [{ type: `text`, text: `tool result` }] },
+      ],
+    })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule({ threadId: `th_existing` }) as any)
+
+    expect(services.message.listByThread).toHaveBeenCalledWith(`th_existing`)
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(
+      `claude -p 'CLI SOUL\n\n## Your previous report\nOLD REPORT\n\nReview platform state'`
+    )
+  })
+
+  it(`records an error run and writes no assistant message when the CLI exec fails`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    sbInstance.execStreaming.mockResolvedValue({
+      output: ``,
+      success: false,
+      exitCode: 1,
+      error: `CLI exploded`,
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(/CLI exploded/)
+    expect(services.message.create).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error`, error: `CLI exploded` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
+  it(`records an error when neither the agent environment nor the schedule has a sandbox`, async () => {
+    const { app, services } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent({ environment: {} }) })
+    const executor = createScheduleExecutor(app)
+
+    await expect(
+      executor(agentSchedule({ sandboxId: undefined }) as any)
+    ).rejects.toThrow(/no body sandbox/)
+    expect(app.locals.sandbox.startPod).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error` })
+    )
+  })
+
+  it(`preserves $-replacement sequences in the prompt verbatim`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    const executor = createScheduleExecutor(app)
+    await executor(
+      agentSchedule({ prompt: `Budget is $& and prefix is $\` today` }) as any
+    )
+
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(`claude -p 'CLI SOUL\n\nBudget is $& and prefix is $\` today'`)
+  })
+
+  it(`preserves $-replacement sequences in a pod schedule's prompt verbatim`, async () => {
+    const { app, sbInstance } = buildApp()
+    const executor = createScheduleExecutor(app)
+    await executor(
+      agentSchedule({ agentId: undefined, prompt: `pay $& then $\` please` }) as any
+    )
+
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(`claude -p 'pay $& then $\` please'`)
+  })
+
+  it(`waits for pod readiness between startPod and exec on the pod-schedule path`, async () => {
+    const { app, sbInstance } = buildApp()
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule({ agentId: undefined }) as any)
+
+    expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
+      cloneCheck: true,
+    })
+    expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
+      app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
+    )
+    expect(app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]).toBeLessThan(
+      app.locals.sandbox.getSandbox.mock.invocationCallOrder[0]
+    )
+    expect(sbInstance.execStreaming).toHaveBeenCalled()
+  })
+
+  it(`records an error run and still stops the pod when the readiness wait fails on the CLI-brain path`, async () => {
+    const { app, services } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    app.locals.sandbox.waitForPodReady.mockRejectedValue(
+      new Error(`Pod pod-cli-1 will never become ready (state: Failed)`)
+    )
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(
+      /will never become ready/
+    )
+    // The exec never ran — the pod was never usable
+    expect(app.locals.sandbox.getSandbox).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({
+        status: `error`,
+        instanceId: `pod-cli-1`,
+        error: `Pod pod-cli-1 will never become ready (state: Failed)`,
+      })
+    )
+    // instanceId was recorded before the wait, so the finally block reaps the pod
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
+  it(`does not let a soul containing literal {prompt} consume the template placeholder`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({
+      data: runtimeAgent({ soul: `Use {prompt} wisely` }),
+    })
+    services.sandbox.get.mockResolvedValue({
+      data: {
+        config: {
+          runtime: `custom`,
+          promptCommand: `mytool --soul '{soul}' -p '{prompt}'`,
+        },
+      },
+    })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule() as any)
+
+    const command = sbInstance.execStreaming.mock.calls[0][0]
+    expect(command).toBe(`mytool --soul 'Use {prompt} wisely' -p 'Review platform state'`)
+  })
+
+  it(`reassembles multibyte characters split across stdout chunks`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    const bytes = Buffer.from(`report 🚀 done`, `utf8`)
+    // Split mid-emoji (🚀 is 4 bytes starting at index 7)
+    const splitAt = 9
+    sbInstance.execStreaming.mockImplementation(async (_cmd, _args, opts) => {
+      opts.onStdout(bytes.subarray(0, splitAt))
+      opts.onStdout(bytes.subarray(splitAt))
+      return { output: ``, success: true, exitCode: 0 }
+    })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule() as any)
+
+    expect(services.message.create).toHaveBeenNthCalledWith(2, {
+      threadId: `th_new`,
+      type: `assistant`,
+      orgId: `org-1`,
+      content: [{ type: `text`, text: `report 🚀 done` }],
+    })
+  })
+
+  it(`caps buffered stdout at the byte limit, keeping only the tail`, async () => {
+    const capBytes = 256 * 1024
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    sbInstance.execStreaming.mockImplementation(async (_cmd, _args, opts) => {
+      opts.onStdout(Buffer.from(`x`.repeat(capBytes)))
+      opts.onStdout(Buffer.from(`TAIL_MARKER`))
+      return { output: ``, success: true, exitCode: 0 }
+    })
+    const executor = createScheduleExecutor(app)
+    await executor(agentSchedule() as any)
+
+    const assistantCall = services.message.create.mock.calls[1][0]
+    const text = assistantCall.content[0].text as string
+    expect(text.length).toBe(capBytes)
+    expect(text.endsWith(`TAIL_MARKER`)).toBe(true)
+    expect(text.startsWith(`x`)).toBe(true)
+  })
+
+  it(`marks the run as timeout and stops the pod when the CLI run exceeds ExecTimeoutMS`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const execPromise = executor(agentSchedule() as any)
+      const rejection = expect(execPromise).rejects.toThrow(/Timed out/)
+      await vi.advanceTimersByTimeAsync(ExecTimeoutMS + 1000)
+      await rejection
+
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `timeout` })
+      )
+      expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`honors schedule.timeoutMs over ExecTimeoutMS on the CLI-brain path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      // 120s override — far below the 30-minute ExecTimeoutMS default
+      const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
+      const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
+      await vi.advanceTimersByTimeAsync(121_000)
+      await rejection
+
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `timeout` })
+      )
+      expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`honors schedule.timeoutMs over ExecTimeoutMS on the pod-schedule path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      // 120s override — far below the 30-minute ExecTimeoutMS default
+      const execPromise = executor(
+        agentSchedule({ agentId: undefined, timeoutMs: 120_000 }) as any
+      )
+      const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
+      await vi.advanceTimersByTimeAsync(121_000)
+      await rejection
+
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `timeout` })
+      )
+      expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`still succeeds when persisting the continuity messages fails`, async () => {
+    const { app, services } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.message.create.mockResolvedValue({ error: new Error(`persist fail`) })
+    const executor = createScheduleExecutor(app)
+
+    await executor(agentSchedule() as any)
+
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `success` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
   })
 })

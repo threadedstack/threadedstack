@@ -55,7 +55,18 @@ if [ "$GIT_COUNT" -gt 0 ] 2>/dev/null; then
         # Basic with `x-access-token:<PAT>`. The egress proxy decodes Basic
         # credentials and swaps the embedded placeholder before forwarding.
         AUTH=$(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')
-        if ! su -s /bin/bash sandbox -c "exec git -c http.extraHeader=\"Authorization: Basic \$0\" clone --branch \"\$1\" \"\$2\" \"\$3\"" "$AUTH" "$BRANCH" "$REPO" "$REPO_DIR" 2>&1; then
+        if su -s /bin/bash sandbox -c "exec git -c http.extraHeader=\"Authorization: Basic \$0\" clone --branch \"\$1\" \"\$2\" \"\$3\"" "$AUTH" "$BRANCH" "$REPO" "$REPO_DIR" 2>&1; then
+          # Persist push auth repo-locally so any later process in the pod
+          # (git push, gh) reuses the same egress Basic placeholder-swap as
+          # the clone. The value holds the PLACEHOLDER, never the real token.
+          su -s /bin/bash sandbox -c 'exec git -C "$0" config http.extraHeader "Authorization: Basic $1"' "$REPO_DIR" "$AUTH" \
+            || echo "[sandbox-entrypoint] WARNING: failed to persist git push auth for $REPO_DIR"
+          # Repo-local commit identity (env-overridable)
+          su -s /bin/bash sandbox -c 'exec git -C "$0" config user.name "$1"' "$REPO_DIR" "${TDSK_GIT_USER_NAME:-ThreadedStack Steward}" \
+            || echo "[sandbox-entrypoint] WARNING: failed to set git user.name for $REPO_DIR"
+          su -s /bin/bash sandbox -c 'exec git -C "$0" config user.email "$1"' "$REPO_DIR" "${TDSK_GIT_USER_EMAIL:-steward@threadedstack.app}" \
+            || echo "[sandbox-entrypoint] WARNING: failed to set git user.email for $REPO_DIR"
+        else
           echo "[sandbox-entrypoint] WARNING: git clone failed for $REPO"
         fi
       else

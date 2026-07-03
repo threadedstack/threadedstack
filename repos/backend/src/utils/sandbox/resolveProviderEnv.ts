@@ -6,7 +6,12 @@ import { logger } from '@TBE/utils/logger'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { PhTokenPrefix } from '@TBE/constants/values'
-import { ESandboxRuntime, ERuntimeBrand, RuntimeProviderEnvMap } from '@tdsk/domain'
+import {
+  ESandboxRuntime,
+  ERuntimeBrand,
+  ProviderBrandDomains,
+  RuntimeProviderEnvMap,
+} from '@tdsk/domain'
 
 type TProviderWithSecret = {
   id: string
@@ -26,6 +31,40 @@ type TResolveResult = {
   errors: string[]
   placeholders: TPlaceholderMap
   extraEnv: Record<string, string>
+}
+
+/**
+ * Resolves the egress domain scope for a provider's MITM secret placeholder.
+ * The egress proxy only enforces domain gating when allowedDomains is non-empty,
+ * so every placeholder MUST carry a scope or the pod could swap the real secret
+ * into a request to any host. Resolution chain (first non-empty wins):
+ *   1. provider.options.allowedDomains (explicit, filtered to non-empty strings)
+ *   2. ProviderBrandDomains[provider.brand] (known API domains per brand)
+ *   3. hostname parsed from provider.options.baseUrl (custom/self-hosted APIs)
+ * Returns undefined when no scope is resolvable — callers must fail closed.
+ */
+const resolveAllowedDomains = (provider: TProviderWithSecret): string[] | undefined => {
+  const rawDomains = provider.options?.allowedDomains
+  const explicit = isArr(rawDomains)
+    ? rawDomains.filter((d): d is string => isStr(d) && d.length > 0)
+    : undefined
+  if (explicit?.length) return explicit
+
+  const brandDomains =
+    ProviderBrandDomains[provider.brand as keyof typeof ProviderBrandDomains]
+  if (brandDomains?.length) return [...brandDomains]
+
+  const baseUrl = provider.options?.baseUrl
+  if (isStr(baseUrl) && baseUrl.length) {
+    try {
+      const { hostname } = new URL(baseUrl)
+      if (hostname) return [hostname]
+    } catch {
+      return undefined
+    }
+  }
+
+  return undefined
 }
 
 /**
@@ -71,6 +110,13 @@ export async function resolveProviderEnv(
     )
       brandKey = ERuntimeBrand.amazonBedrockBearer
 
+    // Anthropic subscription OAuth variant (claude setup-token): check provider.options.authMethod
+    if (
+      provider.brand === ERuntimeBrand.anthropic &&
+      provider.options?.authMethod === `oauth`
+    )
+      brandKey = ERuntimeBrand.anthropicOAuth
+
     // Ollama cloud variant: provider with a secretId is cloud-hosted (needs real auth)
     if (provider.brand === ERuntimeBrand.ollama && provider.secretId)
       brandKey = ERuntimeBrand.ollamaCloud
@@ -109,15 +155,20 @@ export async function resolveProviderEnv(
       }
 
       if (injection === `mitm`) {
-        const token = `${PhTokenPrefix}${nanoid(16)}`
-        const rawDomains = provider.options?.allowedDomains
-        const allowedDomains = isArr(rawDomains)
-          ? rawDomains.filter((d): d is string => isStr(d) && d.length > 0)
-          : undefined
+        // Fail closed: an unscoped placeholder lets the pod exfiltrate the real
+        // secret to any destination host via the egress proxy's secret swapping.
+        const allowedDomains = resolveAllowedDomains(provider)
+        if (!allowedDomains?.length) {
+          errors.push(
+            `Provider '${provider.brand}' has no resolvable domain scope for ${entry.envVar} — refusing unscoped secret placeholder`
+          )
+          continue
+        }
 
+        const token = `${PhTokenPrefix}${nanoid(16)}`
         placeholders[token] = {
           secretId: provider.secretId,
-          allowedDomains: allowedDomains?.length ? allowedDomains : undefined,
+          allowedDomains,
         }
         extraEnv[entry.envVar] = token
       } else if (injection === `direct`) {

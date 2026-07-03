@@ -22,5 +22,6 @@ export type TSandboxSchedule = {
   command?: string
   sandboxId?: string
   enabled?: boolean
+  timeoutMs?: number
   cronExpression?: string
 }

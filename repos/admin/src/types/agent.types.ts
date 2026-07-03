@@ -1,4 +1,4 @@
-import type { TAgentEnvironment } from '@tdsk/domain'
+import type { EAgentBrain, TAgentEnvironment } from '@tdsk/domain'
 
 export enum EAgentThreadTab {
   assets = `assets`,
@@ -35,9 +35,12 @@ export type TAiProviderOption = {
 /** API payload shape for creating/updating agents */
 export type TAgentPayload = {
   name?: string
+  soul?: string
   model?: string
   tools?: string[]
   active?: boolean
+  brain?: EAgentBrain
+  autonomous?: boolean
   maxTokens?: number
   secretIds?: string[]
   description?: string

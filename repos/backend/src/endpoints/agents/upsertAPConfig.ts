@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { requireOrgSandbox } from '@TBE/utils/agent/requireOrgSandbox'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -28,6 +29,14 @@ export const upsertAPConfig: TEndpointConfig = {
       environment,
       systemPrompt,
     } = req.body
+
+    // Reject environment.sandboxId references to sandboxes outside the agent's org
+    if ((environment as Record<string, unknown> | null | undefined)?.sandboxId) {
+      const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
+      if (agentErr) throw new Exception(500, agentErr.message)
+      if (!agent) throw new Exception(404, `Agent not found`)
+      await requireOrgSandbox(db, environment, agent.orgId)
+    }
 
     if (functionIds?.length) {
       for (const funcId of functionIds) {

@@ -3,8 +3,15 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { requireOrgSandbox } from '@TBE/utils/agent/requireOrgSandbox'
 import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
-import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import {
+  EProvider,
+  Exception,
+  EAgentBrain,
+  EPermAction,
+  EPermResource,
+} from '@tdsk/domain'
 
 /**
  * PUT /_/agents/:id - Update an agent
@@ -20,6 +27,7 @@ export const updateAgent: TEndpointConfig = {
     const {
       name,
       soul,
+      brain,
       model,
       tools,
       envVars,
@@ -36,6 +44,9 @@ export const updateAgent: TEndpointConfig = {
       thinkingEnabled,
       projectIds = [],
     } = req.body
+
+    if (brain !== undefined && !Object.values(EAgentBrain).includes(brain))
+      throw new Exception(400, `Invalid agent brain: ${brain}`)
 
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
     if (getError) throw new Exception(500, getError.message)
@@ -56,6 +67,9 @@ export const updateAgent: TEndpointConfig = {
         environment,
         systemPrompt,
       } = req.body
+
+      // Reject environment.sandboxId references to sandboxes outside the agent's org
+      await requireOrgSandbox(db, environment, existingAgent.orgId)
 
       if (functionIds?.length) {
         for (const funcId of functionIds) {
@@ -119,9 +133,34 @@ export const updateAgent: TEndpointConfig = {
       orgId: existingAgent.orgId,
     })
 
+    // Non-runtime (API) brains resolve providers at run time, so the resulting
+    // agent must keep at least one provider or every later run 404s
+    const finalBrain = brain !== undefined ? brain : existingAgent.brain
+    const finalProviders = pins !== undefined ? pins : existingAgent.providerLinks
+    if (finalBrain !== EAgentBrain.runtime && !finalProviders?.length)
+      throw new Exception(400, `API-brain agents require at least one provider`)
+
+    // Reject environment.sandboxId references to sandboxes outside the agent's org
+    await requireOrgSandbox(db, environment, existingAgent.orgId)
+
+    if (secretIds?.length) {
+      for (const secretId of secretIds) {
+        const { data: secret, error: secretErr } = await db.services.secret.get(secretId)
+        if (secretErr) throw new Exception(500, secretErr.message)
+        if (!secret) throw new Exception(400, `Secret ${secretId} not found`)
+        if (secret.orgId !== existingAgent.orgId)
+          throw new Exception(
+            403,
+            `Secret ${secretId} does not belong to this organization`,
+            `FORBIDDEN`
+          )
+      }
+    }
+
     const agentUpdate: Record<string, unknown> & { id: string } = { id }
     if (name !== undefined) agentUpdate.name = name
     if (soul !== undefined) agentUpdate.soul = soul
+    if (brain !== undefined) agentUpdate.brain = brain
     if (model !== undefined) agentUpdate.model = model
     if (tools !== undefined) agentUpdate.tools = tools
     if (projects?.length) agentUpdate.projects = projects

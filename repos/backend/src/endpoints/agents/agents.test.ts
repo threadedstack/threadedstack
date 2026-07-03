@@ -34,6 +34,12 @@ describe(`Agents endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
+              upsertProjectConfig: vi.fn(),
+            },
+            sandbox: {
+              get: vi.fn().mockResolvedValue({
+                data: { id: `sb-1`, orgId: `org-1` },
+              }),
             },
             provider: {
               get: vi.fn(),
@@ -862,6 +868,95 @@ describe(`Agents endpoints`, () => {
       )
     })
 
+    it(`should reject 403 when environment.sandboxId belongs to a different org`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerInputs: [{ id: `provider-1` }],
+        name: `Cross-Org Sandbox Attempt`,
+        environment: { sandboxId: `sb-other-org` },
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSandboxGet.mockResolvedValue({
+        data: { id: `sb-other-org`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Sandbox sb-other-org does not belong to this organization`
+      )
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it(`should reject 400 when environment.sandboxId is not found`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerInputs: [{ id: `provider-1` }],
+        name: `Missing Sandbox`,
+        environment: { sandboxId: `sb-missing` },
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSandboxGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Sandbox sb-missing not found`
+      )
+    })
+
+    it(`should allow environment.sandboxId that belongs to the same org`, async () => {
+      const createdAgent = new Agent({
+        id: `agent-new`,
+        name: `Sandbox Agent`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        providerInputs: [{ id: `provider-1` }],
+        name: `Sandbox Agent`,
+        environment: { sandboxId: `sb-1` },
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockSandboxGet).toHaveBeenCalledWith(`sb-1`)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
     it(`should return 500 on database error`, async () => {
       mockReq.body = {
         orgId: `org-1`,
@@ -1335,6 +1430,328 @@ describe(`Agents endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ secretIds: [] }))
+    })
+
+    it(`should reject 403 when updating with secretIds from a different org`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { secretIds: [`s-from-other-org`] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockSecretGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSecretGet.mockResolvedValue({
+        data: { id: `s-from-other-org`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /does not belong to this organization/
+      )
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockUpdate).not.toHaveBeenCalled()
+    })
+
+    it(`should reject 400 when updating with a secretId that is not found`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { secretIds: [`s-missing`] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockSecretGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSecretGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Secret s-missing not found/
+      )
+    })
+
+    it(`should reject 403 when environment.sandboxId belongs to a different org (base update)`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { environment: { sandboxId: `sb-other-org` } }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSandboxGet.mockResolvedValue({
+        data: { id: `sb-other-org`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Sandbox sb-other-org does not belong to this organization`
+      )
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockUpdate).not.toHaveBeenCalled()
+    })
+
+    it(`should reject 403 when environment.sandboxId belongs to a different org (project override update)`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1`, projectId: `project-1` }
+      mockReq.body = { environment: { sandboxId: `sb-other-org` } }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSandboxGet.mockResolvedValue({
+        data: { id: `sb-other-org`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Sandbox sb-other-org does not belong to this organization`
+      )
+      const mockUpsert = mockReq.app?.locals.db.services.agent
+        .upsertProjectConfig as ReturnType<typeof vi.fn>
+      expect(mockUpsert).not.toHaveBeenCalled()
+    })
+
+    it(`should allow environment.sandboxId that belongs to the same org`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { environment: { sandboxId: `sb-1` } }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockUpdate.mockResolvedValue({ data: existingAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockSandboxGet).toHaveBeenCalledWith(`sb-1`)
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ environment: { sandboxId: `sb-1` } })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should reject 400 when flipping runtime brain to api with zero providers`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Runtime Agent`,
+        orgId: `org-1`,
+        brain: `runtime`,
+        providerLinks: [],
+        projects: [],
+      } as any)
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { brain: `api` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API-brain agents require at least one provider`
+      )
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockUpdate).not.toHaveBeenCalled()
+    })
+
+    it(`should allow flipping to api brain when providerInputs supplied in the same request`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Runtime Agent`,
+        orgId: `org-1`,
+        brain: `runtime`,
+        providerLinks: [],
+        projects: [],
+      } as any)
+      const updatedAgent = new Agent({
+        id: `agent-1`,
+        name: `Runtime Agent`,
+        orgId: `org-1`,
+        brain: `api`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      } as any)
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { brain: `api`, providerInputs: [{ id: `provider-1` }] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockValidate.mockResolvedValue([{ id: `provider-1` }])
+      mockUpdate.mockResolvedValue({ data: updatedAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          brain: `api`,
+          providerInputs: [{ id: `provider-1` }],
+        })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should allow runtime-brain update with zero providers`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Runtime Agent`,
+        orgId: `org-1`,
+        brain: `runtime`,
+        providerLinks: [],
+        projects: [],
+      } as any)
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { name: `Renamed Runtime Agent` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockUpdate.mockResolvedValue({ data: existingAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ name: `Renamed Runtime Agent` })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should reject 400 when api-brain agent clears providers via empty providerInputs`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Api Agent`,
+        orgId: `org-1`,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { providerInputs: [] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockValidate.mockResolvedValue([])
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API-brain agents require at least one provider`
+      )
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockUpdate).not.toHaveBeenCalled()
     })
   })
 

@@ -17,13 +17,29 @@ import { BaseService } from '@TBE/services/payments/strategies/base'
 import { Plan, PlanLimits, ESubscriptionTier, Exception } from '@tdsk/domain'
 
 export class StripeService extends BaseService {
-  #stripe: Stripe
+  #stripe?: Stripe
   #plansCacheTime = 0
   #plansCache: Plan[] | null = null
 
   constructor(config: TPayConfig) {
     super(config)
-    this.#stripe = new Stripe(config.secretKey)
+    // Guarded construction: the Stripe SDK throws when constructed without a
+    // key, which would crash service (and test) bootstrap in environments
+    // where the secret lives outside the committed config. When a key IS
+    // configured the client is created here, preserving production behavior.
+    if (config.secretKey) this.#stripe = new Stripe(config.secretKey)
+  }
+
+  /**
+   * Stripe client accessor used by every payment operation.
+   * Fails with a clear error when no secret key was configured, so a
+   * misconfigured deployment surfaces at the first payment operation
+   * instead of crashing the whole server at construction time.
+   */
+  get #client(): Stripe {
+    if (!this.#stripe)
+      throw new Exception(500, `Payments not configured — missing Stripe secret key`)
+    return this.#stripe
   }
 
   async fetchPlans(): Promise<TPlanResp> {
@@ -43,14 +59,14 @@ export class StripeService extends BaseService {
           let currency = `usd`
 
           if (priceId) {
-            const sp = await this.#stripe.prices.retrieve(priceId)
+            const sp = await this.#client.prices.retrieve(priceId)
             price = sp.unit_amount ?? 0
             interval = (sp.recurring?.interval as TBillingInterval) ?? `month`
             currency = sp.currency ?? `usd`
           }
 
           if (seatPriceId) {
-            const ssp = await this.#stripe.prices.retrieve(seatPriceId)
+            const ssp = await this.#client.prices.retrieve(seatPriceId)
             seatPrice = ssp.unit_amount ?? 0
           }
 
@@ -93,7 +109,7 @@ export class StripeService extends BaseService {
     userId: string
   ): Promise<{ data?: TPayCustomer; error?: Error }> {
     try {
-      const customer = await this.#stripe.customers.create({
+      const customer = await this.#client.customers.create({
         email,
         metadata: { userId },
       })
@@ -123,7 +139,7 @@ export class StripeService extends BaseService {
       const priceId = this.config.priceIds[tier]
       if (!priceId) return { error: new Error(`No price configured for tier: ${tier}`) }
 
-      const session = await this.#stripe.checkout.sessions.create({
+      const session = await this.#client.checkout.sessions.create({
         metadata: { tier },
         customer: customerId,
         mode: `subscription`,
@@ -152,7 +168,7 @@ export class StripeService extends BaseService {
     customerId: string
   ): Promise<{ data?: TPayPortalSession; error?: Error }> {
     try {
-      const session = await this.#stripe.billingPortal.sessions.create({
+      const session = await this.#client.billingPortal.sessions.create({
         customer: customerId,
       })
       return { data: { url: session.url } }
@@ -166,7 +182,7 @@ export class StripeService extends BaseService {
    * Retrieve the current subscription state from Stripe for reconciliation
    */
   async retrieveSubscription(subscriptionId: string): Promise<TPaySubscriptionState> {
-    const sub = await this.#stripe.subscriptions.retrieve(subscriptionId)
+    const sub = await this.#client.subscriptions.retrieve(subscriptionId)
     const item = sub.items.data[0]
     const priceId = item?.price?.id || ``
     const tier = this.#tierFromPriceId(priceId)
@@ -189,7 +205,7 @@ export class StripeService extends BaseService {
    * Cancel a subscription at the end of the current billing period
    */
   async cancelSubscription(subscriptionId: string): Promise<void> {
-    await this.#stripe.subscriptions.update(subscriptionId, {
+    await this.#client.subscriptions.update(subscriptionId, {
       cancel_at_period_end: true,
     })
   }
@@ -198,11 +214,11 @@ export class StripeService extends BaseService {
    * Update a subscription to a new price (proration-based upgrade/downgrade)
    */
   async updateSubscription(subscriptionId: string, newPriceId: string): Promise<void> {
-    const sub = await this.#stripe.subscriptions.retrieve(subscriptionId)
+    const sub = await this.#client.subscriptions.retrieve(subscriptionId)
     const currentItem = sub.items.data[0]
     if (!currentItem) throw new Error(`No subscription items found`)
 
-    await this.#stripe.subscriptions.update(subscriptionId, {
+    await this.#client.subscriptions.update(subscriptionId, {
       items: [{ id: currentItem.id, price: newPriceId }],
       proration_behavior: `create_prorations`,
     })
@@ -213,7 +229,7 @@ export class StripeService extends BaseService {
    * Finds the subscription item whose price matches a seat price ID.
    */
   async updateSeatQuantity(subscriptionId: string, quantity: number): Promise<void> {
-    const sub = await this.#stripe.subscriptions.retrieve(subscriptionId)
+    const sub = await this.#client.subscriptions.retrieve(subscriptionId)
     const seatPriceIdSet = new Set(Object.values(this.config.seatPriceIds))
     const seatItem = sub.items.data.find(
       (item) => typeof item.price === `object` && seatPriceIdSet.has(item.price.id)
@@ -226,14 +242,14 @@ export class StripeService extends BaseService {
       return
     }
 
-    await this.#stripe.subscriptionItems.update(seatItem.id, { quantity })
+    await this.#client.subscriptionItems.update(seatItem.id, { quantity })
   }
 
   /**
    * List invoices for a Stripe customer
    */
   async getInvoices(customerId: string): Promise<any[]> {
-    const result = await this.#stripe.invoices.list({ customer: customerId, limit: 100 })
+    const result = await this.#client.invoices.list({ customer: customerId, limit: 100 })
     return result.data
   }
 
@@ -249,7 +265,7 @@ export class StripeService extends BaseService {
       return JSON.parse(raw) as Stripe.Event
     }
 
-    return this.#stripe.webhooks.constructEvent(
+    return this.#client.webhooks.constructEvent(
       payload,
       signature,
       this.config.webhookSecret
@@ -333,7 +349,7 @@ export class StripeService extends BaseService {
     }
 
     // Retrieve full subscription to get price and period info
-    const sub = await this.#stripe.subscriptions.retrieve(subscriptionId)
+    const sub = await this.#client.subscriptions.retrieve(subscriptionId)
     const priceId = sub.items.data[0]?.price?.id || ``
     const tier = session.metadata?.tier || this.#tierFromPriceId(priceId)
 
@@ -346,7 +362,7 @@ export class StripeService extends BaseService {
     // the customer ID to the local subscription, but if that persist failed
     // (or the checkout was initiated externally) the local row won't have it
     if (!userId) {
-      const customer = await this.#stripe.customers.retrieve(customerId)
+      const customer = await this.#client.customers.retrieve(customerId)
       if (!customer.deleted) userId = (customer as Stripe.Customer).metadata?.userId
     }
 

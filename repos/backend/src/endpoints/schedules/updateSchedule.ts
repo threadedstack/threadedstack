@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
 import { Exception, EPermAction, EPermResource, EScheduleType } from '@tdsk/domain'
+import { MinScheduleTimeoutMS, MaxScheduleTimeoutMS } from '@TBE/constants/sandbox'
 
 export const updateSchedule: TEndpointConfig = {
   path: `/:scheduleId`,
@@ -31,6 +32,7 @@ export const updateSchedule: TEndpointConfig = {
       enabled,
       agentId,
       sandboxId,
+      timeoutMs,
       cronExpression,
       maxConsecutiveErrors,
     } = req.body
@@ -69,6 +71,18 @@ export const updateSchedule: TEndpointConfig = {
     if (cronExpression !== undefined && !isValidCron(cronExpression))
       throw new Exception(400, `Invalid cron expression`)
 
+    if (
+      timeoutMs !== undefined &&
+      timeoutMs !== null &&
+      (!Number.isInteger(timeoutMs) ||
+        timeoutMs < MinScheduleTimeoutMS ||
+        timeoutMs > MaxScheduleTimeoutMS)
+    )
+      throw new Exception(
+        400,
+        `timeoutMs must be an integer between ${MinScheduleTimeoutMS} and ${MaxScheduleTimeoutMS}`
+      )
+
     const nextRunAt =
       cronExpression !== undefined ? parseNextRun(cronExpression) : undefined
 
@@ -81,6 +95,7 @@ export const updateSchedule: TEndpointConfig = {
       ...(agentId !== undefined && { agentId }),
       ...(agentId !== undefined && agentId !== existing.agentId && { threadId: null }),
       ...(sandboxId !== undefined && { sandboxId }),
+      ...(timeoutMs !== undefined && { timeoutMs }),
       ...(nextRunAt !== undefined && { nextRunAt }),
       ...(cronExpression !== undefined && { cronExpression }),
       ...(maxConsecutiveErrors !== undefined && { maxConsecutiveErrors }),

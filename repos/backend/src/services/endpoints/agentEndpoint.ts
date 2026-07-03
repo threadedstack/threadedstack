@@ -112,6 +112,7 @@ export class AgentEndpoint extends BaseEndpoint {
       tools: config.tools,
       skills: config.skills,
       llmConfig: config.llmConfig,
+      llmConfigs: config.llmConfigs,
       environment: config.environment,
       sandboxConfig: config.sandboxConfig,
       onExecuteFunction: config.onExecuteFunction,

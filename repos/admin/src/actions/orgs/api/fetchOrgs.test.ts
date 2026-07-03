@@ -13,7 +13,7 @@ vi.mock('@TAF/state/accessors', () => ({
 
 vi.mock('@TAF/services', () => ({
   orgsApi: {
-    list: () => mockOrgsList(),
+    list: (...args: any[]) => mockOrgsList(...args),
   },
 }))
 
@@ -49,7 +49,60 @@ describe('fetchOrgs', () => {
     expect(mockSetOrgs).not.toHaveBeenCalled()
   })
 
-  it('should merge fetched orgs into existing state without evicting entries', async () => {
+  it('should merge per-entry on full refresh without downgrading detail-only fields (clobber-race regression)', async () => {
+    const existing = {
+      og_active: {
+        id: 'og_active',
+        name: 'Active Org',
+        userRole: 'owner',
+        resolvedPermissions: 'super',
+      },
+    }
+    mockGetOrgs.mockReturnValueOnce(existing)
+
+    // The list entry for the active org lacks detail-only fields
+    const listData = {
+      og_active: { id: 'og_active', name: 'Active Org Renamed', userRole: 'owner' },
+      og_other: { id: 'og_other', name: 'Other Org', userRole: 'owner' },
+    }
+    mockOrgsList.mockResolvedValueOnce({ data: listData })
+
+    await fetchOrgs()
+
+    expect(mockSetOrgs).toHaveBeenCalledWith({
+      // List fields update the entry, detail-only fields survive the merge
+      og_active: {
+        id: 'og_active',
+        name: 'Active Org Renamed',
+        userRole: 'owner',
+        resolvedPermissions: 'super',
+      },
+      og_other: { id: 'og_other', name: 'Other Org', userRole: 'owner' },
+    })
+  })
+
+  it('should evict orgs absent from a full (non-paginated) refresh', async () => {
+    const existing = {
+      og_kept: { id: 'og_kept', name: 'Kept Org', userRole: 'owner' },
+      og_deleted: { id: 'og_deleted', name: 'Deleted Server-Side', userRole: 'member' },
+    }
+    mockGetOrgs.mockReturnValueOnce(existing)
+
+    const listData = {
+      og_kept: { id: 'og_kept', name: 'Kept Org', userRole: 'owner' },
+    }
+    mockOrgsList.mockResolvedValueOnce({ data: listData })
+
+    await fetchOrgs()
+
+    expect(mockSetOrgs).toHaveBeenCalledWith({
+      og_kept: { id: 'og_kept', name: 'Kept Org', userRole: 'owner' },
+    })
+    const setArg = mockSetOrgs.mock.calls[0][0]
+    expect(setArg.og_deleted).toBeUndefined()
+  })
+
+  it('should preserve entries outside the page on a paginated fetch', async () => {
     const existing = {
       og_active: {
         id: 'og_active',
@@ -67,12 +120,13 @@ describe('fetchOrgs', () => {
     }
     mockOrgsList.mockResolvedValueOnce({ data: listData })
 
-    await fetchOrgs()
+    await fetchOrgs({ limit: 2, offset: 2 })
 
+    expect(mockOrgsList).toHaveBeenCalledWith({ limit: 2, offset: 2 })
     expect(mockSetOrgs).toHaveBeenCalledWith({
-      // Entry not in the paginated list response is preserved
+      // Entry not in the paginated page response is preserved
       og_active: existing.og_active,
-      // List entry updates the existing entry but keeps detail-only fields
+      // Page entry updates the existing entry
       og_shared: { id: 'og_shared', name: 'New Name', userRole: 'member' },
       og_other: { id: 'og_other', name: 'Other Org', userRole: 'owner' },
     })

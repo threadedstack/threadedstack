@@ -46,7 +46,10 @@ describe(`resolveProviderEnv`, () => {
     )
     expect(result.extraEnv.ANTHROPIC_API_KEY).toMatch(/^tdsk_ph_/)
     expect(Object.keys(result.placeholders)).toHaveLength(1)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.anthropic.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -95,6 +98,52 @@ describe(`resolveProviderEnv`, () => {
     expect(result.extraEnv.AWS_BEARER_TOKEN_BEDROCK).toMatch(/^tdsk_ph_/)
     expect(result.extraEnv.AWS_ACCESS_KEY_ID).toBeUndefined()
     expect(result.extraEnv.AWS_SECRET_ACCESS_KEY).toBeUndefined()
+  })
+
+  it(`uses oauth token mapping when anthropic authMethod is oauth`, async () => {
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `anthropic`,
+            secretId: `sec_1`,
+            options: { authMethod: `oauth` },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.CLAUDE_CODE_OAUTH_TOKEN).toMatch(/^tdsk_ph_/)
+    expect(result.extraEnv.ANTHROPIC_API_KEY).toBeUndefined()
+    expect(result.extraEnv.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(1)
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.anthropic.com`],
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`plain anthropic provider without authMethod still resolves ANTHROPIC_API_KEY`, async () => {
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [
+        {
+          provider: { id: `p1`, brand: `anthropic`, secretId: `sec_1`, options: {} },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.ANTHROPIC_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(result.extraEnv.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(1)
+    expect(result.errors).toEqual([])
   })
 
   it(`errors on missing required option`, async () => {
@@ -344,7 +393,10 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.ANTIGRAVITY_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`generativelanguage.googleapis.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -439,7 +491,10 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.ANTHROPIC_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.anthropic.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -451,7 +506,10 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.OPENAI_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.openai.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -463,7 +521,10 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.GOOGLE_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`generativelanguage.googleapis.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -475,32 +536,97 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.OPENROUTER_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`openrouter.ai`],
+    })
     expect(result.errors).toEqual([])
   })
 
-  it(`generates MITM placeholder for openclaw/ollamaCloud API key`, async () => {
+  it(`generates MITM placeholder for openclaw/ollamaCloud API key scoped to baseUrl host`, async () => {
     const result = await resolveProviderEnv(
       `openclaw`,
-      [{ provider: { id: `p1`, brand: `ollama:cloud`, secretId: `sec_1` }, priority: 0 }],
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `ollama:cloud`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://ollama.com` },
+          },
+          priority: 0,
+        },
+      ],
       mockSecretResolver,
       `org_1`
     )
     expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`ollama.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
-  it(`generates MITM placeholder for openclaw/custom API key`, async () => {
+  it(`generates MITM placeholder for openclaw/custom API key scoped to baseUrl host`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `custom`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://llm.example.com/v1` },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.CUSTOM_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`llm.example.com`],
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`errors and refuses placeholder for custom brand with no domain scope`, async () => {
     const result = await resolveProviderEnv(
       `openclaw`,
       [{ provider: { id: `p1`, brand: `custom`, secretId: `sec_1` }, priority: 0 }],
       mockSecretResolver,
       `org_1`
     )
-    expect(result.extraEnv.CUSTOM_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
-    expect(result.errors).toEqual([])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain(`no resolvable domain scope for CUSTOM_API_KEY`)
+    expect(result.extraEnv.CUSTOM_API_KEY).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(0)
+  })
+
+  it(`errors and refuses placeholder when baseUrl is not a valid URL`, async () => {
+    const result = await resolveProviderEnv(
+      `openclaw`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `custom`,
+            secretId: `sec_1`,
+            options: { baseUrl: `not a url` },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain(`no resolvable domain scope for CUSTOM_API_KEY`)
+    expect(result.extraEnv.CUSTOM_API_KEY).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(0)
   })
 
   it(`errors on openclaw/anthropic with no secret`, async () => {
@@ -522,20 +648,49 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.Z_AI_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.z.ai`],
+    })
     expect(result.errors).toEqual([])
   })
 
-  it(`maps ollama:cloud for codex when provider has secretId`, async () => {
+  it(`maps ollama:cloud for codex when provider has secretId and baseUrl scope`, async () => {
+    const result = await resolveProviderEnv(
+      `codex`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `ollama`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://ollama.com` },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`ollama.com`],
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`errors on ollama:cloud provider with no domain scope (brand default is empty)`, async () => {
     const result = await resolveProviderEnv(
       `codex`,
       [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
       mockSecretResolver,
       `org_1`
     )
-    expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
-    expect(result.errors).toEqual([])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain(`no resolvable domain scope for OLLAMA_API_KEY`)
+    expect(result.extraEnv.OLLAMA_API_KEY).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(0)
   })
 
   it(`generates MITM placeholder for opencode/zai (ZHIPU_API_KEY)`, async () => {
@@ -546,33 +701,62 @@ describe(`resolveProviderEnv`, () => {
       `org_1`
     )
     expect(result.extraEnv.ZHIPU_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`api.z.ai`],
+    })
     expect(result.errors).toEqual([])
   })
 
-  it(`maps ollama:cloud for opencode when provider has secretId`, async () => {
+  it(`maps ollama:cloud for opencode when provider has secretId and baseUrl scope`, async () => {
     const result = await resolveProviderEnv(
       `opencode`,
-      [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `ollama`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://ollama.com` },
+          },
+          priority: 0,
+        },
+      ],
       mockSecretResolver,
       `org_1`
     )
     expect(result.extraEnv.OLLAMA_API_KEY).toMatch(/^tdsk_ph_/)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`ollama.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
-  it(`maps ollama:cloud for claude-code when provider has secretId`, async () => {
+  it(`maps ollama:cloud for claude-code when provider has secretId and baseUrl scope`, async () => {
     const result = await resolveProviderEnv(
       `claude-code`,
-      [{ provider: { id: `p1`, brand: `ollama`, secretId: `sec_1` }, priority: 0 }],
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `ollama`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://ollama.com` },
+          },
+          priority: 0,
+        },
+      ],
       mockSecretResolver,
       `org_1`
     )
     expect(result.extraEnv.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
     expect(result.extraEnv.ANTHROPIC_API_KEY).toBe(``)
     expect(result.extraEnv.ANTHROPIC_BASE_URL).toBe(`https://ollama.com`)
-    expect(Object.values(result.placeholders)[0]).toEqual({ secretId: `sec_1` })
+    expect(Object.values(result.placeholders)[0]).toEqual({
+      secretId: `sec_1`,
+      allowedDomains: [`ollama.com`],
+    })
     expect(result.errors).toEqual([])
   })
 
@@ -600,7 +784,7 @@ describe(`resolveProviderEnv`, () => {
     })
   })
 
-  it(`placeholder entry has undefined allowedDomains when provider has no allowedDomains`, async () => {
+  it(`falls back to brand default domains when provider has no allowedDomains`, async () => {
     const result = await resolveProviderEnv(
       `claude-code`,
       [
@@ -614,7 +798,30 @@ describe(`resolveProviderEnv`, () => {
     )
     const entry = Object.values(result.placeholders)[0]
     expect(entry.secretId).toBe(`sec_1`)
-    expect(entry.allowedDomains).toBeUndefined()
+    expect(entry.allowedDomains).toEqual([`api.anthropic.com`])
+    expect(result.errors).toEqual([])
+  })
+
+  it(`prefers baseUrl-derived scope over brand default only when brand has no domains`, async () => {
+    // anthropic has brand defaults, so baseUrl must NOT override them
+    const result = await resolveProviderEnv(
+      `claude-code`,
+      [
+        {
+          provider: {
+            id: `p1`,
+            brand: `anthropic`,
+            secretId: `sec_1`,
+            options: { baseUrl: `https://gateway.example.com` },
+          },
+          priority: 0,
+        },
+      ],
+      mockSecretResolver,
+      `org_1`
+    )
+    const entry = Object.values(result.placeholders)[0]
+    expect(entry.allowedDomains).toEqual([`api.anthropic.com`])
   })
 
   it(`later provider overwrites env vars from earlier provider (last writer wins)`, async () => {
@@ -642,6 +849,9 @@ describe(`resolveProviderEnv`, () => {
 
     // The ANTHROPIC_AUTH_TOKEN placeholder should map to sec_2 (the openrouter provider's secret)
     const authTokenValue = result.extraEnv.ANTHROPIC_AUTH_TOKEN
-    expect(result.placeholders[authTokenValue]).toEqual({ secretId: `sec_2` })
+    expect(result.placeholders[authTokenValue]).toEqual({
+      secretId: `sec_2`,
+      allowedDomains: [`openrouter.ai`],
+    })
   })
 })

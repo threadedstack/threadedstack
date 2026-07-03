@@ -1,4 +1,4 @@
-import type { TAgentEnvironment } from '@tdsk/domain'
+import type { EAgentBrain, TAgentEnvironment } from '@tdsk/domain'
 
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
@@ -56,6 +56,9 @@ export const agents = pgTable(`agents`, {
 
   /** Whether this agent has autonomy faculties (heartbeat/delegation/delivery) enabled */
   autonomous: boolean(`autonomous`).default(false),
+
+  /** Brain mode: 'api' (pi runner via agent providers) or 'runtime' (CLI tool in body sandbox) */
+  brain: varchar(`brain`, { length: 20 }).notNull().default(`api`).$type<EAgentBrain>(),
 })
 
 export const agentsRelations = relations(agents, ({ one, many }) => ({

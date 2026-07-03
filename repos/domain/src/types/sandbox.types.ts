@@ -23,6 +23,7 @@ export enum ERuntimeBrand {
   googleVertex = EAIProviderBrand.googleVertex,
   amazonBedrock = EAIProviderBrand.amazonBedrock,
   ollamaCloud = `${EAIProviderBrand.ollama}:cloud`,
+  anthropicOAuth = `${EAIProviderBrand.anthropic}:oauth`,
   amazonBedrockBearer = `${EAIProviderBrand.amazonBedrock}:bearer`,
 }
 

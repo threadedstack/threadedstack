@@ -261,6 +261,9 @@ export const RuntimeProviderEnvMap: TRuntimeProviderEnvMap = {
     [ERuntimeBrand.anthropic]: [
       { envVar: `ANTHROPIC_API_KEY`, source: `secret`, required: true },
     ],
+    [ERuntimeBrand.anthropicOAuth]: [
+      { envVar: `CLAUDE_CODE_OAUTH_TOKEN`, source: `secret`, required: true },
+    ],
     [ERuntimeBrand.amazonBedrock]: [
       {
         envVar: `CLAUDE_CODE_USE_BEDROCK`,

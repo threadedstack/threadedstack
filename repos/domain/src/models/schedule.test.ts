@@ -25,4 +25,34 @@ describe(`Schedule model`, () => {
     expect(s.agentId).toBeUndefined()
     expect(s.threadId).toBeUndefined()
   })
+
+  it(`carries timeoutMs through the constructor`, () => {
+    const s = new Schedule({
+      orgId: `org-1`,
+      projectId: `pr-1`,
+      sandboxId: `sb-1`,
+      cronExpression: `0 * * * *`,
+      timeoutMs: 3_600_000,
+    })
+    expect(s.timeoutMs).toBe(3_600_000)
+  })
+
+  it(`leaves timeoutMs undefined by default and accepts an explicit null`, () => {
+    const unset = new Schedule({
+      orgId: `org-1`,
+      projectId: `pr-1`,
+      sandboxId: `sb-1`,
+      cronExpression: `0 * * * *`,
+    })
+    expect(unset.timeoutMs).toBeUndefined()
+
+    const cleared = new Schedule({
+      orgId: `org-1`,
+      projectId: `pr-1`,
+      sandboxId: `sb-1`,
+      cronExpression: `0 * * * *`,
+      timeoutMs: null,
+    })
+    expect(cleared.timeoutMs).toBeNull()
+  })
 })

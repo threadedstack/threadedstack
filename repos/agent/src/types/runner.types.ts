@@ -54,6 +54,12 @@ export type TAgentInitOpts = {
   db: IAgentRunnerDB
   /** LLM config built from agent + provider */
   llmConfig: TLLMAdapterConfig
+  /**
+   * Priority-ordered provider failover chain. When present, index 0 MUST be
+   * the active `llmConfig`. On a surfaced LLM failure the runner retries the
+   * SAME turn once per remaining config (index 1..n) before rejecting.
+   */
+  llmConfigs?: TLLMAdapterConfig[]
   /** Sandbox config */
   sandboxConfig?: {
     provider: string

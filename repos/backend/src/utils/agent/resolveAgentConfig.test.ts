@@ -399,6 +399,7 @@ describe(`resolveAgentConfig`, () => {
 
   it(`should start pod via sandbox.startPod when sandboxId provided`, async () => {
     const mockStartPod = vi.fn().mockResolvedValue(`started-pod-name`)
+    const mockWaitForPodReady = vi.fn().mockResolvedValue(undefined)
     const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes`, sandboxId: `sb-1` }
     const agent = buildMockAgent({ environment: k8sEnv })
     const db = buildMockDb(agent)
@@ -409,7 +410,7 @@ describe(`resolveAgentConfig`, () => {
     const app = {
       locals: {
         config: { egress: { allowList: [`*.example.com`] } },
-        sandbox: { startPod: mockStartPod },
+        sandbox: { startPod: mockStartPod, waitForPodReady: mockWaitForPodReady },
       },
     } as unknown as TApp
 
@@ -425,8 +426,74 @@ describe(`resolveAgentConfig`, () => {
       projectId: `proj-1`,
       sandboxId: `sb-1`,
     })
+    expect(mockWaitForPodReady).toHaveBeenCalledWith(`started-pod-name`, {
+      cloneCheck: true,
+    })
     expect(result.sandboxConfig.provider).toBe(`kubernetes`)
     expect(result.sandboxConfig.options).toEqual({ podName: `started-pod-name` })
+  })
+
+  it(`should invoke onPodStart after startPod and before the readiness wait`, async () => {
+    const mockStartPod = vi.fn().mockResolvedValue(`started-pod-name`)
+    const mockWaitForPodReady = vi.fn().mockResolvedValue(undefined)
+    const onPodStart = vi.fn()
+    const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes`, sandboxId: `sb-1` }
+    const agent = buildMockAgent({ environment: k8sEnv })
+    const db = buildMockDb(agent)
+    mockResolveAgentDeps.mockResolvedValueOnce({
+      environment: k8sEnv,
+      customFunctions: [],
+    })
+    const app = {
+      locals: {
+        config: { egress: {} },
+        sandbox: { startPod: mockStartPod, waitForPodReady: mockWaitForPodReady },
+      },
+    } as unknown as TApp
+
+    await resolveAgentConfig(`agent-1`, db as any, app, {
+      userId: `user-1`,
+      onPodStart,
+    })
+
+    expect(onPodStart).toHaveBeenCalledWith(`started-pod-name`)
+    // Ordering: startPod → onPodStart → waitForPodReady
+    expect(mockStartPod.mock.invocationCallOrder[0]).toBeLessThan(
+      onPodStart.mock.invocationCallOrder[0]
+    )
+    expect(onPodStart.mock.invocationCallOrder[0]).toBeLessThan(
+      mockWaitForPodReady.mock.invocationCallOrder[0]
+    )
+  })
+
+  it(`should still report the pod via onPodStart when the readiness wait throws`, async () => {
+    const mockStartPod = vi.fn().mockResolvedValue(`started-pod-name`)
+    const mockWaitForPodReady = vi
+      .fn()
+      .mockRejectedValue(
+        new Error(`Pod started-pod-name will never become ready (state: Failed)`)
+      )
+    const onPodStart = vi.fn()
+    const k8sEnv = { temperature: 0.7, sandboxType: `kubernetes`, sandboxId: `sb-1` }
+    const agent = buildMockAgent({ environment: k8sEnv })
+    const db = buildMockDb(agent)
+    mockResolveAgentDeps.mockResolvedValueOnce({
+      environment: k8sEnv,
+      customFunctions: [],
+    })
+    const app = {
+      locals: {
+        config: { egress: {} },
+        sandbox: { startPod: mockStartPod, waitForPodReady: mockWaitForPodReady },
+      },
+    } as unknown as TApp
+
+    await expect(
+      resolveAgentConfig(`agent-1`, db as any, app, { onPodStart })
+    ).rejects.toThrow(`will never become ready`)
+
+    // The caller learned the pod name before the failure, so it can reap it
+    expect(onPodStart).toHaveBeenCalledWith(`started-pod-name`)
   })
 
   it(`should throw 503 when K8s sandbox has no instanceId and no sandbox service`, async () => {
@@ -441,5 +508,131 @@ describe(`resolveAgentConfig`, () => {
     await expect(
       resolveAgentConfig(`agent-1`, db as any, buildMockApp())
     ).rejects.toThrow(`K8s sandbox not available`)
+  })
+
+  // ── Provider failover chain (llmConfigs) ────────────────────────
+
+  const twoProviderAgent = () =>
+    buildMockAgent({
+      providers: [
+        {
+          id: `prov-1`,
+          secretId: `secret-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          brand: `anthropic`,
+          options: {},
+        },
+        {
+          id: `prov-2`,
+          secretId: `secret-2`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `openai`,
+          brand: `openai`,
+          options: { model: `gpt-4o` },
+        },
+      ],
+    })
+
+  it(`should return llmConfigs with a single entry equal to llmConfig for a one-provider agent`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp())
+
+    expect(result.llmConfigs).toHaveLength(1)
+    expect(result.llmConfigs?.[0]).toBe(result.llmConfig)
+  })
+
+  it(`should resolve the full priority-ordered chain with the primary first`, async () => {
+    const db = buildMockDb(twoProviderAgent())
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp())
+
+    expect(result.llmConfigs).toHaveLength(2)
+    expect(result.llmConfigs?.[0]).toBe(result.llmConfig)
+    expect(result.llmConfigs?.[0].provider).toBe(`anthropic`)
+    expect(result.llmConfigs?.[1]).toEqual(
+      expect.objectContaining({
+        provider: `openai`,
+        apiKey: `sk-test-key`,
+        model: `claude-sonnet-4-20250514`,
+        maxTokens: 2048,
+        systemPrompt: `You are helpful.`,
+      })
+    )
+    // Fallbacks share the effective agent params with the primary config
+    expect(result.llmConfigs?.[1].temperature).toBe(result.llmConfig.temperature)
+  })
+
+  it(`should put the explicitly selected provider first and keep the rest as fallbacks`, async () => {
+    const db = buildMockDb(twoProviderAgent())
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      providerId: `prov-2`,
+    })
+
+    expect(result.llmConfigs).toHaveLength(2)
+    expect(result.llmConfigs?.[0]).toBe(result.llmConfig)
+    expect(result.llmConfigs?.[0].provider).toBe(`openai`)
+    expect(result.llmConfigs?.[1].provider).toBe(`anthropic`)
+  })
+
+  it(`should skip fallback providers whose API key cannot be resolved and warn`, async () => {
+    const { SecretResolver } = await import(`@TBE/services/secrets/secretResolver`)
+    const { logger } = await import(`@TBE/utils/logger`)
+    ;(SecretResolver as any).mockImplementation(() => ({
+      resolveApiKey: vi
+        .fn()
+        .mockImplementation(async (_agent: unknown, provider: { id: string }) =>
+          provider.id === `prov-2` ? `` : `sk-test-key`
+        ),
+      resolveHeaders: vi.fn().mockResolvedValue(undefined),
+      resolveBodyParams: vi.fn().mockResolvedValue(undefined),
+    }))
+
+    const db = buildMockDb(twoProviderAgent())
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp())
+
+    expect(result.llmConfigs).toHaveLength(1)
+    expect(result.llmConfigs?.[0]).toBe(result.llmConfig)
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`Skipping fallback provider prov-2`)
+    )
+
+    // Restore
+    ;(SecretResolver as any).mockImplementation(() => ({
+      resolveApiKey: vi.fn().mockResolvedValue(`sk-test-key`),
+      resolveHeaders: vi.fn().mockResolvedValue(undefined),
+      resolveBodyParams: vi.fn().mockResolvedValue(undefined),
+    }))
+  })
+
+  it(`should not fail the primary path when a fallback provider's resolution throws`, async () => {
+    const { SecretResolver } = await import(`@TBE/services/secrets/secretResolver`)
+    const { logger } = await import(`@TBE/utils/logger`)
+    ;(SecretResolver as any).mockImplementation(() => ({
+      resolveApiKey: vi
+        .fn()
+        .mockImplementation(async (_agent: unknown, provider: { id: string }) => {
+          if (provider.id === `prov-2`) throw new Error(`secret DB down`)
+          return `sk-test-key`
+        }),
+      resolveHeaders: vi.fn().mockResolvedValue(undefined),
+      resolveBodyParams: vi.fn().mockResolvedValue(undefined),
+    }))
+
+    const db = buildMockDb(twoProviderAgent())
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp())
+
+    expect(result.llmConfigs).toHaveLength(1)
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`resolution failed: secret DB down`)
+    )
+
+    // Restore
+    ;(SecretResolver as any).mockImplementation(() => ({
+      resolveApiKey: vi.fn().mockResolvedValue(`sk-test-key`),
+      resolveHeaders: vi.fn().mockResolvedValue(undefined),
+      resolveBodyParams: vi.fn().mockResolvedValue(undefined),
+    }))
   })
 })

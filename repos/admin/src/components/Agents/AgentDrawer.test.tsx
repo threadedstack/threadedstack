@@ -1,9 +1,11 @@
 // biome-ignore-all lint: is a test file
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 const mockUpsertConfig = vi.fn().mockResolvedValue({ data: {} })
+
+let drawerHookArgs: any
 
 vi.mock(`@TAF/state/selectors`, () => ({
   useSecrets: () => [{}],
@@ -68,9 +70,12 @@ vi.mock(`@TAF/components/ErrorAlert/ErrorAlert`, () => ({
 }))
 
 vi.mock(`@TAF/hooks/components/useDrawerActions`, () => ({
-  useDrawerActions: () => ({
-    actions: { save: vi.fn(), cancel: vi.fn(), delete: vi.fn() },
-  }),
+  useDrawerActions: (args: any) => {
+    drawerHookArgs = args
+    return {
+      actions: { save: vi.fn(), cancel: vi.fn(), delete: vi.fn() },
+    }
+  },
 }))
 
 vi.mock(`@tdsk/components`, () => ({
@@ -110,11 +115,29 @@ vi.mock(`@TAF/components/Agents`, () => ({
     />
   ),
   ModelConfigForm: () => <div data-testid='model-config-form' />,
-  AgentSettingsForm: () => <div data-testid='agent-settings-form' />,
+  AgentSettingsForm: ({ brain, onBrainChange }: any) => (
+    <div
+      data-testid='agent-settings-form'
+      data-brain={brain}
+      data-brain-editable={!!onBrainChange}
+    >
+      <button
+        type='button'
+        data-testid='set-brain-runtime'
+        onClick={() => onBrainChange?.(`runtime`)}
+      />
+      <button
+        type='button'
+        data-testid='set-brain-api'
+        onClick={() => onBrainChange?.(`api`)}
+      />
+    </div>
+  ),
   WebProviderSettings: () => <div data-testid='web-provider-settings' />,
 }))
 
 import { AgentDrawer } from './AgentDrawer'
+import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 
 const mockAgent = {
   id: `agent-1`,
@@ -294,6 +317,160 @@ describe(`AgentDrawer`, () => {
         />
       )
       expect(screen.queryByText(/Project Override Mode/)).toBeNull()
+    })
+  })
+
+  describe(`Brain selector`, () => {
+    it(`should default brain to api in create mode`, () => {
+      render(<AgentDrawer {...defaultProps} />)
+      const form = screen.getByTestId(`agent-settings-form`)
+      expect(form.getAttribute(`data-brain`)).toBe(`api`)
+      expect(form.getAttribute(`data-brain-editable`)).toBe(`true`)
+    })
+
+    it(`should pre-populate brain from the agent`, () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={{ ...mockAgent, brain: `runtime` } as any}
+        />
+      )
+      expect(screen.getByTestId(`agent-settings-form`).getAttribute(`data-brain`)).toBe(
+        `runtime`
+      )
+    })
+
+    it(`should include the default brain in the update payload`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={mockAgent}
+        />
+      )
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(updateAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ brain: `api` }),
+        })
+      )
+    })
+
+    it(`should include the changed brain in the update payload`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={mockAgent}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId(`set-brain-runtime`))
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(updateAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ brain: `runtime` }),
+        })
+      )
+    })
+
+    it(`should hide the brain selector in override mode`, () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={mockAgent}
+          projectId='project-1'
+        />
+      )
+      expect(
+        screen.getByTestId(`agent-settings-form`).getAttribute(`data-brain-editable`)
+      ).toBe(`false`)
+    })
+
+    it(`should save with zero providers when brain is runtime`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={{ ...mockAgent, brain: `runtime`, providers: [] } as any}
+        />
+      )
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(screen.queryByTestId(`error-alert`)).toBeNull()
+      expect(updateAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ brain: `runtime`, providerInputs: [] }),
+        })
+      )
+    })
+
+    it(`should error with zero providers when brain is api`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={{ ...mockAgent, providers: [] } as any}
+        />
+      )
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(updateAgent).not.toHaveBeenCalled()
+      expect(screen.getByTestId(`error-alert`).textContent).toBe(
+        `At least one provider is required`
+      )
+    })
+
+    it(`should error when flipping brain from runtime to api with zero providers`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={{ ...mockAgent, brain: `runtime`, providers: [] } as any}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId(`set-brain-api`))
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(updateAgent).not.toHaveBeenCalled()
+      expect(screen.getByTestId(`error-alert`).textContent).toBe(
+        `At least one provider is required`
+      )
+    })
+
+    it(`should not include brain in the override config payload`, async () => {
+      render(
+        <AgentDrawer
+          {...defaultProps}
+          agent={mockAgent}
+          projectId='project-1'
+        />
+      )
+
+      await act(async () => {
+        await drawerHookArgs.onSave({ preventDefault: vi.fn() })
+      })
+
+      expect(updateAgent).not.toHaveBeenCalled()
+      expect(mockUpsertConfig).toHaveBeenCalledWith(
+        `org-1`,
+        `project-1`,
+        `agent-1`,
+        expect.not.objectContaining({ brain: expect.anything() })
+      )
     })
   })
 })

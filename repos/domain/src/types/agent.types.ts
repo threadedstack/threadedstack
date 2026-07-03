@@ -1,6 +1,16 @@
 import type { TAgentEnvVars, TAgentEnvironment } from './ai.types'
 
 /**
+ * How an agent thinks.
+ * - api: backend calls LLM APIs directly via the pi-based AgentRunner (agent_providers credentials)
+ * - runtime: the agent's body sandbox pod runs a CLI AI tool via the runtime's promptCommand
+ */
+export enum EAgentBrain {
+  api = `api`,
+  runtime = `runtime`,
+}
+
+/**
  * Per-project agent configuration overrides.
  * Stored on the agentProjects junction table.
  * NULL fields = inherit from base agent config.

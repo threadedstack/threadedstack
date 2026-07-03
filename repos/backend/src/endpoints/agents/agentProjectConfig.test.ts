@@ -69,6 +69,11 @@ describe(`AgentProjectConfig endpoints`, () => {
               function: {
                 get: vi.fn(),
               },
+              sandbox: {
+                get: vi.fn().mockResolvedValue({
+                  data: { id: `sb-1`, orgId: `org-1` },
+                }),
+              },
               role: {
                 getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
                 getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -186,6 +191,45 @@ describe(`AgentProjectConfig endpoints`, () => {
       expect(mockJson).toHaveBeenCalled()
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toBeDefined()
+    })
+
+    it(`should reject 403 when environment.sandboxId belongs to a different org`, async () => {
+      mockReq.body = { environment: { sandboxId: `sb-other-org` } }
+
+      const mockSandboxGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      mockSandboxGet.mockResolvedValue({
+        data: { id: `sb-other-org`, orgId: `org-2` },
+      })
+
+      await expect(
+        upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`Sandbox sb-other-org does not belong to this organization`)
+
+      const mockUpsert = mockReq.app?.locals.db.services.agent
+        .upsertProjectConfig as ReturnType<typeof vi.fn>
+      expect(mockUpsert).not.toHaveBeenCalled()
+    })
+
+    it(`should allow environment.sandboxId that belongs to the same org`, async () => {
+      mockReq.body = { environment: { sandboxId: `sb-1` } }
+
+      const mockUpsert = mockReq.app?.locals.db.services.agent
+        .upsertProjectConfig as ReturnType<typeof vi.fn>
+      mockUpsert.mockResolvedValue({ data: true })
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: mockAgent })
+
+      await upsertAPConfig.action!(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpsert).toHaveBeenCalledWith(`agent-1`, `proj-1`, {
+        environment: { sandboxId: `sb-1` },
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
     })
 
     it(`should validate functionIds belong to project`, async () => {

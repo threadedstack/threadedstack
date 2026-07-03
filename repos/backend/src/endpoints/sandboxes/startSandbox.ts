@@ -15,7 +15,12 @@ export const startSandbox: TEndpointConfig = {
     const { db, config } = req.app.locals
 
     const { projectId } = req.params
-    const sandbox = await resolveSandbox(db.services.sandbox, id, projectId)
+    const sandbox = await resolveSandbox(
+      db.services.sandbox,
+      id,
+      projectId,
+      req.params.orgId
+    )
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
