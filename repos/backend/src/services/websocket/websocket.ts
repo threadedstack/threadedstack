@@ -113,6 +113,7 @@ export class Websocket {
       customFunctions: session.customFunctions,
       memoryProvider: session.memoryProvider,
       skillProvider: session.skillProvider,
+      taskProvider: session.taskProvider,
       delegateProvider: session.delegateProvider,
       onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {

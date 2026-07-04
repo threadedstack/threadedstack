@@ -1,5 +1,10 @@
 import type { TDatabase } from '@tdsk/database'
-import type { IAgentRunnerDB, IMemoryProvider, ISkillProvider } from '@tdsk/agent'
+import type {
+  IAgentRunnerDB,
+  ITaskProvider,
+  IMemoryProvider,
+  ISkillProvider,
+} from '@tdsk/agent'
 import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
@@ -10,6 +15,7 @@ import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
+import { authorTaskProposal } from '@TBE/utils/agent/taskPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import {
@@ -126,6 +132,21 @@ export const createSkillProvider = (
       alwaysActive: skill.alwaysActive,
     }
   },
+})
+
+/**
+ * Build the backend ITaskProvider bridging the api-brain proposeTask tool to
+ * the taskProposal DB service + the deterministic security scan (via
+ * authorTaskProposal). Mirrors createSkillProvider: a pure closure over db
+ * scoped to one org/agent.
+ */
+export const createTaskProvider = (
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): ITaskProvider => ({
+  proposeTask: async (input) =>
+    authorTaskProposal(db, orgId, agentId, input as any, { authoredBy: agentId }),
 })
 
 /**
@@ -350,6 +371,10 @@ export const resolveAgentConfig = async (
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)
       ? createSkillProvider(db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the proposeTask self-direction tool when sensing is enabled
+    taskProvider: isFeatureEnabled(`sensing`)
+      ? createTaskProvider(db, agent.orgId, agentId)
       : undefined,
     // Only wire the delegateTask tool when the feature is enabled
     delegateProvider: isFeatureEnabled(`delegation`)

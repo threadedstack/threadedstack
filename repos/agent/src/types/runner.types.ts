@@ -1,5 +1,6 @@
 import type { IMemoryProvider } from './memory.types'
 import type { ISkillProvider } from './skill.types'
+import type { ITaskProvider } from './task.types'
 import type { IDelegateProvider } from './delegation.types'
 import type {
   Skill,
@@ -95,6 +96,12 @@ export type TAgentInitOpts = {
    * runner exposes authorSkill/skillsList/skillView tools.
    */
   skillProvider?: ISkillProvider
+  /**
+   * Task self-direction provider (backend-implemented). When present, the
+   * runner exposes the proposeTask tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-tasks` capture).
+   */
+  taskProvider?: ITaskProvider
   /**
    * Task delegation provider (backend-implemented). When present, the runner
    * exposes the delegateTask tool (bounded in-pod child coding process).

@@ -33,6 +33,7 @@ import { EContentType, EMemoryKind, buildFallbackModel } from '@tdsk/domain'
 import { getModel, streamSimple, isContextOverflow } from '@earendil-works/pi-ai'
 import {
   createWebTools,
+  createTaskTools,
   createSkillTools,
   createMemoryTools,
   createSandboxTools,
@@ -686,6 +687,9 @@ export class AgentRunner {
     const skillTools = this.#opts?.skillProvider
       ? createSkillTools(this.#opts.skillProvider, toolNames)
       : []
+    const taskTools = this.#opts?.taskProvider
+      ? createTaskTools(this.#opts.taskProvider, toolNames)
+      : []
     const delegateTools = this.#opts?.delegateProvider
       ? createDelegateTools(this.#opts.delegateProvider, toolNames, {
           delegationDepth: this.#opts.delegationDepth,
@@ -697,6 +701,7 @@ export class AgentRunner {
       ...webTools,
       ...memoryTools,
       ...skillTools,
+      ...taskTools,
       ...delegateTools,
     ]
 

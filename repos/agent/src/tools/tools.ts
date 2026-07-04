@@ -7,6 +7,7 @@
 
 import type {
   IWebProvider,
+  ITaskProvider,
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
@@ -698,6 +699,94 @@ export const createSkillTools = (
           logger.warn(`skillView tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Skill view failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates the task self-direction tool backed by an ITaskProvider.
+ * `proposeTask` senses a new task PROPOSAL (deduped + security-scanned
+ * server-side, never a live task) — the api-brain parity of the runtime-brain
+ * fenced `tdsk-tasks` capture. Filtered by `allowedTools` like the other
+ * factories.
+ */
+export const createTaskTools = (
+  taskProvider: ITaskProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.proposeTask,
+      label: `Propose Task`,
+      description: `Propose a new backlog task after sensing a signal worth acting on (a bug, a gap, an improvement). Writes a PROPOSAL (not a live task) that is deduped against open proposals and security-scanned before it becomes eligible for the work cycle. Returns the proposal id, status, and any scan findings.`,
+      parameters: Type.Object({
+        title: Type.String({ description: `Short task title` }),
+        description: Type.String({
+          description: `What needs to be done and why`,
+        }),
+        priority: Type.String({
+          description: `Priority tier (P0, P1, P2, P3, P4)`,
+        }),
+        evidence: Type.String({
+          description: `Concrete evidence for the signal (log line, error, metric)`,
+        }),
+        sourceSignal: Type.String({
+          description: `Sensor that originated this (ci, deploy-marker, health, schedule-run, log, other)`,
+        }),
+        dedupeKey: Type.Optional(
+          Type.String({
+            description: `Stable key that collapses duplicate proposals for the same underlying issue`,
+          })
+        ),
+        repos: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Repos this task is expected to touch`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          title: string
+          description: string
+          priority: string
+          evidence: string
+          sourceSignal: string
+          dedupeKey?: string
+          repos?: string[]
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Proposing task: ${params.title}` }],
+          details: { status: `running` },
+        })
+        try {
+          const { id, status, findings, deduped } = await taskProvider.proposeTask(params)
+          const text = deduped
+            ? `Task already proposed (${id})`
+            : status === `rejected`
+              ? `Task proposal ${id} rejected by scan: ${findings.join(`; `)}`
+              : `Task proposal ${id} proposed (status ${status})`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: status !== `rejected`, id, status, findings, deduped },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown task error`
+          logger.warn(`proposeTask tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Task proposal failed: ${message}` },
+            ],
             details: { success: false },
           }
         }

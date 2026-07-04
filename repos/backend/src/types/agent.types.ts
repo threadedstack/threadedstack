@@ -1,5 +1,6 @@
 import type {
   IAgentRunnerDB,
+  ITaskProvider,
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
@@ -60,6 +61,13 @@ export type TAgentRuntimeConfig = {
    * exposes the authorSkill/skillsList/skillView tools.
    */
   skillProvider?: ISkillProvider
+  /**
+   * Task self-direction provider (backend-implemented). Present only when the
+   * `sensing` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the proposeTask tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-tasks` capture).
+   */
+  taskProvider?: ITaskProvider
   /**
    * Task delegation provider (backend-implemented). Present only when the
    * `delegation` feature flag is enabled; wired into the AgentRunner so the api
