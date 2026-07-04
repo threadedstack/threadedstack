@@ -3,9 +3,11 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 /**
  * List of public routes that don't require authentication
  * Note: login/register/refresh are handled client-side by Neon Auth
+ * Note: /echo is dev/test only - it reflects all incoming headers (including
+ * auth tokens) and must never be reachable in production
  */
 export const PublicRoutes = [
-  `/echo`,
+  ...(process.env.NODE_ENV === `production` ? [] : [`/echo`]),
   `/health`,
   `/domains/validate`,
   `/_/payments/webhooks`,
