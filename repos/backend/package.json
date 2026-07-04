@@ -61,7 +61,6 @@
     "jsonwebtoken": "9.0.2",
     "module-alias": "2.2.3",
     "nanoid": "5.1.6",
-    "node-liblzma": "2.0.3",
     "nodemailer": "7.0.12",
     "openai": "6.26.0",
     "safe-stable-stringify": "2.5.0",

@@ -80,6 +80,12 @@ jobs:
           node-version-file: '.nvmrc'
           cache: pnpm
 
+      - name: Install system build deps
+        # node-liblzma is a node-gyp addon binding the system lzma library —
+        # pkg-config must find liblzma at install time. Runner-side twin of the
+        # xz-dev line in deploy/Dockerfile.backend.
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends liblzma-dev
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -169,6 +175,10 @@ jobs:
           # resolveSync); Node 24 handles it. Runtime container images stay node:22.
           node-version-file: '.nvmrc'
           cache: pnpm
+
+      - name: Install system build deps
+        # Same liblzma-dev requirement as the test job above (node-liblzma).
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends liblzma-dev
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
