@@ -81,6 +81,7 @@ export enum EAgentTool {
   skillsList = `skillsList`,
   skillView = `skillView`,
   delegateTask = `delegateTask`,
+  proposeTask = `proposeTask`,
 }
 
 export type TAgentToolType = `${EAgentTool}`

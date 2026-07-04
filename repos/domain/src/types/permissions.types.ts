@@ -54,6 +54,7 @@ export enum EPermResource {
   asset = `asset`, // Uploaded assets
   skill = `skill`, // Reusable agent skills
   skillProposal = `skillProposal`, // Self-authored skills pending promotion
+  taskProposal = `taskProposal`, // Self-sensed tasks pending promotion (P4a)
   memory = `memory`, // Durable agent memories
   schedule = `schedule`, // Agent cron schedules
   sandbox = `sandbox`, // Sandbox configurations

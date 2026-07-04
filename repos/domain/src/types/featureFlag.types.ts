@@ -11,6 +11,7 @@ export type TFeatureFlags = {
   accessGate: TFeatureFlagDef
   delegation: TFeatureFlagDef
   terminalGui: TFeatureFlagDef
+  sensing: TFeatureFlagDef
 }
 
 export type TFeatureFlagName = keyof TFeatureFlags

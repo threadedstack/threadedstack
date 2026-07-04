@@ -29,6 +29,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Bounded task delegation via in-pod child coding processes`,
   },
+  sensing: {
+    enabled: true,
+    description: `Sensor cycle: system signals → self-authored backlog (P4a)`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {
