@@ -102,15 +102,26 @@ describe(`EmbeddingService`, () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it(`returns nulls when no API key resolves`, async () => {
+  it(`embeds without an Authorization header when the provider has no key (self-hosted TEI)`, async () => {
     mockResolveApiKey.mockResolvedValue(``)
-    const { app } = makeApp([makeProvider()])
+    fetchMock.mockResolvedValue(jsonResponse({ data: [{ index: 0, embedding: [0.5] }] }))
+    const { app } = makeApp([
+      makeProvider({
+        brand: `custom`,
+        secretId: undefined,
+        options: {
+          embeddingModel: `BAAI/bge-large-en-v1.5`,
+          baseUrl: `http://tdsk-embeddings:3000/v1`,
+        },
+      }),
+    ])
     const svc = new EmbeddingService(app)
 
     const out = await svc.embed([`a`], { orgId: `org-1` })
 
-    expect(out).toEqual([null])
-    expect(fetchMock).not.toHaveBeenCalled()
+    const [, init] = fetchMock.mock.calls[0]
+    expect(init.headers.authorization).toBeUndefined()
+    expect(out).toEqual([[0.5]])
   })
 
   it(`returns nulls (never throws) when the embeddings request fails`, async () => {
@@ -136,7 +147,7 @@ describe(`EmbeddingService`, () => {
   // ── embed: OpenAI ──────────────────────────────────────────────────
 
   describe(`OpenAI brand`, () => {
-    it(`posts model/input/dimensions and maps embeddings by index`, async () => {
+    it(`posts model/input and maps embeddings by index, omitting dimensions by default`, async () => {
       fetchMock.mockResolvedValue(
         jsonResponse({
           data: [
@@ -155,13 +166,32 @@ describe(`EmbeddingService`, () => {
       const body = JSON.parse(init.body)
       expect(body.model).toBe(`text-embedding-3-small`)
       expect(body.input).toEqual([`first`, `second`])
-      expect(body.dimensions).toBe(MemoryEmbeddingDimensions)
+      // native-dim models (e.g. TEI bge-large) must NOT receive a dimensions field
+      expect(body).not.toHaveProperty(`dimensions`)
       expect(init.headers.authorization).toBe(`Bearer sk-test-key`)
       // index mapping: out[0] from index 0, out[1] from index 1
       expect(out).toEqual([
         [0.1, 0.2],
         [0.3, 0.4],
       ])
+    })
+
+    it(`sends dimensions only when the provider sets options.embeddingDimensions`, async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ data: [{ index: 0, embedding: [1] }] }))
+      const { app } = makeApp([
+        makeProvider({
+          options: {
+            embeddingModel: `text-embedding-3-small`,
+            embeddingDimensions: MemoryEmbeddingDimensions,
+          },
+        }),
+      ])
+      const svc = new EmbeddingService(app)
+
+      await svc.embed([`a`], { orgId: `org-1` })
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+      expect(body.dimensions).toBe(MemoryEmbeddingDimensions)
     })
 
     it(`truncates each input to MemoryMaxTextChars`, async () => {

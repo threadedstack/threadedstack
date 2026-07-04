@@ -252,6 +252,47 @@ describe(`Memory service`, () => {
     })
   })
 
+  // ---------- listUnembedded ----------
+  describe(`listUnembedded`, () => {
+    it(`should select org+agent rows where embedding IS NULL`, async () => {
+      const rows = [
+        fakeMemoryRow({ id: `mm_aaa1111`, embedding: null }),
+        fakeMemoryRow({ id: `mm_bbb2222`, embedding: null }),
+      ]
+      ;(mocks.selectOrderByFn as any).mockReturnValueOnce(Promise.resolve(rows))
+
+      const result = await service.listUnembedded(`og_org0001`, `ag_agent01`)
+
+      const where = render(mocks.selectWhereFn.mock.calls[0][0])
+      expect(where.sql).toContain(`"embedding" is null`)
+      expect(where.params).toContain(`og_org0001`)
+      expect(where.params).toContain(`ag_agent01`)
+
+      expect(result.data).toHaveLength(2)
+      expect(result.data?.[0]).toBeInstanceOf(MemoryModel)
+    })
+
+    it(`should return an empty array when everything is embedded`, async () => {
+      ;(mocks.selectOrderByFn as any).mockReturnValueOnce(Promise.resolve([]))
+
+      const result = await service.listUnembedded(`og_org0001`, `ag_agent01`)
+
+      expect(result.data).toEqual([])
+      expect(result.error).toBeUndefined()
+    })
+
+    it(`should return the error when the query throws`, async () => {
+      ;(mocks.selectOrderByFn as any).mockImplementationOnce(() =>
+        Promise.reject(new Error(`query failed`))
+      )
+
+      const result = await service.listUnembedded(`og_org0001`, `ag_agent01`)
+
+      expect(result.data).toBeUndefined()
+      expect(result.error?.message).toBe(`query failed`)
+    })
+  })
+
   // ---------- getRoadmap ----------
   describe(`getRoadmap`, () => {
     it(`should return the latest roadmap memory`, async () => {

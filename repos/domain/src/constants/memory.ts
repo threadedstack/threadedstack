@@ -16,8 +16,13 @@ export const MemoryMaxTextChars = 4000
 export const MemoryMaxImportance = 10
 export const MemoryMinImportance = 1
 
-/** Fixed pgvector embedding dimension for memory rows */
-export const MemoryEmbeddingDimensions = 1536
+/**
+ * Fixed pgvector embedding dimension for memory rows.
+ * Matches the native output dimension of the self-hosted embedding model
+ * (HF TEI serving BAAI/bge-large-en-v1.5 → 1024). Changing the model to one
+ * with a different native dimension requires a column migration + re-embed.
+ */
+export const MemoryEmbeddingDimensions = 1024
 
 /** Fence label for the structured-output memory block parsed from runtime stdout */
 export const MemoriesBlockFence = `tdsk-memories`

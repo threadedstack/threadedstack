@@ -86,6 +86,10 @@ export class EmbeddingService {
     const model = (provider.options?.embeddingModel as string | undefined)?.trim()
     if (!model) return nulls
 
+    // A key is optional: self-hosted providers (the in-cluster TEI service) run
+    // without auth, so an empty key is valid and simply means "send no auth header".
+    // External providers that DO need a key get a 401, which the outer catch turns
+    // into the same null (lexical) degradation.
     let apiKey = ``
     try {
       apiKey = await new SecretResolver(db).resolveApiKey({ orgId: opts.orgId }, provider)
@@ -94,12 +98,6 @@ export class EmbeddingService {
         `[EmbeddingService] Failed to resolve API key for provider ${provider.id}: ${
           (err as Error).message
         }`
-      )
-      return nulls
-    }
-    if (!apiKey) {
-      logger.warn(
-        `[EmbeddingService] No API key for embedding provider ${provider.id} — lexical-only`
       )
       return nulls
     }
@@ -113,10 +111,21 @@ export class EmbeddingService {
       ``
     ).replace(/\/+$/, ``)
 
+    // `dimensions` is only meaningful for models that support output-dimension
+    // reduction (e.g. OpenAI text-embedding-3-*). Native-dim models such as the
+    // self-hosted TEI `bge-large-en-v1.5` (1024) reject an unexpected `dimensions`
+    // field, so it is sent ONLY when a provider explicitly opts in via
+    // `options.embeddingDimensions`. When omitted, the model's native dimension is
+    // used and MUST equal MemoryEmbeddingDimensions (enforced by the vector column).
+    const embDims =
+      typeof provider.options?.embeddingDimensions === `number`
+        ? provider.options.embeddingDimensions
+        : undefined
+
     try {
       return provider.brand === EAIProviderBrand.google
         ? await this.#embedGoogle(baseUrl, apiKey, model, inputs)
-        : await this.#embedOpenAI(baseUrl, apiKey, model, inputs)
+        : await this.#embedOpenAI(baseUrl, apiKey, model, inputs, embDims)
     } catch (err) {
       logger.warn(
         `[EmbeddingService] Embedding request failed for provider ${provider.id}: ${
@@ -135,25 +144,28 @@ export class EmbeddingService {
 
   /**
    * OpenAI-compatible embeddings: POST {baseUrl}/embeddings.
-   * `dimensions` pins the output to MemoryEmbeddingDimensions so the vector
-   * matches the fixed vector(1536) column (supported by text-embedding-3-*).
+   * `dimensions` is sent only when provided (see `embed`) — models that support
+   * output-dimension reduction (OpenAI text-embedding-3-*) use it; native-dim
+   * models (the self-hosted TEI `bge-large-en-v1.5`, 1024) omit it and return
+   * their native dimension, which must equal MemoryEmbeddingDimensions.
    */
   #embedOpenAI = async (
     baseUrl: string,
     apiKey: string,
     model: string,
-    inputs: string[]
+    inputs: string[],
+    dimensions?: number
   ): Promise<(number[] | null)[]> => {
     const res = await fetch(`${baseUrl}/embeddings`, {
       method: `POST`,
       headers: {
         'content-type': `application/json`,
-        authorization: `Bearer ${apiKey}`,
+        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
         model,
         input: inputs,
-        dimensions: MemoryEmbeddingDimensions,
+        ...(dimensions !== undefined ? { dimensions } : {}),
       }),
     })
 
@@ -191,7 +203,7 @@ export class EmbeddingService {
       method: `POST`,
       headers: {
         'content-type': `application/json`,
-        'x-goog-api-key': apiKey,
+        ...(apiKey ? { 'x-goog-api-key': apiKey } : {}),
       },
       body: JSON.stringify({
         requests: inputs.map((text) => ({

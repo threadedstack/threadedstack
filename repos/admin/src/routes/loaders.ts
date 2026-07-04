@@ -6,6 +6,7 @@ import { WaitlistedCode, isFeatureEnabled } from '@tdsk/domain'
 import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
 import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
+import { fetchSkillProposals } from '@TAF/actions/skillProposals/api/fetchSkillProposals'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
@@ -29,6 +30,7 @@ import {
   getOrgs,
   getSkills,
   getApiKeys,
+  getSkillProposals,
   getInvoices,
   getOrgUsers,
   getOrgQuota,
@@ -179,6 +181,9 @@ export const orgAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
       ? safeFetch(() => fetchAgents({ orgId }))
       : Promise.resolve(),
     !getProviders() ? safeFetch(() => fetchProviders({ orgId })) : Promise.resolve(),
+    !getContextSandboxes(`org`)
+      ? safeFetch(() => fetchSandboxes({ orgId }))
+      : Promise.resolve(),
   ])
   return null
 }
@@ -188,6 +193,14 @@ export const orgSkillsLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
 
   if (!getSkills()) await safeFetch(() => fetchSkills(orgId))
+  return null
+}
+
+export const orgSkillProposalsLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId } = params
+  if (!orgId) missOrgIdResp()
+
+  if (!getSkillProposals()) await safeFetch(() => fetchSkillProposals({ orgId }))
   return null
 }
 
@@ -368,8 +381,14 @@ export const projectAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
   if (!projectId) missProjIdResp()
 
-  if (!getContextAgents(projectId))
-    await safeFetch(() => fetchAgents({ orgId, projectId }))
+  await Promise.all([
+    !getContextAgents(projectId)
+      ? safeFetch(() => fetchAgents({ orgId, projectId }))
+      : Promise.resolve(),
+    !getContextSandboxes(`org`)
+      ? safeFetch(() => fetchSandboxes({ orgId }))
+      : Promise.resolve(),
+  ])
   return null
 }
 
@@ -469,6 +488,9 @@ export const agentDetailLoader = async ({ params }: LoaderFunctionArgs) => {
       : Promise.resolve(),
     !getProjectFunctions(projectId)
       ? safeFetch(() => fetchFunctions({ orgId, projectId }))
+      : Promise.resolve(),
+    !getContextSandboxes(`org`)
+      ? safeFetch(() => fetchSandboxes({ orgId }))
       : Promise.resolve(),
   ])
   return null

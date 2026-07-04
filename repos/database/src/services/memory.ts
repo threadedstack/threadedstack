@@ -9,7 +9,7 @@ import type {
 
 import { Base } from '@TDB/services/base'
 import { memories } from '@TDB/schemas/memories'
-import { sql, eq, and, desc, inArray, cosineDistance } from 'drizzle-orm'
+import { sql, eq, and, desc, inArray, isNull, cosineDistance } from 'drizzle-orm'
 import {
   EMemoryKind,
   MemorySearchTopK,
@@ -90,6 +90,34 @@ export class Memory extends Base<
             }) as TDBMemoryScored
         ),
       }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Memory rows for an agent that have no embedding yet (embedding IS NULL).
+   * Feeds the re-embed maintenance path: rows created while no embedding
+   * provider was configured/reachable, or left NULL after a dimension change.
+   */
+  async listUnembedded(
+    orgId: string,
+    agentId: string
+  ): Promise<TDBApiRes<MemoryModel[]>> {
+    try {
+      const rows = await this.db
+        .select()
+        .from(memories)
+        .where(
+          and(
+            eq(memories.orgId, orgId),
+            eq(memories.agentId, agentId),
+            isNull(memories.embedding)
+          )
+        )
+        .orderBy(desc(memories.createdAt))
+
+      return { data: rows.map((row) => this.model(row as TDBMemorySelect)) }
     } catch (error: any) {
       return { error }
     }

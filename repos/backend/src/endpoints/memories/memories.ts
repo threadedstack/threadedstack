@@ -7,6 +7,7 @@ import { createMemory } from '@TBE/endpoints/memories/createMemory'
 import { updateMemory } from '@TBE/endpoints/memories/updateMemory'
 import { deleteMemory } from '@TBE/endpoints/memories/deleteMemory'
 import { searchMemories } from '@TBE/endpoints/memories/searchMemories'
+import { reembedMemories } from '@TBE/endpoints/memories/reembedMemories'
 
 /**
  * Memories scoped under agents: /:orgId/agents/:agentId/memories
@@ -23,5 +24,6 @@ export const agentMemories: TEndpointConfig = {
     updateMemory,
     deleteMemory,
     searchMemories,
+    reembedMemories,
   },
 }

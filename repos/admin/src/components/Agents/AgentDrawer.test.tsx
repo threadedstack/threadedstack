@@ -12,6 +12,7 @@ vi.mock(`@TAF/state/selectors`, () => ({
   useOrgSecrets: () => [{}],
   useProviders: () => [{}],
   useProjects: () => [{}],
+  useOrgSandboxes: () => [{}],
   useProjectSecrets: () => [{}],
   useProjectFunctions: () => [{}],
   useActiveOrgResolvedPerms: vi.fn(() => [undefined]),

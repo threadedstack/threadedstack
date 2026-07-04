@@ -2,7 +2,7 @@ import type { TKeyValuePair } from '@TAF/types'
 import type { TAiProviderOption } from '@TAF/types/agent.types'
 import type { Agent, TWebProviderBrand, TAgentProjectConfig } from '@tdsk/domain'
 
-import { EProvider, EAgentBrain } from '@tdsk/domain'
+import { EProvider, EAgentBrain, ESandboxType } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
@@ -19,6 +19,7 @@ import {
   useProviders,
   useProjects,
   useOrgSecrets,
+  useOrgSandboxes,
   useProjectSecrets,
   useProjectFunctions,
 } from '@TAF/state/selectors'
@@ -59,6 +60,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [providersMap] = useProviders()
   const [projectsMap] = useProjects()
   const [orgSecretsMap] = useOrgSecrets()
+  const [orgSandboxesMap] = useOrgSandboxes()
   const [projectSecretsMap] = useProjectSecrets()
   const [functionsMap] = useProjectFunctions()
 
@@ -93,6 +95,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     [projectsMap]
   )
 
+  const orgSandboxes = useMemo(
+    () => Object.values(orgSandboxesMap || {}).map((s) => ({ id: s.id, name: s.name })),
+    [orgSandboxesMap]
+  )
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -106,6 +113,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [streaming, setStreaming] = useState(true)
   const [autonomous, setAutonomous] = useState(false)
   const [brain, setBrain] = useState<EAgentBrain>(EAgentBrain.api)
+  const [sandboxId, setSandboxId] = useState('')
   const [maxTokens, setMaxTokens] = useState(100000)
   const [description, setDescription] = useState('')
   const [temperature, setTemperature] = useState(0.7)
@@ -143,6 +151,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSystemPrompt(agent.systemPrompt || '')
       setStreaming(agent.environment?.streaming ?? true)
       setTemperature(agent.environment?.temperature ?? 0.7)
+      setSandboxId(agent.environment?.sandboxId ?? '')
 
       // Convert envVars object to key-value pairs
       const envVarsPairs = Object.entries(agent.envVars || {}).map(
@@ -174,6 +183,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setActive(true)
       setAutonomous(false)
       setBrain(EAgentBrain.api)
+      setSandboxId(``)
       setDescription(``)
       setStreaming(true)
       setProviderIds([])
@@ -230,6 +240,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
                 ...(webProviderSecretId ? { secretId: webProviderSecretId } : {}),
               },
             }
+          : {}),
+        // Body sandbox that runs the runtime brain (claude -p). Stored sandboxes
+        // are K8s configs, so sandboxType is always kubernetes when one is picked.
+        ...(brain === EAgentBrain.runtime && sandboxId
+          ? { sandboxId, sandboxType: ESandboxType.kubernetes }
           : {}),
       })
 
@@ -527,7 +542,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             loading={loading}
             streaming={streaming}
             autonomous={autonomous}
+            sandboxId={sandboxId}
+            sandboxes={orgSandboxes}
             onActiveChange={setActive}
+            onSandboxChange={setSandboxId}
             onStreamingChange={setStreaming}
             onBrainChange={isOverrideMode ? undefined : setBrain}
             onAutonomousChange={isOverrideMode ? undefined : setAutonomous}

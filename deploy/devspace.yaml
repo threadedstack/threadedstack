@@ -14,12 +14,12 @@ pipelines:
   dev:
     run: |-
       ensure_pull_secrets --all
-      run_pipelines start-caddy start-px start-backend
+      run_pipelines start-caddy start-px start-backend deploy-embeddings
 
   deploy:
     run: |-
       ensure_pull_secrets --all
-      run_pipelines deploy-caddy deploy-px deploy-backend
+      run_pipelines deploy-caddy deploy-px deploy-backend deploy-embeddings
 
   deploy-caddy:
     run: |-
@@ -32,6 +32,10 @@ pipelines:
   deploy-backend:
     run: |-
       create_deployments tdsk-backend
+
+  deploy-embeddings:
+    run: |-
+      create_deployments tdsk-embeddings
 
   start-caddy:
     run: |-
@@ -145,6 +149,30 @@ vars:
   TDSK_KUBE_SCRT_EGRESS_CA:
     source: env
     default: tdsk-egress-ca
+
+# ----- Embeddings Values ----- #
+# Self-hosted HF Text Embeddings Inference (TEI). Serves an OpenAI-compatible
+# /v1/embeddings API from a small HF model, replacing the external Google/OpenAI
+# embedding dependency for agent memory. Internal ClusterIP service — reached by
+# the backend at http://${TDSK_EMB_DEPLOYMENT}:${TDSK_EMB_PORT}/v1.
+  TDSK_EMB_DEPLOYMENT:
+    source: env
+    default: tdsk-embeddings
+  TDSK_EMB_IMAGE:
+    source: env
+    default: ghcr.io/huggingface/text-embeddings-inference
+  TDSK_EMB_IMAGE_TAG:
+    source: env
+    default: cpu-1.6
+  TDSK_EMB_PORT:
+    source: env
+    default: 3000
+  TDSK_EMB_MODEL:
+    source: env
+    default: BAAI/bge-large-en-v1.5
+  TDSK_EMB_CACHE_SIZE:
+    source: env
+    default: 10Gi
 
 # ----- Kubernetes Secrets ----- #
   TDSK_KUBE_SCRT_DOC_AUTH:
@@ -618,6 +646,54 @@ deployments:
         #    - host: '*.be.${TDSK_HOST_DOMAIN}'
         #      serviceName: ${TDSK_BE_DEPLOYMENT}
         #      servicePort: ${TDSK_BE_PORT}
+
+
+  # Self-hosted embedding service (HF Text Embeddings Inference). Third-party
+  # public image — NOT built by `tdsk release`; deployed via the deploy pipeline.
+  # The model cache PVC (/data) promotes this to a StatefulSet via the chart.
+  tdsk-embeddings:
+    helm:
+      upgradeArgs:
+        - "--force"
+      chart:
+        name: ./
+      valuesFiles:
+        - ./values.empty.yaml
+      values:
+        containers:
+          - name: ${TDSK_EMB_DEPLOYMENT}
+            image: ${TDSK_EMB_IMAGE}:${TDSK_EMB_IMAGE_TAG}
+            imagePullPolicy: IfNotPresent
+            env:
+              - name: MODEL_ID
+                value: ${TDSK_EMB_MODEL}
+              - name: PORT
+                value: ${TDSK_EMB_PORT}
+              # Persist the downloaded model to the mounted PVC so pod restarts
+              # don't re-download from the HF hub.
+              - name: HUGGINGFACE_HUB_CACHE
+                value: /data
+              - name: DTYPE
+                value: float32
+            volumeMounts:
+              - containerPath: /data
+                volume:
+                  name: tdsk-emb-cache
+            resources:
+              requests:
+                cpu: "1"
+                memory: 2Gi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+        volumes:
+          - name: tdsk-emb-cache
+            size: ${TDSK_EMB_CACHE_SIZE}
+        service:
+          name: ${TDSK_EMB_DEPLOYMENT}
+          ports:
+            - port: ${TDSK_EMB_PORT}
+              name: tdsk-emb-api
 
 
 # This is a list of `dev` containers that are based on the containers created by your deployments

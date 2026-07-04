@@ -1,5 +1,6 @@
 import { EAgentBrain } from '@tdsk/domain'
 import { SwitchInput, SelectInput } from '@tdsk/components'
+import { SandboxSelector } from '@TAF/components/Selectors/SandboxSelector'
 import { FormSection } from '@TAF/components/FormSection/FormSection'
 
 export type TAgentSettingsFormProps = {
@@ -8,10 +9,14 @@ export type TAgentSettingsFormProps = {
   streaming: boolean
   autonomous?: boolean
   brain?: EAgentBrain
+  sandboxId?: string
+  sandboxLoading?: boolean
+  sandboxes?: Array<{ id: string; name: string }>
   onActiveChange: (value: boolean) => void
   onStreamingChange: (value: boolean) => void
   onAutonomousChange?: (value: boolean) => void
   onBrainChange?: (value: EAgentBrain) => void
+  onSandboxChange?: (value: string) => void
 }
 
 const BrainOptions = [
@@ -30,9 +35,13 @@ export const AgentSettingsForm = (props: TAgentSettingsFormProps) => {
     brain,
     loading,
     streaming,
+    sandboxId,
     autonomous,
+    sandboxes,
+    sandboxLoading,
     onBrainChange,
     onActiveChange,
+    onSandboxChange,
     onStreamingChange,
     onAutonomousChange,
   } = props
@@ -76,6 +85,17 @@ export const AgentSettingsForm = (props: TAgentSettingsFormProps) => {
           items={BrainOptions}
           helperText={BrainHelperText[brainValue]}
           onChange={(e) => onBrainChange(e.target.value as EAgentBrain)}
+        />
+      )}
+
+      {brainValue === EAgentBrain.runtime && onSandboxChange && (
+        <SandboxSelector
+          sandboxId={sandboxId || ``}
+          sandboxes={sandboxes || []}
+          onChange={onSandboxChange}
+          loading={sandboxLoading}
+          disabled={loading}
+          description={`Select the body sandbox that runs this agent's runtime brain`}
         />
       )}
     </FormSection>

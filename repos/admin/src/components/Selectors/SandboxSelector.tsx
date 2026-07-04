@@ -6,12 +6,14 @@ export type TSandboxSelector = {
   loading?: boolean
   disabled?: boolean
   required?: boolean
+  description?: string
   onChange: (sandboxId: string) => void
   sandboxes: Array<{ id: string; name: string }>
 }
 
 export const SandboxSelector = (props: TSandboxSelector) => {
-  const { loading, disabled, required, onChange, sandboxId, sandboxes } = props
+  const { loading, disabled, required, description, onChange, sandboxId, sandboxes } =
+    props
 
   const options = useMemo(
     () => sandboxes.map((s) => ({ id: s.id, label: s.name || s.id })),
@@ -34,7 +36,7 @@ export const SandboxSelector = (props: TSandboxSelector) => {
           ? `Loading sandboxes...`
           : sandboxes.length === 0
             ? `No sandboxes available. Create a sandbox first.`
-            : `Select the sandbox to run this schedule in`
+            : description || `Select the sandbox to run this schedule in`
       }
     />
   )

@@ -8,6 +8,7 @@ import { createMemory } from './createMemory'
 import { updateMemory } from './updateMemory'
 import { deleteMemory } from './deleteMemory'
 import { searchMemories } from './searchMemories'
+import { reembedMemories } from './reembedMemories'
 import { MemoryMaxTextChars, MemoryMaxImportance } from '@tdsk/domain'
 
 const mockCheckPermission = vi.hoisted(() => vi.fn())
@@ -46,6 +47,7 @@ const buildMockReqRes = () => {
     update: vi.fn(),
     delete: vi.fn(),
     searchScored: vi.fn(),
+    listUnembedded: vi.fn(),
   }
   const agentService = { get: vi.fn().mockResolvedValue({ data: mockAgent }) }
   const embeddings = { embedOne: vi.fn().mockResolvedValue(null) }
@@ -98,6 +100,10 @@ describe(`Memories endpoint configuration`, () => {
   it(`searchMemories path/method`, () => {
     expect(searchMemories.path).toBe(`/search`)
     expect(searchMemories.method).toBe(EPMethod.Post)
+  })
+  it(`reembedMemories path/method`, () => {
+    expect(reembedMemories.path).toBe(`/reembed`)
+    expect(reembedMemories.method).toBe(EPMethod.Post)
   })
 })
 
@@ -342,5 +348,67 @@ describe(`POST /search - searchMemories`, () => {
     await expect(searchMemories.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
       `Agent not found`
     )
+  })
+})
+
+// ── REEMBED ──────────────────────────────────────────────────────────
+
+describe(`POST /reembed - reembedMemories`, () => {
+  let ctx: ReturnType<typeof buildMockReqRes>
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ctx = buildMockReqRes()
+  })
+
+  it(`re-embeds null-embedding rows and reports the count`, async () => {
+    ctx.memoryService.listUnembedded.mockResolvedValue({
+      data: [
+        { ...mockMemory, id: `mm_1`, text: `alpha` },
+        { ...mockMemory, id: `mm_2`, text: `beta` },
+      ],
+    })
+    ctx.embeddings.embedOne.mockResolvedValue([0.1, 0.2])
+    ctx.memoryService.update.mockResolvedValue({ data: mockMemory })
+
+    await reembedMemories.action(ctx.mockReq, ctx.mockRes)
+
+    expect(ctx.memoryService.listUnembedded).toHaveBeenCalledWith(`org-1`, `agent-1`)
+    expect(ctx.embeddings.embedOne).toHaveBeenCalledTimes(2)
+    expect(ctx.memoryService.update).toHaveBeenCalledWith({
+      id: `mm_1`,
+      embedding: [0.1, 0.2],
+    })
+    expect(ctx.mockJson).toHaveBeenCalledWith({ data: { total: 2, reembedded: 2 } })
+  })
+
+  it(`is null-safe — skips rows that still fail to embed`, async () => {
+    ctx.memoryService.listUnembedded.mockResolvedValue({
+      data: [{ ...mockMemory, id: `mm_1`, text: `alpha` }],
+    })
+    ctx.embeddings.embedOne.mockResolvedValue(null)
+
+    await reembedMemories.action(ctx.mockReq, ctx.mockRes)
+
+    expect(ctx.memoryService.update).not.toHaveBeenCalled()
+    expect(ctx.mockJson).toHaveBeenCalledWith({ data: { total: 1, reembedded: 0 } })
+  })
+
+  it(`reports zero when there is nothing to re-embed`, async () => {
+    ctx.memoryService.listUnembedded.mockResolvedValue({ data: [] })
+    await reembedMemories.action(ctx.mockReq, ctx.mockRes)
+    expect(ctx.embeddings.embedOne).not.toHaveBeenCalled()
+    expect(ctx.mockJson).toHaveBeenCalledWith({ data: { total: 0, reembedded: 0 } })
+  })
+
+  it(`throws 404 when agent belongs to another org`, async () => {
+    ctx.agentService.get.mockResolvedValue({ data: { ...mockAgent, orgId: `other` } })
+    await expect(reembedMemories.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Agent not found`
+    )
+  })
+
+  it(`throws 500 when the list service errors`, async () => {
+    ctx.memoryService.listUnembedded.mockResolvedValue({ error: { message: `boom` } })
+    await expect(reembedMemories.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(`boom`)
   })
 })

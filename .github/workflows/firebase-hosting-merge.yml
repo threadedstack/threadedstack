@@ -4,15 +4,61 @@ name: Deploy to Firebase Hosting on merge
 # for both backend services and frontends. The `production` branch is a post-deploy
 # marker maintained by deploy-production.yml, not a trigger.
 #
-# NOTE: a per-target change-gated version (only redeploy the UIs whose code changed)
-# was attempted but GitHub rejected the workflow (no valid runs after it landed), so
-# it was reverted to this proven-working form. Re-attempt the optimization only after
-# validating locally with `actionlint`. See project memory: firebase per-target deploy.
+# Per-target change gating: the `changes` job (dorny/paths-filter) computes one
+# boolean output per frontend from the files touched in the push. The matrixed
+# `build_and_deploy` job then gates only its two expensive steps (build + deploy)
+# on the matching output, so a UI is rebuilt+redeployed only when its own code —
+# or a shared dependency — actually changed. The shared-deps → all-three mapping
+# mirrors `mapChangedFiles` in repos/cli/src/utils/deploy/changedContexts.ts so CI
+# and the CLI select the same frontends.
+#
+# NOTE: filters intentionally avoid YAML anchors and `matrix.*` is used only in
+# step-level expressions (never a job-level `if`) — those were the parse-time errors
+# that got an earlier attempt rejected. This form was validated with `actionlint`
+# before landing.
 on:
   push:
     branches: [main]
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+      threads: ${{ steps.filter.outputs.threads }}
+      website: ${{ steps.filter.outputs.website }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            admin:
+              - 'repos/admin/**'
+              - 'repos/components/**'
+              - 'repos/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'tsconfig.json'
+              - '.npmrc'
+            threads:
+              - 'repos/threads/**'
+              - 'repos/components/**'
+              - 'repos/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'tsconfig.json'
+              - '.npmrc'
+            website:
+              - 'repos/website/**'
+              - 'repos/components/**'
+              - 'repos/domain/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'tsconfig.json'
+              - '.npmrc'
+              - 'docs/**'
   build_and_deploy:
+    needs: [changes]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,8 +78,10 @@ jobs:
           node-version-file: '.nvmrc'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ${{ matrix.package }} build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - if: needs.changes.outputs[matrix.target] == 'true'
+        run: pnpm --filter ${{ matrix.package }} build
+      - if: needs.changes.outputs[matrix.target] == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_THREADED_STACK_PROD }}'

@@ -1,15 +1,20 @@
 import { nav } from '@TAF/services/nav'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
-import { useActiveOrgId, useActiveAgent } from '@TAF/state/selectors'
 import { Box, Chip, Stack, Typography } from '@mui/material'
+import { useActiveOrgId, useActiveAgent, useOrgSandboxes } from '@TAF/state/selectors'
 
 export const AgentDetailTab = () => {
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
+  const [orgSandboxesMap] = useOrgSandboxes()
 
   if (!agent) return null
 
   const envVarKeys = Object.keys(agent.envVars || {})
+  const bodySandboxId = agent.environment?.sandboxId
+  const bodySandboxName = bodySandboxId
+    ? orgSandboxesMap?.[bodySandboxId]?.name || bodySandboxId
+    : 'None'
 
   return (
     <>
@@ -125,7 +130,7 @@ export const AgentDetailTab = () => {
           </Typography>
         </Box>
 
-        <Box>
+        <Box sx={{ mb: 2 }}>
           <Typography
             variant='subtitle2'
             color='text.secondary'
@@ -138,6 +143,16 @@ export const AgentDetailTab = () => {
             label={agent.environment?.streaming ? 'Enabled' : 'Disabled'}
             color={agent.environment?.streaming ? 'success' : 'default'}
           />
+        </Box>
+
+        <Box>
+          <Typography
+            variant='subtitle2'
+            color='text.secondary'
+          >
+            Body Sandbox
+          </Typography>
+          <Typography variant='body1'>{bodySandboxName}</Typography>
         </Box>
       </AgentSection>
 
