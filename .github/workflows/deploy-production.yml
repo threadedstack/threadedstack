@@ -134,6 +134,12 @@ jobs:
           sudo mv devspace /usr/local/bin/devspace
           devspace --version
 
+      - name: Set up QEMU
+        # `tdsk release` builds multi-arch images (linux/amd64,linux/arm64); QEMU
+        # provides the arm64 emulation so the cross-arch build doesn't fail on the
+        # amd64 runner.
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -164,9 +170,6 @@ jobs:
           TDSK_DB_USER: ${{ secrets.TDSK_DB_USER }}
           TDSK_DB_PASS: ${{ secrets.TDSK_DB_PASS }}
           TDSK_DB_AUTH_URL: ${{ secrets.TDSK_DB_AUTH_URL }}
-          TDSK_DB_JWT_SCRT: ${{ secrets.TDSK_DB_JWT_SCRT }}
-          TDSK_DB_SRV_ROLE: ${{ secrets.TDSK_DB_SRV_ROLE }}
-          TDSK_DB_PUBLIC_KEY: ${{ secrets.TDSK_DB_PUBLIC_KEY }}
           TDSK_DB_PROJECT_ID: ${{ secrets.TDSK_DB_PROJECT_ID }}
           TDSK_PAY_ACCESS_TOKEN: ${{ secrets.TDSK_PAY_ACCESS_TOKEN }}
           TDSK_PAY_WEBHOOK_SECRET: ${{ secrets.TDSK_PAY_WEBHOOK_SECRET }}
@@ -180,9 +183,6 @@ jobs:
           check "TDSK_DB_USER" "$TDSK_DB_USER"
           check "TDSK_DB_PASS" "$TDSK_DB_PASS"
           check "TDSK_DB_AUTH_URL" "$TDSK_DB_AUTH_URL"
-          check "TDSK_DB_JWT_SCRT" "$TDSK_DB_JWT_SCRT"
-          check "TDSK_DB_SRV_ROLE" "$TDSK_DB_SRV_ROLE"
-          check "TDSK_DB_PUBLIC_KEY" "$TDSK_DB_PUBLIC_KEY"
           check "TDSK_DB_PROJECT_ID" "$TDSK_DB_PROJECT_ID"
           check "TDSK_PAY_ACCESS_TOKEN" "$TDSK_PAY_ACCESS_TOKEN"
           check "TDSK_PAY_WEBHOOK_SECRET" "$TDSK_PAY_WEBHOOK_SECRET"
@@ -201,9 +201,6 @@ jobs:
           TDSK_DB_USER: ${{ secrets.TDSK_DB_USER }}
           TDSK_DB_PASS: ${{ secrets.TDSK_DB_PASS }}
           TDSK_DB_AUTH_URL: ${{ secrets.TDSK_DB_AUTH_URL }}
-          TDSK_DB_JWT_SCRT: ${{ secrets.TDSK_DB_JWT_SCRT }}
-          TDSK_DB_SRV_ROLE: ${{ secrets.TDSK_DB_SRV_ROLE }}
-          TDSK_DB_PUBLIC_KEY: ${{ secrets.TDSK_DB_PUBLIC_KEY }}
           TDSK_DB_PROJECT_ID: ${{ secrets.TDSK_DB_PROJECT_ID }}
           TDSK_PAY_ACCESS_TOKEN: ${{ secrets.TDSK_PAY_ACCESS_TOKEN }}
           TDSK_PAY_WEBHOOK_SECRET: ${{ secrets.TDSK_PAY_WEBHOOK_SECRET }}
@@ -221,9 +218,6 @@ jobs:
             TDSK_DB_USER: "$TDSK_DB_USER"
             TDSK_DB_PASS: "$TDSK_DB_PASS"
             TDSK_DB_AUTH_URL: "$TDSK_DB_AUTH_URL"
-            TDSK_DB_JWT_SCRT: "$TDSK_DB_JWT_SCRT"
-            TDSK_DB_SRV_ROLE: "$TDSK_DB_SRV_ROLE"
-            TDSK_DB_PUBLIC_KEY: "$TDSK_DB_PUBLIC_KEY"
             TDSK_DB_PROJECT_ID: "$TDSK_DB_PROJECT_ID"
             TDSK_PAY_ACCESS_TOKEN: "$TDSK_PAY_ACCESS_TOKEN"
             TDSK_PAY_WEBHOOK_SECRET: "$TDSK_PAY_WEBHOOK_SECRET"
@@ -239,8 +233,14 @@ jobs:
         # pushes SHA-tagged images, pushes additive DB schema, deploys, and
         # verifies health with automatic rollback on failure. Frontends deploy
         # via firebase-hosting-merge.yml, so they are skipped here.
+        #
+        # DOCKER_USER/DOCKER_PASSWORD: the CLI's own `docker login` reads creds from
+        # env (utils/docker/auth.ts); the earlier docker/login-action only writes
+        # ~/.docker/config.json and exports nothing, so pass GHCR creds here too.
         env:
           FORCE_ALL: ${{ (github.event_name == 'workflow_dispatch' && inputs.force_all) && '--all' || '' }}
+          DOCKER_USER: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd repos/cli
           pnpm cli release --env production --confirm --no-firebase $FORCE_ALL
