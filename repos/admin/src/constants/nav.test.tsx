@@ -309,6 +309,7 @@ describe(`OrgNavItems`, () => {
         `API Keys`,
         `Permissions`,
         `Skills`,
+        `Skill Proposals`,
         `Usage`,
         `Settings`,
       ]
@@ -530,10 +531,17 @@ describe(`OrgSubNavGroups`, () => {
     ])
   })
 
-  it(`Resources should have Projects, Sandboxes, Providers, Skills`, () => {
+  it(`Resources should have Projects, Sandboxes, Providers, Skills, Skill Proposals`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
-    expect(texts).toEqual([`Projects`, `Sandboxes`, `Providers`, `Skills`, `Agents`])
+    expect(texts).toEqual([
+      `Projects`,
+      `Sandboxes`,
+      `Providers`,
+      `Skills`,
+      `Skill Proposals`,
+      `Agents`,
+    ])
   })
 
   it(`Security should have Secrets, API Keys, Permissions, Domains`, () => {

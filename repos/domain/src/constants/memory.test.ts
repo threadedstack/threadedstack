@@ -33,7 +33,7 @@ describe(`Memory constants`, () => {
   })
 
   it(`defines the pgvector embedding dimension`, () => {
-    expect(MemoryEmbeddingDimensions).toBe(1536)
+    expect(MemoryEmbeddingDimensions).toBe(1024)
   })
 
   it(`defines the structured-output block fence`, () => {

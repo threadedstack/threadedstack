@@ -27,6 +27,10 @@ import { providersState } from '@TAF/state/providers'
 import { onboardingState } from '@TAF/state/onboarding'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { skillsState, activeSkillIdState } from '@TAF/state/skills'
+import {
+  skillProposalsState,
+  activeSkillProposalIdState,
+} from '@TAF/state/skillProposals'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
@@ -218,6 +222,9 @@ export const useOrgAssets = () => useDerivedState<Record<string, Asset>>(orgAsse
 // Org-scoped flat atoms
 export const useSkills = () => useRecState(skillsState)
 export const useActiveSkillId = () => useRecState(activeSkillIdState)
+
+export const useSkillProposals = () => useRecState(skillProposalsState)
+export const useActiveSkillProposalId = () => useRecState(activeSkillProposalIdState)
 
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)

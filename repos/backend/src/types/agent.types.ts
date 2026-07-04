@@ -1,4 +1,4 @@
-import type { IAgentRunnerDB, IMemoryProvider } from '@tdsk/agent'
+import type { IAgentRunnerDB, IMemoryProvider, ISkillProvider } from '@tdsk/agent'
 import type {
   Skill,
   Agent,
@@ -49,6 +49,12 @@ export type TAgentRuntimeConfig = {
    * brain exposes the memory_search/memory_write tools.
    */
   memoryProvider?: IMemoryProvider
+  /**
+   * Skill self-improvement provider (backend-implemented). Present only when the
+   * `skills` feature flag is enabled; wired into the AgentRunner so the api brain
+   * exposes the authorSkill/skillsList/skillView tools.
+   */
+  skillProvider?: ISkillProvider
 }
 
 export type TResolvedAgentConfig = TAgentRuntimeConfig & {

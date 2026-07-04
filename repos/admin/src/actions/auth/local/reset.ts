@@ -5,6 +5,8 @@ import {
   resetAgents,
   resetSkills,
   resetApiKeys,
+  resetSkillProposals,
+  resetActiveSkillProposalId,
   resetThreads,
   resetSecrets,
   resetDomains,
@@ -50,6 +52,8 @@ export const reset = () => {
   resetUser?.()
   resetOrgs?.()
   resetSkills?.()
+  resetSkillProposals?.()
+  resetActiveSkillProposalId?.()
   resetAssets?.()
   resetAgents?.()
   resetApiKeys?.()

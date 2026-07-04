@@ -15,6 +15,7 @@ import {
   orgAgentsLoader,
   orgDetailLoader,
   orgSkillsLoader,
+  orgSkillProposalsLoader,
   orgSecretsLoader,
   orgDomainsLoader,
   orgMembersLoader,
@@ -57,6 +58,7 @@ const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
+const OrgSkillProposals = lazy(() => import('@TAF/pages/Orgs/OrgSkillProposals'))
 const ProjectSchedules = lazy(() => import('@TAF/pages/Projects/ProjectSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgPermissions = lazy(() => import('@TAF/pages/Orgs/OrgPermissions'))
@@ -197,6 +199,11 @@ export const createRoutes = () =>
                   },
                 ]
               : []),
+            {
+              path: ERoutePath.SkillProposals,
+              loader: orgSkillProposalsLoader,
+              Component: () => <SuspensePage Component={OrgSkillProposals} />,
+            },
             {
               path: ERoutePath.ApiKeys,
               loader: orgApiKeysLoader,

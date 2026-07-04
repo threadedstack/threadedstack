@@ -33,6 +33,7 @@ import { EContentType, EMemoryKind, buildFallbackModel } from '@tdsk/domain'
 import { getModel, streamSimple, isContextOverflow } from '@earendil-works/pi-ai'
 import {
   createWebTools,
+  createSkillTools,
   createMemoryTools,
   createSandboxTools,
   buildCustomFunctionTools,
@@ -681,7 +682,10 @@ export class AgentRunner {
     const memoryTools = this.#opts?.memoryProvider
       ? createMemoryTools(this.#opts.memoryProvider, toolNames)
       : []
-    const tools = [...sandboxTools, ...webTools, ...memoryTools]
+    const skillTools = this.#opts?.skillProvider
+      ? createSkillTools(this.#opts.skillProvider, toolNames)
+      : []
+    const tools = [...sandboxTools, ...webTools, ...memoryTools, ...skillTools]
 
     if (
       includeCustom &&

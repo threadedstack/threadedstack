@@ -18,6 +18,7 @@ export const FunctionIdPrefix = `fn_`
 export const EndpointIdPrefix = `ep_`
 export const ScheduleIdPrefix = `sd_`
 export const AgentSkillIdPrefix = `al_`
+export const SkillProposalIdPrefix = `pr_`
 export const InvitationIdPrefix = `iv_`
 export const ScheduleRunIdPrefix = `sr_`
 export const SubscriptionIdPrefix = `su_`

@@ -77,6 +77,9 @@ export enum EAgentTool {
   memoryWrite = `memoryWrite`,
   memorySearch = `memorySearch`,
   createArtifact = `createArtifact`,
+  authorSkill = `authorSkill`,
+  skillsList = `skillsList`,
+  skillView = `skillView`,
 }
 
 export type TAgentToolType = `${EAgentTool}`

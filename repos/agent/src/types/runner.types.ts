@@ -1,4 +1,5 @@
 import type { IMemoryProvider } from './memory.types'
+import type { ISkillProvider } from './skill.types'
 import type {
   Skill,
   TStreamEvent,
@@ -88,6 +89,11 @@ export type TAgentInitOpts = {
    * exposes memorySearch/memoryWrite tools and persists compaction summaries.
    */
   memoryProvider?: IMemoryProvider
+  /**
+   * Skill self-improvement provider (backend-implemented). When present, the
+   * runner exposes authorSkill/skillsList/skillView tools.
+   */
+  skillProvider?: ISkillProvider
 }
 
 /**

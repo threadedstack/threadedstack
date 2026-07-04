@@ -29,6 +29,7 @@ import type {
   ScheduleRun,
   Subscription,
   Organization,
+  TSkillProposal,
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
@@ -47,6 +48,10 @@ import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 import { skillsState, activeSkillIdState } from '@TAF/state/skills'
+import {
+  skillProposalsState,
+  activeSkillProposalIdState,
+} from '@TAF/state/skillProposals'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
@@ -287,6 +292,18 @@ export const setSkills = (skills: Record<string, Skill>) => store.set(skillsStat
 export const getActiveSkillId = () => store.get(activeSkillIdState)
 export const resetActiveSkillId = () => store.set(activeSkillIdState, undefined)
 export const setActiveSkillId = (id: string) => store.set(activeSkillIdState, id)
+
+// Skill Proposals (org-scoped, flat)
+export const getSkillProposals = () => store.get(skillProposalsState)
+export const resetSkillProposals = () => store.set(skillProposalsState, undefined)
+export const setSkillProposals = (proposals: Record<string, TSkillProposal>) =>
+  store.set(skillProposalsState, proposals)
+
+export const getActiveSkillProposalId = () => store.get(activeSkillProposalIdState)
+export const resetActiveSkillProposalId = () =>
+  store.set(activeSkillProposalIdState, undefined)
+export const setActiveSkillProposalId = (id: string) =>
+  store.set(activeSkillProposalIdState, id)
 
 // Schedules (project-scoped, context-keyed)
 export const getSchedules = () => store.get(schedulesState)

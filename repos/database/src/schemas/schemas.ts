@@ -33,6 +33,10 @@ export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProvi
 export { sandboxSessions, sandboxSessionsRelations } from '@TDB/schemas/sandboxSessions'
 export { sandboxProjects, sandboxProjectsRelations } from '@TDB/schemas/sandboxProjects'
 export {
+  skillProposals,
+  skillProposalsRelations,
+} from '@TDB/schemas/skillProposals'
+export {
   permissionOverrides,
   permissionOverridesRelations,
 } from '@TDB/schemas/permissionOverrides'

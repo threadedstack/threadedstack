@@ -5,7 +5,7 @@
  * They should be replaced with the tool definitions defined here.
  */
 
-import type { IWebProvider, IMemoryProvider } from '@TAG/types'
+import type { IWebProvider, IMemoryProvider, ISkillProvider } from '@TAG/types'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type {
   ISandbox,
@@ -534,6 +534,157 @@ export const createMemoryTools = (
           logger.warn(`memoryWrite tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Memory write failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates skill self-improvement tools backed by an ISkillProvider.
+ * `authorSkill` proposes a new skill (scanned + promoted server-side, never
+ * activated directly); `skillsList`/`skillView` give progressive disclosure of
+ * the agent's active skills. Filtered by `allowedTools` like the other factories.
+ */
+export const createSkillTools = (
+  skillProvider: ISkillProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.authorSkill,
+      label: `Author Skill`,
+      description: `Propose a new reusable skill after solving a task worth repeating. Writes a PROPOSAL (not an active skill) that is security-scanned and promoted automatically once approved. Returns the proposal id, status, and any scan findings.`,
+      parameters: Type.Object({
+        name: Type.String({ description: `Short skill name` }),
+        description: Type.String({
+          description: `One-line summary of what the skill does`,
+        }),
+        instructions: Type.String({
+          description: `The procedural instructions (SKILL.md body) the skill injects when active`,
+        }),
+        tools: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Agent tool names this skill activates`,
+          })
+        ),
+        triggerKeywords: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Keywords that activate this skill when present in a prompt`,
+          })
+        ),
+        alwaysActive: Type.Optional(
+          Type.Boolean({ description: `Activate on every turn regardless of keywords` })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          name: string
+          description: string
+          instructions: string
+          tools?: string[]
+          triggerKeywords?: string[]
+          alwaysActive?: boolean
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Proposing skill: ${params.name}` }],
+          details: { status: `running` },
+        })
+        try {
+          const { id, status, findings } = await skillProvider.authorSkill(params)
+          const text =
+            status === `rejected`
+              ? `Skill proposal ${id} rejected by security scan: ${findings.join(`; `)}`
+              : `Skill proposal ${id} accepted (status ${status}); pending auditor review`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: status !== `rejected`, id, status, findings },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown skill error`
+          logger.warn(`authorSkill tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Skill proposal failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.skillsList,
+      label: `List Skills`,
+      description: `List the agent's active skills (name, description, triggers) for progressive disclosure before viewing full instructions.`,
+      parameters: Type.Object({}),
+      execute: async (_toolCallId: string, _params, _signal, onUpdate) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Listing skills...` }],
+          details: { status: `running` },
+        })
+        try {
+          const skills = await skillProvider.listSkills()
+          const text =
+            skills.length > 0
+              ? skills
+                  .map(
+                    (s) =>
+                      `- ${s.id} ${s.name}: ${s.description}${s.alwaysActive ? ` [always]` : ``}`
+                  )
+                  .join(`\n`)
+              : `No active skills`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, count: skills.length },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown skill error`
+          logger.warn(`skillsList tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Skill list failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.skillView,
+      label: `View Skill`,
+      description: `View the full instructions of one active skill by id.`,
+      parameters: Type.Object({
+        id: Type.String({ description: `The skill id to view` }),
+      }),
+      execute: async (_toolCallId: string, params: { id: string }, _signal, onUpdate) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Viewing skill ${params.id}...` }],
+          details: { status: `running` },
+        })
+        try {
+          const skill = await skillProvider.viewSkill(params.id)
+          if (!skill)
+            return {
+              content: [{ type: `text` as const, text: `Skill ${params.id} not found` }],
+              details: { success: false },
+            }
+          const text = `# ${skill.name}\n${skill.description}\n\nTools: ${skill.tools.join(`, `) || `none`}\nTriggers: ${skill.triggerKeywords.join(`, `) || `none`}\n\n${skill.instructions}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, id: skill.id },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown skill error`
+          logger.warn(`skillView tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Skill view failed: ${message}` }],
             details: { success: false },
           }
         }

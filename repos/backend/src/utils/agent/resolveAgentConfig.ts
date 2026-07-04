@@ -1,11 +1,12 @@
 import type { TDatabase } from '@tdsk/database'
-import type { IAgentRunnerDB, IMemoryProvider } from '@tdsk/agent'
+import type { IAgentRunnerDB, IMemoryProvider, ISkillProvider } from '@tdsk/agent'
 import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
+import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import {
@@ -83,6 +84,44 @@ export const createMemoryProvider = (
       throw new Exception(500, `Failed to write memory: ${error?.message ?? `unknown`}`)
 
     return { id: data.id }
+  },
+})
+
+/**
+ * Build the backend ISkillProvider bridging the api-brain skill tools to the
+ * skill + skillProposal DB services + the security scan. Mirrors
+ * createMemoryProvider: a pure closure over db scoped to one org/agent.
+ */
+export const createSkillProvider = (
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): ISkillProvider => ({
+  authorSkill: async (input) =>
+    authorSkillProposal(db, orgId, agentId, input, { authoredBy: agentId }),
+  listSkills: async () => {
+    const { data } = await db.services.skill.listForAgent(agentId)
+    return (data || []).map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      alwaysActive: skill.alwaysActive,
+      triggerKeywords: skill.triggerKeywords || [],
+    }))
+  },
+  viewSkill: async (id) => {
+    const { data } = await db.services.skill.listForAgent(agentId)
+    const skill = (data || []).find((s) => s.id === id)
+    if (!skill) return null
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      instructions: skill.instructions,
+      tools: skill.tools || [],
+      triggerKeywords: skill.triggerKeywords || [],
+      alwaysActive: skill.alwaysActive,
+    }
   },
 })
 
@@ -282,6 +321,10 @@ export const resolveAgentConfig = async (
     // Only wire the memory tools when the feature is enabled
     memoryProvider: isFeatureEnabled(`memories`)
       ? createMemoryProvider(app, db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the skill self-improvement tools when the feature is enabled
+    skillProvider: isFeatureEnabled(`skills`)
+      ? createSkillProvider(db, agent.orgId, agentId)
       : undefined,
   }
 }

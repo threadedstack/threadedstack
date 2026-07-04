@@ -22,12 +22,17 @@ import {
   EContentType,
   EScheduleType,
   MemorySearchTopK,
+  ESkillProposalStatus,
   MemoryInjectMaxChars,
+  SkillReviewInjectMax,
   SandboxRuntimeConfigs,
+  SkillReviewInjectMaxChars,
 } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { resolveProviderEnvChain } from '@TBE/utils/sandbox/resolveProviderEnv'
+import { parseSkillBlock, parseSkillReviewsBlock } from '@TBE/utils/agent/skill'
+import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
 import {
   buildEnvPrefix,
   parseMemoryBlock,
@@ -449,6 +454,118 @@ async function persistMemoryWrites(
 }
 
 /**
+ * Build the injected skill-proposal review context: the scanned proposals
+ * awaiting an auditor decision (`## Skill proposals awaiting review`), capped at
+ * SkillReviewInjectMaxChars. Only an auditor/curator-prompted cycle acts on this
+ * (by emitting a tdsk-skill-reviews block); other cycles ignore it. Never throws.
+ */
+async function buildProposalReviewContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const { data: proposals } = await db.services.skillProposal.listByStatus(
+      schedule.orgId,
+      ESkillProposalStatus.scanned
+    )
+    if (!proposals?.length) return ``
+
+    const bullets = proposals
+      .slice(0, SkillReviewInjectMax)
+      .map(
+        (p) =>
+          `- ${p.id} "${p.name}" (agent ${p.agentId}): ${p.description}\n  tools: ${
+            (p.tools || []).join(`, `) || `none`
+          }\n  instructions: ${p.instructions.slice(0, 500)}`
+      )
+      .join(`\n`)
+    const out = `## Skill proposals awaiting review\n${bullets}\n\n`
+    return out.length > SkillReviewInjectMaxChars
+      ? out.slice(0, SkillReviewInjectMaxChars)
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildProposalReviewContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output skill-proposal block emitted by a
+ * successful runtime run: each entry becomes a skill_proposals row that is
+ * immediately security-scanned (scanned | rejected). Never throws.
+ */
+async function persistSkillProposals(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const entries = parseSkillBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db } = app.locals
+    const meta = { threadId, scheduleId: schedule.id }
+    for (const entry of entries) {
+      try {
+        await authorSkillProposal(db, schedule.orgId, agentId, entry, meta)
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to persist skill proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — skill-proposal capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Parse and apply any structured-output skill-review block emitted by a
+ * successful auditor/curator run. Each decision routes through applySkillReview,
+ * which re-runs the security scan (hard gate) before promoting. Never throws.
+ */
+async function persistSkillReviews(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const reviews = parseSkillReviewsBlock(stdoutText)
+    if (!reviews.length) return
+
+    const { db } = app.locals
+    for (const review of reviews) {
+      try {
+        await applySkillReview(db, schedule.orgId, review, agentId)
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to apply skill review:`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — skill-review capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -553,12 +670,13 @@ async function runCliAgentSchedule(
   await sandbox!.waitForPodReady(instanceId, { cloneCheck: true })
 
   const memorySection = await buildMemoryContext(app, schedule, agent.id)
+  const reviewSection = await buildProposalReviewContext(app, schedule)
   const baseCommand = buildCliCommand(
     schedule,
     agent,
     sandboxConfig,
     previousReport,
-    memorySection
+    memorySection + reviewSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -720,6 +838,10 @@ async function runCliAgentSchedule(
 
     // Capture any structured-output memory-write block from the final stdout
     await persistMemoryWrites(app, schedule, agent.id, threadId, stdoutText)
+    // Capture self-authored skill proposals (scanned server-side) and any
+    // auditor review decisions (promoted/rejected through the hard scan gate).
+    await persistSkillProposals(app, schedule, agent.id, threadId, stdoutText)
+    await persistSkillReviews(app, schedule, agent.id, stdoutText)
   }
 
   return result
