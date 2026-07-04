@@ -6,6 +6,7 @@ import type { quotas } from '@TDB/schemas/quotas'
 import type { agents } from '@TDB/schemas/agents'
 import type { skills } from '@TDB/schemas/skills'
 import type { skillProposals } from '@TDB/schemas/skillProposals'
+import type { taskProposals } from '@TDB/schemas/taskProposals'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
@@ -55,6 +56,8 @@ export type TDBSkillSelect = TInferDates<typeof skills.$inferSelect>
 export type TDBSkillInsert = TInferDates<typeof skills.$inferInsert>
 export type TDBSkillProposalSelect = TInferDates<typeof skillProposals.$inferSelect>
 export type TDBSkillProposalInsert = TInferDates<typeof skillProposals.$inferInsert>
+export type TDBTaskProposalSelect = TInferDates<typeof taskProposals.$inferSelect>
+export type TDBTaskProposalInsert = TInferDates<typeof taskProposals.$inferInsert>
 export type TDBQuotaSelect = TInferDates<typeof quotas.$inferSelect>
 export type TDBQuotaInsert = TInferDates<typeof quotas.$inferInsert>
 export type TDBAssetSelect = TInferDates<typeof assets.$inferSelect>
@@ -169,6 +172,7 @@ export type TDBEntitySelect =
   | TDBQuotaSelect
   | TDBSkillSelect
   | TDBSkillProposalSelect
+  | TDBTaskProposalSelect
   | TDBApiKeySelect
   | TDBSecretSelect
   | TDBThreadSelect
@@ -197,6 +201,7 @@ export type TDBEntityInsert =
   | TDBAgentInsert
   | TDBSkillInsert
   | TDBSkillProposalInsert
+  | TDBTaskProposalInsert
   | TDBApiKeyInsert
   | TDBSecretInsert
   | TDBThreadInsert
