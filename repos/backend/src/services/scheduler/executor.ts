@@ -6,7 +6,6 @@ import type {
   Schedule,
   TStreamEvent,
   TSandboxResult,
-  TPlaceholderMap,
   TKubeSandboxConfig,
 } from '@tdsk/domain'
 
@@ -26,7 +25,6 @@ import {
   SkillReviewInjectMax,
   SkillReviewInjectMaxChars,
 } from '@tdsk/domain'
-import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import {
   escapePromptArg,
@@ -34,7 +32,7 @@ import {
   resolvePromptTemplate,
   substitutePlaceholders,
 } from '@TBE/utils/agent/promptCommand'
-import { resolveProviderEnvChain } from '@TBE/utils/sandbox/resolveProviderEnv'
+import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { parseSkillBlock, parseSkillReviewsBlock } from '@TBE/utils/agent/skill'
 import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
 import {
@@ -100,76 +98,6 @@ async function resolveEffectiveSandboxConfig(
     )
 
   return effective.config as TKubeSandboxConfig
-}
-
-type TCliProviderChain = {
-  primaryBrand: string
-  placeholders: TPlaceholderMap
-  primaryEnv: Record<string, string>
-  fallbacks: Array<{ brand: string; env: Record<string, string> }>
-}
-
-/**
- * Resolve the effective sandbox for a runtime-brain schedule ONCE and derive
- * both its prompt-command config and the priority-ordered ai-provider failover
- * chain. Mirrors startPod's derivation (getEffectiveConfig + EProvider.ai links
- * sorted by priority) so the primary provider matches the pod default while each
- * fallback keeps its own isolated env for inline override. A resolution error
- * (e.g. an unscoped secret placeholder) throws — identical to startPod refusing
- * to launch a pod with a misconfigured provider.
- */
-async function resolveCliSandboxAndChain(
-  db: TDatabase,
-  schedule: Schedule,
-  bodySandboxId: string
-): Promise<{ sandboxConfig: TKubeSandboxConfig; chain: TCliProviderChain }> {
-  const { data: rawSandbox } = await db.services.sandbox.get(bodySandboxId)
-  if (!rawSandbox) throw new Error(`Sandbox config not found: ${bodySandboxId}`)
-
-  // Defense in depth: the body sandbox must belong to the schedule's org before
-  // its provider secrets are turned into egress placeholders.
-  if (rawSandbox.orgId && rawSandbox.orgId !== schedule.orgId)
-    throw new Error(`Sandbox ${bodySandboxId} does not belong to org ${schedule.orgId}`)
-
-  const effective = rawSandbox.getEffectiveConfig
-    ? rawSandbox.getEffectiveConfig(schedule.projectId)
-    : rawSandbox
-
-  if (effective === rawSandbox && schedule.projectId)
-    logger.warn(
-      `[Executor] Schedule ${schedule.id} — no project-specific config for project ${schedule.projectId}; using base sandbox config`
-    )
-
-  const sandboxConfig = effective.config as TKubeSandboxConfig
-
-  const aiProviderLinks = (effective.providerLinks || [])
-    .filter((link: any) => link.provider?.type === EProvider.ai)
-    .map((link: any) => ({
-      provider: link.provider,
-      priority: link.priority ?? 0,
-      model: link.model ?? undefined,
-    }))
-
-  const secrets = new SecretResolver(db)
-  const chain = await resolveProviderEnvChain(
-    sandboxConfig?.runtime,
-    aiProviderLinks,
-    secrets,
-    schedule.orgId
-  )
-
-  if (chain.errors.length)
-    throw new Error(`Provider auth configuration error: ${chain.errors.join(`, `)}`)
-
-  return {
-    sandboxConfig,
-    chain: {
-      primaryEnv: chain.primaryEnv,
-      primaryBrand: chain.primaryBrand,
-      placeholders: chain.placeholders,
-      fallbacks: chain.fallbacks,
-    },
-  }
 }
 
 /** Race a promise against the resolved execution timeout (per-schedule override or shared default). */
@@ -608,11 +536,12 @@ async function runCliAgentSchedule(
   // provider's (domain-scoped) placeholder is injected so egress can swap
   // whichever token a fallback attempt uses. A misconfigured provider throws
   // here, exactly as startPod would refuse to launch.
-  const { sandboxConfig, chain } = await resolveCliSandboxAndChain(
-    db,
-    schedule,
-    bodySandboxId
-  )
+  const { sandboxConfig, chain } = await resolveSandboxProviderChain(db, {
+    orgId: schedule.orgId,
+    sandboxId: bodySandboxId,
+    projectId: schedule.projectId,
+    logContext: `[Executor] Schedule ${schedule.id} —`,
+  })
 
   const instanceId = await sandbox!.startPod({
     orgId: schedule.orgId,

@@ -90,4 +90,32 @@ export class ScheduleRun extends Base<
       return { error }
     }
   }
+
+  /**
+   * Mark every run still in `running` as failed. Called at scheduler startup:
+   * a run executes in-process on the (single-replica) backend, so any row still
+   * `running` at boot was orphaned by the previous process dying — e.g. a deploy
+   * restart mid-run — and its executor can never complete it or enforce its
+   * timeout. Reaping keeps the table honest and stops stuck rows accumulating.
+   * Returns how many rows were reaped.
+   */
+  async failOrphaned(reason: string) {
+    try {
+      const now = new Date()
+      const resp = await this.db
+        .update(scheduleRuns)
+        .set({
+          status: `error`,
+          error: reason,
+          completedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(scheduleRuns.status, `running`))
+        .returning({ id: scheduleRuns.id })
+
+      return { data: { count: resp.length, ids: resp.map((r) => r.id) } }
+    } catch (error: any) {
+      return { error }
+    }
+  }
 }
