@@ -1,13 +1,10 @@
 # Claude Code Configuration
 
-## 🚨🚨🚨 ABSOLUTE #1 RULE: NEVER COMMIT OR MODIFY GIT HISTORY 🚨🚨🚨
-
-> Enforced by PreToolUse hook. Attempts to run blocked commands will be rejected.
+## 🚨🚨🚨 ABSOLUTE #1 RULE: NEVER STASH GIT TRACKED FILES 🚨🚨🚨
 
 - **ALLOWED**: `git add`, `git status`, `git diff`, `git log`, `git branch`, `git show`
-- **BLOCKED**: `git commit`, `git push`, `git reset`, `git revert`, `git rebase`, `git cherry-pick`, `git stash`, `git merge`
-- "write a commit message" / "commit this" = OUTPUT the message as text, never run `git commit`
-- The user handles all commits manually. This rule applies to ALL subagents.
+- **BLOCKED**: `git reset`, `git revert`, `git stash`, `git merge`
+
 
 ## 🚨🚨🚨 ABSOLUTE #2 RULE: ZERO LAZINESS, ZERO DEFERRAL, ZERO SILENT INCOMPLETION 🚨🚨🚨
 
