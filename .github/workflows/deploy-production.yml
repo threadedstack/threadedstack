@@ -73,7 +73,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Pin to the repo's canonical Node (.nvmrc = 22.20.0). Floating to
+          # `22` pulls the latest 22.x (22.23.1), whose require(esm) loader breaks
+          # tsx 4.21.0's `-r` hook used by `pnpm cli` (ERR_METHOD_NOT_IMPLEMENTED
+          # resolveSync). Keep CI on the version we actually develop against.
+          node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Install dependencies
@@ -156,7 +160,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Pin to the repo's canonical Node (.nvmrc = 22.20.0). Floating to
+          # `22` pulls the latest 22.x (22.23.1), whose require(esm) loader breaks
+          # tsx 4.21.0's `-r` hook used by `pnpm cli` (ERR_METHOD_NOT_IMPLEMENTED
+          # resolveSync). Keep CI on the version we actually develop against.
+          node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Install dependencies
