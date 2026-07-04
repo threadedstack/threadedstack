@@ -151,7 +151,8 @@
       "Bash(ls -la npm/darwin-arm64/.npmignore)",
       "Bash(cat npm/darwin-arm64/.npmignore)",
       "Bash(ls -la .npmrc)",
-      "Bash(cat .npmrc)"
+      "Bash(cat .npmrc)",
+      "Bash(/private/tmp/claude-501/**)"
     ]
   },
   "sandbox": {
