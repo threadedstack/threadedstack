@@ -27,6 +27,9 @@ export enum ERoutePath {
   SkillProposals = `skill-proposals`,
   OrgSkillProposals = `/orgs/:orgId/skill-proposals`,
 
+  TaskProposals = `task-proposals`,
+  OrgTaskProposals = `/orgs/:orgId/task-proposals`,
+
   Schedules = `schedules`,
   ProjectSchedules = `/orgs/:orgId/projects/:projectId/schedules`,
 

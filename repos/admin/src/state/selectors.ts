@@ -31,6 +31,7 @@ import {
   skillProposalsState,
   activeSkillProposalIdState,
 } from '@TAF/state/skillProposals'
+import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
@@ -225,6 +226,9 @@ export const useActiveSkillId = () => useRecState(activeSkillIdState)
 
 export const useSkillProposals = () => useRecState(skillProposalsState)
 export const useActiveSkillProposalId = () => useRecState(activeSkillProposalIdState)
+
+export const useTaskProposals = () => useRecState(taskProposalsState)
+export const useActiveTaskProposalId = () => useRecState(activeTaskProposalIdState)
 
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)

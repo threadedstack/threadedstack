@@ -30,6 +30,7 @@ import type {
   Subscription,
   Organization,
   TSkillProposal,
+  TTaskProposal,
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
@@ -52,6 +53,7 @@ import {
   skillProposalsState,
   activeSkillProposalIdState,
 } from '@TAF/state/skillProposals'
+import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
@@ -304,6 +306,18 @@ export const resetActiveSkillProposalId = () =>
   store.set(activeSkillProposalIdState, undefined)
 export const setActiveSkillProposalId = (id: string) =>
   store.set(activeSkillProposalIdState, id)
+
+// Task Proposals (org-scoped, flat)
+export const getTaskProposals = () => store.get(taskProposalsState)
+export const resetTaskProposals = () => store.set(taskProposalsState, undefined)
+export const setTaskProposals = (proposals: Record<string, TTaskProposal>) =>
+  store.set(taskProposalsState, proposals)
+
+export const getActiveTaskProposalId = () => store.get(activeTaskProposalIdState)
+export const resetActiveTaskProposalId = () =>
+  store.set(activeTaskProposalIdState, undefined)
+export const setActiveTaskProposalId = (id: string) =>
+  store.set(activeTaskProposalIdState, id)
 
 // Schedules (project-scoped, context-keyed)
 export const getSchedules = () => store.get(schedulesState)

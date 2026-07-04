@@ -30,6 +30,7 @@ import {
   CreditCard as BillingIcon,
   Extension as ExtensionIcon,
   FactCheck as ProposalIcon,
+  Assignment as TaskProposalIcon,
 } from '@mui/icons-material'
 
 const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
@@ -107,6 +108,12 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Skill Proposals`,
     to: buildRoute(ERoutePath.OrgSkillProposals),
     Icon: <ProposalIcon />,
+    visible: hasOrgMember,
+  },
+  TaskProposals: {
+    text: `Task Proposals`,
+    to: buildRoute(ERoutePath.OrgTaskProposals),
+    Icon: <TaskProposalIcon />,
     visible: hasOrgMember,
   },
   Usage: {
@@ -241,6 +248,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
       OrgSubNav.Providers,
       OrgSubNav.Skills,
       OrgSubNav.SkillProposals,
+      OrgSubNav.TaskProposals,
       OrgSubNav.Agents,
     ],
   },

@@ -310,6 +310,7 @@ describe(`OrgNavItems`, () => {
         `Permissions`,
         `Skills`,
         `Skill Proposals`,
+        `Task Proposals`,
         `Usage`,
         `Settings`,
       ]
@@ -531,7 +532,7 @@ describe(`OrgSubNavGroups`, () => {
     ])
   })
 
-  it(`Resources should have Projects, Sandboxes, Providers, Skills, Skill Proposals`, () => {
+  it(`Resources should have Projects, Sandboxes, Providers, Skills, Skill Proposals, Task Proposals`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
     expect(texts).toEqual([
@@ -540,6 +541,7 @@ describe(`OrgSubNavGroups`, () => {
       `Providers`,
       `Skills`,
       `Skill Proposals`,
+      `Task Proposals`,
       `Agents`,
     ])
   })
