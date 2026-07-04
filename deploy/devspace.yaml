@@ -675,17 +675,24 @@ deployments:
                 value: /data
               - name: DTYPE
                 value: float32
+              # Truncate inputs over the model's 512-token limit instead of
+              # erroring (memory texts vary in length; the first 512 tokens are
+              # enough for retrieval). Without this, long memories fail to embed.
+              - name: AUTO_TRUNCATE
+                value: "true"
             volumeMounts:
               - containerPath: /data
                 volume:
                   name: tdsk-emb-cache
+            # bge-large-en-v1.5 (fp32 ONNX) peaks ~4-6Gi loading the model, so 4Gi
+            # OOMKills on boot. Requires node(s) with >=8Gi allocatable RAM.
             resources:
               requests:
                 cpu: "1"
-                memory: 2Gi
+                memory: 4Gi
               limits:
                 cpu: "2"
-                memory: 4Gi
+                memory: 6Gi
         volumes:
           - name: tdsk-emb-cache
             size: ${TDSK_EMB_CACHE_SIZE}
