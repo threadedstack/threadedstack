@@ -19,13 +19,23 @@ import {
   EAgentBrain,
   EContentType,
   EScheduleType,
+  TasksBlockFence,
   MemorySearchTopK,
+  EmptyRunDurationMs,
+  RunOutcomeInjectMax,
+  TaskBacklogInjectMax,
   ESkillProposalStatus,
+  ETaskProposalStatus,
   MemoryInjectMaxChars,
   SkillReviewInjectMax,
+  TaskPickupsBlockFence,
+  RunOutcomeInjectMaxChars,
+  TaskBacklogInjectMaxChars,
   SkillReviewInjectMaxChars,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
+import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import {
   escapePromptArg,
   foregroundEnvPrefix,
@@ -459,6 +469,224 @@ async function persistSkillReviews(
 }
 
 /**
+ * Marker-gated routing: a runtime cycle only receives (and emits) a faculty's
+ * context when its own prompt opts in by embedding that faculty's fenced-block
+ * label. This keeps a sensor cycle's context off a work cycle and vice-versa —
+ * the same prompt that is told to emit a block is the one given the inputs for it.
+ */
+export const promptOptsIn = (schedule: Schedule, fence: string): boolean =>
+  (schedule.prompt ?? ``).includes(fence)
+
+/**
+ * Build the injected recent-run-outcome context for a SENSOR cycle: the pod
+ * cannot reach the DB, so the org's own recent schedule_runs are surfaced as the
+ * read-only backend faculty. Only anomalies are listed — errored/timed-out runs
+ * (with their message + id + startedAt) and successful runs that finished
+ * suspiciously fast (possibly empty / no-op). The currently-`running` row is
+ * skipped. When nothing is anomalous, returns '' so no heading is injected.
+ * Capped at RunOutcomeInjectMaxChars. Never throws — a failure only degrades
+ * context (logged) and returns an empty string.
+ */
+export async function buildRunOutcomeContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const { data: runs } = await db.services.scheduleRun.listByOrg(schedule.orgId, {
+      limit: RunOutcomeInjectMax,
+    })
+    if (!runs?.length) return ``
+
+    const bullets: string[] = []
+    for (const run of runs) {
+      if (run.status === `running`) continue
+      if (run.status === `error` || run.status === `timeout`) {
+        bullets.push(
+          `- [${run.status}] ${run.id} @ ${run.startedAt}: ${
+            (run.error ?? ``).trim() || `(no error text)`
+          }`
+        )
+      } else if (
+        run.status === `success` &&
+        run.durationMs != null &&
+        run.durationMs < EmptyRunDurationMs
+      ) {
+        bullets.push(
+          `- [success, possibly empty / no-op run] ${run.id} @ ${run.startedAt}: ${run.durationMs}ms`
+        )
+      }
+    }
+    if (!bullets.length) return ``
+
+    const out = `## Recent run outcomes\n${bullets.join(`\n`)}\n\n`
+    return out.length > RunOutcomeInjectMaxChars
+      ? out.slice(0, RunOutcomeInjectMaxChars)
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildRunOutcomeContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Build the injected digest of already-open proposals for a SENSOR cycle so it
+ * does not re-sense the same work. Lists every pending + scanned proposal as one
+ * line: `- <dedupeKey> [<priority>] <title> (<status>)`. Empty → ''. Never throws.
+ */
+export async function buildOpenProposalsDigest(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const [{ data: pending }, { data: scanned }] = await Promise.all([
+      db.services.taskProposal.listByStatus(schedule.orgId, ETaskProposalStatus.pending),
+      db.services.taskProposal.listByStatus(schedule.orgId, ETaskProposalStatus.scanned),
+    ])
+    const proposals = [...(pending ?? []), ...(scanned ?? [])]
+    if (!proposals.length) return ``
+
+    const lines = proposals
+      .map((p) => `- ${p.dedupeKey} [${p.priority}] ${p.title} (${p.status})`)
+      .join(`\n`)
+    return `## Recently proposed backlog (do not duplicate)\n${lines}\n\n`
+  } catch (err) {
+    logger.error(
+      `[Executor] buildOpenProposalsDigest failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Build the injected scanned-backlog context for a WORK cycle: the pickup-ready
+ * proposals (scanned, priority-ordered P0-first by the service) it may promote
+ * by opening a PR. Each entry carries its tp_ id, priority, title, source signal,
+ * an evidence excerpt, and a description excerpt. Empty → ''. Capped at
+ * TaskBacklogInjectMaxChars. Never throws.
+ */
+export async function buildTaskBacklogContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const { data: proposals } = await db.services.taskProposal.listBacklog(
+      schedule.orgId,
+      TaskBacklogInjectMax
+    )
+    if (!proposals?.length) return ``
+
+    const bullets = proposals
+      .map(
+        (p) =>
+          `- ${p.id} [${p.priority}] ${p.title}\n  signal: ${p.sourceSignal} | evidence: ${(
+            p.evidence ?? ``
+          ).slice(0, 300)}\n  ${(p.description ?? ``).slice(0, 500)}`
+      )
+      .join(`\n`)
+    const out = `## Proposed backlog (sensor-detected)\n${bullets}\n\n`
+    return out.length > TaskBacklogInjectMaxChars
+      ? out.slice(0, TaskBacklogInjectMaxChars)
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildTaskBacklogContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output task-proposal block emitted by a
+ * successful SENSOR run: each sensed entry is deduped + security-scanned at
+ * authoring time (scanned | rejected) via authorTaskProposal, with citation meta
+ * ({threadId, scheduleId}). Never throws — a failure never fails the run.
+ */
+export async function persistTaskProposals(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const entries = parseTasksBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db } = app.locals
+    const meta = { threadId, scheduleId: schedule.id }
+    let persisted = 0
+    for (const entry of entries) {
+      try {
+        await authorTaskProposal(db, schedule.orgId, agentId, entry, meta)
+        persisted++
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to persist task proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+    logger.info(
+      `[Executor] Schedule ${schedule.id} — captured ${persisted}/${entries.length} task proposal(s)`
+    )
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — task-proposal capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Parse and apply any structured-output task-pickup block emitted by a
+ * successful WORK run: each pickup marks its scanned proposal promoted
+ * (idempotent, no re-scan) via markTaskPromoted. Never throws.
+ */
+export async function persistTaskPickups(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const pickups = parseTaskPickupsBlock(stdoutText)
+    if (!pickups.length) return
+
+    const { db } = app.locals
+    let promoted = 0
+    for (const pickup of pickups) {
+      try {
+        await markTaskPromoted(db, schedule.orgId, pickup, agentId)
+        promoted++
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to promote task proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+    logger.info(
+      `[Executor] Schedule ${schedule.id} — promoted ${promoted}/${pickups.length} task proposal(s)`
+    )
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — task-pickup capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -571,12 +799,23 @@ async function runCliAgentSchedule(
 
   const memorySection = await buildMemoryContext(app, schedule, agent.id)
   const reviewSection = await buildProposalReviewContext(app, schedule)
+  // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
+  // tdsk-tasks block) gets its own recent run outcomes + a digest of open
+  // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
+  // scanned backlog. Cycles that opt into neither pay for neither query.
+  const sensorSection = promptOptsIn(schedule, TasksBlockFence)
+    ? (await buildRunOutcomeContext(app, schedule)) +
+      (await buildOpenProposalsDigest(app, schedule))
+    : ``
+  const backlogSection = promptOptsIn(schedule, TaskPickupsBlockFence)
+    ? await buildTaskBacklogContext(app, schedule)
+    : ``
   const baseCommand = buildCliCommand(
     schedule,
     agent,
     sandboxConfig,
     previousReport,
-    memorySection + reviewSection
+    memorySection + reviewSection + sensorSection + backlogSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -742,6 +981,10 @@ async function runCliAgentSchedule(
     // auditor review decisions (promoted/rejected through the hard scan gate).
     await persistSkillProposals(app, schedule, agent.id, threadId, stdoutText)
     await persistSkillReviews(app, schedule, agent.id, stdoutText)
+    // Capture self-sensed task proposals (SENSOR cycle) and any work-cycle
+    // pickups that promote a scanned proposal once its PR opens.
+    await persistTaskProposals(app, schedule, agent.id, threadId, stdoutText)
+    await persistTaskPickups(app, schedule, agent.id, stdoutText)
   }
 
   return result
