@@ -19,7 +19,16 @@ pipelines:
   deploy:
     run: |-
       ensure_pull_secrets --all
-      run_pipelines deploy-caddy deploy-px deploy-backend deploy-embeddings
+      # Warm-up (helm race fix): deploy the FIRST chart alone so DevSpace
+      # provisions its own helm binary (downloaded to ~/.devspace/bin/helm at
+      # whatever version it wants) exactly once, serially. The remaining charts
+      # then deploy in parallel against the already-present binary. Without
+      # this, the parallel create_deployments calls each trigger a concurrent
+      # helm download to the same path and race, failing with
+      # `fork/exec ~/.devspace/bin/helm: text file busy` (run 28717891612).
+      # Zero maintenance: DevSpace chooses the version, we pin nothing.
+      run_pipelines deploy-caddy
+      run_pipelines deploy-px deploy-backend deploy-embeddings
 
   deploy-caddy:
     run: |-

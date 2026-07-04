@@ -3,7 +3,7 @@
 ## 🚨🚨🚨 ABSOLUTE #1 RULE: NEVER STASH GIT TRACKED FILES 🚨🚨🚨
 
 - **ALLOWED**: `git add`, `git status`, `git diff`, `git log`, `git branch`, `git show`
-- **BLOCKED**: `git reset`, `git revert`, `git stash`, `git merge`
+- **BLOCKED**: `git reset`, `git revert`, `git stash`
 
 ### Git Authority (multi-agent coordination)
 

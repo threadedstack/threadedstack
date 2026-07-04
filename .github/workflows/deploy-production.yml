@@ -138,18 +138,6 @@ jobs:
           sudo mv devspace /usr/local/bin/devspace
           devspace --version
 
-      - name: Pre-seed DevSpace helm
-        # DevSpace ignores the system helm and downloads its own copy to
-        # ~/.devspace/bin on first use. With multiple charts deploying in
-        # parallel, the concurrent execs race the in-flight download and fail
-        # with `fork/exec ~/.devspace/bin/helm: text file busy` (run
-        # 28717891612). Seeding the path with the system helm makes the
-        # download unnecessary and the race impossible.
-        run: |
-          mkdir -p "$HOME/.devspace/bin"
-          cp "$(command -v helm)" "$HOME/.devspace/bin/helm"
-          "$HOME/.devspace/bin/helm" version --short
-
       - name: Set up Docker Buildx
         # install: true makes `docker build` use the buildx docker-container
         # driver. Still required even for the amd64-only release: the registry
