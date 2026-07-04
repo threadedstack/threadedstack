@@ -1788,7 +1788,7 @@ describe(`SandboxService`, () => {
   })
 
   describe(`waitForPodReady`, () => {
-    const cloneReadyCmd = `[ -z "$TDSK_GIT_COUNT" ] || [ "$TDSK_GIT_COUNT" = "0" ] || find /workspace -maxdepth 2 -name .git | grep -q .`
+    const cloneReadyCmd = `[ -f /workspace/.tdsk-workspace-ready ]`
 
     it(`should resolve once the pod transitions Pending → Running`, async () => {
       vi.useFakeTimers()

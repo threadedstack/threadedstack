@@ -11,7 +11,7 @@ The **Agent** repo (`repos/agent`, `@tdsk/agent`) is a headless AI agent orchest
 
 - **Instance-based `AgentRunner`** with `init()` / `runTurn()` / `updateConfig()` / `destroy()` lifecycle, plus static `AgentRunner.run()` for one-shot SSE use
 - **Wraps pi-mono** (`@mariozechner/pi-agent-core` Agent class) for multi-turn ReAct loops with streaming, automatic context management (prune/compact), and transient error retries
-- **11 runtime tools** (defined in `tools/tools.ts`): 9 sandbox tools (fs, shell, code, artifact) + 2 web tools (search, fetch via Jina), plus variable custom function tools from `FunctionModel[]`. Note: `tools/definitions/` is legacy/unused
+- **11 runtime tools** (defined in `tools/tools.ts`): 9 sandbox tools (fs, shell, code, artifact) + 2 web tools (search, fetch via Jina), plus 2 memory tools (`memorySearch`, `memoryWrite`) when an `IMemoryProvider` is injected, plus variable custom function tools from `FunctionModel[]`. Note: `tools/definitions/` is legacy/unused
 - **Supports all pi-mono LLM providers** (Anthropic, OpenAI, Google, etc.) via `getModel()`, extended thinking via `thinkingLevel`, and custom message roles (artifact, notification, systemEvent) filtered before LLM calls
 - **Pluggable persistence** via `IAgentRunnerDB` interface -- backend uses direct DB, TSA delegates to backend API
 
@@ -39,7 +39,7 @@ The `AgentRunner` is an instance that maintains state across turns. It wraps pi-
 - **Message Converter** -- bidirectional conversion between `TMessageContent[]` and pi-mono `Message[]`, handling text, images, files, thinking, tool_use, tool_result
 - **Skill Resolver** (`resolveActiveSkills`) -- per-turn keyword-triggered skill activation, injects instructions into system prompt and merges tool names
 - **Error Classifier** (`isTransientError`) -- regex-based detection of rate limits, 429, 502/503, timeouts, network errors; retry loop with exponential backoff via `agent.continue()`
-- **Context Manager** (`createContextManager`) -- keeps messages within a percentage of the model's context window using prune (drop oldest) or compact (LLM-summarize old) strategy
+- **Context Manager** (`createContextManager`) -- keeps messages within a percentage of the model's context window using prune (drop oldest) or compact (LLM-summarize old) strategy. Its `onSummary` callback (fire-and-forget) hands the compaction summary to the runner, which persists it as a durable `compaction`-kind memory via the injected `memoryProvider` instead of discarding it
 - **Custom Messages** -- declaration merging adds `artifact`, `notification`, `systemEvent` roles to pi-agent-core; stored in history but filtered out before LLM calls via `filterCustomMessages`
 
 ### AgentRunner Lifecycle
@@ -58,7 +58,7 @@ Resolves active skills for this turn, wires abort signal, builds user content (t
 
 All types are in `src/types/`. Key interfaces and their fields:
 
-- **TAgentInitOpts** -- agentId, threadId, userId, orgId, db (IAgentRunnerDB), llmConfig (TLLMAdapterConfig), sandboxConfig?, tools?, environment? (TAgentEnvironment), onEvent, customFunctions?, onExecuteFunction?, skills?
+- **TAgentInitOpts** -- agentId, threadId, userId, orgId, db (IAgentRunnerDB), llmConfig (TLLMAdapterConfig), sandboxConfig?, tools?, environment? (TAgentEnvironment), onEvent, customFunctions?, onExecuteFunction?, skills?, memoryProvider? (IMemoryProvider, enables the memory tools)
 - **TAgentTurnOpts** -- prompt, images?, files?, signal?
 - **TAgentConfig** -- model?, provider?, systemPrompt?, thinkingLevel?, tools? (runtime-updatable between turns)
 - **TAgentHandle** -- steer(message), followUp(message), abort(), waitForIdle()
@@ -76,6 +76,10 @@ All types are in `src/types/`. Key interfaces and their fields:
 ### Web Tools (createWebTools)
 
 2 tools backed by `IWebProvider`: `webSearch` (search → titles/URLs/snippets), `webFetch` (URL → cleaned markdown). Returns "not configured" gracefully when no provider.
+
+### Memory Tools (createMemoryTools)
+
+2 tools (`memorySearch`, `memoryWrite`) backed by an injected `IMemoryProvider` (`src/types/memory.types.ts`), added only when `opts.memoryProvider` is present. This is the api-brain memory path: the backend supplies the provider (scored search + write over the `memories` store); tool errors are logged and returned gracefully rather than thrown.
 
 ### JinaWebProvider
 

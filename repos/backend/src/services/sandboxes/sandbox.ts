@@ -917,11 +917,16 @@ export class SandboxService {
 
     if (!opts?.cloneCheck) return
 
-    // The entrypoint clones repos synchronously before running the main
-    // command, so pod phase Running does not imply /workspace is populated.
-    // Exit 0 = no clones configured OR at least one .git dir exists.
+    // The entrypoint clones repos (and optionally pre-installs deps) synchronously
+    // before running the main command, so pod phase Running does not imply the
+    // workspace is prepared. The entrypoint writes /workspace/.tdsk-workspace-ready
+    // as its LAST step (after clone + any pre-install), so that marker is the
+    // authoritative "setup complete" signal — waiting on it avoids exec'ing the AI
+    // tool while a pre-install is still running (the .git dir appears before the
+    // install finishes). Images that predate the marker never create it, so the
+    // wait falls through to the timeout-warn-continue path below (non-fatal).
     // Runs inside the pod via the K8s Exec API (KubeSandbox), never on the host.
-    const cloneReadyCmd = `[ -z "$TDSK_GIT_COUNT" ] || [ "$TDSK_GIT_COUNT" = "0" ] || find /workspace -maxdepth 2 -name .git | grep -q .`
+    const cloneReadyCmd = `[ -f /workspace/.tdsk-workspace-ready ]`
     const sb = new KubeSandbox(this.kube, instanceId)
 
     for (;;) {

@@ -80,5 +80,27 @@ if [ "$GIT_COUNT" -gt 0 ] 2>/dev/null; then
   done
 fi
 
+# 3b. Pre-install dependencies for a single-repo workspace so the AI tool never
+# has to run a slow `pnpm install` inside its one-shot turn (a one-shot CLI brain
+# tends to background long commands and exit, producing an empty run). Runs in the
+# foreground here, as the sandbox user, before the tool starts. Non-fatal: a failure
+# is logged and the tool can retry. Skipped unless TDSK_SB_PREINSTALL=1 and a pnpm
+# workspace is present at /workspace.
+if [ "${TDSK_SB_PREINSTALL:-0}" = "1" ] && [ -f /workspace/pnpm-lock.yaml ]; then
+  echo "[sandbox-entrypoint] Pre-installing workspace dependencies (pnpm install)..."
+  if su -s /bin/bash sandbox -c 'cd /workspace && COREPACK_ENABLE_STRICT=0 pnpm install 2>&1 | tail -20'; then
+    echo "[sandbox-entrypoint] Dependency pre-install complete."
+  else
+    echo "[sandbox-entrypoint] WARNING: dependency pre-install failed — the tool may need to install." >&2
+  fi
+fi
+
+# 3c. Signal that all entrypoint setup (clone + optional pre-install) is done, so
+# the backend's readiness wait execs the AI tool only once the workspace is fully
+# prepared — not merely once the pod phase is Running (postStart/exec can race the
+# entrypoint otherwise).
+mkdir -p /workspace 2>/dev/null || true
+: > /workspace/.tdsk-workspace-ready 2>/dev/null || true
+
 # 4. Execute the container command (AI tool or sleep infinity)
 exec "$@"

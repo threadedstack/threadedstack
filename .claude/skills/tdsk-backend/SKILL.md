@@ -67,7 +67,7 @@ Other endpoint dirs follow standard CRUD pattern: `apiKeys/`, `assets/`, `auth/`
 
 1. `index.ts` re-exports `start.ts`
 2. `start.ts` loads `backend.config.ts` and calls `main(config)`
-3. `main.ts` stores config on `app.locals.config`, creates `EmailService` and `PaymentsService` on `app.locals`, then runs middleware setup in order (see below)
+3. `main.ts` stores config on `app.locals.config`, creates `EmailService`, `PaymentsService`, and `EmbeddingService` (at `app.locals.embeddings`) on `app.locals`, then runs middleware setup in order (see below)
 
 ### Server Core
 - `server/app.ts` — Express app singleton
@@ -123,6 +123,7 @@ Auth, subscription, and quota enforcement are applied in `accounts.ts`, not glob
 | InviteService | `services/invite.ts` | Invitation email logic — token generation, expiration, email dispatch |
 | SessionTokenService | `services/sessionToken.ts` | `signSessionToken`, `verifySessionToken`, `signShellToken`, `verifyShellToken` — session/shell token signing and verification |
 | SandboxService | `services/sandboxes/sandbox.ts` | K8s pod lifecycle, session tracking, idle timeout, shell session management, subdomain proxy routing, monitor WebSocket management (see below) |
+| EmbeddingService | `services/embeddings/embedding.ts` | Memory embeddings. `resolveEmbeddingProvider(db, orgId)` picks the first org ai provider (oldest `createdAt`) whose `options.embeddingModel` is set (openai/google); `embed`/`embedOne` resolve the API key via SecretResolver and call the provider. NULL-safe: no opted-in provider ⇒ returns null embeddings (memory search falls back to lexical-only). Attached at `app.locals.embeddings` |
 | Websocket | `services/websocket/websocket.ts` | Persistent AI WebSocket handler (see below) |
 
 ### Endpoint Type Services (`services/endpoints/`)
@@ -158,6 +159,7 @@ Transparent MITM proxy for sandbox pod outbound HTTP/HTTPS traffic:
 - TCP front server sniffs first byte: HTTP (non-0x16) piped directly to MITM with `X-TDSK-Real-IP`; TLS (0x16) has SNI extracted from ClientHello, converted to HTTP CONNECT tunnel
 - MITM proxy scans headers for `tdsk_ph_*` placeholder tokens, resolves to real secrets via `SecretResolver`
 - Throws on unresolvable secrets to prevent placeholder leaks
+- **Fail-closed swap (`replaceTokens`):** a placeholder is swapped to its real secret ONLY when it carries a non-empty `allowedDomains` scope AND the destination host matches that scope. An unscoped placeholder is never swapped (previously unscoped tokens were swapped to any host), so a secret can never leak to an unintended domain
 - `EgressProxy.init(app)` checks CA cert files at `/etc/tdsk/ca/tls.{crt,key}`, creates temp CA dir for `http-mitm-proxy`, starts both MITM (internal loopback) and TCP front (public port)
 
 ### SandboxService (`services/sandboxes/sandbox.ts`)
@@ -221,6 +223,14 @@ The prompt module (`services/interpreter/prompt.ts`) provides `getSystemPrompt()
 
 `createScheduler(db, executeAgent?)` returns a `Scheduler` instance. The `executeAgent` callback receives schedule + agent config, defaults to running via `AgentEndpoint`. Cron parsing uses `cronParser.ts` with `isValidCron()` and `parseNextRun()`.
 
+### Runtime-Brain Executor (`services/scheduler/executor.ts`)
+
+Drives scheduled autonomous-agent runs whose brain is the in-pod coding CLI (`claude -p`).
+
+- **Memory injection:** before invoking the pod prompt, the executor injects a `## Roadmap` block (from `db.services.memory.getRoadmap`) and a `## Relevant memories` block (from scored `searchScored`) into the runtime-brain prompt, in soul → roadmap → memories → prompt order (`utils/agent/memory.ts`).
+- **tdsk-memories capture:** after a run, the executor parses a trailing `tdsk-memories` JSON fenced code block from the transcript and persists each entry as a new memory row.
+- **Provider failover:** the runtime brain fails over across the sandbox's priority-ordered ai providers on transient upstream failure (Anthropic 529/Overloaded, rate limits, upstream 5xx), analogous to the api-brain `llmConfigs` failover. `resolveProviderEnvChain` (in `utils/sandbox/resolveProviderEnv.ts`) resolves a per-provider env set for each provider (no longer merged — fixes the `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_BASE_URL` collision) plus a merged domain-scoped placeholders map. The priority-0 provider's env becomes the pod default; each fallback (e.g. ZAI `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`, OpenRouter `https://openrouter.ai/api`) prefixes its OWN env inline when the executor re-runs the prompt against it. Fallbacks capped at `CliMaxProviderFailovers`; each token stays domain-scoped so egress swaps cleanly. `RuntimeProviderEnvMap[claudeCode]` maps zai/openrouter.
+
 ## Endpoints
 
 ### Endpoint Definition Pattern
@@ -259,6 +269,8 @@ Endpoints are defined as `TEndpointConfig` objects (static) or `TEndpointBuilder
 | POST | `/_/orgs/:orgId/skills/:id/attach` | Attach skill to agent | JWT/API key |
 | POST | `/_/orgs/:orgId/skills/:id/detach` | Detach skill from agent | JWT/API key |
 | POST | `/_/orgs/:orgId/schedules/:id/trigger` | Manually trigger schedule (executes agent, marks next cron time) | JWT/API key |
+| GET/POST/PATCH/DELETE | `/_/orgs/:orgId/agents/:agentId/memories` | Agent memory CRUD; gated by `authorize(EPermResource.memory)` + `featureGate('memories')` | JWT/API key |
+| POST | `/_/orgs/:orgId/agents/:agentId/memories/search` | Scored memory search (recency x importance x relevance) | JWT/API key |
 | POST | `/_/providers/:brand/models` | Fetch models from `ModelRegistry`; Ollama special-cased with live fetch | JWT/API key |
 | POST | `/_/threads/:id/branch` | Branch thread from specific message | JWT/API key |
 | POST | `/_/orgs/:orgId/agents/:agentId/threads/:threadId/files` | Upload file (body: `fileName`, `data` base64, `mimeType`; 25MB cap) | JWT/API key |

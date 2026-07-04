@@ -447,6 +447,14 @@ second agent alongside the steward and verifying isolated threads and compositio
   `memory_write`; scored retrieval plus nightly reflection; roadmap store plus curriculum
   goal-proposal plus machine-checkable "done"; persist compaction summaries; cross-thread recall.
   Deliverable: a self-directing agent with durable memory.
+  IMPLEMENTED: the `memories` table (pgvector `vector(1536)`, org+agent-scoped, kinds
+  fact/insight/reflection/compaction/roadmap), `db.services.memory.searchScored`/`getRoadmap`/
+  `upsertRoadmap`, a NULL-safe backend `EmbeddingService`, the `memorySearch`/`memoryWrite`
+  agent tools plus executor roadmap/memory injection and `tdsk-memories` capture, and
+  compaction-summary persistence all shipped. In the same pass the runtime brain (`claude -p`)
+  gained api-brain-parity resilience: per-provider env resolution (`resolveProviderEnvChain`)
+  and automatic failover across the sandbox's priority-ordered ai providers on transient upstream
+  failure (529/Overloaded/5xx/rate-limit).
 - **P3: Formal delegation plus self-improvement.** `delegate_task` (bounded depth/turn/
   concurrency, structured result, critic); `authorSkill` plus `skill_proposals` plus security
   scan plus curator; `skills_list`/`skill_view`; PR authorship widens to a bounded set of
