@@ -311,6 +311,25 @@ describe(`buildPodManifest`, () => {
     expect(script).toContain(`/etc/profile.d`)
   })
 
+  it(`should pass setupScript to the entrypoint via TDSK_SETUP_SCRIPT env`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        setupScript: `pnpm install`,
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const env = manifest.spec!.containers![0].env!
+    // Delivered as env for the entrypoint to run post-clone; the entrypoint (not
+    // podManifest) is responsible for executing it after the git clone.
+    expect(env).toContainEqual({ name: `TDSK_SETUP_SCRIPT`, value: `pnpm install` })
+  })
+
+  it(`should not include TDSK_SETUP_SCRIPT env when config.setupScript is absent`, () => {
+    const env = buildPodManifest(buildOpts()).spec!.containers![0].env!
+    expect(env.some((e) => e.name === `TDSK_SETUP_SCRIPT`)).toBe(false)
+  })
+
   it(`should not include initScript block when config.initScript is absent`, () => {
     const manifest = buildPodManifest(buildOpts())
     const postStart = manifest.spec!.containers![0].lifecycle!.postStart!.exec!.command!

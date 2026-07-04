@@ -426,16 +426,21 @@ const providers = {
 
 // --- Secrets (all 4 exclusive arc scopes + combo) ---
 // Provider secrets use env vars from ~/.config/tdsk/values.yaml (loaded by seed.ts via loadEnvs)
+// IMPORTANT: encryptSecret's refId MUST match the scope the secret row is
+// stored under (decrypt derives its key from agentId || providerId ||
+// projectId || orgId on the row). These two rows are provider-scoped, so
+// they MUST encrypt with their provider ids — encrypting with the project id
+// (the historical bug) produces a row that can never be decrypted.
 const anthropicSecret = await encryptSecret(
   `Anthropic API Key`,
   process.env.TDSK_ANTHROPIC_API_KEY || `sk-ant-test-key-for-seeding`,
-  Ids.project.acmeApi
+  Ids.provider.acmeAnthropic
 )
 
 const zaiSecret = await encryptSecret(
   `ZAI API Key`,
   process.env.TDSK_ZAI_API_KEY || `sk-zai-test-key-for-seeding`,
-  Ids.project.acmeApi
+  Ids.provider.zai
 )
 
 const databaseSecret = await encryptSecret(

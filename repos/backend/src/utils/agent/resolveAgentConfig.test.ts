@@ -1,6 +1,8 @@
 import type { TApp } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
+
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -428,6 +430,7 @@ describe(`resolveAgentConfig`, () => {
     })
     expect(mockWaitForPodReady).toHaveBeenCalledWith(`started-pod-name`, {
       cloneCheck: true,
+      timeoutMs: SetupReadyTimeoutMS,
     })
     expect(result.sandboxConfig.provider).toBe(`kubernetes`)
     expect(result.sandboxConfig.options).toEqual({ podName: `started-pod-name` })

@@ -174,6 +174,10 @@ const buildSandboxContainer = (
   if (config.runtime) env.push({ name: `TDSK_RUNTIME`, value: config.runtime })
   if (config.runtimeCommand)
     env.push({ name: `TDSK_RUNTIME_CMD`, value: config.runtimeCommand })
+  // The entrypoint runs this AFTER the git clone (as the sandbox user) and
+  // before the workspace-ready marker, so it gates the AI tool on setup.
+  if (config.setupScript)
+    env.push({ name: `TDSK_SETUP_SCRIPT`, value: config.setupScript })
 
   const ports = buildPorts(config.ports)
 

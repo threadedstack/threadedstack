@@ -116,6 +116,35 @@ export const SandboxConfigAccordion = (props: TSandboxConfigAccordionProps) => {
               sx={{ minHeight: 120 }}
             />
           </Box>
+
+          <Box>
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ mb: 0.5, display: 'block' }}
+            >
+              Setup Script
+              <Typography
+                component='span'
+                variant='caption'
+                color='text.secondary'
+                sx={{ ml: 1 }}
+              >
+                (runs after the git clone, before the tool starts — e.g. install
+                dependencies)
+              </Typography>
+            </Typography>
+            <Code
+              id='sandbox-setup-script'
+              language='shell'
+              disabled={form.loading}
+              options={MonacoOptions}
+              defaultValue={form.setupScript}
+              label=''
+              onChange={(value) => form.setSetupScript(value || ``)}
+              sx={{ minHeight: 120 }}
+            />
+          </Box>
         </Box>
       </AccordionDetails>
     </Accordion>

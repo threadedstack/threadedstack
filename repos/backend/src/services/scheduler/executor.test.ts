@@ -15,7 +15,7 @@ vi.mock(`@TBE/utils/agent/resolveAgentConfig`, () => ({
 }))
 
 import { createScheduleExecutor } from './executor'
-import { ExecTimeoutMS } from '@TBE/constants/sandbox'
+import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 
 const buildApp = () => {
   const sbInstance = {
@@ -342,7 +342,7 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
       })
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
       const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
       await vi.advanceTimersByTimeAsync(121_000)
@@ -393,6 +393,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     // Readiness (phase + clone) wait sits between pod creation and the exec
     expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
       cloneCheck: true,
+      timeoutMs: SetupReadyTimeoutMS,
     })
     expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
       app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
@@ -535,6 +536,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
     expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
       cloneCheck: true,
+      timeoutMs: SetupReadyTimeoutMS,
     })
     expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
       app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
@@ -662,7 +664,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
       const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
       await vi.advanceTimersByTimeAsync(121_000)
@@ -685,7 +687,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(
         agentSchedule({ agentId: undefined, timeoutMs: 120_000 }) as any
       )

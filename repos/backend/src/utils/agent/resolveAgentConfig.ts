@@ -4,6 +4,7 @@ import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domai
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
+import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
@@ -280,7 +281,10 @@ export const resolveAgentConfig = async (
       // entrypoint command runs) — running the agent's first tool call before
       // it is ready fails with "not running". onPodStart already captured the
       // pod name, so callers can still reap the pod when this wait throws.
-      await sandbox.waitForPodReady(startedInstanceId, { cloneCheck: true })
+      await sandbox.waitForPodReady(startedInstanceId, {
+        cloneCheck: true,
+        timeoutMs: SetupReadyTimeoutMS,
+      })
 
       sandboxConfig.options = { podName: startedInstanceId }
     }

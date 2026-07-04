@@ -46,6 +46,7 @@ describe(`mapChangedFiles`, () => {
     expect(mapChangedFiles([`deploy/Caddyfile`]).docker).toEqual([`caddy`])
     expect(mapChangedFiles([`deploy/Dockerfile.caddy`]).docker).toEqual([`caddy`])
     expect(mapChangedFiles([`deploy/Dockerfile.sandbox`]).docker).toEqual([`sandbox`])
+    expect(mapChangedFiles([`deploy/sandbox-entrypoint.sh`]).docker).toEqual([`sandbox`])
     expect(mapChangedFiles([`deploy/Dockerfile.init`]).docker).toEqual([`init`])
   })
 

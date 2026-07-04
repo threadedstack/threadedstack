@@ -178,6 +178,14 @@ work. These are faculties of the one `agent` entity.
   the parent. Thread a `depth`/`maxDepth` field through the init options and reject beyond cap;
   enforce a concurrency cap. Ground every delegated task's success on real sandbox signals
   (exit codes, tests) plus a separate critic call, bounded to a fixed round cap.
+- **IMPLEMENTED (P3a, 2026-07-04):** the `delegateTask` agent tool is live for api-brain
+  agents (gated by the `delegation` feature flag). It spawns a bounded in-pod child coding
+  process via the runtime's `promptCommand` and the K8s exec API — deliberately NOT a nested
+  `AgentRunner` — with depth cap 1 (children cannot delegate; `TDSK_DELEGATION_DEPTH` threaded
+  as defense in depth), a per-pod concurrency cap of 3, timeouts clamped to 30 minutes, stdout
+  tail-capped at 16k chars, and one advisory critic pass (an in-pod CLI verdict grounded on the
+  child's exit code; the critic is a quality signal, not a trust boundary). The runtime-brain
+  steward does not use this tool: it already delegates through its own CLI's subagents.
 
 ### 4.6 Self-improvement
 - **Purpose:** compound competence over time. After a complex verified task the agent authors a
@@ -196,6 +204,20 @@ work. These are faculties of the one `agent` entity.
   `skill_view` for progressive disclosure. A nightly curator schedule (usage tracking,
   mark-stale, archive, consolidate) whose changes flow through the same automatic
   scan-plus-audit promotion. Bind the write path to a scoped agent key, not a human's.
+- **IMPLEMENTED (P3b, 2026-07-04):** the pipeline is live. Api-brain agents get the real
+  `authorSkill`/`skillsList`/`skillView` tools; the runtime brain (`claude -p`) exercises the
+  same faculty through fenced structured-output blocks parsed SERVER-SIDE from its report
+  stdout: a `tdsk-skills` fenced block (JSON array of `{name, description, instructions,
+  tools?, triggerKeywords?, alwaysActive?}`, max 3 per run, instructions capped at 8000 chars)
+  authors PROPOSALS into `skill_proposals`, and a `tdsk-skill-reviews` fenced block (JSON array
+  of `{proposalId, approve, reason}`) records curator decisions on the scanned proposals the
+  executor injects under `## Skill proposals awaiting review`. Every proposal is
+  deterministically security-scanned on creation (exfiltration, prompt-injection, destructive
+  patterns, tool allowlist), and an approval re-runs the scanner as a hard gate
+  (`applySkillReview`) before `promoteSkillProposal` creates and attaches the skill. Humans may
+  veto in the admin Skill Proposals view; nothing an agent emits ever activates directly.
+  `delegateTask` and `authorSkill` are deliberately OUTSIDE the scanner's tool allowlist, so a
+  self-authored skill can never grant itself delegation or recursive authoring.
 
 ### 4.7 Delivery / Ownership
 - **Purpose:** own the full lifecycle hands-free by reducing the agent's verbs to (a) land a

@@ -344,6 +344,22 @@ const SessionInner = () => {
                         }
                       />
                     )}
+                    {sandbox.config.setupScript && (
+                      <ConfigRow
+                        label='Setup Script'
+                        value={
+                          <ConfigValue
+                            noWrap
+                            sx={{ maxWidth: 350, opacity: 0.8 }}
+                            title={sandbox.config.setupScript}
+                          >
+                            {sandbox.config.setupScript.length > 60
+                              ? `${sandbox.config.setupScript.slice(0, 60)}...`
+                              : sandbox.config.setupScript}
+                          </ConfigValue>
+                        }
+                      />
+                    )}
                   </Box>
                 </Card>
               )}

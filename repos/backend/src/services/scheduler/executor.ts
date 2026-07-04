@@ -12,7 +12,7 @@ import type {
 
 import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
-import { ExecTimeoutMS } from '@TBE/constants/sandbox'
+import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import {
   EProvider,
   EMsgType,
@@ -635,7 +635,10 @@ async function runCliAgentSchedule(
   // command runs) — exec'ing before it is ready fails with "not running".
   // instanceId is already recorded via onPodStart, so the caller's finally
   // block still reaps the pod when this wait throws.
-  await sandbox!.waitForPodReady(instanceId, { cloneCheck: true })
+  await sandbox!.waitForPodReady(instanceId, {
+    cloneCheck: true,
+    timeoutMs: SetupReadyTimeoutMS,
+  })
 
   const memorySection = await buildMemoryContext(app, schedule, agent.id)
   const reviewSection = await buildProposalReviewContext(app, schedule)
@@ -957,7 +960,10 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       // instanceId is already assigned, so the finally block still reaps the
       // pod when the readiness wait throws (Failed pod, timeout, etc.)
-      await sandbox.waitForPodReady(instanceId, { cloneCheck: true })
+      await sandbox.waitForPodReady(instanceId, {
+        cloneCheck: true,
+        timeoutMs: SetupReadyTimeoutMS,
+      })
 
       const sandboxConfig = await resolveEffectiveSandboxConfig(
         db,
