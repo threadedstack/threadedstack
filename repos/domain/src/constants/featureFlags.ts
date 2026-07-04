@@ -25,6 +25,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Durable agent memory store with scored retrieval`,
   },
+  delegation: {
+    enabled: true,
+    description: `Bounded task delegation via in-pod child coding processes`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {

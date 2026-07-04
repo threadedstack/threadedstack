@@ -1,5 +1,6 @@
 import type { IMemoryProvider } from './memory.types'
 import type { ISkillProvider } from './skill.types'
+import type { IDelegateProvider } from './delegation.types'
 import type {
   Skill,
   TStreamEvent,
@@ -94,6 +95,15 @@ export type TAgentInitOpts = {
    * runner exposes authorSkill/skillsList/skillView tools.
    */
   skillProvider?: ISkillProvider
+  /**
+   * Task delegation provider (backend-implemented). When present, the runner
+   * exposes the delegateTask tool (bounded in-pod child coding process).
+   */
+  delegateProvider?: IDelegateProvider
+  /** Current delegation depth of THIS agent (0 = root, the default) */
+  delegationDepth?: number
+  /** Max delegation depth; the tool refuses once delegationDepth reaches it */
+  maxDelegationDepth?: number
 }
 
 /**

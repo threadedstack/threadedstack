@@ -8,7 +8,6 @@ import type {
   TSandboxResult,
   TPlaceholderMap,
   TKubeSandboxConfig,
-  TSandboxRuntimeId,
 } from '@tdsk/domain'
 
 import { AgentRunner } from '@tdsk/agent'
@@ -25,11 +24,16 @@ import {
   ESkillProposalStatus,
   MemoryInjectMaxChars,
   SkillReviewInjectMax,
-  SandboxRuntimeConfigs,
   SkillReviewInjectMaxChars,
 } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import {
+  escapePromptArg,
+  foregroundEnvPrefix,
+  resolvePromptTemplate,
+  substitutePlaceholders,
+} from '@TBE/utils/agent/promptCommand'
 import { resolveProviderEnvChain } from '@TBE/utils/sandbox/resolveProviderEnv'
 import { parseSkillBlock, parseSkillReviewsBlock } from '@TBE/utils/agent/skill'
 import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
@@ -50,52 +54,6 @@ const PrevReportMaxChars = 8000
 /** Max bytes of stdout buffered in memory for CLI-brain message persistence (tail-capped) */
 const StdoutBufferMaxBytes = 256 * 1024
 
-/** Escape single quotes so text can be embedded in a single-quoted shell argument. */
-function escapePromptArg(text: string): string {
-  return text.replace(/'/g, `'\\''`)
-}
-
-/**
- * Single-pass placeholder substitution for prompt command templates.
- * A function replacer is immune to `$&`/`` $` ``-style replacement patterns
- * in the substituted text (souls, prompts, and previous reports are arbitrary
- * text — prior LLM output realistically contains `$` sequences, and shell
- * escaping itself produces `'\''` adjacent to `$`). A single pass also cannot
- * re-match placeholder text introduced by an earlier substitution (e.g. a soul
- * containing the literal text `{prompt}` must never consume the template's
- * real `{prompt}` placeholder). Placeholders without a provided value are
- * left untouched.
- */
-function substitutePlaceholders(
-  template: string,
-  values: Partial<Record<`prompt` | `soul`, string>>
-): string {
-  return template.replace(/\{(prompt|soul)\}/g, (match, key: `prompt` | `soul`) => {
-    const value = values[key]
-    return value === undefined ? match : value
-  })
-}
-
-/**
- * Resolve the prompt command template for a sandbox config,
- * validating that a template exists and carries the {prompt} placeholder.
- */
-function resolvePromptTemplate(sandboxConfig: TKubeSandboxConfig): string {
-  const template =
-    sandboxConfig.promptCommand ||
-    SandboxRuntimeConfigs[sandboxConfig.runtime as TSandboxRuntimeId]?.promptCommand
-
-  if (!template)
-    throw new Error(`No prompt command template for runtime "${sandboxConfig.runtime}"`)
-
-  if (!template.includes(`{prompt}`))
-    throw new Error(
-      `Prompt command template for runtime "${sandboxConfig.runtime}" is missing {prompt} placeholder`
-    )
-
-  return template
-}
-
 function resolveScheduleCommand(
   schedule: Schedule,
   sandboxConfig: TKubeSandboxConfig
@@ -110,9 +68,14 @@ function resolveScheduleCommand(
     throw new Error(`Schedule ${schedule.id} has type=prompt but no prompt`)
 
   const template = resolvePromptTemplate(sandboxConfig)
-  return substitutePlaceholders(template, {
+  const command = substitutePlaceholders(template, {
     prompt: escapePromptArg(schedule.prompt),
   })
+
+  // Same one-shot guard as buildCliCommand: force the runtime to run every
+  // command synchronously so nothing is backgrounded into the doomed pod.
+  const prefix = foregroundEnvPrefix(sandboxConfig.runtime)
+  return prefix ? `${prefix} ${command}` : command
 }
 
 /**
@@ -308,6 +271,8 @@ async function runAgentSchedule(
     environment: config.environment,
     sandboxConfig: config.sandboxConfig,
     memoryProvider: config.memoryProvider,
+    skillProvider: config.skillProvider,
+    delegateProvider: config.delegateProvider,
     onExecuteFunction: config.onExecuteFunction,
     customFunctions: config.customFunctions || [],
     onEvent: (event: TStreamEvent) => onStdout(`${JSON.stringify(event)}\n`),
@@ -583,18 +548,21 @@ function buildCliCommand(
     ? `## Your previous report\n${previousReport}\n\n`
     : ``
 
-  if (template.includes(`{soul}`))
-    return substitutePlaceholders(template, {
-      soul: escapePromptArg(agent.soul || ``),
-      prompt: escapePromptArg(`${memorySection}${reportSection}${schedule.prompt}`),
-    })
+  const command = template.includes(`{soul}`)
+    ? substitutePlaceholders(template, {
+        soul: escapePromptArg(agent.soul || ``),
+        prompt: escapePromptArg(`${memorySection}${reportSection}${schedule.prompt}`),
+      })
+    : substitutePlaceholders(template, {
+        prompt: escapePromptArg(
+          `${agent.soul ? `${agent.soul}\n\n` : ``}${memorySection}${reportSection}${schedule.prompt}`
+        ),
+      })
 
-  const soulSection = agent.soul ? `${agent.soul}\n\n` : ``
-  return substitutePlaceholders(template, {
-    prompt: escapePromptArg(
-      `${soulSection}${memorySection}${reportSection}${schedule.prompt}`
-    ),
-  })
+  // Force the one-shot runtime to run every command synchronously — a
+  // backgrounded command dies with the disposable pod, losing all work.
+  const prefix = foregroundEnvPrefix(sandboxConfig.runtime)
+  return prefix ? `${prefix} ${command}` : command
 }
 
 type TCliRunHooks = {

@@ -6,6 +6,7 @@ import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
+import { createDelegateProvider } from '@TBE/utils/agent/delegation'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
@@ -325,6 +326,14 @@ export const resolveAgentConfig = async (
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)
       ? createSkillProvider(db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the delegateTask tool when the feature is enabled
+    delegateProvider: isFeatureEnabled(`delegation`)
+      ? createDelegateProvider(app, db, agent.orgId, agentId, {
+          projectId,
+          podName: sandboxConfig.options?.podName as string | undefined,
+          sandboxId: effectiveAgent.environment?.sandboxId as string | undefined,
+        })
       : undefined,
   }
 }

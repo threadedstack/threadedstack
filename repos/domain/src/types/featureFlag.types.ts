@@ -9,6 +9,7 @@ export type TFeatureFlags = {
   memories: TFeatureFlagDef
   schedules: TFeatureFlagDef
   accessGate: TFeatureFlagDef
+  delegation: TFeatureFlagDef
   terminalGui: TFeatureFlagDef
 }
 

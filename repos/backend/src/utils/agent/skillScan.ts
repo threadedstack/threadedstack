@@ -114,7 +114,13 @@ const TextScanRules: TScanRule[] = [
   },
 ]
 
-/** Agent tools a self-authored skill may activate without review escalation. */
+/**
+ * Agent tools a self-authored skill may activate without review escalation.
+ * EAgentTool.delegateTask and authorSkill are DELIBERATELY excluded: a
+ * self-authored skill must not be able to grant itself delegation (child
+ * process spawning) or recursive skill authoring — fail closed and let a
+ * human widen this list if a real need appears.
+ */
 const SafeSkillTools = new Set<string>([
   EAgentTool.mkdir,
   EAgentTool.listDir,

@@ -9,6 +9,12 @@ describe('FeatureFlags', () => {
     expect(FeatureFlags).toHaveProperty('schedules')
     expect(FeatureFlags).toHaveProperty('skills')
     expect(FeatureFlags).toHaveProperty('memories')
+    expect(FeatureFlags).toHaveProperty('delegation')
+  })
+
+  it(`has the delegation feature enabled`, () => {
+    expect(FeatureFlags.delegation.enabled).toBe(true)
+    expect(isFeatureEnabled(`delegation`)).toBe(true)
   })
 
   it(`has the memories feature enabled`, () => {

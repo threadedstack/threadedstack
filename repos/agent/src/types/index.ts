@@ -1,5 +1,6 @@
 export * from './web.types'
 export * from './memory.types'
 export * from './skill.types'
+export * from './delegation.types'
 export * from './runner.types'
 import './customMessages'
