@@ -37,6 +37,13 @@ export class Scheduler {
     }
 
     logger.info(`[Scheduler] Starting scheduler (60s tick interval)`)
+    // A run executes in-process, so any run still `running` at boot was orphaned
+    // by the previous process dying (a deploy restart mid-run) — its executor is
+    // gone and can neither finish it nor enforce its timeout. Reap before ticking
+    // so those rows don't linger as permanent `running` and the failure is recorded.
+    this.#reapOrphanedRuns().catch((err) =>
+      logger.error(`[Scheduler] Orphaned-run reap failed: ${err}`)
+    )
     // Run an initial tick immediately
     this.tick().catch((err) => logger.error(`[Scheduler] Initial tick failed: ${err}`))
     this.intervalId = setInterval(() => {
@@ -53,6 +60,20 @@ export class Scheduler {
       this.intervalId = null
       logger.info(`[Scheduler] Stopped`)
     }
+  }
+
+  async #reapOrphanedRuns() {
+    const { data, error } = await this.db.services.scheduleRun.failOrphaned(
+      `Orphaned by backend restart — the executor process died mid-run (e.g. a deploy)`
+    )
+    if (error) {
+      logger.error(`[Scheduler] Failed to reap orphaned runs: ${error.message}`)
+      return
+    }
+    if (data?.count)
+      logger.warn(
+        `[Scheduler] Reaped ${data.count} orphaned run(s) left in "running" at startup: ${data.ids.join(`, `)}`
+      )
   }
 
   async #processSchedule(schedule: Schedule) {

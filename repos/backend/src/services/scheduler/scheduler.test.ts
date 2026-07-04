@@ -24,6 +24,9 @@ const buildMockDb = () =>
         markRun: vi.fn(),
         incrementErrors: vi.fn(),
       },
+      scheduleRun: {
+        failOrphaned: vi.fn().mockResolvedValue({ data: { count: 0, ids: [] } }),
+      },
     },
   }) as any
 
@@ -77,6 +80,16 @@ describe(`Scheduler`, () => {
 
       // tick is called immediately
       expect(mockDb.services.schedule.listDue).toHaveBeenCalledTimes(1)
+    })
+
+    it(`reaps runs orphaned by a prior restart on startup`, () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+
+      scheduler.start()
+
+      // Any run left "running" at boot can only be an orphan on a single-replica
+      // backend, so startup must fail them.
+      expect(mockDb.services.scheduleRun.failOrphaned).toHaveBeenCalledTimes(1)
     })
 
     it(`should warn if already running`, async () => {
