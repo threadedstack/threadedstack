@@ -145,7 +145,13 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        # install: true makes `docker build` use the buildx docker-container driver,
+        # which supports multi-platform builds. `tdsk release` runs `docker build
+        # --platform linux/amd64,linux/arm64`; the default classic docker driver
+        # rejects multi-platform ("not supported for the docker driver").
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
       - name: Login to GHCR
         uses: docker/login-action@v3
