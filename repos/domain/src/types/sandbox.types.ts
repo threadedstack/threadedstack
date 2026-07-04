@@ -225,8 +225,16 @@ export type TKubeSandboxConfig = {
   workdir?: string
   command?: string[]
   sshEnabled?: boolean
-  /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
+  /** Shell script run as a K8s postStart hook (concurrent with the entrypoint's
+   * git clone) for environment/home prep — does NOT gate readiness. */
   initScript?: string
+  /** Project setup script run by the entrypoint AFTER the git clone and BEFORE
+   * the workspace-ready marker, as the `sandbox` user in /workspace. This is the
+   * language-agnostic hook for dependency installation and build steps
+   * (`pnpm install`, `bundle install`, `go mod download`, ...). The AI tool /
+   * interactive session waits for it to finish, so a one-shot run never starts
+   * before its dependencies exist. */
+  setupScript?: string
   secretIds?: string[]
   maxInstances?: number
   /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */

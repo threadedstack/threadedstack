@@ -22,9 +22,18 @@ export const WsPingInterval = 30_000
 export const MaxTerminalDim = 500
 export const RateLimiterMaxKeys = 10_000
 
-export const ExecTimeoutMS = 30 * 60_000
+export const ExecTimeoutMS = 60 * 60_000
 
 export const MinScheduleTimeoutMS = 60_000
 export const MaxScheduleTimeoutMS = 2 * 60 * 60_000
 
 export const PodReadyTimeoutMS = 3 * 60_000
+
+/**
+ * Readiness deadline for pod paths that must wait for the entrypoint's setup
+ * script (dependency install/build) to finish before the workspace-ready marker
+ * appears. Longer than PodReadyTimeoutMS because `pnpm install`/`bundle install`
+ * routinely take minutes; the AI tool must not start against a half-installed
+ * workspace.
+ */
+export const SetupReadyTimeoutMS = 10 * 60_000

@@ -4,8 +4,10 @@ import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domai
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
+import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
+import { createDelegateProvider } from '@TBE/utils/agent/delegation'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
@@ -279,7 +281,10 @@ export const resolveAgentConfig = async (
       // entrypoint command runs) — running the agent's first tool call before
       // it is ready fails with "not running". onPodStart already captured the
       // pod name, so callers can still reap the pod when this wait throws.
-      await sandbox.waitForPodReady(startedInstanceId, { cloneCheck: true })
+      await sandbox.waitForPodReady(startedInstanceId, {
+        cloneCheck: true,
+        timeoutMs: SetupReadyTimeoutMS,
+      })
 
       sandboxConfig.options = { podName: startedInstanceId }
     }
@@ -325,6 +330,14 @@ export const resolveAgentConfig = async (
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)
       ? createSkillProvider(db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the delegateTask tool when the feature is enabled
+    delegateProvider: isFeatureEnabled(`delegation`)
+      ? createDelegateProvider(app, db, agent.orgId, agentId, {
+          projectId,
+          podName: sandboxConfig.options?.podName as string | undefined,
+          sandboxId: effectiveAgent.environment?.sandboxId as string | undefined,
+        })
       : undefined,
   }
 }

@@ -5,17 +5,30 @@
  * They should be replaced with the tool definitions defined here.
  */
 
-import type { IWebProvider, IMemoryProvider, ISkillProvider } from '@TAG/types'
+import type {
+  IWebProvider,
+  IMemoryProvider,
+  ISkillProvider,
+  IDelegateProvider,
+  TDelegateToolOpts,
+} from '@TAG/types'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type {
   ISandbox,
   TFunctionExecResult,
+  TSandboxRuntimeId,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
 import { logger } from '@TAG/utils/logger'
 import { Type } from '@earendil-works/pi-ai'
-import { EAgentTool, MemorySearchTopK } from '@tdsk/domain'
+import {
+  EAgentTool,
+  MemorySearchTopK,
+  DelegationMaxDepth,
+  DelegationMaxTimeoutMs,
+  DelegationDefaultTimeoutMs,
+} from '@tdsk/domain'
 
 /**
  * Creates pi-mono AgentTool definitions backed by an ISandbox instance.
@@ -685,6 +698,107 @@ export const createSkillTools = (
           logger.warn(`skillView tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Skill view failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates the task-delegation tool backed by an IDelegateProvider.
+ * `delegateTask` runs a self-contained task as a bounded in-pod child coding
+ * process (backend-implemented). The tool REFUSES (failed result, no provider
+ * call) once the agent's delegation depth reaches the max, so a delegated
+ * child can never delegate again. Filtered by `allowedTools` like the other
+ * factories.
+ */
+export const createDelegateTools = (
+  delegateProvider: IDelegateProvider,
+  allowedTools?: string[],
+  opts?: TDelegateToolOpts
+): AgentTool<any>[] => {
+  const depth = opts?.delegationDepth ?? 0
+  const maxDepth = opts?.maxDelegationDepth ?? DelegationMaxDepth
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.delegateTask,
+      label: `Delegate Task`,
+      description: `Delegate a self-contained coding task to a bounded child coding process running in the agent's body sandbox. Returns the child's output tail, exit code, and a critic verdict. Delegated children cannot delegate further.`,
+      parameters: Type.Object({
+        task: Type.String({
+          description: `Self-contained task prompt for the child process (include all context it needs)`,
+        }),
+        runtime: Type.Optional(
+          Type.String({
+            description: `Override the child runtime (claude-code, codex, opencode, ...). Defaults to the body sandbox runtime.`,
+          })
+        ),
+        tools: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Advisory tool constraints included in the child prompt`,
+          })
+        ),
+        timeoutMs: Type.Optional(
+          Type.Number({
+            description: `Wall-clock timeout in ms (default ${DelegationDefaultTimeoutMs}, capped at ${DelegationMaxTimeoutMs})`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { task: string; runtime?: string; tools?: string[]; timeoutMs?: number },
+        _signal,
+        onUpdate
+      ) => {
+        if (depth >= maxDepth) {
+          return {
+            content: [
+              {
+                type: `text` as const,
+                text: `Delegation refused: max delegation depth (${maxDepth}) reached`,
+              },
+            ],
+            details: { success: false, refused: true },
+          }
+        }
+        onUpdate?.({
+          content: [{ type: `text`, text: `Delegating task...` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await delegateProvider.delegate({
+            task: params.task,
+            tools: params.tools,
+            timeoutMs: params.timeoutMs,
+            runtime: params.runtime as TSandboxRuntimeId | undefined,
+          })
+          const header = result.success
+            ? `Delegated task succeeded`
+            : `Delegated task failed${result.error ? `: ${result.error}` : ``}`
+          const exitLine =
+            result.exitCode !== undefined ? ` (exit ${result.exitCode})` : ``
+          const criticLine = result.critic
+            ? `\nCritic: ${result.critic.passed ? `PASS` : `FAIL`}: ${result.critic.reason}`
+            : ``
+          const text = `${header}${exitLine}${criticLine}\n\nOutput (tail):\n${result.output || `(no output)`}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: {
+              success: result.success,
+              exitCode: result.exitCode,
+              critic: result.critic,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown delegation error`
+          logger.warn(`delegateTask tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Delegation failed: ${message}` }],
             details: { success: false },
           }
         }

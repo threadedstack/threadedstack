@@ -15,7 +15,7 @@ vi.mock(`@TBE/utils/agent/resolveAgentConfig`, () => ({
 }))
 
 import { createScheduleExecutor } from './executor'
-import { ExecTimeoutMS } from '@TBE/constants/sandbox'
+import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 
 const buildApp = () => {
   const sbInstance = {
@@ -342,7 +342,7 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
       })
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
       const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
       await vi.advanceTimersByTimeAsync(121_000)
@@ -393,6 +393,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     // Readiness (phase + clone) wait sits between pod creation and the exec
     expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
       cloneCheck: true,
+      timeoutMs: SetupReadyTimeoutMS,
     })
     expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
       app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
@@ -403,7 +404,9 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
     // Prompt command template applied with the soul prepended to the payload
     const command = sbInstance.execStreaming.mock.calls[0][0]
-    expect(command).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+    expect(command).toBe(
+      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+    )
 
     // User message carries the raw configured prompt; assistant carries stdout
     expect(services.message.create).toHaveBeenNthCalledWith(1, {
@@ -460,7 +463,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     expect(services.message.listByThread).toHaveBeenCalledWith(`th_existing`)
     const command = sbInstance.execStreaming.mock.calls[0][0]
     expect(command).toBe(
-      `claude -p 'CLI SOUL\n\n## Your previous report\nOLD REPORT\n\nReview platform state'`
+      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\n## Your previous report\nOLD REPORT\n\nReview platform state'`
     )
   })
 
@@ -508,7 +511,9 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     )
 
     const command = sbInstance.execStreaming.mock.calls[0][0]
-    expect(command).toBe(`claude -p 'CLI SOUL\n\nBudget is $& and prefix is $\` today'`)
+    expect(command).toBe(
+      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nBudget is $& and prefix is $\` today'`
+    )
   })
 
   it(`preserves $-replacement sequences in a pod schedule's prompt verbatim`, async () => {
@@ -519,7 +524,9 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     )
 
     const command = sbInstance.execStreaming.mock.calls[0][0]
-    expect(command).toBe(`claude -p 'pay $& then $\` please'`)
+    expect(command).toBe(
+      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'pay $& then $\` please'`
+    )
   })
 
   it(`waits for pod readiness between startPod and exec on the pod-schedule path`, async () => {
@@ -529,6 +536,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
     expect(app.locals.sandbox.waitForPodReady).toHaveBeenCalledWith(`pod-cli-1`, {
       cloneCheck: true,
+      timeoutMs: SetupReadyTimeoutMS,
     })
     expect(app.locals.sandbox.startPod.mock.invocationCallOrder[0]).toBeLessThan(
       app.locals.sandbox.waitForPodReady.mock.invocationCallOrder[0]
@@ -656,7 +664,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(agentSchedule({ timeoutMs: 120_000 }) as any)
       const rejection = expect(execPromise).rejects.toThrow(/Timed out after 120s/)
       await vi.advanceTimersByTimeAsync(121_000)
@@ -679,7 +687,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
       const executor = createScheduleExecutor(app)
 
-      // 120s override — far below the 30-minute ExecTimeoutMS default
+      // 120s override — far below the 60-minute ExecTimeoutMS default
       const execPromise = executor(
         agentSchedule({ agentId: undefined, timeoutMs: 120_000 }) as any
       )
@@ -806,8 +814,12 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
       // calls: 0 = primary base, 1 = primary same-provider retry, 2 = zai fallback
       const calls = sbInstance.execStreaming.mock.calls
-      expect(calls[0][0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
-      expect(calls[1][0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+      expect(calls[0][0]).toBe(
+        `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+      )
+      expect(calls[1][0]).toBe(
+        `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+      )
       expect(calls[2][0]).toContain(`ANTHROPIC_BASE_URL='https://api.z.ai/api/anthropic'`)
       expect(calls[2][0]).toMatch(/^env ANTHROPIC_AUTH_TOKEN='tdsk_ph_/)
       expect(calls[2][0]).toContain(`claude -p 'CLI SOUL\n\nReview platform state'`)
@@ -924,10 +936,13 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       await p
 
       const calls = sbInstance.execStreaming.mock.calls
-      // Both attempts use the bare base command — never an env-prefixed failover
+      // Both attempts use the same base command — never an ai-provider failover
+      // prefix (the foreground guard is part of the base command, not a failover)
       expect(calls).toHaveLength(2)
       for (const call of calls)
-        expect(call[0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+        expect(call[0]).toBe(
+          `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+        )
 
       expect(services.message.create).toHaveBeenNthCalledWith(2, {
         threadId: `th_new`,

@@ -36,6 +36,7 @@ import {
   createSkillTools,
   createMemoryTools,
   createSandboxTools,
+  createDelegateTools,
   buildCustomFunctionTools,
 } from '@TAG/tools/tools'
 import {
@@ -685,7 +686,19 @@ export class AgentRunner {
     const skillTools = this.#opts?.skillProvider
       ? createSkillTools(this.#opts.skillProvider, toolNames)
       : []
-    const tools = [...sandboxTools, ...webTools, ...memoryTools, ...skillTools]
+    const delegateTools = this.#opts?.delegateProvider
+      ? createDelegateTools(this.#opts.delegateProvider, toolNames, {
+          delegationDepth: this.#opts.delegationDepth,
+          maxDelegationDepth: this.#opts.maxDelegationDepth,
+        })
+      : []
+    const tools = [
+      ...sandboxTools,
+      ...webTools,
+      ...memoryTools,
+      ...skillTools,
+      ...delegateTools,
+    ]
 
     if (
       includeCustom &&

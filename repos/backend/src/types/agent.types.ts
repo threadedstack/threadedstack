@@ -1,4 +1,9 @@
-import type { IAgentRunnerDB, IMemoryProvider, ISkillProvider } from '@tdsk/agent'
+import type {
+  IAgentRunnerDB,
+  IMemoryProvider,
+  ISkillProvider,
+  IDelegateProvider,
+} from '@tdsk/agent'
 import type {
   Skill,
   Agent,
@@ -55,6 +60,22 @@ export type TAgentRuntimeConfig = {
    * exposes the authorSkill/skillsList/skillView tools.
    */
   skillProvider?: ISkillProvider
+  /**
+   * Task delegation provider (backend-implemented). Present only when the
+   * `delegation` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the delegateTask tool (bounded in-pod child coding process).
+   */
+  delegateProvider?: IDelegateProvider
+}
+
+/** Context handed to createDelegateProvider by resolveAgentConfig. */
+export type TDelegateProviderCtx = {
+  /** K8s pod running the agent's body sandbox (delegation exec target) */
+  podName?: string
+  /** Body sandbox config id, used to resolve the runtime prompt template */
+  sandboxId?: string
+  /** Project scope for effective sandbox config resolution */
+  projectId?: string
 }
 
 export type TResolvedAgentConfig = TAgentRuntimeConfig & {

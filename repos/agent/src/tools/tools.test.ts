@@ -7,6 +7,7 @@ import {
   createWebTools,
   createMemoryTools,
   createSandboxTools,
+  createDelegateTools,
   buildCustomFunctionTools,
 } from './tools'
 
@@ -1419,5 +1420,151 @@ describe(`buildCustomFunctionTools`, () => {
     for (const tool of tools) {
       expect(tool.parameters).toBeDefined()
     }
+  })
+})
+
+describe(`createDelegateTools`, () => {
+  let delegate: ReturnType<typeof vi.fn>
+  let provider: { delegate: ReturnType<typeof vi.fn> }
+
+  beforeEach(() => {
+    delegate = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: `child output`,
+      critic: { passed: true, reason: `looks complete` },
+    })
+    provider = { delegate }
+  })
+
+  describe(`tool creation and filtering`, () => {
+    it(`should expose the delegateTask tool`, () => {
+      const tools = createDelegateTools(provider as any)
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(EAgentTool.delegateTask)
+    })
+
+    it(`should filter by allowedTools names`, () => {
+      expect(createDelegateTools(provider as any, [`nonExistent`])).toHaveLength(0)
+      expect(
+        createDelegateTools(provider as any, [EAgentTool.delegateTask])
+      ).toHaveLength(1)
+    })
+
+    it(`should return the tool when allowedTools is empty`, () => {
+      expect(createDelegateTools(provider as any, [])).toHaveLength(1)
+    })
+  })
+
+  describe(`depth-cap refusal`, () => {
+    it(`refuses without calling the provider once depth reaches the max`, async () => {
+      const tools = createDelegateTools(provider as any, undefined, {
+        delegationDepth: 1,
+        maxDelegationDepth: 1,
+      })
+      const result = await tools[0].execute(
+        `call-1`,
+        { task: `do work` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(delegate).not.toHaveBeenCalled()
+      expect(result.details).toEqual({ success: false, refused: true })
+      expect((result.content[0] as { text: string }).text).toContain(
+        `max delegation depth`
+      )
+    })
+
+    it(`delegates at depth 0 with the default max`, async () => {
+      const tools = createDelegateTools(provider as any)
+      await tools[0].execute(`call-1`, { task: `do work` }, undefined as any, vi.fn())
+      expect(delegate).toHaveBeenCalledWith({
+        task: `do work`,
+        tools: undefined,
+        timeoutMs: undefined,
+        runtime: undefined,
+      })
+    })
+  })
+
+  describe(`result formatting`, () => {
+    it(`formats a successful result with exit code and critic verdict`, async () => {
+      const tools = createDelegateTools(provider as any)
+      const result = await tools[0].execute(
+        `call-1`,
+        { task: `do work` },
+        undefined as any,
+        vi.fn()
+      )
+
+      const text = (result.content[0] as { text: string }).text
+      expect(text).toContain(`Delegated task succeeded (exit 0)`)
+      expect(text).toContain(`Critic: PASS: looks complete`)
+      expect(text).toContain(`child output`)
+      expect(result.details).toEqual({
+        success: true,
+        exitCode: 0,
+        critic: { passed: true, reason: `looks complete` },
+      })
+    })
+
+    it(`formats a failed result with the error and without a critic line`, async () => {
+      delegate.mockResolvedValue({
+        success: false,
+        output: ``,
+        error: `Delegation concurrency cap (3) reached`,
+      })
+      const tools = createDelegateTools(provider as any)
+      const result = await tools[0].execute(
+        `call-1`,
+        { task: `do work` },
+        undefined as any,
+        vi.fn()
+      )
+
+      const text = (result.content[0] as { text: string }).text
+      expect(text).toContain(`Delegated task failed: Delegation concurrency cap`)
+      expect(text).not.toContain(`Critic:`)
+      expect(text).toContain(`(no output)`)
+      expect(result.details.success).toBe(false)
+    })
+
+    it(`passes runtime, tools, and timeoutMs through to the provider`, async () => {
+      const tools = createDelegateTools(provider as any)
+      await tools[0].execute(
+        `call-1`,
+        {
+          task: `do work`,
+          runtime: `codex`,
+          tools: [`readFile`],
+          timeoutMs: 5000,
+        },
+        undefined as any,
+        vi.fn()
+      )
+      expect(delegate).toHaveBeenCalledWith({
+        task: `do work`,
+        runtime: `codex`,
+        tools: [`readFile`],
+        timeoutMs: 5000,
+      })
+    })
+
+    it(`returns a failed result when the provider rejects`, async () => {
+      delegate.mockRejectedValue(new Error(`pod not running`))
+      const tools = createDelegateTools(provider as any)
+      const result = await tools[0].execute(
+        `call-1`,
+        { task: `do work` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.details).toEqual({ success: false })
+      expect((result.content[0] as { text: string }).text).toBe(
+        `Delegation failed: pod not running`
+      )
+    })
   })
 })

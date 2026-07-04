@@ -50,7 +50,9 @@ export const mapChangedFiles = (
     docker.add(`backend`)
 
   if (has(/^deploy\/(Caddyfile|Dockerfile\.caddy)/)) docker.add(`caddy`)
-  if (has(/^deploy\/Dockerfile\.sandbox/)) docker.add(`sandbox`)
+  // sandbox-entrypoint.sh is COPY'd into the sandbox image, so a change to it
+  // must rebuild the sandbox image just like the Dockerfile itself.
+  if (has(/^deploy\/(Dockerfile\.sandbox|sandbox-entrypoint\.sh)/)) docker.add(`sandbox`)
   if (has(/^deploy\/Dockerfile\.init/)) docker.add(`init`)
 
   // Database schema changes require a schema push before backend deploy

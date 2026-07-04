@@ -64,6 +64,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
 
   // Runtime (AI tool runtime)
   const [initScript, setInitScript] = useState(``)
+  const [setupScript, setSetupScript] = useState(``)
   const [runtimeCommand, setRuntimeCommand] = useState(``)
   const [runtime, setRuntime] = useState<TSandboxRuntimeId>(ESandboxRuntime.claudeCode)
 
@@ -320,6 +321,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setRuntime(ESandboxRuntime.claudeCode)
     setRuntimeCommand(``)
     setInitScript(``)
+    setSetupScript(``)
     setGuiOverride(false)
     setSandboxGuiConfig(undefined)
   }
@@ -342,6 +344,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
     setRuntimeCommand(config.runtimeCommand || ``)
     setInitScript(config.initScript || ``)
+    setSetupScript(config.setupScript || ``)
 
     const allLinks = source.providerLinks || []
     setProviderIds(
@@ -512,6 +515,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         imagePullPolicy: imagePullPolicy as TImagePullPolicy,
         ...(effectiveRuntimeCmd ? { runtimeCommand: effectiveRuntimeCmd } : {}),
         ...(effectiveInitScript ? { initScript: effectiveInitScript } : {}),
+        ...(setupScript.trim() ? { setupScript: setupScript.trim() } : {}),
         ...(argsArr.length > 0 ? { args: argsArr } : {}),
         ...(workdir.trim() ? { workdir: workdir.trim() } : {}),
         ...(commandArr.length > 0 ? { command: commandArr } : {}),
@@ -578,6 +582,8 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setRuntime,
     initScript,
     setInitScript,
+    setupScript,
+    setSetupScript,
     runtimeCommand,
     setRuntimeCommand,
     resolvedRuntimeCmd,

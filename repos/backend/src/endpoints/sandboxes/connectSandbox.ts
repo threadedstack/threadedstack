@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
 import { signShellToken } from '@TBE/services/sessionToken'
+import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { resolveSandbox } from '@TBE/utils/sandbox/resolveSandbox'
 import {
   Exception,
@@ -132,6 +133,15 @@ export const connectSandbox: TEndpointConfig = {
           )
           throw new Exception(504, `Pod did not reach Running state within timeout`)
         }
+
+        // Gate interactive connect on the workspace-ready marker so the session
+        // doesn't land in a pod whose setup script (dependency install) is still
+        // running. Non-fatal on timeout — the pod IS running (waitForPodReady
+        // warns and returns), so a slow/absent marker never blocks the connect.
+        await sb.waitForPodReady(instanceId, {
+          cloneCheck: true,
+          timeoutMs: SetupReadyTimeoutMS,
+        })
       } catch (err) {
         try {
           await sb.stopPod(instanceId)

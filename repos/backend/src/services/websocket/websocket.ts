@@ -112,6 +112,8 @@ export class Websocket {
       sandboxConfig: session.sandboxConfig,
       customFunctions: session.customFunctions,
       memoryProvider: session.memoryProvider,
+      skillProvider: session.skillProvider,
+      delegateProvider: session.delegateProvider,
       onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {
         if (this.abortController?.signal.aborted) return

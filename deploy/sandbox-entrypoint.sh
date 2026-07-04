@@ -80,23 +80,26 @@ if [ "$GIT_COUNT" -gt 0 ] 2>/dev/null; then
   done
 fi
 
-# 3b. Pre-install dependencies for a single-repo workspace so the AI tool never
-# has to run a slow `pnpm install` inside its one-shot turn (a one-shot CLI brain
-# tends to background long commands and exit, producing an empty run). Runs in the
-# foreground here, as the sandbox user, before the tool starts. Non-fatal: a failure
-# is logged and the tool can retry. Skipped unless TDSK_SB_PREINSTALL=1 and a pnpm
-# workspace is present at /workspace.
-if [ "${TDSK_SB_PREINSTALL:-0}" = "1" ] && [ -f /workspace/pnpm-lock.yaml ]; then
-  echo "[sandbox-entrypoint] Pre-installing workspace dependencies (pnpm install)..."
-  if su -s /bin/bash sandbox -c 'cd /workspace && COREPACK_ENABLE_STRICT=0 pnpm install 2>&1 | tail -20'; then
-    echo "[sandbox-entrypoint] Dependency pre-install complete."
+# 3b. Run the sandbox's project setup script AFTER the clone and BEFORE the
+# workspace-ready marker, so the AI tool / interactive session never starts before
+# its dependencies exist. This is deliberately language-agnostic: the script comes
+# from the sandbox config (TDSK_SETUP_SCRIPT), so each project runs whatever it
+# needs (`pnpm install`, `bundle install`, `go mod download`, ...). Runs in the
+# FOREGROUND as the sandbox user (which owns /workspace) with /workspace as the
+# working directory. Non-fatal: failures are logged to the same file the backend
+# surfaces for init errors, and the tool can still recover.
+if [ -n "${TDSK_SETUP_SCRIPT:-}" ]; then
+  echo "[sandbox-entrypoint] Running project setup script..."
+  if su -s /bin/bash sandbox -c "cd /workspace && ${TDSK_SETUP_SCRIPT}" 2>&1; then
+    echo "[sandbox-entrypoint] Project setup complete."
   else
-    echo "[sandbox-entrypoint] WARNING: dependency pre-install failed — the tool may need to install." >&2
+    _setup_rc=$?
+    echo "[sandbox-entrypoint] setupScript failed (exit $_setup_rc)" | tee -a /tmp/tdsk-init-error.log >&2
   fi
 fi
 
-# 3c. Signal that all entrypoint setup (clone + optional pre-install) is done, so
-# the backend's readiness wait execs the AI tool only once the workspace is fully
+# 3c. Signal that all entrypoint setup (clone + setup script) is done, so the
+# backend's readiness wait execs the AI tool only once the workspace is fully
 # prepared — not merely once the pod phase is Running (postStart/exec can race the
 # entrypoint otherwise).
 mkdir -p /workspace 2>/dev/null || true
