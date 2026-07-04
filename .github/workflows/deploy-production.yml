@@ -176,7 +176,10 @@ jobs:
           TDSK_EMAIL_API_KEY: ${{ secrets.TDSK_EMAIL_API_KEY }}
         run: |
           MISSING=""
-          check() { [ -z "$2" ] && MISSING="$MISSING $1"; }
+          # `return 0` is REQUIRED: GitHub runs this step under `bash -e`, and a bare
+          # `[ -z "$2" ] && ...` returns 1 when the secret IS present (the && short-
+          # circuits), which would kill the step on the first non-empty secret.
+          check() { [ -z "$2" ] && MISSING="$MISSING $1"; return 0; }
           check "TDSK_CIVO_TOKEN" "$TDSK_CIVO_TOKEN"
           check "TDSK_MASTER_KEY" "$TDSK_MASTER_KEY"
           check "TDSK_DB_URL" "$TDSK_DB_URL"
