@@ -1,8 +1,14 @@
 import type { Mock } from 'vitest'
 import type { TFunctionExecResult } from '@tdsk/domain'
 
+import { EAgentTool } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createSandboxTools, createWebTools, buildCustomFunctionTools } from './tools'
+import {
+  createWebTools,
+  createMemoryTools,
+  createSandboxTools,
+  buildCustomFunctionTools,
+} from './tools'
 
 const SANDBOX_TOOL_NAMES = [
   `shellExec`,
@@ -913,6 +919,203 @@ describe(`createWebTools`, () => {
     it(`should have parameters defined for all web tools`, () => {
       const tools = createWebTools()
       for (const tool of tools) {
+        expect(tool.parameters).toBeDefined()
+      }
+    })
+  })
+})
+
+describe(`createMemoryTools`, () => {
+  const makeProvider = () => ({
+    search: vi.fn().mockResolvedValue([
+      {
+        id: `mm_1`,
+        text: `The prod DB is Neon`,
+        kind: `fact`,
+        importance: 8,
+        score: 4.123,
+      },
+      {
+        id: `mm_2`,
+        text: `Steward runs brain=runtime`,
+        kind: `insight`,
+        importance: 6,
+      },
+    ]),
+    write: vi.fn().mockResolvedValue({ id: `mm_new` }),
+  })
+
+  describe(`tool creation and filtering`, () => {
+    it(`should return 2 memory tools when no filter is provided`, () => {
+      const tools = createMemoryTools(makeProvider())
+      expect(tools).toHaveLength(2)
+      expect(tools.map((t) => t.name)).toEqual([
+        EAgentTool.memorySearch,
+        EAgentTool.memoryWrite,
+      ])
+    })
+
+    it(`should filter to only memorySearch when only that is allowed`, () => {
+      const tools = createMemoryTools(makeProvider(), [EAgentTool.memorySearch])
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(EAgentTool.memorySearch)
+    })
+
+    it(`should filter to only memoryWrite when only that is allowed`, () => {
+      const tools = createMemoryTools(makeProvider(), [EAgentTool.memoryWrite])
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(EAgentTool.memoryWrite)
+    })
+
+    it(`should return all memory tools when allowedTools is empty`, () => {
+      const tools = createMemoryTools(makeProvider(), [])
+      expect(tools).toHaveLength(2)
+    })
+
+    it(`should return no tools when allowedTools has no matches`, () => {
+      const tools = createMemoryTools(makeProvider(), [`shellExec`])
+      expect(tools).toHaveLength(0)
+    })
+  })
+
+  describe(`memorySearch`, () => {
+    it(`should call provider.search and format scored results`, async () => {
+      const provider = makeProvider()
+      const tools = createMemoryTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.memorySearch)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `prod db`, limit: 5, kinds: [`fact`] },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.search).toHaveBeenCalledWith({
+        query: `prod db`,
+        limit: 5,
+        kinds: [`fact`],
+      })
+      const text = (result.content[0] as any).text
+      expect(text).toContain(`[fact]`)
+      expect(text).toContain(`importance 8`)
+      expect(text).toContain(`score 4.123`)
+      expect(text).toContain(`The prod DB is Neon`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, resultCount: 2 })
+      )
+    })
+
+    it(`should return "No memories found" when search returns empty`, async () => {
+      const provider = makeProvider()
+      provider.search.mockResolvedValue([])
+      const tools = createMemoryTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.memorySearch)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `nothing` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `No memories found` }])
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: false, resultCount: 0 })
+      )
+    })
+
+    it(`should call onUpdate with searching status`, async () => {
+      const onUpdate = vi.fn()
+      const tools = createMemoryTools(makeProvider())
+      const tool = tools.find((t) => t.name === EAgentTool.memorySearch)!
+      await tool.execute(`call-1`, { query: `hello` }, undefined as any, onUpdate)
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        content: [{ type: `text`, text: `Searching memory: hello` }],
+        details: { status: `running` },
+      })
+    })
+
+    it(`should catch errors and return failure message`, async () => {
+      const provider = makeProvider()
+      provider.search.mockRejectedValue(new Error(`db down`))
+      const tools = createMemoryTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.memorySearch)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `test` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        { type: `text`, text: `Memory search failed: db down` },
+      ])
+      expect(result.details).toEqual({ success: false })
+    })
+  })
+
+  describe(`memoryWrite`, () => {
+    it(`should call provider.write and confirm with the new id`, async () => {
+      const provider = makeProvider()
+      const tools = createMemoryTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.memoryWrite)!
+      const result = await tool.execute(
+        `call-1`,
+        { text: `remember this`, importance: 7, kind: `insight` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.write).toHaveBeenCalledWith({
+        text: `remember this`,
+        importance: 7,
+        kind: `insight`,
+      })
+      expect(result.content).toEqual([{ type: `text`, text: `Memory saved (mm_new)` }])
+      expect(result.details).toEqual({ success: true, id: `mm_new` })
+    })
+
+    it(`should call onUpdate with writing status`, async () => {
+      const onUpdate = vi.fn()
+      const tools = createMemoryTools(makeProvider())
+      const tool = tools.find((t) => t.name === EAgentTool.memoryWrite)!
+      await tool.execute(`call-1`, { text: `note` }, undefined as any, onUpdate)
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        content: [{ type: `text`, text: `Writing memory...` }],
+        details: { status: `running` },
+      })
+    })
+
+    it(`should catch errors and return failure message`, async () => {
+      const provider = makeProvider()
+      provider.write.mockRejectedValue(new Error(`write failed`))
+      const tools = createMemoryTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.memoryWrite)!
+      const result = await tool.execute(
+        `call-1`,
+        { text: `note` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        { type: `text`, text: `Memory write failed: write failed` },
+      ])
+      expect(result.details).toEqual({ success: false })
+    })
+  })
+
+  describe(`tool metadata`, () => {
+    it(`should have correct labels for memory tools`, () => {
+      const tools = createMemoryTools(makeProvider())
+      expect(tools.map((t) => t.label)).toEqual([`Memory Search`, `Memory Write`])
+    })
+
+    it(`should have descriptions and parameters for all memory tools`, () => {
+      const tools = createMemoryTools(makeProvider())
+      for (const tool of tools) {
+        expect(tool.description).toBeTruthy()
         expect(tool.parameters).toBeDefined()
       }
     })

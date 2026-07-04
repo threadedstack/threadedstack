@@ -1,6 +1,6 @@
 {
   "tagFormat": "tsa-v${version}",
-  "branches": ["production"],
+  "branches": ["main"],
   "plugins": [
     ["@semantic-release/commit-analyzer", {
       "preset": "conventionalcommits",
@@ -26,10 +26,6 @@
         "access": "public",
         "provenance": true
       }
-    }],
-    ["@semantic-release/git", {
-      "assets": ["package.json", "CHANGELOG.md", "npm/*/package.json"],
-      "message": "chore(tsa): release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
     }]
   ]
 }

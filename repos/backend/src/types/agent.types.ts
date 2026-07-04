@@ -1,4 +1,4 @@
-import type { IAgentRunnerDB } from '@tdsk/agent'
+import type { IAgentRunnerDB, IMemoryProvider } from '@tdsk/agent'
 import type {
   Skill,
   Agent,
@@ -43,6 +43,12 @@ export type TAgentRuntimeConfig = {
   environment?: TAgentEnvironment
   envVars: Record<string, string>
   onExecuteFunction: TFunctionExecutionHandler
+  /**
+   * Durable memory provider (backend-implemented). Present only when the
+   * `memories` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the memory_search/memory_write tools.
+   */
+  memoryProvider?: IMemoryProvider
 }
 
 export type TResolvedAgentConfig = TAgentRuntimeConfig & {

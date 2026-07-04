@@ -1,13 +1,18 @@
 import type { TDatabase } from '@tdsk/database'
-import type { IAgentRunnerDB } from '@tdsk/agent'
-import type { TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
+import type { IAgentRunnerDB, IMemoryProvider } from '@tdsk/agent'
+import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
-import { Exception, ESandboxType } from '@tdsk/domain'
+import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
+import {
+  clampImportance,
+  truncateMemoryText,
+  MemoryDefaultImportance,
+} from '@TBE/utils/agent/memory'
 
 /**
  * Create an IAgentRunnerDB adapter wrapping backend database services.
@@ -20,6 +25,65 @@ export const createDBAdapter = (db: TDatabase): IAgentRunnerDB => ({
       limit: opts.limit,
       offset: opts.offset,
     }),
+})
+
+/**
+ * Build the backend IMemoryProvider bridging the agent tools to the memory DB
+ * service + EmbeddingService (null-safe embeddings). Mirrors createDBAdapter:
+ * a pure closure over db + app scoped to one org/agent.
+ */
+export const createMemoryProvider = (
+  app: TApp,
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): IMemoryProvider => ({
+  search: async ({ query, limit, kinds }) => {
+    const queryEmbedding = query
+      ? ((await app.locals.embeddings?.embedOne(query, { orgId })) ?? undefined)
+      : undefined
+
+    const { data, error } = await db.services.memory.searchScored({
+      orgId,
+      agentId,
+      query,
+      queryEmbedding,
+      limit,
+      kinds: kinds as TMemoryKind[] | undefined,
+    })
+    if (error) {
+      logger.warn(`memory_search failed for agent ${agentId}: ${error.message}`)
+      return []
+    }
+
+    return (data || []).map((mem) => ({
+      id: mem.id,
+      text: mem.text,
+      kind: mem.kind,
+      score: mem.score,
+      importance: mem.importance,
+      createdAt: mem.createdAt ? new Date(mem.createdAt).toISOString() : undefined,
+    }))
+  },
+  write: async ({ text, importance, kind, meta }) => {
+    const cleanText = truncateMemoryText(text)
+    const embedding =
+      (await app.locals.embeddings?.embedOne(cleanText, { orgId })) ?? null
+
+    const { data, error } = await db.services.memory.create({
+      orgId,
+      agentId,
+      embedding,
+      text: cleanText,
+      meta: meta ?? null,
+      kind: (kind as TMemoryKind) ?? EMemoryKind.fact,
+      importance: clampImportance(importance ?? MemoryDefaultImportance),
+    } as any)
+    if (error || !data)
+      throw new Exception(500, `Failed to write memory: ${error?.message ?? `unknown`}`)
+
+    return { id: data.id }
+  },
 })
 
 /**
@@ -215,5 +279,9 @@ export const resolveAgentConfig = async (
     environment: effectiveAgent.environment,
     envVars: (effectiveAgent.envVars as Record<string, string>) ?? {},
     tools: (overrides?.tools || effectiveAgent.tools) as string[] | undefined,
+    // Only wire the memory tools when the feature is enabled
+    memoryProvider: isFeatureEnabled(`memories`)
+      ? createMemoryProvider(app, db, agent.orgId, agentId)
+      : undefined,
   }
 }

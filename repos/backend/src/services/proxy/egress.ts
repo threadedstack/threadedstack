@@ -269,14 +269,21 @@ export class EgressProxy {
     for (const [token, entry] of Object.entries(placeholders)) {
       if (!result.includes(token)) continue
 
-      // Domain-gate: skip swap if allowedDomains is set and destination doesn't match
-      if (entry.allowedDomains?.length) {
-        if (!destHost || !isDomainAllowed(destHost, entry.allowedDomains)) {
-          logger.info(
-            `[EgressProxy] Skipping placeholder swap for ${token.slice(0, 12)}… — destination ${destHost || `unknown`} not in allowedDomains`
-          )
-          continue
-        }
+      // Domain-gate, FAIL CLOSED: a placeholder is swapped only when it carries a
+      // non-empty allowedDomains scope AND the destination host matches it. An
+      // unscoped token (no allowedDomains) is never swapped — otherwise a secret
+      // could be injected into a request to any host from inside the pod.
+      if (
+        !entry.allowedDomains?.length ||
+        !destHost ||
+        !isDomainAllowed(destHost, entry.allowedDomains)
+      ) {
+        logger.info(
+          `[EgressProxy] Skipping placeholder swap for ${token.slice(0, 12)}… — destination ${destHost || `unknown`} not in allowedDomains${
+            entry.allowedDomains?.length ? `` : ` (unscoped token, never swapped)`
+          }`
+        )
+        continue
       }
 
       const secret = await this.resolveSecret(entry.secretId)

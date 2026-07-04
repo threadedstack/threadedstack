@@ -682,6 +682,7 @@ describe(`permissions utilities`, () => {
         expect([
           EPermResource.asset,
           EPermResource.skill,
+          EPermResource.memory,
           EPermResource.agent,
           EPermResource.secret,
           EPermResource.domain,

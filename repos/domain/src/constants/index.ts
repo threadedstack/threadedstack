@@ -1,6 +1,7 @@
 export * from './gui'
 export * from './envs'
 export * from './plans'
+export * from './memory'
 export * from './parser'
 export * from './values'
 export * from './access'

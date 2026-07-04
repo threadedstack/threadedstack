@@ -74,6 +74,8 @@ export enum EAgentTool {
   shellExec = `shellExec`,
   deleteFile = `deleteFile`,
   fileExists = `fileExists`,
+  memoryWrite = `memoryWrite`,
+  memorySearch = `memorySearch`,
   createArtifact = `createArtifact`,
 }
 

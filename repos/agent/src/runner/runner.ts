@@ -27,13 +27,14 @@ import { createSandboxProvider } from '@tdsk/sandbox'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
 import { isTransientError } from '@TAG/utils/errorClassifier'
 import { resolveActiveSkills } from '@TAG/utils/skillResolver'
-import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { createContextManager } from '@TAG/utils/contextManager'
 import { createWebProvider } from '@TAG/tools/definitions/web/webProvider'
+import { EContentType, EMemoryKind, buildFallbackModel } from '@tdsk/domain'
 import { getModel, streamSimple, isContextOverflow } from '@earendil-works/pi-ai'
 import {
-  createSandboxTools,
   createWebTools,
+  createMemoryTools,
+  createSandboxTools,
   buildCustomFunctionTools,
 } from '@TAG/tools/tools'
 import {
@@ -272,6 +273,7 @@ export class AgentRunner {
     // 6. Build context manager for automatic context window management
     const budgetPercent = opts.environment?.contextBudgetPercent ?? 80
     const compaction = opts.environment?.contextCompaction
+    const memoryProvider = opts.memoryProvider
     const transformContext = createContextManager(
       this.#model,
       budgetPercent,
@@ -280,6 +282,22 @@ export class AgentRunner {
             strategy: compaction.strategy,
             streamFn: this.#streamFn,
             compactionModel: compaction.compactionModel,
+            // Persist the otherwise-discarded compaction summary as a durable
+            // memory when a provider is configured. Errors are swallowed so
+            // memory persistence can never break a turn.
+            onSummary: memoryProvider
+              ? (summary: string) => {
+                  void memoryProvider
+                    .write({
+                      text: summary,
+                      importance: 5,
+                      kind: EMemoryKind.compaction,
+                    })
+                    .catch((err) => {
+                      logger.warn(`Failed to persist compaction memory: ${err}`)
+                    })
+                }
+              : undefined,
           }
         : undefined
     )
@@ -660,7 +678,10 @@ export class AgentRunner {
     const webProvider = createWebProvider(this.#opts?.environment?.webProvider)
     const sandboxTools = this.#sandbox ? createSandboxTools(this.#sandbox, toolNames) : []
     const webTools = createWebTools(webProvider, toolNames)
-    const tools = [...sandboxTools, ...webTools]
+    const memoryTools = this.#opts?.memoryProvider
+      ? createMemoryTools(this.#opts.memoryProvider, toolNames)
+      : []
+    const tools = [...sandboxTools, ...webTools, ...memoryTools]
 
     if (
       includeCustom &&

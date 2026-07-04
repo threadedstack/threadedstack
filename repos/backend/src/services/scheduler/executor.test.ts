@@ -378,13 +378,16 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     expect(runMock).not.toHaveBeenCalled()
     expect(resolveAgentConfigMock).not.toHaveBeenCalled()
 
-    // Pod started with the agent's body sandbox, not the schedule sandbox
+    // Pod started with the agent's body sandbox, not the schedule sandbox.
+    // With no providers linked the chain is empty (primary env + placeholders
+    // both empty) but is still passed so startPod skips its own ai resolution.
     expect(app.locals.sandbox.startPod).toHaveBeenCalledWith({
       orgId: `org-1`,
       userId: `us_1`,
       sandboxId: `sb-body`,
       projectId: `pr-1`,
       egressOpts: {},
+      providerChain: { primaryEnv: {}, placeholders: {} },
     })
 
     // Readiness (phase + clone) wait sits between pod creation and the exec
@@ -707,5 +710,262 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       expect.objectContaining({ status: `success` })
     )
     expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
+  // ── Provider failover (Wave E) ──────────────────────────────────────
+
+  // A claude-code body sandbox linked to a priority-ordered ai provider chain:
+  // anthropic-oauth (primary), zai (fallback 0), openrouter (fallback 1).
+  const chainSandboxRecord = (
+    links = [
+      {
+        priority: 0,
+        provider: {
+          id: `pv0`,
+          type: `ai`,
+          brand: `anthropic`,
+          secretId: `sc_anth`,
+          options: { authMethod: `oauth` },
+        },
+      },
+      {
+        priority: 1,
+        provider: {
+          id: `pv1`,
+          type: `ai`,
+          brand: `zai`,
+          secretId: `sc_zai`,
+          options: {},
+        },
+      },
+      {
+        priority: 2,
+        provider: {
+          id: `pv2`,
+          type: `ai`,
+          brand: `openrouter`,
+          secretId: `sc_or`,
+        },
+      },
+    ]
+  ) => ({
+    orgId: `org-1`,
+    config: { runtime: `claude-code` },
+    providerLinks: links,
+    getEffectiveConfig() {
+      return this
+    },
+  })
+
+  // Drive execStreaming from a queue: each call emits the queued stdout then
+  // resolves with the queued success/error. Extra calls repeat the last entry.
+  const queueExec = (
+    sbInstance: any,
+    results: Array<{ success: boolean; stdout?: string; error?: string }>
+  ) => {
+    let i = 0
+    sbInstance.execStreaming.mockImplementation(
+      async (_cmd: string, _args: string[], opts: any) => {
+        const r = results[Math.min(i, results.length - 1)]
+        i++
+        if (r.stdout) opts.onStdout(Buffer.from(r.stdout, `utf8`))
+        return {
+          output: ``,
+          error: r.error,
+          success: r.success,
+          exitCode: r.success ? 0 : 1,
+        }
+      }
+    )
+  }
+
+  it(`fails over from a transient primary to the zai fallback and persists its report`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      services.sandbox.get.mockResolvedValue({ data: chainSandboxRecord() })
+      queueExec(sbInstance, [
+        { success: false, stdout: `API Error: 529 Overloaded` },
+        { success: false, stdout: `529 Overloaded` },
+        { success: true, stdout: `ZAI REPORT` },
+      ])
+      const executor = createScheduleExecutor(app)
+
+      const p = executor(agentSchedule() as any)
+      await vi.advanceTimersByTimeAsync(60_000)
+      await p
+
+      // startPod received the primary provider's env (anthropic-oauth) + all
+      // three domain-scoped placeholders as the pod default.
+      const startArgs = app.locals.sandbox.startPod.mock.calls[0][0]
+      expect(startArgs.providerChain.primaryEnv.CLAUDE_CODE_OAUTH_TOKEN).toMatch(
+        /^tdsk_ph_/
+      )
+      expect(Object.keys(startArgs.providerChain.placeholders)).toHaveLength(3)
+
+      // calls: 0 = primary base, 1 = primary same-provider retry, 2 = zai fallback
+      const calls = sbInstance.execStreaming.mock.calls
+      expect(calls[0][0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+      expect(calls[1][0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+      expect(calls[2][0]).toContain(`ANTHROPIC_BASE_URL='https://api.z.ai/api/anthropic'`)
+      expect(calls[2][0]).toMatch(/^env ANTHROPIC_AUTH_TOKEN='tdsk_ph_/)
+      expect(calls[2][0]).toContain(`claude -p 'CLI SOUL\n\nReview platform state'`)
+
+      // The zai fallback's report is the persisted assistant message
+      expect(services.message.create).toHaveBeenNthCalledWith(2, {
+        threadId: `th_new`,
+        type: `assistant`,
+        orgId: `org-1`,
+        content: [{ type: `text`, text: `ZAI REPORT` }],
+      })
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `success` })
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`advances through a transient zai fallback to the openrouter fallback`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      services.sandbox.get.mockResolvedValue({ data: chainSandboxRecord() })
+      queueExec(sbInstance, [
+        { success: false, stdout: `529 Overloaded` }, // primary
+        { success: false, stdout: `529 Overloaded` }, // primary retry
+        { success: false, stdout: `rate limit exceeded` }, // zai
+        { success: false, stdout: `rate limit exceeded` }, // zai retry
+        { success: true, stdout: `OPENROUTER REPORT` }, // openrouter
+      ])
+      const executor = createScheduleExecutor(app)
+
+      const p = executor(agentSchedule() as any)
+      await vi.advanceTimersByTimeAsync(60_000)
+      await p
+
+      const calls = sbInstance.execStreaming.mock.calls
+      // Final attempt targets openrouter with its own base URL prefixed inline
+      const last = calls[calls.length - 1][0]
+      expect(last).toContain(`ANTHROPIC_BASE_URL='https://openrouter.ai/api'`)
+      expect(last).toMatch(/^env ANTHROPIC_AUTH_TOKEN='tdsk_ph_/)
+
+      expect(services.message.create).toHaveBeenNthCalledWith(2, {
+        threadId: `th_new`,
+        type: `assistant`,
+        orgId: `org-1`,
+        content: [{ type: `text`, text: `OPENROUTER REPORT` }],
+      })
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `success` })
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`does NOT fail over on a non-transient failure`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.sandbox.get.mockResolvedValue({ data: chainSandboxRecord() })
+    sbInstance.execStreaming.mockResolvedValue({
+      output: ``,
+      success: false,
+      exitCode: 1,
+      error: `Your credit balance is too low`,
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(
+      /credit balance is too low/
+    )
+
+    // Exactly one exec: no same-provider retry, no failover to zai/openrouter
+    expect(sbInstance.execStreaming).toHaveBeenCalledTimes(1)
+    expect(services.message.create).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
+  it(`with no fallbacks, a transient primary recovers via same-provider retry (Wave B)`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      services.sandbox.get.mockResolvedValue({
+        data: chainSandboxRecord([
+          {
+            priority: 0,
+            provider: {
+              id: `pv0`,
+              type: `ai`,
+              brand: `anthropic`,
+              secretId: `sc_anth`,
+              options: { authMethod: `oauth` },
+            },
+          },
+        ]),
+      })
+      queueExec(sbInstance, [
+        { success: false, stdout: `API Error: 503` },
+        { success: true, stdout: `RECOVERED REPORT` },
+      ])
+      const executor = createScheduleExecutor(app)
+
+      const p = executor(agentSchedule() as any)
+      await vi.advanceTimersByTimeAsync(60_000)
+      await p
+
+      const calls = sbInstance.execStreaming.mock.calls
+      // Both attempts use the bare base command — never an env-prefixed failover
+      expect(calls).toHaveLength(2)
+      for (const call of calls)
+        expect(call[0]).toBe(`claude -p 'CLI SOUL\n\nReview platform state'`)
+
+      expect(services.message.create).toHaveBeenNthCalledWith(2, {
+        threadId: `th_new`,
+        type: `assistant`,
+        orgId: `org-1`,
+        content: [{ type: `text`, text: `RECOVERED REPORT` }],
+      })
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `success` })
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`throws a provider-config error when a linked provider has no domain scope`, async () => {
+    const { app, services } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.sandbox.get.mockResolvedValue({
+      data: chainSandboxRecord([
+        {
+          priority: 0,
+          // custom brand with a secret but no allowedDomains/baseUrl → fail closed
+          provider: { id: `pv0`, type: `ai`, brand: `custom`, secretId: `sc_x` },
+        },
+      ]),
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(
+      /Provider auth configuration error/
+    )
+    // Resolution failed before the pod started
+    expect(app.locals.sandbox.startPod).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error` })
+    )
   })
 })

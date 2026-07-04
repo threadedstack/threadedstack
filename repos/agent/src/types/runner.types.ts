@@ -1,14 +1,15 @@
+import type { IMemoryProvider } from './memory.types'
 import type {
+  Skill,
   TStreamEvent,
+  TFileAttachment,
   TMessageContent,
+  TImageAttachment,
   TLLMAdapterConfig,
   TAgentEnvironment,
   TAgentConfigFields,
   TFunctionExecResult,
-  TImageAttachment,
-  TFileAttachment,
   Function as FunctionModel,
-  Skill,
 } from '@tdsk/domain'
 
 /**
@@ -82,6 +83,11 @@ export type TAgentInitOpts = {
   skills?: Skill[]
   /** Durable identity/constitution, pinned to the top of the system prompt */
   soul?: string
+  /**
+   * Durable memory provider (backend-implemented). When present, the runner
+   * exposes memorySearch/memoryWrite tools and persists compaction summaries.
+   */
+  memoryProvider?: IMemoryProvider
 }
 
 /**

@@ -37,6 +37,12 @@ export type TCompactionOpts = {
   strategy: `prune` | `compact`
   streamFn?: StreamFn
   compactionModel?: string
+  /**
+   * Fire-and-forget callback invoked with the compaction summary once produced.
+   * Used to persist the otherwise-discarded summary as a durable memory.
+   * Errors thrown by the callback are swallowed and never break the transform.
+   */
+  onSummary?: (summary: string) => void | Promise<void>
 }
 
 /**
@@ -69,7 +75,14 @@ export const createContextManager = (
 
     // Use compact strategy if configured and streamFn is available
     if (compaction?.strategy === `compact` && compaction.streamFn) {
-      return compactMessages(anchors, remaining, budget, compaction.streamFn, model)
+      return compactMessages(
+        anchors,
+        remaining,
+        budget,
+        compaction.streamFn,
+        model,
+        compaction.onSummary
+      )
     }
 
     // Default: prune strategy — keep most recent messages that fit
@@ -107,7 +120,8 @@ const compactMessages = async (
   remaining: AgentMessage[],
   budget: number,
   streamFn: StreamFn,
-  model: Model<Api>
+  model: Model<Api>,
+  onSummary?: (summary: string) => void | Promise<void>
 ): Promise<AgentMessage[]> => {
   // Reserve ~20% of budget for the compaction summary itself
   const summaryBudget = Math.floor(budget * 0.2)
@@ -142,6 +156,18 @@ const compactMessages = async (
     if (!summary.trim()) {
       throw new Error(`Compaction produced empty summary`)
     }
+
+    // Fire-and-forget summary persistence; never let it break the transform.
+    if (onSummary) {
+      try {
+        void Promise.resolve(onSummary(summary)).catch((err) => {
+          logger.warn(`Compaction onSummary callback failed: ${err}`)
+        })
+      } catch (err) {
+        logger.warn(`Compaction onSummary callback threw: ${err}`)
+      }
+    }
+
     const summaryMsg: AgentMessage = {
       role: `user`,
       content: `[Summary of earlier conversation]\n${summary}`,

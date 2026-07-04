@@ -5,8 +5,9 @@ import type {
   TDBApiRes,
 } from '@TDB/types'
 
-import { eq, asc } from 'drizzle-orm'
+import { eq, asc, desc } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
+import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
 import { Message as MessageModel } from '@tdsk/domain'
 
@@ -33,6 +34,29 @@ export class Message extends Base<
         offset: opts?.offset,
       })
       return { data: found.map((row) => this.model(row)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Most recent messages across ALL of an agent's threads (cross-thread recall).
+   * Joins threads on messages.threadId and filters by threads.agentId.
+   */
+  async listRecentByAgent(
+    agentId: string,
+    limit = 50
+  ): Promise<TDBApiRes<MessageModel[]>> {
+    try {
+      const rows = await this.db
+        .select({ message: messages })
+        .from(messages)
+        .innerJoin(threads, eq(messages.threadId, threads.id))
+        .where(eq(threads.agentId, agentId))
+        .orderBy(desc(messages.createdAt))
+        .limit(limit)
+
+      return { data: rows.map((row) => this.model(row.message as TDBMessageSelect)) }
     } catch (error: any) {
       return { error }
     }

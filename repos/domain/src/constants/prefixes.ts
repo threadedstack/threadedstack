@@ -8,6 +8,7 @@ export const ApiKeyIdPrefix = `ak_`
 export const SecretIdPrefix = `sc_`
 export const DomainIdPrefix = `dm_`
 export const ThreadIdPrefix = `th_`
+export const MemoryIdPrefix = `mm_`
 export const MessageIdPrefix = `ms_`
 export const ProjectIdPrefix = `pj_`
 export const InvoiceIdPrefix = `in_`

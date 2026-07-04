@@ -20,6 +20,44 @@ export type TPushSafe = {
 const DESTRUCTIVE_RE =
   /(data.?loss|about to (delete|drop|truncate|remove)|Yes, I want to|No, abort|created or renamed from)/i
 
+type TSpawnEnv = {
+  cwd: string
+  env: NodeJS.ProcessEnv
+}
+
+/**
+ * Ensures the pgvector extension exists before the schema push runs.
+ * `drizzle-kit push` cannot create extensions itself, and the statement is
+ * idempotent, so it runs against the target DB via the database repo's
+ * `pnpm sql` script using the same filtered env the push uses.
+ */
+const ensureVectorExtension = async (
+  opts: TSpawnEnv & { log?: boolean }
+): Promise<void> => {
+  const { cwd, env, log } = opts
+  const statement = `CREATE EXTENSION IF NOT EXISTS vector`
+
+  log && Logger.pair(`[Running CMD]`, `pnpm sql "${statement}" (${cwd})`)
+
+  const code = await new Promise<number>((resolve) => {
+    const child = cps(`pnpm`, [`sql`, statement], {
+      cwd,
+      env,
+      stdio: [`ignore`, `pipe`, `pipe`],
+    })
+
+    child.stdout?.setEncoding(`utf-8`)
+    child.stderr?.setEncoding(`utf-8`)
+    child.stdout?.on(`data`, (data) => Logger.stdout(data))
+    child.stderr?.on(`data`, (data) => Logger.stderr(data))
+
+    child.on(`error`, () => resolve(1))
+    child.on(`close`, (exitCode) => resolve(exitCode == null ? 1 : exitCode))
+  })
+
+  if (code !== 0) taskError(`Failed to create the pgvector extension (exit code ${code})`)
+}
+
 /**
  * Runs a non-interactive, additive-only `drizzle-kit push`.
  *
@@ -33,6 +71,9 @@ export const pushSafe = async (opts: TPushSafe): Promise<void> => {
   const env = process.env.NODE_ENV || `production`
   const filtered = filterEnvs(DBEnvFilter, config.envs)
   const cwd = path.join(config.paths.repos, `database`)
+  const spawnEnv = { ...process.env, NODE_ENV: env, ...filtered }
+
+  await ensureVectorExtension({ cwd, env: spawnEnv, log })
 
   log && Logger.pair(`[Running CMD]`, `pnpm push (${cwd})`)
 
@@ -55,7 +96,7 @@ export const pushSafe = async (opts: TPushSafe): Promise<void> => {
         cwd,
         // Detach stdin so an interactive prompt gets EOF instead of hanging
         stdio: [`ignore`, `pipe`, `pipe`],
-        env: { ...process.env, NODE_ENV: env, ...filtered },
+        env: spawnEnv,
       })
 
       const timer = setTimeout(() => {

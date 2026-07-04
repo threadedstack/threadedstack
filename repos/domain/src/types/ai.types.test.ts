@@ -10,6 +10,11 @@ describe(`EAgentTool enum`, () => {
     expect(EAgentTool.createArtifact).toBe(`createArtifact`)
   })
 
+  it(`should have memory tool enum values`, () => {
+    expect(EAgentTool.memoryWrite).toBe(`memoryWrite`)
+    expect(EAgentTool.memorySearch).toBe(`memorySearch`)
+  })
+
   it(`should retain existing tool enum values`, () => {
     expect(EAgentTool.mkdir).toBe(`mkdir`)
     expect(EAgentTool.listDir).toBe(`listDir`)

@@ -16,6 +16,7 @@ const tables = [
   // Leaf / junction tables first
   `quotas`,
   `assets`,
+  `memories`,
   `messages`,
   `threads`,
   `schedules`,

@@ -1,7 +1,11 @@
 name: Deploy to Firebase Hosting on merge
+# Frontends (admin/threads/website) deploy on every push to `main` — the same
+# trigger as the K8s deploy (deploy-production.yml). Merging a PR to main IS the
+# deploy for both backend services and frontends. The `production` branch is a
+# post-deploy marker maintained by deploy-production.yml, not a trigger.
 on:
   push:
-    branches: [production]
+    branches: [main]
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest

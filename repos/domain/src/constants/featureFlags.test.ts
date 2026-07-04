@@ -8,6 +8,12 @@ describe('FeatureFlags', () => {
     expect(FeatureFlags).toHaveProperty('terminalGui')
     expect(FeatureFlags).toHaveProperty('schedules')
     expect(FeatureFlags).toHaveProperty('skills')
+    expect(FeatureFlags).toHaveProperty('memories')
+  })
+
+  it(`has the memories feature enabled`, () => {
+    expect(FeatureFlags.memories.enabled).toBe(true)
+    expect(isFeatureEnabled(`memories`)).toBe(true)
   })
 
   it(`has the agents feature enabled`, () => {

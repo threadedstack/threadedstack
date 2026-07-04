@@ -5,12 +5,19 @@ name: Deploy Production
 # code path. This workflow only prepares the environment (kubeconfig, secrets,
 # registry auth) and then hands off to `tdsk release --env production`.
 #
+# Trigger: every push to `main` (i.e. every merged PR) deploys. Deployment is
+# handled by git — merging to main IS the deploy. The `production` branch is NOT
+# a trigger; it is a MARKER: after a successful deploy the pipeline advances
+# `production` to the just-deployed commit, so `origin/production` always equals
+# the SHA actually running in the Civo production cluster. Never push to
+# `production` by hand — it is machine-maintained and reflects deployed state.
+#
 # Frontends (admin/threads/website) deploy via firebase-hosting-merge.yml, so
 # this workflow runs the release with --no-firebase.
 
 on:
   push:
-    branches: [production]
+    branches: [main]
   workflow_dispatch:
     inputs:
       force_all:
@@ -27,7 +34,9 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  # contents: write so the deploy job can advance the `production` marker branch
+  # to the just-deployed commit after a successful release.
+  contents: write
   packages: write
 
 env:
@@ -221,3 +230,14 @@ jobs:
         run: |
           cd repos/cli
           pnpm cli release --env production --confirm --no-firebase $FORCE_ALL
+
+      - name: Advance production marker
+        # Runs only when the release above succeeded (default step condition).
+        # Point the `production` branch at the exact commit we just deployed, so
+        # `origin/production` is an accurate record of what is running in the
+        # cluster. Force-update: `production` is machine-maintained here and is
+        # simply set to the deployed SHA (it may have diverged historically).
+        run: |
+          DEPLOYED_SHA="${GITHUB_SHA}"
+          echo "Advancing production marker to ${DEPLOYED_SHA}"
+          git push --force origin "${DEPLOYED_SHA}:refs/heads/production"

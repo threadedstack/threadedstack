@@ -53,6 +53,7 @@ export enum EPermResource {
   message = `message`, // Thread messages
   asset = `asset`, // Uploaded assets
   skill = `skill`, // Reusable agent skills
+  memory = `memory`, // Durable agent memories
   schedule = `schedule`, // Agent cron schedules
   sandbox = `sandbox`, // Sandbox configurations
   sandboxSession = `sandboxSession`, // Active sandbox sessions

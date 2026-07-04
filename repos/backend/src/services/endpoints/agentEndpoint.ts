@@ -115,6 +115,7 @@ export class AgentEndpoint extends BaseEndpoint {
       llmConfigs: config.llmConfigs,
       environment: config.environment,
       sandboxConfig: config.sandboxConfig,
+      memoryProvider: config.memoryProvider,
       onExecuteFunction: config.onExecuteFunction,
       customFunctions: config.customFunctions || [],
     })

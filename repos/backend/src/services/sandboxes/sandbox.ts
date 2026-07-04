@@ -53,6 +53,14 @@ type TStartPodOpts = {
   sandboxId: string
   projectId?: string
   egressOpts: TPodEgressOpts
+  // Pre-resolved ai-provider failover chain. When provided, startPod injects
+  // the priority-0 provider's env + ALL providers' (domain-scoped) placeholders
+  // and SKIPS its own resolveProviderEnv ai block, so the caller (the runtime-brain
+  // executor) owns provider resolution and avoids double token generation.
+  providerChain?: {
+    placeholders: TPlaceholderMap
+    primaryEnv: Record<string, string>
+  }
 }
 
 type TPodFilter = {
@@ -288,8 +296,15 @@ export class SandboxService {
       Object.assign(placeholders, gitEnv.placeholders)
     }
 
-    // Resolve env vars for AI providers
-    if (aiProviderLinks.length) {
+    // Resolve env vars for AI providers.
+    // When the caller pre-resolved a failover chain (runtime-brain executor),
+    // inject the primary provider's env + every provider's placeholder and skip
+    // the internal resolution (the caller already generated the tokens — resolving
+    // again here would mint duplicate placeholders the egress proxy can't map).
+    if (opts.providerChain) {
+      Object.assign(extraEnv, opts.providerChain.primaryEnv)
+      Object.assign(placeholders, opts.providerChain.placeholders)
+    } else if (aiProviderLinks.length) {
       const providerEnv = await resolveProviderEnv(
         sandbox.config.runtime,
         aiProviderLinks,

@@ -21,6 +21,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Alpha/beta access gating via user role field`,
   },
+  memories: {
+    enabled: true,
+    description: `Durable agent memory store with scored retrieval`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {

@@ -9,6 +9,7 @@ import type {
   DomainIdPrefix,
   ThreadIdPrefix,
   SecretIdPrefix,
+  MemoryIdPrefix,
   SandboxIdPrefix,
   InvoiceIdPrefix,
   MessageIdPrefix,
@@ -43,6 +44,7 @@ export type TEntityPrefix =
   | typeof DomainIdPrefix
   | typeof ThreadIdPrefix
   | typeof SecretIdPrefix
+  | typeof MemoryIdPrefix
   | typeof SandboxIdPrefix
   | typeof InvoiceIdPrefix
   | typeof MessageIdPrefix

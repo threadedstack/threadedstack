@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { resolveProviderEnv } from './resolveProviderEnv'
+import {
+  resolveProviderEnv,
+  resolveOneProviderEnv,
+  resolveProviderEnvChain,
+} from './resolveProviderEnv'
 
-vi.mock(`nanoid`, () => ({
-  nanoid: () => `mock_nanoid_12345`,
-}))
+// Unique token per call so merged placeholder maps never collide across providers.
+vi.mock(`nanoid`, () => {
+  let n = 0
+  return { nanoid: () => `mock_nanoid_${n++}` }
+})
 
 const mockSecretResolver = {
   resolveApiKey: vi.fn().mockResolvedValue(`decrypted-api-key`),
@@ -853,5 +859,157 @@ describe(`resolveProviderEnv`, () => {
       secretId: `sec_2`,
       allowedDomains: [`openrouter.ai`],
     })
+  })
+})
+
+describe(`resolveOneProviderEnv`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSecretResolver.resolveApiKey.mockResolvedValue(`decrypted-api-key`)
+  })
+
+  it(`resolves a single provider into its own env + domain-scoped placeholder`, async () => {
+    const result = await resolveOneProviderEnv(
+      `claude-code`,
+      {
+        priority: 1,
+        provider: { id: `p1`, brand: `zai`, secretId: `sec_z`, options: {} },
+      },
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.brand).toBe(`zai`)
+    expect(result.env.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
+    expect(result.env.ANTHROPIC_BASE_URL).toBe(`https://api.z.ai/api/anthropic`)
+    expect(Object.keys(result.placeholders)).toHaveLength(1)
+    expect(result.placeholders[result.env.ANTHROPIC_AUTH_TOKEN]).toEqual({
+      secretId: `sec_z`,
+      allowedDomains: [`api.z.ai`],
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it(`fails closed when a mitm secret has no resolvable domain scope`, async () => {
+    const result = await resolveOneProviderEnv(
+      `openclaw`,
+      { priority: 0, provider: { id: `p1`, brand: `custom`, secretId: `sec_1` } },
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain(`no resolvable domain scope for CUSTOM_API_KEY`)
+    expect(result.env.CUSTOM_API_KEY).toBeUndefined()
+    expect(Object.keys(result.placeholders)).toHaveLength(0)
+  })
+})
+
+describe(`resolveProviderEnvChain`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSecretResolver.resolveApiKey.mockResolvedValue(`decrypted-api-key`)
+  })
+
+  it(`builds a priority-ordered chain with isolated env sets and merged domain-scoped placeholders`, async () => {
+    // Deliberately unsorted input — the chain must sort by priority ascending.
+    const links = [
+      { priority: 2, provider: { id: `p3`, brand: `openrouter`, secretId: `sec_or` } },
+      {
+        priority: 0,
+        provider: {
+          id: `p1`,
+          brand: `anthropic`,
+          secretId: `sec_anth`,
+          options: { authMethod: `oauth` },
+        },
+      },
+      {
+        priority: 1,
+        provider: { id: `p2`, brand: `zai`, secretId: `sec_zai`, options: {} },
+      },
+    ]
+    const result = await resolveProviderEnvChain(
+      `claude-code`,
+      links,
+      mockSecretResolver,
+      `org_1`
+    )
+
+    // priority-0 is the primary (anthropic OAuth → CLAUDE_CODE_OAUTH_TOKEN)
+    expect(result.primaryBrand).toBe(`anthropic`)
+    expect(result.primaryEnv.CLAUDE_CODE_OAUTH_TOKEN).toMatch(/^tdsk_ph_/)
+    expect(result.primaryEnv.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+
+    // fallbacks in priority order, each with its OWN env set (no collision)
+    expect(result.fallbacks).toHaveLength(2)
+    expect(result.fallbacks[0].brand).toBe(`zai`)
+    expect(result.fallbacks[0].env.ANTHROPIC_AUTH_TOKEN).toMatch(/^tdsk_ph_/)
+    expect(result.fallbacks[0].env.ANTHROPIC_BASE_URL).toBe(
+      `https://api.z.ai/api/anthropic`
+    )
+    expect(result.fallbacks[1].brand).toBe(`openrouter`)
+    expect(result.fallbacks[1].env.ANTHROPIC_BASE_URL).toBe(`https://openrouter.ai/api`)
+
+    // three distinct tokens, each domain-scoped to its own provider
+    const tokens = Object.keys(result.placeholders)
+    expect(tokens).toHaveLength(3)
+    expect(
+      result.placeholders[result.primaryEnv.CLAUDE_CODE_OAUTH_TOKEN].allowedDomains
+    ).toEqual([`api.anthropic.com`])
+    expect(
+      result.placeholders[result.fallbacks[0].env.ANTHROPIC_AUTH_TOKEN].allowedDomains
+    ).toEqual([`api.z.ai`])
+    expect(
+      result.placeholders[result.fallbacks[1].env.ANTHROPIC_AUTH_TOKEN].allowedDomains
+    ).toEqual([`openrouter.ai`])
+
+    // env sets are separate — the primary token differs from every fallback token
+    expect(result.primaryEnv.CLAUDE_CODE_OAUTH_TOKEN).not.toBe(
+      result.fallbacks[0].env.ANTHROPIC_AUTH_TOKEN
+    )
+    expect(result.fallbacks[0].env.ANTHROPIC_AUTH_TOKEN).not.toBe(
+      result.fallbacks[1].env.ANTHROPIC_AUTH_TOKEN
+    )
+    expect(result.errors).toEqual([])
+  })
+
+  it(`returns an empty chain for no providers`, async () => {
+    const result = await resolveProviderEnvChain(
+      `claude-code`,
+      [],
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.primaryBrand).toBe(``)
+    expect(result.primaryEnv).toEqual({})
+    expect(result.fallbacks).toEqual([])
+    expect(Object.keys(result.placeholders)).toHaveLength(0)
+    expect(result.errors).toEqual([])
+  })
+
+  it(`collects a fail-closed error from a fallback provider without widening others`, async () => {
+    const links = [
+      {
+        priority: 0,
+        provider: {
+          id: `p1`,
+          brand: `anthropic`,
+          secretId: `sec_anth`,
+          options: { authMethod: `oauth` },
+        },
+      },
+      // custom brand with a secret but no domain scope → fail closed
+      { priority: 1, provider: { id: `p2`, brand: `custom`, secretId: `sec_x` } },
+    ]
+    const result = await resolveProviderEnvChain(
+      `claude-code`,
+      links,
+      mockSecretResolver,
+      `org_1`
+    )
+    expect(result.errors.some((e) => e.includes(`no resolvable domain scope`))).toBe(true)
+    // The primary token stays scoped to anthropic only — never widened
+    expect(
+      result.placeholders[result.primaryEnv.CLAUDE_CODE_OAUTH_TOKEN].allowedDomains
+    ).toEqual([`api.anthropic.com`])
   })
 })

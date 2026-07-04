@@ -232,6 +232,88 @@ describe(`createContextManager`, () => {
     })
   })
 
+  describe(`onSummary callback`, () => {
+    const makeMockStreamFn = (summaryText: string) => {
+      return vi.fn().mockResolvedValue({
+        [Symbol.asyncIterator]: async function* () {
+          yield { type: `text_delta`, delta: summaryText }
+        },
+      })
+    }
+
+    const overBudgetMessages = () => [
+      makeMsg(`first message anchor one`),
+      makeMsg(`second message anchor tw`),
+      makeMsg(`third old message to cut`),
+      makeMsg(`fourth old message to rm`),
+      makeMsg(`fifth most recent keeper`),
+    ]
+
+    it(`should fire onSummary with the produced summary during compaction`, async () => {
+      const model = makeModel(30)
+      const mockStreamFn = makeMockStreamFn(`Summary of old conversation`)
+      const onSummary = vi.fn()
+
+      const manager = createContextManager(model, 80, {
+        strategy: `compact`,
+        streamFn: mockStreamFn as any,
+        onSummary,
+      })
+
+      const result = await manager(overBudgetMessages())
+
+      expect(onSummary).toHaveBeenCalledTimes(1)
+      expect(onSummary).toHaveBeenCalledWith(`Summary of old conversation`)
+      // Compaction still succeeded — summary message injected
+      const summaryMsg = result.find(
+        (m: any) =>
+          typeof m.content === `string` &&
+          m.content.includes(`Summary of earlier conversation`)
+      )
+      expect(summaryMsg).toBeDefined()
+    })
+
+    it(`should not throw when onSummary throws synchronously`, async () => {
+      const model = makeModel(30)
+      const mockStreamFn = makeMockStreamFn(`Summary text`)
+      const onSummary = vi.fn(() => {
+        throw new Error(`persistence exploded`)
+      })
+
+      const manager = createContextManager(model, 80, {
+        strategy: `compact`,
+        streamFn: mockStreamFn as any,
+        onSummary,
+      })
+
+      // Transform must complete normally despite the throwing callback
+      const result = await manager(overBudgetMessages())
+
+      expect(onSummary).toHaveBeenCalled()
+      const summaryMsg = result.find(
+        (m: any) =>
+          typeof m.content === `string` &&
+          m.content.includes(`Summary of earlier conversation`)
+      )
+      expect(summaryMsg).toBeDefined()
+    })
+
+    it(`should not fire onSummary when there is nothing to compact`, async () => {
+      const model = makeModel(100000)
+      const mockStreamFn = makeMockStreamFn(`unused`)
+      const onSummary = vi.fn()
+
+      const manager = createContextManager(model, 80, {
+        strategy: `compact`,
+        streamFn: mockStreamFn as any,
+        onSummary,
+      })
+
+      await manager([makeMsg(`fits in budget`)])
+      expect(onSummary).not.toHaveBeenCalled()
+    })
+  })
+
   describe(`backward compatibility`, () => {
     it(`should export createContextPruner as a deprecated alias`, () => {
       expect(createContextPruner).toBe(createContextManager)

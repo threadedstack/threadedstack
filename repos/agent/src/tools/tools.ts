@@ -5,7 +5,7 @@
  * They should be replaced with the tool definitions defined here.
  */
 
-import type { IWebProvider } from '@TAG/types'
+import type { IWebProvider, IMemoryProvider } from '@TAG/types'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type {
   ISandbox,
@@ -15,6 +15,7 @@ import type {
 
 import { logger } from '@TAG/utils/logger'
 import { Type } from '@earendil-works/pi-ai'
+import { EAgentTool, MemorySearchTopK } from '@tdsk/domain'
 
 /**
  * Creates pi-mono AgentTool definitions backed by an ISandbox instance.
@@ -410,6 +411,129 @@ export const createWebTools = (
           logger.warn(`webFetch tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Fetch failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates memory tool definitions (memorySearch, memoryWrite) for the api brain.
+ * These tools only require an IMemoryProvider instance, which the backend
+ * implements (db service + EmbeddingService) and injects at runtime.
+ */
+export const createMemoryTools = (
+  memoryProvider: IMemoryProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.memorySearch,
+      label: `Memory Search`,
+      description: `Search durable long-term memory for relevant facts, insights, and prior decisions. Returns scored results with kind and importance.`,
+      parameters: Type.Object({
+        query: Type.String({ description: `The memory search query` }),
+        limit: Type.Optional(
+          Type.Number({
+            description: `Max memories to return (default ${MemorySearchTopK})`,
+          })
+        ),
+        kinds: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Filter by memory kinds (fact, insight, reflection, compaction, roadmap)`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { query: string; limit?: number; kinds?: string[] },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Searching memory: ${params.query}` }],
+          details: { status: `running` },
+        })
+        try {
+          const results = await memoryProvider.search({
+            query: params.query,
+            limit: params.limit,
+            kinds: params.kinds,
+          })
+          const text =
+            results.length > 0
+              ? results
+                  .map(
+                    (r, i) =>
+                      `${i + 1}. [${r.kind}] (importance ${r.importance}${r.score !== undefined ? `, score ${r.score.toFixed(3)}` : ``}) ${r.text}`
+                  )
+                  .join(`\n\n`)
+              : `No memories found`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: {
+              query: params.query,
+              success: results.length > 0,
+              resultCount: results.length,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown memory error`
+          logger.warn(`memorySearch tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Memory search failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.memoryWrite,
+      label: `Memory Write`,
+      description: `Persist a durable memory (fact, insight, or decision) for future recall across threads. Returns the new memory id.`,
+      parameters: Type.Object({
+        text: Type.String({ description: `The memory content to store` }),
+        importance: Type.Optional(
+          Type.Number({ description: `Importance 1..10 (default 5)` })
+        ),
+        kind: Type.Optional(
+          Type.String({
+            description: `Memory kind (fact, insight, reflection, compaction, roadmap). Default fact.`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { text: string; importance?: number; kind?: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Writing memory...` }],
+          details: { status: `running` },
+        })
+        try {
+          const { id } = await memoryProvider.write({
+            text: params.text,
+            importance: params.importance,
+            kind: params.kind,
+          })
+          return {
+            content: [{ type: `text` as const, text: `Memory saved (${id})` }],
+            details: { success: true, id },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown memory error`
+          logger.warn(`memoryWrite tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Memory write failed: ${message}` }],
             details: { success: false },
           }
         }

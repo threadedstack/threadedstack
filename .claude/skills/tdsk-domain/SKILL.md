@@ -9,8 +9,8 @@ tags: ["typescript", "types", "models", "domain", "shared", "utilities", "paymen
 
 The `@tdsk/domain` repo (`repos/domain`) is the shared foundation for the Threaded Stack monorepo.
 
-- **28 type definition files** for Express APIs, auth, providers, AI/LLM configs, sandboxes, permissions, payments, GUI, shell events, sync, WebSocket, prefixes, and helpers
-- **23 model classes** for core entities (all extend `Base` with `id`, `createdAt?`, `updatedAt?`)
+- **29 type definition files** for Express APIs, auth, providers, AI/LLM configs, sandboxes, permissions, payments, GUI, shell events, sync, WebSocket, prefixes, and helpers
+- **24 model classes** for core entities (all extend `Base` with `id`, `createdAt?`, `updatedAt?`)
 - **Utility functions** for crypto (AES-256-GCM encryption, hashing, key derivation), permissions, time, async, data manipulation
 - **API helpers** for Express routing, CORS, auth headers, and error handling via `Exception` class
 - **Two export entry points**: `index.ts` (full, includes Node.js code) and `web.ts` (frontend-safe, excludes api/environment/services/crypto)
@@ -20,11 +20,11 @@ The `@tdsk/domain` repo (`repos/domain`) is the shared foundation for the Thread
 ```
 repos/domain/src/
 ├── api/           # Express utilities: adminPath, authHeaders, behindLBProxy, checkAuthHeader, inKube
-├── constants/     # 10 constant files: featureFlags, gitProviders, gui, parser, plans, prefixes, providerDomains, providers, sandbox, values
+├── constants/     # 11 constant files: featureFlags, gitProviders, gui, memory, parser, plans, prefixes, providerDomains, providers, sandbox, values
 ├── crypto/        # AES-256-GCM encryption/decryption, hashing, key generation
 ├── models/        # 23 domain model classes
 ├── services/      # Shared services (api/apiService.ts — ApiService base class)
-├── types/         # 28 type definition files (includes prefixs.types.ts for entity ID prefixes)
+├── types/         # 29 type definition files (includes prefixs.types.ts for entity ID prefixes)
 ├── utils/         # Permissions, payments, cleanSplit, isDomain, shortId, time, sandbox/slugify, providers/toProviderLinks, buildFallbackModel
 ├── error/         # Exception class with HTTP status codes
 ├── environment/   # loadEnvs, addToProcess
@@ -44,7 +44,8 @@ Types are in `src/types/`. Key files and their exports:
 | Enum | File | Purpose |
 |------|------|---------|
 | `EMsgType` | ai.types.ts | user, tool, system, action, assistant |
-| `EAgentTool` | ai.types.ts | mkdir, listDir, readFile, shellExec, webSearch, writeFile, deleteFile, fileExists |
+| `EAgentTool` | ai.types.ts | mkdir, listDir, readFile, shellExec, webSearch, writeFile, deleteFile, fileExists, memorySearch, memoryWrite |
+| `EMemoryKind` | memory.types.ts | fact, insight, reflection, compaction, roadmap |
 | `ELLMProviderBrand` | ai.types.ts | zai, openai, google, custom, anthropic |
 | `EEndpointType` | epd.types.ts | proxy, faas, agent |
 | `ESandboxType` | sandbox.types.ts | local, kubernetes |
@@ -57,7 +58,7 @@ Types are in `src/types/`. Key files and their exports:
 | `EGitProvider` | git.types.ts | github, gitlab |
 | `ERoleType` | permissions.types.ts | super, owner, admin, member, viewer |
 | `EPermAction` | permissions.types.ts | create, read, update, delete, manage |
-| `EPermResource` | permissions.types.ts | org, project, user, role, secret, apiKey, endpoint, provider, domain, function, agent, subscription, quota, invitation, thread, message, asset |
+| `EPermResource` | permissions.types.ts | org, project, user, role, secret, apiKey, endpoint, provider, domain, function, agent, subscription, quota, invitation, thread, message, asset, memory |
 | `EPermScope` | permissions.types.ts | global, org, project |
 | `EFunLanguage` | functions.types.ts | python, typescript, javascript |
 | `ESubscriptionTier` | payments.types.ts | free, basic, developer, pro |
@@ -81,6 +82,7 @@ Types are in `src/types/`. Key files and their exports:
 - **Secret**: Secret-related types — in `secret.types.ts`
 - **Shell Events**: Shell event types for WebSocket communication — in `shellEvent.types.ts`
 - **Skill**: Skill definition types — in `skill.types.ts`
+- **Memory**: `EMemoryKind`, `TMemoryKind`, `TMemory` (orgId, agentId, kind, text, importance, embedding?, lastAccessedAt), `TMemorySearchOpts`, `TMemoryWriteInput` — in `memory.types.ts`
 - **Sync**: `TSyncConfig`, `TSyncRule`, `TSyncMode`, Mutagen file sync configuration types — in `sync.types.ts`
 - **Parser**: Terminal parser types — in `parser.types.ts`
 - **WebSocket**: WebSocket message types — in `ws.types.ts`
@@ -96,7 +98,7 @@ Types are in `src/types/`. Key files and their exports:
 
 ## Models
 
-All 23 models extend `Base { id, createdAt?, updatedAt? }` (except Certificate and Plan). Key fields and methods for each:
+All 24 models extend `Base { id, createdAt?, updatedAt? }` (except Certificate and Plan). Key fields and methods for each:
 
 - **Agent** -- name, orgId, model, maxTokens, description, tools, systemPrompt, active, secrets[], projects[], providers[], functions[], envVars, environment. Computed: `primaryProvider`. Methods: `sanitize()`
 - **ApiKey** -- key, name, orgId, userId, projectId, keyHash, scopes, active, keyPrefix, rateLimit, expiresAt, lastUsedAt. Methods: `hasScope()`, `isExpired()`, `isValid()`, `getRateLimit()`, `sanitize()`
@@ -107,6 +109,7 @@ All 23 models extend `Base { id, createdAt?, updatedAt? }` (except Certificate a
 - **Function** -- name, content, projectId, endpointId, description, agentIds, branch, inputSchema, defaultArgs, dependencies, language
 - **Invitation** -- email, orgId, token, userId, invitedBy, revokedBy, roleType, status, expiresAt, acceptedAt, revokedAt. Methods: `sanitize()`, `isPending()`, `isExpired()`, `isAccepted()`, `isRevoked()`, `daysUntilExpiration()`
 - **Invoice** -- userId, stripeInvoiceId, amount, currency, status, invoiceUrl, period
+- **Memory** -- text, orgId, agentId, kind (TMemoryKind, default fact), importance (default 5), lastAccessedAt, embedding (number[] | null), meta
 - **Message** -- type (TMsgType), content (TMessageContent[]), threadId, projectId, orgId, meta
 - **Organization** -- name (required), ownerId (required), description
 - **Plan** -- does NOT extend Base. Fields: id, name, description, recurring, metadata (auto-converted via `rawPlanToMeta()`)
@@ -130,7 +133,8 @@ All 23 models extend `Base { id, createdAt?, updatedAt? }` (except Certificate a
 - **providerDomains.ts** -- Provider domain mappings for URL resolution
 - **values.ts** -- `ApiKeyPrefix` (`tdsk_`), `AuthHeaders` (`X-User-Id`, `X-User-Role`, `X-User-Email`), `RoleHierarchy` (`[viewer, member, admin, owner, super]`), `PermissionMatrix` (role-to-permission mapping for 17 resource types)
 - **sandbox.ts** -- `SandboxRuntimeConfigs` (`Record<TSandboxRuntimeId, { command, args, runtimeCommand }>`), `SandboxPresets` (full seed configs per runtime, used by backend to seed default sandboxes on org creation), `SBImagePresets` (image preset buttons: Claude Code, Codex, OpenCode)
-- **featureFlags.ts** -- Feature flag definitions for toggling platform features
+- **featureFlags.ts** -- Feature flag definitions for toggling platform features (includes the `memories` flag gating the agent memory layer)
+- **memory.ts** -- memory-layer constants: `MemoryRecencyDecay` (0.995), `MemorySearchTopK` (8), `MemoryMaxTextChars` (4000), `MemoryMaxImportance` (10), `MemoryMinImportance` (1), `MemoryEmbeddingDimensions` (1536), `MemoriesBlockFence` (`tdsk-memories`), `MemoryInjectMaxChars` (6000)
 - **gui.ts** -- GUI-related constants for generative UI
 - **parser.ts** -- Terminal parser constants
 - **plans.ts** -- Subscription plan tier definitions and metadata

@@ -97,8 +97,8 @@ const makeRoutes = (): TRouteMap => ({
       podName: `tdsk-sb-abc12345-xxxx`,
     },
     placeholders: {
-      tdsk_ph_token1: { secretId: `secret-id-1` },
-      tdsk_ph_token2: { secretId: `secret-id-2` },
+      tdsk_ph_token1: { secretId: `secret-id-1`, allowedDomains: [`api.example.com`] },
+      tdsk_ph_token2: { secretId: `secret-id-2`, allowedDomains: [`api.example.com`] },
     },
     ports: {
       '3000': { host: `10.0.0.5`, port: 3000, protocol: `http` as const },
@@ -116,10 +116,15 @@ const makeOpts = (overrides: Record<string, unknown> = {}) => ({
 })
 
 /**
- * Build a minimal IContext stub with the given source IP and headers.
- * The real IP is passed via the x-tdsk-real-ip header (injected by the front TCP server).
+ * Build a minimal IContext stub with the given source IP, headers, and optional
+ * destination host. The real IP is passed via the x-tdsk-real-ip header (injected
+ * by the front TCP server). The host gates placeholder swaps against allowedDomains.
  */
-const makeCtx = (sourceIp?: string, headers: Record<string, string | string[]> = {}) => {
+const makeCtx = (
+  sourceIp?: string,
+  headers: Record<string, string | string[]> = {},
+  host?: string
+) => {
   const proxyHeaders: Record<string, string | string[]> = { ...headers }
   if (sourceIp) proxyHeaders[`x-tdsk-real-ip`] = sourceIp
   return {
@@ -127,7 +132,7 @@ const makeCtx = (sourceIp?: string, headers: Record<string, string | string[]> =
       socket: { remoteAddress: `127.0.0.1` },
       headers: sourceIp ? { 'x-tdsk-real-ip': sourceIp } : {},
     },
-    proxyToServerRequestOptions: { headers: proxyHeaders },
+    proxyToServerRequestOptions: { headers: proxyHeaders, ...(host ? { host } : {}) },
     proxyToClientResponse: {
       headersSent: false,
       writeHead: vi.fn(),
@@ -237,7 +242,11 @@ describe(`EgressProxy`, () => {
     it(`should replace authorization header placeholder tokens with secrets`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`real-api-key`)
-      const ctx = makeCtx(`10.0.0.5`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -252,9 +261,13 @@ describe(`EgressProxy`, () => {
     it(`should handle authorization header as string[] (array form — takes first element)`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`real-api-key`)
-      const ctx = makeCtx(`10.0.0.5`, {
-        authorization: [`Bearer tdsk_ph_token1`, `Bearer other`] as any,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          authorization: [`Bearer tdsk_ph_token1`, `Bearer other`] as any,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -270,9 +283,13 @@ describe(`EgressProxy`, () => {
     it(`should replace placeholders in non-auth headers`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`secret-val`)
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-custom-key': `prefix-tdsk_ph_token1-suffix`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-custom-key': `prefix-tdsk_ph_token1-suffix`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -305,9 +322,13 @@ describe(`EgressProxy`, () => {
       const { logger } = await import(`@TBE/utils/logger`)
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(null)
-      const ctx = makeCtx(`10.0.0.5`, {
-        authorization: `Bearer tdsk_ph_token1`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          authorization: `Bearer tdsk_ph_token1`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -333,9 +354,13 @@ describe(`EgressProxy`, () => {
         .mockResolvedValueOnce(`secret-A`)
         .mockResolvedValueOnce(`secret-B`)
 
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-multi': `tdsk_ph_token1:tdsk_ph_token2`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-multi': `tdsk_ph_token1:tdsk_ph_token2`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -366,9 +391,13 @@ describe(`EgressProxy`, () => {
     it(`should swap a placeholder embedded in base64 Basic credentials and re-encode`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`github_pat_real`)
-      const ctx = makeCtx(`10.0.0.5`, {
-        authorization: `Basic ${encodeBasic(`x-access-token:tdsk_ph_token1`)}`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          authorization: `Basic ${encodeBasic(`x-access-token:tdsk_ph_token1`)}`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -489,7 +518,11 @@ describe(`EgressProxy`, () => {
     it(`should match on podIp`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`matched-secret`)
-      const ctx = makeCtx(`10.0.0.5`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -504,7 +537,11 @@ describe(`EgressProxy`, () => {
     it(`should normalize IPv6-mapped IPv4 addresses`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`secret-val`)
-      const ctx = makeCtx(`::ffff:10.0.0.5`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `::ffff:10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -521,6 +558,7 @@ describe(`EgressProxy`, () => {
         clientToProxyRequest: { socket: { remoteAddress: `127.0.0.1` }, headers: {} },
         proxyToServerRequestOptions: {
           headers: { authorization: `Bearer tdsk_ph_token1` },
+          host: `api.example.com:443`,
         },
         proxyToClientResponse: { headersSent: false, writeHead: vi.fn(), end: vi.fn() },
       } as any
@@ -563,9 +601,13 @@ describe(`EgressProxy`, () => {
     it(`should replace single token with secret value`, async () => {
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(`my-secret`)
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-api-key': `tdsk_ph_token1`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-api-key': `tdsk_ph_token1`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -578,9 +620,13 @@ describe(`EgressProxy`, () => {
       const { logger } = await import(`@TBE/utils/logger`)
       const { opts, onRequestHandler } = setup()
       opts.resolveSecret.mockResolvedValue(null)
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-api-key': `tdsk_ph_token1`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-api-key': `tdsk_ph_token1`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -665,7 +711,7 @@ describe(`EgressProxy`, () => {
       )
     })
 
-    it(`should swap placeholder with no allowedDomains for any domain (backwards compat)`, async () => {
+    it(`should NEVER swap an unscoped placeholder (no allowedDomains) — fail closed`, async () => {
       const { opts, onRequestHandler } = setupDomain()
       opts.resolveSecret.mockResolvedValue(`open-secret`)
       const ctx = makeCtx(`10.0.0.5`, { 'x-api-key': `tdsk_ph_open` })
@@ -675,8 +721,10 @@ describe(`EgressProxy`, () => {
       onRequestHandler(ctx, callback)
       await vi.waitFor(() => expect(callback).toHaveBeenCalled())
 
-      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-open`)
-      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`open-secret`)
+      // A token with no domain scope must never be swapped — otherwise the secret
+      // could be exfiltrated to an arbitrary host from inside the pod.
+      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-open`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`tdsk_ph_open`)
     })
 
     it(`should skip domain-gated swap when request has no host header`, async () => {
@@ -701,9 +749,10 @@ describe(`EgressProxy`, () => {
         `Bearer tdsk_ph_gated`
       )
 
-      // The ungated placeholder SHOULD still be resolved (no allowedDomains restriction)
-      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-open`)
-      expect(ctx.proxyToServerRequestOptions.headers[`x-other-key`]).toBe(`real-secret`)
+      // The ungated placeholder is ALSO never resolved — fail closed: an unscoped
+      // token is never swapped regardless of host.
+      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-open`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-other-key`]).toBe(`tdsk_ph_open`)
 
       // Should have logged a warning about missing host
       expect(logger.warn).toHaveBeenCalledWith(
@@ -711,7 +760,7 @@ describe(`EgressProxy`, () => {
       )
     })
 
-    it(`should swap placeholder with empty allowedDomains for any domain`, async () => {
+    it(`should NEVER swap a placeholder with empty allowedDomains — fail closed`, async () => {
       const routes: TRouteMap = {
         'sb-empty-domains': {
           meta: {
@@ -735,9 +784,9 @@ describe(`EgressProxy`, () => {
       onRequestHandler(ctx, callback)
       await vi.waitFor(() => expect(callback).toHaveBeenCalled())
 
-      // Empty allowedDomains array means no domain restriction — entry.allowedDomains?.length is 0 (falsy)
-      expect(opts.resolveSecret).toHaveBeenCalledWith(`secret-empty`)
-      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`empty-secret`)
+      // Empty allowedDomains = no scope = never swapped (fail closed).
+      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-empty`)
+      expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`tdsk_ph_empty`)
     })
   })
 

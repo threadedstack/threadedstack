@@ -368,13 +368,22 @@ tdsk kube pod --context <ctx> --env production      # Describe pod
 
 ## 3. CI/CD Automated Deployment
 
-The GitHub Actions workflow (`.github/workflows/deploy-production.yml`) automates deployments when changes are merged to the `production` branch. It prepares the environment (Civo kubeconfig with the context normalized to `tdsk`, GHCR login, assembling `~/.config/tdsk/values.yaml` from GitHub secrets) and then runs the exact same CLI command as a local deploy:
+The GitHub Actions workflow (`.github/workflows/deploy-production.yml`) automates deployments on every push to `main` — merging a PR to `main` IS the production deploy. It prepares the environment (Civo kubeconfig with the context normalized to `tdsk`, GHCR login, assembling `~/.config/tdsk/values.yaml` from GitHub secrets) and then runs the exact same CLI command as a local deploy:
 
 ```sh
 tdsk release --env production --confirm --no-firebase
 ```
 
-All build/detect/migrate/deploy/verify/rollback logic lives in the CLI, so CI and local deploys never drift. Frontends deploy separately via `firebase-hosting-merge.yml`.
+All build/detect/migrate/deploy/verify/rollback logic lives in the CLI, so CI and local deploys never drift. Frontends deploy separately via `firebase-hosting-merge.yml` (also triggered on `main`).
+
+### The `production` branch is a marker, not a trigger
+
+After a successful release, the workflow force-updates the `production` branch to the just-deployed commit (`git push --force origin "$GITHUB_SHA:refs/heads/production"`). This makes `origin/production` an accurate record of what is actually running in the Civo cluster:
+
+- `origin/production == origin/main` → prod is up to date.
+- `origin/production` behind `origin/main` → a deploy is pending, in-flight, or failed (check the Actions run).
+
+Never push to `production` by hand — it is machine-maintained. Nothing triggers on pushes to `production`.
 
 ### 3.1 Required GitHub Secrets
 

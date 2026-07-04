@@ -2,7 +2,6 @@ import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { featureGate } from '@TBE/middleware/featureGate'
-import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { getAgent } from '@TBE/endpoints/agents/getAgent'
 import { runAgent } from '@TBE/endpoints/agents/runAgent'
 import { listAgents } from '@TBE/endpoints/agents/listAgents'
@@ -10,6 +9,8 @@ import { agentThreads } from '@TBE/endpoints/threads/threads'
 import { createAgent } from '@TBE/endpoints/agents/createAgent'
 import { updateAgent } from '@TBE/endpoints/agents/updateAgent'
 import { deleteAgent } from '@TBE/endpoints/agents/deleteAgent'
+import { agentMemories } from '@TBE/endpoints/memories/memories'
+import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 
 export const orgAgents: TEndpointConfig = {
   path: `/:orgId/agents`,
@@ -23,5 +24,6 @@ export const orgAgents: TEndpointConfig = {
     updateAgent,
     deleteAgent,
     agentThreads,
+    agentMemories,
   },
 }

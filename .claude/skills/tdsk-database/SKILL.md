@@ -8,8 +8,9 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 ## Overview
 
 - **ORM layer** for Threaded Stack using **Drizzle ORM** + **PostgreSQL (Neon.com)**
-- 29 Drizzle-managed tables + 2 external (Neon Auth `users`, Caddy `certificates`), 9 junction tables
-- 21 service classes with CRUD, domain model conversion, and polymorphic "Exclusive Arc" relationships
+- 30 Drizzle-managed tables + 2 external (Neon Auth `users`, Caddy `certificates`), 9 junction tables
+- 22 service classes with CRUD, domain model conversion, and polymorphic "Exclusive Arc" relationships
+- **pgvector** enabled for the `memories` semantic store (`vector(1536)` embedding column)
 - Database singleton via `pg.Pool`; all services auto-initialized on first `database()` call
 - **Path Alias:** `@TDB/*`
 
@@ -77,6 +78,7 @@ repos/database/
 | `subscriptions` | userId (unique), tier (default 'free'), status, stripeCustomerId, stripeSubscriptionId, stripePriceId, currentPeriodStart/End, cancelAtPeriodEnd, seats | One subscription per user |
 | `sandboxes` | name, orgId, userId, config (jsonb `TKubeSandboxConfig`), builtIn | Custom nanoid with lowercase alphabet for SSH compatibility; indexes: orgId, `(orgId, userId)` |
 | `invoices` | userId, stripeInvoiceId (unique), amount, currency, status, invoiceUrl, period | Stripe invoice tracking |
+| `memories` | orgId, agentId, kind (fact/insight/reflection/compaction/roadmap), text, importance (1-10), embedding (`vector(1536)`, nullable), lastAccessedAt | pgvector semantic memory store; org+agent-scoped; roadmap persisted as a singleton `roadmap`-kind row |
 | `certificates` (`caddy_certmagic_objects`) | Composite PK `(parent, name)`, isFile, value (bytea), modified | External: Caddy certmagic storage plugin |
 
 ### Junction Tables
@@ -101,7 +103,7 @@ The `database()` factory is a singleton that creates a `pg.Pool`, initializes a 
 
 Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables (used for migrations), `schemas/index.ts` adds the 2 external read-only tables.
 
-## Services (21 total)
+## Services (22 total)
 
 ### Base Service Class
 
@@ -121,7 +123,7 @@ Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables 
 | `secret` | `secrets` | -- | base CRUD |
 | `thread` | `threads` | `Thread` | listByAgent, listByUser, getWithMessages, branchThread (transaction: copies thread + messages to branchpoint) |
 | `project` | `projects` | -- | base CRUD |
-| `message` | `messages` | `Message` | listByThread, createBatch |
+| `message` | `messages` | `Message` | listByThread, createBatch, listRecentByAgent |
 | `endpoint` | `endpoints` | -- | base CRUD |
 | `function` | `functions` | `Function` | Auto-loads agents, listByAgent, setAgents, addAgent, removeAgent |
 | `provider` | `providers` | -- | base CRUD |
@@ -132,6 +134,7 @@ Two-level schema barrel: `schemas/schemas.ts` exports 25 Drizzle-managed tables 
 | `skill` | `skills` | `Skill` | addAgent (onConflictDoNothing), listForAgent, removeAgent |
 | `schedule` | `schedules` | `Schedule` | listDue (enabled + nextRunAt <= now), markRun (resets errors), incrementErrors (auto-disables at max) |
 | `invoice` | `invoices` | `Invoice` | findByUserId, upsertByStripeId |
+| `memory` | `memories` | `Memory` | searchScored (scored retrieval: recency `0.995^hours` x importance x relevance, where relevance = cosine when embeddings present, else `ts_rank` lexical, else 1), getRoadmap, upsertRoadmap |
 
 **Agent service** is the most complex (~578 lines). Auto-loads secrets, projects, functions, providers, and skills. Sorts providers by priority. `create`/`update`/`upsert` handle junction tables automatically. Pass `opts.sanitize = false` to skip secret sanitization.
 

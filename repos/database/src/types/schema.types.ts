@@ -10,6 +10,7 @@ import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
 import type { domains } from '@TDB/schemas/domains'
 import type { invoices } from '@TDB/schemas/invoices'
+import type { memories } from '@TDB/schemas/memories'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { DBError } from '@TDB/utils/error/error'
@@ -23,7 +24,12 @@ import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { sandboxSessions } from '@TDB/schemas/sandboxSessions'
-import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
+import type {
+  TAnyObj,
+  TKeyLike,
+  Base as BaseModel,
+  Memory as MemoryModel,
+} from '@tdsk/domain'
 import type { permissionOverrides } from '@TDB/schemas/permissionOverrides'
 
 type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike> = Omit<
@@ -80,6 +86,16 @@ export type TDBScheduleRunInsert = TInferDateProps<
   typeof scheduleRuns.$inferInsert,
   `createdAt` | `updatedAt` | `startedAt` | `completedAt`
 >
+export type TDBMemorySelect = TInferDateProps<
+  typeof memories.$inferSelect,
+  `createdAt` | `updatedAt` | `lastAccessedAt`
+>
+export type TDBMemoryInsert = TInferDateProps<
+  typeof memories.$inferInsert,
+  `createdAt` | `updatedAt` | `lastAccessedAt`
+>
+/** Memory model with the computed retrieval score attached by searchScored */
+export type TDBMemoryScored = MemoryModel & { score: number }
 export type TDBSandboxSelect = TInferDates<typeof sandboxes.$inferSelect>
 export type TDBSandboxInsert = TInferDates<typeof sandboxes.$inferInsert>
 export type TDBSandboxSessionSelect = TInferDateProps<
@@ -154,6 +170,7 @@ export type TDBEntitySelect =
   | TDBThreadSelect
   | TDBDomainsSelect
   | TDBInvoiceSelect
+  | TDBMemorySelect
   | TDBProjectSelect
   | TDBMessageSelect
   | TDBSandboxSelect
@@ -180,6 +197,7 @@ export type TDBEntityInsert =
   | TDBThreadInsert
   | TDBDomainsInsert
   | TDBInvoiceInsert
+  | TDBMemoryInsert
   | TDBProjectInsert
   | TDBMessageInsert
   | TDBSandboxInsert

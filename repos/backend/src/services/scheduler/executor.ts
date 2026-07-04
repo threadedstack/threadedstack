@@ -6,6 +6,7 @@ import type {
   Schedule,
   TStreamEvent,
   TSandboxResult,
+  TPlaceholderMap,
   TKubeSandboxConfig,
   TSandboxRuntimeId,
 } from '@tdsk/domain'
@@ -14,13 +15,29 @@ import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS } from '@TBE/constants/sandbox'
 import {
+  EProvider,
   EMsgType,
+  EMemoryKind,
   EAgentBrain,
   EContentType,
   EScheduleType,
+  MemorySearchTopK,
+  MemoryInjectMaxChars,
   SandboxRuntimeConfigs,
 } from '@tdsk/domain'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { resolveProviderEnvChain } from '@TBE/utils/sandbox/resolveProviderEnv'
+import {
+  buildEnvPrefix,
+  parseMemoryBlock,
+  matchTransientSignal,
+  CliMaxTransientRetries,
+  CliMaxProviderFailovers,
+  isTransientUpstreamFailure,
+  CliTransientRetryDelaysMs,
+  CliSameProviderRetriesBeforeFailover,
+} from '@TBE/utils/agent/memory'
 
 /** Max characters of the previous report composed into a CLI-brain prompt (tail-capped) */
 const PrevReportMaxChars = 8000
@@ -117,6 +134,76 @@ async function resolveEffectiveSandboxConfig(
   return effective.config as TKubeSandboxConfig
 }
 
+type TCliProviderChain = {
+  primaryBrand: string
+  placeholders: TPlaceholderMap
+  primaryEnv: Record<string, string>
+  fallbacks: Array<{ brand: string; env: Record<string, string> }>
+}
+
+/**
+ * Resolve the effective sandbox for a runtime-brain schedule ONCE and derive
+ * both its prompt-command config and the priority-ordered ai-provider failover
+ * chain. Mirrors startPod's derivation (getEffectiveConfig + EProvider.ai links
+ * sorted by priority) so the primary provider matches the pod default while each
+ * fallback keeps its own isolated env for inline override. A resolution error
+ * (e.g. an unscoped secret placeholder) throws — identical to startPod refusing
+ * to launch a pod with a misconfigured provider.
+ */
+async function resolveCliSandboxAndChain(
+  db: TDatabase,
+  schedule: Schedule,
+  bodySandboxId: string
+): Promise<{ sandboxConfig: TKubeSandboxConfig; chain: TCliProviderChain }> {
+  const { data: rawSandbox } = await db.services.sandbox.get(bodySandboxId)
+  if (!rawSandbox) throw new Error(`Sandbox config not found: ${bodySandboxId}`)
+
+  // Defense in depth: the body sandbox must belong to the schedule's org before
+  // its provider secrets are turned into egress placeholders.
+  if (rawSandbox.orgId && rawSandbox.orgId !== schedule.orgId)
+    throw new Error(`Sandbox ${bodySandboxId} does not belong to org ${schedule.orgId}`)
+
+  const effective = rawSandbox.getEffectiveConfig
+    ? rawSandbox.getEffectiveConfig(schedule.projectId)
+    : rawSandbox
+
+  if (effective === rawSandbox && schedule.projectId)
+    logger.warn(
+      `[Executor] Schedule ${schedule.id} — no project-specific config for project ${schedule.projectId}; using base sandbox config`
+    )
+
+  const sandboxConfig = effective.config as TKubeSandboxConfig
+
+  const aiProviderLinks = (effective.providerLinks || [])
+    .filter((link: any) => link.provider?.type === EProvider.ai)
+    .map((link: any) => ({
+      provider: link.provider,
+      priority: link.priority ?? 0,
+      model: link.model ?? undefined,
+    }))
+
+  const secrets = new SecretResolver(db)
+  const chain = await resolveProviderEnvChain(
+    sandboxConfig?.runtime,
+    aiProviderLinks,
+    secrets,
+    schedule.orgId
+  )
+
+  if (chain.errors.length)
+    throw new Error(`Provider auth configuration error: ${chain.errors.join(`, `)}`)
+
+  return {
+    sandboxConfig,
+    chain: {
+      primaryEnv: chain.primaryEnv,
+      primaryBrand: chain.primaryBrand,
+      placeholders: chain.placeholders,
+      fallbacks: chain.fallbacks,
+    },
+  }
+}
+
 /** Race a promise against the resolved execution timeout (per-schedule override or shared default). */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>
@@ -196,8 +283,13 @@ async function runAgentSchedule(
 
   const threadId = await resolveContinuityThread(db, schedule, config.orgId)
 
+  // Inject roadmap + relevant memories ahead of the prompt (the api brain also
+  // has the memory_search/memory_write tools via config.memoryProvider).
+  const memoryContext = await buildMemoryContext(app, schedule, schedule.agentId)
+  const prompt = memoryContext ? `${memoryContext}${schedule.prompt}` : schedule.prompt
+
   const handle = await AgentRunner.run({
-    prompt: schedule.prompt,
+    prompt,
     userId: schedule.userId,
     agentId: schedule.agentId,
     threadId,
@@ -210,6 +302,7 @@ async function runAgentSchedule(
     llmConfigs: config.llmConfigs,
     environment: config.environment,
     sandboxConfig: config.sandboxConfig,
+    memoryProvider: config.memoryProvider,
     onExecuteFunction: config.onExecuteFunction,
     customFunctions: config.customFunctions || [],
     onEvent: (event: TStreamEvent) => onStdout(`${JSON.stringify(event)}\n`),
@@ -253,15 +346,120 @@ async function fetchPreviousReport(db: TDatabase, threadId: string): Promise<str
 }
 
 /**
+ * Build the injected memory context for a schedule's agent: the current roadmap
+ * (`## Roadmap`) followed by the top-K recency*importance memories
+ * (`## Relevant memories`), capped at MemoryInjectMaxChars. No query is passed,
+ * so retrieval is pure recency*importance. Never throws — a failure only
+ * degrades context (logged) and returns an empty string.
+ */
+async function buildMemoryContext(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    let out = ``
+
+    const { data: roadmap } = await db.services.memory.getRoadmap(schedule.orgId, agentId)
+    if (roadmap?.text) out += `## Roadmap\n${roadmap.text}\n\n`
+
+    const { data: memories } = await db.services.memory.searchScored({
+      agentId,
+      orgId: schedule.orgId,
+      limit: MemorySearchTopK,
+    })
+    if (memories?.length) {
+      const bullets = memories
+        .map((mem) => `- [${mem.kind}, importance ${mem.importance}] ${mem.text}`)
+        .join(`\n`)
+      out += `## Relevant memories\n${bullets}\n\n`
+    }
+
+    return out.length > MemoryInjectMaxChars ? out.slice(0, MemoryInjectMaxChars) : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildMemoryContext failed for agent ${agentId}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output memory-write block emitted by a
+ * successful runtime run. Roadmap entries become a new roadmap row; all other
+ * kinds become memories with an embedding backfilled (null-safe) and citation
+ * meta ({threadId, scheduleId}). Never throws — a failure never fails the run.
+ */
+async function persistMemoryWrites(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const entries = parseMemoryBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db, embeddings } = app.locals
+    const meta = { threadId, scheduleId: schedule.id }
+
+    for (const entry of entries) {
+      if (entry.kind === EMemoryKind.roadmap) {
+        const { error } = await db.services.memory.upsertRoadmap(
+          schedule.orgId,
+          agentId,
+          entry.text,
+          meta
+        )
+        if (error)
+          logger.error(
+            `[Executor] Schedule ${schedule.id} — failed to persist roadmap memory:`,
+            error.message
+          )
+        continue
+      }
+
+      const embedding =
+        (await embeddings?.embedOne(entry.text, { orgId: schedule.orgId })) ?? null
+      const { error } = await db.services.memory.create({
+        meta,
+        agentId,
+        embedding,
+        text: entry.text,
+        orgId: schedule.orgId,
+        importance: entry.importance,
+        kind: entry.kind ?? EMemoryKind.fact,
+      } as any)
+      if (error)
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to persist memory:`,
+          error.message
+        )
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — memory capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
- * otherwise prepended to the prompt payload (soul, then previous report, then prompt).
+ * otherwise prepended to the prompt payload. Payload order is soul (fallback
+ * branch only), then memory context, then previous report, then the prompt.
  */
 function buildCliCommand(
   schedule: Schedule,
   agent: Agent,
   sandboxConfig: TKubeSandboxConfig,
-  previousReport: string
+  previousReport: string,
+  memorySection: string
 ): string {
   const template = resolvePromptTemplate(sandboxConfig)
   const reportSection = previousReport
@@ -271,12 +469,14 @@ function buildCliCommand(
   if (template.includes(`{soul}`))
     return substitutePlaceholders(template, {
       soul: escapePromptArg(agent.soul || ``),
-      prompt: escapePromptArg(`${reportSection}${schedule.prompt}`),
+      prompt: escapePromptArg(`${memorySection}${reportSection}${schedule.prompt}`),
     })
 
   const soulSection = agent.soul ? `${agent.soul}\n\n` : ``
   return substitutePlaceholders(template, {
-    prompt: escapePromptArg(`${soulSection}${reportSection}${schedule.prompt}`),
+    prompt: escapePromptArg(
+      `${soulSection}${memorySection}${reportSection}${schedule.prompt}`
+    ),
   })
 }
 
@@ -318,12 +518,27 @@ async function runCliAgentSchedule(
   const threadId = await resolveContinuityThread(db, schedule, schedule.orgId)
   const previousReport = await fetchPreviousReport(db, threadId)
 
+  // Resolve the effective sandbox + ai-provider failover chain BEFORE startPod.
+  // The primary (priority-0) provider's env becomes the pod default; every
+  // provider's (domain-scoped) placeholder is injected so egress can swap
+  // whichever token a fallback attempt uses. A misconfigured provider throws
+  // here, exactly as startPod would refuse to launch.
+  const { sandboxConfig, chain } = await resolveCliSandboxAndChain(
+    db,
+    schedule,
+    bodySandboxId
+  )
+
   const instanceId = await sandbox!.startPod({
     orgId: schedule.orgId,
     userId: schedule.userId,
     sandboxId: bodySandboxId,
     projectId: schedule.projectId,
     egressOpts: app.locals.config.egress,
+    providerChain: {
+      primaryEnv: chain.primaryEnv,
+      placeholders: chain.placeholders,
+    },
   })
   // Recorded immediately via hook so the caller's finally block always reaps the pod,
   // even when a later step throws
@@ -337,8 +552,14 @@ async function runCliAgentSchedule(
   // block still reaps the pod when this wait throws.
   await sandbox!.waitForPodReady(instanceId, { cloneCheck: true })
 
-  const sandboxConfig = await resolveEffectiveSandboxConfig(db, bodySandboxId, schedule)
-  const command = buildCliCommand(schedule, agent, sandboxConfig, previousReport)
+  const memorySection = await buildMemoryContext(app, schedule, agent.id)
+  const baseCommand = buildCliCommand(
+    schedule,
+    agent,
+    sandboxConfig,
+    previousReport,
+    memorySection
+  )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
   // Decoding each chunk individually corrupts multibyte characters split
@@ -366,23 +587,114 @@ async function runCliAgentSchedule(
 
   const sbInstance = await sandbox!.getSandbox(instanceId)
 
-  const sbExecPromise = sbInstance.execStreaming
-    ? sbInstance.execStreaming(command, [], {
-        onStdout: (chunk: Buffer) => {
-          bufferStdout(chunk)
-          hooks.onStdout(chunk)
-        },
-        onStderr: (chunk: Buffer) => hooks.onStderr(chunk),
-      })
-    : sbInstance.exec(command).then((r) => {
-        if (r.output) {
-          bufferStdout(r.output)
-          hooks.onStdout(r.output)
-        }
-        return r
-      })
+  // Run a single CLI-brain command against the live pod. The stdout buffer is
+  // reset before each attempt so only the final attempt's output is persisted.
+  const execOnce = (command: string) =>
+    sbInstance.execStreaming
+      ? sbInstance.execStreaming(command, [], {
+          onStdout: (chunk: Buffer) => {
+            bufferStdout(chunk)
+            hooks.onStdout(chunk)
+          },
+          onStderr: (chunk: Buffer) => hooks.onStderr(chunk),
+        })
+      : sbInstance.exec(command).then((r) => {
+          if (r.output) {
+            bufferStdout(r.output)
+            hooks.onStdout(r.output)
+          }
+          return r
+        })
 
-  const result = await withTimeout(sbExecPromise, schedule.timeoutMs ?? ExecTimeoutMS)
+  const resetStdout = () => {
+    stdoutChunks.length = 0
+    stdoutBytes = 0
+  }
+
+  // Capture the transient signal (if any) across the buffered stdout + the
+  // command's own error string.
+  const transientSignal = (res: TSandboxResult): string | undefined => {
+    const stdoutSoFar = Buffer.concat(stdoutChunks).toString(`utf8`)
+    return matchTransientSignal(stdoutSoFar) ?? matchTransientSignal(res.error ?? ``)
+  }
+
+  // Run one provider's command with same-provider transient retries. A
+  // non-transient failure breaks immediately (never worth retrying); a
+  // transient failure retries in the SAME pod after a short backoff up to
+  // `maxRetries`. Only the final attempt's stdout survives in the buffer.
+  const runProvider = async (
+    command: string,
+    maxRetries: number
+  ): Promise<TSandboxResult> => {
+    resetStdout()
+    let res = await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+    for (let attempt = 0; !res.success && attempt < maxRetries; attempt++) {
+      if (!transientSignal(res)) break
+      const delay =
+        CliTransientRetryDelaysMs[attempt] ??
+        CliTransientRetryDelaysMs[CliTransientRetryDelaysMs.length - 1]
+      logger.warn(
+        `[Executor] Schedule ${schedule.id} — transient upstream failure, same-provider retry ${
+          attempt + 1
+        }/${maxRetries} in ${delay}ms`
+      )
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      resetStdout()
+      res = await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+    }
+    return res
+  }
+
+  // Ordered provider attempts: the primary runs the bare command (pod-default
+  // env); each fallback prefixes its OWN env inline so ANTHROPIC_AUTH_TOKEN +
+  // ANTHROPIC_BASE_URL override the pod defaults for that single invocation.
+  // ANTHROPIC_AUTH_TOKEN takes precedence over CLAUDE_CODE_OAUTH_TOKEN, so a
+  // ZAI/OpenRouter fallback cleanly overrides an Anthropic-OAuth primary with
+  // no unset needed. Each fallback token stays domain-scoped, so egress can
+  // only ever swap it into a request to that provider's own domains.
+  const cappedFallbacks = chain.fallbacks.slice(0, CliMaxProviderFailovers)
+  const providerAttempts: Array<{ brand: string; command: string }> = [
+    {
+      brand: chain.primaryBrand || sandboxConfig.runtime || `primary`,
+      command: baseCommand,
+    },
+    ...cappedFallbacks.map((fb) => ({
+      brand: fb.brand,
+      command: `${buildEnvPrefix(fb.env)} ${baseCommand}`,
+    })),
+  ]
+
+  // The runtime brain (claude -p) can fail mid-run on a transient upstream
+  // error (Anthropic 529/Overloaded, rate limits, upstream 5xx). On such a
+  // failure, fail over to the next priority provider (after a brief
+  // same-provider retry). Non-transient failures never fail over; only the
+  // final attempt is persisted.
+  let result!: TSandboxResult
+  for (let p = 0; p < providerAttempts.length; p++) {
+    const hasNext = p < providerAttempts.length - 1
+    // Keep a brief same-provider retry while a fallback remains; the terminal
+    // provider exhausts the full transient-retry budget (Wave B semantics).
+    const maxRetries = hasNext
+      ? CliSameProviderRetriesBeforeFailover
+      : CliMaxTransientRetries
+    result = await runProvider(providerAttempts[p].command, maxRetries)
+
+    if (result.success) break
+
+    const signal = transientSignal(result)
+    // Non-transient failures return immediately — no other provider will help.
+    if (!signal) break
+    // Transient failure with a fallback remaining → advance to the next provider.
+    if (hasNext) {
+      logger.warn(
+        `[Executor] Schedule ${schedule.id} — provider failover ${
+          providerAttempts[p].brand
+        } → ${providerAttempts[p + 1].brand} (attempt ${p + 1}/${
+          providerAttempts.length
+        }); transient upstream signal: ${signal}`
+      )
+    }
+  }
 
   // Only successful runs feed the continuity thread — never poison it with garbage.
   // Persistence failures are logged, not fatal: the report is still in S3.
@@ -405,6 +717,9 @@ async function runCliAgentSchedule(
         `[Executor] Schedule ${schedule.id} — failed to persist CLI-brain messages to thread ${threadId}:`,
         (userErr || assistantErr)?.message
       )
+
+    // Capture any structured-output memory-write block from the final stdout
+    await persistMemoryWrites(app, schedule, agent.id, threadId, stdoutText)
   }
 
   return result

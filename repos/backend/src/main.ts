@@ -6,6 +6,7 @@ import { signals } from '@TBE/utils/signals'
 import { initServer } from '@TBE/server/server'
 import { S3Service } from '@TBE/services/s3/s3'
 import { EmailService } from '@TBE/services/email'
+import { EmbeddingService } from '@TBE/services/embeddings/embedding'
 import { setupServer } from '@TBE/middleware/setupServer'
 import { setupRateLimit } from '@TBE/middleware/rateLimit'
 import { setupLogger } from '@TBE/middleware/setupLogger'
@@ -27,6 +28,9 @@ export const main = async (config: TBEConfig) => {
   setupServer(app, router)
   setupRateLimit(app)
   setupDatabase(app)
+
+  // Depends on app.locals.db (set by setupDatabase) at embed() time
+  app.locals.embeddings = new EmbeddingService(app)
 
   await setupSandbox(app)
   setupSandboxProxy(app)
