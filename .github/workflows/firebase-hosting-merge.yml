@@ -1,13 +1,43 @@
 name: Deploy to Firebase Hosting on merge
-# Frontends (admin/threads/website) deploy on every push to `main` — the same
-# trigger as the K8s deploy (deploy-production.yml). Merging a PR to main IS the
-# deploy for both backend services and frontends. The `production` branch is a
-# post-deploy marker maintained by deploy-production.yml, not a trigger.
+# Frontends (admin/threads/website) deploy on push to `main`, but only the targets
+# whose code actually changed. A `changes` job diffs the push and each frontend job
+# runs only when its own repo — or a shared dependency it builds from
+# (@tdsk/domain, @tdsk/components, the lockfile) — changed. So a backend-only, CI-only,
+# or docs-only commit deploys no frontends; a shared-package change rebuilds all three.
 on:
   push:
     branches: [main]
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+      threads: ${{ steps.filter.outputs.threads }}
+      website: ${{ steps.filter.outputs.website }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'repos/domain/**'
+              - 'repos/components/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+            admin:
+              - *shared
+              - 'repos/admin/**'
+            threads:
+              - *shared
+              - 'repos/threads/**'
+            website:
+              - *shared
+              - 'repos/website/**'
+
   build_and_deploy:
+    needs: changes
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -19,6 +49,8 @@ jobs:
             package: '@tdsk/threads'
           - target: website
             package: '@tdsk/website'
+    # Only build/deploy a target when its filter reported changes.
+    if: ${{ needs.changes.outputs[matrix.target] == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

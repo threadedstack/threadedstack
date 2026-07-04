@@ -18,6 +18,14 @@ name: Deploy Production
 on:
   push:
     branches: [main]
+    # A commit that touches ONLY documentation/CI-agent notes needs no prod deploy
+    # or test run. (paths-ignore skips the run only when EVERY changed file matches,
+    # so any code change still deploys.) Workflow files are intentionally NOT ignored
+    # so a fix to this pipeline can still trigger a deploy.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
   workflow_dispatch:
     inputs:
       force_all:
@@ -109,7 +117,9 @@ jobs:
 
       - name: Fetch kubeconfig
         run: |
-          civo kubernetes config "$CIVO_CLUSTER" --save --merge
+          # civo CLI v1.5.4 dropped the --merge flag; --save now merges by default
+          # (use --overwrite to replace). We then switch context explicitly below.
+          civo kubernetes config "$CIVO_CLUSTER" --save
           kubectl config use-context tdsk
           echo "Verifying cluster access..."
           kubectl --context tdsk get ns "$K8S_NAMESPACE"
