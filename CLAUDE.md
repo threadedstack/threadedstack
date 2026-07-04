@@ -5,6 +5,16 @@
 - **ALLOWED**: `git add`, `git status`, `git diff`, `git log`, `git branch`, `git show`
 - **BLOCKED**: `git reset`, `git revert`, `git stash`, `git merge`
 
+### Git Authority (multi-agent coordination)
+
+Commit + push to main are allowed, ONLY under these rules:
+
+1. **Verified work only**: `pnpm types` + `pnpm test` green for every touched repo BEFORE committing. Never commit broken or unverified state.
+2. **One owner per failure**: if another agent or session is already driving a fix loop (a red CI run, an incident, an in-flight deploy), do NOT commit fixes for that same failure to main. Check `git log` and open PRs first; when in doubt, use a branch + PR with auto-merge (the steward's model).
+3. **Commit only what is yours**: review `git status` before committing and stage ONLY your own files — other agents' unstaged work must never ride along in your commit.
+4. **Push = prod deploy**: a push to main triggers the production pipeline. Batch related work; don't stack rapid-fire pushes that queue redundant deploys.
+5. **History is immutable**: no amend, reset, revert, rebase, cherry-pick, or force-push, ever. A bad commit is fixed by a new commit.
+
 
 ## 🚨🚨🚨 ABSOLUTE #2 RULE: ZERO LAZINESS, ZERO DEFERRAL, ZERO SILENT INCOMPLETION 🚨🚨🚨
 

@@ -265,7 +265,14 @@ jobs:
         # `origin/production` is an accurate record of what is running in the
         # cluster. Force-update: `production` is machine-maintained here and is
         # simply set to the deployed SHA (it may have diverged historically).
+        # Pushed with GIT_TOKEN (PAT), NOT the default GITHUB_TOKEN: when the
+        # advanced range contains .github/workflows changes, GitHub rejects the
+        # App-token push ("refusing to allow a GitHub App to ... update
+        # workflow ... without `workflows` permission") — this is what
+        # historically left `production` silently stuck behind main.
+        env:
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
           DEPLOYED_SHA="${GITHUB_SHA}"
           echo "Advancing production marker to ${DEPLOYED_SHA}"
-          git push --force origin "${DEPLOYED_SHA}:refs/heads/production"
+          git push --force "https://x-access-token:${GIT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${DEPLOYED_SHA}:refs/heads/production"
