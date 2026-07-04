@@ -8,6 +8,7 @@ import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
+import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
@@ -266,12 +267,31 @@ export const resolveAgentConfig = async (
     if (instanceId) {
       sandboxConfig.options = { podName: instanceId }
     } else if (sandbox && effectiveAgent.environment?.sandboxId) {
+      const bodySandboxId = effectiveAgent.environment.sandboxId as string
+
+      // Pre-resolve the priority-ordered provider chain so the pod's default
+      // env is deterministically the PRIMARY provider's. Without a chain,
+      // startPod falls back to the legacy merged resolution (last writer wins
+      // across links), where a low-priority fallback provider can hijack
+      // colliding vars like ANTHROPIC_AUTH_TOKEN/ANTHROPIC_BASE_URL — which
+      // breaks in-pod CLI children spawned by delegateTask.
+      const { chain } = await resolveSandboxProviderChain(db, {
+        projectId,
+        orgId: agent.orgId,
+        sandboxId: bodySandboxId,
+        logContext: `[resolveAgentConfig] Agent ${agentId} —`,
+      })
+
       const startedInstanceId = await sandbox.startPod({
         userId: userId || ``,
         orgId: agent.orgId,
         egressOpts: config.egress,
         projectId: projectId || ``,
-        sandboxId: effectiveAgent.environment.sandboxId as string,
+        sandboxId: bodySandboxId,
+        providerChain: {
+          primaryEnv: chain.primaryEnv,
+          placeholders: chain.placeholders,
+        },
       })
       // Capture the pod name BEFORE anything below can throw, so the caller's
       // teardown path can always reap the pod (no orphan until the idle reaper)

@@ -24,6 +24,20 @@ vi.mock(`@TBE/utils/agent/resolveAgentDeps`, () => ({
   resolveAgentDeps: (...args: any[]) => mockResolveAgentDeps(...args),
 }))
 
+const mockResolveSandboxProviderChain = vi.fn().mockResolvedValue({
+  sandboxConfig: { runtime: `claude-code` },
+  chain: {
+    primaryBrand: `anthropic`,
+    primaryEnv: { CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary` },
+    placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+    fallbacks: [],
+  },
+})
+vi.mock(`@TBE/utils/sandbox/resolveSandboxChain`, () => ({
+  resolveSandboxProviderChain: (...args: any[]) =>
+    mockResolveSandboxProviderChain(...args),
+}))
+
 vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
   SecretResolver: vi.fn().mockImplementation(() => ({
     resolveApiKey: vi.fn().mockResolvedValue(`sk-test-key`),
@@ -421,12 +435,22 @@ describe(`resolveAgentConfig`, () => {
       projectId: `proj-1`,
     })
 
+    // The pod default env must come from the pre-resolved PRIMARY provider
+    // (deterministic chain), never the legacy last-writer-wins merge
+    expect(mockResolveSandboxProviderChain).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({ orgId: `org-1`, sandboxId: `sb-1`, projectId: `proj-1` })
+    )
     expect(mockStartPod).toHaveBeenCalledWith({
       userId: `user-1`,
       orgId: `org-1`,
       egressOpts: { allowList: [`*.example.com`] },
       projectId: `proj-1`,
       sandboxId: `sb-1`,
+      providerChain: {
+        primaryEnv: { CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary` },
+        placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+      },
     })
     expect(mockWaitForPodReady).toHaveBeenCalledWith(`started-pod-name`, {
       cloneCheck: true,
