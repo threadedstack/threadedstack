@@ -47,7 +47,7 @@ env:
   K8S_NAMESPACE: tdsk-production
   REGISTRY: ghcr.io/threadedstack
   # Pin CLI versions — verify at: github.com/civo/cli/releases, github.com/loft-sh/devspace/releases
-  CIVO_CLI_VERSION: "1.5.1"
+  CIVO_CLI_VERSION: "1.5.4"
   DEVSPACE_VERSION: "6.3.20"
 
 jobs:
@@ -101,7 +101,11 @@ jobs:
           sudo mv civo /usr/local/bin/civo
           civo version
           civo apikey save deploy-key "$CIVO_TOKEN"
-          civo region use "$CIVO_REGION"
+          # `civo region use` exits non-zero when the region is ALREADY selected
+          # ("You are already using that region"), which under `bash -e` would fail
+          # this step on a no-op. Tolerate that benign case; a genuinely wrong region
+          # surfaces later at `civo kubernetes config`.
+          civo region use "$CIVO_REGION" || true
 
       - name: Fetch kubeconfig
         run: |
