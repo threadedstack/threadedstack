@@ -9,5 +9,7 @@ export const setupEndpoints = (app: TProxyApp, router: Router) => {
   router.get(`/auth/me`, me)
   router.post(`/auth/logout`, logout)
   router.get(`/domains/validate`, validate)
-  router.all(`/echo`, express.json(), echo)
+
+  // Dev/test only - reflects all incoming headers, must never be reachable in production
+  if (process.env.NODE_ENV !== `production`) router.all(`/echo`, express.json(), echo)
 }
