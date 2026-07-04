@@ -133,7 +133,12 @@ const releaseAct: TTaskAction = async (args) => {
             ...params,
             push: true,
             tag: [`latest`],
-            platforms: params?.platforms || [`linux/amd64`, `linux/arm64`],
+            // Prod nodes are ALL amd64 — building arm64 under QEMU emulation
+            // roughly doubled the release's build time for an arch nothing
+            // runs. Override with --platforms if arm nodes ever join the
+            // cluster; local multi-arch dev builds (`tdsk docker build`) keep
+            // their own dual-platform default.
+            platforms: params?.platforms || [`linux/amd64`],
           },
         }),
         `docker build ${name}`
@@ -293,6 +298,12 @@ export const release: TTask = {
       default: true,
       alias: [`fb`],
       description: `Build and deploy changed frontends via Firebase (--no-firebase to skip)`,
+    },
+    platforms: {
+      type: `array`,
+      alias: [`plat`],
+      example: `--platforms linux/amd64,linux/arm64`,
+      description: `Image build platforms (default linux/amd64 — prod nodes are amd64-only)`,
     },
     namespace: sharedOpts.devspace.namespace,
     kubeContext: sharedOpts.devspace.kubeContext,

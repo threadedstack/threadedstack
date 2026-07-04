@@ -138,17 +138,14 @@ jobs:
           sudo mv devspace /usr/local/bin/devspace
           devspace --version
 
-      - name: Set up QEMU
-        # `tdsk release` builds multi-arch images (linux/amd64,linux/arm64); QEMU
-        # provides the arm64 emulation so the cross-arch build doesn't fail on the
-        # amd64 runner.
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
-        # install: true makes `docker build` use the buildx docker-container driver,
-        # which supports multi-platform builds. `tdsk release` runs `docker build
-        # --platform linux/amd64,linux/arm64`; the default classic docker driver
-        # rejects multi-platform ("not supported for the docker driver").
+        # install: true makes `docker build` use the buildx docker-container
+        # driver. Still required even for the amd64-only release: the registry
+        # build cache (`--cache-from/--cache-to type=registry`) is unsupported
+        # on the classic docker driver. QEMU was removed with the arm64 build —
+        # prod nodes are all amd64, so cross-arch emulation was pure waste
+        # (pass `tdsk release --platforms linux/amd64,linux/arm64` and restore
+        # docker/setup-qemu-action if arm nodes ever join the cluster).
         uses: docker/setup-buildx-action@v3
         with:
           install: true
