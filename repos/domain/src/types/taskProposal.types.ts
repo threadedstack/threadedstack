@@ -1,8 +1,11 @@
 /**
  * Task-proposal type definitions for agent self-direction (P4a).
- * A proposal is a self-sensed task pending an automatic promotion gate:
- *   pending → (security scan) → scanned → (auditor review) → promoted | rejected
- * Promotion creates a TASKS.md entry; the deterministic scan is the hard gate.
+ * A proposal is a self-sensed task moving through an automatic gate:
+ *   pending → (deterministic security scan) → scanned → promoted | rejected
+ * task_proposals ARE the backlog: scanned proposals are injected into the work
+ * cycle, which picks one, opens a CI-gated PR, and marks it promoted (with prUrl).
+ * The scan is the hard gate; no human sits on the critical path (admin reject is
+ * an optional async override that only filters a proposal, never blocks work).
  */
 
 import type { TScanResult, TAuditVerdict } from './skillProposal.types'
@@ -10,9 +13,9 @@ import type { TScanResult, TAuditVerdict } from './skillProposal.types'
 /** Lifecycle status of a task proposal. */
 export enum ETaskProposalStatus {
   pending = `pending`, // just sensed, scan not yet run
-  scanned = `scanned`, // passed the security scan, awaiting auditor review
-  rejected = `rejected`, // failed the scan, or the auditor/human rejected it
-  promoted = `promoted`, // approved + promoted to a TASKS.md entry
+  scanned = `scanned`, // passed the scan, eligible for the work cycle to pick up
+  rejected = `rejected`, // failed the scan, or filtered by an async admin reject
+  promoted = `promoted`, // picked up by the work cycle (a CI-gated PR was opened)
 }
 
 export type TTaskProposalStatus = `${ETaskProposalStatus}`
