@@ -309,6 +309,10 @@ env:
   # Base domain used to build sandbox port URLs (overridden per environment)
   TDSK_SB_DOMAIN:
 
+  # Civo node-pool name to pin sandbox pods onto (ignored when empty). Written into
+  # spec.nodeSelector as `kubernetes.civo.com/civo-node-pool: <value>`.
+  TDSK_SB_NODE_POOL:
+
   TDSK_SB_HOME: /home/sandbox
 
   # ---- Payments ENVs --- #

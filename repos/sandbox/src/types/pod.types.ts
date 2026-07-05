@@ -21,6 +21,7 @@ export type TBuildPodOpts = {
   projectId?: string
   namespace?: string
   runtimeClassName?: string
+  nodeSelector?: Record<string, string>
   egressOpts: TPodEgressOpts
   imagePullSecrets?: string[]
   placeholders: TPlaceholderMap

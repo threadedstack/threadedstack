@@ -70,6 +70,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     egressOpts,
     placeholders,
     skillsVolume,
+    nodeSelector,
     runtimeClassName,
     imagePullSecrets,
   } = opts
@@ -108,6 +109,7 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
       ...(runtimeClassName && { runtimeClassName, dnsPolicy: `Default` }),
+      ...(nodeSelector && Object.keys(nodeSelector).length && { nodeSelector }),
       ...(imagePullSecrets?.length && {
         imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
       }),

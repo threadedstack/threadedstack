@@ -61,6 +61,7 @@ const {
 
   // ENVs specific to dynamic sandboxes
   TDSK_SB_DOMAIN,
+  TDSK_SB_NODE_POOL,
   TDSK_SB_RUNTIME_CLASS,
   TDSK_SB_TIMEOUT_MIN = `30`,
   TDSK_SB_IMAGE_TAG = `latest`,
@@ -106,6 +107,9 @@ export const config = {
     image: `${TDSK_SB_IMAGE}:${TDSK_SB_IMAGE_TAG}`,
     domain: resolveSBDomain(TDSK_SB_DOMAIN?.trim() || undefined),
     runtimeClassName: TDSK_SB_RUNTIME_CLASS?.trim() || undefined,
+    nodeSelector: TDSK_SB_NODE_POOL?.trim()
+      ? { [`kubernetes.civo.com/civo-node-pool`]: TDSK_SB_NODE_POOL.trim() }
+      : undefined,
   },
   proxy: {
     // Validate if this URL field is needed

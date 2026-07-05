@@ -49,3 +49,7 @@ env:
 # ---- Sandbox Envs ---- #
   TDSK_SB_RUNTIME_CLASS: kata-clh
   TDSK_SB_DOMAIN: sandbox.threadedstack.app
+  # Pin sandbox pods to a dedicated large-node pool so a heavy AI-agent turn
+  # can't push a shared node past its memory ceiling and drop the kubelet
+  # heartbeat (the "medium-pool NodeNotReady flap" that was killing runs).
+  TDSK_SB_NODE_POOL: tdsksandbox

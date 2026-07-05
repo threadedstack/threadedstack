@@ -77,6 +77,7 @@ export type TSandboxOpts = {
   pollInterval?: number
   idleInterval?: number
   runtimeClassName?: string
+  nodeSelector?: Record<string, string>
 }
 
 /**
@@ -405,6 +406,7 @@ export class SandboxService {
       placeholders,
       skillsVolume,
       runtimeClassName: this.config.runtimeClassName,
+      nodeSelector: this.config.nodeSelector,
       imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
 

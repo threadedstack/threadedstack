@@ -406,4 +406,23 @@ describe(`buildPodManifest`, () => {
     const manifestEmpty = buildPodManifest(optsWithEmpty)
     expect(manifestEmpty.spec!.imagePullSecrets).toBeUndefined()
   })
+
+  it(`should apply nodeSelector when provided`, () => {
+    const opts = {
+      ...buildOpts(),
+      nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` },
+    }
+    const manifest = buildPodManifest(opts)
+    expect(manifest.spec!.nodeSelector).toEqual({
+      'kubernetes.civo.com/civo-node-pool': `tdsksandbox`,
+    })
+  })
+
+  it(`should omit nodeSelector when not provided or empty`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    expect(manifest.spec!.nodeSelector).toBeUndefined()
+
+    const empty = buildPodManifest({ ...buildOpts(), nodeSelector: {} })
+    expect(empty.spec!.nodeSelector).toBeUndefined()
+  })
 })
