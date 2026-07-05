@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import { useAgentChat } from './useAgentChat'
 
 const mockListMessages = vi.fn()
+const mockUpload = vi.fn()
 const mockSetCallbacks = vi.fn()
 const mockEnsureConnection = vi.fn()
 const mockSend = vi.fn()
@@ -13,6 +15,16 @@ vi.mock('@TAF/services/threadsApi', () => ({
   threadsApi: {
     listMessages: (...args: any[]) => mockListMessages(...args),
   },
+}))
+
+vi.mock('@TAF/services/filesApi', () => ({
+  filesApi: {
+    upload: (...args: any[]) => mockUpload(...args),
+  },
+}))
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
 }))
 
 vi.mock('@TAF/services/agentWSService', () => ({
@@ -257,5 +269,75 @@ describe('useAgentChat', () => {
     })
 
     expect(result.current.messages[0].text).toBe('Part one. Part two.')
+  })
+
+  it('surfaces a toast and omits the attachment when a file upload fails', async () => {
+    mockListMessages.mockResolvedValueOnce({ data: [] })
+    mockUpload.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Upload failed' },
+    })
+
+    const { result } = renderHook(() =>
+      useAgentChat({ ...baseOpts, threadId: 'thread-upload' })
+    )
+
+    await waitFor(() => {
+      expect(mockListMessages).toHaveBeenCalled()
+    })
+
+    const file = new File(['content'], 'notes.txt', { type: 'text/plain' })
+
+    await act(async () => {
+      await result.current.sendMessage('Please review', [file])
+    })
+
+    expect(mockUpload).toHaveBeenCalledWith('org-1', 'agent-1', 'thread-upload', file)
+    expect(toast.error).toHaveBeenCalledWith('Failed to upload notes.txt')
+
+    // The message still sends, but with no files attached since the upload failed
+    expect(mockSend).toHaveBeenCalled()
+    const sentPayload = mockSend.mock.calls[0][0]
+    expect(sentPayload.files).toBeUndefined()
+
+    const userMsg = result.current.messages.find((m) => m.role === 'user')
+    expect(userMsg?.files).toBeUndefined()
+  })
+
+  it('attaches successfully uploaded files without a toast', async () => {
+    mockListMessages.mockResolvedValueOnce({ data: [] })
+    mockUpload.mockResolvedValueOnce({
+      data: {
+        assetId: 'asset-1',
+        fileName: 'notes.txt',
+        fileType: 'text/plain',
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useAgentChat({ ...baseOpts, threadId: 'thread-upload-ok' })
+    )
+
+    await waitFor(() => {
+      expect(mockListMessages).toHaveBeenCalled()
+    })
+
+    const file = new File(['content'], 'notes.txt', { type: 'text/plain' })
+
+    await act(async () => {
+      await result.current.sendMessage('Please review', [file])
+    })
+
+    expect(toast.error).not.toHaveBeenCalled()
+    const sentPayload = mockSend.mock.calls[0][0]
+    expect(sentPayload.files).toEqual([
+      {
+        assetId: 'asset-1',
+        fileName: 'notes.txt',
+        mimeType: 'text/plain',
+        extractedText: undefined,
+        imageData: undefined,
+      },
+    ])
   })
 })
