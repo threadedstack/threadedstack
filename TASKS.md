@@ -150,40 +150,7 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 ---
 
-## Backend
-
-### [P2] Escalation layer missing — no `escalations` table or `escalate` agent tool
-
-* **Repos**: backend, database, agent
-* **Key files**: `repos/database/src/schemas/` (no `escalations.ts`), `repos/agent/src/tools/tools.ts` (no escalate tool), `repos/backend/src/services/scheduler/executor.ts`
-* Per `docs/superpowers/specs/2026-07-01-autonomous-agent-design.md` §4.8, the autonomous agent needs an escalation layer: on an unrecoverable blocker it should self-remediate (retry/provider failover — already implemented for AI providers), then write a durable escalation record, notify a human (email/GitHub issue), and pause only the affected schedule cadence. None of this exists today — there is no `escalations` schema/table, no `escalate` tool for the agent to call, and a scheduler circuit-breaker trip (`consecutiveErrors` reaching `maxConsecutiveErrors`) currently auto-disables a schedule silently with no notification to anyone
-* **Fix**:
-  1. Add `repos/database/src/schemas/escalations.ts` (`orgId`, `agentId`, `scheduleId?`, `threadId?`, `severity`, `message`, `status`) and a corresponding database service
-  2. Add a backend endpoint that writes an escalation record and sends an email via the existing `EmailService` (`app.locals.email.send`)
-  3. Add an `escalate` agent tool in `repos/agent/src/tools/tools.ts` that POSTs to the new endpoint
-  4. Wire the scheduler's circuit-breaker trip to call the same escalation path instead of silently auto-disabling
-* **Files**:
-  * New: `repos/database/src/schemas/escalations.ts`
-  * New: `repos/database/src/services/escalation.ts`
-  * New: `repos/backend/src/endpoints/agents/escalate.ts` (or equivalent endpoint)
-  * `repos/agent/src/tools/tools.ts` — add `escalate` tool
-  * `repos/backend/src/services/scheduler/executor.ts` — wire breaker-trip notification
-
----
-
 ## Proxy
-
-### [P1] Echo endpoint leaks all headers with no production guard
-
-* **Repos**: proxy
-* **Key files**: `repos/proxy/src/endpoints/echo.ts` (lines 11-18), `repos/proxy/src/constants/values.ts` (line 7), `repos/proxy/src/middleware/setupEndpoints.ts` (line 12)
-* The `/echo` endpoint echoes all request headers including `Authorization` and cookies. It is registered unconditionally in `setupEndpoints.ts` and listed as a `PublicRoute` (no auth required). The code comment warns "Do not enable in production" but there is no `NODE_ENV` (or any) runtime guard anywhere in `repos/proxy/src` — it is always registered regardless of environment. Note: PR #13 (`steward/proxy-echo-prod-guard`) is open with green CI and auto-merge armed but currently blocked on a rebase (`BEHIND` main) — this item stays open until that PR actually lands
-* **Fix**:
-  1. Add a guard: only register the route when `NODE_ENV !== 'production'` or behind a dedicated feature flag
-  2. Alternatively, strip sensitive headers (`authorization`, `cookie`) before echoing
-* **Files**:
-  * `repos/proxy/src/endpoints/echo.ts` — add environment guard
-  * `repos/proxy/src/constants/values.ts` — conditionally include in PublicRoutes
 
 ### [P2] CORS configuration allows wildcard origin
 
