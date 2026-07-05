@@ -198,7 +198,10 @@ jobs:
       # STAGING DEPLOY: NODE_ENV=staging + --env staging picks up values.staging.yaml.
       # --no-firebase: frontends deploy via firebase-hosting-merge.yml on merge to main,
       # not as part of the staging infra gate.
-      - name: tdsk release --env staging --confirm
+      # --no-verify: `tdsk release`'s built-in verify hits px-staging.threadedstack.app
+      # over the internet, but staging does not yet have DNS wired up. We defer the
+      # readiness check to the next step, which runs cluster-internal via kubectl.
+      - name: tdsk release --env staging --confirm --no-verify
         if: steps.detect.outputs.infra == 'true'
         env:
           NODE_ENV: staging
@@ -206,35 +209,20 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd repos/cli
-          pnpm cli release --env staging --confirm --no-firebase
+          pnpm cli release --env staging --confirm --no-firebase --no-verify
 
-      # STAGING VERIFY: minimal inline health probes.
-      # Inline staging probes; the shared verifyDeploy probe (E3) exposes the
-      # same checks via a CLI helper and both must remain in sync.
-      - name: Verify staging health
+      # STAGING VERIFY: wait for every deployment to become Ready via kubectl.
+      # Cluster-internal — no dependency on staging DNS. Once staging has a
+      # public hostname, this can be replaced by a call to the shared verifyDeploy
+      # probe (E3) that curls px-staging.threadedstack.app/health + /_/health.
+      - name: Verify staging readiness (kubectl rollout status)
         if: steps.detect.outputs.infra == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          # Give the rollout up to ~2 min (24 * 5s) to become ready.
-          for i in $(seq 1 24); do
-            if curl -fsS -m 10 https://px-staging.threadedstack.app/health > /tmp/px.json \
-               && curl -fsS -m 10 https://px-staging.threadedstack.app/_/health > /tmp/be.json; then
-              PX_STATUS=$(jq -r .status /tmp/px.json)
-              BE_STATUS=$(jq -r .status /tmp/be.json)
-              if [[ "$PX_STATUS" == "ok" && "$BE_STATUS" == "ok" ]]; then
-                echo "Staging health: OK (proxy=$PX_STATUS backend=$BE_STATUS)"
-                exit 0
-              fi
-              echo "Attempt $i/24: proxy=$PX_STATUS backend=$BE_STATUS -- waiting..."
-            else
-              echo "Attempt $i/24: curl failed -- waiting..."
-            fi
-            sleep 5
+          for dep in tdsk-caddy tdsk-proxy tdsk-backend; do
+            echo "waiting for $dep..."
+            kubectl --context tdsk -n "$K8S_NAMESPACE" rollout status "deployment/$dep" --timeout=3m
           done
-          echo "Staging verify FAILED after 2 min"
-          echo "--- proxy health response ---"
-          cat /tmp/px.json 2>/dev/null || echo "(no response)"
-          echo "--- backend health response ---"
-          cat /tmp/be.json 2>/dev/null || echo "(no response)"
-          exit 1
+          echo "All staging deployments Ready."
+          kubectl --context tdsk -n "$K8S_NAMESPACE" get pods -o wide
