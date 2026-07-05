@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { EOpsActionStatus } from '@tdsk/domain'
+
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -18,6 +20,11 @@ vi.mock(`@TBE/services/ops/ops`, () => ({
     deployState: mockDeployState,
     quotaUsage: mockQuotaUsage,
   })),
+}))
+
+const mockProposeOpsAction = vi.fn()
+vi.mock(`@TBE/utils/agent/opsPromotion`, () => ({
+  proposeOpsAction: mockProposeOpsAction,
 }))
 
 // Import AFTER mocks
@@ -68,21 +75,52 @@ describe(`createOpsProvider`, () => {
     expect(mockQuotaUsage).toHaveBeenCalledWith({}, { orgId, agentId })
   })
 
-  it(`propose throws a loud D6-stub error and does NOT call any service`, async () => {
-    await expect(
-      provider.propose(`restartDeployment`, {
-        deployment: `tdsk-backend`,
-        reason: `test`,
-      })
-    ).rejects.toThrow(`[P4d D5] Ops write proposal not yet wired`)
-    // No service methods should have been called
+  // propose now calls proposeOpsAction — no longer throws
+  it(`propose delegates to proposeOpsAction and returns dryRun result`, async () => {
+    mockProposeOpsAction.mockResolvedValueOnce({
+      opsActionId: `oa_1`,
+      status: EOpsActionStatus.dryRun,
+      findings: [],
+      dryRun: { deployment: `tdsk-backend`, wouldRestart: true },
+    })
+
+    const result = await provider.propose(`restartDeployment`, {
+      deployment: `tdsk-backend`,
+      reason: `test`,
+    })
+
+    expect(result).toMatchObject({ opsActionId: `oa_1`, status: EOpsActionStatus.dryRun })
+    expect(mockProposeOpsAction).toHaveBeenCalledWith(
+      app,
+      db,
+      orgId,
+      agentId,
+      `restartDeployment`,
+      { deployment: `tdsk-backend`, reason: `test` },
+      { authoredBy: agentId }
+    )
+    // Read-tier service methods not involved
     expect(mockPodStatus).not.toHaveBeenCalled()
     expect(mockDeployState).not.toHaveBeenCalled()
   })
 
-  it(`propose error message includes the attempted action name`, async () => {
-    await expect(
-      provider.propose(`triggerRedeploy`, { reason: `urgent` })
-    ).rejects.toThrow(`triggerRedeploy`)
+  it(`propose returns rejected result when proposeOpsAction scan fails`, async () => {
+    mockProposeOpsAction.mockResolvedValueOnce({
+      opsActionId: `oa_2`,
+      status: EOpsActionStatus.rejected,
+      findings: [`[deploy-allowlist] deployment 'nonsense' not in OpsAllowedDeployments`],
+      dryRun: null,
+    })
+
+    const result = await provider.propose(`restartDeployment`, {
+      deployment: `nonsense`,
+      reason: `test`,
+    })
+
+    expect(result).toMatchObject({
+      opsActionId: `oa_2`,
+      status: EOpsActionStatus.rejected,
+    })
+    expect((result as any).findings.length).toBeGreaterThan(0)
   })
 })
