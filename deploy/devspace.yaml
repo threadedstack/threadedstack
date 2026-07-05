@@ -330,6 +330,12 @@ deployments:
       valuesFiles:
         - ./values.empty.yaml
       values:
+        # Match tdsk-backend's node pin. Proxy is on the request path between
+        # the client and the backend, so co-locating on the same stable node
+        # keeps latency low and avoids re-fanning traffic across a flappy
+        # medium-pool node.
+        nodeSelector:
+          kubernetes.civo.com/civo-node-pool: tdskembed
         containers:
           - name: ${TDSK_PX_DEPLOYMENT}
             image: ${TDSK_PX_IMAGE}:${TDSK_PX_IMAGE_TAG}
@@ -421,6 +427,15 @@ deployments:
         - ./values.yaml
         - ./values.${NODE_ENV}.yaml
       values:
+        # Pin to the tdskembed pool (higher-memory, historically stable) so the
+        # backend does not land on a medium-pool node that is currently flapping
+        # NodeNotReady every 5-15 min. Without this pin, kubelet on the flappy
+        # node loses heartbeat while an executor tick is running mid-schedule —
+        # the pod stays "Running" from the DB's perspective (no pgrep, no
+        # phase transition) but the executor process is unreachable, and the
+        # schedule_run row stays orphaned until the pod is force-deleted.
+        nodeSelector:
+          kubernetes.civo.com/civo-node-pool: tdskembed
         networkPolicy:
           name: sandbox-egress-policy
           podSelector:

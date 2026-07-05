@@ -35,6 +35,18 @@ const buildMockDb = () =>
     },
   }) as any
 
+/**
+ * The scheduler tick fires executors as fire-and-forget (so a long-running
+ * executor never blocks the next tick). Tests that assert post-executor side
+ * effects (incrementErrors, markRun on downstream schedules, etc.) need to
+ * flush pending microtasks after awaiting the tick to see them.
+ */
+const flushPending = async () => {
+  await vi.runAllTimersAsync()
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 const mockSchedule = {
   id: `sched-1`,
   orgId: `org-1`,
@@ -196,6 +208,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.incrementErrors.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
     })
@@ -210,6 +223,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.markRun.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockDb.services.schedule.markRun).toHaveBeenCalledTimes(3)
       expect(mockDb.services.schedule.markRun).toHaveBeenCalledWith(
@@ -238,6 +252,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.incrementErrors.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       // First schedule failed and got incrementErrors, second succeeded
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
@@ -256,6 +271,7 @@ describe(`Scheduler`, () => {
 
       // Should not throw
       await scheduler.tick()
+      await flushPending()
 
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Inc failed`))
     })
@@ -270,6 +286,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.markRun.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockExecutor).toHaveBeenCalledWith(mockSchedule)
     })
@@ -281,6 +298,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.markRun.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       // No error, just markRun
       expect(mockDb.services.schedule.markRun).toHaveBeenCalledTimes(1)
@@ -297,9 +315,38 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.incrementErrors.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Agent crashed`))
+    })
+
+    it(`does not block the tick on a slow executor (fire-and-forget)`, async () => {
+      // Regression test for the incident where an adversary review took 10+
+      // min and prevented every subsequent tick from picking up new due
+      // schedules — coding cycle triggers vanished silently until the slow
+      // executor finally released. Now the tick must return quickly even
+      // when the executor promise stays pending indefinitely.
+      let slowResolver: () => void = () => undefined
+      const slowExecutor = vi
+        .fn()
+        .mockImplementation(
+          () => new Promise<void>((resolve) => (slowResolver = resolve))
+        )
+      scheduler = new Scheduler(mockDb, slowExecutor)
+
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [mockSchedule] })
+      mockDb.services.schedule.markRun.mockResolvedValue({})
+
+      // Tick resolves without waiting for the executor. Flush pending so
+      // the fire-and-forget processSchedule can reach the executor invoke.
+      await scheduler.tick()
+      await flushPending()
+
+      // Executor was invoked but the tick did not wait for it.
+      expect(slowExecutor).toHaveBeenCalledWith(mockSchedule)
+      // Cleanup so the dangling promise does not leak into other tests.
+      slowResolver()
     })
 
     it(`should process schedules concurrently, not sequentially`, async () => {
@@ -335,6 +382,11 @@ describe(`Scheduler`, () => {
 
       vi.useRealTimers()
       await scheduler.tick()
+      // With fire-and-forget dispatch the tick returns before executors
+      // start; a real-timer microtask flush lets both processSchedule
+      // promises reach their first await inside the executor.
+      await new Promise((r) => setImmediate(r))
+      await new Promise((r) => setImmediate(r))
 
       expect(callOrder[0]).toBe(`start:sched-1`)
       expect(callOrder[1]).toBe(`start:sched-2`)
@@ -359,6 +411,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.incrementErrors.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockExecutor).toHaveBeenCalledTimes(2)
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)

@@ -116,6 +116,21 @@ export class Scheduler {
 
   /**
    * Check for due schedules and process them.
+   *
+   * Fires executors WITHOUT awaiting them. The old shape used
+   * `await Promise.allSettled(dueSchedules.map(processSchedule))`, which meant
+   * a single long-running executor (a CLI-brain run taking 10+ minutes)
+   * blocked the tick — and because #ticking is set for the whole tick, every
+   * subsequent 60s tick would bail via `if (this.#ticking) return` and no new
+   * schedules would be picked up until the slowest current executor finished.
+   * That is how the coding cycle went dark whenever an adversary review was
+   * still in flight: the trigger row got created, but the tick that would
+   * have processed the coding cycle was serialized behind an unrelated
+   * long-running schedule.
+   *
+   * #processSchedule advances next_run_at synchronously via markRun BEFORE
+   * awaiting the executor, so a fire-and-forget dispatch here does not cause
+   * the same schedule to be picked up twice by the next tick.
    */
   async tick() {
     if (this.#ticking) return
@@ -132,14 +147,15 @@ export class Scheduler {
 
       logger.info(`[Scheduler] Found ${dueSchedules.length} due schedule(s)`)
 
-      const results = await Promise.allSettled(
-        dueSchedules.map((schedule) => this.#processSchedule(schedule))
-      )
-
-      const failures = results.filter((r) => r.status === `rejected`)
-      if (failures.length > 0) {
-        logger.warn(
-          `[Scheduler] ${failures.length}/${dueSchedules.length} schedule(s) failed in tick`
+      for (const schedule of dueSchedules) {
+        // Fire and forget. Errors are logged inside #processSchedule's own
+        // catch; the .catch here is a belt-and-suspenders guard against any
+        // throw that escapes #processSchedule (which shouldn't happen but
+        // would otherwise become an unhandled rejection).
+        this.#processSchedule(schedule).catch((err) =>
+          logger.error(
+            `[Scheduler] Unhandled error in processSchedule ${schedule.id}: ${err?.message || err}`
+          )
         )
       }
     } catch (err: any) {
