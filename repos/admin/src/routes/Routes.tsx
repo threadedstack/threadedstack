@@ -19,6 +19,7 @@ import {
   orgTaskProposalsLoader,
   orgEscalationsLoader,
   orgVerificationsLoader,
+  orgOpsActionsLoader,
   orgSecretsLoader,
   orgDomainsLoader,
   orgMembersLoader,
@@ -65,6 +66,7 @@ const OrgSkillProposals = lazy(() => import('@TAF/pages/Orgs/OrgSkillProposals')
 const OrgTaskProposals = lazy(() => import('@TAF/pages/Orgs/OrgTaskProposals'))
 const OrgEscalations = lazy(() => import('@TAF/pages/Orgs/OrgEscalations'))
 const OrgVerifications = lazy(() => import('@TAF/pages/Orgs/OrgVerifications'))
+const OrgOpsActions = lazy(() => import('@TAF/pages/Orgs/OrgOpsActions'))
 const ProjectSchedules = lazy(() => import('@TAF/pages/Projects/ProjectSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgPermissions = lazy(() => import('@TAF/pages/Orgs/OrgPermissions'))
@@ -224,6 +226,11 @@ export const createRoutes = () =>
               path: ERoutePath.Verifications,
               loader: orgVerificationsLoader,
               Component: () => <SuspensePage Component={OrgVerifications} />,
+            },
+            {
+              path: ERoutePath.OpsActions,
+              loader: orgOpsActionsLoader,
+              Component: () => <SuspensePage Component={OrgOpsActions} />,
             },
             {
               path: ERoutePath.ApiKeys,

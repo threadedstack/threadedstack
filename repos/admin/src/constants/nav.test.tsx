@@ -267,6 +267,7 @@ describe(`OrgNavItems`, () => {
         `Usage`,
         `Escalations`,
         `Verifications`,
+        `Ops Actions`,
       ]
       const memberHidden = [`API Keys`, `Permissions`, `Settings`, `Agents`]
       memberVisible.forEach((name) => {
@@ -315,6 +316,7 @@ describe(`OrgNavItems`, () => {
         `Task Proposals`,
         `Escalations`,
         `Verifications`,
+        `Ops Actions`,
         `Usage`,
         `Settings`,
       ]
@@ -536,7 +538,7 @@ describe(`OrgSubNavGroups`, () => {
     ])
   })
 
-  it(`Resources should have Projects, Sandboxes, Providers, Skills, Skill Proposals, Task Proposals, Escalations, Verifications`, () => {
+  it(`Resources should have Projects, Sandboxes, Providers, Skills, Skill Proposals, Task Proposals, Escalations, Verifications, Ops Actions`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
     expect(texts).toEqual([
@@ -548,6 +550,7 @@ describe(`OrgSubNavGroups`, () => {
       `Task Proposals`,
       `Escalations`,
       `Verifications`,
+      `Ops Actions`,
       `Agents`,
     ])
   })

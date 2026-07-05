@@ -34,6 +34,7 @@ import {
 import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
 import { escalationsState, activeEscalationIdState } from '@TAF/state/escalations'
 import { verificationsState, activeVerificationIdState } from '@TAF/state/verifications'
+import { opsActionsState, activeOpsActionIdState } from '@TAF/state/opsActions'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
@@ -237,6 +238,9 @@ export const useActiveEscalationId = () => useRecState(activeEscalationIdState)
 
 export const useVerifications = () => useRecState(verificationsState)
 export const useActiveVerificationId = () => useRecState(activeVerificationIdState)
+
+export const useOpsActions = () => useRecState(opsActionsState)
+export const useActiveOpsActionId = () => useRecState(activeOpsActionIdState)
 
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
