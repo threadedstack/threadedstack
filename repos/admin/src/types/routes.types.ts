@@ -33,6 +33,9 @@ export enum ERoutePath {
   Escalations = `escalations`,
   OrgEscalations = `/orgs/:orgId/escalations`,
 
+  Verifications = `verifications`,
+  OrgVerifications = `/orgs/:orgId/verifications`,
+
   Schedules = `schedules`,
   ProjectSchedules = `/orgs/:orgId/projects/:projectId/schedules`,
 

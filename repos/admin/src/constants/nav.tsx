@@ -32,6 +32,7 @@ import {
   FactCheck as ProposalIcon,
   Assignment as TaskProposalIcon,
   ReportProblem as EscalationIcon,
+  VerifiedUser as VerificationIcon,
 } from '@mui/icons-material'
 
 const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
@@ -121,6 +122,12 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Escalations`,
     to: buildRoute(ERoutePath.OrgEscalations),
     Icon: <EscalationIcon />,
+    visible: hasOrgMember,
+  },
+  Verifications: {
+    text: `Verifications`,
+    to: buildRoute(ERoutePath.OrgVerifications),
+    Icon: <VerificationIcon />,
     visible: hasOrgMember,
   },
   Usage: {
@@ -257,6 +264,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
       OrgSubNav.SkillProposals,
       OrgSubNav.TaskProposals,
       OrgSubNav.Escalations,
+      OrgSubNav.Verifications,
       OrgSubNav.Agents,
     ],
   },

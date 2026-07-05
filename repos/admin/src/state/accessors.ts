@@ -32,6 +32,7 @@ import type {
   TSkillProposal,
   TTaskProposal,
   TEscalation,
+  TVerification,
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
@@ -56,6 +57,7 @@ import {
 } from '@TAF/state/skillProposals'
 import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
 import { escalationsState, activeEscalationIdState } from '@TAF/state/escalations'
+import { verificationsState, activeVerificationIdState } from '@TAF/state/verifications'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
@@ -331,6 +333,18 @@ export const getActiveEscalationId = () => store.get(activeEscalationIdState)
 export const resetActiveEscalationId = () => store.set(activeEscalationIdState, undefined)
 export const setActiveEscalationId = (id: string) =>
   store.set(activeEscalationIdState, id)
+
+// Verifications (org-scoped, flat)
+export const getVerifications = () => store.get(verificationsState)
+export const resetVerifications = () => store.set(verificationsState, undefined)
+export const setVerifications = (verifications: Record<string, TVerification>) =>
+  store.set(verificationsState, verifications)
+
+export const getActiveVerificationId = () => store.get(activeVerificationIdState)
+export const resetActiveVerificationId = () =>
+  store.set(activeVerificationIdState, undefined)
+export const setActiveVerificationId = (id: string) =>
+  store.set(activeVerificationIdState, id)
 
 // Schedules (project-scoped, context-keyed)
 export const getSchedules = () => store.get(schedulesState)

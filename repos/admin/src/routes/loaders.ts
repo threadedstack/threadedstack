@@ -9,6 +9,7 @@ import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
 import { fetchSkillProposals } from '@TAF/actions/skillProposals/api/fetchSkillProposals'
 import { fetchTaskProposals } from '@TAF/actions/taskProposals/api/fetchTaskProposals'
 import { fetchEscalations } from '@TAF/actions/escalations/api/fetchEscalations'
+import { fetchVerifications } from '@TAF/actions/verifications/api/fetchVerifications'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
@@ -35,6 +36,7 @@ import {
   getSkillProposals,
   getTaskProposals,
   getEscalations,
+  getVerifications,
   getInvoices,
   getOrgUsers,
   getOrgQuota,
@@ -221,6 +223,14 @@ export const orgEscalationsLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
 
   if (!getEscalations()) await safeFetch(() => fetchEscalations({ orgId }))
+  return null
+}
+
+export const orgVerificationsLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId } = params
+  if (!orgId) missOrgIdResp()
+
+  if (!getVerifications()) await safeFetch(() => fetchVerifications({ orgId }))
   return null
 }
 

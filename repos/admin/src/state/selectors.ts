@@ -33,6 +33,7 @@ import {
 } from '@TAF/state/skillProposals'
 import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
 import { escalationsState, activeEscalationIdState } from '@TAF/state/escalations'
+import { verificationsState, activeVerificationIdState } from '@TAF/state/verifications'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
@@ -233,6 +234,9 @@ export const useActiveTaskProposalId = () => useRecState(activeTaskProposalIdSta
 
 export const useEscalations = () => useRecState(escalationsState)
 export const useActiveEscalationId = () => useRecState(activeEscalationIdState)
+
+export const useVerifications = () => useRecState(verificationsState)
+export const useActiveVerificationId = () => useRecState(activeVerificationIdState)
 
 export const useSchedules = () => useRecState(schedulesState)
 export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
