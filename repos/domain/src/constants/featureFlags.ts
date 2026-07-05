@@ -42,7 +42,7 @@ export const FeatureFlags: TFeatureFlags = {
     description: `Post-merge verify + auto revert on regression (P4c)`,
   },
   ops: {
-    enabled: false,
+    enabled: true,
     description: `Allowlisted ops actions with dry-run + adversary review (P4d, READ then WRITE)`,
   },
 }
