@@ -31,6 +31,7 @@ import {
   Extension as ExtensionIcon,
   FactCheck as ProposalIcon,
   Assignment as TaskProposalIcon,
+  ReportProblem as EscalationIcon,
 } from '@mui/icons-material'
 
 const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
@@ -114,6 +115,12 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Task Proposals`,
     to: buildRoute(ERoutePath.OrgTaskProposals),
     Icon: <TaskProposalIcon />,
+    visible: hasOrgMember,
+  },
+  Escalations: {
+    text: `Escalations`,
+    to: buildRoute(ERoutePath.OrgEscalations),
+    Icon: <EscalationIcon />,
     visible: hasOrgMember,
   },
   Usage: {
@@ -249,6 +256,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
       OrgSubNav.Skills,
       OrgSubNav.SkillProposals,
       OrgSubNav.TaskProposals,
+      OrgSubNav.Escalations,
       OrgSubNav.Agents,
     ],
   },

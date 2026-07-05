@@ -17,6 +17,7 @@ import {
   orgSkillsLoader,
   orgSkillProposalsLoader,
   orgTaskProposalsLoader,
+  orgEscalationsLoader,
   orgSecretsLoader,
   orgDomainsLoader,
   orgMembersLoader,
@@ -61,6 +62,7 @@ const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
 const OrgSkillProposals = lazy(() => import('@TAF/pages/Orgs/OrgSkillProposals'))
 const OrgTaskProposals = lazy(() => import('@TAF/pages/Orgs/OrgTaskProposals'))
+const OrgEscalations = lazy(() => import('@TAF/pages/Orgs/OrgEscalations'))
 const ProjectSchedules = lazy(() => import('@TAF/pages/Projects/ProjectSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgPermissions = lazy(() => import('@TAF/pages/Orgs/OrgPermissions'))
@@ -210,6 +212,11 @@ export const createRoutes = () =>
               path: ERoutePath.TaskProposals,
               loader: orgTaskProposalsLoader,
               Component: () => <SuspensePage Component={OrgTaskProposals} />,
+            },
+            {
+              path: ERoutePath.Escalations,
+              loader: orgEscalationsLoader,
+              Component: () => <SuspensePage Component={OrgEscalations} />,
             },
             {
               path: ERoutePath.ApiKeys,
