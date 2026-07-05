@@ -32,10 +32,18 @@ import {
   RunOutcomeInjectMaxChars,
   TaskBacklogInjectMaxChars,
   SkillReviewInjectMaxChars,
+  EEscalationStatus,
+  EscalationInjectMax,
+  EscalationInjectMaxChars,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
 import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
+import {
+  parseEscalationBlock,
+  parseEscalationResolutionsBlock,
+} from '@TBE/utils/agent/escalation'
+import { openEscalation, resolveEscalation } from '@TBE/utils/agent/escalationPromotion'
 import {
   escapePromptArg,
   foregroundEnvPrefix,
@@ -688,6 +696,127 @@ export async function persistTaskPickups(
 }
 
 /**
+ * Build the injected open-escalations context so a runtime cycle sees all
+ * open and routed escalations and does NOT re-raise them. Routed entries are
+ * listed first (the steward can act on them), then open ones. Total capped at
+ * EscalationInjectMax entries and EscalationInjectMaxChars characters.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildEscalationContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const [routedRes, openRes] = await Promise.all([
+      db.services.escalation.listByStatus(orgId, EEscalationStatus.routed),
+      db.services.escalation.listByStatus(orgId, EEscalationStatus.open),
+    ])
+    const routed = routedRes.data ?? []
+    const open = openRes.data ?? []
+    const all = [...routed, ...open].slice(0, EscalationInjectMax)
+    if (!all.length) return ``
+
+    const bullets = all
+      .map((es) => {
+        const excerpt = (es.problem ?? ``).slice(0, 200)
+        const patch = es.proposedPatch ? es.proposedPatch.split(`\n`)[0] : `none`
+        const issue = es.issueRef ?? `none`
+        return `- ${es.id} [${es.status}/${es.target}] "${es.title}": ${excerpt}\n  patch: ${patch}\n  issue: ${issue}`
+      })
+      .join(`\n`)
+
+    const raw = `## Open escalations (do NOT re-raise; act on routed ones)\n${bullets}\nEmit \`\`\`tdsk-escalation-resolutions\`\`\` when you finish one (id or dedupeKey + status + resolvedRef).\n\n`
+    return raw.length > EscalationInjectMaxChars
+      ? `${raw.slice(0, EscalationInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildEscalationContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output escalation blocks emitted by a
+ * successful runtime run:
+ *  - tdsk-escalations: each entry is opened (or deduped) via openEscalation.
+ *  - tdsk-escalation-resolutions: each resolved entry also writes a durable
+ *    memory row so the steward does not re-escalate. Never throws.
+ */
+export async function persistEscalations(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const meta = { threadId, scheduleId: schedule.id }
+
+    const inputs = parseEscalationBlock(stdoutText)
+    let opened = 0
+    for (const input of inputs) {
+      try {
+        const r = await openEscalation(db, orgId, agentId, input, meta)
+        logger.info(
+          `[Executor] Schedule ${schedule.id} — escalation ${r.id} status=${r.status} deduped=${r.deduped} routable=${r.routable}`
+        )
+        opened++
+      } catch (e) {
+        logger.warn(`[Executor] escalation open failed: ${(e as Error).message}`)
+      }
+    }
+    if (inputs.length)
+      logger.info(
+        `[Executor] Schedule ${schedule.id} — opened ${opened}/${inputs.length} escalation(s)`
+      )
+
+    const resolutions = parseEscalationResolutionsBlock(stdoutText)
+    for (const res of resolutions) {
+      try {
+        const status = await resolveEscalation(db, orgId, res, agentId)
+        if (status === `resolved`) {
+          // Durable write-back: the steward remembers this was resolved so it
+          // does not re-escalate the same issue on the next cycle. Mirrors the
+          // memory.create shape used in persistMemoryWrites (text + kind +
+          // importance + orgId + agentId + meta, embedding omitted for
+          // backfill — same pattern as persistMemoryWrites null-safe path).
+          try {
+            await (db.services.memory as any).create({
+              orgId,
+              agentId,
+              kind: EMemoryKind.fact,
+              importance: 6,
+              text: `Escalation resolved: ${res.id ?? res.dedupeKey} → ${res.resolvedRef ?? status}`,
+              meta: { threadId, scheduleId: schedule.id, source: `escalation` },
+              embedding: null,
+            } as any)
+          } catch (memErr) {
+            logger.warn(
+              `[Executor] escalation memory write-back failed: ${(memErr as Error).message}`
+            )
+          }
+        }
+      } catch (e) {
+        logger.warn(`[Executor] escalation resolve failed: ${(e as Error).message}`)
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — escalation capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -800,6 +929,9 @@ async function runCliAgentSchedule(
 
   const memorySection = await buildMemoryContext(app, schedule, agent.id)
   const reviewSection = await buildProposalReviewContext(app, schedule)
+  // Always injected (mirrors reviewSection): surfaces open + routed escalations
+  // so the steward does not re-raise already-tracked needs.
+  const escalationSection = await buildEscalationContext(app, schedule)
   // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
   // tdsk-tasks block) gets its own recent run outcomes + a digest of open
   // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
@@ -816,7 +948,7 @@ async function runCliAgentSchedule(
     agent,
     sandboxConfig,
     previousReport,
-    memorySection + reviewSection + sensorSection + backlogSection
+    memorySection + reviewSection + escalationSection + sensorSection + backlogSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -986,6 +1118,9 @@ async function runCliAgentSchedule(
     // pickups that promote a scanned proposal once its PR opens.
     await persistTaskProposals(app, schedule, agent.id, threadId, stdoutText)
     await persistTaskPickups(app, schedule, agent.id, stdoutText)
+    // Capture escalations opened by the steward and resolutions it emits once
+    // a fix PR merges; resolutions also write a durable memory row.
+    await persistEscalations(app, schedule, agent.id, threadId, stdoutText)
   }
 
   return result
