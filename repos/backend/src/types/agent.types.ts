@@ -5,6 +5,7 @@ import type {
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
+  IOpsProvider,
 } from '@tdsk/agent'
 import type {
   Skill,
@@ -82,6 +83,12 @@ export type TAgentRuntimeConfig = {
    * brain exposes the delegateTask tool (bounded in-pod child coding process).
    */
   delegateProvider?: IDelegateProvider
+  /**
+   * Ops provider (backend-implemented). Present only when the `ops` feature flag
+   * is enabled; exposes READ tier (podStatus/podLogs/deployState/quotaUsage) plus
+   * a stubbed WRITE tier that throws loudly until D6 wires real proposal machinery.
+   */
+  opsProvider?: IOpsProvider
 }
 
 /** Context handed to createDelegateProvider by resolveAgentConfig. */

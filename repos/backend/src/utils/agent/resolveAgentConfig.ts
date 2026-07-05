@@ -14,6 +14,7 @@ import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
+import { createOpsProvider } from '@TBE/utils/agent/opsProvider'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { authorTaskProposal } from '@TBE/utils/agent/taskPromotion'
@@ -402,6 +403,10 @@ export const resolveAgentConfig = async (
           podName: sandboxConfig.options?.podName as string | undefined,
           sandboxId: effectiveAgent.environment?.sandboxId as string | undefined,
         })
+      : undefined,
+    // Only wire the ops read/write tools when the feature is enabled
+    opsProvider: isFeatureEnabled(`ops`)
+      ? createOpsProvider(app, db, agent.orgId, agentId)
       : undefined,
   }
 }
