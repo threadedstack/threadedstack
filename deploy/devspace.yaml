@@ -878,7 +878,8 @@ profiles:
         kubernetes.civo.com/server-timeout: "3600s"
         kubernetes.civo.com/max-concurrent-requests: "20000"
         kubernetes.civo.com/loadbalancer-algorithm: "least_connections"
-        kubernetes.civo.com/loadbalancer-enable-proxy-protocol: "send-proxy-v2"- name: production
+        kubernetes.civo.com/loadbalancer-enable-proxy-protocol: "send-proxy-v2"
+- name: production
   patches:
     # Use production images and tags
     - op: replace
