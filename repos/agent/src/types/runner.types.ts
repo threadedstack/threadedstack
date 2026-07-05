@@ -3,6 +3,7 @@ import type { ISkillProvider } from './skill.types'
 import type { ITaskProvider } from './task.types'
 import type { IEscalationProvider } from './escalation.types'
 import type { IDelegateProvider } from './delegation.types'
+import type { IOpsProvider } from './ops.types'
 import type {
   Skill,
   TStreamEvent,
@@ -118,6 +119,13 @@ export type TAgentInitOpts = {
   delegationDepth?: number
   /** Max delegation depth; the tool refuses once delegationDepth reaches it */
   maxDelegationDepth?: number
+  /**
+   * Ops provider (backend-implemented). When present, the runner exposes the
+   * ops READ tools (podStatus/podLogs/deployState/quotaUsage) and WRITE tools
+   * (triggerRedeploy/restartDeployment/applySandboxConfig — propose-only,
+   * never executed inline). Gated by the `ops` feature flag.
+   */
+  opsProvider?: IOpsProvider
 }
 
 /**

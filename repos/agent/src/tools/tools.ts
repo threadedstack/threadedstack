@@ -6,6 +6,7 @@
  */
 
 import type {
+  IOpsProvider,
   IWebProvider,
   ITaskProvider,
   IEscalationProvider,
@@ -26,10 +27,14 @@ import { logger } from '@TAG/utils/logger'
 import { Type } from '@earendil-works/pi-ai'
 import {
   EAgentTool,
+  EOpsAction,
   MemorySearchTopK,
   DelegationMaxDepth,
   DelegationMaxTimeoutMs,
   DelegationDefaultTimeoutMs,
+  OpsAllowedDeployments,
+  OpsAllowedSandboxFields,
+  OpsPodLogsMaxTail,
 } from '@tdsk/domain'
 
 /**
@@ -980,6 +985,357 @@ export const createDelegateTools = (
           logger.warn(`delegateTask tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Delegation failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates ops tools backed by an IOpsProvider.
+ * READ tools (podStatus/podLogs/deployState/quotaUsage) execute inline.
+ * WRITE tools (triggerRedeploy/restartDeployment/applySandboxConfig) route to
+ * provider.propose() which returns a dry-run row; they NEVER execute the action
+ * inline. The return message explicitly states "dry-run" and "adversary review"
+ * so the LLM cannot mistake a proposal for a completed action.
+ * Filtered by `allowedTools` like the other factories.
+ */
+export const createOpsTools = (
+  opsProvider: IOpsProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const allowedDeploymentList = OpsAllowedDeployments.join(`, `)
+  const allowedSandboxFieldList = OpsAllowedSandboxFields.join(`, `)
+
+  const tools: AgentTool<any>[] = [
+    // ── READ tier ─────────────────────────────────────────────────────────
+    {
+      name: EAgentTool.opsPodStatus,
+      label: `Ops: Pod Status`,
+      description: `Fetch current status of Kubernetes pods for the platform. Use to check pod health, restarts, and phases before proposing a redeploy or restart. Audits itself server-side.`,
+      parameters: Type.Object({
+        component: Type.Optional(
+          Type.String({
+            description: `Filter by deployment label. Allowed values: ${allowedDeploymentList}`,
+          })
+        ),
+        podName: Type.Optional(
+          Type.String({ description: `Filter to a single pod by name` })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { component?: string; podName?: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Fetching pod status...` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await opsProvider.podStatus(params)
+          const text = result.ok
+            ? `Pod status: ${result.pods.length} pod(s)\n${JSON.stringify(result.pods, null, 2)}`
+            : `Pod status error: ${result.error}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: result.ok, pods: result.pods },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsPodStatus tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `opsPodStatus failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.opsPodLogs,
+      label: `Ops: Pod Logs`,
+      description: `Fetch recent log lines from a Kubernetes pod. Use to diagnose errors before proposing any ops action. Audits itself server-side.`,
+      parameters: Type.Object({
+        component: Type.Optional(
+          Type.String({
+            description: `Filter by deployment label. Allowed values: ${allowedDeploymentList}`,
+          })
+        ),
+        podName: Type.Optional(
+          Type.String({ description: `Filter to a single pod by name` })
+        ),
+        tailLines: Type.Optional(
+          Type.Number({
+            description: `Number of log lines to return (max ${OpsPodLogsMaxTail})`,
+          })
+        ),
+        previous: Type.Optional(
+          Type.Boolean({
+            description: `Return logs from the previous (crashed) container instance`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          component?: string
+          podName?: string
+          tailLines?: number
+          previous?: boolean
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Fetching pod logs...` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await opsProvider.podLogs(params)
+          const text = result.ok ? result.logs : `Pod logs error: ${result.error}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: result.ok },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsPodLogs tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `opsPodLogs failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.opsDeployState,
+      label: `Ops: Deploy State`,
+      description: `Fetch current state of Kubernetes Deployments (ready replicas, desired replicas, image tag). Audits itself server-side.`,
+      parameters: Type.Object({
+        deployment: Type.Optional(
+          Type.String({
+            description: `Filter to a single deployment. Allowed values: ${allowedDeploymentList}`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { deployment?: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Fetching deployment state...` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await opsProvider.deployState(params)
+          const text = result.ok
+            ? `Deployment state: ${result.deployments.length} deployment(s)\n${JSON.stringify(result.deployments, null, 2)}`
+            : `Deploy state error: ${result.error}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: result.ok, deployments: result.deployments },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsDeployState tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `opsDeployState failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.opsQuotaUsage,
+      label: `Ops: Quota Usage`,
+      description: `Fetch current org-level resource quota usage (projects, compute, threads, messages, endpoints, secrets). Audits itself server-side.`,
+      parameters: Type.Object({}),
+      execute: async (
+        _toolCallId: string,
+        _params: Record<string, never>,
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Fetching quota usage...` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await opsProvider.quotaUsage({})
+          const text = result.ok
+            ? `Quota usage:\n${JSON.stringify(result.quotas, null, 2)}`
+            : `Quota usage error: ${result.error}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: result.ok, quotas: result.quotas },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsQuotaUsage tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `opsQuotaUsage failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+
+    // ── WRITE tier (propose only — NEVER executes inline) ─────────────────
+    {
+      name: EAgentTool.opsTriggerRedeploy,
+      label: `Ops: Trigger Redeploy (Propose)`,
+      description: `Propose a full redeploy of all allowlisted platform deployments. This is a DRY-RUN proposal — execution requires adversary review and is NEVER performed inline. Only propose when you have confirmed evidence that a redeploy is necessary.`,
+      parameters: Type.Object({
+        forceAll: Type.Optional(
+          Type.Boolean({
+            description: `Force redeploy of all deployments even if unchanged`,
+          })
+        ),
+        reason: Type.String({
+          description: `Detailed reason why a redeploy is necessary (required for audit trail)`,
+        }),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { forceAll?: boolean; reason: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Proposing redeploy (dry-run)...` }],
+          details: { status: `running` },
+        })
+        try {
+          const { opsActionId, status, findings, dryRun } = await opsProvider.propose(
+            EOpsAction.triggerRedeploy,
+            params
+          )
+          const planSummary = dryRun ? JSON.stringify(dryRun) : `none`
+          const findingsSummary = findings.length ? findings.join(`, `) : `none`
+          const text = `Ops proposal ${opsActionId} status=${status}. This is a dry-run; execution is pending adversary review. Dry-run plan: ${planSummary}. Findings: ${findingsSummary}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, opsActionId, status, findings, dryRun },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsTriggerRedeploy tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `opsTriggerRedeploy failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.opsRestartDeployment,
+      label: `Ops: Restart Deployment (Propose)`,
+      description: `Propose a rolling restart of a single allowlisted deployment. This is a DRY-RUN proposal — execution requires adversary review and is NEVER performed inline. Allowed deployments: ${allowedDeploymentList}.`,
+      parameters: Type.Object({
+        deployment: Type.String({
+          description: `Deployment to restart. Allowed values: ${allowedDeploymentList}`,
+        }),
+        reason: Type.String({
+          description: `Detailed reason why a restart is necessary (required for audit trail)`,
+        }),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { deployment: string; reason: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [
+            {
+              type: `text`,
+              text: `Proposing restart of ${params.deployment} (dry-run)...`,
+            },
+          ],
+          details: { status: `running` },
+        })
+        try {
+          const { opsActionId, status, findings, dryRun } = await opsProvider.propose(
+            EOpsAction.restartDeployment,
+            params
+          )
+          const planSummary = dryRun ? JSON.stringify(dryRun) : `none`
+          const findingsSummary = findings.length ? findings.join(`, `) : `none`
+          const text = `Ops proposal ${opsActionId} status=${status}. This is a dry-run; execution is pending adversary review. Dry-run plan: ${planSummary}. Findings: ${findingsSummary}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, opsActionId, status, findings, dryRun },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsRestartDeployment tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `opsRestartDeployment failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.opsApplySandboxConfig,
+      label: `Ops: Apply Sandbox Config (Propose)`,
+      description: `Propose a patch to a sandbox's configuration. This is a DRY-RUN proposal — execution requires adversary review and is NEVER performed inline. Allowed patch fields: ${allowedSandboxFieldList}. Fields secretIds and image are hard-blocked.`,
+      parameters: Type.Object({
+        sandboxId: Type.String({ description: `ID of the sandbox to patch` }),
+        patch: Type.Record(Type.String(), Type.Unknown(), {
+          description: `Partial config patch. Allowed fields: ${allowedSandboxFieldList}`,
+        }),
+        reason: Type.String({
+          description: `Detailed reason why this config change is necessary (required for audit trail)`,
+        }),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { sandboxId: string; patch: Record<string, any>; reason: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [
+            { type: `text`, text: `Proposing sandbox config patch (dry-run)...` },
+          ],
+          details: { status: `running` },
+        })
+        try {
+          const { opsActionId, status, findings, dryRun } = await opsProvider.propose(
+            EOpsAction.applySandboxConfig,
+            params
+          )
+          const planSummary = dryRun ? JSON.stringify(dryRun) : `none`
+          const findingsSummary = findings.length ? findings.join(`, `) : `none`
+          const text = `Ops proposal ${opsActionId} status=${status}. This is a dry-run; execution is pending adversary review. Dry-run plan: ${planSummary}. Findings: ${findingsSummary}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, opsActionId, status, findings, dryRun },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown ops error`
+          logger.warn(`opsApplySandboxConfig tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `opsApplySandboxConfig failed: ${message}` },
+            ],
             details: { success: false },
           }
         }

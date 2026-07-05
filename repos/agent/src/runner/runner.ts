@@ -33,6 +33,7 @@ import { EContentType, EMemoryKind, buildFallbackModel } from '@tdsk/domain'
 import { getModel, streamSimple, isContextOverflow } from '@earendil-works/pi-ai'
 import {
   createWebTools,
+  createOpsTools,
   createTaskTools,
   createSkillTools,
   createMemoryTools,
@@ -700,6 +701,9 @@ export class AgentRunner {
           maxDelegationDepth: this.#opts.maxDelegationDepth,
         })
       : []
+    const opsTools = this.#opts?.opsProvider
+      ? createOpsTools(this.#opts.opsProvider, toolNames)
+      : []
     const tools = [
       ...sandboxTools,
       ...webTools,
@@ -708,6 +712,7 @@ export class AgentRunner {
       ...taskTools,
       ...escalateTools,
       ...delegateTools,
+      ...opsTools,
     ]
 
     if (

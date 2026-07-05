@@ -120,6 +120,7 @@ export class AgentEndpoint extends BaseEndpoint {
       taskProvider: config.taskProvider,
       escalationProvider: config.escalationProvider,
       delegateProvider: config.delegateProvider,
+      opsProvider: config.opsProvider,
       onExecuteFunction: config.onExecuteFunction,
       customFunctions: config.customFunctions || [],
     })

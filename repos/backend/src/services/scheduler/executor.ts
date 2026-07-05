@@ -226,6 +226,7 @@ async function runAgentSchedule(
     taskProvider: config.taskProvider,
     escalationProvider: config.escalationProvider,
     delegateProvider: config.delegateProvider,
+    opsProvider: config.opsProvider,
     onExecuteFunction: config.onExecuteFunction,
     customFunctions: config.customFunctions || [],
     onEvent: (event: TStreamEvent) => onStdout(`${JSON.stringify(event)}\n`),
