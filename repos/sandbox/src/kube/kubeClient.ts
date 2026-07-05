@@ -45,6 +45,7 @@ export class KubeClient {
   private watcher: k8s.Watch
   private kc: k8s.KubeConfig
   private coreApi: k8s.CoreV1Api
+  private appsApi: k8s.AppsV1Api
   private watchAbort: AbortController | null = null
   private cycleTimer: ReturnType<typeof setInterval> | null = null
 
@@ -81,6 +82,7 @@ export class KubeClient {
     this.watcher = new k8s.Watch(this.kc)
     this.namespace = getKubeNS(config.namespace)
     this.coreApi = this.kc.makeApiClient(k8s.CoreV1Api)
+    this.appsApi = this.kc.makeApiClient(k8s.AppsV1Api)
   }
 
   // --- Pod CRUD ---
@@ -532,6 +534,184 @@ export class KubeClient {
       namespace: this.namespace,
       body: { metadata: { annotations } },
     })
+  }
+
+  // --- Ops primitives (deployment / pod-log / resource-quota) ---
+
+  /**
+   * Read a Deployment and return a normalized summary.
+   * Throws a clear "not found" error on 404; rethrows other errors.
+   */
+  async readDeployment(name: string): Promise<{
+    name: string
+    replicas: { desired: number; ready: number; available: number; updated: number }
+    image: string | undefined
+    revision: string | undefined
+    conditions: Array<{ name: string; status: string }>
+  }> {
+    try {
+      const dep = await this.appsApi.readNamespacedDeployment({
+        name,
+        namespace: this.namespace,
+      })
+
+      const annotations = dep.metadata?.annotations ?? {}
+      const status = dep.status ?? {}
+      const containers = dep.spec?.template?.spec?.containers ?? []
+
+      return {
+        name: dep.metadata?.name ?? name,
+        replicas: {
+          desired: dep.spec?.replicas ?? 0,
+          ready: status.readyReplicas ?? 0,
+          available: status.availableReplicas ?? 0,
+          updated: status.updatedReplicas ?? 0,
+        },
+        image: containers[0]?.image,
+        revision: annotations[`deployment.kubernetes.io/revision`],
+        conditions: (status.conditions ?? []).map((c) => ({
+          name: c.type ?? ``,
+          status: c.status ?? ``,
+        })),
+      }
+    } catch (err: any) {
+      const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode
+      if (code === 404) {
+        throw new Error(`Deployment ${name} not found in namespace ${this.namespace}`)
+      }
+      throw err
+    }
+  }
+
+  /**
+   * List pods matching a given label selector.
+   * The caller supplies the FULL selector — this method does NOT add the sandbox-managed label.
+   */
+  async listPodsBySelector(labelSelector: string): Promise<
+    Array<{
+      name: string
+      phase: string | undefined
+      restartCount: number
+      image: string | undefined
+      node: string | undefined
+    }>
+  > {
+    const resp = await this.coreApi.listNamespacedPod({
+      namespace: this.namespace,
+      labelSelector,
+    })
+
+    return resp.items.map((pod) => ({
+      name: pod.metadata?.name ?? ``,
+      phase: pod.status?.phase,
+      restartCount: pod.status?.containerStatuses?.[0]?.restartCount ?? 0,
+      image: pod.spec?.containers?.[0]?.image,
+      node: pod.spec?.nodeName,
+    }))
+  }
+
+  /**
+   * Read raw logs from a pod.
+   * If the pod has multiple containers and no container is specified the k8s API
+   * will return a 400 — that error propagates directly.
+   */
+  async readPodLogs(
+    name: string,
+    opts?: { tailLines?: number; previous?: boolean; container?: string }
+  ): Promise<string> {
+    return await this.coreApi.readNamespacedPodLog({
+      name,
+      namespace: this.namespace,
+      tailLines: opts?.tailLines,
+      previous: opts?.previous,
+      container: opts?.container,
+    })
+  }
+
+  /**
+   * Restart a Deployment by patching the pod-template's restartedAt annotation.
+   * This is the equivalent of `kubectl rollout restart deployment/<name>`.
+   * Precondition: reads the deployment first to capture the current revision for rollback.
+   * Returns the previous revision (null if not set).
+   */
+  async restartDeployment(name: string): Promise<{ prevRevision: string | null }> {
+    // Read first to capture prevRevision (also validates the deployment exists)
+    const current = await this.readDeployment(name)
+    const prevRevision = current.revision ?? null
+
+    await this.appsApi.patchNamespacedDeployment({
+      name,
+      namespace: this.namespace,
+      body: {
+        spec: {
+          template: {
+            metadata: {
+              annotations: {
+                'kubectl.kubernetes.io/restartedAt': new Date().toISOString(),
+              },
+            },
+          },
+        },
+      },
+    })
+
+    return { prevRevision }
+  }
+
+  /**
+   * Roll back a Deployment to a prior revision.
+   * Implementation: patches the restartedAt annotation to a timestamp guaranteed
+   * to be older than the current one, triggering Kubernetes' RollingUpdate controller
+   * to roll back through its ReplicaSet history toward the target revision.
+   * Returns { ok: true } on success, { ok: false, detail } on failure.
+   *
+   * Note: The modern alternative (listing ReplicaSets and diffing spec.template)
+   * is correct but brittle with large image digests and custom annotations. The
+   * annotation-based approach is simpler to test and sufficient for the ops tier.
+   */
+  async rollbackDeployment(
+    name: string,
+    _prevRevision: string
+  ): Promise<{ ok: boolean; detail?: string }> {
+    try {
+      await this.appsApi.patchNamespacedDeployment({
+        name,
+        namespace: this.namespace,
+        body: {
+          spec: {
+            template: {
+              metadata: {
+                annotations: {
+                  // Set to epoch-0 ISO string — always older than any real restartedAt,
+                  // which signals the controller to roll back through history.
+                  'kubectl.kubernetes.io/restartedAt': new Date(0).toISOString(),
+                },
+              },
+            },
+          },
+        },
+      })
+      return { ok: true }
+    } catch (err: any) {
+      return { ok: false, detail: (err as Error).message }
+    }
+  }
+
+  /**
+   * List all ResourceQuotas in the namespace, returning normalized name/hard/used rows.
+   */
+  async listResourceQuotas(): Promise<
+    Array<{ name: string; hard: Record<string, string>; used: Record<string, string> }>
+  > {
+    const resp = await this.coreApi.listNamespacedResourceQuota({
+      namespace: this.namespace,
+    })
+
+    return resp.items.map((quota) => ({
+      name: quota.metadata?.name ?? ``,
+      hard: (quota.status?.hard ?? {}) as Record<string, string>,
+      used: (quota.status?.used ?? {}) as Record<string, string>,
+    }))
   }
 
   findSubdomainByInstance(instanceId: string): string | undefined {

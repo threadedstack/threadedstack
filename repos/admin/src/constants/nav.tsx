@@ -30,6 +30,10 @@ import {
   CreditCard as BillingIcon,
   Extension as ExtensionIcon,
   FactCheck as ProposalIcon,
+  Assignment as TaskProposalIcon,
+  ReportProblem as EscalationIcon,
+  VerifiedUser as VerificationIcon,
+  Build as OpsActionsIcon,
 } from '@mui/icons-material'
 
 const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
@@ -107,6 +111,30 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Skill Proposals`,
     to: buildRoute(ERoutePath.OrgSkillProposals),
     Icon: <ProposalIcon />,
+    visible: hasOrgMember,
+  },
+  TaskProposals: {
+    text: `Task Proposals`,
+    to: buildRoute(ERoutePath.OrgTaskProposals),
+    Icon: <TaskProposalIcon />,
+    visible: hasOrgMember,
+  },
+  Escalations: {
+    text: `Escalations`,
+    to: buildRoute(ERoutePath.OrgEscalations),
+    Icon: <EscalationIcon />,
+    visible: hasOrgMember,
+  },
+  Verifications: {
+    text: `Verifications`,
+    to: buildRoute(ERoutePath.OrgVerifications),
+    Icon: <VerificationIcon />,
+    visible: hasOrgMember,
+  },
+  OpsActions: {
+    text: `Ops Actions`,
+    to: buildRoute(ERoutePath.OrgOpsActions),
+    Icon: <OpsActionsIcon />,
     visible: hasOrgMember,
   },
   Usage: {
@@ -241,6 +269,10 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
       OrgSubNav.Providers,
       OrgSubNav.Skills,
       OrgSubNav.SkillProposals,
+      OrgSubNav.TaskProposals,
+      OrgSubNav.Escalations,
+      OrgSubNav.Verifications,
+      OrgSubNav.OpsActions,
       OrgSubNav.Agents,
     ],
   },

@@ -1,0 +1,100 @@
+# STAGING profile (P4e). Clone of production with:
+#   - namespace: tdsk-staging
+#   - hostnames prefixed with staging.
+#   - replicas: 1 for every service
+#   - requests halved; limits unchanged (catch prod-parity OOMs)
+#   - feature flags IDENTICAL to prod (staging exercises the same code paths)
+#   - secrets: same refs as production (staging is a canary, not a fake env)
+# Consumed by `tdsk release --env staging` via devspace's values.${NODE_ENV}.yaml resolver.
+# See docs/superpowers/plans/2026-07-04-autonomous-agent-p4-self-ownership.md P4e.
+#
+# SECRET NOTE: Secret objects (tdsk-master-key, tdsk-db-cfg, tdsk-payments-secret,
+# tdsk-email-secret, tdsk-s3-secret, tdsk-egress-ca, docker-auth-pull) are
+# namespace-scoped in Kubernetes. They must be provisioned in tdsk-staging before
+# the first staging deploy:
+#   kubectl create namespace tdsk-staging
+#   tdsk kube secret database    (then: kubectl ... -n tdsk-staging)
+#   tdsk kube secret payments
+#   tdsk kube secret email
+#   tdsk kube secret docker
+#   tdsk kube secret tdsk
+#   tdsk kube secret egress
+# The secret names (values) are identical to production; only the namespace differs.
+
+env:
+
+# ---- General Shared ENVs ---- #
+  NODE_ENV: staging
+  # Same Civo cluster as production; namespace isolation only
+  TDSK_KUBE_CONTEXT: tdsk
+  TDSK_KUBE_NAMESPACE: tdsk-staging
+  TDSK_LOG_LEVEL: info
+  TDSK_LOG_PRETTY_PRINT: false
+
+
+# ---- Caddy Envs ---- #
+  # staging. prefix routes through Caddy's on-demand TLS — Let's Encrypt will
+  # issue a staging subdomain cert on first request. If production uses a wildcard
+  # cert (*.threadedstack.app), this staging subdomain is NOT covered by it; Caddy
+  # will issue a separate DV cert for px-staging.threadedstack.app automatically.
+  TDSK_CADDY_PX_HOST: px-staging.threadedstack.app
+  TDSK_CADDY_ACME_EMAIL: admin@threadedstack.com
+
+
+# ---- Auth ENVs ---- #
+  # Same Neon Auth project as production — staging is a namespace-level canary
+  TDSK_AUTH_URL: https://ep-rapid-waterfall-adaje9vz.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth
+  TDSK_AUTH_JWKS: https://ep-rapid-waterfall-adaje9vz.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
+
+
+# ---- Proxy Envs ---- #
+  TDSK_PX_PORT: 7118
+  TDSK_PX_LOGGER_PRETTY: 0
+  TDSK_PX_URL: https://px-staging.threadedstack.app
+  TDSK_PX_SYSTEM_DOMAINS: 'threadedstack.app,threadedstack.com,threadedstack.dev'
+
+
+# ---- Backend Envs ---- #
+  TDSK_BE_URL: https://be-staging.threadedstack.app
+  # TODO change this use Kubernetes networking to call be directly
+  TDSK_BE_HOST:
+  TDSK_BE_PORT: 5885
+  TDSK_BE_LOGGER_PRETTY: 0
+
+# ---- Website Envs ---- #
+  TDSK_WEB_URL: https://www.threadedstack.com
+  TDSK_WB_PORT: 443
+
+# ---- Admin Envs ---- #
+  TDSK_AD_APP_URL: https://admin-staging.threadedstack.com
+  TDSK_AD_PORT: 443
+
+
+# ---- Threads Envs ---- #
+  TDSK_TH_APP_URL: https://threads-staging.threadedstack.com
+  TDSK_TH_PORT: 443
+
+
+# ---- Sandbox Envs ---- #
+  TDSK_SB_RUNTIME_CLASS: kata-clh
+  TDSK_SB_DOMAIN: sandbox-staging.threadedstack.app
+
+
+# ---- Replicas ---- #
+# Staging is a canary; 1 replica per service keeps costs low.
+# (Production does not set replicas in values files; the helm template defaults
+# to 1. Staging sets them explicitly to guarantee the constraint is enforced
+# even if production ever raises the default.)
+  TDSK_CADDY_REPLICAS: "1"
+  TDSK_PX_REPLICAS: "1"
+  TDSK_BE_REPLICAS: "1"
+  TDSK_EMB_REPLICAS: "1"
+
+
+# ---- Embeddings resource overrides (staging) ---- #
+# Production requests: cpu=1, memory=4Gi  limits: cpu=2, memory=6Gi
+# Staging requests halved; limits kept identical (catch prod-parity OOMs).
+  TDSK_EMB_CPU_REQUEST: "500m"
+  TDSK_EMB_MEM_REQUEST: "2Gi"
+  TDSK_EMB_CPU_LIMIT: "2"
+  TDSK_EMB_MEM_LIMIT: "6Gi"

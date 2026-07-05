@@ -19,13 +19,42 @@ import {
   EAgentBrain,
   EContentType,
   EScheduleType,
+  TasksBlockFence,
   MemorySearchTopK,
+  EmptyRunDurationMs,
+  RunOutcomeInjectMax,
+  TaskBacklogInjectMax,
   ESkillProposalStatus,
+  ETaskProposalStatus,
   MemoryInjectMaxChars,
   SkillReviewInjectMax,
+  TaskPickupsBlockFence,
+  RunOutcomeInjectMaxChars,
+  TaskBacklogInjectMaxChars,
   SkillReviewInjectMaxChars,
+  EEscalationStatus,
+  EscalationInjectMax,
+  EscalationInjectMaxChars,
+  EVerificationStatus,
+  VerifyInjectMax,
+  VerifyInjectMaxChars,
+  VerifyLookbackPrs,
+  EOpsActionStatus,
+  OpsReviewInjectMax,
+  OpsReviewInjectMaxChars,
+  CoordinatorInjectMaxChars,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
+import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
+import {
+  parseEscalationBlock,
+  parseEscalationResolutionsBlock,
+} from '@TBE/utils/agent/escalation'
+import { openEscalation, resolveEscalation } from '@TBE/utils/agent/escalationPromotion'
+import { parseVerifyResultsBlock } from '@TBE/utils/agent/verify'
+import { parseOpsReviewsBlock } from '@TBE/utils/agent/opsReview'
+import { applyOpsReview } from '@TBE/utils/agent/opsPromotion'
 import {
   escapePromptArg,
   foregroundEnvPrefix,
@@ -200,7 +229,10 @@ async function runAgentSchedule(
     sandboxConfig: config.sandboxConfig,
     memoryProvider: config.memoryProvider,
     skillProvider: config.skillProvider,
+    taskProvider: config.taskProvider,
+    escalationProvider: config.escalationProvider,
     delegateProvider: config.delegateProvider,
+    opsProvider: config.opsProvider,
     onExecuteFunction: config.onExecuteFunction,
     customFunctions: config.customFunctions || [],
     onEvent: (event: TStreamEvent) => onStdout(`${JSON.stringify(event)}\n`),
@@ -459,6 +491,680 @@ async function persistSkillReviews(
 }
 
 /**
+ * Marker-gated routing: a runtime cycle only receives (and emits) a faculty's
+ * context when its own prompt opts in by embedding that faculty's fenced-block
+ * label. This keeps a sensor cycle's context off a work cycle and vice-versa —
+ * the same prompt that is told to emit a block is the one given the inputs for it.
+ */
+export const promptOptsIn = (schedule: Schedule, fence: string): boolean =>
+  (schedule.prompt ?? ``).includes(fence)
+
+/**
+ * Build the injected recent-run-outcome context for a SENSOR cycle: the pod
+ * cannot reach the DB, so the org's own recent schedule_runs are surfaced as the
+ * read-only backend faculty. Only anomalies are listed — errored/timed-out runs
+ * (with their message + id + startedAt) and successful runs that finished
+ * suspiciously fast (possibly empty / no-op). The currently-`running` row is
+ * skipped. When nothing is anomalous, returns '' so no heading is injected.
+ * Capped at RunOutcomeInjectMaxChars. Never throws — a failure only degrades
+ * context (logged) and returns an empty string.
+ */
+export async function buildRunOutcomeContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const { data: runs } = await db.services.scheduleRun.listByOrg(schedule.orgId, {
+      limit: RunOutcomeInjectMax,
+    })
+    if (!runs?.length) return ``
+
+    const bullets: string[] = []
+    for (const run of runs) {
+      if (run.status === `running`) continue
+      if (run.status === `error` || run.status === `timeout`) {
+        bullets.push(
+          `- [${run.status}] ${run.id} @ ${run.startedAt}: ${
+            (run.error ?? ``).trim() || `(no error text)`
+          }`
+        )
+      } else if (
+        run.status === `success` &&
+        run.durationMs != null &&
+        run.durationMs < EmptyRunDurationMs
+      ) {
+        bullets.push(
+          `- [success, possibly empty / no-op run] ${run.id} @ ${run.startedAt}: ${run.durationMs}ms`
+        )
+      }
+    }
+    if (!bullets.length) return ``
+
+    const out = `## Recent run outcomes\n${bullets.join(`\n`)}\n\n`
+    return out.length > RunOutcomeInjectMaxChars
+      ? out.slice(0, RunOutcomeInjectMaxChars)
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildRunOutcomeContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Build the injected digest of already-open proposals for a SENSOR cycle so it
+ * does not re-sense the same work. Lists every pending + scanned proposal as one
+ * line: `- <dedupeKey> [<priority>] <title> (<status>)`. Empty → ''. Never throws.
+ */
+export async function buildOpenProposalsDigest(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const [{ data: pending }, { data: scanned }] = await Promise.all([
+      db.services.taskProposal.listByStatus(schedule.orgId, ETaskProposalStatus.pending),
+      db.services.taskProposal.listByStatus(schedule.orgId, ETaskProposalStatus.scanned),
+    ])
+    const proposals = [...(pending ?? []), ...(scanned ?? [])]
+    if (!proposals.length) return ``
+
+    const lines = proposals
+      .map((p) => `- ${p.dedupeKey} [${p.priority}] ${p.title} (${p.status})`)
+      .join(`\n`)
+    return `## Recently proposed backlog (do not duplicate)\n${lines}\n\n`
+  } catch (err) {
+    logger.error(
+      `[Executor] buildOpenProposalsDigest failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Build the injected scanned-backlog context for a WORK cycle: the pickup-ready
+ * proposals (scanned, priority-ordered P0-first by the service) it may promote
+ * by opening a PR. Each entry carries its tp_ id, priority, title, source signal,
+ * an evidence excerpt, and a description excerpt. Empty → ''. Capped at
+ * TaskBacklogInjectMaxChars. Never throws.
+ */
+export async function buildTaskBacklogContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const { data: proposals } = await db.services.taskProposal.listBacklog(
+      schedule.orgId,
+      TaskBacklogInjectMax
+    )
+    if (!proposals?.length) return ``
+
+    const bullets = proposals
+      .map(
+        (p) =>
+          `- ${p.id} [${p.priority}] ${p.title}\n  signal: ${p.sourceSignal} | evidence: ${(
+            p.evidence ?? ``
+          ).slice(0, 300)}\n  ${(p.description ?? ``).slice(0, 500)}`
+      )
+      .join(`\n`)
+    const out = `## Proposed backlog (sensor-detected)\n${bullets}\n\n`
+    return out.length > TaskBacklogInjectMaxChars
+      ? out.slice(0, TaskBacklogInjectMaxChars)
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildTaskBacklogContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output task-proposal block emitted by a
+ * successful SENSOR run: each sensed entry is deduped + security-scanned at
+ * authoring time (scanned | rejected) via authorTaskProposal, with citation meta
+ * ({threadId, scheduleId}). Never throws — a failure never fails the run.
+ */
+export async function persistTaskProposals(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const entries = parseTasksBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db } = app.locals
+    const meta = { threadId, scheduleId: schedule.id }
+    let persisted = 0
+    for (const entry of entries) {
+      try {
+        await authorTaskProposal(db, schedule.orgId, agentId, entry, meta)
+        persisted++
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to persist task proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+    logger.info(
+      `[Executor] Schedule ${schedule.id} — captured ${persisted}/${entries.length} task proposal(s)`
+    )
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — task-proposal capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Parse and apply any structured-output task-pickup block emitted by a
+ * successful WORK run: each pickup marks its scanned proposal promoted
+ * (idempotent, no re-scan) via markTaskPromoted. Never throws.
+ */
+export async function persistTaskPickups(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const pickups = parseTaskPickupsBlock(stdoutText)
+    if (!pickups.length) return
+
+    const { db } = app.locals
+    let promoted = 0
+    for (const pickup of pickups) {
+      try {
+        await markTaskPromoted(db, schedule.orgId, pickup, agentId)
+        promoted++
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to promote task proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+    logger.info(
+      `[Executor] Schedule ${schedule.id} — promoted ${promoted}/${pickups.length} task proposal(s)`
+    )
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — task-pickup capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Build the injected open-escalations context so a runtime cycle sees all
+ * open and routed escalations and does NOT re-raise them. Routed entries are
+ * listed first (the steward can act on them), then open ones. Total capped at
+ * EscalationInjectMax entries and EscalationInjectMaxChars characters.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildEscalationContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const [routedRes, openRes] = await Promise.all([
+      db.services.escalation.listByStatus(orgId, EEscalationStatus.routed),
+      db.services.escalation.listByStatus(orgId, EEscalationStatus.open),
+    ])
+    const routed = routedRes.data ?? []
+    const open = openRes.data ?? []
+    const all = [...routed, ...open].slice(0, EscalationInjectMax)
+    if (!all.length) return ``
+
+    const bullets = all
+      .map((es) => {
+        const excerpt = (es.problem ?? ``).slice(0, 200)
+        const patch = es.proposedPatch ? es.proposedPatch.split(`\n`)[0] : `none`
+        const issue = es.issueRef ?? `none`
+        return `- ${es.id} [${es.status}/${es.target}] "${es.title}": ${excerpt}\n  patch: ${patch}\n  issue: ${issue}`
+      })
+      .join(`\n`)
+
+    const raw = `## Open escalations (do NOT re-raise; act on routed ones)\n${bullets}\nEmit \`\`\`tdsk-escalation-resolutions\`\`\` when you finish one (id or dedupeKey + status + resolvedRef).\n\n`
+    return raw.length > EscalationInjectMaxChars
+      ? `${raw.slice(0, EscalationInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildEscalationContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output escalation blocks emitted by a
+ * successful runtime run:
+ *  - tdsk-escalations: each entry is opened (or deduped) via openEscalation.
+ *  - tdsk-escalation-resolutions: each resolved entry also writes a durable
+ *    memory row so the steward does not re-escalate. Never throws.
+ */
+export async function persistEscalations(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const meta = { threadId, scheduleId: schedule.id }
+
+    const inputs = parseEscalationBlock(stdoutText)
+    let opened = 0
+    for (const input of inputs) {
+      try {
+        const r = await openEscalation(db, orgId, agentId, input, meta)
+        logger.info(
+          `[Executor] Schedule ${schedule.id} — escalation ${r.id} status=${r.status} deduped=${r.deduped} routable=${r.routable}`
+        )
+        opened++
+      } catch (e) {
+        logger.warn(`[Executor] escalation open failed: ${(e as Error).message}`)
+      }
+    }
+    if (inputs.length)
+      logger.info(
+        `[Executor] Schedule ${schedule.id} — opened ${opened}/${inputs.length} escalation(s)`
+      )
+
+    const resolutions = parseEscalationResolutionsBlock(stdoutText)
+    for (const res of resolutions) {
+      try {
+        const status = await resolveEscalation(db, orgId, res, agentId)
+        if (status === `resolved`) {
+          // Durable write-back: the steward remembers this was resolved so it
+          // does not re-escalate the same issue on the next cycle. Mirrors the
+          // memory.create shape used in persistMemoryWrites (text + kind +
+          // importance + orgId + agentId + meta, embedding omitted for
+          // backfill — same pattern as persistMemoryWrites null-safe path).
+          try {
+            await (db.services.memory as any).create({
+              orgId,
+              agentId,
+              kind: EMemoryKind.fact,
+              importance: 6,
+              text: `Escalation resolved: ${res.id ?? res.dedupeKey} → ${res.resolvedRef ?? status}`,
+              meta: { threadId, scheduleId: schedule.id, source: `escalation` },
+              embedding: null,
+            } as any)
+          } catch (memErr) {
+            logger.warn(
+              `[Executor] escalation memory write-back failed: ${(memErr as Error).message}`
+            )
+          }
+        }
+      } catch (e) {
+        logger.warn(`[Executor] escalation resolve failed: ${(e as Error).message}`)
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — escalation capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Build the injected post-merge verification context: pending + verifying rows
+ * that still need probing, plus a done-set of terminal (verified | regressed)
+ * PR numbers so the cycle does not re-probe already-terminal results.
+ * Always injected (mirrors buildEscalationContext — no marker gate).
+ * Capped at VerifyInjectMax in-flight entries and VerifyInjectMaxChars chars.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildVerifyContext(app: TApp, schedule: Schedule): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    const [pendingRes, verifyingRes] = await Promise.all([
+      db.services.verification.listByStatus(orgId, EVerificationStatus.pending),
+      db.services.verification.listByStatus(orgId, EVerificationStatus.verifying),
+    ])
+    const pending = pendingRes.data ?? []
+    const verifying = verifyingRes.data ?? []
+    const inFlight = [...pending, ...verifying].slice(0, VerifyInjectMax)
+
+    // Load recent rows for the done-set (already-terminal PRs to skip).
+    const recentRes = await db.services.verification.list({
+      orgId,
+      orderBy: `createdAt`,
+      desc: true,
+      limit: VerifyLookbackPrs,
+    } as any)
+    const recent = recentRes.data ?? []
+    const donePrNumbers = recent
+      .filter(
+        (r: any) =>
+          r.status === EVerificationStatus.verified ||
+          r.status === EVerificationStatus.regressed
+      )
+      .map((r: any) => r.prNumber as number)
+
+    if (!inFlight.length && !donePrNumbers.length) return ``
+
+    const doneSet = donePrNumbers.length > 0 ? `[${donePrNumbers.join(`, `)}]` : `[]`
+    const inFlightCount = inFlight.length
+
+    const raw = `## Post-merge verification
+Deployed marker (origin/production) advances after a successful deploy. For each
+recently-merged steward PR NOT in the done-set below: read its \`\`\`tdsk-verify\`\`\` block
+from the PR body (default {kind:'ci-green'} when absent), run the probe read-only, and
+emit ONE \`\`\`tdsk-verify-results\`\`\` block per PR with {prNumber, mergeSha, status:
+'verified'|'regressed', detail, revertPrUrl?}. On a regressed result you MUST open a
+revert-as-new-commit PR IN-POD (never \`git revert\`, never rewrite history):
+
+  BAD=<mergeCommitSha>; N=<prNumber>; SHORT=$(git rev-parse --short "$BAD")
+  git fetch origin main
+  git checkout -b "steward/revert-pr\${N}-\${SHORT}" origin/main
+  git show "$BAD" | git apply -R --index --3way
+  git commit -m "revert: undo PR #\${N} — P4c post-deploy regression"
+  git push -u origin HEAD
+  gh pr create --base main --head "steward/revert-pr\${N}-\${SHORT}" \\
+    --title "Revert PR #\${N}: post-deploy regression" \\
+    --body "Automated P4c revert. Probe failed after deploy of \${BAD}. <evidence>"
+
+Then include the revert PR URL as revertPrUrl in the result entry. The backend will
+also file a target:'app' escalation citing that revert PR URL so it is tracked.
+
+Probe execution semantics (all read-only, all in-pod):
+  health          — curl -fsS <base><params.url or /_/health>; assert body.status=='ok'.
+  ci-green        — gh run list --branch main --limit 5 --json conclusion; latest completed 'success'.
+  marker-advanced — git fetch origin main production; git merge-base --is-ancestor <mergeSha> origin/production;
+                    regressed if false AFTER the deploy window (allow ~15 min grace via params.graceMinutes).
+  assertion       — sh -c "<params.command>"; assert exit 0.
+
+Done-set (skip these PR numbers; already terminal): ${doneSet}
+In-flight this list is what needs probing next: ${inFlightCount}
+`
+    return raw.length > VerifyInjectMaxChars
+      ? `${raw.slice(0, VerifyInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildVerifyContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output tdsk-verify-results block emitted by a
+ * successful runtime run. Regressed entries open a target:app escalation (P4b path)
+ * citing the revert PR URL; all terminal entries upsert the verification row and
+ * write a durable memory row so the cycle is idempotent across restarts.
+ * Never throws — individual entries fail independently.
+ */
+export async function persistVerifications(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  const results = parseVerifyResultsBlock(stdoutText)
+  if (!results.length) return
+
+  const { db } = app.locals
+  for (const r of results) {
+    try {
+      let escalationId: string | null = null
+      if (r.status === `regressed`) {
+        // P4c → P4b integration: file a target:app escalation citing the revert PR.
+        // Backend NEVER opens the revert PR itself; the steward already opened it
+        // in-pod (revertPrUrl carries the URL). The escalation is the audit trail.
+        const esc = await openEscalation(
+          db,
+          schedule.orgId,
+          agentId,
+          {
+            target: `app` as any,
+            dedupeKey: `verify-regression-pr${r.prNumber}`,
+            title: `Post-deploy regression: PR #${r.prNumber}`,
+            problem: r.detail ?? `Declared verify probe failed after deploy.`,
+            evidence: [r.mergeSha, r.revertPrUrl].filter(Boolean) as string[],
+            issueRef: r.revertPrUrl ?? null,
+          },
+          { threadId, scheduleId: schedule.id, prNumber: r.prNumber }
+        )
+        escalationId = esc.id
+      }
+      await db.services.verification.upsertByPr(schedule.orgId, agentId, r.prNumber, {
+        status: r.status,
+        detail: r.detail ?? null,
+        mergeSha: r.mergeSha ?? null,
+        revertPrUrl: r.revertPrUrl ?? null,
+        escalationId,
+      } as any)
+      // Durable memory write-back on terminal — the loop is idempotent across cycles.
+      // Match the persistEscalations memory shape (kind:fact, importance:6, embedding:null).
+      await (db.services.memory as any).create({
+        orgId: schedule.orgId,
+        agentId,
+        kind: EMemoryKind.fact,
+        importance: 6,
+        text: `PR #${r.prNumber} verify ${r.status}${r.revertPrUrl ? ` → revert ${r.revertPrUrl}` : ``}`,
+        meta: {
+          threadId,
+          scheduleId: schedule.id,
+          source: `verify`,
+          prNumber: r.prNumber,
+        },
+        embedding: null,
+      } as any)
+    } catch (e) {
+      logger.warn(
+        `[Executor] persistVerifications: entry pr#${r.prNumber} failed: ${(e as Error).message}`
+      )
+    }
+  }
+}
+
+/**
+ * Build the injected ops-action context for a cycle that may act as the
+ * adversary approval gate: surfaces all dryRun-status rows so the adversary
+ * cycle can emit approve/reject verdicts via the tdsk-ops-reviews block.
+ * Always injected (mirrors buildEscalationContext — no marker gate); cycles
+ * whose prompt does not mention ops reviews simply ignore it.
+ * Capped at OpsReviewInjectMax entries and OpsReviewInjectMaxChars chars.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildOpsReviewContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const { data: rows } = await db.services.opsAction.listByStatus(
+      orgId,
+      EOpsActionStatus.dryRun
+    )
+    if (!rows?.length) return ``
+
+    const capped = rows.slice(0, OpsReviewInjectMax)
+    const bullets = capped
+      .map((row: any) => {
+        const paramsStr = JSON.stringify(row.params ?? {}).slice(0, 300)
+        const planStr = JSON.stringify(row.dryRunResult?.data ?? {}).slice(0, 300)
+        const rb = row.rollback
+        const rollbackStr = rb
+          ? `${rb.kind}${rb.prevRevision ? ` prevRevision=${rb.prevRevision}` : ``}${rb.prevSha ? ` prevSha=${rb.prevSha}` : ``}${rb.prevConfig ? ` prevConfig=<object>` : ``}`
+          : `none`
+        const scan = row.scanResult
+        const scanStr = scan
+          ? `passed=${scan.passed}, findings=${JSON.stringify(scan.findings ?? [])}`
+          : `none`
+        return `- ${row.id} [${row.action}] agent=${row.agentId}\n    params: ${paramsStr}\n    dry-run plan: ${planStr}\n    rollback: ${rollbackStr}\n    scan: ${scanStr}`
+      })
+      .join(`\n`)
+
+    const raw = `## Ops actions awaiting review (adversary approval gate)\n${bullets}\n    Emit \`\`\`tdsk-ops-reviews\`\`\`{opsActionId,approve,reason} to approve or reject.\n\nRULES: approve ONLY if the action is (a) in the allowlist (podStatus/podLogs/deployState/quotaUsage/triggerRedeploy/restartDeployment/applySandboxConfig), (b) targets an allowlisted deployment/field, (c) the reason is concrete + reasonable, (d) the rollback data is present. Reject anything ambiguous — rejection is cheap; a bad write is not. The server RE-SCANS on approve as a hard gate, so an approval that would fail the scan cannot execute.\n\n`
+    return raw.length > OpsReviewInjectMaxChars
+      ? `${raw.slice(0, OpsReviewInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildOpsReviewContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Build the injected coordinator ledger for a COORDINATOR cycle: surfaces the
+ * current state of a named initiative (parents + children + statuses + PR URLs)
+ * so the coordinator can decompose bounded child tasks and delegate them.
+ *
+ * Marker-gated: only injected when the schedule prompt contains
+ * `<!-- coordinator-initiative: <name> -->`. When the marker is absent, or the
+ * initiative has no rows yet, returns '' (nothing injected). Read-only — never
+ * throws; a failure only degrades context (logged + returns '').
+ */
+export async function buildCoordinatorContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const m = (schedule.prompt ?? ``).match(
+      /<!--\s*coordinator-initiative:\s*([^\s>][^-]*?)\s*-->/i
+    )
+    const initiative = m?.[1]?.trim()
+    if (!initiative) return ``
+
+    const { db } = app.locals
+    const { data: rows } = await db.services.taskProposal.listByInitiative(
+      schedule.orgId,
+      initiative
+    )
+    if (!rows?.length) return ``
+
+    // Build a set of parent ids within this initiative for quick lookup.
+    const parentIds = new Set(
+      rows.filter((r: any) => r.parentId === null).map((r: any) => r.id)
+    )
+
+    const parents = rows.filter((r: any) => r.parentId === null)
+    const children = rows.filter((r: any) => r.parentId !== null)
+
+    // Group children by their parentId.
+    const childrenByParent = new Map<string, typeof children>()
+    const orphans: typeof children = []
+    for (const child of children) {
+      if (parentIds.has(child.parentId)) {
+        const bucket = childrenByParent.get(child.parentId!) ?? []
+        bucket.push(child)
+        childrenByParent.set(child.parentId!, bucket)
+      } else {
+        orphans.push(child)
+      }
+    }
+
+    const fmt = (p: any) =>
+      `- ${p.id} [${p.priority ?? `?`}] ${p.title}  status=${p.status}  pr=${p.prUrl ?? `none`}`
+
+    let out = `## Initiative: ${initiative}\n`
+    out += `Coordinator ledger — you own this initiative. Decompose into ≤3 bounded child tasks per cycle,\n`
+    out += `each self-contained enough for delegateTask to finish in one child run.\n\n`
+
+    if (parents.length) {
+      out += `Parents:\n`
+      for (const p of parents) out += `  ${fmt(p)}\n`
+      out += `\n`
+    }
+
+    if (childrenByParent.size) {
+      out += `Children (grouped by parent):\n`
+      for (const [pid, kids] of childrenByParent.entries()) {
+        const parentRow = parents.find((p: any) => p.id === pid)
+        const parentTitle = parentRow ? `"${parentRow.title}"` : pid
+        out += `  ${pid} ${parentTitle}:\n`
+        for (const kid of kids) out += `    ${fmt(kid)}\n`
+      }
+      out += `\n`
+    }
+
+    if (orphans.length) {
+      out += `Orphans (children whose parent is not in this initiative):\n`
+      for (const o of orphans)
+        out += `  - ${o.id} parentId=${o.parentId} [${o.priority ?? `?`}] ${o.title}  status=${o.status}\n`
+      out += `\n`
+    }
+
+    out += `Emit \`tdsk-tasks\` blocks that link children to this initiative via {initiative:"${initiative}", parentId:"<tp_parent_id>"}\n`
+    out += `so persistTaskProposals threads them into this ledger next cycle. Delegate each unclaimed child via\n`
+    out += `delegateTask (depth cap 1, concurrency cap 3, critic). When all children are \`promoted\` with a \`prUrl\` and\n`
+    out += `the linked P4c verifications are \`verified\`, write a durable memory marking the initiative complete.\n`
+
+    return out.length > CoordinatorInjectMaxChars
+      ? `${out.slice(0, CoordinatorInjectMaxChars)}... (truncated)`
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildCoordinatorContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and apply any structured-output ops-review block emitted by a
+ * successful adversary run. Each decision routes through applyOpsReview,
+ * which re-runs the security scan (hard gate) before executing. Never throws.
+ */
+export async function persistOpsReviews(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  const reviews = parseOpsReviewsBlock(stdoutText)
+  if (!reviews.length) return
+
+  const { db } = app.locals
+  for (const r of reviews) {
+    try {
+      const result = await applyOpsReview(app, db, schedule.orgId, r, agentId)
+      logger.info(
+        `[Executor] ops-review ${r.opsActionId} → ${result?.status ?? 'skipped'}`
+      )
+    } catch (e) {
+      logger.warn(
+        `[Executor] ops-review ${r.opsActionId} failed: ${(e as Error).message}`
+      )
+    }
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -571,12 +1277,45 @@ async function runCliAgentSchedule(
 
   const memorySection = await buildMemoryContext(app, schedule, agent.id)
   const reviewSection = await buildProposalReviewContext(app, schedule)
+  // Always injected (mirrors reviewSection): surfaces open + routed escalations
+  // so the steward does not re-raise already-tracked needs.
+  const escalationSection = await buildEscalationContext(app, schedule)
+  // Always injected (mirrors escalationSection): surfaces pending verifications
+  // and the done-set so the steward knows which merged PRs still need probing.
+  const verifySection = await buildVerifyContext(app, schedule)
+  // Always injected (mirrors reviewSection/escalationSection): surfaces dryRun
+  // ops-action rows awaiting adversary approval. The adversary cycle emits a
+  // tdsk-ops-reviews block; other cycles ignore it silently.
+  const opsReviewSection = await buildOpsReviewContext(app, schedule)
+  // Marker-gated coordinator section: a COORDINATOR cycle (its prompt embeds
+  // <!-- coordinator-initiative: <name> -->) receives the current initiative
+  // ledger (parents + children + statuses + PR URLs) so it can decompose and
+  // delegate bounded child tasks. Other cycles pay for no query.
+  const coordinatorSection = await buildCoordinatorContext(app, schedule)
+  // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
+  // tdsk-tasks block) gets its own recent run outcomes + a digest of open
+  // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
+  // scanned backlog. Cycles that opt into neither pay for neither query.
+  const sensorSection = promptOptsIn(schedule, TasksBlockFence)
+    ? (await buildRunOutcomeContext(app, schedule)) +
+      (await buildOpenProposalsDigest(app, schedule))
+    : ``
+  const backlogSection = promptOptsIn(schedule, TaskPickupsBlockFence)
+    ? await buildTaskBacklogContext(app, schedule)
+    : ``
   const baseCommand = buildCliCommand(
     schedule,
     agent,
     sandboxConfig,
     previousReport,
-    memorySection + reviewSection
+    memorySection +
+      reviewSection +
+      escalationSection +
+      verifySection +
+      opsReviewSection +
+      coordinatorSection +
+      sensorSection +
+      backlogSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -742,6 +1481,19 @@ async function runCliAgentSchedule(
     // auditor review decisions (promoted/rejected through the hard scan gate).
     await persistSkillProposals(app, schedule, agent.id, threadId, stdoutText)
     await persistSkillReviews(app, schedule, agent.id, stdoutText)
+    // Capture self-sensed task proposals (SENSOR cycle) and any work-cycle
+    // pickups that promote a scanned proposal once its PR opens.
+    await persistTaskProposals(app, schedule, agent.id, threadId, stdoutText)
+    await persistTaskPickups(app, schedule, agent.id, stdoutText)
+    // Capture escalations opened by the steward and resolutions it emits once
+    // a fix PR merges; resolutions also write a durable memory row.
+    await persistEscalations(app, schedule, agent.id, threadId, stdoutText)
+    // Capture post-merge verify results: upsert verification rows and open a
+    // target:app escalation for any regressed probe (revert PR already opened in-pod).
+    await persistVerifications(app, schedule, agent.id, threadId, stdoutText)
+    // Capture adversary ops-review verdicts (approve/reject per dryRun row).
+    // applyOpsReview re-scans before executing — the hard gate is server-side.
+    await persistOpsReviews(app, schedule, agent.id, stdoutText)
   }
 
   return result

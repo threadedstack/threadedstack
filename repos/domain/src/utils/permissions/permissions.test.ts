@@ -60,6 +60,22 @@ describe(`permissions utilities`, () => {
     it(`should include adminPanel:read in member permissions`, () => {
       expect(RoleTemplates[ERoleType.member]).toContain('adminPanel:read')
     })
+
+    it(`should include taskProposal:read in member permissions`, () => {
+      expect(RoleTemplates[ERoleType.member]).toContain('taskProposal:read')
+    })
+
+    it(`should include taskProposal:manage in admin permissions`, () => {
+      expect(RoleTemplates[ERoleType.admin]).toContain('taskProposal:manage')
+    })
+
+    it(`should include escalation:read in member permissions`, () => {
+      expect(RoleTemplates[ERoleType.member]).toContain('escalation:read')
+    })
+
+    it(`should include escalation:manage in admin permissions`, () => {
+      expect(RoleTemplates[ERoleType.admin]).toContain('escalation:manage')
+    })
   })
 
   describe(`getRoleLevel`, () => {
@@ -696,6 +712,10 @@ describe(`permissions utilities`, () => {
           EPermResource.schedule,
           EPermResource.provider,
           EPermResource.skillProposal,
+          EPermResource.taskProposal,
+          EPermResource.escalation,
+          EPermResource.verification,
+          EPermResource.opsAction,
           EPermResource.sandboxSession,
         ]).toContain(resource)
       }

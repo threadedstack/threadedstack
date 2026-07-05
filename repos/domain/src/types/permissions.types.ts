@@ -54,11 +54,15 @@ export enum EPermResource {
   asset = `asset`, // Uploaded assets
   skill = `skill`, // Reusable agent skills
   skillProposal = `skillProposal`, // Self-authored skills pending promotion
+  taskProposal = `taskProposal`, // Self-sensed tasks pending promotion (P4a)
+  escalation = `escalation`, // Structured escalations for needs the steward cannot yet act on (P4b)
+  verification = `verification`, // Post-merge verify + auto revert on regression (P4c)
   memory = `memory`, // Durable agent memories
   schedule = `schedule`, // Agent cron schedules
   sandbox = `sandbox`, // Sandbox configurations
   sandboxSession = `sandboxSession`, // Active sandbox sessions
   adminPanel = `adminPanel`, // Admin panel access
+  opsAction = `opsAction`, // Allowlisted ops actions with dry-run + adversary review (P4d)
 }
 
 export type TPermAction = `${EPermAction}`

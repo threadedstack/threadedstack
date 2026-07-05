@@ -1,8 +1,11 @@
 import type {
   IAgentRunnerDB,
+  ITaskProvider,
+  IEscalationProvider,
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
+  IOpsProvider,
 } from '@tdsk/agent'
 import type {
   Skill,
@@ -61,11 +64,31 @@ export type TAgentRuntimeConfig = {
    */
   skillProvider?: ISkillProvider
   /**
+   * Task self-direction provider (backend-implemented). Present only when the
+   * `sensing` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the proposeTask tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-tasks` capture).
+   */
+  taskProvider?: ITaskProvider
+  /**
+   * Escalation provider (backend-implemented). Present only when the
+   * `escalation` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the escalate tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-escalations` capture).
+   */
+  escalationProvider?: IEscalationProvider
+  /**
    * Task delegation provider (backend-implemented). Present only when the
    * `delegation` feature flag is enabled; wired into the AgentRunner so the api
    * brain exposes the delegateTask tool (bounded in-pod child coding process).
    */
   delegateProvider?: IDelegateProvider
+  /**
+   * Ops provider (backend-implemented). Present only when the `ops` feature flag
+   * is enabled; exposes READ tier (podStatus/podLogs/deployState/quotaUsage) plus
+   * a stubbed WRITE tier that throws loudly until D6 wires real proposal machinery.
+   */
+  opsProvider?: IOpsProvider
 }
 
 /** Context handed to createDelegateProvider by resolveAgentConfig. */

@@ -15,6 +15,14 @@ const mockCoreApi = {
   createNamespacedSecret: vi.fn(),
   patchNamespacedSecret: vi.fn(),
   deleteNamespacedSecret: vi.fn(),
+  readNamespacedPodLog: vi.fn(),
+  listNamespacedResourceQuota: vi.fn(),
+}
+
+const mockAppsApi = {
+  readNamespacedDeployment: vi.fn(),
+  patchNamespacedDeployment: vi.fn(),
+  listNamespacedReplicaSet: vi.fn(),
 }
 
 const mockWatcher = {
@@ -48,15 +56,26 @@ const mockExec = {
   ),
 }
 
+// Track which API class is being constructed so we can route makeApiClient
+// to the right mock. The constructor calls makeApiClient(CoreV1Api) first
+// then makeApiClient(AppsV1Api). We use a call counter to distinguish.
+let makeApiClientCallCount = 0
+
 const mockKc = {
   loadFromCluster: vi.fn(),
   loadFromDefault: vi.fn(),
-  makeApiClient: vi.fn(() => mockCoreApi),
+  makeApiClient: vi.fn(() => {
+    makeApiClientCallCount++
+    // First call = CoreV1Api, second call = AppsV1Api
+    if (makeApiClientCallCount % 2 === 0) return mockAppsApi
+    return mockCoreApi
+  }),
 }
 
 vi.mock(`@kubernetes/client-node`, () => ({
   KubeConfig: vi.fn(() => mockKc),
   CoreV1Api: vi.fn(),
+  AppsV1Api: vi.fn(),
   Watch: vi.fn(() => mockWatcher),
   Exec: vi.fn(() => mockExec),
 }))
@@ -111,6 +130,7 @@ describe(`KubeClient`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    makeApiClientCallCount = 0
     client = new KubeClient()
   })
 
@@ -1135,6 +1155,376 @@ describe(`KubeClient`, () => {
     it(`should re-throw non-404 errors`, async () => {
       mockCoreApi.deleteNamespacedSecret.mockRejectedValue({ code: 500 })
       await expect(client.deleteSecret(`fail`)).rejects.toEqual({ code: 500 })
+    })
+  })
+
+  // --- readDeployment ---
+
+  describe(`readDeployment`, () => {
+    it(`returns normalized deployment info`, async () => {
+      mockAppsApi.readNamespacedDeployment.mockResolvedValue({
+        metadata: {
+          name: `my-deploy`,
+          annotations: { 'deployment.kubernetes.io/revision': '3' },
+        },
+        spec: {
+          replicas: 2,
+          selector: { matchLabels: { app: `my-deploy` } },
+          template: {
+            spec: { containers: [{ image: `my-image:v1`, name: `app` }] },
+          },
+        },
+        status: {
+          replicas: 2,
+          readyReplicas: 2,
+          availableReplicas: 2,
+          updatedReplicas: 2,
+          conditions: [
+            { type: `Available`, status: `True` },
+            { type: `Progressing`, status: `True` },
+          ],
+        },
+      })
+
+      const result = await client.readDeployment(`my-deploy`)
+
+      expect(mockAppsApi.readNamespacedDeployment).toHaveBeenCalledWith({
+        name: `my-deploy`,
+        namespace: `test-ns`,
+      })
+      expect(result).toEqual({
+        name: `my-deploy`,
+        replicas: { desired: 2, ready: 2, available: 2, updated: 2 },
+        image: `my-image:v1`,
+        revision: `3`,
+        conditions: [
+          { name: `Available`, status: `True` },
+          { name: `Progressing`, status: `True` },
+        ],
+      })
+    })
+
+    it(`handles missing optional fields gracefully`, async () => {
+      mockAppsApi.readNamespacedDeployment.mockResolvedValue({
+        metadata: { name: `bare-deploy` },
+        spec: { selector: { matchLabels: {} }, template: { spec: { containers: [] } } },
+        status: {},
+      })
+
+      const result = await client.readDeployment(`bare-deploy`)
+
+      expect(result.image).toBeUndefined()
+      expect(result.revision).toBeUndefined()
+      expect(result.conditions).toEqual([])
+      expect(result.replicas).toEqual({ desired: 0, ready: 0, available: 0, updated: 0 })
+    })
+
+    it(`throws a not-found error when the API returns 404`, async () => {
+      const err = Object.assign(new Error(`Not Found`), { code: 404 })
+      mockAppsApi.readNamespacedDeployment.mockRejectedValue(err)
+
+      await expect(client.readDeployment(`missing-deploy`)).rejects.toThrow(
+        `Deployment missing-deploy not found in namespace test-ns`
+      )
+    })
+
+    it(`rethrows non-404 errors`, async () => {
+      const err = Object.assign(new Error(`Internal Server Error`), { code: 500 })
+      mockAppsApi.readNamespacedDeployment.mockRejectedValue(err)
+
+      await expect(client.readDeployment(`my-deploy`)).rejects.toMatchObject({
+        code: 500,
+      })
+    })
+  })
+
+  // --- listPodsBySelector ---
+
+  describe(`listPodsBySelector`, () => {
+    it(`calls listNamespacedPod with the exact provided labelSelector (no defaults added)`, async () => {
+      mockCoreApi.listNamespacedPod.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: `backend-abc` },
+            status: {
+              phase: `Running`,
+              containerStatuses: [{ restartCount: 2 }],
+            },
+            spec: {
+              nodeName: `node-1`,
+              containers: [{ image: `backend:v2` }],
+            },
+          },
+        ],
+      })
+
+      const result = await client.listPodsBySelector(
+        `app.kubernetes.io/component=backend`
+      )
+
+      expect(mockCoreApi.listNamespacedPod).toHaveBeenCalledWith({
+        namespace: `test-ns`,
+        labelSelector: `app.kubernetes.io/component=backend`,
+      })
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual({
+        name: `backend-abc`,
+        phase: `Running`,
+        restartCount: 2,
+        image: `backend:v2`,
+        node: `node-1`,
+      })
+    })
+
+    it(`does NOT inject the PodManagedSelector`, async () => {
+      mockCoreApi.listNamespacedPod.mockResolvedValue({ items: [] })
+
+      await client.listPodsBySelector(`app=myapp`)
+
+      const call = mockCoreApi.listNamespacedPod.mock.calls[0][0]
+      expect(call.labelSelector).toBe(`app=myapp`)
+      expect(call.labelSelector).not.toContain(`tdsk-managed`)
+    })
+
+    it(`returns empty array when no pods match`, async () => {
+      mockCoreApi.listNamespacedPod.mockResolvedValue({ items: [] })
+
+      const result = await client.listPodsBySelector(`app=nonexistent`)
+
+      expect(result).toEqual([])
+    })
+
+    it(`handles pods with missing optional fields`, async () => {
+      mockCoreApi.listNamespacedPod.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: `bare-pod` },
+            status: { phase: `Pending` },
+            spec: {},
+          },
+        ],
+      })
+
+      const result = await client.listPodsBySelector(`app=bare`)
+
+      expect(result[0]).toEqual({
+        name: `bare-pod`,
+        phase: `Pending`,
+        restartCount: 0,
+        image: undefined,
+        node: undefined,
+      })
+    })
+  })
+
+  // --- readPodLogs ---
+
+  describe(`readPodLogs`, () => {
+    it(`calls readNamespacedPodLog with name and namespace`, async () => {
+      mockCoreApi.readNamespacedPodLog.mockResolvedValue(`line1\nline2\n`)
+
+      const result = await client.readPodLogs(`my-pod`)
+
+      expect(mockCoreApi.readNamespacedPodLog).toHaveBeenCalledWith({
+        name: `my-pod`,
+        namespace: `test-ns`,
+        tailLines: undefined,
+        previous: undefined,
+        container: undefined,
+      })
+      expect(result).toBe(`line1\nline2\n`)
+    })
+
+    it(`forwards tailLines, previous, and container opts`, async () => {
+      mockCoreApi.readNamespacedPodLog.mockResolvedValue(`tail output`)
+
+      await client.readPodLogs(`my-pod`, {
+        tailLines: 100,
+        previous: true,
+        container: `sidecar`,
+      })
+
+      expect(mockCoreApi.readNamespacedPodLog).toHaveBeenCalledWith({
+        name: `my-pod`,
+        namespace: `test-ns`,
+        tailLines: 100,
+        previous: true,
+        container: `sidecar`,
+      })
+    })
+
+    it(`propagates errors from the API`, async () => {
+      mockCoreApi.readNamespacedPodLog.mockRejectedValue(
+        new Error(`400 Bad Request: a container name must be specified`)
+      )
+
+      await expect(client.readPodLogs(`multi-container-pod`)).rejects.toThrow(
+        `400 Bad Request: a container name must be specified`
+      )
+    })
+  })
+
+  // --- restartDeployment ---
+
+  describe(`restartDeployment`, () => {
+    it(`reads deployment first to capture prevRevision, then patches with restartedAt annotation`, async () => {
+      mockAppsApi.readNamespacedDeployment.mockResolvedValue({
+        metadata: {
+          name: `my-deploy`,
+          annotations: { 'deployment.kubernetes.io/revision': '5' },
+        },
+        spec: {
+          replicas: 2,
+          selector: { matchLabels: { app: `my-deploy` } },
+          template: { spec: { containers: [{ image: `img:v1`, name: `app` }] } },
+        },
+        status: {
+          replicas: 2,
+          readyReplicas: 2,
+          availableReplicas: 2,
+          updatedReplicas: 2,
+          conditions: [],
+        },
+      })
+      mockAppsApi.patchNamespacedDeployment.mockResolvedValue({})
+
+      const result = await client.restartDeployment(`my-deploy`)
+
+      // Must read before patch
+      expect(mockAppsApi.readNamespacedDeployment).toHaveBeenCalledWith({
+        name: `my-deploy`,
+        namespace: `test-ns`,
+      })
+
+      // Patch must be called
+      expect(mockAppsApi.patchNamespacedDeployment).toHaveBeenCalledOnce()
+      const patchCall = mockAppsApi.patchNamespacedDeployment.mock.calls[0][0]
+      expect(patchCall.name).toBe(`my-deploy`)
+      expect(patchCall.namespace).toBe(`test-ns`)
+
+      // Body must contain the restartedAt annotation in the pod template
+      const annotation =
+        patchCall.body?.spec?.template?.metadata?.annotations?.[
+          'kubectl.kubernetes.io/restartedAt'
+        ]
+      expect(annotation).toBeDefined()
+      expect(() => new Date(annotation as string)).not.toThrow()
+
+      // Returns prevRevision
+      expect(result).toEqual({ prevRevision: `5` })
+    })
+
+    it(`returns null prevRevision when deployment has no revision annotation`, async () => {
+      mockAppsApi.readNamespacedDeployment.mockResolvedValue({
+        metadata: { name: `no-rev-deploy` },
+        spec: {
+          replicas: 1,
+          selector: { matchLabels: {} },
+          template: { spec: { containers: [] } },
+        },
+        status: {},
+      })
+      mockAppsApi.patchNamespacedDeployment.mockResolvedValue({})
+
+      const result = await client.restartDeployment(`no-rev-deploy`)
+
+      expect(result).toEqual({ prevRevision: null })
+    })
+
+    it(`propagates errors from readDeployment`, async () => {
+      const err = Object.assign(new Error(`Not Found`), { code: 404 })
+      mockAppsApi.readNamespacedDeployment.mockRejectedValue(err)
+
+      await expect(client.restartDeployment(`gone`)).rejects.toThrow(
+        `Deployment gone not found in namespace test-ns`
+      )
+      expect(mockAppsApi.patchNamespacedDeployment).not.toHaveBeenCalled()
+    })
+  })
+
+  // --- rollbackDeployment ---
+
+  describe(`rollbackDeployment`, () => {
+    it(`patches the deployment with a restartedAt annotation set to epoch-0 to trigger rollback`, async () => {
+      mockAppsApi.patchNamespacedDeployment.mockResolvedValue({})
+
+      const result = await client.rollbackDeployment(`my-deploy`, `4`)
+
+      expect(mockAppsApi.patchNamespacedDeployment).toHaveBeenCalledOnce()
+      const patchCall = mockAppsApi.patchNamespacedDeployment.mock.calls[0][0]
+      expect(patchCall.name).toBe(`my-deploy`)
+      expect(patchCall.namespace).toBe(`test-ns`)
+      const annotation =
+        patchCall.body?.spec?.template?.metadata?.annotations?.[
+          'kubectl.kubernetes.io/restartedAt'
+        ]
+      expect(annotation).toBeDefined()
+      expect(result).toEqual({ ok: true })
+    })
+
+    it(`returns { ok: false } when patch fails`, async () => {
+      mockAppsApi.patchNamespacedDeployment.mockRejectedValue(new Error(`forbidden`))
+
+      const result = await client.rollbackDeployment(`my-deploy`, `3`)
+
+      expect(result).toMatchObject({
+        ok: false,
+        detail: expect.stringContaining(`forbidden`),
+      })
+    })
+  })
+
+  // --- listResourceQuotas ---
+
+  describe(`listResourceQuotas`, () => {
+    it(`calls listNamespacedResourceQuota and returns normalized rows`, async () => {
+      mockCoreApi.listNamespacedResourceQuota.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: `default-quota` },
+            status: {
+              hard: { 'requests.cpu': '4', 'requests.memory': '8Gi' },
+              used: { 'requests.cpu': '1', 'requests.memory': '2Gi' },
+            },
+          },
+        ],
+      })
+
+      const result = await client.listResourceQuotas()
+
+      expect(mockCoreApi.listNamespacedResourceQuota).toHaveBeenCalledWith({
+        namespace: `test-ns`,
+      })
+      expect(result).toEqual([
+        {
+          name: `default-quota`,
+          hard: { 'requests.cpu': '4', 'requests.memory': '8Gi' },
+          used: { 'requests.cpu': '1', 'requests.memory': '2Gi' },
+        },
+      ])
+    })
+
+    it(`returns empty array when no quotas exist`, async () => {
+      mockCoreApi.listNamespacedResourceQuota.mockResolvedValue({ items: [] })
+
+      const result = await client.listResourceQuotas()
+
+      expect(result).toEqual([])
+    })
+
+    it(`handles quota items with empty status`, async () => {
+      mockCoreApi.listNamespacedResourceQuota.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: `empty-quota` },
+            status: {},
+          },
+        ],
+      })
+
+      const result = await client.listResourceQuotas()
+
+      expect(result).toEqual([{ name: `empty-quota`, hard: {}, used: {} }])
     })
   })
 

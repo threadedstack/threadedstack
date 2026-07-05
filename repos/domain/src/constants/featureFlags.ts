@@ -29,6 +29,22 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Bounded task delegation via in-pod child coding processes`,
   },
+  sensing: {
+    enabled: true,
+    description: `Sensor cycle: system signals → self-authored backlog (P4a)`,
+  },
+  escalation: {
+    enabled: true,
+    description: `Structured escalation channel with auto-routing (P4b)`,
+  },
+  verification: {
+    enabled: true,
+    description: `Post-merge verify + auto revert on regression (P4c)`,
+  },
+  ops: {
+    enabled: false,
+    description: `Allowlisted ops actions with dry-run + adversary review (P4d, READ then WRITE)`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {

@@ -1,5 +1,11 @@
 import type { TDatabase } from '@tdsk/database'
-import type { IAgentRunnerDB, IMemoryProvider, ISkillProvider } from '@tdsk/agent'
+import type {
+  IAgentRunnerDB,
+  ITaskProvider,
+  IEscalationProvider,
+  IMemoryProvider,
+  ISkillProvider,
+} from '@tdsk/agent'
 import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
 
@@ -8,8 +14,11 @@ import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
+import { createOpsProvider } from '@TBE/utils/agent/opsProvider'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
+import { authorTaskProposal } from '@TBE/utils/agent/taskPromotion'
+import { openEscalation } from '@TBE/utils/agent/escalationPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import {
@@ -126,6 +135,34 @@ export const createSkillProvider = (
       alwaysActive: skill.alwaysActive,
     }
   },
+})
+
+/**
+ * Build the backend ITaskProvider bridging the api-brain proposeTask tool to
+ * the taskProposal DB service + the deterministic security scan (via
+ * authorTaskProposal). Mirrors createSkillProvider: a pure closure over db
+ * scoped to one org/agent.
+ */
+export const createTaskProvider = (
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): ITaskProvider => ({
+  proposeTask: async (input) =>
+    authorTaskProposal(db, orgId, agentId, input as any, { authoredBy: agentId }),
+})
+
+/**
+ * IEscalationProvider factory (api-brain P4b path). Mirrors createTaskProvider:
+ * a pure closure over db scoped to one org/agent.
+ */
+export const createEscalationProvider = (
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): IEscalationProvider => ({
+  escalate: async (input) =>
+    openEscalation(db, orgId, agentId, input as any, { authoredBy: agentId }),
 })
 
 /**
@@ -351,6 +388,14 @@ export const resolveAgentConfig = async (
     skillProvider: isFeatureEnabled(`skills`)
       ? createSkillProvider(db, agent.orgId, agentId)
       : undefined,
+    // Only wire the proposeTask self-direction tool when sensing is enabled
+    taskProvider: isFeatureEnabled(`sensing`)
+      ? createTaskProvider(db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the escalate tool when the feature is enabled
+    escalationProvider: isFeatureEnabled(`escalation`)
+      ? createEscalationProvider(db, agent.orgId, agentId)
+      : undefined,
     // Only wire the delegateTask tool when the feature is enabled
     delegateProvider: isFeatureEnabled(`delegation`)
       ? createDelegateProvider(app, db, agent.orgId, agentId, {
@@ -358,6 +403,10 @@ export const resolveAgentConfig = async (
           podName: sandboxConfig.options?.podName as string | undefined,
           sandboxId: effectiveAgent.environment?.sandboxId as string | undefined,
         })
+      : undefined,
+    // Only wire the ops read/write tools when the feature is enabled
+    opsProvider: isFeatureEnabled(`ops`)
+      ? createOpsProvider(app, db, agent.orgId, agentId)
       : undefined,
   }
 }

@@ -11,6 +11,10 @@ import { orgQuotas } from '@TBE/endpoints/orgs/orgQuotas'
 import { orgAgents } from '@TBE/endpoints/orgs/orgAgents'
 import { orgSkills } from '@TBE/endpoints/orgs/orgSkills'
 import { orgSkillProposals } from '@TBE/endpoints/skillProposals'
+import { orgTaskProposals } from '@TBE/endpoints/taskProposals'
+import { orgEscalations } from '@TBE/endpoints/escalations'
+import { orgVerifications } from '@TBE/endpoints/verifications'
+import { orgOpsActions } from '@TBE/endpoints/opsActions'
 import { orgApiKeys } from '@TBE/endpoints/orgs/orgApiKeys'
 import { orgDomains } from '@TBE/endpoints/orgs/orgDomains'
 import { orgSecrets } from '@TBE/endpoints/orgs/orgSecrets'
@@ -45,6 +49,10 @@ export const orgs: TEndpointConfig = {
     orgCli,
     orgSkills,
     orgSkillProposals,
+    orgTaskProposals,
+    orgEscalations,
+    orgVerifications,
+    orgOpsActions,
     orgQuotas,
     orgAgents,
     orgApiKeys,

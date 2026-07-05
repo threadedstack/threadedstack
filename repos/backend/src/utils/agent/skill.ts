@@ -9,7 +9,7 @@ import {
 } from '@tdsk/domain'
 
 /** Extract the content of the LAST fenced ```{fence}``` block, or undefined. */
-const lastFencedBlock = (text: string, fence: string): string | undefined => {
+export const lastFencedBlock = (text: string, fence: string): string | undefined => {
   const fenceRegex = new RegExp(`\`\`\`${fence}\\s*\\n([\\s\\S]*?)\`\`\``, `g`)
   let last: string | undefined
   for (const match of text.matchAll(fenceRegex)) last = match[1]
@@ -17,7 +17,7 @@ const lastFencedBlock = (text: string, fence: string): string | undefined => {
 }
 
 /** Parse a JSON array out of a fenced block; non-array / malformed → null. */
-const parseJsonArray = (block: string, fence: string): unknown[] | null => {
+export const parseJsonArray = (block: string, fence: string): unknown[] | null => {
   let parsed: unknown
   try {
     parsed = JSON.parse(block)
@@ -28,10 +28,10 @@ const parseJsonArray = (block: string, fence: string): unknown[] | null => {
   return Array.isArray(parsed) ? parsed : null
 }
 
-const nonEmptyString = (value: unknown): value is string =>
+export const nonEmptyString = (value: unknown): value is string =>
   typeof value === `string` && value.trim().length > 0
 
-const stringArray = (value: unknown): string[] =>
+export const stringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === `string`) : []
 
 /**

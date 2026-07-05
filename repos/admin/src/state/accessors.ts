@@ -30,6 +30,10 @@ import type {
   Subscription,
   Organization,
   TSkillProposal,
+  TTaskProposal,
+  TEscalation,
+  TVerification,
+  TOpsActionRow,
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
@@ -52,6 +56,10 @@ import {
   skillProposalsState,
   activeSkillProposalIdState,
 } from '@TAF/state/skillProposals'
+import { taskProposalsState, activeTaskProposalIdState } from '@TAF/state/taskProposals'
+import { escalationsState, activeEscalationIdState } from '@TAF/state/escalations'
+import { verificationsState, activeVerificationIdState } from '@TAF/state/verifications'
+import { opsActionsState, activeOpsActionIdState } from '@TAF/state/opsActions'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
@@ -304,6 +312,51 @@ export const resetActiveSkillProposalId = () =>
   store.set(activeSkillProposalIdState, undefined)
 export const setActiveSkillProposalId = (id: string) =>
   store.set(activeSkillProposalIdState, id)
+
+// Task Proposals (org-scoped, flat)
+export const getTaskProposals = () => store.get(taskProposalsState)
+export const resetTaskProposals = () => store.set(taskProposalsState, undefined)
+export const setTaskProposals = (proposals: Record<string, TTaskProposal>) =>
+  store.set(taskProposalsState, proposals)
+
+export const getActiveTaskProposalId = () => store.get(activeTaskProposalIdState)
+export const resetActiveTaskProposalId = () =>
+  store.set(activeTaskProposalIdState, undefined)
+export const setActiveTaskProposalId = (id: string) =>
+  store.set(activeTaskProposalIdState, id)
+
+// Escalations (org-scoped, flat)
+export const getEscalations = () => store.get(escalationsState)
+export const resetEscalations = () => store.set(escalationsState, undefined)
+export const setEscalations = (escalations: Record<string, TEscalation>) =>
+  store.set(escalationsState, escalations)
+
+export const getActiveEscalationId = () => store.get(activeEscalationIdState)
+export const resetActiveEscalationId = () => store.set(activeEscalationIdState, undefined)
+export const setActiveEscalationId = (id: string) =>
+  store.set(activeEscalationIdState, id)
+
+// Verifications (org-scoped, flat)
+export const getVerifications = () => store.get(verificationsState)
+export const resetVerifications = () => store.set(verificationsState, undefined)
+export const setVerifications = (verifications: Record<string, TVerification>) =>
+  store.set(verificationsState, verifications)
+
+export const getActiveVerificationId = () => store.get(activeVerificationIdState)
+export const resetActiveVerificationId = () =>
+  store.set(activeVerificationIdState, undefined)
+export const setActiveVerificationId = (id: string) =>
+  store.set(activeVerificationIdState, id)
+
+// Ops Actions (org-scoped, flat)
+export const getOpsActions = () => store.get(opsActionsState)
+export const resetOpsActions = () => store.set(opsActionsState, undefined)
+export const setOpsActions = (actions: Record<string, TOpsActionRow>) =>
+  store.set(opsActionsState, actions)
+
+export const getActiveOpsActionId = () => store.get(activeOpsActionIdState)
+export const resetActiveOpsActionId = () => store.set(activeOpsActionIdState, undefined)
+export const setActiveOpsActionId = (id: string) => store.set(activeOpsActionIdState, id)
 
 // Schedules (project-scoped, context-keyed)
 export const getSchedules = () => store.get(schedulesState)

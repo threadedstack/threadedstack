@@ -113,7 +113,10 @@ export class Websocket {
       customFunctions: session.customFunctions,
       memoryProvider: session.memoryProvider,
       skillProvider: session.skillProvider,
+      taskProvider: session.taskProvider,
+      escalationProvider: session.escalationProvider,
       delegateProvider: session.delegateProvider,
+      opsProvider: session.opsProvider,
       onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {
         if (this.abortController?.signal.aborted) return

@@ -37,6 +37,22 @@ export {
   skillProposalsRelations,
 } from '@TDB/schemas/skillProposals'
 export {
+  taskProposals,
+  taskProposalsRelations,
+} from '@TDB/schemas/taskProposals'
+export {
+  escalations,
+  escalationsRelations,
+} from '@TDB/schemas/escalations'
+export {
+  verifications,
+  verificationsRelations,
+} from '@TDB/schemas/verifications'
+export {
+  opsActions,
+  opsActionsRelations,
+} from '@TDB/schemas/opsActions'
+export {
   permissionOverrides,
   permissionOverridesRelations,
 } from '@TDB/schemas/permissionOverrides'
