@@ -33,3 +33,6 @@ export const RunOutcomeInjectMaxChars = 6000
 
 /** Minimum duration (ms) an empty run must last before it is treated as a no-op. */
 export const EmptyRunDurationMs = 15000
+
+/** Maximum characters of coordinator initiative context injected into a prompt. */
+export const CoordinatorInjectMaxChars = 8000

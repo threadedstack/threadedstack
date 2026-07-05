@@ -42,6 +42,7 @@ import {
   EOpsActionStatus,
   OpsReviewInjectMax,
   OpsReviewInjectMaxChars,
+  CoordinatorInjectMaxChars,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
@@ -1038,6 +1039,103 @@ export async function buildOpsReviewContext(
 }
 
 /**
+ * Build the injected coordinator ledger for a COORDINATOR cycle: surfaces the
+ * current state of a named initiative (parents + children + statuses + PR URLs)
+ * so the coordinator can decompose bounded child tasks and delegate them.
+ *
+ * Marker-gated: only injected when the schedule prompt contains
+ * `<!-- coordinator-initiative: <name> -->`. When the marker is absent, or the
+ * initiative has no rows yet, returns '' (nothing injected). Read-only — never
+ * throws; a failure only degrades context (logged + returns '').
+ */
+export async function buildCoordinatorContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const m = (schedule.prompt ?? ``).match(
+      /<!--\s*coordinator-initiative:\s*([^\s>][^-]*?)\s*-->/i
+    )
+    const initiative = m?.[1]?.trim()
+    if (!initiative) return ``
+
+    const { db } = app.locals
+    const { data: rows } = await db.services.taskProposal.listByInitiative(
+      schedule.orgId,
+      initiative
+    )
+    if (!rows?.length) return ``
+
+    // Build a set of parent ids within this initiative for quick lookup.
+    const parentIds = new Set(
+      rows.filter((r: any) => r.parentId === null).map((r: any) => r.id)
+    )
+
+    const parents = rows.filter((r: any) => r.parentId === null)
+    const children = rows.filter((r: any) => r.parentId !== null)
+
+    // Group children by their parentId.
+    const childrenByParent = new Map<string, typeof children>()
+    const orphans: typeof children = []
+    for (const child of children) {
+      if (parentIds.has(child.parentId)) {
+        const bucket = childrenByParent.get(child.parentId!) ?? []
+        bucket.push(child)
+        childrenByParent.set(child.parentId!, bucket)
+      } else {
+        orphans.push(child)
+      }
+    }
+
+    const fmt = (p: any) =>
+      `- ${p.id} [${p.priority ?? `?`}] ${p.title}  status=${p.status}  pr=${p.prUrl ?? `none`}`
+
+    let out = `## Initiative: ${initiative}\n`
+    out += `Coordinator ledger — you own this initiative. Decompose into ≤3 bounded child tasks per cycle,\n`
+    out += `each self-contained enough for delegateTask to finish in one child run.\n\n`
+
+    if (parents.length) {
+      out += `Parents:\n`
+      for (const p of parents) out += `  ${fmt(p)}\n`
+      out += `\n`
+    }
+
+    if (childrenByParent.size) {
+      out += `Children (grouped by parent):\n`
+      for (const [pid, kids] of childrenByParent.entries()) {
+        const parentRow = parents.find((p: any) => p.id === pid)
+        const parentTitle = parentRow ? `"${parentRow.title}"` : pid
+        out += `  ${pid} ${parentTitle}:\n`
+        for (const kid of kids) out += `    ${fmt(kid)}\n`
+      }
+      out += `\n`
+    }
+
+    if (orphans.length) {
+      out += `Orphans (children whose parent is not in this initiative):\n`
+      for (const o of orphans)
+        out += `  - ${o.id} parentId=${o.parentId} [${o.priority ?? `?`}] ${o.title}  status=${o.status}\n`
+      out += `\n`
+    }
+
+    out += `Emit \`tdsk-tasks\` blocks that link children to this initiative via {initiative:"${initiative}", parentId:"<tp_parent_id>"}\n`
+    out += `so persistTaskProposals threads them into this ledger next cycle. Delegate each unclaimed child via\n`
+    out += `delegateTask (depth cap 1, concurrency cap 3, critic). When all children are \`promoted\` with a \`prUrl\` and\n`
+    out += `the linked P4c verifications are \`verified\`, write a durable memory marking the initiative complete.\n`
+
+    return out.length > CoordinatorInjectMaxChars
+      ? `${out.slice(0, CoordinatorInjectMaxChars)}... (truncated)`
+      : out
+  } catch (err) {
+    logger.error(
+      `[Executor] buildCoordinatorContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
  * Parse and apply any structured-output ops-review block emitted by a
  * successful adversary run. Each decision routes through applyOpsReview,
  * which re-runs the security scan (hard gate) before executing. Never throws.
@@ -1189,6 +1287,11 @@ async function runCliAgentSchedule(
   // ops-action rows awaiting adversary approval. The adversary cycle emits a
   // tdsk-ops-reviews block; other cycles ignore it silently.
   const opsReviewSection = await buildOpsReviewContext(app, schedule)
+  // Marker-gated coordinator section: a COORDINATOR cycle (its prompt embeds
+  // <!-- coordinator-initiative: <name> -->) receives the current initiative
+  // ledger (parents + children + statuses + PR URLs) so it can decompose and
+  // delegate bounded child tasks. Other cycles pay for no query.
+  const coordinatorSection = await buildCoordinatorContext(app, schedule)
   // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
   // tdsk-tasks block) gets its own recent run outcomes + a digest of open
   // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
@@ -1210,6 +1313,7 @@ async function runCliAgentSchedule(
       escalationSection +
       verifySection +
       opsReviewSection +
+      coordinatorSection +
       sensorSection +
       backlogSection
   )
