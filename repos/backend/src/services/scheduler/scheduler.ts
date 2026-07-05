@@ -80,6 +80,36 @@ export class Scheduler {
         `[Scheduler] Schedule ${schedule.id} is due — sandbox=${schedule.sandboxId}, type=${schedule.type}, cron="${schedule.cronExpression}"`
       )
 
+      // Serialize per-schedule: refuse to start a new run when one is already
+      // in flight. Without this, a manual trigger during a slow executor would
+      // let the natural cron slot fire ANOTHER concurrent run — that is what
+      // let two coding cycles pick the same task and open duplicate PRs on
+      // the same files. Advance next_run_at anyway so the schedule doesn't
+      // stay wedged; the currently-running run's own completion path will
+      // recompute correctly, and the next natural slot fires on schedule.
+      const { data: hasRunning, error: hasRunningErr } =
+        await this.db.services.scheduleRun.hasRunning(schedule.id)
+      if (hasRunningErr) {
+        logger.error(
+          `[Scheduler] Skipping ${schedule.id} — hasRunning check failed: ${hasRunningErr.message}`
+        )
+        return
+      }
+      if (hasRunning) {
+        logger.info(
+          `[Scheduler] Schedule ${schedule.id} skipped — a prior run is still in flight; advancing next_run_at only`
+        )
+        const skipNext = parseNextRun(schedule.cronExpression)
+        await this.db.services.schedule
+          .markRun(schedule.id, skipNext)
+          .catch((err) =>
+            logger.error(
+              `[Scheduler] Failed to advance next_run_at for skipped ${schedule.id}: ${err?.message || err}`
+            )
+          )
+        return
+      }
+
       const nextRunAt = parseNextRun(schedule.cronExpression)
 
       const { error: markErr } = await this.db.services.schedule.markRun(

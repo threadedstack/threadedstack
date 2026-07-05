@@ -6,7 +6,7 @@ import type {
   TDBScheduleRunInsert,
 } from '@TDB/types'
 
-import { eq, inArray } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { TScheduleRunStatus } from '@tdsk/domain'
@@ -107,6 +107,29 @@ export class ScheduleRun extends Base<
       if (!resp[0]) return { error: new Error(`Schedule run not found`) }
 
       return { data: this.model(resp[0]) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Return true if the given schedule already has a run in `running` status.
+   * Used by the scheduler tick to refuse starting a NEW run for a schedule
+   * that has one in flight — the previous incident was two concurrent coding
+   * cycles opening PRs for the same task because a manual trigger fired while
+   * a natural cron slot was pending. Serializing at the schedule level is the
+   * right invariant: one active run per schedule at a time.
+   */
+  async hasRunning(scheduleId: string) {
+    try {
+      const resp = await this.db
+        .select({ id: scheduleRuns.id })
+        .from(scheduleRuns)
+        .where(
+          and(eq(scheduleRuns.scheduleId, scheduleId), eq(scheduleRuns.status, `running`))
+        )
+        .limit(1)
+      return { data: resp.length > 0 }
     } catch (error: any) {
       return { error }
     }

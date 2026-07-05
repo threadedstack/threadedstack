@@ -31,6 +31,7 @@ const buildMockDb = () =>
       scheduleRun: {
         listRunning: vi.fn().mockResolvedValue({ data: [] }),
         markAsError: vi.fn().mockResolvedValue({ data: { count: 0, ids: [] } }),
+        hasRunning: vi.fn().mockResolvedValue({ data: false }),
       },
     },
   }) as any
@@ -193,6 +194,7 @@ describe(`Scheduler`, () => {
       mockDb.services.schedule.markRun.mockResolvedValue({})
 
       await scheduler.tick()
+      await flushPending()
 
       expect(mockDb.services.schedule.markRun).toHaveBeenCalledWith(
         `sched-1`,
@@ -319,6 +321,34 @@ describe(`Scheduler`, () => {
 
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Agent crashed`))
+    })
+
+    it(`skips a schedule that already has a run in flight (serialize per schedule)`, async () => {
+      // Regression: a manual trigger firing while a natural cron slot was
+      // pending let TWO coding-cycle runs start concurrently and each open a
+      // PR for the same task (duplicate PRs, wasted claude turn). Now the
+      // scheduler MUST refuse to start a new run when hasRunning returns true.
+      const executor = vi.fn().mockResolvedValue(undefined)
+      scheduler = new Scheduler(mockDb, executor)
+
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [mockSchedule] })
+      mockDb.services.schedule.markRun.mockResolvedValue({})
+      mockDb.services.scheduleRun.hasRunning.mockResolvedValue({ data: true })
+
+      await scheduler.tick()
+      await flushPending()
+
+      // Executor is NOT called.
+      expect(executor).not.toHaveBeenCalled()
+      // next_run_at IS advanced so the schedule doesn't stay wedged.
+      expect(mockDb.services.schedule.markRun).toHaveBeenCalledWith(
+        `sched-1`,
+        expect.any(Date)
+      )
+      // Log tells the operator we skipped rather than errored.
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining(`prior run is still in flight`)
+      )
     })
 
     it(`does not block the tick on a slow executor (fire-and-forget)`, async () => {
