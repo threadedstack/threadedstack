@@ -127,4 +127,162 @@ describe(`TaskProposal service`, () => {
       expect(result.data?.[1].priority).toBe(ETaskPriority.P3)
     })
   })
+
+  describe(`listByInitiative`, () => {
+    it(`returns only rows for the given org + initiative in ascending createdAt order`, async () => {
+      const t1 = fakeRow({
+        id: `tp_init001`,
+        orgId: `og_org0001`,
+        initiative: `P4d ops tier`,
+        createdAt: new Date(`2026-01-01T00:00:00Z`),
+      })
+      const t2 = fakeRow({
+        id: `tp_init002`,
+        orgId: `og_org0001`,
+        initiative: `P4d ops tier`,
+        createdAt: new Date(`2026-01-02T00:00:00Z`),
+      })
+      const t3 = fakeRow({
+        id: `tp_init003`,
+        orgId: `og_org0001`,
+        initiative: `P4d ops tier`,
+        createdAt: new Date(`2026-01-03T00:00:00Z`),
+      })
+      // The DB mock returns the pre-filtered + ordered rows — the where clause
+      // excludes the 2 unrelated-initiative rows; only the 3 matching rows come back.
+      mocks.orderByFn.mockResolvedValueOnce([t1, t2, t3])
+
+      const result = await service.listByInitiative(`og_org0001`, `P4d ops tier`)
+
+      const where = render(mocks.whereFn.mock.calls[0][0])
+      expect(where.params).toContain(`og_org0001`)
+      expect(where.params).toContain(`P4d ops tier`)
+
+      const orderBy = render(mocks.orderByFn.mock.calls[0][0])
+      expect(orderBy.sql).toContain(`created_at`)
+      expect(orderBy.sql).toContain(`asc`)
+
+      expect(result.data).toHaveLength(3)
+      expect(result.data?.[0].id).toBe(`tp_init001`)
+      expect(result.data?.[1].id).toBe(`tp_init002`)
+      expect(result.data?.[2].id).toBe(`tp_init003`)
+      result.data?.forEach((row) => expect(row).toBeInstanceOf(TaskProposalModel))
+    })
+
+    it(`is org-scoped: a same-initiative row under a different orgId does not match`, async () => {
+      // The where clause carries both orgId AND initiative — a different org's row
+      // is filtered out at the DB level. Mock returns empty to simulate that.
+      mocks.orderByFn.mockResolvedValueOnce([])
+
+      const result = await service.listByInitiative(`og_org9999`, `P4d ops tier`)
+
+      const where = render(mocks.whereFn.mock.calls[0][0])
+      // Must scope to the requesting org, not the other org
+      expect(where.params).toContain(`og_org9999`)
+      expect(where.params).toContain(`P4d ops tier`)
+      expect(where.params).not.toContain(`og_org0001`)
+
+      expect(result.data).toHaveLength(0)
+    })
+  })
+
+  describe(`listChildren`, () => {
+    it(`returns only rows whose parentId matches, in ascending createdAt order`, async () => {
+      const child1 = fakeRow({
+        id: `tp_child01`,
+        parentId: `tp_parent`,
+        createdAt: new Date(`2026-02-01T00:00:00Z`),
+      })
+      const child2 = fakeRow({
+        id: `tp_child02`,
+        parentId: `tp_parent`,
+        createdAt: new Date(`2026-02-02T00:00:00Z`),
+      })
+      const child3 = fakeRow({
+        id: `tp_child03`,
+        parentId: `tp_parent`,
+        createdAt: new Date(`2026-02-03T00:00:00Z`),
+      })
+      // DB returns the 3 children; the 1 unrelated row is excluded by the where clause.
+      mocks.orderByFn.mockResolvedValueOnce([child1, child2, child3])
+
+      const result = await service.listChildren(`tp_parent`)
+
+      const where = render(mocks.whereFn.mock.calls[0][0])
+      expect(where.params).toContain(`tp_parent`)
+
+      const orderBy = render(mocks.orderByFn.mock.calls[0][0])
+      expect(orderBy.sql).toContain(`created_at`)
+      expect(orderBy.sql).toContain(`asc`)
+
+      expect(result.data).toHaveLength(3)
+      expect(result.data?.[0].id).toBe(`tp_child01`)
+      expect(result.data?.[1].id).toBe(`tp_child02`)
+      expect(result.data?.[2].id).toBe(`tp_child03`)
+      result.data?.forEach((row) => expect(row).toBeInstanceOf(TaskProposalModel))
+    })
+
+    it(`returns an empty array when no children exist for the given parentId`, async () => {
+      mocks.orderByFn.mockResolvedValueOnce([])
+
+      const result = await service.listChildren(`tp_nochild`)
+
+      const where = render(mocks.whereFn.mock.calls[0][0])
+      expect(where.params).toContain(`tp_nochild`)
+
+      expect(result.data).toEqual([])
+    })
+
+    it(`parent+children grouping smoke: listByInitiative returns all 4; listChildren returns only the 3 children`, async () => {
+      const parent = fakeRow({
+        id: `tp_smoke00`,
+        orgId: `og_org0001`,
+        initiative: `X`,
+        parentId: null,
+        createdAt: new Date(`2026-03-01T00:00:00Z`),
+      })
+      const c1 = fakeRow({
+        id: `tp_smokec1`,
+        orgId: `og_org0001`,
+        initiative: `X`,
+        parentId: `tp_smoke00`,
+        createdAt: new Date(`2026-03-02T00:00:00Z`),
+      })
+      const c2 = fakeRow({
+        id: `tp_smokec2`,
+        orgId: `og_org0001`,
+        initiative: `X`,
+        parentId: `tp_smoke00`,
+        createdAt: new Date(`2026-03-03T00:00:00Z`),
+      })
+      const c3 = fakeRow({
+        id: `tp_smokec3`,
+        orgId: `og_org0001`,
+        initiative: `X`,
+        parentId: `tp_smoke00`,
+        createdAt: new Date(`2026-03-04T00:00:00Z`),
+      })
+
+      // First call: listByInitiative → all 4 rows (parent + 3 children)
+      mocks.orderByFn.mockResolvedValueOnce([parent, c1, c2, c3])
+      const byInit = await service.listByInitiative(`og_org0001`, `X`)
+      expect(byInit.data).toHaveLength(4)
+      expect(byInit.data?.map((r) => r.id)).toEqual([
+        `tp_smoke00`,
+        `tp_smokec1`,
+        `tp_smokec2`,
+        `tp_smokec3`,
+      ])
+
+      // Second call: listChildren → only the 3 children (parent excluded by parentId filter)
+      mocks.orderByFn.mockResolvedValueOnce([c1, c2, c3])
+      const children = await service.listChildren(`tp_smoke00`)
+      expect(children.data).toHaveLength(3)
+      expect(children.data?.map((r) => r.id)).toEqual([
+        `tp_smokec1`,
+        `tp_smokec2`,
+        `tp_smokec3`,
+      ])
+    })
+  })
 })
