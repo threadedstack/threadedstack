@@ -41,6 +41,10 @@ export {
   taskProposalsRelations,
 } from '@TDB/schemas/taskProposals'
 export {
+  escalations,
+  escalationsRelations,
+} from '@TDB/schemas/escalations'
+export {
   permissionOverrides,
   permissionOverridesRelations,
 } from '@TDB/schemas/permissionOverrides'

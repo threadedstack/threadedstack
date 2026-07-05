@@ -1,0 +1,87 @@
+import type {
+  TServiceOpts,
+  TDBQueryOpts,
+  TDBApiRes,
+  TDBApiResType,
+  TDBEscalationSelect,
+  TDBEscalationInsert,
+} from '@TDB/types'
+import type { TEscalationStatus } from '@tdsk/domain'
+
+import { eq, and, desc, inArray } from 'drizzle-orm'
+import { Base } from '@TDB/services/base'
+import { EEscalationStatus } from '@tdsk/domain'
+import { escalations } from '@TDB/schemas/escalations'
+import { Escalation as EscalationModel } from '@tdsk/domain'
+
+export class Escalation extends Base<
+  typeof escalations,
+  TDBEscalationSelect,
+  TDBEscalationInsert,
+  EscalationModel
+> {
+  constructor(opts: TServiceOpts) {
+    super({ ...opts, table: escalations })
+  }
+
+  model = (data: TDBEscalationSelect) =>
+    new EscalationModel(data as Partial<EscalationModel>)
+
+  async get(id: string, opts?: TDBQueryOpts) {
+    return super.get(id, opts)
+  }
+
+  async list(opts: TDBQueryOpts = {}) {
+    return super.list(opts)
+  }
+
+  /** Escalations for an org in a given lifecycle status, newest first. */
+  async listByStatus(
+    orgId: string,
+    status: TEscalationStatus
+  ): Promise<TDBApiRes<EscalationModel[]>> {
+    try {
+      const rows = await this.db
+        .select()
+        .from(escalations)
+        .where(and(eq(escalations.orgId, orgId), eq(escalations.status, status)))
+        .orderBy(desc(escalations.createdAt))
+
+      return { data: rows.map((row) => this.model(row as TDBEscalationSelect)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Newest still-open escalation for an org matching a dedupe key, or null.
+   * Open means status open or routed — resolved/rejected rows never match, so a
+   * repeat sensing can be collapsed onto a live escalation but not a closed one.
+   */
+  async openByDedupeKey(
+    orgId: string,
+    dedupeKey: string
+  ): Promise<TDBApiResType<EscalationModel | null>> {
+    try {
+      const rows = await this.db
+        .select()
+        .from(escalations)
+        .where(
+          and(
+            eq(escalations.orgId, orgId),
+            eq(escalations.dedupeKey, dedupeKey),
+            inArray(escalations.status, [
+              EEscalationStatus.open,
+              EEscalationStatus.routed,
+            ])
+          )
+        )
+        .orderBy(desc(escalations.createdAt))
+        .limit(1)
+
+      return { data: rows[0] ? this.model(rows[0] as TDBEscalationSelect) : null }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+}
