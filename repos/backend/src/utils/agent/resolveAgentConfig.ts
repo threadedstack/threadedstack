@@ -2,6 +2,7 @@ import type { TDatabase } from '@tdsk/database'
 import type {
   IAgentRunnerDB,
   ITaskProvider,
+  IEscalationProvider,
   IMemoryProvider,
   ISkillProvider,
 } from '@tdsk/agent'
@@ -16,6 +17,7 @@ import { createDelegateProvider } from '@TBE/utils/agent/delegation'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { authorSkillProposal } from '@TBE/utils/agent/skillPromotion'
 import { authorTaskProposal } from '@TBE/utils/agent/taskPromotion'
+import { openEscalation } from '@TBE/utils/agent/escalationPromotion'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import {
@@ -147,6 +149,19 @@ export const createTaskProvider = (
 ): ITaskProvider => ({
   proposeTask: async (input) =>
     authorTaskProposal(db, orgId, agentId, input as any, { authoredBy: agentId }),
+})
+
+/**
+ * IEscalationProvider factory (api-brain P4b path). Mirrors createTaskProvider:
+ * a pure closure over db scoped to one org/agent.
+ */
+export const createEscalationProvider = (
+  db: TDatabase,
+  orgId: string,
+  agentId: string
+): IEscalationProvider => ({
+  escalate: async (input) =>
+    openEscalation(db, orgId, agentId, input as any, { authoredBy: agentId }),
 })
 
 /**
@@ -375,6 +390,10 @@ export const resolveAgentConfig = async (
     // Only wire the proposeTask self-direction tool when sensing is enabled
     taskProvider: isFeatureEnabled(`sensing`)
       ? createTaskProvider(db, agent.orgId, agentId)
+      : undefined,
+    // Only wire the escalate tool when the feature is enabled
+    escalationProvider: isFeatureEnabled(`escalation`)
+      ? createEscalationProvider(db, agent.orgId, agentId)
       : undefined,
     // Only wire the delegateTask tool when the feature is enabled
     delegateProvider: isFeatureEnabled(`delegation`)

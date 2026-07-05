@@ -8,6 +8,7 @@
 import type {
   IWebProvider,
   ITaskProvider,
+  IEscalationProvider,
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
@@ -787,6 +788,97 @@ export const createTaskTools = (
             content: [
               { type: `text` as const, text: `Task proposal failed: ${message}` },
             ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates the escalation tool backed by an IEscalationProvider.
+ * `escalate` surfaces a problem that the agent cannot self-resolve
+ * (e.g., secret rotation, ops/infra incident, app-level bug requiring human
+ * review) as a persistent escalation record. Idempotent via dedupeKey.
+ * Filtered by `allowedTools` like the other factories.
+ */
+export const createEscalateTools = (
+  escalationProvider: IEscalationProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.escalate,
+      label: `Escalate`,
+      description: `Escalate a problem that requires human or system intervention and cannot be fully resolved by the agent alone. Use when you detect a condition needing secrets rotation, ops/infra action, or an app bug that warrants a tracked escalation. target must be one of: app|ops|infra|secrets. Idempotent — duplicate escalations for the same dedupeKey are collapsed.`,
+      parameters: Type.Object({
+        title: Type.String({ description: `Short escalation title` }),
+        problem: Type.String({
+          description: `Detailed description of the problem and why escalation is needed`,
+        }),
+        target: Type.String({
+          description: `Escalation target faculty: app | ops | infra | secrets`,
+        }),
+        evidence: Type.Optional(
+          Type.Array(Type.String(), {
+            description: `Concrete evidence items (log lines, errors, metrics)`,
+          })
+        ),
+        proposedPatch: Type.Optional(
+          Type.String({
+            description: `Optional patch or remediation sketch (not auto-applied)`,
+          })
+        ),
+        dedupeKey: Type.Optional(
+          Type.String({
+            description: `Stable key that collapses duplicate escalations for the same underlying issue`,
+          })
+        ),
+        issueRef: Type.Optional(
+          Type.String({
+            description: `URL of a pre-existing GitHub issue for this escalation`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          title: string
+          problem: string
+          target: string
+          evidence?: string[]
+          proposedPatch?: string
+          dedupeKey?: string
+          issueRef?: string
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Escalating: ${params.title}` }],
+          details: { status: `running` },
+        })
+        try {
+          const { id, status, routable, deduped } =
+            await escalationProvider.escalate(params)
+          const text = deduped
+            ? `Escalation already open (${id})`
+            : routable
+              ? `Escalation ${id} routed to ${params.target} faculty`
+              : `Escalation ${id} tracked (open, awaiting ${params.target} faculty)`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: true, id, status, routable, deduped },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown escalation error`
+          logger.warn(`escalate tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Escalation failed: ${message}` }],
             details: { success: false },
           }
         }

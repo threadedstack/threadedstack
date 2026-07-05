@@ -219,6 +219,7 @@ async function runAgentSchedule(
     memoryProvider: config.memoryProvider,
     skillProvider: config.skillProvider,
     taskProvider: config.taskProvider,
+    escalationProvider: config.escalationProvider,
     delegateProvider: config.delegateProvider,
     onExecuteFunction: config.onExecuteFunction,
     customFunctions: config.customFunctions || [],

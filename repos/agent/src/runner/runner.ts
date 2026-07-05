@@ -38,6 +38,7 @@ import {
   createMemoryTools,
   createSandboxTools,
   createDelegateTools,
+  createEscalateTools,
   buildCustomFunctionTools,
 } from '@TAG/tools/tools'
 import {
@@ -690,6 +691,9 @@ export class AgentRunner {
     const taskTools = this.#opts?.taskProvider
       ? createTaskTools(this.#opts.taskProvider, toolNames)
       : []
+    const escalateTools = this.#opts?.escalationProvider
+      ? createEscalateTools(this.#opts.escalationProvider, toolNames)
+      : []
     const delegateTools = this.#opts?.delegateProvider
       ? createDelegateTools(this.#opts.delegateProvider, toolNames, {
           delegationDepth: this.#opts.delegationDepth,
@@ -702,6 +706,7 @@ export class AgentRunner {
       ...memoryTools,
       ...skillTools,
       ...taskTools,
+      ...escalateTools,
       ...delegateTools,
     ]
 

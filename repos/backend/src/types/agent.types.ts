@@ -1,6 +1,7 @@
 import type {
   IAgentRunnerDB,
   ITaskProvider,
+  IEscalationProvider,
   IMemoryProvider,
   ISkillProvider,
   IDelegateProvider,
@@ -68,6 +69,13 @@ export type TAgentRuntimeConfig = {
    * fenced `tdsk-tasks` capture).
    */
   taskProvider?: ITaskProvider
+  /**
+   * Escalation provider (backend-implemented). Present only when the
+   * `escalation` feature flag is enabled; wired into the AgentRunner so the api
+   * brain exposes the escalate tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-escalations` capture).
+   */
+  escalationProvider?: IEscalationProvider
   /**
    * Task delegation provider (backend-implemented). Present only when the
    * `delegation` feature flag is enabled; wired into the AgentRunner so the api

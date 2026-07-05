@@ -114,6 +114,7 @@ export class Websocket {
       memoryProvider: session.memoryProvider,
       skillProvider: session.skillProvider,
       taskProvider: session.taskProvider,
+      escalationProvider: session.escalationProvider,
       delegateProvider: session.delegateProvider,
       onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {

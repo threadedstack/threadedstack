@@ -1,6 +1,7 @@
 import type { IMemoryProvider } from './memory.types'
 import type { ISkillProvider } from './skill.types'
 import type { ITaskProvider } from './task.types'
+import type { IEscalationProvider } from './escalation.types'
 import type { IDelegateProvider } from './delegation.types'
 import type {
   Skill,
@@ -102,6 +103,12 @@ export type TAgentInitOpts = {
    * fenced `tdsk-tasks` capture).
    */
   taskProvider?: ITaskProvider
+  /**
+   * Escalation provider (backend-implemented). When present, the runner
+   * exposes the escalate tool (api-brain parity of the runtime-brain
+   * fenced `tdsk-escalations` capture).
+   */
+  escalationProvider?: IEscalationProvider
   /**
    * Task delegation provider (backend-implemented). When present, the runner
    * exposes the delegateTask tool (bounded in-pod child coding process).
