@@ -7,6 +7,9 @@ import {
   OpsAllowedDeployments,
   OpsAllowedSandboxFields,
   OpsPodLogsMaxTail,
+  OpsReviewsBlockFence,
+  OpsReviewInjectMax,
+  OpsReviewInjectMaxChars,
 } from '@TDM/constants/ops'
 
 describe('ops allowlist', () => {
@@ -32,5 +35,14 @@ describe('ops allowlist', () => {
   })
   it('OpsPodLogsMaxTail is bounded', () => {
     expect(OpsPodLogsMaxTail).toBe(500)
+  })
+  it('OpsReviewsBlockFence is stable', () => {
+    expect(OpsReviewsBlockFence).toBe('tdsk-ops-reviews')
+  })
+  it('OpsReviewInjectMax matches escalation convention (15)', () => {
+    expect(OpsReviewInjectMax).toBe(15)
+  })
+  it('OpsReviewInjectMaxChars matches escalation convention (8000)', () => {
+    expect(OpsReviewInjectMaxChars).toBe(8000)
   })
 })

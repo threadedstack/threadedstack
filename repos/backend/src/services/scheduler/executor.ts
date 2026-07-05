@@ -39,6 +39,9 @@ import {
   VerifyInjectMax,
   VerifyInjectMaxChars,
   VerifyLookbackPrs,
+  EOpsActionStatus,
+  OpsReviewInjectMax,
+  OpsReviewInjectMaxChars,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
@@ -49,6 +52,8 @@ import {
 } from '@TBE/utils/agent/escalation'
 import { openEscalation, resolveEscalation } from '@TBE/utils/agent/escalationPromotion'
 import { parseVerifyResultsBlock } from '@TBE/utils/agent/verify'
+import { parseOpsReviewsBlock } from '@TBE/utils/agent/opsReview'
+import { applyOpsReview } from '@TBE/utils/agent/opsPromotion'
 import {
   escapePromptArg,
   foregroundEnvPrefix,
@@ -981,6 +986,87 @@ export async function persistVerifications(
 }
 
 /**
+ * Build the injected ops-action context for a cycle that may act as the
+ * adversary approval gate: surfaces all dryRun-status rows so the adversary
+ * cycle can emit approve/reject verdicts via the tdsk-ops-reviews block.
+ * Always injected (mirrors buildEscalationContext — no marker gate); cycles
+ * whose prompt does not mention ops reviews simply ignore it.
+ * Capped at OpsReviewInjectMax entries and OpsReviewInjectMaxChars chars.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildOpsReviewContext(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+    const { data: rows } = await db.services.opsAction.listByStatus(
+      orgId,
+      EOpsActionStatus.dryRun
+    )
+    if (!rows?.length) return ``
+
+    const capped = rows.slice(0, OpsReviewInjectMax)
+    const bullets = capped
+      .map((row: any) => {
+        const paramsStr = JSON.stringify(row.params ?? {}).slice(0, 300)
+        const planStr = JSON.stringify(row.dryRunResult?.data ?? {}).slice(0, 300)
+        const rb = row.rollback
+        const rollbackStr = rb
+          ? `${rb.kind}${rb.prevRevision ? ` prevRevision=${rb.prevRevision}` : ``}${rb.prevSha ? ` prevSha=${rb.prevSha}` : ``}${rb.prevConfig ? ` prevConfig=<object>` : ``}`
+          : `none`
+        const scan = row.scanResult
+        const scanStr = scan
+          ? `passed=${scan.passed}, findings=${JSON.stringify(scan.findings ?? [])}`
+          : `none`
+        return `- ${row.id} [${row.action}] agent=${row.agentId}\n    params: ${paramsStr}\n    dry-run plan: ${planStr}\n    rollback: ${rollbackStr}\n    scan: ${scanStr}`
+      })
+      .join(`\n`)
+
+    const raw = `## Ops actions awaiting review (adversary approval gate)\n${bullets}\n    Emit \`\`\`tdsk-ops-reviews\`\`\`{opsActionId,approve,reason} to approve or reject.\n\nRULES: approve ONLY if the action is (a) in the allowlist (podStatus/podLogs/deployState/quotaUsage/triggerRedeploy/restartDeployment/applySandboxConfig), (b) targets an allowlisted deployment/field, (c) the reason is concrete + reasonable, (d) the rollback data is present. Reject anything ambiguous — rejection is cheap; a bad write is not. The server RE-SCANS on approve as a hard gate, so an approval that would fail the scan cannot execute.\n\n`
+    return raw.length > OpsReviewInjectMaxChars
+      ? `${raw.slice(0, OpsReviewInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildOpsReviewContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and apply any structured-output ops-review block emitted by a
+ * successful adversary run. Each decision routes through applyOpsReview,
+ * which re-runs the security scan (hard gate) before executing. Never throws.
+ */
+export async function persistOpsReviews(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  const reviews = parseOpsReviewsBlock(stdoutText)
+  if (!reviews.length) return
+
+  const { db } = app.locals
+  for (const r of reviews) {
+    try {
+      const result = await applyOpsReview(app, db, schedule.orgId, r, agentId)
+      logger.info(
+        `[Executor] ops-review ${r.opsActionId} → ${result?.status ?? 'skipped'}`
+      )
+    } catch (e) {
+      logger.warn(
+        `[Executor] ops-review ${r.opsActionId} failed: ${(e as Error).message}`
+      )
+    }
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -1099,6 +1185,10 @@ async function runCliAgentSchedule(
   // Always injected (mirrors escalationSection): surfaces pending verifications
   // and the done-set so the steward knows which merged PRs still need probing.
   const verifySection = await buildVerifyContext(app, schedule)
+  // Always injected (mirrors reviewSection/escalationSection): surfaces dryRun
+  // ops-action rows awaiting adversary approval. The adversary cycle emits a
+  // tdsk-ops-reviews block; other cycles ignore it silently.
+  const opsReviewSection = await buildOpsReviewContext(app, schedule)
   // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
   // tdsk-tasks block) gets its own recent run outcomes + a digest of open
   // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
@@ -1119,6 +1209,7 @@ async function runCliAgentSchedule(
       reviewSection +
       escalationSection +
       verifySection +
+      opsReviewSection +
       sensorSection +
       backlogSection
   )
@@ -1296,6 +1387,9 @@ async function runCliAgentSchedule(
     // Capture post-merge verify results: upsert verification rows and open a
     // target:app escalation for any regressed probe (revert PR already opened in-pod).
     await persistVerifications(app, schedule, agent.id, threadId, stdoutText)
+    // Capture adversary ops-review verdicts (approve/reject per dryRun row).
+    // applyOpsReview re-scans before executing — the hard gate is server-side.
+    await persistOpsReviews(app, schedule, agent.id, stdoutText)
   }
 
   return result

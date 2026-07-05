@@ -59,5 +59,14 @@ export type TOpsAllowedSandboxField = (typeof OpsAllowedSandboxFields)[number]
 /** Hard cap on `podLogs.tailLines` to prevent log-flooding. */
 export const OpsPodLogsMaxTail = 500
 
+/** Fence label for ops-review verdicts parsed from runtime stdout. */
+export const OpsReviewsBlockFence = `tdsk-ops-reviews`
+
+/** Maximum ops-action rows injected into a prompt for review. */
+export const OpsReviewInjectMax = 15
+
+/** Maximum characters of ops-review context injected into a prompt. */
+export const OpsReviewInjectMaxChars = 8000
+
 /** Re-exported from prefixes for enum-adjacent usage. */
 export { OpsActionIdPrefix as OpsIdPrefix } from '@TDM/constants/prefixes'
