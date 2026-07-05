@@ -714,6 +714,7 @@ describe(`permissions utilities`, () => {
           EPermResource.skillProposal,
           EPermResource.taskProposal,
           EPermResource.escalation,
+          EPermResource.verification,
           EPermResource.sandboxSession,
         ]).toContain(resource)
       }

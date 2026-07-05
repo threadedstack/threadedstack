@@ -13,6 +13,7 @@ export type TFeatureFlags = {
   terminalGui: TFeatureFlagDef
   sensing: TFeatureFlagDef
   escalation: TFeatureFlagDef
+  verification: TFeatureFlagDef
 }
 
 export type TFeatureFlagName = keyof TFeatureFlags

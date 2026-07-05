@@ -37,6 +37,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Structured escalation channel with auto-routing (P4b)`,
   },
+  verification: {
+    enabled: true,
+    description: `Post-merge verify + auto revert on regression (P4c)`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {
