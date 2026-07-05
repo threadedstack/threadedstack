@@ -33,6 +33,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Sensor cycle: system signals → self-authored backlog (P4a)`,
   },
+  escalation: {
+    enabled: true,
+    description: `Structured escalation channel with auto-routing (P4b)`,
+  },
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {

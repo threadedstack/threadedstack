@@ -8,6 +8,7 @@ import type {
   ApiKeyIdPrefix,
   SkillProposalIdPrefix,
   TaskProposalIdPrefix,
+  EscalationIdPrefix,
   DomainIdPrefix,
   ThreadIdPrefix,
   SecretIdPrefix,
@@ -43,6 +44,7 @@ export type TEntityPrefix =
   | typeof SkillIdPrefix
   | typeof SkillProposalIdPrefix
   | typeof TaskProposalIdPrefix
+  | typeof EscalationIdPrefix
   | typeof QuotaIdPrefix
   | typeof ApiKeyIdPrefix
   | typeof DomainIdPrefix

@@ -20,6 +20,7 @@ export const ScheduleIdPrefix = `sd_`
 export const AgentSkillIdPrefix = `al_`
 export const SkillProposalIdPrefix = `pr_`
 export const TaskProposalIdPrefix = `tp_`
+export const EscalationIdPrefix = `es_`
 export const InvitationIdPrefix = `iv_`
 export const ScheduleRunIdPrefix = `sr_`
 export const SubscriptionIdPrefix = `su_`

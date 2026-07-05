@@ -55,6 +55,7 @@ export enum EPermResource {
   skill = `skill`, // Reusable agent skills
   skillProposal = `skillProposal`, // Self-authored skills pending promotion
   taskProposal = `taskProposal`, // Self-sensed tasks pending promotion (P4a)
+  escalation = `escalation`, // Structured escalations for needs the steward cannot yet act on (P4b)
   memory = `memory`, // Durable agent memories
   schedule = `schedule`, // Agent cron schedules
   sandbox = `sandbox`, // Sandbox configurations
