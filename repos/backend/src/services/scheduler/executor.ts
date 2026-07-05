@@ -35,6 +35,10 @@ import {
   EEscalationStatus,
   EscalationInjectMax,
   EscalationInjectMaxChars,
+  EVerificationStatus,
+  VerifyInjectMax,
+  VerifyInjectMaxChars,
+  VerifyLookbackPrs,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
@@ -44,6 +48,7 @@ import {
   parseEscalationResolutionsBlock,
 } from '@TBE/utils/agent/escalation'
 import { openEscalation, resolveEscalation } from '@TBE/utils/agent/escalationPromotion'
+import { parseVerifyResultsBlock } from '@TBE/utils/agent/verify'
 import {
   escapePromptArg,
   foregroundEnvPrefix,
@@ -818,6 +823,163 @@ export async function persistEscalations(
 }
 
 /**
+ * Build the injected post-merge verification context: pending + verifying rows
+ * that still need probing, plus a done-set of terminal (verified | regressed)
+ * PR numbers so the cycle does not re-probe already-terminal results.
+ * Always injected (mirrors buildEscalationContext — no marker gate).
+ * Capped at VerifyInjectMax in-flight entries and VerifyInjectMaxChars chars.
+ * Never throws — failures only degrade context (logged + returns '').
+ */
+export async function buildVerifyContext(app: TApp, schedule: Schedule): Promise<string> {
+  try {
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    const [pendingRes, verifyingRes] = await Promise.all([
+      db.services.verification.listByStatus(orgId, EVerificationStatus.pending),
+      db.services.verification.listByStatus(orgId, EVerificationStatus.verifying),
+    ])
+    const pending = pendingRes.data ?? []
+    const verifying = verifyingRes.data ?? []
+    const inFlight = [...pending, ...verifying].slice(0, VerifyInjectMax)
+
+    // Load recent rows for the done-set (already-terminal PRs to skip).
+    const recentRes = await db.services.verification.list({
+      orgId,
+      orderBy: `createdAt`,
+      desc: true,
+      limit: VerifyLookbackPrs,
+    } as any)
+    const recent = recentRes.data ?? []
+    const donePrNumbers = recent
+      .filter(
+        (r: any) =>
+          r.status === EVerificationStatus.verified ||
+          r.status === EVerificationStatus.regressed
+      )
+      .map((r: any) => r.prNumber as number)
+
+    if (!inFlight.length && !donePrNumbers.length) return ``
+
+    const doneSet = donePrNumbers.length > 0 ? `[${donePrNumbers.join(`, `)}]` : `[]`
+    const inFlightCount = inFlight.length
+
+    const raw = `## Post-merge verification
+Deployed marker (origin/production) advances after a successful deploy. For each
+recently-merged steward PR NOT in the done-set below: read its \`\`\`tdsk-verify\`\`\` block
+from the PR body (default {kind:'ci-green'} when absent), run the probe read-only, and
+emit ONE \`\`\`tdsk-verify-results\`\`\` block per PR with {prNumber, mergeSha, status:
+'verified'|'regressed', detail, revertPrUrl?}. On a regressed result you MUST open a
+revert-as-new-commit PR IN-POD (never \`git revert\`, never rewrite history):
+
+  BAD=<mergeCommitSha>; N=<prNumber>; SHORT=$(git rev-parse --short "$BAD")
+  git fetch origin main
+  git checkout -b "steward/revert-pr\${N}-\${SHORT}" origin/main
+  git show "$BAD" | git apply -R --index --3way
+  git commit -m "revert: undo PR #\${N} — P4c post-deploy regression"
+  git push -u origin HEAD
+  gh pr create --base main --head "steward/revert-pr\${N}-\${SHORT}" \\
+    --title "Revert PR #\${N}: post-deploy regression" \\
+    --body "Automated P4c revert. Probe failed after deploy of \${BAD}. <evidence>"
+
+Then include the revert PR URL as revertPrUrl in the result entry. The backend will
+also file a target:'app' escalation citing that revert PR URL so it is tracked.
+
+Probe execution semantics (all read-only, all in-pod):
+  health          — curl -fsS <base><params.url or /_/health>; assert body.status=='ok'.
+  ci-green        — gh run list --branch main --limit 5 --json conclusion; latest completed 'success'.
+  marker-advanced — git fetch origin main production; git merge-base --is-ancestor <mergeSha> origin/production;
+                    regressed if false AFTER the deploy window (allow ~15 min grace via params.graceMinutes).
+  assertion       — sh -c "<params.command>"; assert exit 0.
+
+Done-set (skip these PR numbers; already terminal): ${doneSet}
+In-flight this list is what needs probing next: ${inFlightCount}
+`
+    return raw.length > VerifyInjectMaxChars
+      ? `${raw.slice(0, VerifyInjectMaxChars)}... (truncated)`
+      : raw
+  } catch (err) {
+    logger.error(
+      `[Executor] buildVerifyContext failed for schedule ${schedule.id}:`,
+      (err as Error).message
+    )
+    return ``
+  }
+}
+
+/**
+ * Parse and persist any structured-output tdsk-verify-results block emitted by a
+ * successful runtime run. Regressed entries open a target:app escalation (P4b path)
+ * citing the revert PR URL; all terminal entries upsert the verification row and
+ * write a durable memory row so the cycle is idempotent across restarts.
+ * Never throws — individual entries fail independently.
+ */
+export async function persistVerifications(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  threadId: string,
+  stdoutText: string
+): Promise<void> {
+  const results = parseVerifyResultsBlock(stdoutText)
+  if (!results.length) return
+
+  const { db } = app.locals
+  for (const r of results) {
+    try {
+      let escalationId: string | null = null
+      if (r.status === `regressed`) {
+        // P4c → P4b integration: file a target:app escalation citing the revert PR.
+        // Backend NEVER opens the revert PR itself; the steward already opened it
+        // in-pod (revertPrUrl carries the URL). The escalation is the audit trail.
+        const esc = await openEscalation(
+          db,
+          schedule.orgId,
+          agentId,
+          {
+            target: `app` as any,
+            dedupeKey: `verify-regression-pr${r.prNumber}`,
+            title: `Post-deploy regression: PR #${r.prNumber}`,
+            problem: r.detail ?? `Declared verify probe failed after deploy.`,
+            evidence: [r.mergeSha, r.revertPrUrl].filter(Boolean) as string[],
+            issueRef: r.revertPrUrl ?? null,
+          },
+          { threadId, scheduleId: schedule.id, prNumber: r.prNumber }
+        )
+        escalationId = esc.id
+      }
+      await db.services.verification.upsertByPr(schedule.orgId, agentId, r.prNumber, {
+        status: r.status,
+        detail: r.detail ?? null,
+        mergeSha: r.mergeSha ?? null,
+        revertPrUrl: r.revertPrUrl ?? null,
+        escalationId,
+      } as any)
+      // Durable memory write-back on terminal — the loop is idempotent across cycles.
+      // Match the persistEscalations memory shape (kind:fact, importance:6, embedding:null).
+      await (db.services.memory as any).create({
+        orgId: schedule.orgId,
+        agentId,
+        kind: EMemoryKind.fact,
+        importance: 6,
+        text: `PR #${r.prNumber} verify ${r.status}${r.revertPrUrl ? ` → revert ${r.revertPrUrl}` : ``}`,
+        meta: {
+          threadId,
+          scheduleId: schedule.id,
+          source: `verify`,
+          prNumber: r.prNumber,
+        },
+        embedding: null,
+      } as any)
+    } catch (e) {
+      logger.warn(
+        `[Executor] persistVerifications: entry pr#${r.prNumber} failed: ${(e as Error).message}`
+      )
+    }
+  }
+}
+
+/**
  * Compose the CLI-brain shell command from the runtime's prompt template.
  * The soul is substituted into a {soul} placeholder when the template has one,
  * otherwise prepended to the prompt payload. Payload order is soul (fallback
@@ -933,6 +1095,9 @@ async function runCliAgentSchedule(
   // Always injected (mirrors reviewSection): surfaces open + routed escalations
   // so the steward does not re-raise already-tracked needs.
   const escalationSection = await buildEscalationContext(app, schedule)
+  // Always injected (mirrors escalationSection): surfaces pending verifications
+  // and the done-set so the steward knows which merged PRs still need probing.
+  const verifySection = await buildVerifyContext(app, schedule)
   // Marker-gated sensor faculties: a SENSOR cycle (its prompt emits a
   // tdsk-tasks block) gets its own recent run outcomes + a digest of open
   // proposals; a WORK cycle (its prompt emits a tdsk-task-picked block) gets the
@@ -949,7 +1114,12 @@ async function runCliAgentSchedule(
     agent,
     sandboxConfig,
     previousReport,
-    memorySection + reviewSection + escalationSection + sensorSection + backlogSection
+    memorySection +
+      reviewSection +
+      escalationSection +
+      verifySection +
+      sensorSection +
+      backlogSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -1122,6 +1292,9 @@ async function runCliAgentSchedule(
     // Capture escalations opened by the steward and resolutions it emits once
     // a fix PR merges; resolutions also write a durable memory row.
     await persistEscalations(app, schedule, agent.id, threadId, stdoutText)
+    // Capture post-merge verify results: upsert verification rows and open a
+    // target:app escalation for any regressed probe (revert PR already opened in-pod).
+    await persistVerifications(app, schedule, agent.id, threadId, stdoutText)
   }
 
   return result
