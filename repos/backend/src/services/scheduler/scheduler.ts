@@ -1,8 +1,10 @@
+import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { Schedule } from '@tdsk/domain'
 import { isFeatureEnabled } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { parseNextRun } from '@TBE/services/scheduler/cronParser'
+import { hydrateOrphanedRuns } from '@TBE/services/scheduler/rehydrator'
 
 /**
  * Callback type for executing a scheduled agent run.
@@ -13,13 +15,15 @@ export type TScheduleExecutor = (schedule: Schedule) => Promise<void>
 
 export class Scheduler {
   private db: TDatabase
+  private app: TApp | null
   private intervalId: ReturnType<typeof setInterval> | null = null
   private executeAgent: TScheduleExecutor | null = null
   #ticking = false
 
-  constructor(db: TDatabase, executeAgent?: TScheduleExecutor) {
+  constructor(db: TDatabase, executeAgent?: TScheduleExecutor, app?: TApp) {
     this.db = db
     this.executeAgent = executeAgent ?? null
+    this.app = app ?? null
   }
 
   /**
@@ -37,13 +41,21 @@ export class Scheduler {
     }
 
     logger.info(`[Scheduler] Starting scheduler (60s tick interval)`)
-    // A run executes in-process, so any run still `running` at boot was orphaned
-    // by the previous process dying (a deploy restart mid-run) — its executor is
-    // gone and can neither finish it nor enforce its timeout. Reap before ticking
-    // so those rows don't linger as permanent `running` and the failure is recorded.
-    this.#reapOrphanedRuns().catch((err) =>
-      logger.error(`[Scheduler] Orphaned-run reap failed: ${err}`)
-    )
+    // A run executes in-process, so any run still `running` at boot outlived
+    // the previous backend (a deploy restart, an OOM, a crash). The pod itself
+    // may still be up and the runtime may already be done — mark honestly
+    // instead of blanket-failing. `hydrateOrphanedRuns` inspects each pod and
+    // completes the run based on its actual state (success / error / timeout),
+    // dispatching a background watcher for pods that are still Running so we
+    // wait for the runtime to finish rather than killing in-flight work.
+    if (this.app)
+      hydrateOrphanedRuns(this.app).catch((err) =>
+        logger.error(`[Scheduler] Orphaned-run hydration failed: ${err}`)
+      )
+    else
+      logger.warn(
+        `[Scheduler] No app reference — skipping orphaned-run hydration (running rows will stay running until next boot with app wired in)`
+      )
     // Run an initial tick immediately
     this.tick().catch((err) => logger.error(`[Scheduler] Initial tick failed: ${err}`))
     this.intervalId = setInterval(() => {
@@ -60,20 +72,6 @@ export class Scheduler {
       this.intervalId = null
       logger.info(`[Scheduler] Stopped`)
     }
-  }
-
-  async #reapOrphanedRuns() {
-    const { data, error } = await this.db.services.scheduleRun.failOrphaned(
-      `Orphaned by backend restart — the executor process died mid-run (e.g. a deploy)`
-    )
-    if (error) {
-      logger.error(`[Scheduler] Failed to reap orphaned runs: ${error.message}`)
-      return
-    }
-    if (data?.count)
-      logger.warn(
-        `[Scheduler] Reaped ${data.count} orphaned run(s) left in "running" at startup: ${data.ids.join(`, `)}`
-      )
   }
 
   async #processSchedule(schedule: Schedule) {
@@ -157,7 +155,8 @@ export class Scheduler {
  */
 export function createScheduler(
   db: TDatabase,
-  executeAgent?: TScheduleExecutor
+  executeAgent?: TScheduleExecutor,
+  app?: TApp
 ): Scheduler {
-  return new Scheduler(db, executeAgent)
+  return new Scheduler(db, executeAgent, app)
 }

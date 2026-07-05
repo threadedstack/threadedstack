@@ -1539,6 +1539,21 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
     let instanceId: string | undefined
     let markedComplete = false
 
+    // Persist the pod name to the DB the moment startPod returns. Without this
+    // the row stays instance_id=NULL until `complete()`, which makes any mid-run
+    // backend restart look like a pre-pod orphan to the rehydrator — the same
+    // false-positive the rehydrator was written to eliminate. Failure to persist
+    // is non-fatal (the run keeps executing) but is logged.
+    const captureInstanceId = (id: string) => {
+      instanceId = id
+      db.services.scheduleRun.setInstance(run.id, id).then(({ error: setErr }) => {
+        if (setErr)
+          logger.warn(
+            `[Executor] Failed to persist instanceId ${id} on run ${run.id}: ${setErr.message}`
+          )
+      })
+    }
+
     const finalizeUploads = async (): Promise<boolean> => {
       stdoutUpload?.stream.end()
       stderrUpload?.stream.end()
@@ -1565,7 +1580,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
         if (scheduleAgent.brain === EAgentBrain.runtime) {
           const result = await runCliAgentSchedule(app, schedule, scheduleAgent, {
-            onPodStart: (id) => (instanceId = id),
+            onPodStart: captureInstanceId,
             onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
             onStderr: (chunk) => stderrUpload?.stream.write(chunk),
           })
@@ -1601,14 +1616,19 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
             schedule,
             (chunk) => stdoutUpload?.stream.write(chunk),
             // Captured immediately after startPod so the finally block reaps
-            // the pod even when a later step throws before the run returns
-            (id) => (instanceId = id)
+            // the pod even when a later step throws before the run returns.
+            // Uses captureInstanceId so the pod name is also persisted to the
+            // schedule_run row for the rehydrator to find on backend restart.
+            captureInstanceId
           ),
           timeoutMs
         )
         // Preserves teardown for agents whose podName came from a pre-existing
-        // environment.instanceId (no startPod, so onPodStart never fires)
-        instanceId = agentRun.instanceId ?? instanceId
+        // environment.instanceId (no startPod, so onPodStart never fires).
+        // Also persist that instanceId if we discovered it here rather than via
+        // captureInstanceId so the row is complete for the rehydrator.
+        if (agentRun.instanceId && agentRun.instanceId !== instanceId)
+          captureInstanceId(agentRun.instanceId)
 
         const uploadOk = await finalizeUploads()
         const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
@@ -1629,13 +1649,14 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
         return
       }
 
-      instanceId = await sandbox.startPod({
+      const startedPodName = await sandbox.startPod({
         orgId: schedule.orgId,
         userId: schedule.userId,
         sandboxId: schedule.sandboxId,
         projectId: schedule.projectId,
         egressOpts: app.locals.config.egress,
       })
+      captureInstanceId(startedPodName)
 
       logger.info(`[Executor] Schedule ${schedule.id} — pod started: ${instanceId}`)
 

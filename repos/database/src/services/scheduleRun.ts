@@ -6,7 +6,7 @@ import type {
   TDBScheduleRunInsert,
 } from '@TDB/types'
 
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { TScheduleRunStatus } from '@tdsk/domain'
@@ -55,6 +55,27 @@ export class ScheduleRun extends Base<
     })
   }
 
+  /**
+   * Persist the pod name on a running row as soon as startPod returns. Without
+   * this the row stays instance_id=NULL until `complete()` writes on final,
+   * which makes a mid-run backend crash look like a "pre-pod orphan" to the
+   * rehydrator even though the pod is up and the runtime is working. Called
+   * from the executor's onPodStart hook immediately after startPod succeeds.
+   */
+  async setInstance(id: string, instanceId: string) {
+    try {
+      const resp = await this.db
+        .update(scheduleRuns)
+        .set({ instanceId, updatedAt: new Date() })
+        .where(eq(scheduleRuns.id, id))
+        .returning({ id: scheduleRuns.id })
+      if (!resp[0]) return { error: new Error(`Schedule run not found`) }
+      return { data: { id: resp[0].id } }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
   async complete(
     id: string,
     data: {
@@ -92,14 +113,32 @@ export class ScheduleRun extends Base<
   }
 
   /**
-   * Mark every run still in `running` as failed. Called at scheduler startup:
-   * a run executes in-process on the (single-replica) backend, so any row still
-   * `running` at boot was orphaned by the previous process dying — e.g. a deploy
-   * restart mid-run — and its executor can never complete it or enforce its
-   * timeout. Reaping keeps the table honest and stops stuck rows accumulating.
-   * Returns how many rows were reaped.
+   * List every schedule_run row still in `running` status. Used by the scheduler
+   * at startup to hand each row to the rehydrator: the previous backend died
+   * mid-run, but the pod may still exist in K8s and its work may still be alive
+   * or already complete. The rehydrator inspects each pod and completes the
+   * run honestly (success / error / timeout) rather than blindly marking failed.
    */
-  async failOrphaned(reason: string) {
+  async listRunning() {
+    try {
+      const resp = await this.db
+        .select()
+        .from(scheduleRuns)
+        .where(eq(scheduleRuns.status, `running`))
+      return { data: resp.map((r) => this.model(r)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Mark a specific set of runs as error. Used by the rehydrator when a pod
+   * genuinely can't be recovered (no instanceId, pod deleted, or pod in
+   * Failed phase). Prefer this over a blanket "mark all running as error"
+   * because it never misclassifies in-flight work that just needs re-adopting.
+   */
+  async markAsError(ids: string[], reason: string) {
+    if (!ids.length) return { data: { count: 0, ids: [] } }
     try {
       const now = new Date()
       const resp = await this.db
@@ -110,7 +149,7 @@ export class ScheduleRun extends Base<
           completedAt: now,
           updatedAt: now,
         })
-        .where(eq(scheduleRuns.status, `running`))
+        .where(inArray(scheduleRuns.id, ids))
         .returning({ id: scheduleRuns.id })
 
       return { data: { count: resp.length, ids: resp.map((r) => r.id) } }

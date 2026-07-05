@@ -43,6 +43,7 @@ const buildApp = () => {
     scheduleRun: {
       create: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
       complete: vi.fn().mockResolvedValue({}),
+      setInstance: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
     },
     thread: { create: vi.fn().mockResolvedValue({ data: { id: `th_new` } }) },
     schedule: { update: vi.fn().mockResolvedValue({ data: { id: `sd_1` } }) },

@@ -14,6 +14,10 @@ vi.mock(`@TBE/services/scheduler/cronParser`, () => ({
   parseNextRun: vi.fn().mockReturnValue(new Date(`2026-04-01T00:00:00Z`)),
 }))
 
+vi.mock(`@TBE/services/scheduler/rehydrator`, () => ({
+  hydrateOrphanedRuns: vi.fn().mockResolvedValue(undefined),
+}))
+
 // ── HELPERS ──────────────────────────────────────────────────────────
 
 const buildMockDb = () =>
@@ -25,7 +29,8 @@ const buildMockDb = () =>
         incrementErrors: vi.fn(),
       },
       scheduleRun: {
-        failOrphaned: vi.fn().mockResolvedValue({ data: { count: 0, ids: [] } }),
+        listRunning: vi.fn().mockResolvedValue({ data: [] }),
+        markAsError: vi.fn().mockResolvedValue({ data: { count: 0, ids: [] } }),
       },
     },
   }) as any
@@ -82,14 +87,30 @@ describe(`Scheduler`, () => {
       expect(mockDb.services.schedule.listDue).toHaveBeenCalledTimes(1)
     })
 
-    it(`reaps runs orphaned by a prior restart on startup`, () => {
+    it(`hydrates runs left in running when app is wired`, async () => {
+      const { hydrateOrphanedRuns } = await import(`@TBE/services/scheduler/rehydrator`)
+      const mockHydrate = vi.mocked(hydrateOrphanedRuns)
       mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
 
+      // Constructor with app so hydration path fires.
+      scheduler = new Scheduler(mockDb, undefined, {} as any)
       scheduler.start()
 
-      // Any run left "running" at boot can only be an orphan on a single-replica
-      // backend, so startup must fail them.
-      expect(mockDb.services.scheduleRun.failOrphaned).toHaveBeenCalledTimes(1)
+      // Rather than blanket-failing every running row, delegate to the
+      // rehydrator which inspects each pod and completes honestly.
+      expect(mockHydrate).toHaveBeenCalledTimes(1)
+    })
+
+    it(`skips hydration and warns when app is not wired`, () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+
+      // No app passed → hydration is skipped and a warning is logged.
+      scheduler = new Scheduler(mockDb)
+      scheduler.start()
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`skipping orphaned-run hydration`)
+      )
     })
 
     it(`should warn if already running`, async () => {
