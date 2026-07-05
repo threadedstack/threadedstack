@@ -15,7 +15,12 @@ import type {
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
-import { DefaultWorkdir, ESandboxRuntime, SandboxRuntimeConfigs } from '@tdsk/domain'
+import {
+  DefaultWorkdir,
+  ESandboxRuntime,
+  DefaultResources,
+  SandboxRuntimeConfigs,
+} from '@tdsk/domain'
 import {
   EnvProfilePath,
   VolumeMountName,
@@ -204,7 +209,11 @@ const buildSandboxContainer = (
     volumeMounts,
     name: `sandbox`,
     image: config.image,
-    resources: config.resources || {},
+    // Fall back to DefaultResources so every sandbox pod carries memory/cpu
+    // requests. Without a request, the kubelet ranks the pod as BestEffort
+    // and evicts it first under any node memory pressure — which was
+    // silently killing schedule runs mid-setup.
+    resources: config.resources || DefaultResources,
     workingDir: config.workdir || DefaultWorkdir,
     securityContext: {
       privileged: false,

@@ -1,4 +1,4 @@
-import { Sandbox } from '@tdsk/domain'
+import { Sandbox, DefaultResources } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
 import { VolumeMountName, CACertMountPath } from '@TSB/constants/values'
 import { buildPodName, buildPodManifest, sanitizeLabel } from './podManifest'
@@ -377,6 +377,22 @@ describe(`buildPodManifest`, () => {
       { name: `secret-1` },
       { name: `secret-2` },
     ])
+  })
+
+  it(`should apply DefaultResources when config.resources is absent`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    expect(manifest.spec!.containers![0].resources).toEqual(DefaultResources)
+  })
+
+  it(`should honor explicit config.resources over the default`, () => {
+    const custom = {
+      requests: { cpu: `100m`, memory: `256Mi` },
+      limits: { cpu: `1`, memory: `2Gi` },
+    }
+    const manifest = buildPodManifest(
+      buildOpts({ config: { image: `node:20`, resources: custom } })
+    )
+    expect(manifest.spec!.containers![0].resources).toEqual(custom)
   })
 
   it(`should not include imagePullSecrets when array is empty or undefined`, () => {

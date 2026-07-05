@@ -120,7 +120,7 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
 
 export const DefaultWorkdir = `/workspace`
 
-const DefaultResources = {
+export const DefaultResources = {
   limits: { cpu: `2`, memory: `4Gi` },
   requests: { cpu: `500m`, memory: `1Gi` },
 }
