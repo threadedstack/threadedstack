@@ -1,4 +1,4 @@
-# STAGING profile (P4e). Clone of production with:
+# STAGING profile (P4e; canary-checked 2026-07-05). Clone of production with:
 #   - namespace: tdsk-staging
 #   - hostnames prefixed with staging.
 #   - replicas: 1 for every service
