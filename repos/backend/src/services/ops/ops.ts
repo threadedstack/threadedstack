@@ -49,8 +49,14 @@ export type TOpsService = {
  * 4. Returns structured data — NEVER rethrows to the caller.
  */
 export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
-  const kube = app.locals.kube
-  if (!kube) throw new Error(`[OpsService] app.locals.kube is not available`)
+  /** Lazy accessor — kube may be absent at construction (e.g. in tests that only
+   *  exercise the read-path scan or the resolveAgentConfig gate); we only fail
+   *  when a method actually needs to talk to k8s. */
+  const getKube = () => {
+    const kube = app.locals.kube
+    if (!kube) throw new Error(`[OpsService] app.locals.kube is not available`)
+    return kube
+  }
 
   /** Write an audit row and suppress any db errors (audit failure must never block the caller). */
   const audit = async (
@@ -114,7 +120,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
         ? `statefulset.kubernetes.io/pod-name=${podName}`
         : `app.kubernetes.io/component=${component}`
 
-      const pods = await kube.listPodsBySelector(selector)
+      const pods = await getKube().listPodsBySelector(selector)
       const completedAt = new Date().toISOString()
 
       // 3. Audit success
@@ -172,7 +178,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
     try {
       // Resolve podName from component when not supplied
       if (!podName && component) {
-        const pods = await kube.listPodsBySelector(
+        const pods = await getKube().listPodsBySelector(
           `app.kubernetes.io/component=${component}`
         )
         podName = pods[0]?.name
@@ -187,7 +193,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
         return { ok: false, logs: ``, error }
       }
 
-      const logs = await kube.readPodLogs(podName, {
+      const logs = await getKube().readPodLogs(podName, {
         tailLines,
         previous,
         container: component,
@@ -250,7 +256,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
 
       const deployments = await Promise.all(
         names.map(async (name) => {
-          const dep = await kube.readDeployment(name)
+          const dep = await getKube().readDeployment(name)
           return {
             ...dep,
             deployedSha: extractDeployedSha(dep.image),
@@ -307,7 +313,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
     // 2. Kube call
     const startedAt = new Date().toISOString()
     try {
-      const quotas = await kube.listResourceQuotas()
+      const quotas = await getKube().listResourceQuotas()
       const completedAt = new Date().toISOString()
 
       await audit(action, params, `executed`, ctx, {
