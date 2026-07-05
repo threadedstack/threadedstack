@@ -14,6 +14,7 @@ export type TFeatureFlags = {
   sensing: TFeatureFlagDef
   escalation: TFeatureFlagDef
   verification: TFeatureFlagDef
+  ops: TFeatureFlagDef
 }
 
 export type TFeatureFlagName = keyof TFeatureFlags

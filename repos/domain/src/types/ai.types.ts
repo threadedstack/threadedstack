@@ -83,6 +83,13 @@ export enum EAgentTool {
   delegateTask = `delegateTask`,
   proposeTask = `proposeTask`,
   escalate = `escalate`,
+  opsPodStatus = `opsPodStatus`,
+  opsPodLogs = `opsPodLogs`,
+  opsDeployState = `opsDeployState`,
+  opsQuotaUsage = `opsQuotaUsage`,
+  opsTriggerRedeploy = `opsTriggerRedeploy`,
+  opsRestartDeployment = `opsRestartDeployment`,
+  opsApplySandboxConfig = `opsApplySandboxConfig`,
 }
 
 export type TAgentToolType = `${EAgentTool}`

@@ -62,6 +62,7 @@ export enum EPermResource {
   sandbox = `sandbox`, // Sandbox configurations
   sandboxSession = `sandboxSession`, // Active sandbox sessions
   adminPanel = `adminPanel`, // Admin panel access
+  opsAction = `opsAction`, // Allowlisted ops actions with dry-run + adversary review (P4d)
 }
 
 export type TPermAction = `${EPermAction}`
