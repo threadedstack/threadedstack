@@ -49,6 +49,10 @@ export {
   verificationsRelations,
 } from '@TDB/schemas/verifications'
 export {
+  opsActions,
+  opsActionsRelations,
+} from '@TDB/schemas/opsActions'
+export {
   permissionOverrides,
   permissionOverridesRelations,
 } from '@TDB/schemas/permissionOverrides'
