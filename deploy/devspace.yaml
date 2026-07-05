@@ -434,16 +434,37 @@ deployments:
           name: tdsk-backend-sa
           role:
             name: tdsk-sandbox-manager
-            resources:
-              - pods
-              - pods/exec
-            verbs:
-              - create
-              - delete
-              - get
-              - list
-              - patch
-              - watch
+            rules:
+              - apiGroups:
+                  - ""
+                resources:
+                  - pods
+                  - pods/exec
+                verbs:
+                  - create
+                  - delete
+                  - get
+                  - list
+                  - patch
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - pods/log
+                  - resourcequotas
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - apps
+                resources:
+                  - deployments
+                verbs:
+                  - get
+                  - list
+                  - watch
+                  - patch
           binding:
             name: tdsk-sandbox-manager-binding
         containers:
