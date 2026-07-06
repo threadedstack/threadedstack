@@ -9,6 +9,7 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 export const PublicRoutes = [
   ...(process.env.NODE_ENV === `production` ? [] : [`/echo`]),
   `/health`,
+  `/_/health`,
   `/domains/validate`,
   `/_/payments/webhooks`,
   `/_/subscriptions/plans`,
