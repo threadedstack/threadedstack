@@ -11,6 +11,7 @@ import { threadsApi } from '@TAF/services/threadsApi'
 import { filesApi } from '@TAF/services/filesApi'
 import { AgentWSService } from '@TAF/services/agentWSService'
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { toast } from 'sonner'
 
 export type TTokenUsage = {
   input: number
@@ -234,6 +235,8 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
               extractedText: resp.data.extractedText,
               imageData: resp.data.imageData,
             })
+          } else {
+            toast.error(`Failed to upload ${file.name}`)
           }
         }
       }
