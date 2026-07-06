@@ -94,45 +94,11 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 ## Admin
 
-### [P1] sendMessage silently drops failed file uploads
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/hooks/chat/useAgentChat.ts` (lines 225-239)
-* When a file upload fails (`resp.data` is falsy), the failure is silently ignored — only successful uploads push into `fileAttachments`, with no `else` branch checking `resp.error` and no toast import/call anywhere in the file. The message sends with only successfully uploaded files and users get no indication which files were or weren't attached
-* **Fix**:
-  1. Check `resp.error` after each upload
-  2. Surface failure via toast notification with the failed file name
-  3. Either abort the entire send or inform the user which files weren't attached
-* **Files**:
-  * `repos/admin/src/hooks/chat/useAgentChat.ts` — add error check and toast
-
-### [P2] useLocalSearch stale closure in onSearch
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/hooks/components/useLocalSearch.ts` (lines 15-33)
-* `onSearch` is not memoized and recreated every render. The `useEffect` (lines 30-33) only depends on `[props.items]`, missing `onSearch` and `onQuery`. When `props.items` changes, `onSearch` captures stale `items` state and `query` value
-* **Fix**:
-  1. Memoize `onSearch` with `useCallback`
-  2. Add `onSearch` to the effect dependency array, or call `onQuery` directly inside the effect with `props.items`
-* **Files**:
-  * `repos/admin/src/hooks/components/useLocalSearch.ts` — memoize and fix deps
-
-### [P2] useSandboxForm useEffect missing dependencies
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/hooks/sandboxes/useSandboxForm.ts` (lines 327, 424-431)
-* `populateFromSandbox` (defined line 327) is a local function (not memoized) calling 20+ state setters, omitted from the effect dependency array (`useEffect(..., [sandbox, projectId])`). If the `sandbox` object identity changes each render, the effect fires every time causing a cascade of re-renders
-* **Fix**:
-  1. Memoize `populateFromSandbox` with `useCallback` and include in deps
-  2. Compare `sandbox.id` rather than the full object reference to prevent unnecessary re-runs
-* **Files**:
-  * `repos/admin/src/hooks/sandboxes/useSandboxForm.ts` — memoize and fix dep comparison
-
 ### [P2] await safeFetch() misleading pattern in loaders
 
 * **Repos**: admin
-* **Key files**: `repos/admin/src/routes/loaders.ts` (lines 87-94 definition, 120, 141, 148-149 call sites)
-* `safeFetch` is defined as `fn()?.catch(...)` with no `return`, so it returns void (undefined). Some callers `await` it (e.g. line 141), giving the false impression the loader waits for data. Others correctly fire-and-forget (e.g. lines 120, 148-149). The inconsistency is pervasive across the file and creates confusion and risk of breakage if `safeFetch` is later changed to return a promise
+* **Key files**: `repos/admin/src/routes/loaders.ts` (definition at line 95; 17 `await safeFetch(...)` call sites now scattered across the file, e.g. lines 149, 179, 203, 211, 219, 227, 235, 243, vs. correctly fire-and-forget call sites like lines 128, 157-158, 167-168, 170)
+* `safeFetch` is defined as `fn()?.catch(...)` with no `return`, so it returns void (undefined). Many callers `await` it anyway, giving the false impression the loader waits for data. The inconsistency has grown since this entry was first written — new loaders added by PR #16 (skill/task proposals, escalations, verifications, ops actions) copied the `await safeFetch(...)` pattern, roughly doubling the call-site count — and creates risk of breakage if `safeFetch` is later changed to return a promise
 * **Fix**:
   1. Remove all `await` keywords before `safeFetch()` calls to make fire-and-forget intent unambiguous
 * **Files**:
