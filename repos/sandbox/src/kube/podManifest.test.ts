@@ -418,11 +418,29 @@ describe(`buildPodManifest`, () => {
     })
   })
 
-  it(`should omit nodeSelector when not provided or empty`, () => {
+  it(`should emit a matching NoSchedule toleration for each nodeSelector entry`, () => {
+    const opts = {
+      ...buildOpts(),
+      nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` },
+    }
+    const manifest = buildPodManifest(opts)
+    expect(manifest.spec!.tolerations).toEqual([
+      {
+        key: `kubernetes.civo.com/civo-node-pool`,
+        value: `tdsksandbox`,
+        operator: `Equal`,
+        effect: `NoSchedule`,
+      },
+    ])
+  })
+
+  it(`should omit nodeSelector and tolerations when not provided or empty`, () => {
     const manifest = buildPodManifest(buildOpts())
     expect(manifest.spec!.nodeSelector).toBeUndefined()
+    expect(manifest.spec!.tolerations).toBeUndefined()
 
     const empty = buildPodManifest({ ...buildOpts(), nodeSelector: {} })
     expect(empty.spec!.nodeSelector).toBeUndefined()
+    expect(empty.spec!.tolerations).toBeUndefined()
   })
 })

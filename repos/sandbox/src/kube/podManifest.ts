@@ -109,7 +109,21 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
       ...(runtimeClassName && { runtimeClassName, dnsPolicy: `Default` }),
-      ...(nodeSelector && Object.keys(nodeSelector).length && { nodeSelector }),
+      ...(nodeSelector &&
+        Object.keys(nodeSelector).length && {
+          nodeSelector,
+          // Emit a matching NoSchedule toleration for every nodeSelector entry.
+          // This lets an operator taint the target pool `key=value:NoSchedule`
+          // so only sandbox pods land there — cilium-operator, coredns, or a
+          // stray kube-system pod squatting on a sandbox node would otherwise
+          // eat scarce memory and starve the real workload.
+          tolerations: Object.entries(nodeSelector).map(([key, value]) => ({
+            key,
+            value,
+            operator: `Equal`,
+            effect: `NoSchedule`,
+          })),
+        }),
       ...(imagePullSecrets?.length && {
         imagePullSecrets: imagePullSecrets.map((name) => ({ name })),
       }),
