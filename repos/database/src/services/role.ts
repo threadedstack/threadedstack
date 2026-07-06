@@ -8,7 +8,7 @@ import type {
 
 import { Base } from '@TDB/services/base'
 import { roles } from '@TDB/schemas/roles'
-import { Role as RoleModel } from '@tdsk/domain'
+import { Role as RoleModel, User as UserModel } from '@tdsk/domain'
 import { eq, and, isNotNull } from 'drizzle-orm'
 
 export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleModel> {
@@ -118,16 +118,21 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
             columns: {
               id: true,
               name: true,
-              last: true,
               email: true,
-              first: true,
               image: true,
             },
           },
         },
       })
 
-      return { data: result.map((item) => this.model(item as TDBRoleSelect)) }
+      return {
+        data: result.map((item) =>
+          this.model({
+            ...item,
+            user: item.user ? new UserModel(item.user) : item.user,
+          } as TDBRoleSelect)
+        ),
+      }
     } catch (error: any) {
       return { error }
     }
