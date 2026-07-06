@@ -52,6 +52,10 @@ describe(`Auth`, () => {
       expect(auth.isPublic(`/health`)).toBe(true)
     })
 
+    it(`should return true for /_/health`, () => {
+      expect(auth.isPublic(`/_/health`)).toBe(true)
+    })
+
     it(`should return true for /domains/validate`, () => {
       expect(auth.isPublic(`/domains/validate`)).toBe(true)
     })

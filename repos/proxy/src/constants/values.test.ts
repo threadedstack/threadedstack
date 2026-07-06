@@ -32,6 +32,7 @@ describe(`PublicRoutes`, () => {
     expect(PublicRoutes).toEqual(
       expect.arrayContaining([
         `/health`,
+        `/_/health`,
         `/domains/validate`,
         `/_/payments/webhooks`,
         `/_/subscriptions/plans`,
