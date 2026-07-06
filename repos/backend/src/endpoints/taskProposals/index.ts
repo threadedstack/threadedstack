@@ -1,4 +1,7 @@
 export * from './listTaskProposals'
+export * from './createTaskProposal'
 export * from './getTaskProposal'
+export * from './updateTaskProposal'
+export * from './deleteTaskProposal'
 export * from './reviewTaskProposal'
 export * from './taskProposals'

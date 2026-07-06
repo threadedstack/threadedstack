@@ -23,12 +23,12 @@ const DedupeKeyMaxLength = 200
 const ValidPriorities = new Set<string>(Object.values(ETaskPriority))
 const ValidSourceSignals = new Set<string>(Object.values(ETaskSourceSignal))
 
-const coercePriority = (value: unknown): TTaskPriority =>
+export const coercePriority = (value: unknown): TTaskPriority =>
   typeof value === `string` && ValidPriorities.has(value)
     ? (value as TTaskPriority)
     : ETaskPriority.P3
 
-const coerceSourceSignal = (value: unknown): TTaskSourceSignal =>
+export const coerceSourceSignal = (value: unknown): TTaskSourceSignal =>
   typeof value === `string` && ValidSourceSignals.has(value)
     ? (value as TTaskSourceSignal)
     : ETaskSourceSignal.other
@@ -41,7 +41,10 @@ const slug = (value: string): string =>
     .replace(/^-+|-+$/g, ``)
 
 /** Derive a dedupeKey as `${sourceSignal}:${slug(title)}`, capped at DedupeKeyMaxLength. */
-const deriveDedupeKey = (sourceSignal: TTaskSourceSignal, title: string): string => {
+export const deriveDedupeKey = (
+  sourceSignal: TTaskSourceSignal,
+  title: string
+): string => {
   const prefix = `${sourceSignal}:`
   const available = Math.max(0, DedupeKeyMaxLength - prefix.length)
   const slugged = slug(title).slice(0, available).replace(/-+$/g, ``)
