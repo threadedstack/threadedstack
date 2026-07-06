@@ -6,14 +6,14 @@ export const useAsyncAction = () => {
 
   const clearError = useCallback(() => setError(null), [])
 
-  const run = useCallback(async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+  const run = useCallback(async <T>(fn: () => Promise<T>): Promise<T> => {
     setLoading(true)
     setError(null)
     try {
       return await fn()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      return undefined
+      throw err
     } finally {
       setLoading(false)
     }

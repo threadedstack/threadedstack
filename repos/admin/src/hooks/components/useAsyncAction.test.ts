@@ -16,15 +16,20 @@ describe('useAsyncAction', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('sets error state from an Error rejection and resolves to undefined', async () => {
+  it('sets error state from an Error rejection and re-throws it', async () => {
     const { result } = renderHook(() => useAsyncAction())
 
-    let returned: unknown
+    let thrown: unknown
     await act(async () => {
-      returned = await result.current.run(() => Promise.reject(new Error('boom')))
+      try {
+        await result.current.run(() => Promise.reject(new Error('boom')))
+      } catch (err) {
+        thrown = err
+      }
     })
 
-    expect(returned).toBeUndefined()
+    expect(thrown).toBeInstanceOf(Error)
+    expect((thrown as Error).message).toBe('boom')
     expect(result.current.error).toBe('boom')
     expect(result.current.loading).toBe(false)
   })
@@ -33,7 +38,9 @@ describe('useAsyncAction', () => {
     const { result } = renderHook(() => useAsyncAction())
 
     await act(async () => {
-      await result.current.run(() => Promise.reject('plain string reason'))
+      await result.current
+        .run(() => Promise.reject('plain string reason'))
+        .catch(() => {})
     })
 
     expect(result.current.error).toBe('plain string reason')
@@ -43,7 +50,9 @@ describe('useAsyncAction', () => {
     const { result } = renderHook(() => useAsyncAction())
 
     await act(async () => {
-      await result.current.run(() => Promise.reject(new Error('first failure')))
+      await result.current
+        .run(() => Promise.reject(new Error('first failure')))
+        .catch(() => {})
     })
     expect(result.current.error).toBe('first failure')
 
@@ -57,7 +66,7 @@ describe('useAsyncAction', () => {
     const { result } = renderHook(() => useAsyncAction())
 
     await act(async () => {
-      await result.current.run(() => Promise.reject(new Error('failure')))
+      await result.current.run(() => Promise.reject(new Error('failure'))).catch(() => {})
     })
     expect(result.current.error).toBe('failure')
 
