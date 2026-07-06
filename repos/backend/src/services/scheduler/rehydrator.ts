@@ -233,7 +233,12 @@ async function isRuntimeAlive(
     const safe = runtimeBin.replace(/[^a-zA-Z0-9_-]/g, ``)
     if (!safe) return null
     const runInPod = sb[`exec`].bind(sb)
-    const res = await runInPod(`pgrep -f "${safe}" >/dev/null`)
+    // `-x` matches the binary basename exactly; `-f` matched anywhere in the
+    // full cmdline, which false-positived on every shell probe (including this
+    // very check when relayed via `sh -c`) whose cmdline contained the runtime
+    // name. That kept schedule_run rows stuck "running" forever because the
+    // rehydrator thought the runtime was still alive.
+    const res = await runInPod(`pgrep -x "${safe}" >/dev/null`)
     if (res.success) return true
     if (res.exitCode === 1) return false
     return null
