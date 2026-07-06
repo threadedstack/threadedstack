@@ -3,6 +3,7 @@ import type { TRequest } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { EPMethod } from '@TBE/types'
+import { getMemory } from './getMemory'
 import { listMemories } from './listMemories'
 import { createMemory } from './createMemory'
 import { updateMemory } from './updateMemory'
@@ -89,6 +90,10 @@ describe(`Memories endpoint configuration`, () => {
     expect(createMemory.path).toBe(`/`)
     expect(createMemory.method).toBe(EPMethod.Post)
   })
+  it(`getMemory path/method`, () => {
+    expect(getMemory.path).toBe(`/:memoryId`)
+    expect(getMemory.method).toBe(EPMethod.Get)
+  })
   it(`updateMemory path/method`, () => {
     expect(updateMemory.path).toBe(`/:memoryId`)
     expect(updateMemory.method).toBe(EPMethod.Put)
@@ -144,6 +149,45 @@ describe(`GET / - listMemories`, () => {
     ctx.mockReq.params = { agentId: `agent-1` } as any
     await expect(listMemories.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
       `orgId is required`
+    )
+  })
+})
+
+// ── GET ──────────────────────────────────────────────────────────────
+
+describe(`GET /:memoryId - getMemory`, () => {
+  let ctx: ReturnType<typeof buildMockReqRes>
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ctx = buildMockReqRes()
+    ctx.mockReq.params = { orgId: `org-1`, agentId: `agent-1`, memoryId: `mm_1` } as any
+  })
+
+  it(`returns the memory scoped to org + agent`, async () => {
+    ctx.memoryService.get.mockResolvedValue({ data: mockMemory })
+    await getMemory.action(ctx.mockReq, ctx.mockRes)
+    expect(ctx.memoryService.get).toHaveBeenCalledWith(`mm_1`)
+    expect(ctx.mockJson).toHaveBeenCalledWith({ data: mockMemory })
+  })
+
+  it(`throws 404 when memory belongs to another agent`, async () => {
+    ctx.memoryService.get.mockResolvedValue({ data: { ...mockMemory, agentId: `other` } })
+    await expect(getMemory.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Memory not found`
+    )
+  })
+
+  it(`throws 404 when memory belongs to another org`, async () => {
+    ctx.memoryService.get.mockResolvedValue({ data: { ...mockMemory, orgId: `other` } })
+    await expect(getMemory.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Memory not found`
+    )
+  })
+
+  it(`throws 404 when memory is missing`, async () => {
+    ctx.memoryService.get.mockResolvedValue({ data: null })
+    await expect(getMemory.action(ctx.mockReq, ctx.mockRes)).rejects.toThrow(
+      `Memory not found`
     )
   })
 })

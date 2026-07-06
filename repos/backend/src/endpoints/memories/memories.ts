@@ -2,6 +2,7 @@ import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { featureGate } from '@TBE/middleware/featureGate'
+import { getMemory } from '@TBE/endpoints/memories/getMemory'
 import { listMemories } from '@TBE/endpoints/memories/listMemories'
 import { createMemory } from '@TBE/endpoints/memories/createMemory'
 import { updateMemory } from '@TBE/endpoints/memories/updateMemory'
@@ -21,6 +22,7 @@ export const agentMemories: TEndpointConfig = {
   endpoints: {
     listMemories,
     createMemory,
+    getMemory,
     updateMemory,
     deleteMemory,
     searchMemories,
