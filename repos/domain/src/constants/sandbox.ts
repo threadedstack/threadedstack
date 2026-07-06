@@ -120,9 +120,17 @@ export const SandboxRuntimeConfigs: Record<TSandboxRuntimeId, TSBRuntimeConfig> 
 
 export const DefaultWorkdir = `/workspace`
 
+// Kata-clh sandbox pods run a real VM per pod; cloud-hypervisor allocates
+// memory on the host up to close to the pod's memory limit. With a 1 Gi
+// request against a 4 Gi limit, the scheduler happily packs 5+ pods onto a
+// node with 5-8 Gi allocatable, then the sum of kata VM allocations OOMs the
+// kernel (cloud-hypervisor gets killed, kubelet loses heartbeat, node flap).
+// Bumping the request to sit near the observed kata VM footprint forces the
+// scheduler to spread sandbox pods across nodes. CPU is left low: CPU
+// pressure only throttles, unlike memory pressure which flaps the node.
 export const DefaultResources = {
   limits: { cpu: `2`, memory: `4Gi` },
-  requests: { cpu: `500m`, memory: `1Gi` },
+  requests: { cpu: `500m`, memory: `3Gi` },
 }
 
 /**
