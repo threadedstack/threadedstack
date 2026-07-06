@@ -411,6 +411,21 @@ describe('loaders', () => {
         expect((thrown as Response).status).toBe(400)
       }
     })
+
+    it('should resolve without waiting for fetchSecrets to settle (fire-and-forget)', async () => {
+      mockGetOrgSecrets.mockReturnValue(undefined)
+      let resolveFetch: (value: unknown) => void = () => {}
+      mockFetchSecrets.mockReturnValue(
+        new Promise((resolve) => {
+          resolveFetch = resolve
+        })
+      )
+
+      await orgSecretsLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchSecrets).toHaveBeenCalledWith({ orgId: 'org-1' })
+      resolveFetch({ data: {} })
+    })
   })
 
   // ---------------------------------------------------------------------------

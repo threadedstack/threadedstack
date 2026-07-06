@@ -146,7 +146,7 @@ export const orgSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getOrgSecrets()) await safeFetch(() => fetchSecrets({ orgId }))
+  if (!getOrgSecrets()) safeFetch(() => fetchSecrets({ orgId }))
   return null
 }
 
@@ -176,7 +176,7 @@ export const orgDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getContextDomains(`org`)) await safeFetch(() => fetchDomains({ orgId }))
+  if (!getContextDomains(`org`)) safeFetch(() => fetchDomains({ orgId }))
   return null
 }
 
@@ -200,7 +200,7 @@ export const orgSkillsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getSkills()) await safeFetch(() => fetchSkills(orgId))
+  if (!getSkills()) safeFetch(() => fetchSkills(orgId))
   return null
 }
 
@@ -208,7 +208,7 @@ export const orgSkillProposalsLoader = async ({ params }: LoaderFunctionArgs) =>
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getSkillProposals()) await safeFetch(() => fetchSkillProposals({ orgId }))
+  if (!getSkillProposals()) safeFetch(() => fetchSkillProposals({ orgId }))
   return null
 }
 
@@ -216,7 +216,7 @@ export const orgTaskProposalsLoader = async ({ params }: LoaderFunctionArgs) => 
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getTaskProposals()) await safeFetch(() => fetchTaskProposals({ orgId }))
+  if (!getTaskProposals()) safeFetch(() => fetchTaskProposals({ orgId }))
   return null
 }
 
@@ -224,7 +224,7 @@ export const orgEscalationsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getEscalations()) await safeFetch(() => fetchEscalations({ orgId }))
+  if (!getEscalations()) safeFetch(() => fetchEscalations({ orgId }))
   return null
 }
 
@@ -232,7 +232,7 @@ export const orgVerificationsLoader = async ({ params }: LoaderFunctionArgs) => 
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getVerifications()) await safeFetch(() => fetchVerifications({ orgId }))
+  if (!getVerifications()) safeFetch(() => fetchVerifications({ orgId }))
   return null
 }
 
@@ -240,7 +240,7 @@ export const orgOpsActionsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getOpsActions()) await safeFetch(() => fetchOpsActions({ orgId }))
+  if (!getOpsActions()) safeFetch(() => fetchOpsActions({ orgId }))
   return null
 }
 
@@ -267,7 +267,7 @@ export const orgMembersLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getOrgUsers()?.[orgId]) await safeFetch(() => listOrgUsers(orgId))
+  if (!getOrgUsers()?.[orgId]) safeFetch(() => listOrgUsers(orgId))
   return null
 }
 
@@ -299,8 +299,8 @@ export const orgUsageLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getOrgQuota()) await safeFetch(() => fetchOrgQuota(orgId))
-  if (!getOrgLimits()) await safeFetch(() => fetchOrgLimits(orgId))
+  if (!getOrgQuota()) safeFetch(() => fetchOrgQuota(orgId))
+  if (!getOrgLimits()) safeFetch(() => fetchOrgLimits(orgId))
   return null
 }
 
@@ -366,7 +366,7 @@ export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
 
   setActiveOrgId(orgId)
   setActiveProjectId(projectId)
-  if (!getProjects()) await safeFetch(() => fetchProjects({ orgId }))
+  if (!getProjects()) safeFetch(() => fetchProjects({ orgId }))
   return null
 }
 
@@ -402,7 +402,7 @@ export const projectFunctionsLoader = async ({ params }: LoaderFunctionArgs) => 
   if (!projectId) missProjIdResp()
 
   if (!getProjectFunctions(projectId))
-    await safeFetch(() => fetchFunctions({ orgId, projectId }))
+    safeFetch(() => fetchFunctions({ orgId, projectId }))
   return null
 }
 
@@ -411,8 +411,7 @@ export const projectSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
   if (!projectId) missProjIdResp()
 
-  if (!getProjectSecrets(projectId))
-    await safeFetch(() => fetchSecrets({ orgId, projectId }))
+  if (!getProjectSecrets(projectId)) safeFetch(() => fetchSecrets({ orgId, projectId }))
   return null
 }
 
@@ -437,8 +436,7 @@ export const projectDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!orgId) missOrgIdResp()
   if (!projectId) missProjIdResp()
 
-  if (!getContextDomains(projectId))
-    await safeFetch(() => fetchDomains({ orgId, projectId }))
+  if (!getContextDomains(projectId)) safeFetch(() => fetchDomains({ orgId, projectId }))
   return null
 }
 
@@ -448,7 +446,7 @@ export const projectMembersLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!projectId) missProjIdResp()
 
   if (!getProjectMembersForProject(projectId))
-    await safeFetch(() => listProjectMembers({ orgId, projectId }))
+    safeFetch(() => listProjectMembers({ orgId, projectId }))
   return null
 }
 
@@ -542,7 +540,7 @@ export const projectThreadsLoader = async ({ params }: LoaderFunctionArgs) => {
 
   const contextKey = projectId || 'org'
   if (!getContextThreads(contextKey))
-    await safeFetch(() => fetchThreads({ orgId, agentId, contextKey }))
+    safeFetch(() => fetchThreads({ orgId, agentId, contextKey }))
   return null
 }
 
