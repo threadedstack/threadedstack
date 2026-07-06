@@ -11,6 +11,9 @@ export const useAsyncAction = () => {
     setError(null)
     try {
       return await fn()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      return undefined
     } finally {
       setLoading(false)
     }
