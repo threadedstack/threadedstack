@@ -28,6 +28,7 @@
     "export": "drizzle-kit export --config=configs/drizzle.config.ts",
     "certs": "tsx -r ./configs/aliases.ts scripts/certs.ts",
     "seed": "tsx -r ./configs/aliases.ts scripts/seed.ts",
+    "reconcile:schedules": "tsx -r ./configs/aliases.ts scripts/reconcileSchedules.ts",
     "rmf": "tsx -r ./configs/aliases.ts scripts/remove.ts",
     "purge": "tsx -r ./configs/aliases.ts scripts/purge.ts",
     "cleanup": "tsx -r ./configs/aliases.ts scripts/cleanup.ts",

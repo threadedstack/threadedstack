@@ -198,6 +198,87 @@ describe(`buildCoordinatorContext`, () => {
 })
 
 // ---------------------------------------------------------------------------
+// buildCoordinatorContext — auto initiative resolution
+// ---------------------------------------------------------------------------
+
+/** Build a coordinator schedule whose marker is `auto`, with an agent bound. */
+const autoSchedule = (overrides: Record<string, unknown> = {}) =>
+  schedule({
+    agentId: `ag_1`,
+    prompt: `Coordinator. <!-- coordinator-initiative: auto --> Decompose.`,
+    ...overrides,
+  })
+
+const roadmapService = (text: string) => ({
+  getRoadmap: vi.fn().mockResolvedValue({ data: { text } }),
+})
+
+describe(`buildCoordinatorContext — auto initiative`, () => {
+  it(`resolves the initiative from the roadmap's "Current initiative:" line and lists its ledger`, async () => {
+    const parent = makeProposal({
+      id: `tp_p`,
+      initiative: `Billing revamp`,
+      parentId: null,
+      status: `scanned`,
+    })
+    const listByInitiative = vi.fn().mockResolvedValue({ data: [parent] })
+    const memory = roadmapService(
+      `North Star: x\nCurrent initiative: Billing revamp\nNext goals:\n- y`
+    )
+
+    const out = await buildCoordinatorContext(
+      buildApp({ taskProposal: { listByInitiative }, memory }),
+      autoSchedule()
+    )
+
+    expect(memory.getRoadmap).toHaveBeenCalledWith(`org-1`, `ag_1`)
+    expect(listByInitiative).toHaveBeenCalledWith(`org-1`, `Billing revamp`)
+    expect(out).toContain(`## Initiative: Billing revamp`)
+    expect(out).toContain(`tp_p`)
+  })
+
+  it(`injects a kickoff ledger naming the initiative when it has no rows yet`, async () => {
+    const listByInitiative = vi.fn().mockResolvedValue({ data: [] })
+    const memory = roadmapService(`Current initiative: Observability`)
+
+    const out = await buildCoordinatorContext(
+      buildApp({ taskProposal: { listByInitiative }, memory }),
+      autoSchedule()
+    )
+
+    expect(out).toContain(`## Initiative: Observability`)
+    expect(out).toContain(`kickoff`)
+  })
+
+  it(`injects the "select one" note when the roadmap names no current initiative`, async () => {
+    const listByInitiative = vi.fn()
+    const memory = roadmapService(`North Star: x\nNext goals:\n- y`)
+
+    const out = await buildCoordinatorContext(
+      buildApp({ taskProposal: { listByInitiative }, memory }),
+      autoSchedule()
+    )
+
+    expect(out).toContain(`(none set)`)
+    expect(listByInitiative).not.toHaveBeenCalled()
+  })
+
+  it(`injects the "select one" note (and skips the roadmap read) when no agent is bound`, async () => {
+    const listByInitiative = vi.fn()
+    const memory = { getRoadmap: vi.fn().mockResolvedValue({}) }
+
+    const out = await buildCoordinatorContext(
+      buildApp({ taskProposal: { listByInitiative }, memory }),
+      autoSchedule({ agentId: null })
+    )
+
+    expect(out).toContain(`(none set)`)
+    expect(memory.getRoadmap).not.toHaveBeenCalled()
+    expect(listByInitiative).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // persistTaskProposals — parentId + initiative forwarding
 // ---------------------------------------------------------------------------
 
