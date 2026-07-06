@@ -10,7 +10,7 @@ import type {
   TSandboxRuntimeId,
 } from '@tdsk/domain'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { TDSK_SB_IMAGE_FULL } from '@TAF/constants/envs'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
@@ -326,93 +326,96 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
     setSandboxGuiConfig(undefined)
   }
 
-  const populateFromSandbox = (source: Sandbox) => {
-    const config = source.config ?? ({} as TKubeSandboxConfig)
-    setName(source.name || ``)
-    setImage(config.image || ``)
-    setWorkdir(config.workdir || ``)
-    setArgs(config.args?.join(`, `) || ``)
-    setEnvVars(objToKV(config.envVars, `env`))
-    setCommand(config.command?.join(`, `) || ``)
-    setCpuLimit(config.resources?.limits?.cpu || ``)
-    setCpuRequest(config.resources?.requests?.cpu || ``)
-    setIdleTimeoutMinutes(config.idleTimeoutMinutes ?? 30)
-    setMaxInstances(config.maxInstances ?? 1)
-    setMemoryLimit(config.resources?.limits?.memory || ``)
-    setMemoryRequest(config.resources?.requests?.memory || ``)
-    setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
-    setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
-    setRuntimeCommand(config.runtimeCommand || ``)
-    setInitScript(config.initScript || ``)
-    setSetupScript(config.setupScript || ``)
+  const populateFromSandbox = useCallback(
+    (source: Sandbox) => {
+      const config = source.config ?? ({} as TKubeSandboxConfig)
+      setName(source.name || ``)
+      setImage(config.image || ``)
+      setWorkdir(config.workdir || ``)
+      setArgs(config.args?.join(`, `) || ``)
+      setEnvVars(objToKV(config.envVars, `env`))
+      setCommand(config.command?.join(`, `) || ``)
+      setCpuLimit(config.resources?.limits?.cpu || ``)
+      setCpuRequest(config.resources?.requests?.cpu || ``)
+      setIdleTimeoutMinutes(config.idleTimeoutMinutes ?? 30)
+      setMaxInstances(config.maxInstances ?? 1)
+      setMemoryLimit(config.resources?.limits?.memory || ``)
+      setMemoryRequest(config.resources?.requests?.memory || ``)
+      setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
+      setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
+      setRuntimeCommand(config.runtimeCommand || ``)
+      setInitScript(config.initScript || ``)
+      setSetupScript(config.setupScript || ``)
 
-    const allLinks = source.providerLinks || []
-    setProviderIds(
-      allLinks
-        .filter((l) => l.provider.type !== EProvider.docker)
-        .map((l) => l.provider.id)
-    )
-    setDockerProviderIds(
-      allLinks
-        .filter((l) => l.provider.type === EProvider.docker)
-        .map((l) => l.provider.id)
-    )
+      const allLinks = source.providerLinks || []
+      setProviderIds(
+        allLinks
+          .filter((l) => l.provider.type !== EProvider.docker)
+          .map((l) => l.provider.id)
+      )
+      setDockerProviderIds(
+        allLinks
+          .filter((l) => l.provider.type === EProvider.docker)
+          .map((l) => l.provider.id)
+      )
 
-    const gitLinks = (source.gitProviderLinks || []).filter(
-      (l) => l.projectId === projectId
-    )
-    setGitProviderIds(gitLinks.map((l) => l.provider.id))
-    const branches: Record<string, string> = {}
-    for (const l of gitLinks) {
-      if (l.branch) branches[l.provider.id] = l.branch
-    }
-    setGitBranchOverrides(branches)
+      const gitLinks = (source.gitProviderLinks || []).filter(
+        (l) => l.projectId === projectId
+      )
+      setGitProviderIds(gitLinks.map((l) => l.provider.id))
+      const branches: Record<string, string> = {}
+      for (const l of gitLinks) {
+        if (l.branch) branches[l.provider.id] = l.branch
+      }
+      setGitBranchOverrides(branches)
 
-    const models: Record<string, string> = {}
-    for (const link of allLinks) {
-      if (link.model) models[link.provider.id] = link.model
-    }
-    setProviderModels(models)
+      const models: Record<string, string> = {}
+      for (const link of allLinks) {
+        if (link.model) models[link.provider.id] = link.model
+      }
+      setProviderModels(models)
 
-    setPorts(
-      Object.entries(config.ports || {}).map(([key, val], i) => ({
-        id: `port-${i}-${Date.now()}`,
-        key,
-        value: val.protocol || `http`,
-      }))
-    )
+      setPorts(
+        Object.entries(config.ports || {}).map(([key, val], i) => ({
+          id: `port-${i}-${Date.now()}`,
+          key,
+          value: val.protocol || `http`,
+        }))
+      )
 
-    if (projectId) {
-      const pc = source.projectConfigs?.find((pc) => pc.projectId === projectId)
-      setAlias(pc?.alias || ``)
-    }
+      if (projectId) {
+        const pc = source.projectConfigs?.find((pc) => pc.projectId === projectId)
+        setAlias(pc?.alias || ``)
+      }
 
-    const skillLinksData = (source as any).skillLinks || []
-    setSkillIds(
-      skillLinksData
-        .filter((l: any) => !l.projectId)
-        .map((l: any) => l.skillId || l.skill?.id)
-        .filter(Boolean)
-    )
-    if (projectId) {
-      setProjectSkillIds(
+      const skillLinksData = (source as any).skillLinks || []
+      setSkillIds(
         skillLinksData
-          .filter((l: any) => l.projectId === projectId)
+          .filter((l: any) => !l.projectId)
           .map((l: any) => l.skillId || l.skill?.id)
           .filter(Boolean)
       )
-    }
+      if (projectId) {
+        setProjectSkillIds(
+          skillLinksData
+            .filter((l: any) => l.projectId === projectId)
+            .map((l: any) => l.skillId || l.skill?.id)
+            .filter(Boolean)
+        )
+      }
 
-    if (config.guiConfig) {
-      setGuiOverride(true)
-      setSandboxGuiConfig(config.guiConfig)
-    } else {
-      setGuiOverride(false)
-      setSandboxGuiConfig(undefined)
-    }
+      if (config.guiConfig) {
+        setGuiOverride(true)
+        setSandboxGuiConfig(config.guiConfig)
+      } else {
+        setGuiOverride(false)
+        setSandboxGuiConfig(undefined)
+      }
 
-    setError(null)
-  }
+      setError(null)
+    },
+    [projectId]
+  )
 
   const onSelectBaseSandbox = (id: string | null) => {
     setBaseSandboxId(id)
@@ -431,7 +434,7 @@ export const useSandboxForm = (params: TUseSandboxFormParams) => {
         sandbox.projects?.map((p) => p.id) || (projectId ? [projectId] : [])
       )
     } else reset()
-  }, [sandbox, projectId])
+  }, [sandbox?.id, projectId, populateFromSandbox])
 
   const onClose = () => {
     if (loading) return
