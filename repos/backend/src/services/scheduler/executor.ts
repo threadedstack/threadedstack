@@ -1579,11 +1579,18 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
         if (!scheduleAgent) throw new Error(`Agent not found: ${schedule.agentId}`)
 
         if (scheduleAgent.brain === EAgentBrain.runtime) {
-          const result = await runCliAgentSchedule(app, schedule, scheduleAgent, {
-            onPodStart: captureInstanceId,
-            onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
-            onStderr: (chunk) => stderrUpload?.stream.write(chunk),
-          })
+          // Runtime-brain runs used to be un-timed here while the API-brain path
+          // below wrapped runAgentSchedule in withTimeout — a runtime cycle
+          // could pin the pod for hours past the schedule's budget. Same wrap
+          // now applies to both brains.
+          const result = await withTimeout(
+            runCliAgentSchedule(app, schedule, scheduleAgent, {
+              onPodStart: captureInstanceId,
+              onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
+              onStderr: (chunk) => stderrUpload?.stream.write(chunk),
+            }),
+            timeoutMs
+          )
 
           const uploadOk = await finalizeUploads()
           const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
