@@ -19,7 +19,7 @@ export type TChangedContexts = {
 }
 
 /** Canonical build order — matches config.release.docker */
-export const ALL_DOCKER = [`caddy`, `proxy`, `backend`, `sandbox`, `init`]
+export const ALL_DOCKER = [`caddy`, `proxy`, `backend`, `sandbox`, `init`, `jobs`]
 /** Canonical frontend order — matches config.release.firebase */
 export const ALL_FIREBASE = [`admin`, `threads`, `website`]
 
@@ -51,9 +51,18 @@ export const mapChangedFiles = (
 
   if (has(/^deploy\/(Caddyfile|Dockerfile\.caddy)/)) docker.add(`caddy`)
   // sandbox-entrypoint.sh is COPY'd into the sandbox image, so a change to it
-  // must rebuild the sandbox image just like the Dockerfile itself.
-  if (has(/^deploy\/(Dockerfile\.sandbox|sandbox-entrypoint\.sh)/)) docker.add(`sandbox`)
+  // must rebuild the sandbox image just like the Dockerfile itself. The jobs
+  // image extends sandbox, so it cascades on the same triggers.
+  if (has(/^deploy\/(Dockerfile\.sandbox|sandbox-entrypoint\.sh)/)) {
+    docker.add(`sandbox`)
+    docker.add(`jobs`)
+  }
   if (has(/^deploy\/Dockerfile\.init/)) docker.add(`init`)
+  // jobs image bakes in a repo clone + pnpm install, so it must rebuild on
+  // its own Dockerfile OR any lockfile/workspace package.json change (root
+  // lock is already handled by the "rebuild everything" rule below).
+  if (has(/^deploy\/Dockerfile\.jobs/)) docker.add(`jobs`)
+  if (has(/^repos\/[^/]+\/package\.json$/)) docker.add(`jobs`)
 
   // Database schema changes require a schema push before backend deploy
   if (has(/^repos\/database\/src\/schemas\//)) db = true

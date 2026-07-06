@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+#
+# Prewarm image for scheduled sandbox jobs (steward, adversary, sensor, verify,
+# ops-review, coordinator). Extends the public sandbox image with the monorepo
+# already cloned and pnpm dependencies already installed, so scheduled job pods
+# skip the 60-120s clone+install phase on every cold start.
+#
+# Never referenced directly in application code; wired via CI (repos/cli/configs)
+# and applied to sandbox configs through the standard admin API (config.image).
+
+ARG BASE_TAG=latest
+FROM ghcr.io/threadedstack/tdsk-sandbox:${BASE_TAG}
+
+ARG REPO_URL=https://github.com/threadedstack/threadedstack.git
+ARG REPO_BRANCH=main
+
+USER root
+WORKDIR /workspace
+
+# Clone the public monorepo into /workspace at build time.
+# --depth 50 keeps the image small while retaining enough history for git
+# log / git blame during work cycles. Runtime setupScript can fetch deeper
+# on demand.
+RUN git clone --depth 50 --branch "${REPO_BRANCH}" "${REPO_URL}" /workspace \
+    && chown -R sandbox:sandbox /workspace
+
+# Prime the pnpm store + install every workspace's deps against the current
+# lockfile. --frozen-lockfile guarantees a byte-identical dependency graph.
+USER sandbox
+RUN pnpm install --frozen-lockfile
+
+# Return to root so the entrypoint (which does chpasswd + starts sshd)
+# has the perms it expects.
+USER root

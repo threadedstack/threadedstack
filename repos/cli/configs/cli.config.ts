@@ -64,6 +64,11 @@ const {
   TDSK_SB_INIT_IMAGE_FROM = `alpine:3.22`,
   TDSK_SB_INIT_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  TDSK_JOBS_IMAGE = `ghcr.io/threadedstack/tdsk-jobs`,
+  TDSK_JOBS_IMAGE_TAG = TDSK_IMAGE_TAG,
+  TDSK_JOBS_IMAGE_FROM = `ghcr.io/threadedstack/tdsk-sandbox`,
+  TDSK_JOBS_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
+
   TDSK_CADDY_ADMIN_PORT,
   TDSK_CADDY_LOCAL_PORT,
   TDSK_CADDY_SECURE_LOCAL_PORT,
@@ -77,7 +82,7 @@ export const config = {
   release: {
     restart: [`caddy`, `proxy`, `backend`],
     firebase: [`admin`, `threads`, `website`],
-    docker: [`caddy`, `proxy`, `backend`, `sandbox`, `init`],
+    docker: [`caddy`, `proxy`, `backend`, `sandbox`, `init`, `jobs`],
   },
   contexts: {
     app: {
@@ -176,6 +181,18 @@ export const config = {
       from: TDSK_SB_INIT_IMAGE_FROM,
       dtag: TDSK_SB_INIT_DEV_IMAGE_TAG,
       dockerfile: `Dockerfile.init`,
+      mounts: {},
+      ports: {},
+    },
+    jobs: {
+      tags: [],
+      deployment: ``,
+      image: TDSK_JOBS_IMAGE,
+      tag: TDSK_JOBS_IMAGE_TAG,
+      location: paths.deploy,
+      from: TDSK_JOBS_IMAGE_FROM,
+      dtag: TDSK_JOBS_DEV_IMAGE_TAG,
+      dockerfile: `Dockerfile.jobs`,
       mounts: {},
       ports: {},
     },

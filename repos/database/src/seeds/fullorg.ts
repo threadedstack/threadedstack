@@ -1337,6 +1337,11 @@ const agentSchedules = {
 
 // --- Sandboxes (built-in presets matching createOrg.ts behavior) ---
 const defaultSandboxImage = `ghcr.io/threadedstack/tdsk-sandbox`
+// Prewarm image for scheduled jobs — extends the default sandbox with the
+// monorepo cloned + pnpm install baked in. Not attached to any preset; sandbox
+// configs opt in via the standard admin API (config.image).
+const jobsPrewarmImage = `ghcr.io/threadedstack/tdsk-jobs`
+void jobsPrewarmImage
 
 const buildPresetSandbox = (
   id: string,

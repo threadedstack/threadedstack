@@ -45,9 +45,24 @@ describe(`mapChangedFiles`, () => {
   it(`maps Caddyfile and per-image Dockerfiles`, () => {
     expect(mapChangedFiles([`deploy/Caddyfile`]).docker).toEqual([`caddy`])
     expect(mapChangedFiles([`deploy/Dockerfile.caddy`]).docker).toEqual([`caddy`])
-    expect(mapChangedFiles([`deploy/Dockerfile.sandbox`]).docker).toEqual([`sandbox`])
-    expect(mapChangedFiles([`deploy/sandbox-entrypoint.sh`]).docker).toEqual([`sandbox`])
+    // sandbox base image changes cascade to the jobs prewarm image which extends it
+    expect(mapChangedFiles([`deploy/Dockerfile.sandbox`]).docker).toEqual([
+      `sandbox`,
+      `jobs`,
+    ])
+    expect(mapChangedFiles([`deploy/sandbox-entrypoint.sh`]).docker).toEqual([
+      `sandbox`,
+      `jobs`,
+    ])
     expect(mapChangedFiles([`deploy/Dockerfile.init`]).docker).toEqual([`init`])
+    expect(mapChangedFiles([`deploy/Dockerfile.jobs`]).docker).toEqual([`jobs`])
+    // workspace package.json changes rebuild the jobs prewarm image (deps baked in)
+    // AND any image whose bundled repo owns that package.json
+    expect(mapChangedFiles([`repos/backend/package.json`]).docker).toEqual([
+      `backend`,
+      `jobs`,
+    ])
+    expect(mapChangedFiles([`repos/cli/package.json`]).docker).toEqual([`jobs`])
   })
 
   it(`maps frontend repos to their Firebase apps`, () => {
