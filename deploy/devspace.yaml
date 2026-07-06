@@ -249,6 +249,11 @@ deployments:
       valuesFiles:
         - ./values.empty.yaml
       values:
+        # Pin caddy off the flappy medium pool and onto the stable embed pool
+        # (same node as backend + proxy). Caddy is the TLS/LB frontend on the
+        # request path; a NodeNotReady flap here drops user-facing traffic.
+        nodeSelector:
+          kubernetes.civo.com/civo-node-pool: tdskembed
         containers:
           - name: ${TDSK_CADDY_DEPLOYMENT}
             image: ${TDSK_CADDY_IMAGE}:${TDSK_CADDY_IMAGE_TAG}
