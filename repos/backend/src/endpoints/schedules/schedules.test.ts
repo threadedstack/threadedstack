@@ -571,7 +571,7 @@ describe(`POST / - createSchedule`, () => {
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `timeoutMs must be an integer between 60000 and 7200000`
+      `timeoutMs must be an integer between 60000 and 28800000`
     )
     expect(scheduleService.create).not.toHaveBeenCalled()
   })
@@ -581,11 +581,11 @@ describe(`POST / - createSchedule`, () => {
       cronExpression: `* * * * *`,
       prompt: `Run it`,
       sandboxId: `sb-1`,
-      timeoutMs: 7_200_001,
+      timeoutMs: 28_800_001,
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `timeoutMs must be an integer between 60000 and 7200000`
+      `timeoutMs must be an integer between 60000 and 28800000`
     )
     expect(scheduleService.create).not.toHaveBeenCalled()
   })
@@ -599,7 +599,7 @@ describe(`POST / - createSchedule`, () => {
     }
 
     await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `timeoutMs must be an integer between 60000 and 7200000`
+      `timeoutMs must be an integer between 60000 and 28800000`
     )
     expect(scheduleService.create).not.toHaveBeenCalled()
   })
@@ -893,7 +893,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     mockReq.body = { timeoutMs: 59_999 }
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `timeoutMs must be an integer between 60000 and 7200000`
+      `timeoutMs must be an integer between 60000 and 28800000`
     )
     expect(scheduleService.update).not.toHaveBeenCalled()
   })
@@ -901,10 +901,10 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
   it(`rejects a timeoutMs above the maximum on update`, async () => {
     scheduleService.get.mockResolvedValue({ data: mockSchedule })
 
-    mockReq.body = { timeoutMs: 7_200_001 }
+    mockReq.body = { timeoutMs: 28_800_001 }
 
     await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
-      `timeoutMs must be an integer between 60000 and 7200000`
+      `timeoutMs must be an integer between 60000 and 28800000`
     )
     expect(scheduleService.update).not.toHaveBeenCalled()
   })

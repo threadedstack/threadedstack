@@ -25,7 +25,7 @@ export const RateLimiterMaxKeys = 10_000
 export const ExecTimeoutMS = 60 * 60_000
 
 export const MinScheduleTimeoutMS = 60_000
-export const MaxScheduleTimeoutMS = 2 * 60 * 60_000
+export const MaxScheduleTimeoutMS = 8 * 60 * 60_000
 
 export const PodReadyTimeoutMS = 3 * 60_000
 
