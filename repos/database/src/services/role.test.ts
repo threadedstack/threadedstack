@@ -71,6 +71,10 @@ vi.mock(`@tdsk/domain`, () => ({
   Role: vi.fn(function MockRole(data: any) {
     return { ...data, _isModel: true }
   }),
+  User: vi.fn(function MockUser(data: any) {
+    const [first, ...rest] = (data?.name || ``).split(` `)
+    return { ...data, first: data?.first || first, last: data?.last || rest.join(` `) }
+  }),
 }))
 
 /**
@@ -510,6 +514,57 @@ describe(`Role service`, () => {
       expect(result.error).toBeDefined()
       expect(result.error.message).toBe(`Relation does not exist`)
       expect(result.data).toBeUndefined()
+    })
+
+    it(`should not request nonexistent first/last columns on the user relation`, async () => {
+      const rows = [fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1` })]
+      mocks.findMany.mockResolvedValue(rows)
+
+      await service.getProjectMembers(`proj-1`)
+
+      expect(mocks.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          with: {
+            user: {
+              columns: { id: true, name: true, email: true, image: true },
+            },
+          },
+        })
+      )
+    })
+
+    it(`should synthesize first/last on the embedded user from their name`, async () => {
+      const rows = [
+        fakeRoleRow({
+          id: `role-1`,
+          userId: `user-1`,
+          orgId: null,
+          projectId: `proj-1`,
+          user: {
+            id: `user-1`,
+            name: `Ada Lovelace`,
+            email: `ada@example.com`,
+            image: null,
+          },
+        }),
+      ]
+      mocks.findMany.mockResolvedValue(rows)
+
+      const result = await service.getProjectMembers(`proj-1`)
+
+      expect(result.data[0].user.first).toBe(`Ada`)
+      expect(result.data[0].user.last).toBe(`Lovelace`)
+    })
+
+    it(`should leave user undefined when the relation returns none`, async () => {
+      const rows = [
+        fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1`, user: undefined }),
+      ]
+      mocks.findMany.mockResolvedValue(rows)
+
+      const result = await service.getProjectMembers(`proj-1`)
+
+      expect(result.data[0].user).toBeUndefined()
     })
   })
 
