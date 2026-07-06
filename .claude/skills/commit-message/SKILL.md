@@ -32,7 +32,6 @@ If there are no changes (clean working tree), inform the user and stop.
 Search the changed files for plan files. Plan files are any files matching:
 - `*plan*` (e.g., `plan.md`, `implementation-plan.md`, `.claude/plan-*.md`)
 - `*PLAN*`
-- `TASKS.md` (task list that may describe planned work)
 
 If plan files are found among the changed files:
 1. **Read each plan file** to understand the intended scope and goals
