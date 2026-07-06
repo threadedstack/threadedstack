@@ -1,0 +1,51 @@
+name: system-monitor
+
+# External watchtower for the autonomous agent system. Runs OUTSIDE the sandbox
+# pods so it survives any single-component failure. On an invariant violation it
+# files a task proposal via the prod API (self-healing) and opens a GitHub health
+# issue (human visibility). It never triggers schedules or merges PRs.
+#
+# GitHub-signal checks run with the built-in token (no secret). Schedule-liveness
+# and proposal filing activate only when the TDSK_MONITOR_KEY secret is present
+# (a scoped key: schedule:read, taskProposal:read, taskProposal:create).
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # best-effort; GitHub may delay under load
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: system-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run health checks
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TDSK_MONITOR_KEY: ${{ secrets.TDSK_MONITOR_KEY }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/monitor/system-monitor.sh
+
+      - name: Resolve health issue (healthy)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/monitor/report-issue.sh --resolve
+
+      - name: Raise health issue (violation)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/monitor/report-issue.sh --alert
