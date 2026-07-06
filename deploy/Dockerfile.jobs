@@ -17,6 +17,11 @@ ARG REPO_BRANCH=main
 USER root
 WORKDIR /workspace
 
+# Trust any repo owner. Scheduled-job pods run some commands as root and some
+# as sandbox against the baked /workspace, and git's safe.directory check
+# otherwise refuses to operate cross-owner. Scoped to this image only.
+RUN git config --system --add safe.directory '*'
+
 # Clone the public monorepo into /workspace at build time.
 # --depth 50 keeps the image small while retaining enough history for git
 # log / git blame during work cycles. Runtime setupScript can fetch deeper
