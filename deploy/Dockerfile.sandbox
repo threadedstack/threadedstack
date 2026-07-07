@@ -17,10 +17,6 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
 # Generate host keys at build time so sshd starts without delay
 RUN ssh-keygen -A
 
-
-# CA cert mount point for MITM proxy trust
-ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/tdsk-proxy.crt
-
 # Node.js 22 + AI agents and tools (Claude Code, Codex, OpenClaw, Pi Coding Agent)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
@@ -74,6 +70,14 @@ RUN if [ "$OPENCODE_ARCH" = "amd64" ]; then OPENCODE_ARCH="x86_64"; fi \
     && curl -fsSL https://github.com/opencode-ai/opencode/releases/latest/download/opencode-linux-${OPENCODE_ARCH}.tar.gz \
     | tar xz -C /usr/local/bin opencode \
     && chmod +x /usr/local/bin/opencode
+
+# CA cert mount point for MITM proxy trust (runtime-only: the cert itself is
+# injected by a K8s Secret volume mount at pod start, never baked into the
+# image — see repos/sandbox/src/kube/podManifest.ts). Declared after every
+# node/npm-invoking build step above so those steps don't try to load a cert
+# file that doesn't exist yet in the build context and log
+# "Ignoring extra certs ... load failed: No such file or directory" noise.
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/tdsk-proxy.crt
 
 COPY deploy/sandbox-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
