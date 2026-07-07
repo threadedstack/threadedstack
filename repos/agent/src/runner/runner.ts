@@ -37,6 +37,7 @@ import {
   createTaskTools,
   createSkillTools,
   createMemoryTools,
+  createRecordTools,
   createSandboxTools,
   createDelegateTools,
   createEscalateTools,
@@ -686,6 +687,9 @@ export class AgentRunner {
     const memoryTools = this.#opts?.memoryProvider
       ? createMemoryTools(this.#opts.memoryProvider, toolNames)
       : []
+    const recordTools = this.#opts?.recordsProvider
+      ? createRecordTools(this.#opts.recordsProvider, toolNames)
+      : []
     const skillTools = this.#opts?.skillProvider
       ? createSkillTools(this.#opts.skillProvider, toolNames)
       : []
@@ -708,6 +712,7 @@ export class AgentRunner {
       ...sandboxTools,
       ...webTools,
       ...memoryTools,
+      ...recordTools,
       ...skillTools,
       ...taskTools,
       ...escalateTools,

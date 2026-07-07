@@ -39,6 +39,8 @@ import type {
   ProjectProviderIdPrefix,
   PermissionOverrideIdPrefix,
   SandboxProjectProviderIdPrefix,
+  CollectionIdPrefix,
+  RecordIdPrefix,
 } from '@TDM/constants/prefixes'
 
 export type TEntityPrefix =
@@ -82,3 +84,5 @@ export type TEntityPrefix =
   | typeof ProjectProviderIdPrefix
   | typeof PermissionOverrideIdPrefix
   | typeof SandboxProjectProviderIdPrefix
+  | typeof CollectionIdPrefix
+  | typeof RecordIdPrefix

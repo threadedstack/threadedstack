@@ -7,6 +7,7 @@ export type TFeatureFlags = {
   agents: TFeatureFlagDef
   skills: TFeatureFlagDef
   memories: TFeatureFlagDef
+  collections: TFeatureFlagDef
   schedules: TFeatureFlagDef
   accessGate: TFeatureFlagDef
   delegation: TFeatureFlagDef

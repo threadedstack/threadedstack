@@ -1,4 +1,5 @@
 import type { IMemoryProvider } from './memory.types'
+import type { IRecordsProvider } from './records.types'
 import type { ISkillProvider } from './skill.types'
 import type { ITaskProvider } from './task.types'
 import type { IEscalationProvider } from './escalation.types'
@@ -93,6 +94,12 @@ export type TAgentInitOpts = {
    * exposes memorySearch/memoryWrite tools and persists compaction summaries.
    */
   memoryProvider?: IMemoryProvider
+  /**
+   * Records provider (backend-implemented). When present, the runner exposes the
+   * collectionQuery/collectionGet/collectionUpsert/collectionDelete tools scoped
+   * to the agent's project collections. Gated by the `collections` feature flag.
+   */
+  recordsProvider?: IRecordsProvider
   /**
    * Skill self-improvement provider (backend-implemented). When present, the
    * runner exposes authorSkill/skillsList/skillView tools.

@@ -1,3 +1,5 @@
+import type { TContextSource } from '@tdsk/domain'
+
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -46,6 +48,12 @@ export type TAgentScheduleDef = {
   sandboxId: string
   orgId: string
   projectId: string
+  /**
+   * Optional declarative context sources injected into the cycle prompt. Absent
+   * on every live schedule today (they use the hard-coded builders), so the
+   * reconciler treats undefined here as equal to a null DB column — no churn.
+   */
+  contextSources?: TContextSource[]
   /** Loaded from ./agent-schedules/<key>.md at module load. */
   prompt: string
 }

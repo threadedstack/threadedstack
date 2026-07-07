@@ -279,11 +279,35 @@ export class IsolateRunner {
     }
   }
 
-  async eval(code: string, timeout = 5000): Promise<{ output: string; result: any }> {
+  async eval(
+    code: string,
+    timeout = 5000,
+    bridges?: Record<string, (argsJson: string) => Promise<string>>
+  ): Promise<{ output: string; result: any }> {
     if (!this.#initialized) await this.init()
 
     this.#clearAllTimers()
     this.#output = []
+
+    // Expose the provided host bridges to the evaluated code as a single async
+    // host callback (`__hostCall(name, argsJson)`), mirroring the fetch shim.
+    // The callback runs host-side; the isolate only receives the callback ref and
+    // marshals JSON strings across it — never a raw handle to the host resource.
+    const bridgeNames = bridges ? Object.keys(bridges) : []
+    if (bridgeNames.length) {
+      const ivm = await loadIvm()
+      await this.#context!.global.set(
+        `__hostCall`,
+        new ivm.Callback(
+          async (name: string, argsJson: string): Promise<string> => {
+            const fn = bridges![name]
+            if (!fn) throw new Error(`Unknown host bridge: ${name}`)
+            return await fn(argsJson)
+          },
+          { async: true }
+        )
+      )
+    }
 
     const userModule = await this.#isolate!.compileModule(code, {
       filename: `user-code.js`,
@@ -296,6 +320,13 @@ export class IsolateRunner {
     })
 
     await userModule.evaluate({ timeout })
+
+    // Tear the host bridge down immediately after evaluation so it never outlives
+    // this run on a pooled isolate (top-level await guarantees all bridge calls
+    // have already settled by the time evaluation resolves).
+    if (bridgeNames.length) {
+      await this.#context!.global.delete(`__hostCall`).catch(() => {})
+    }
 
     // Try to retrieve the default export via structured clone
     let result: any

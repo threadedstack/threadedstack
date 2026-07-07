@@ -1,5 +1,6 @@
 export * from './gui'
 export * from './envs'
+export * from './collections'
 export * from './plans'
 export * from './memory'
 export * from './skills'

@@ -56,6 +56,7 @@ export class FaaSEndpoint extends BaseEndpoint {
     // Execute the function in a sandbox with timing
     const startMs = Date.now()
     const result = await FunctionExecutor.execute(func as any, {
+      db: this.db,
       request: functionRequest,
       context: functionContext,
     })

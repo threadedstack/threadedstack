@@ -132,6 +132,7 @@ describe(`FaaSEndpoint`, () => {
 
       expect(mockDb.services.function.get).toHaveBeenCalledWith(`func-123`)
       expect(mockExecute).toHaveBeenCalledWith(mockFunction, {
+        db: mockDb,
         request: {
           method: `POST`,
           path: `/proxy/project-1/endpoint-1/some/path`,

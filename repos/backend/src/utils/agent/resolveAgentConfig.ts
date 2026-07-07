@@ -4,6 +4,7 @@ import type {
   ITaskProvider,
   IEscalationProvider,
   IMemoryProvider,
+  IRecordsProvider,
   ISkillProvider,
 } from '@tdsk/agent'
 import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
@@ -96,6 +97,51 @@ export const createMemoryProvider = (
       throw new Exception(500, `Failed to write memory: ${error?.message ?? `unknown`}`)
 
     return { id: data.id }
+  },
+})
+
+/**
+ * Build the backend IRecordsProvider bridging the api-brain record tools to the
+ * project-scoped record DB service. Mirrors createMemoryProvider: a pure closure
+ * over db scoped to one project. Every method resolves + operates within the
+ * agent's project, so an agent can only read/write its own project's collections.
+ */
+export const createRecordsProvider = (
+  db: TDatabase,
+  projectId: string
+): IRecordsProvider => ({
+  query: async (collection, query) => {
+    const { data, error } = await db.services.record.query(projectId, collection, query)
+    if (error) {
+      logger.warn(`record_query failed for project ${projectId}: ${error.message}`)
+      return []
+    }
+    return (data || []).map((rec) => ({
+      id: rec.id,
+      data: rec.data as Record<string, unknown>,
+    }))
+  },
+  get: async (collection, id) => {
+    const { data, error } = await db.services.record.get(projectId, collection, id)
+    if (error) {
+      logger.warn(`record_get failed for project ${projectId}: ${error.message}`)
+      return null
+    }
+    return data ? { id: data.id, data: data.data as Record<string, unknown> } : null
+  },
+  upsert: async (collection, record) => {
+    const { data, error } = await db.services.record.upsert(projectId, collection, record)
+    if (error || !data)
+      throw new Exception(500, `Failed to upsert record: ${error?.message ?? `unknown`}`)
+    return { id: data.id }
+  },
+  delete: async (collection, id) => {
+    const { data, error } = await db.services.record.delete(projectId, collection, id)
+    if (error) {
+      logger.warn(`record_delete failed for project ${projectId}: ${error.message}`)
+      return { deleted: false }
+    }
+    return { deleted: Boolean(data) }
   },
 })
 
@@ -361,6 +407,7 @@ export const resolveAgentConfig = async (
       return { duration: 0, output: null, success: false, error: `Function not found` }
     }
     return FunctionExecutor.execute(func, {
+      db,
       context: { args: input as Record<string, any> },
     })
   }
@@ -384,6 +431,13 @@ export const resolveAgentConfig = async (
     memoryProvider: isFeatureEnabled(`memories`)
       ? createMemoryProvider(app, db, agent.orgId, agentId)
       : undefined,
+    // Only wire the record tools when the feature is enabled AND the agent is
+    // project-scoped — collections/records are project-scoped, so without a
+    // project there is nothing to scope the provider to.
+    recordsProvider:
+      isFeatureEnabled(`collections`) && projectId
+        ? createRecordsProvider(db, projectId)
+        : undefined,
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)
       ? createSkillProvider(db, agent.orgId, agentId)

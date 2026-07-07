@@ -112,6 +112,7 @@ export class Websocket {
       sandboxConfig: session.sandboxConfig,
       customFunctions: session.customFunctions,
       memoryProvider: session.memoryProvider,
+      recordsProvider: session.recordsProvider,
       skillProvider: session.skillProvider,
       taskProvider: session.taskProvider,
       escalationProvider: session.escalationProvider,

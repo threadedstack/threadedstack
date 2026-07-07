@@ -279,6 +279,183 @@ describe(`FunctionExecutor`, () => {
     expect(wrapperCode).toContain(`JSON.parse(JSON.stringify(raw ?? null))`)
   })
 
+  // ── Records Capability (context.records bridge) ──────────────────
+  //
+  // The FunctionExecutor injects a project-scoped `records` capability as a set
+  // of host bridges passed to sandbox.evaluate. The V8 isolate never gets a db
+  // handle — it calls the bound bridge methods, which run host-side against
+  // db.services.record scoped to the Function's own projectId.
+
+  describe(`records capability`, () => {
+    // A minimal in-memory stand-in for db.services.record: real upsert/query
+    // behavior keyed by (projectId, collection) so a round trip actually persists.
+    const makeFakeDb = () => {
+      const store = new Map<string, Map<string, { id: string; data: any }>>()
+      const key = (p: string, c: string) => `${p}::${c}`
+
+      const record = {
+        upsert: vi.fn(
+          async (
+            projectId: string,
+            collection: string,
+            input: { id?: string; data: any }
+          ) => {
+            const k = key(projectId, collection)
+            if (!store.has(k)) store.set(k, new Map())
+            const id = input.id ?? `rec_${store.get(k)!.size + 1}`
+            const rec = { id, data: input.data }
+            store.get(k)!.set(id, rec)
+            return { data: { id } }
+          }
+        ),
+        query: vi.fn(
+          async (
+            projectId: string,
+            collection: string,
+            query: { where?: Array<{ field: string; value: unknown }> } = {}
+          ) => {
+            let rows = Array.from(store.get(key(projectId, collection))?.values() ?? [])
+            for (const f of query.where ?? [])
+              rows = rows.filter((r) => r.data?.[f.field] === f.value)
+            return { data: rows }
+          }
+        ),
+        get: vi.fn(async (projectId: string, collection: string, id: string) => {
+          const rec = store.get(key(projectId, collection))?.get(id)
+          return rec ? { data: rec } : {}
+        }),
+        delete: vi.fn(async (projectId: string, collection: string, id: string) => {
+          const map = store.get(key(projectId, collection))
+          const rec = map?.get(id)
+          map?.delete(id)
+          return rec ? { data: rec } : {}
+        }),
+        count: vi.fn(async (projectId: string, collection: string) => ({
+          data: store.get(key(projectId, collection))?.size ?? 0,
+        })),
+      }
+
+      return { db: { services: { record } } as any, record }
+    }
+
+    it(`gives a Function a records capability that persists then queries a record`, async () => {
+      const { db, record } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-records` })
+
+      // Simulate the isolate running a handler that uses context.records:
+      //   await context.records.upsert('c', { id: 'r1', data: { x: 1 } })
+      //   return await context.records.query('c', { where:[{field:'x',op:'eq',value:1}] })
+      // by invoking the bridges the executor passed to evaluate.
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        await b[`records.upsert`](JSON.stringify([`c`, { id: `r1`, data: { x: 1 } }]))
+        const queried = JSON.parse(
+          await b[`records.query`](
+            JSON.stringify([`c`, { where: [{ field: `x`, op: `eq`, value: 1 }] }])
+          )
+        )
+        return { output: ``, result: { success: true, output: queried } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      // The record persisted via upsert is read back by the query
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual([{ id: `r1`, data: { x: 1 } }])
+
+      // The wrapper reconstructs context.records via the __hostCall bridge
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).toContain(`context.records`)
+      expect(wrapperCode).toContain(`__hostCall`)
+      expect(Object.keys(evalOpts.bridges)).toEqual(
+        expect.arrayContaining([
+          `records.get`,
+          `records.query`,
+          `records.count`,
+          `records.delete`,
+          `records.upsert`,
+        ])
+      )
+
+      // The bridge called the db service — proving the round trip went host-side
+      expect(record.upsert).toHaveBeenCalledTimes(1)
+      expect(record.query).toHaveBeenCalledTimes(1)
+    })
+
+    it(`scopes every records bridge call to the Function's own projectId`, async () => {
+      const { db, record } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-ALPHA` })
+
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        await b[`records.upsert`](
+          JSON.stringify([`orders`, { id: `o1`, data: { total: 9 } }])
+        )
+        await b[`records.query`](JSON.stringify([`orders`, {}]))
+        await b[`records.get`](JSON.stringify([`orders`, `o1`]))
+        await b[`records.count`](JSON.stringify([`orders`, {}]))
+        await b[`records.delete`](JSON.stringify([`orders`, `o1`]))
+        return { output: ``, result: { success: true, output: null } }
+      })
+
+      await FunctionExecutor.execute(func, { db })
+
+      // Every service method received the Function's projectId as its first arg
+      expect(record.upsert).toHaveBeenCalledWith(`proj-ALPHA`, `orders`, {
+        id: `o1`,
+        data: { total: 9 },
+      })
+      for (const spy of [
+        record.upsert,
+        record.query,
+        record.get,
+        record.count,
+        record.delete,
+      ])
+        for (const call of spy.mock.calls) expect(call[0]).toBe(`proj-ALPHA`)
+    })
+
+    it(`runs a Function that ignores records exactly as before when no db is given`, async () => {
+      const func = makeFunc()
+      const result = await FunctionExecutor.execute(func)
+
+      expect(result.success).toBe(true)
+
+      // No records reconstruction and no bridges when no db handle is supplied —
+      // the wrapper + evaluate opts are byte-identical to the pre-Phase-4 path.
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).not.toContain(`context.records`)
+      expect(wrapperCode).not.toContain(`__hostCall`)
+      expect(evalOpts.bridges).toBeUndefined()
+    })
+
+    it(`never crosses a raw db handle or connection into the isolate`, async () => {
+      const { db } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-iso` })
+      mockEvaluate.mockResolvedValue({
+        output: ``,
+        result: { success: true, output: null },
+      })
+
+      await FunctionExecutor.execute(func, { db, context: { args: { a: 1 } } })
+
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+
+      // evaluate opts carry ONLY timeout, modules, and the function bridges — no db
+      expect(Object.keys(evalOpts).sort()).toEqual([`bridges`, `modules`, `timeout`])
+      expect(`db` in evalOpts).toBe(false)
+
+      // The bridges are opaque host functions, not serialized data/handles
+      for (const fn of Object.values(evalOpts.bridges as Record<string, unknown>))
+        expect(typeof fn).toBe(`function`)
+
+      // The code + serialized context sent into the isolate reference no db
+      expect(wrapperCode).not.toContain(`services`)
+      expect(wrapperCode).not.toMatch(/postgres|connectionString|DATABASE_URL/i)
+      expect(evalOpts.modules.function).not.toContain(`services`)
+    })
+  })
+
   // ── Sandbox Pool Tests ───────────────────────────────────────────
   //
   // The pool is module-level state that persists across tests.

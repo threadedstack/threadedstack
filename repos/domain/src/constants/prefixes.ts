@@ -38,3 +38,5 @@ export const PermissionOverrideIdPrefix = `po_`
 export const VerificationIdPrefix = `vf_`
 export const OpsActionIdPrefix = `op_`
 export const SandboxProjectProviderIdPrefix = `xp_`
+export const CollectionIdPrefix = `col_`
+export const RecordIdPrefix = `rec_`

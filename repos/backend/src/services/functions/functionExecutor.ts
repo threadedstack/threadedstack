@@ -1,7 +1,10 @@
+import type { TDatabase } from '@tdsk/database'
 import type {
   ISandbox,
+  TRecordQuery,
   TFunctionRequest,
   TFunctionContext,
+  IRecordsCapability,
   TFunctionExecResult,
 } from '@tdsk/domain'
 
@@ -88,7 +91,125 @@ type TExecuteOpts = {
   request?: TFunctionRequest
   context?: TFunctionContext
   timeout?: number
+  /**
+   * Host-side db handle used to build the Function's project-scoped `records`
+   * capability. It stays entirely host-side — it is NEVER serialized into, set
+   * on, or otherwise crossed into the V8 isolate. When present, the executor
+   * exposes `context.records` to the handler via a platform-mediated bridge.
+   */
+  db?: TDatabase
 }
+
+/** Bridge-callback names exposed to the isolate for the records capability. */
+const RecordsBridge = {
+  get: `records.get`,
+  query: `records.query`,
+  count: `records.count`,
+  delete: `records.delete`,
+  upsert: `records.upsert`,
+} as const
+
+/**
+ * Build the project-scoped records capability from the host db service. Runs
+ * entirely host-side; each method resolves + operates within the Function's own
+ * project, so a Function can only read/write its own project's collections.
+ */
+const createRecordsCapability = (
+  db: TDatabase,
+  projectId: string
+): IRecordsCapability => ({
+  query: async (collection, query) => {
+    const { data, error } = await db.services.record.query(
+      projectId,
+      collection,
+      query ?? {}
+    )
+    if (error) throw new Error(`records.query failed: ${error.message}`)
+    return (data ?? []).map((rec) => ({
+      id: rec.id,
+      data: rec.data as Record<string, unknown>,
+    }))
+  },
+  get: async (collection, id) => {
+    const { data, error } = await db.services.record.get(projectId, collection, id)
+    if (error) throw new Error(`records.get failed: ${error.message}`)
+    return data ? { id: data.id, data: data.data as Record<string, unknown> } : null
+  },
+  upsert: async (collection, record) => {
+    const { data, error } = await db.services.record.upsert(projectId, collection, record)
+    if (error || !data)
+      throw new Error(`records.upsert failed: ${error?.message ?? `unknown`}`)
+    return { id: data.id }
+  },
+  delete: async (collection, id) => {
+    const { data, error } = await db.services.record.delete(projectId, collection, id)
+    if (error) throw new Error(`records.delete failed: ${error.message}`)
+    return { deleted: Boolean(data) }
+  },
+  // The Phase-1 record service counts a collection's total; the query arg is
+  // accepted for API symmetry but not filtered (filtered count is not offered
+  // by the underlying service).
+  count: async (collection) => {
+    const { data, error } = await db.services.record.count(projectId, collection)
+    if (error) throw new Error(`records.count failed: ${error.message}`)
+    return data ?? 0
+  },
+})
+
+/**
+ * Wrap the project-scoped records capability as JSON-marshalling host bridges.
+ * The isolate invokes each bridge with a JSON args array and receives a JSON
+ * result — the only thing that crosses the boundary is serialized data, never
+ * the db handle or the live capability object.
+ */
+const buildRecordsBridges = (
+  db: TDatabase,
+  projectId: string
+): Record<string, (argsJson: string) => Promise<string>> => {
+  const records = createRecordsCapability(db, projectId)
+  return {
+    [RecordsBridge.query]: async (argsJson) => {
+      const [collection, query] = JSON.parse(argsJson) as [string, TRecordQuery?]
+      return JSON.stringify(await records.query(collection, query))
+    },
+    [RecordsBridge.get]: async (argsJson) => {
+      const [collection, id] = JSON.parse(argsJson) as [string, string]
+      return JSON.stringify(await records.get(collection, id))
+    },
+    [RecordsBridge.upsert]: async (argsJson) => {
+      const [collection, record] = JSON.parse(argsJson) as [
+        string,
+        { id?: string; data: Record<string, unknown> },
+      ]
+      return JSON.stringify(await records.upsert(collection, record))
+    },
+    [RecordsBridge.delete]: async (argsJson) => {
+      const [collection, id] = JSON.parse(argsJson) as [string, string]
+      return JSON.stringify(await records.delete(collection, id))
+    },
+    [RecordsBridge.count]: async (argsJson) => {
+      const [collection, query] = JSON.parse(argsJson) as [string, TRecordQuery?]
+      return JSON.stringify(await records.count(collection, query))
+    },
+  }
+}
+
+/**
+ * Reconstruct `context.records` inside the isolate from the `__hostCall` host
+ * bridge. Each method marshals a JSON args array out through the bridge and
+ * parses the JSON result back — the isolate never touches a db handle. Only
+ * emitted when a records capability is bridged in (backward compatible).
+ */
+const recordsContextCode = `context.records = (() => {
+  const call = (name, args) => __hostCall(name, JSON.stringify(args)).then((r) => JSON.parse(r));
+  return {
+    query: (collection, query) => call('${RecordsBridge.query}', [collection, query]),
+    get: (collection, id) => call('${RecordsBridge.get}', [collection, id]),
+    upsert: (collection, record) => call('${RecordsBridge.upsert}', [collection, record]),
+    delete: (collection, id) => call('${RecordsBridge.delete}', [collection, id]),
+    count: (collection, query) => call('${RecordsBridge.count}', [collection, query]),
+  };
+})();`
 
 /**
  * Build the wrapper code that imports the user function module,
@@ -96,7 +217,8 @@ type TExecuteOpts = {
  */
 const buildWrapperCode = (
   request: TFunctionRequest,
-  context: TFunctionContext
+  context: TFunctionContext,
+  withRecords = false
 ): string => {
   const requestJson = JSON.stringify(request)
   const contextJson = JSON.stringify(context)
@@ -104,7 +226,7 @@ const buildWrapperCode = (
   return `import handler from 'function';
 const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
-let output;
+${withRecords ? `${recordsContextCode}\n` : ``}let output;
 try {
   const raw = await handler(request, context);
   output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
@@ -151,13 +273,27 @@ export class FunctionExecutor {
       // 2. Acquire sandbox from pool (or create new)
       sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS)
 
+      // Build the project-scoped records bridge host-side (only when a db handle
+      // is supplied and the function is project-scoped). The bridge closures keep
+      // the db handle host-side; only the callback ref + JSON payloads cross into
+      // the isolate.
+      const records =
+        opts?.db && func.projectId
+          ? buildRecordsBridges(opts.db, func.projectId)
+          : undefined
+
       // 3. Build wrapper that imports 'function' module and calls handler
-      const wrapperCode = buildWrapperCode(opts?.request || {}, opts?.context || {})
+      const wrapperCode = buildWrapperCode(
+        opts?.request || {},
+        opts?.context || {},
+        Boolean(records)
+      )
 
       // 4. Evaluate via V8 isolate with function code registered as module
       const evalResult = await sandbox.evaluate(wrapperCode, {
         timeout: opts?.timeout || DefaultTimeoutMS,
         modules: { function: code },
+        ...(records ? { bridges: records } : {}),
       })
 
       // Sandbox executed successfully — return to pool
