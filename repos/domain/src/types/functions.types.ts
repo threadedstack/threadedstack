@@ -1,3 +1,5 @@
+import type { TRecordQuery } from './collection.types'
+
 export enum EFunLanguage {
   python = `python`,
   typescript = `typescript`,
@@ -15,11 +17,43 @@ export type TFunctionRequest = {
   headers?: Record<string, string>
 }
 
+/** A record document surfaced to a Function — the record id plus its JSON `data`. */
+export type TRecordDocument = {
+  id: string
+  data: Record<string, unknown>
+}
+
+/**
+ * Project-scoped records capability injected into a Function's execution context.
+ *
+ * A platform-mediated bridge: every method executes host-side against the
+ * collection/record service scoped to the Function's project (the project is
+ * implicit — bound at injection time). The isolated V8 sandbox holds only these
+ * bound async methods; it never receives a raw db handle, connection string, or
+ * network access. This is what lets a Function persist/read collection records.
+ */
+export interface IRecordsCapability {
+  query(collection: string, query?: TRecordQuery): Promise<TRecordDocument[]>
+  get(collection: string, id: string): Promise<TRecordDocument | null>
+  upsert(
+    collection: string,
+    record: { id?: string; data: Record<string, unknown> }
+  ): Promise<{ id: string }>
+  delete(collection: string, id: string): Promise<{ deleted: boolean }>
+  count(collection: string, query?: TRecordQuery): Promise<number>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
   envVars?: Record<string, string>
   secrets?: Record<string, string>
+  /**
+   * Project-scoped records capability. Present when the executor is given a host
+   * db handle; the isolate reaches it through a platform-mediated bridge, never a
+   * direct db connection.
+   */
+  records?: IRecordsCapability
 }
 
 /** Return value from a FaaS function handler (maps to HTTP response) */

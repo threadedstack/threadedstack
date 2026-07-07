@@ -407,6 +407,7 @@ export const resolveAgentConfig = async (
       return { duration: 0, output: null, success: false, error: `Function not found` }
     }
     return FunctionExecutor.execute(func, {
+      db,
       context: { args: input as Record<string, any> },
     })
   }

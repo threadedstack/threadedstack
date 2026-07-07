@@ -362,6 +362,7 @@ describe(`resolveAgentConfig`, () => {
     const execResult = await result.onExecuteFunction(`fn-1`, { arg: `value` })
 
     expect(FunctionExecutor.execute).toHaveBeenCalledWith(mockFn, {
+      db,
       context: { args: { arg: `value` } },
     })
     expect(execResult).toEqual({ duration: 100, output: `result`, success: true })
