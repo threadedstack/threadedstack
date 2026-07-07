@@ -100,8 +100,10 @@ export const connectSandbox: TEndpointConfig = {
       const start = Date.now()
       let state: EContainerState = EContainerState.Pending
       let prevState: EContainerState = state
+      let loggedConditionsAfterPending = false
       const maxWait = config.sandbox?.maxWait ?? 120_000
       const pollInterval = config.sandbox?.pollInterval ?? 2_000
+      const conditionCheckDelayMs = 30_000
       logger.info(
         `[Sandbox] Waiting for instance ${instanceId} to reach Running state...`
       )
@@ -125,13 +127,29 @@ export const connectSandbox: TEndpointConfig = {
           if (state === EContainerState.Failed || state === EContainerState.Terminating) {
             throw new Exception(500, `Pod failed to start`)
           }
+          if (
+            state === EContainerState.Pending &&
+            !loggedConditionsAfterPending &&
+            Date.now() - start >= conditionCheckDelayMs
+          ) {
+            loggedConditionsAfterPending = true
+            const conditions = await sb.getPodConditionSummary(instanceId)
+            if (conditions)
+              logger.warn(
+                `[Sandbox] Instance ${instanceId} still Pending after ${conditionCheckDelayMs / 1000}s — conditions: ${conditions}`
+              )
+          }
         }
 
         if (state !== EContainerState.Running) {
+          const conditions = await sb.getPodConditionSummary(instanceId)
           logger.error(
-            `[Sandbox] Instance ${instanceId} did not start within ${maxWait}ms (last state: ${state})`
+            `[Sandbox] Instance ${instanceId} did not start within ${maxWait}ms (last state: ${state})${conditions ? ` — conditions: ${conditions}` : ``}`
           )
-          throw new Exception(504, `Pod did not reach Running state within timeout`)
+          throw new Exception(
+            504,
+            `Pod did not reach Running state within timeout${conditions ? ` (${conditions})` : ``}`
+          )
         }
 
         // Gate interactive connect on the workspace-ready marker so the session

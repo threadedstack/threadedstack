@@ -1756,6 +1756,74 @@ describe(`SandboxService`, () => {
     })
   })
 
+  describe(`getPodConditionSummary`, () => {
+    it(`should summarize not-ready conditions with reason and message`, async () => {
+      kube.getPod.mockResolvedValue({
+        status: {
+          conditions: [
+            {
+              type: `PodScheduled`,
+              status: `False`,
+              reason: `Unschedulable`,
+              message: `0/3 nodes are available: insufficient cpu`,
+            },
+          ],
+        },
+      })
+
+      const result = await svc.getPodConditionSummary(`pod-a`)
+
+      expect(result).toBe(
+        `PodScheduled=False (Unschedulable): 0/3 nodes are available: insufficient cpu`
+      )
+    })
+
+    it(`should join multiple not-ready conditions with a semicolon`, async () => {
+      kube.getPod.mockResolvedValue({
+        status: {
+          conditions: [
+            { type: `PodScheduled`, status: `True` },
+            { type: `Ready`, status: `False`, reason: `ContainersNotReady` },
+          ],
+        },
+      })
+
+      const result = await svc.getPodConditionSummary(`pod-a`)
+
+      expect(result).toBe(`Ready=False (ContainersNotReady)`)
+    })
+
+    it(`should return undefined when all conditions are True`, async () => {
+      kube.getPod.mockResolvedValue({
+        status: { conditions: [{ type: `PodScheduled`, status: `True` }] },
+      })
+
+      const result = await svc.getPodConditionSummary(`pod-a`)
+
+      expect(result).toBeUndefined()
+    })
+
+    it(`should return undefined when the pod has no conditions`, async () => {
+      kube.getPod.mockResolvedValue({ status: {} })
+
+      const result = await svc.getPodConditionSummary(`pod-a`)
+
+      expect(result).toBeUndefined()
+    })
+
+    it(`should warn and return undefined when the fetch fails`, async () => {
+      kube.getPod.mockRejectedValue(new Error(`api server unreachable`))
+
+      const result = await svc.getPodConditionSummary(`pod-a`)
+
+      expect(result).toBeUndefined()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Failed to fetch pod conditions for pod-a`),
+        `api server unreachable`
+      )
+    })
+  })
+
   describe(`getSandbox`, () => {
     it(`should return KubeSandbox instance for a running pod`, async () => {
       kube.getPod.mockResolvedValue({ status: { phase: `Running` } })
