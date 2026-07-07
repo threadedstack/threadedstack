@@ -150,6 +150,7 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
             defaultType={EProvider.ai}
             createLabel='Create AI Provider'
             reorderable
+            warnMissingSecret
             providersLoaded={!!form.providersMap}
             emptyMessage={
               !form.isCustomRuntime
@@ -162,6 +163,7 @@ export const ProjectSandboxDrawer = (props: TSandboxDrawer) => {
               name: p.name || p.id,
               baseUrl: p.options?.baseUrl,
               model: form.providerModels[p.id] ?? null,
+              secretId: p.secretId,
             }))}
             availableProviders={form.availableProviders.map((p) => ({
               id: p.id,
