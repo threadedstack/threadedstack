@@ -2,6 +2,7 @@ import type { TProviderType } from '@tdsk/domain'
 import type { TProviderLinkItem } from '@TAF/types'
 
 import { useState } from 'react'
+import { useProviders } from '@TAF/state/selectors'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
@@ -27,6 +28,7 @@ export type TSandboxProviderAccordionProps = {
   providersLoaded: boolean
   defaultType: TProviderType
   emptyMessage?: string | null
+  warnMissingSecret?: boolean
   providers: TProviderLinkItem[]
   onRemove: (id: string) => void
   availableProviders: TProviderLinkItem[]
@@ -58,9 +60,12 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
     providersLoaded,
     onProviderCreated,
     availableProviders,
+    warnMissingSecret,
   } = props
 
+  const [providersMap] = useProviders()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [fixSecretId, setFixSecretId] = useState<string | null>(null)
 
   return (
     <>
@@ -105,8 +110,10 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
               loading={!providersLoaded}
               onModelChange={onModelChange}
               onBranchChange={onBranchChange}
+              warnMissingSecret={warnMissingSecret}
               availableProviders={availableProviders}
               onCreateNew={() => setDrawerOpen(true)}
+              onFixSecret={(id) => setFixSecretId(id)}
             />
 
             {providersLoaded &&
@@ -140,6 +147,15 @@ export const SandboxProviderAccordion = (props: TSandboxProviderAccordionProps) 
         onSuccess={(providerId) => {
           onProviderCreated?.(providerId)
         }}
+      />
+
+      <ProviderDrawer
+        orgId={orgId}
+        open={!!fixSecretId}
+        defaultType={defaultType}
+        provider={fixSecretId ? providersMap?.[fixSecretId] : null}
+        onClose={() => setFixSecretId(null)}
+        onSuccess={() => setFixSecretId(null)}
       />
     </>
   )

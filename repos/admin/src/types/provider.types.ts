@@ -5,6 +5,7 @@ export type TProviderLinkItem = {
   baseUrl?: string
   model?: string | null
   branch?: string | null
+  secretId?: string | null
 }
 
 export type TProviderLabel = {

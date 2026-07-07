@@ -7,6 +7,7 @@ import {
   Box,
   Chip,
   List,
+  Tooltip,
   ListItem,
   IconButton,
   Typography,
@@ -17,6 +18,7 @@ import {
   Close as RemoveIcon,
   ArrowUpward as UpIcon,
   ArrowDownward as DownIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material'
 
 export type TProviderLinkListProps = {
@@ -29,8 +31,10 @@ export type TProviderLinkListProps = {
   createLabel?: string
   onCreateNew?: () => void
   emptyMessage?: string | null
+  warnMissingSecret?: boolean
   onRemove: (id: string) => void
   providers: TProviderLinkItem[]
+  onFixSecret?: (id: string) => void
   availableProviders: TProviderLinkItem[]
   onAdd: (provider: TProviderLinkItem) => void
   onModelChange?: (id: string, model: string) => void
@@ -48,11 +52,13 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
     onRemove,
     providers,
     onReorder,
+    onFixSecret,
     reorderable,
     onCreateNew,
     emptyMessage,
     onModelChange,
     onBranchChange,
+    warnMissingSecret,
     availableProviders,
     addLabel = `Add Provider`,
     createLabel = `Create New`,
@@ -135,6 +141,20 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                         variant='outlined'
                         label={provider.model}
                       />
+                    )}
+                    {warnMissingSecret && !provider.secretId && (
+                      <Tooltip title='No secret attached — click to add one'>
+                        <IconButton
+                          size='small'
+                          disabled={isDisabled}
+                          onClick={() => onFixSecret?.(provider.id)}
+                        >
+                          <WarningIcon
+                            fontSize='small'
+                            color='warning'
+                          />
+                        </IconButton>
+                      </Tooltip>
                     )}
                   </Box>
                 </Box>
