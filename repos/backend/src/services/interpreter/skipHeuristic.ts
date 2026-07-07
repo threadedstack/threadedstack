@@ -1,4 +1,4 @@
-import { InteractivePatterns } from '@tdsk/domain'
+import { InteractivePatterns, EParserEvtType } from '@tdsk/domain'
 import type { TParsedEvent } from '@tdsk/domain'
 
 export function shouldInterpret(events: TParsedEvent[]): boolean {
@@ -7,9 +7,9 @@ export function shouldInterpret(events: TParsedEvent[]): boolean {
       (
         e
       ): e is
-        | Extract<TParsedEvent, { type: 'text' }>
-        | Extract<TParsedEvent, { type: 'unknown' }> =>
-        e.type === 'text' || e.type === 'unknown'
+        | Extract<TParsedEvent, { type: `${EParserEvtType.Text}` }>
+        | Extract<TParsedEvent, { type: `${EParserEvtType.Unknown}` }> =>
+        e.type === EParserEvtType.Text || e.type === EParserEvtType.Unknown
     )
     .map((e) => ('content' in e ? e.content : 'raw' in e ? e.raw : ''))
     .join('\n')

@@ -22,26 +22,57 @@ export type TToolName =
   | 'WebSearch'
   | (string & {})
 
+export enum EParserEvtType {
+  Input = `input`,
+  Text = `text`,
+  ToolCall = `tool-call`,
+  Permission = `permission`,
+  Diff = `diff`,
+  Error = `error`,
+  Activity = `activity`,
+  PromptReady = `prompt-ready`,
+  Unknown = `unknown`,
+}
+
+export type TParserEvtType = `${EParserEvtType}`
+
+export enum EToolCallState {
+  Running = `running`,
+  Done = `done`,
+}
+
+export type TToolCallState = `${EToolCallState}`
+
 export type TParsedEvent =
-  | { type: `input`; content: string; userId: string; timestamp: number }
-  | { type: `text`; content: string; timestamp: number }
   | {
-      type: `tool-call`
+      type: `${EParserEvtType.Input}`
+      content: string
+      userId: string
+      timestamp: number
+    }
+  | { type: `${EParserEvtType.Text}`; content: string; timestamp: number }
+  | {
+      type: `${EParserEvtType.ToolCall}`
       tool: TToolName
       target: string
-      status: `running` | `done`
+      status: TToolCallState
       detail?: string
       timestamp: number
     }
-  | { type: `permission`; prompt: string; command?: string; timestamp: number }
   | {
-      type: `diff`
+      type: `${EParserEvtType.Permission}`
+      prompt: string
+      command?: string
+      timestamp: number
+    }
+  | {
+      type: `${EParserEvtType.Diff}`
       file: string
       additions: string[]
       removals: string[]
       timestamp: number
     }
-  | { type: `error`; message: string; timestamp: number }
-  | { type: `activity`; timestamp: number }
-  | { type: `prompt-ready`; timestamp: number }
-  | { type: `unknown`; raw: string; timestamp: number }
+  | { type: `${EParserEvtType.Error}`; message: string; timestamp: number }
+  | { type: `${EParserEvtType.Activity}`; timestamp: number }
+  | { type: `${EParserEvtType.PromptReady}`; timestamp: number }
+  | { type: `${EParserEvtType.Unknown}`; raw: string; timestamp: number }

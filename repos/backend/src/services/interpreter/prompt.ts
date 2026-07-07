@@ -1,4 +1,4 @@
-import { InterpreterSystem } from '@tdsk/domain'
+import { InterpreterSystem, EParserEvtType } from '@tdsk/domain'
 import type { TParsedEvent, TGuiConfig } from '@tdsk/domain'
 
 export function getSystemPrompt(config: TGuiConfig): string {
@@ -8,12 +8,12 @@ export function getSystemPrompt(config: TGuiConfig): string {
 export function buildUserMessage(events: TParsedEvent[]): string {
   return events
     .map((e) => {
-      if (e.type === 'text') return e.content
-      if (e.type === 'unknown') return e.raw
-      if (e.type === 'error') return `Error: ${e.message}`
-      if (e.type === 'tool-call') return `⏺ ${e.tool} ${e.target}`
-      if (e.type === 'permission') return e.prompt
-      if (e.type === 'diff') {
+      if (e.type === EParserEvtType.Text) return e.content
+      if (e.type === EParserEvtType.Unknown) return e.raw
+      if (e.type === EParserEvtType.Error) return `Error: ${e.message}`
+      if (e.type === EParserEvtType.ToolCall) return `⏺ ${e.tool} ${e.target}`
+      if (e.type === EParserEvtType.Permission) return e.prompt
+      if (e.type === EParserEvtType.Diff) {
         const lines = [
           ...e.additions.map((l) => `+ ${l}`),
           ...e.removals.map((l) => `- ${l}`),

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { InterpreterService } from './interpreter'
+import { EParserEvtType } from '@tdsk/domain'
 import type { TParsedEvent, TGuiConfig } from '@tdsk/domain'
 
 vi.mock('@TBE/utils/logger', () => ({
@@ -58,7 +59,11 @@ describe('InterpreterService', () => {
       {
         chunkId: 'chunk-1',
         events: [
-          { type: 'text', content: '1. Redis\n2. PostgreSQL', timestamp: Date.now() },
+          {
+            type: EParserEvtType.Text,
+            content: '1. Redis\n2. PostgreSQL',
+            timestamp: Date.now(),
+          },
         ],
       },
       testConfig,
@@ -77,7 +82,13 @@ describe('InterpreterService', () => {
     const result = await service.interpret(
       {
         chunkId: 'chunk-1',
-        events: [{ type: 'text', content: 'Just plain text.', timestamp: Date.now() }],
+        events: [
+          {
+            type: EParserEvtType.Text,
+            content: 'Just plain text.',
+            timestamp: Date.now(),
+          },
+        ],
       },
       testConfig,
       'anthropic',
@@ -94,7 +105,9 @@ describe('InterpreterService', () => {
     const result = await service.interpret(
       {
         chunkId: 'chunk-1',
-        events: [{ type: 'text', content: '1. A\n2. B', timestamp: Date.now() }],
+        events: [
+          { type: EParserEvtType.Text, content: '1. A\n2. B', timestamp: Date.now() },
+        ],
       },
       { ...testConfig, maxRetries: 0 },
       'anthropic',
@@ -113,7 +126,9 @@ describe('InterpreterService', () => {
     const result = await service.interpret(
       {
         chunkId: 'chunk-1',
-        events: [{ type: 'text', content: '1. A\n2. B', timestamp: Date.now() }],
+        events: [
+          { type: EParserEvtType.Text, content: '1. A\n2. B', timestamp: Date.now() },
+        ],
       },
       testConfig,
       'anthropic',
@@ -140,7 +155,13 @@ describe('InterpreterService', () => {
     const result = await service.interpret(
       {
         chunkId: 'chunk-retry',
-        events: [{ type: 'text', content: 'Continue? (y/n)', timestamp: Date.now() }],
+        events: [
+          {
+            type: EParserEvtType.Text,
+            content: 'Continue? (y/n)',
+            timestamp: Date.now(),
+          },
+        ],
       },
       testConfig,
       'anthropic',
@@ -158,7 +179,7 @@ describe('InterpreterService', () => {
     const result = await service.interpret(
       {
         chunkId: 'chunk-empty',
-        events: [{ type: 'activity', timestamp: Date.now() } as any],
+        events: [{ type: EParserEvtType.Activity, timestamp: Date.now() } as any],
       },
       testConfig,
       'anthropic',

@@ -1,21 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChunkBuffer } from './chunkBuffer'
+import { EParserEvtType } from '@tdsk/domain'
 import type { TParsedEvent } from '@tdsk/domain'
 
 function textEvent(content: string): TParsedEvent {
-  return { type: 'text', content, timestamp: Date.now() }
+  return { type: EParserEvtType.Text, content, timestamp: Date.now() }
 }
 
 function promptReadyEvent(): TParsedEvent {
-  return { type: 'prompt-ready', timestamp: Date.now() }
+  return { type: EParserEvtType.PromptReady, timestamp: Date.now() }
 }
 
 function activityEvent(): TParsedEvent {
-  return { type: 'activity', timestamp: Date.now() }
+  return { type: EParserEvtType.Activity, timestamp: Date.now() }
 }
 
 function inputEvent(content: string): TParsedEvent {
-  return { type: 'input', content, userId: 'user1', timestamp: Date.now() }
+  return { type: EParserEvtType.Input, content, userId: 'user1', timestamp: Date.now() }
 }
 
 describe('ChunkBuffer', () => {
@@ -70,7 +71,7 @@ describe('ChunkBuffer', () => {
     buffer.push(promptReadyEvent())
     expect(flushed).toHaveLength(1)
     expect(flushed[0].events).toHaveLength(2)
-    expect(flushed[0].events[0].type).toBe('text')
+    expect(flushed[0].events[0].type).toBe(EParserEvtType.Text)
   })
 
   it('should flush on debounce timeout', () => {
