@@ -223,21 +223,6 @@ describe(`verifyDeploy`, () => {
     expect(calledUrl).toContain(`px.threadedstack.app`)
   })
 
-  it(`health probe on staging with custom url=/health returns green and targets staging host`, async () => {
-    globalThis.fetch = mockFetch(200, { status: `ok` })
-    const app = makeApp()
-    const result = await verifyDeploy(app as any, {
-      env: `staging`,
-      probes: [{ kind: `health`, params: { url: `/health` } }],
-    })
-    expect(result.green).toBe(true)
-    expect(result.failures).toHaveLength(0)
-    const calledUrl = (globalThis.fetch as ReturnType<typeof vi.fn>).mock
-      .calls[0][0] as string
-    expect(calledUrl).toContain(`px-staging.threadedstack.app`)
-    expect(calledUrl).toContain(`/health`)
-  })
-
   it(`health probe fails when body.status is not ok`, async () => {
     globalThis.fetch = mockFetch(200, { status: `degraded` })
     const app = makeApp()
@@ -345,7 +330,7 @@ describe(`verifyDeploy`, () => {
     })
     const app = makeApp()
     const result = await verifyDeploy(app as any, {
-      env: `staging`,
+      env: `production`,
       probes: [
         { kind: `health`, params: { url: `/health` } },
         { kind: `health`, params: { url: `/_/health` } },

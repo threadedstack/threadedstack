@@ -53,7 +53,7 @@ ife(async () => {
           default: `local`,
           env: `NODE_ENV`,
           alias: [`environment`],
-          example: `<command> --env staging`,
+          example: `<command> --env production`,
           description: `Environment where the task should be executed`,
         },
       },

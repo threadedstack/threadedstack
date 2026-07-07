@@ -281,6 +281,14 @@ describe('taskProposal types', () => {
 
 # Phase P4e — Own its infra (highest blast radius; last-but-one)
 
+> **UPDATE (2026-07-06): the P4e staging canary was REMOVED.** The `tdsk-staging`
+> environment (its namespace, the `ci/infra-staging` required check + workflow,
+> the devspace staging profile, and `values.staging.yaml`) was never requested and
+> shared the prod Neon DB (racing the prod scheduler), so it was torn out. Infra
+> changes now ride a normal `steward/*` PR gated by CI (`ci/types` + `ci/test`) +
+> adversary review; the production deploy's own health-check + automatic rollback
+> is the safety net. The E1–E4 tasks below are retained as historical design.
+
 **Goal:** relax the HARD CONSTRAINT to a gated path. Infra changes ride `steward/infra-*` and require a stronger automated gate: staging deploy + P4c verify green + adversary review before prod. Secrets stay off-limits. **Done-bar:** the amd64/deploy-marker class of fix is one the steward authors, gates, verifies, and lands itself. Depends on P4a/P4c/P4d.
 
 ### Task E1: Staging profile
