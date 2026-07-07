@@ -11,6 +11,7 @@ import type {
   ITaskProvider,
   IEscalationProvider,
   IMemoryProvider,
+  IRecordsProvider,
   ISkillProvider,
   IDelegateProvider,
   TDelegateToolOpts,
@@ -18,6 +19,7 @@ import type {
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type {
   ISandbox,
+  TRecordQuery,
   TFunctionExecResult,
   TSandboxRuntimeId,
   Function as FunctionModel,
@@ -554,6 +556,243 @@ export const createMemoryTools = (
           logger.warn(`memoryWrite tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Memory write failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates record tools (collectionQuery/collectionGet/collectionUpsert/
+ * collectionDelete) backed by an IRecordsProvider. Mirrors createMemoryTools:
+ * the agent package declares the tools; the backend implements the provider
+ * (collection/record db service scoped to the agent's project) and injects it.
+ * Filtered by `allowedTools` like the other factories.
+ */
+export const createRecordTools = (
+  recordsProvider: IRecordsProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.collectionQuery,
+      label: `Collection Query`,
+      description: `Query records in a project collection with an optional filter, sort, and limit. Returns matching records as JSON documents.`,
+      parameters: Type.Object({
+        collection: Type.String({ description: `The collection name to query` }),
+        where: Type.Optional(
+          Type.Array(
+            Type.Object({
+              field: Type.String({ description: `The record data field to filter on` }),
+              op: Type.String({
+                description: `Comparison operator: eq, ne, gt, gte, lt, lte, in, contains`,
+              }),
+              value: Type.Unknown({ description: `The value to compare against` }),
+            }),
+            { description: `Filter predicates combined with AND` }
+          )
+        ),
+        orderBy: Type.Optional(
+          Type.Object({
+            field: Type.String({ description: `The record data field to sort on` }),
+            direction: Type.String({ description: `Sort direction: asc or desc` }),
+          })
+        ),
+        limit: Type.Optional(
+          Type.Number({ description: `Max records to return (hard-capped server-side)` })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          collection: string
+          where?: TRecordQuery[`where`]
+          orderBy?: TRecordQuery[`orderBy`]
+          limit?: number
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Querying collection: ${params.collection}` }],
+          details: { status: `running` },
+        })
+        try {
+          const results = await recordsProvider.query(params.collection, {
+            where: params.where,
+            orderBy: params.orderBy,
+            limit: params.limit,
+          })
+          const text =
+            results.length > 0
+              ? results.map((r) => `${r.id}: ${JSON.stringify(r.data)}`).join(`\n`)
+              : `No records found`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: {
+              success: true,
+              collection: params.collection,
+              resultCount: results.length,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown records error`
+          logger.warn(`collectionQuery tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Collection query failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.collectionGet,
+      label: `Collection Get`,
+      description: `Fetch a single record by id from a project collection. Returns the record's JSON document, or a not-found message.`,
+      parameters: Type.Object({
+        collection: Type.String({ description: `The collection name` }),
+        id: Type.String({ description: `The record id to fetch` }),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { collection: string; id: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [
+            {
+              type: `text`,
+              text: `Getting record ${params.id} from ${params.collection}`,
+            },
+          ],
+          details: { status: `running` },
+        })
+        try {
+          const record = await recordsProvider.get(params.collection, params.id)
+          if (!record)
+            return {
+              content: [{ type: `text` as const, text: `Record ${params.id} not found` }],
+              details: { success: false },
+            }
+          return {
+            content: [
+              {
+                type: `text` as const,
+                text: `${record.id}: ${JSON.stringify(record.data)}`,
+              },
+            ],
+            details: { success: true, id: record.id },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown records error`
+          logger.warn(`collectionGet tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Collection get failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.collectionUpsert,
+      label: `Collection Upsert`,
+      description: `Create or replace a record in a project collection. Provide the JSON document as \`data\`; include \`id\` to replace an existing record, omit it to create a new one. Returns the record id.`,
+      parameters: Type.Object({
+        collection: Type.String({ description: `The collection name` }),
+        record: Type.Object(
+          {
+            id: Type.Optional(
+              Type.String({
+                description: `Existing record id to replace; omit to create a new record`,
+              })
+            ),
+            data: Type.Record(Type.String(), Type.Unknown(), {
+              description: `The JSON document to store`,
+            }),
+          },
+          { description: `The record to create or replace` }
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          collection: string
+          record: { id?: string; data: Record<string, unknown> }
+        },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Upserting record into ${params.collection}` }],
+          details: { status: `running` },
+        })
+        try {
+          const { id } = await recordsProvider.upsert(params.collection, params.record)
+          return {
+            content: [{ type: `text` as const, text: `Record saved (${id})` }],
+            details: { success: true, id },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown records error`
+          logger.warn(`collectionUpsert tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Collection upsert failed: ${message}` },
+            ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+    {
+      name: EAgentTool.collectionDelete,
+      label: `Collection Delete`,
+      description: `Delete a record by id from a project collection. Returns whether a record was deleted.`,
+      parameters: Type.Object({
+        collection: Type.String({ description: `The collection name` }),
+        id: Type.String({ description: `The record id to delete` }),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { collection: string; id: string },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [
+            {
+              type: `text`,
+              text: `Deleting record ${params.id} from ${params.collection}`,
+            },
+          ],
+          details: { status: `running` },
+        })
+        try {
+          const { deleted } = await recordsProvider.delete(params.collection, params.id)
+          const text = deleted
+            ? `Record ${params.id} deleted`
+            : `Record ${params.id} not found`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: { success: deleted, id: params.id, deleted },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown records error`
+          logger.warn(`collectionDelete tool error: ${message}`)
+          return {
+            content: [
+              { type: `text` as const, text: `Collection delete failed: ${message}` },
+            ],
             details: { success: false },
           }
         }

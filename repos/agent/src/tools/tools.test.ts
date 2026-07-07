@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   createWebTools,
   createMemoryTools,
+  createRecordTools,
   createSandboxTools,
   createDelegateTools,
   buildCustomFunctionTools,
@@ -1119,6 +1120,221 @@ describe(`createMemoryTools`, () => {
         expect(tool.description).toBeTruthy()
         expect(tool.parameters).toBeDefined()
       }
+    })
+  })
+})
+
+describe(`createRecordTools`, () => {
+  const makeProvider = () => ({
+    query: vi.fn().mockResolvedValue([
+      { id: `rec_1`, data: { status: `open`, title: `First` } },
+      { id: `rec_2`, data: { status: `open`, title: `Second` } },
+    ]),
+    get: vi.fn().mockResolvedValue({ id: `rec_1`, data: { status: `open` } }),
+    upsert: vi.fn().mockResolvedValue({ id: `rec_new` }),
+    delete: vi.fn().mockResolvedValue({ deleted: true }),
+  })
+
+  const RECORD_TOOL_NAMES = [
+    EAgentTool.collectionQuery,
+    EAgentTool.collectionGet,
+    EAgentTool.collectionUpsert,
+    EAgentTool.collectionDelete,
+  ]
+
+  describe(`tool creation and filtering`, () => {
+    it(`should return 4 record tools when no filter is provided`, () => {
+      const tools = createRecordTools(makeProvider())
+      expect(tools).toHaveLength(4)
+      expect(tools.map((t) => t.name)).toEqual(RECORD_TOOL_NAMES)
+    })
+
+    it(`should filter to only collectionQuery when only that is allowed`, () => {
+      const tools = createRecordTools(makeProvider(), [EAgentTool.collectionQuery])
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(EAgentTool.collectionQuery)
+    })
+
+    it(`should return all record tools when allowedTools is empty`, () => {
+      const tools = createRecordTools(makeProvider(), [])
+      expect(tools).toHaveLength(4)
+    })
+
+    it(`should return no tools when allowedTools has no matches`, () => {
+      const tools = createRecordTools(makeProvider(), [`shellExec`])
+      expect(tools).toHaveLength(0)
+    })
+
+    it(`should have descriptions and parameters for all record tools`, () => {
+      const tools = createRecordTools(makeProvider())
+      for (const tool of tools) {
+        expect(tool.description).toBeTruthy()
+        expect(tool.parameters).toBeDefined()
+      }
+    })
+  })
+
+  describe(`collectionQuery`, () => {
+    it(`should call provider.query with collection + query and format results`, async () => {
+      const provider = makeProvider()
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionQuery)!
+      const result = await tool.execute(
+        `call-1`,
+        {
+          collection: `tasks`,
+          where: [{ field: `status`, op: `eq`, value: `open` }],
+          orderBy: { field: `title`, direction: `asc` },
+          limit: 10,
+        },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.query).toHaveBeenCalledWith(`tasks`, {
+        where: [{ field: `status`, op: `eq`, value: `open` }],
+        orderBy: { field: `title`, direction: `asc` },
+        limit: 10,
+      })
+      const text = (result.content[0] as any).text
+      expect(text).toContain(`rec_1`)
+      expect(text).toContain(`First`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, resultCount: 2 })
+      )
+    })
+
+    it(`should return "No records found" when query returns empty`, async () => {
+      const provider = makeProvider()
+      provider.query.mockResolvedValue([])
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionQuery)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `No records found` }])
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, resultCount: 0 })
+      )
+    })
+
+    it(`should catch errors and return failure message`, async () => {
+      const provider = makeProvider()
+      provider.query.mockRejectedValue(new Error(`db down`))
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionQuery)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect((result.content[0] as any).text).toContain(
+        `Collection query failed: db down`
+      )
+      expect(result.details).toEqual(expect.objectContaining({ success: false }))
+    })
+  })
+
+  describe(`collectionGet`, () => {
+    it(`should call provider.get with collection + id and format the record`, async () => {
+      const provider = makeProvider()
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionGet)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks`, id: `rec_1` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.get).toHaveBeenCalledWith(`tasks`, `rec_1`)
+      expect((result.content[0] as any).text).toContain(`rec_1`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, id: `rec_1` })
+      )
+    })
+
+    it(`should return not-found when the record is missing`, async () => {
+      const provider = makeProvider()
+      provider.get.mockResolvedValue(null)
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionGet)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks`, id: `nope` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect((result.content[0] as any).text).toContain(`Record nope not found`)
+      expect(result.details).toEqual(expect.objectContaining({ success: false }))
+    })
+  })
+
+  describe(`collectionUpsert`, () => {
+    it(`should call provider.upsert with collection + record and return the id`, async () => {
+      const provider = makeProvider()
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionUpsert)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks`, record: { id: `rec_1`, data: { status: `done` } } },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.upsert).toHaveBeenCalledWith(`tasks`, {
+        id: `rec_1`,
+        data: { status: `done` },
+      })
+      expect((result.content[0] as any).text).toContain(`Record saved (rec_new)`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, id: `rec_new` })
+      )
+    })
+  })
+
+  describe(`collectionDelete`, () => {
+    it(`should call provider.delete with collection + id and report deletion`, async () => {
+      const provider = makeProvider()
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionDelete)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks`, id: `rec_1` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.delete).toHaveBeenCalledWith(`tasks`, `rec_1`)
+      expect((result.content[0] as any).text).toContain(`Record rec_1 deleted`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, deleted: true })
+      )
+    })
+
+    it(`should report not-found when nothing was deleted`, async () => {
+      const provider = makeProvider()
+      provider.delete.mockResolvedValue({ deleted: false })
+      const tools = createRecordTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.collectionDelete)!
+      const result = await tool.execute(
+        `call-1`,
+        { collection: `tasks`, id: `rec_1` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect((result.content[0] as any).text).toContain(`Record rec_1 not found`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: false, deleted: false })
+      )
     })
   })
 })
