@@ -15,6 +15,13 @@ describe(`EAgentTool enum`, () => {
     expect(EAgentTool.memorySearch).toBe(`memorySearch`)
   })
 
+  it(`should have collection tool enum values`, () => {
+    expect(EAgentTool.collectionQuery).toBe(`collectionQuery`)
+    expect(EAgentTool.collectionGet).toBe(`collectionGet`)
+    expect(EAgentTool.collectionUpsert).toBe(`collectionUpsert`)
+    expect(EAgentTool.collectionDelete).toBe(`collectionDelete`)
+  })
+
   it(`should retain existing tool enum values`, () => {
     expect(EAgentTool.mkdir).toBe(`mkdir`)
     expect(EAgentTool.listDir).toBe(`listDir`)
