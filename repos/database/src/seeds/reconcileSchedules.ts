@@ -52,7 +52,9 @@ export const needsUpdate = (existing: any, def: TAgentScheduleDef): boolean =>
   (existing.timeoutMs ?? null) !== (def.timeoutMs ?? null) ||
   existing.maxConsecutiveErrors !== def.maxConsecutiveErrors ||
   (existing.agentId ?? null) !== (def.agentId ?? null) ||
-  existing.sandboxId !== def.sandboxId
+  existing.sandboxId !== def.sandboxId ||
+  existing.orgId !== def.orgId ||
+  existing.projectId !== def.projectId
 
 /**
  * Upsert each definition's declarative fields into the schedules table:
