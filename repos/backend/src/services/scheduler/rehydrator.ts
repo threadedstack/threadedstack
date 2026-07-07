@@ -27,13 +27,24 @@ const RehydratePollMs = 30_000
 const RehydrationMinGraceMs = 2 * RehydratePollMs
 
 /**
+ * Stable substring present in EVERY rehydration note (success or timeout). A run
+ * carrying this in `schedule_runs.error` was INTERRUPTED by a backend restart
+ * (the deploy that restarted the backend severed the exec stream), not run
+ * normally. Exported so the sensor's run-outcome context can flag such runs as
+ * possibly-empty anomalies even when they were marked `success` — the interrupt
+ * can produce a long-running "success" with no deliverable, which the
+ * duration-based empty-run heuristic would otherwise miss.
+ */
+export const RehydrationInterruptMarker = `Rehydrated after backend restart`
+
+/**
  * Marker text stored in schedule_runs.error when a run is completed after
  * backend restart. Distinguishable from real runtime errors so callers/UX can
  * treat it as informational instead of a real failure signal.
  */
-const RehydrationSuccessNote = `Rehydrated after backend restart — the runtime process had already exited by the time the new backend inspected the pod; exec output for the interrupted window was not captured (K8s exec stdout is not persisted). Marked success because the pod ran to completion.`
+const RehydrationSuccessNote = `${RehydrationInterruptMarker} — the runtime process had already exited by the time the new backend inspected the pod; exec output for the interrupted window was not captured (K8s exec stdout is not persisted). Marked success because the pod ran to completion.`
 
-const RehydrationTimeoutNote = `Rehydrated after backend restart — the schedule's timeoutMs elapsed while waiting for the pod to finish, so the pod was stopped and the run recorded as timeout.`
+const RehydrationTimeoutNote = `${RehydrationInterruptMarker} — the schedule's timeoutMs elapsed while waiting for the pod to finish, so the pod was stopped and the run recorded as timeout.`
 
 /**
  * Entry point: at scheduler startup, list every run still in `running`, decide

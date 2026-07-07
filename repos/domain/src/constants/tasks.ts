@@ -25,8 +25,15 @@ export const TaskBacklogInjectMax = 12
 /** Maximum characters of backlog context injected into a prompt. */
 export const TaskBacklogInjectMaxChars = 8000
 
-/** Maximum recent run outcomes injected into a prompt. */
-export const RunOutcomeInjectMax = 15
+/**
+ * Maximum recent org runs the sensor scans for run-outcome anomalies. The sensor
+ * runs every 2h and ~15-20 schedule runs land per hour, so a 15-run window
+ * covers under an hour — an anomaly (e.g. a deploy-severed work cycle) from
+ * earlier in the 2h gap ages out before the sensor looks. 50 covers the full
+ * inter-sensor window with margin. Only the anomalies are injected, and the
+ * output is bounded by RunOutcomeInjectMaxChars, so a larger scan is cheap.
+ */
+export const RunOutcomeInjectMax = 50
 
 /** Maximum characters of run-outcome context injected into a prompt. */
 export const RunOutcomeInjectMaxChars = 6000
