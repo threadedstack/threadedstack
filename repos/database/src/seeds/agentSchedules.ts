@@ -159,7 +159,14 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   adversary({
     key: `adversary-review`,
     id: `sd_nPDxUUG`,
-    cronExpression: `20,50 * * * *`,
+    // Every 15 min. A steward PR that falls BEHIND (concurrent merge to main)
+    // costs one adversary cycle to rebase (rule 2a: update-branch then defer)
+    // plus one to review, so at the old 30-min cadence a rebased PR could sit
+    // ~60 min before merge — past the "one new PR per hour" throughput target.
+    // 15-min cadence halves that. `5,20,35,50` is a superset of the old
+    // `20,50`, so the reconciler transition skips no fire; :05/:35 land ~5 min
+    // after the :30 work cycle opens a PR, giving fast first-review pickup.
+    cronExpression: `5,20,35,50 * * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 3,
   }),
