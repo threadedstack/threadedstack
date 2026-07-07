@@ -75,6 +75,8 @@ import { execStreamInSandbox } from '@TBE/endpoints/sandboxes/execStreamInSandbo
 
 import { permissionOverrides } from '@TBE/endpoints/permissionOverrides/permissionOverrides'
 
+import { projectCollections } from '@TBE/endpoints/collections/collections'
+
 import { getSchedule } from '@TBE/endpoints/schedules/getSchedule'
 import { listSchedules } from '@TBE/endpoints/schedules/listSchedules'
 import { getScheduleRun } from '@TBE/endpoints/schedules/getScheduleRun'
@@ -256,5 +258,6 @@ export const orgProjects: TEndpointConfig = {
     projectSandboxes,
     projectSchedules,
     projectOverrides,
+    projectCollections,
   },
 }

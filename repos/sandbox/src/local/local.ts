@@ -111,7 +111,7 @@ export class LocalSandbox implements ISandbox {
       }
     }
 
-    return await this.isolateRunner[`eval`](code, opts?.timeout)
+    return await this.isolateRunner[`eval`](code, opts?.timeout, opts?.bridges)
   }
 
   reset = async (): Promise<void> => {

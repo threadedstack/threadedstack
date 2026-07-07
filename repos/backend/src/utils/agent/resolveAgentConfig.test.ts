@@ -362,6 +362,7 @@ describe(`resolveAgentConfig`, () => {
     const execResult = await result.onExecuteFunction(`fn-1`, { arg: `value` })
 
     expect(FunctionExecutor.execute).toHaveBeenCalledWith(mockFn, {
+      db,
       context: { args: { arg: `value` } },
     })
     expect(execResult).toEqual({ duration: 100, output: `result`, success: true })
@@ -661,5 +662,92 @@ describe(`resolveAgentConfig`, () => {
       resolveHeaders: vi.fn().mockResolvedValue(undefined),
       resolveBodyParams: vi.fn().mockResolvedValue(undefined),
     }))
+  })
+})
+
+describe(`createRecordsProvider`, () => {
+  let createRecordsProvider: typeof import('./resolveAgentConfig').createRecordsProvider
+
+  const buildRecordDb = () => ({
+    services: {
+      record: {
+        query: vi
+          .fn()
+          .mockResolvedValue({ data: [{ id: `rec_1`, data: { status: `open` } }] }),
+        get: vi.fn().mockResolvedValue({ data: { id: `rec_1`, data: { a: 1 } } }),
+        upsert: vi.fn().mockResolvedValue({ data: { id: `rec_new` } }),
+        delete: vi.fn().mockResolvedValue({ data: { id: `rec_1` } }),
+      },
+    },
+  })
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    const mod = await import(`./resolveAgentConfig`)
+    createRecordsProvider = mod.createRecordsProvider
+  })
+
+  it(`query bridges to the record service scoped to the project`, async () => {
+    const db = buildRecordDb()
+    const provider = createRecordsProvider(db as any, `proj-1`)
+    const query = { where: [{ field: `status`, op: `eq` as any, value: `open` }] }
+    const result = await provider.query(`tasks`, query)
+
+    expect(db.services.record.query).toHaveBeenCalledWith(`proj-1`, `tasks`, query)
+    expect(result).toEqual([{ id: `rec_1`, data: { status: `open` } }])
+  })
+
+  it(`query returns [] and warns when the service errors`, async () => {
+    const db = buildRecordDb()
+    db.services.record.query.mockResolvedValue({ error: { message: `boom` } })
+    const provider = createRecordsProvider(db as any, `proj-1`)
+
+    expect(await provider.query(`tasks`, {})).toEqual([])
+  })
+
+  it(`get bridges to the record service and maps the row`, async () => {
+    const db = buildRecordDb()
+    const provider = createRecordsProvider(db as any, `proj-1`)
+    const result = await provider.get(`tasks`, `rec_1`)
+
+    expect(db.services.record.get).toHaveBeenCalledWith(`proj-1`, `tasks`, `rec_1`)
+    expect(result).toEqual({ id: `rec_1`, data: { a: 1 } })
+  })
+
+  it(`get returns null when the record is absent`, async () => {
+    const db = buildRecordDb()
+    db.services.record.get.mockResolvedValue({})
+    const provider = createRecordsProvider(db as any, `proj-1`)
+
+    expect(await provider.get(`tasks`, `nope`)).toBeNull()
+  })
+
+  it(`upsert bridges to the record service and returns the id`, async () => {
+    const db = buildRecordDb()
+    const provider = createRecordsProvider(db as any, `proj-1`)
+    const record = { id: `rec_1`, data: { status: `done` } }
+    const result = await provider.upsert(`tasks`, record)
+
+    expect(db.services.record.upsert).toHaveBeenCalledWith(`proj-1`, `tasks`, record)
+    expect(result).toEqual({ id: `rec_new` })
+  })
+
+  it(`upsert throws when the service returns an error`, async () => {
+    const db = buildRecordDb()
+    db.services.record.upsert.mockResolvedValue({ error: { message: `bad schema` } })
+    const provider = createRecordsProvider(db as any, `proj-1`)
+
+    await expect(provider.upsert(`tasks`, { data: {} })).rejects.toThrow(`bad schema`)
+  })
+
+  it(`delete reports whether a row was removed`, async () => {
+    const db = buildRecordDb()
+    const provider = createRecordsProvider(db as any, `proj-1`)
+
+    expect(await provider.delete(`tasks`, `rec_1`)).toEqual({ deleted: true })
+    expect(db.services.record.delete).toHaveBeenCalledWith(`proj-1`, `tasks`, `rec_1`)
+
+    db.services.record.delete.mockResolvedValue({})
+    expect(await provider.delete(`tasks`, `gone`)).toEqual({ deleted: false })
   })
 })

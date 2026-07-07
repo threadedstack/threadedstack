@@ -22,6 +22,11 @@ describe('FeatureFlags', () => {
     expect(isFeatureEnabled(`memories`)).toBe(true)
   })
 
+  it(`has the collections feature enabled`, () => {
+    expect(FeatureFlags.collections.enabled).toBe(true)
+    expect(isFeatureEnabled(`collections`)).toBe(true)
+  })
+
   it(`has the agents feature enabled`, () => {
     expect(FeatureFlags.agents.enabled).toBe(true)
     expect(isFeatureEnabled(`agents`)).toBe(true)

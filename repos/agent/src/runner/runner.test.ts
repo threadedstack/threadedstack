@@ -102,6 +102,18 @@ vi.mock(`@TAG/tools/tools`, () => ({
   createSandboxTools: vi.fn().mockReturnValue([]),
   createWebTools: vi.fn().mockReturnValue([]),
   buildCustomFunctionTools: vi.fn().mockReturnValue([]),
+  // Faithful stub of the record-tool factory: returns the 4 record tools,
+  // respecting the allowlist exactly like the real createRecordTools.
+  createRecordTools: vi.fn((_provider: unknown, allowedTools?: string[]) => {
+    const all = [
+      { name: `collectionQuery` },
+      { name: `collectionGet` },
+      { name: `collectionUpsert` },
+      { name: `collectionDelete` },
+    ]
+    if (!allowedTools || allowedTools.length === 0) return all
+    return all.filter((t) => allowedTools.includes(t.name))
+  }),
 }))
 
 vi.mock(`@TAG/adapters/eventBridge`, () => ({
@@ -1167,6 +1179,56 @@ describe(`AgentRunner`, () => {
 
       await runner.destroy()
       expect(mockSandboxClose).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe(`records provider tool wiring`, () => {
+    const RECORD_TOOL_NAMES = [
+      `collectionQuery`,
+      `collectionGet`,
+      `collectionUpsert`,
+      `collectionDelete`,
+    ]
+
+    const makeRecordsProvider = () => ({
+      query: vi.fn().mockResolvedValue([]),
+      get: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({ id: `rec_1` }),
+      delete: vi.fn().mockResolvedValue({ deleted: true }),
+    })
+
+    const initToolNames = async (opts: TAgentInitOpts): Promise<string[]> => {
+      const runner = new AgentRunner()
+      await runner.init(opts)
+      const call = vi.mocked(Agent).mock.calls.at(-1)!
+      const tools = (call[0] as any).initialState.tools as Array<{ name: string }>
+      await runner.destroy()
+      return tools.map((t) => t.name)
+    }
+
+    it(`exposes the 4 record tools when recordsProvider is present`, async () => {
+      const names = await initToolNames({
+        ...baseOpts(),
+        recordsProvider: makeRecordsProvider(),
+      } as TAgentInitOpts)
+      expect(names).toEqual(expect.arrayContaining(RECORD_TOOL_NAMES))
+    })
+
+    it(`omits the 4 record tools when recordsProvider is absent`, async () => {
+      const names = await initToolNames(baseOpts())
+      for (const name of RECORD_TOOL_NAMES) expect(names).not.toContain(name)
+    })
+
+    it(`filters the record tools by the agent.tools allowlist`, async () => {
+      const names = await initToolNames({
+        ...baseOpts(),
+        recordsProvider: makeRecordsProvider(),
+        tools: [`collectionQuery`],
+      } as TAgentInitOpts)
+      expect(names).toContain(`collectionQuery`)
+      expect(names).not.toContain(`collectionGet`)
+      expect(names).not.toContain(`collectionUpsert`)
+      expect(names).not.toContain(`collectionDelete`)
     })
   })
 

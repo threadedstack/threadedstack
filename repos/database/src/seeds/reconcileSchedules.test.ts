@@ -101,6 +101,44 @@ describe(`needsUpdate`, () => {
     expect(needsUpdate({ ...d, timeoutMs: undefined }, d)).toBe(false)
   })
 
+  it(`treats null/undefined contextSources as equal (live schedules do not churn)`, () => {
+    const d = def()
+    // def() sets no contextSources; a live row reads it back as null.
+    expect(needsUpdate({ ...d, contextSources: null }, d)).toBe(false)
+    expect(needsUpdate({ ...d, contextSources: undefined }, d)).toBe(false)
+  })
+
+  it(`is true when a schedule gains contextSources`, () => {
+    const d = def({
+      contextSources: [
+        { collection: `proposals`, query: { limit: 5 }, as: `Open proposals` },
+      ],
+    })
+    // Live row has none yet -> reconciler must see the added sources as a change.
+    expect(needsUpdate({ ...d, contextSources: null }, d)).toBe(true)
+  })
+
+  it(`is false when contextSources match despite key-order differences`, () => {
+    const d = def({
+      contextSources: [{ collection: `c`, as: `A`, query: { limit: 3 } }],
+    })
+    // A jsonb round trip can reorder object keys; the stable comparison ignores it.
+    const reordered = [{ query: { limit: 3 }, as: `A`, collection: `c` }]
+    expect(needsUpdate({ ...d, contextSources: reordered }, d)).toBe(false)
+  })
+
+  it(`is true when contextSources content differs`, () => {
+    const d = def({
+      contextSources: [{ collection: `c`, as: `A`, query: { limit: 3 } }],
+    })
+    expect(
+      needsUpdate(
+        { ...d, contextSources: [{ collection: `c`, as: `A`, query: { limit: 9 } }] },
+        d
+      )
+    ).toBe(true)
+  })
+
   it(`ignores runtime bookkeeping fields`, () => {
     const d = def()
     expect(needsUpdate({ ...d, nextRunAt: new Date(), consecutiveErrors: 4 }, d)).toBe(
@@ -115,6 +153,7 @@ describe(`declarativeFields`, () => {
     expect(Object.keys(f).sort()).toEqual(
       [
         `agentId`,
+        `contextSources`,
         `cronExpression`,
         `enabled`,
         `id`,

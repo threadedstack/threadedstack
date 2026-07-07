@@ -3,6 +3,7 @@ import type {
   ITaskProvider,
   IEscalationProvider,
   IMemoryProvider,
+  IRecordsProvider,
   ISkillProvider,
   IDelegateProvider,
   IOpsProvider,
@@ -57,6 +58,13 @@ export type TAgentRuntimeConfig = {
    * brain exposes the memory_search/memory_write tools.
    */
   memoryProvider?: IMemoryProvider
+  /**
+   * Records provider (backend-implemented). Present only when the `collections`
+   * feature flag is enabled and the agent is project-scoped; wired into the
+   * AgentRunner so the api brain exposes the collectionQuery/collectionGet/
+   * collectionUpsert/collectionDelete tools scoped to the project's collections.
+   */
+  recordsProvider?: IRecordsProvider
   /**
    * Skill self-improvement provider (backend-implemented). Present only when the
    * `skills` feature flag is enabled; wired into the AgentRunner so the api brain

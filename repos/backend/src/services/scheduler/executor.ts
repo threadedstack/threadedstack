@@ -61,6 +61,7 @@ import { resolveBoard } from '@TBE/utils/agent/resolveBoard'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
 import { buildBusinessMetricsContext } from '@TBE/utils/agent/businessMetrics'
+import { buildContextSourcesSection } from '@TBE/utils/agent/contextSources'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
 import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import {
@@ -1744,6 +1745,12 @@ async function runCliAgentSchedule(
   // engagement) so it can ground decisions in real data. Same prompt opt-in gate
   // as the strategy section, so dev-loop cycles pay for no query.
   const businessMetricsSection = await buildBusinessMetricsSection(app, schedule)
+  // Declarative, config-driven injection: each `contextSources` entry on the
+  // schedule is run via record.query (scoped to the schedule's project) and
+  // rendered under its `## <as>` heading. Gated on presence — a schedule without
+  // contextSources adds nothing and runs no query, so its assembled context is
+  // byte-identical (the 11 live self-development schedules have none).
+  const contextSourcesSection = await buildContextSourcesSection(app, schedule)
   const baseCommand = buildCliCommand(
     schedule,
     agent,
@@ -1758,7 +1765,8 @@ async function runCliAgentSchedule(
       sensorSection +
       backlogSection +
       strategySection +
-      businessMetricsSection
+      businessMetricsSection +
+      contextSourcesSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.

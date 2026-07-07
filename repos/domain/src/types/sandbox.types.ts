@@ -156,6 +156,14 @@ export type TSandboxEvalOpts = {
    *  Keys are import specifiers, values are module source code.
    *  The evaluated code can import from them by name. */
   modules?: Record<string, string>
+  /** Named host bridge callbacks exposed to the evaluated code for this run only.
+   *  Keys are bridge names; values are async host functions that receive a
+   *  JSON-encoded args array and return a JSON-encoded result. Used to give
+   *  evaluated code a platform-mediated capability (e.g. project-scoped record
+   *  access) without ever handing the isolate a raw handle to the host resource.
+   *  The bridge functions run host-side; only their invocation crosses the
+   *  boundary (as JSON strings), mirroring the fetch host bridge. */
+  bridges?: Record<string, (argsJson: string) => Promise<string>>
 }
 
 /**

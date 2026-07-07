@@ -90,6 +90,10 @@ export enum EAgentTool {
   opsTriggerRedeploy = `opsTriggerRedeploy`,
   opsRestartDeployment = `opsRestartDeployment`,
   opsApplySandboxConfig = `opsApplySandboxConfig`,
+  collectionQuery = `collectionQuery`,
+  collectionGet = `collectionGet`,
+  collectionUpsert = `collectionUpsert`,
+  collectionDelete = `collectionDelete`,
 }
 
 export type TAgentToolType = `${EAgentTool}`

@@ -45,6 +45,7 @@ export enum EPermResource {
   provider = `provider`, // External service providers
   domain = `domain`, // User registered custom domains
   function = `function`, // Serverless functions (FaaS)
+  collection = `collection`, // Project-scoped structured record store (Collections/Records)
   agent = `agent`, // AI agents
   subscription = `subscription`, // Subscription plans
   quota = `quota`, // Usage quotas

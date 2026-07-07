@@ -1,3 +1,5 @@
+import type { TContextSource } from '@TDM/types'
+
 import { Base } from '@TDM/models/base'
 import { EScheduleType } from '@TDM/types'
 
@@ -18,6 +20,7 @@ export class Schedule extends Base {
   consecutiveErrors: number = 0
   maxConsecutiveErrors: number = 5
   type: EScheduleType = EScheduleType.prompt
+  contextSources?: TContextSource[] | null
 
   constructor(schedule: Partial<Schedule>) {
     super()

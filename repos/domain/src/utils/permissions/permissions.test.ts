@@ -356,6 +356,40 @@ describe(`permissions utilities`, () => {
       })
     })
 
+    describe(`collection permissions`, () => {
+      it(`should allow member to read, create, and update collections`, () => {
+        expect(
+          canPerform(ERoleType.member, EPermAction.read, EPermResource.collection).allowed
+        ).toBe(true)
+        expect(
+          canPerform(ERoleType.member, EPermAction.create, EPermResource.collection)
+            .allowed
+        ).toBe(true)
+        expect(
+          canPerform(ERoleType.member, EPermAction.update, EPermResource.collection)
+            .allowed
+        ).toBe(true)
+      })
+
+      it(`should deny member from deleting collections`, () => {
+        expect(
+          canPerform(ERoleType.member, EPermAction.delete, EPermResource.collection)
+            .allowed
+        ).toBe(false)
+      })
+
+      it(`should allow admin to delete and manage collections`, () => {
+        expect(
+          canPerform(ERoleType.admin, EPermAction.delete, EPermResource.collection)
+            .allowed
+        ).toBe(true)
+        expect(
+          canPerform(ERoleType.admin, EPermAction.manage, EPermResource.collection)
+            .allowed
+        ).toBe(true)
+      })
+    })
+
     describe(`apiKey permissions`, () => {
       it(`should allow member to create API keys`, () => {
         expect(
@@ -709,6 +743,7 @@ describe(`permissions utilities`, () => {
           EPermResource.sandbox,
           EPermResource.endpoint,
           EPermResource.function,
+          EPermResource.collection,
           EPermResource.schedule,
           EPermResource.provider,
           EPermResource.skillProposal,
