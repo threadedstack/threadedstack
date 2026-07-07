@@ -49,6 +49,10 @@ export {
   decisionProposalsRelations,
 } from '@TDB/schemas/decisionProposals'
 export {
+  decisionPositions,
+  decisionPositionsRelations,
+} from '@TDB/schemas/decisionPositions'
+export {
   verifications,
   verificationsRelations,
 } from '@TDB/schemas/verifications'
