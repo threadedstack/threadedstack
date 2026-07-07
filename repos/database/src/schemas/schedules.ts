@@ -3,6 +3,8 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { agents } from '@TDB/schemas/agents'
 import { threads } from '@TDB/schemas/threads'
+import type { TContextSource } from '@tdsk/domain'
+
 import { base } from '@TDB/utils/schema/base'
 import { ScheduleIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
@@ -11,6 +13,7 @@ import { entityId } from '@TDB/utils/schema/entityId'
 import {
   text,
   uuid,
+  jsonb,
   index,
   boolean,
   integer,
@@ -41,6 +44,11 @@ export const schedules = pgTable(
     }),
     maxConsecutiveErrors: integer(`max_consecutive_errors`).default(5).notNull(),
     timeoutMs: integer(`timeout_ms`),
+    // Declarative context sources: the executor runs each `{collection, query,
+    // as, max?}` via record.query (scoped to this schedule's project) and injects
+    // the results under a `## <as>` heading. Nullable + additive — a schedule
+    // without contextSources runs no extra query and is byte-unchanged.
+    contextSources: jsonb(`context_sources`).$type<TContextSource[]>(),
     sandboxId: varchar(`sandbox_id`, { length: 10 })
       .references(() => sandboxes.id, { onDelete: `cascade` })
       .notNull(),

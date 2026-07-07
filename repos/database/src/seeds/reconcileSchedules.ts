@@ -20,6 +20,28 @@ export type TReconcileService = {
 
 export type TReconcileAction = `created` | `updated` | `unchanged` | `error`
 
+/**
+ * Order-independent JSON string for a value. jsonb columns do NOT preserve key
+ * order across a write/read round trip, so a plain JSON.stringify diff would
+ * churn a schedule whose contextSources round-trips. Sorting keys makes the
+ * comparison stable. `null`/`undefined` both collapse to `"null"`, so a schedule
+ * without contextSources never counts as changed.
+ */
+const stableStringify = (value: unknown): string => {
+  if (value === null || value === undefined) return `null`
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(`,`)}]`
+  if (typeof value === `object`) {
+    const keys = Object.keys(value as Record<string, unknown>).sort()
+    return `{${keys
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`
+      )
+      .join(`,`)}}`
+  }
+  return JSON.stringify(value)
+}
+
 export type TReconcileSummary = {
   created: number
   updated: number
@@ -41,6 +63,7 @@ export const declarativeFields = (def: TAgentScheduleDef) => ({
   sandboxId: def.sandboxId,
   orgId: def.orgId,
   projectId: def.projectId,
+  contextSources: def.contextSources ?? null,
 })
 
 /** True when any declarative field on the live row differs from the definition. */
@@ -54,7 +77,8 @@ export const needsUpdate = (existing: any, def: TAgentScheduleDef): boolean =>
   (existing.agentId ?? null) !== (def.agentId ?? null) ||
   existing.sandboxId !== def.sandboxId ||
   existing.orgId !== def.orgId ||
-  existing.projectId !== def.projectId
+  existing.projectId !== def.projectId ||
+  stableStringify(existing.contextSources) !== stableStringify(def.contextSources)
 
 /**
  * Upsert each definition's declarative fields into the schedules table:
