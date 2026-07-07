@@ -79,12 +79,7 @@ const executeAndGetConfig = async (
   overrides?: Parameters<typeof createFixtures>[0]
 ) => {
   const fixtures = createFixtures(overrides)
-  await service.execute(
-    fixtures.mockReq,
-    fixtures.mockRes,
-    fixtures.mockEndpoint,
-    fixtures.mockDb
-  )
+  await service.execute(fixtures.mockReq, fixtures.mockRes, fixtures.mockEndpoint)
   const config = vi.mocked(createProxyMiddleware).mock.calls[0][0] as any
   return { config, ...fixtures }
 }
@@ -94,7 +89,9 @@ describe(`ProxyEndpoint`, () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new ProxyEndpoint()
+    service = new ProxyEndpoint({
+      services: { secret: { list: vi.fn().mockResolvedValue({ data: [] }) } },
+    } as any)
   })
 
   describe(`type`, () => {
@@ -176,15 +173,10 @@ describe(`ProxyEndpoint`, () => {
         options: {},
         headers: {},
       } as any
-      const mockDb = {
-        services: {
-          secret: { list: vi.fn().mockResolvedValue({ data: [] }) },
-        },
-      } as any
 
-      await expect(
-        service.execute(mockReq, mockRes, mockEndpoint, mockDb)
-      ).rejects.toThrow(`Endpoint has no proxy configuration`)
+      await expect(service.execute(mockReq, mockRes, mockEndpoint)).rejects.toThrow(
+        `Endpoint has no proxy configuration`
+      )
     })
   })
 
@@ -464,12 +456,12 @@ describe(`ProxyEndpoint`, () => {
         vi.fn((req: any, res: any, next: any) => next(new Error(`proxy error`))) as any
       )
 
-      const { mockReq, mockRes, mockEndpoint, mockDb } = createFixtures({
+      const { mockReq, mockRes, mockEndpoint } = createFixtures({
         headersSent: true,
       })
 
       // Should not throw because headersSent prevents retry + error send
-      await service.execute(mockReq, mockRes, mockEndpoint, mockDb)
+      await service.execute(mockReq, mockRes, mockEndpoint)
 
       // shouldRetry should NOT be called — headersSent check comes first
       expect(mockRetryService.shouldRetry).not.toHaveBeenCalled()
@@ -507,11 +499,11 @@ describe(`ProxyEndpoint`, () => {
           }) as any
         )
 
-      const { mockReq, mockRes, mockEndpoint, mockDb } = createFixtures({
+      const { mockReq, mockRes, mockEndpoint } = createFixtures({
         headersSent: false,
       })
 
-      await service.execute(mockReq, mockRes, mockEndpoint, mockDb)
+      await service.execute(mockReq, mockRes, mockEndpoint)
 
       expect(callCount).toBe(2)
       expect(mockRetryService.shouldRetry).toHaveBeenCalled()

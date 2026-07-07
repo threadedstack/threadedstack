@@ -1,6 +1,5 @@
 import type { Response } from 'express'
 import type { TRequest } from '@TBE/types'
-import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, TFaaSEndpointConfig, TFunctionResponse } from '@tdsk/domain'
 
 import { Exception, computeUnits } from '@tdsk/domain'
@@ -25,12 +24,7 @@ export class FaaSEndpoint extends BaseEndpoint {
     }
   }
 
-  async execute(
-    req: TRequest,
-    res: Response,
-    endpoint: Endpoint,
-    db: TDatabase
-  ): Promise<void> {
+  async execute(req: TRequest, res: Response, endpoint: Endpoint): Promise<void> {
     const opts = endpoint.options as TFaaSEndpointConfig | undefined
     const functionId = opts?.functionId
 
@@ -38,7 +32,7 @@ export class FaaSEndpoint extends BaseEndpoint {
       throw new Exception(400, `FaaS endpoint has no functionId configured`)
 
     // Load the function record from the database
-    const { data: func, error } = await db.services.function.get(functionId)
+    const { data: func, error } = await this.db.services.function.get(functionId)
 
     if (error) throw new Exception(500, error.message)
     if (!func) throw new Exception(404, `Function not found: ${functionId}`)
@@ -76,13 +70,13 @@ export class FaaSEndpoint extends BaseEndpoint {
     }
 
     // Track compute units for the org that owns this endpoint's project (fire-and-forget)
-    if (endpoint.projectId && db.services.project && db.services.quota) {
-      db.services.project
+    if (endpoint.projectId && this.db.services.project && this.db.services.quota) {
+      this.db.services.project
         .get(endpoint.projectId)
         .then(({ data: project }: any) => {
           if (project?.orgId) {
             const units = computeUnits(1, runtimeMs)
-            return db.services.quota.increment(
+            return this.db.services.quota.increment(
               project.orgId,
               getBillingPeriod(),
               `compute`,

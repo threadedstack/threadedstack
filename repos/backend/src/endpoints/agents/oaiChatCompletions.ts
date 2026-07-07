@@ -93,7 +93,7 @@ export const oaiChatCompletions: TEndpointConfig = {
     const modelName = body.model || `default`
     const completionId = `chatcmpl-${nanoid(24)}`
 
-    const agent = new AgentEndpoint()
+    const agent = new AgentEndpoint(db)
 
     // Resolve agent config once — replaces separate agent.get call and
     // avoids double-resolution when runHeadless is called later.
@@ -209,7 +209,7 @@ export const oaiChatCompletions: TEndpointConfig = {
       })
 
       try {
-        await agent.runHeadless(req, db, {
+        await agent.runHeadless(req, {
           agentId,
           prompt,
           userId,
@@ -244,7 +244,7 @@ export const oaiChatCompletions: TEndpointConfig = {
       const adapter = createNonStreamingAdapter(completionId, modelName)
 
       try {
-        await agent.runHeadless(req, db, {
+        await agent.runHeadless(req, {
           prompt,
           userId,
           agentId,

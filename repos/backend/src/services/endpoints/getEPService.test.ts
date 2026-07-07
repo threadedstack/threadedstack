@@ -65,31 +65,35 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
 }))
 
 describe(`getEPService`, () => {
+  const mockDb = { services: {} } as any
+
   it(`should return ProxyEndpoint for proxy type`, () => {
-    const service = getEPService(EEndpointType.proxy)
+    const service = getEPService(EEndpointType.proxy, mockDb)
     expect(service).toBeInstanceOf(ProxyEndpoint)
     expect(service.type).toBe(EEndpointType.proxy)
   })
 
   it(`should return FaaSEndpoint for faas type`, () => {
-    const service = getEPService(EEndpointType.faas)
+    const service = getEPService(EEndpointType.faas, mockDb)
     expect(service).toBeInstanceOf(FaaSEndpoint)
     expect(service.type).toBe(EEndpointType.faas)
   })
 
   it(`should return AgentEndpoint for agent type`, () => {
-    const service = getEPService(EEndpointType.agent)
+    const service = getEPService(EEndpointType.agent, mockDb)
     expect(service).toBeInstanceOf(AgentEndpoint)
     expect(service.type).toBe(EEndpointType.agent)
   })
 
   it(`should throw Exception for unsupported type`, () => {
-    expect(() => getEPService(`unknown`)).toThrow(`Unsupported endpoint type: unknown`)
+    expect(() => getEPService(`unknown`, mockDb)).toThrow(
+      `Unsupported endpoint type: unknown`
+    )
   })
 
   it(`should return same singleton instance on multiple calls`, () => {
-    const first = getEPService(EEndpointType.proxy)
-    const second = getEPService(EEndpointType.proxy)
+    const first = getEPService(EEndpointType.proxy, mockDb)
+    const second = getEPService(EEndpointType.proxy, mockDb)
     expect(first).toBe(second)
   })
 })

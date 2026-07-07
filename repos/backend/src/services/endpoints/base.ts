@@ -20,6 +20,8 @@ export abstract class BaseEndpoint {
   /** The endpoint type this service handles */
   abstract readonly type: EEndpointType
 
+  constructor(protected readonly db: TDatabase) {}
+
   /**
    * Validate type-specific options at create/update time.
    * Called from CRUD endpoint handlers to ensure required fields are present.
@@ -31,12 +33,7 @@ export abstract class BaseEndpoint {
    * Execute the endpoint at runtime (proxy request, faas call, agent run).
    * Called from the proxy engine dispatcher.
    */
-  abstract execute(
-    req: TRequest,
-    res: Response,
-    endpoint: Endpoint,
-    db: TDatabase
-  ): Promise<void>
+  abstract execute(req: TRequest, res: Response, endpoint: Endpoint): Promise<void>
 
   /**
    * Check permissions for non-public endpoints.
@@ -61,8 +58,8 @@ export abstract class BaseEndpoint {
    * Fetch and decrypt secrets scoped to the endpoint's project.
    * Secrets are decrypted so {{template}} resolution and auth injection work.
    */
-  async fetchSecrets(db: TDatabase, endpoint: Endpoint): Promise<Secret[]> {
-    const { data: secrets = [], error } = await db.services.secret.list({
+  async fetchSecrets(endpoint: Endpoint): Promise<Secret[]> {
+    const { data: secrets = [], error } = await this.db.services.secret.list({
       where: { projectId: endpoint.projectId },
     })
 
@@ -74,7 +71,7 @@ export abstract class BaseEndpoint {
 
     if (!secrets.length) return []
 
-    const resolver = new SecretResolver(db)
+    const resolver = new SecretResolver(this.db)
     const decrypted: Secret[] = []
 
     for (const secret of secrets) {

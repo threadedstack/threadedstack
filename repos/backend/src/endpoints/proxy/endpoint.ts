@@ -39,7 +39,7 @@ export const endpoint: TEndpointConfig = {
     if (!ep) throw new Exception(404, `Endpoint not found`)
 
     // Get the appropriate service for this endpoint type
-    const service = getEPService(ep.type)
+    const service = getEPService(ep.type, db)
 
     // Validate project ownership
     service.validateProject(ep, projectId)
@@ -71,6 +71,6 @@ export const endpoint: TEndpointConfig = {
     service.validateMethod(req, ep)
 
     // Execute endpoint via type-specific service
-    await service.execute(req, res, ep, db)
+    await service.execute(req, res, ep)
   },
 }

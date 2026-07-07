@@ -53,7 +53,6 @@ describe(`FaaSEndpoint`, () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new FaaSEndpoint()
 
     mockJson = vi.fn()
     mockSetHeader = vi.fn()
@@ -79,6 +78,8 @@ describe(`FaaSEndpoint`, () => {
         secret: { list: vi.fn().mockResolvedValue({ data: [] }) },
       },
     }
+
+    service = new FaaSEndpoint(mockDb as unknown as TDatabase)
   })
 
   describe(`type`, () => {
@@ -127,12 +128,7 @@ describe(`FaaSEndpoint`, () => {
         },
       } as any
 
-      await service.execute(
-        mockReq as TRequest,
-        mockRes as Response,
-        endpoint,
-        mockDb as unknown as TDatabase
-      )
+      await service.execute(mockReq as TRequest, mockRes as Response, endpoint)
 
       expect(mockDb.services.function.get).toHaveBeenCalledWith(`func-123`)
       expect(mockExecute).toHaveBeenCalledWith(mockFunction, {
@@ -165,12 +161,7 @@ describe(`FaaSEndpoint`, () => {
       } as any
 
       await expect(
-        service.execute(
-          mockReq as TRequest,
-          mockRes as Response,
-          endpoint,
-          mockDb as unknown as TDatabase
-        )
+        service.execute(mockReq as TRequest, mockRes as Response, endpoint)
       ).rejects.toThrow(`Function not found: missing-func`)
     })
 
@@ -195,12 +186,7 @@ describe(`FaaSEndpoint`, () => {
       } as any
 
       await expect(
-        service.execute(
-          mockReq as TRequest,
-          mockRes as Response,
-          endpoint,
-          mockDb as unknown as TDatabase
-        )
+        service.execute(mockReq as TRequest, mockRes as Response, endpoint)
       ).rejects.toThrow(
         `Function execution failed: Runtime error: cannot read property of undefined`
       )
@@ -225,12 +211,7 @@ describe(`FaaSEndpoint`, () => {
         },
       } as any
 
-      await service.execute(
-        mockReq as TRequest,
-        mockRes as Response,
-        endpoint,
-        mockDb as unknown as TDatabase
-      )
+      await service.execute(mockReq as TRequest, mockRes as Response, endpoint)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ message: `hello` })
@@ -262,12 +243,7 @@ describe(`FaaSEndpoint`, () => {
         },
       } as any
 
-      await service.execute(
-        mockReq as TRequest,
-        mockRes as Response,
-        endpoint,
-        mockDb as unknown as TDatabase
-      )
+      await service.execute(mockReq as TRequest, mockRes as Response, endpoint)
 
       expect(mockSetHeader).toHaveBeenCalledWith(`X-Custom-Header`, `custom-value`)
       expect(mockSetHeader).toHaveBeenCalledWith(`X-Request-Id`, `req-abc-123`)
@@ -285,12 +261,7 @@ describe(`FaaSEndpoint`, () => {
       } as any
 
       await expect(
-        service.execute(
-          mockReq as TRequest,
-          mockRes as Response,
-          endpoint,
-          mockDb as unknown as TDatabase
-        )
+        service.execute(mockReq as TRequest, mockRes as Response, endpoint)
       ).rejects.toThrow(`FaaS endpoint has no functionId configured`)
     })
 
@@ -313,12 +284,7 @@ describe(`FaaSEndpoint`, () => {
         },
       } as any
 
-      await service.execute(
-        mockReq as TRequest,
-        mockRes as Response,
-        endpoint,
-        mockDb as unknown as TDatabase
-      )
+      await service.execute(mockReq as TRequest, mockRes as Response, endpoint)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith(`raw string output`)

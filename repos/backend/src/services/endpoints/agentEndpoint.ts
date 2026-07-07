@@ -1,6 +1,5 @@
 import type { Response } from 'express'
 import type { Endpoint } from '@tdsk/domain'
-import type { TDatabase } from '@tdsk/database'
 import type {
   TRequest,
   TAgentExecOpts,
@@ -25,8 +24,7 @@ export class AgentEndpoint extends BaseEndpoint {
   async execute(
     req: TRequest,
     res: Response,
-    endpoint: Endpoint<EEndpointType.agent>,
-    db: TDatabase
+    endpoint: Endpoint<EEndpointType.agent>
   ): Promise<void> {
     const userId = req.user?.id
     const opts = endpoint.options
@@ -37,7 +35,7 @@ export class AgentEndpoint extends BaseEndpoint {
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!agentId) throw new Exception(400, `Agent endpoint has no agentId configured`)
 
-    await this.run(req, res, db, {
+    await this.run(req, res, {
       prompt,
       userId,
       agentId,
@@ -50,12 +48,12 @@ export class AgentEndpoint extends BaseEndpoint {
    * Ensures a thread with an ID exists, If a threadId is passed, it's used
    * Otherwise, creates a new thread and returns it's id
    */
-  async ensureThread(db: TDatabase, opts: TAgentEnsureThread) {
+  async ensureThread(opts: TAgentEnsureThread) {
     if (opts.threadId) return opts.threadId
 
     const { name, orgId, prompt, userId, agentId, projectId } = opts
 
-    const { data: thread, error: threadErr } = await db.services.thread.create({
+    const { data: thread, error: threadErr } = await this.db.services.thread.create({
       userId,
       agentId,
       projectId,
@@ -75,7 +73,6 @@ export class AgentEndpoint extends BaseEndpoint {
    */
   runHeadless = async (
     req: TRequest,
-    db: TDatabase,
     opts: THeadlessRunOpts
   ): Promise<{ threadId: string }> => {
     const {
@@ -91,14 +88,14 @@ export class AgentEndpoint extends BaseEndpoint {
 
     const config =
       resolvedConfig ??
-      (await resolveAgentConfig(agentId, db, req.app, {
+      (await resolveAgentConfig(agentId, this.db, req.app, {
         userId,
         projectId,
         providerId,
         overrides,
       }))
 
-    const threadId = await this.ensureThread(db, { ...opts, orgId: config.orgId })
+    const threadId = await this.ensureThread({ ...opts, orgId: config.orgId })
 
     const handle = await AgentRunner.run({
       prompt,
@@ -134,23 +131,18 @@ export class AgentEndpoint extends BaseEndpoint {
    * Pre-resolves config and thread (so errors return JSON, not SSE),
    * then delegates to runHeadless() for the actual agent execution.
    */
-  run = async (
-    req: TRequest,
-    res: Response,
-    db: TDatabase,
-    opts: TAgentExecOpts
-  ): Promise<void> => {
+  run = async (req: TRequest, res: Response, opts: TAgentExecOpts): Promise<void> => {
     const { userId, agentId, overrides, projectId, providerId } = opts
 
     // Pre-resolve config BEFORE SSE headers so errors return proper JSON responses.
-    const config = await resolveAgentConfig(agentId, db, req.app, {
+    const config = await resolveAgentConfig(agentId, this.db, req.app, {
       userId,
       overrides,
       projectId,
       providerId,
     })
 
-    const threadId = await this.ensureThread(db, { ...opts, orgId: config.orgId })
+    const threadId = await this.ensureThread({ ...opts, orgId: config.orgId })
 
     // Set up SSE headers — after all setup so errors above return proper JSON
     res.setHeader(`X-Thread-Id`, threadId)
@@ -169,7 +161,7 @@ export class AgentEndpoint extends BaseEndpoint {
     })
 
     try {
-      await this.runHeadless(req, db, {
+      await this.runHeadless(req, {
         ...opts,
         threadId,
         resolvedConfig: config,

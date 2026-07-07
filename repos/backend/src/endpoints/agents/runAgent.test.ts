@@ -1118,11 +1118,11 @@ describe(`AgentEndpoint.runHeadless - direct tests`, () => {
 
   it(`should resolve config, create thread, run agent, and return threadId`, async () => {
     const { AgentRunner } = await import(`@tdsk/agent`)
-    const agent = new AgentEndpoint()
     const db = buildMockDb()
+    const agent = new AgentEndpoint(db as any)
     const mockReq = { app: { locals: { config: {} } } } as any
 
-    const result = await agent.runHeadless(mockReq, db as any, {
+    const result = await agent.runHeadless(mockReq, {
       agentId: `agent-1`,
       prompt: `Hello`,
       userId: `test-user`,
@@ -1155,12 +1155,12 @@ describe(`AgentEndpoint.runHeadless - direct tests`, () => {
   })
 
   it(`should skip resolveAgentConfig when resolvedConfig is provided`, async () => {
-    const agent = new AgentEndpoint()
     const db = buildMockDb()
+    const agent = new AgentEndpoint(db as any)
     const mockReq = { app: { locals: { config: {} } } } as any
     const preResolved = buildMockResolvedConfig()
 
-    const result = await agent.runHeadless(mockReq, db as any, {
+    const result = await agent.runHeadless(mockReq, {
       agentId: `agent-1`,
       prompt: `Hello`,
       userId: `test-user`,
@@ -1173,11 +1173,11 @@ describe(`AgentEndpoint.runHeadless - direct tests`, () => {
   })
 
   it(`should reuse existing thread when threadId is provided`, async () => {
-    const agent = new AgentEndpoint()
     const db = buildMockDb()
+    const agent = new AgentEndpoint(db as any)
     const mockReq = { app: { locals: { config: {} } } } as any
 
-    const result = await agent.runHeadless(mockReq, db as any, {
+    const result = await agent.runHeadless(mockReq, {
       agentId: `agent-1`,
       prompt: `Continue`,
       userId: `test-user`,
@@ -1190,8 +1190,8 @@ describe(`AgentEndpoint.runHeadless - direct tests`, () => {
   })
 
   it(`should throw 500 when thread creation fails`, async () => {
-    const agent = new AgentEndpoint()
     const db = buildMockDb()
+    const agent = new AgentEndpoint(db as any)
     ;(db.services.thread.create as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: new Error(`DB error`),
@@ -1199,7 +1199,7 @@ describe(`AgentEndpoint.runHeadless - direct tests`, () => {
     const mockReq = { app: { locals: { config: {} } } } as any
 
     await expect(
-      agent.runHeadless(mockReq, db as any, {
+      agent.runHeadless(mockReq, {
         agentId: `agent-1`,
         prompt: `Hello`,
         userId: `test-user`,

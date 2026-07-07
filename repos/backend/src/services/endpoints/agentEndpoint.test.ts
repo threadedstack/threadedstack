@@ -20,7 +20,7 @@ describe(`AgentEndpoint`, () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new AgentEndpoint()
+    service = new AgentEndpoint({} as TDatabase)
     service.run = vi.fn().mockResolvedValue(undefined)
   })
 
@@ -78,11 +78,9 @@ describe(`AgentEndpoint`, () => {
           overrides: { model: `gpt-4` },
         },
       } as any
-      const mockDb = {} as TDatabase
+      await service.execute(mockReq, mockRes, mockEndpoint)
 
-      await service.execute(mockReq, mockRes, mockEndpoint, mockDb)
-
-      expect(service.run).toHaveBeenCalledWith(mockReq, mockRes, mockDb, {
+      expect(service.run).toHaveBeenCalledWith(mockReq, mockRes, {
         agentId: `agent-123`,
         prompt: `Hello`,
         userId: `user-1`,
@@ -103,9 +101,9 @@ describe(`AgentEndpoint`, () => {
         options: { agentId: `agent-123` },
       } as any
 
-      await expect(
-        service.execute(mockReq, mockRes, mockEndpoint, {} as TDatabase)
-      ).rejects.toThrow(`Authentication required`)
+      await expect(service.execute(mockReq, mockRes, mockEndpoint)).rejects.toThrow(
+        `Authentication required`
+      )
     })
 
     it(`should throw 400 when prompt is missing`, async () => {
@@ -120,9 +118,9 @@ describe(`AgentEndpoint`, () => {
         options: { agentId: `agent-123` },
       } as any
 
-      await expect(
-        service.execute(mockReq, mockRes, mockEndpoint, {} as TDatabase)
-      ).rejects.toThrow(`prompt is required`)
+      await expect(service.execute(mockReq, mockRes, mockEndpoint)).rejects.toThrow(
+        `prompt is required`
+      )
     })
 
     it(`should throw 400 when endpoint has no agentId`, async () => {
@@ -137,9 +135,9 @@ describe(`AgentEndpoint`, () => {
         options: {},
       } as any
 
-      await expect(
-        service.execute(mockReq, mockRes, mockEndpoint, {} as TDatabase)
-      ).rejects.toThrow(`Agent endpoint has no agentId configured`)
+      await expect(service.execute(mockReq, mockRes, mockEndpoint)).rejects.toThrow(
+        `Agent endpoint has no agentId configured`
+      )
     })
 
     it(`should work without overrides`, async () => {
@@ -153,11 +151,10 @@ describe(`AgentEndpoint`, () => {
         projectId: `project-1`,
         options: { agentId: `agent-123` },
       } as any
-      const mockDb = {} as TDatabase
 
-      await service.execute(mockReq, mockRes, mockEndpoint, mockDb)
+      await service.execute(mockReq, mockRes, mockEndpoint)
 
-      expect(service.run).toHaveBeenCalledWith(mockReq, mockRes, mockDb, {
+      expect(service.run).toHaveBeenCalledWith(mockReq, mockRes, {
         agentId: `agent-123`,
         prompt: `Hello`,
         userId: `user-1`,

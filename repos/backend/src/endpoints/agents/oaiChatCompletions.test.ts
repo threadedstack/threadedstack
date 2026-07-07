@@ -334,7 +334,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      mockReq.app?.locals.db,
       expect.objectContaining({
         agentId: `agent-1`,
         prompt: `Hello`,
@@ -354,7 +353,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      mockReq.app?.locals.db,
       expect.objectContaining({
         overrides,
         resolvedConfig: expect.objectContaining({ orgId: `org-1` }),
@@ -522,7 +520,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      db,
       expect.objectContaining({
         threadId: `thread-1`,
         resolvedConfig: expect.objectContaining({ orgId: `org-1` }),
@@ -543,7 +540,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      db,
       expect.objectContaining({
         threadId: undefined,
         resolvedConfig: expect.objectContaining({ orgId: `org-1` }),
@@ -657,7 +653,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      db,
       expect.objectContaining({
         threadId: `thread-existing`,
         resolvedConfig: expect.objectContaining({ orgId: `org-1` }),
@@ -678,7 +673,6 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
 
     expect(mockRunHeadless).toHaveBeenCalledWith(
       mockReq,
-      db,
       expect.objectContaining({ threadId: `thread-existing` })
     )
   })
