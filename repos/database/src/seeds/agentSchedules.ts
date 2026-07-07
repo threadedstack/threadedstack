@@ -135,7 +135,14 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `pr-response`,
     id: `sd_EAz_2r5`,
-    cronExpression: `5,35 * * * *`,
+    // Every 15 min. On a multi-round adversary review, the steward's fix waits
+    // for the next pr-response cycle before it lands, so a 30-min cadence made
+    // each change-request round cost ~50 min and pushed multi-round PRs past the
+    // "one new PR per hour" target (the review gate blocks new work-cycle PRs
+    // while one is open). 15-min pr-response mirrors the 15-min adversary cadence
+    // so a request→fix→re-review round completes fast. `5,20,35,50` is a superset
+    // of `5,35`, so the reconciler transition skips no fire.
+    cronExpression: `5,20,35,50 * * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 3,
   }),
