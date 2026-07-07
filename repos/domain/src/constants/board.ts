@@ -34,6 +34,9 @@ export const InitiativeCompleteBlockFence = `tdsk-initiative-complete`
 /** Maximum characters of Company Strategy context injected into a cycle prompt. */
 export const StrategyInjectMaxChars = 8000
 
+/** Maximum characters of Business metrics context injected into an exec cycle prompt. */
+export const BusinessMetricsInjectMaxChars = 4000
+
 // ─── fenced-block helpers (module-private) ──────────────────────────────────────
 
 /** Extract the content of the LAST fenced ```{fence}``` block, or undefined. */
