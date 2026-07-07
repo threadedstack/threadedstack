@@ -864,6 +864,34 @@ export class SandboxService {
   }
 
   /**
+   * Summarize non-ready pod conditions from K8s (e.g. PodScheduled=False,
+   * Unschedulable — "0/3 nodes are available..."). Used to surface a concrete
+   * diagnostic when a pod is stuck Pending instead of an opaque timeout.
+   * Returns undefined if the pod has no conditions or the fetch fails.
+   */
+  async getPodConditionSummary(instanceId: string): Promise<string | undefined> {
+    try {
+      const pod = await this.kube.getPod(instanceId)
+      const conditions = pod.status?.conditions ?? []
+      const notReady = conditions.filter((c) => c.status !== `True`)
+      if (!notReady.length) return undefined
+
+      return notReady
+        .map(
+          (c) =>
+            `${c.type}=${c.status}${c.reason ? ` (${c.reason})` : ``}${c.message ? `: ${c.message}` : ``}`
+        )
+        .join(`; `)
+    } catch (err) {
+      logger.warn(
+        `[Sandbox] Failed to fetch pod conditions for ${instanceId}:`,
+        (err as Error).message
+      )
+      return undefined
+    }
+  }
+
+  /**
    * Get an ISandbox instance connected to an existing running pod
    * Used by AgentRunner for tool bridging
    */
