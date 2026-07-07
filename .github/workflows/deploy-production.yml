@@ -46,9 +46,6 @@ permissions:
   # to the just-deployed commit after a successful release.
   contents: write
   packages: write
-  # issues: write so the deploy job can open a health alert when an automatic
-  # rollback fails to recover (see the "Escalate rollback failure" step).
-  issues: write
 
 env:
   # Civo cluster name — its kube-context is also "tdsk", matching
@@ -254,13 +251,6 @@ jobs:
         # DOCKER_USER/DOCKER_PASSWORD: the CLI's own `docker login` reads creds from
         # env (utils/docker/auth.ts); the earlier docker/login-action only writes
         # ~/.docker/config.json and exports nothing, so pass GHCR creds here too.
-        #
-        # id: release — so the "Escalate rollback failure" step below can read
-        # the `rollback_failed` output written by `writeRollbackOutcome()`
-        # (repos/cli/src/utils/deploy/verify.ts) even though this step failed.
-        # GitHub Actions still registers step outputs written to $GITHUB_OUTPUT
-        # before a step's process exits, regardless of its exit code.
-        id: release
         env:
           FORCE_ALL: ${{ (github.event_name == 'workflow_dispatch' && inputs.force_all) && '--all' || '' }}
           DOCKER_USER: ${{ github.actor }}
@@ -268,37 +258,6 @@ jobs:
         run: |
           cd repos/cli
           pnpm cli release --env production --confirm --no-firebase $FORCE_ALL
-
-      - name: Escalate rollback failure
-        # Fires only when the Release step failed AND it specifically reported
-        # an unrecovered rollback (as opposed to e.g. a build/push failure,
-        # which needs no service-degradation alert). Opens/updates the same
-        # de-duplicated "system-health" issue the external monitor uses, so a
-        # human sees production is degraded even though CI has no other
-        # visibility into a failed auto-rollback.
-        if: failure() && steps.release.outputs.rollback_failed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LABEL="system-health"
-          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color B60205 \
-            --description "External monitor health alerts" >/dev/null 2>&1 || true
-
-          ISSUE="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" \
-            --json number --jq '.[0].number' 2>/dev/null)"
-
-          BODY="$(printf 'Production deploy failed health checks AND the automatic rollback did not fully recover — service may be degraded. Manual intervention required.\n\nRun: %s/%s/actions/runs/%s\nCommit: %s' \
-            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_SHA")"
-
-          if [ -n "$ISSUE" ]; then
-            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "$BODY"
-            echo "updated issue #$ISSUE"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" \
-              --title "🔴 Production rollback failed — manual intervention required" \
-              --label "$LABEL" --body "$BODY"
-            echo "opened new health issue"
-          fi
 
       - name: Advance production marker
         # Runs only when the release above succeeded (default step condition).
