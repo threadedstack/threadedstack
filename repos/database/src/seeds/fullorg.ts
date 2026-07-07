@@ -18,6 +18,7 @@ import {
   Provider,
   Schedule,
   EProvider,
+  EAgentBrain,
   Invitation,
   EGitProvider,
   Subscription,
@@ -731,6 +732,29 @@ const agents = {
       temperature: 0.7,
     },
   }),
+  // Executive board — the founding CEO. A runtime-brain, autonomous agent (mirrors
+  // the prod steward's shape) that owns company direction and strategy. Its board
+  // schedules ship disabled, so seeding this record is inert until the CEO cadence
+  // is activated. The `soul` is the founder persona injected into its every cycle.
+  ceo: new Agent({
+    orgId: org.id,
+    id: Ids.agent.ceo,
+    name: `CEO`,
+    description: `Founding CEO — owns company direction and strategy from market research and real revenue data`,
+    soul: `You are the founding CEO of ThreadedStack. You own the company's direction and its success. You set long-term strategy from real market research and a deep understanding of the client and the problem ThreadedStack solves. You are a straight shooter — direct, decisive, and unafraid to take risks — but level-headed: you weigh the tradeoffs and the evidence before you commit. You are the true face of the company, with the grit and backbone to push it forward, and you are not afraid to ask for what the company needs. You seek investment and build relationships with partners. Every direction you set is grounded in sound research, honest tradeoffs, and genuine client need, so ThreadedStack actually solves real problems and grows into a successful, profitable business.`,
+    active: true,
+    autonomous: true,
+    brain: EAgentBrain.runtime,
+    providerLinks: [
+      { priority: 0, provider: providers.anthropic },
+      { priority: 1, provider: providers.zai },
+      { priority: 2, provider: providers.openrouter },
+    ],
+    secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+    },
+  }),
 }
 
 // --- Endpoints ---
@@ -1366,6 +1390,15 @@ const sandboxes = {
     SandboxPresets[`pi-coding-agent`]
   ),
   custom: buildPresetSandbox(Ids.sandbox.custom, SandboxPresets[`custom`]),
+  // Executive board — the CEO agent's body sandbox (its runtime pod). Mirrors the
+  // steward's claude-code runtime shape. Inert until the CEO cadence is activated.
+  ceoBody: new Sandbox({
+    id: Ids.sandbox.ceoBody,
+    builtIn: true,
+    orgId: org.id,
+    name: `CEO Body`,
+    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+  }),
 }
 
 // --- Sandbox → Provider links (seeded via sandbox.addProvider in seed runner) ---
@@ -1420,6 +1453,11 @@ const sandboxProviderLinks = [
   { sandboxId: Ids.sandbox.codex, providerId: providers.deepseek.id, priority: 5 },
   { sandboxId: Ids.sandbox.openCode, providerId: providers.deepseek.id, priority: 5 },
   { sandboxId: Ids.sandbox.openClaw, providerId: providers.deepseek.id, priority: 5 },
+  // CEO Body: anthropic (primary), zai, openrouter, ollama cloud (fallbacks) — mirrors claude-code
+  { sandboxId: Ids.sandbox.ceoBody, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.ceoBody, providerId: providers.zai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.ceoBody, providerId: providers.openrouter.id, priority: 2 },
+  { sandboxId: Ids.sandbox.ceoBody, providerId: providers.ollama.id, priority: 3 },
   // Custom: no providers linked -- bring your own
 ]
 

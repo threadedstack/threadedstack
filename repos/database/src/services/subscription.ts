@@ -15,7 +15,8 @@ type TDBSubscription = typeof subscriptions.$inferInsert
 export class Subscription extends Base<
   typeof subscriptions,
   TDBSubscriptionSelect,
-  TDBSubscriptionInsert
+  TDBSubscriptionInsert,
+  SubscriptionModel
 > {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: subscriptions })

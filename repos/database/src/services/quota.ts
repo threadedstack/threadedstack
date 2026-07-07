@@ -11,7 +11,12 @@ type TIncrementKey = keyof Pick<
   'projects' | 'compute' | 'threads' | 'messages' | 'endpoints' | 'secrets'
 >
 
-export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
+export class Quota extends Base<
+  typeof quotas,
+  TDBQuotaSelect,
+  TDBQuotaInsert,
+  QuotaModel
+> {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: quotas })
   }
