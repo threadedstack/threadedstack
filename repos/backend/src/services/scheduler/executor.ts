@@ -48,6 +48,8 @@ import {
   EInitiativeStatus,
   StrategyBlockFence,
   DecisionsBlockFence,
+  DecisionPositionsBlockFence,
+  InitiativeCompleteBlockFence,
   parseStrategyBlock,
   parseDecisionsBlock,
   parseDecisionPositionsBlock,
@@ -58,6 +60,7 @@ import { isCeoSchedule, isCtoSchedule, isBoardMemberSchedule } from '@TBE/consta
 import { resolveBoard } from '@TBE/utils/agent/resolveBoard'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
+import { buildBusinessMetricsContext } from '@TBE/utils/agent/businessMetrics'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
 import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import {
@@ -539,6 +542,40 @@ export async function buildStrategySection(
   schedule: Schedule
 ): Promise<string> {
   return strategyOptsIn(schedule) ? buildCompanyStrategyContext(app, schedule) : ``
+}
+
+/**
+ * A cycle consumes the Business-metrics (revenue) faculty when its prompt opts
+ * into ANY executive block: it writes/reads strategy or opens a decision
+ * (strategyOptsIn), posts a board position (tdsk-decision-positions), or reports
+ * an Active Initiative delivered (tdsk-initiative-complete). These are exactly the
+ * CEO + CTO board/strategy cycles.
+ *
+ * Gating is by PROMPT opt-in, never by agentId: the CTO seat reuses the steward
+ * agent (see @TBE/constants/board), so an agentId gate would leak revenue context
+ * into the steward work cycle + adversary. Those dev-loop cycles emit none of the
+ * executive fences, so they opt in to nothing and their assembled context is
+ * byte-identical to before.
+ */
+export const businessMetricsOptsIn = (schedule: Schedule): boolean =>
+  strategyOptsIn(schedule) ||
+  promptOptsIn(schedule, DecisionPositionsBlockFence) ||
+  promptOptsIn(schedule, InitiativeCompleteBlockFence)
+
+/**
+ * Gated `## Business metrics` section for a cycle's assembled context: the
+ * rendered read-only revenue/business snapshot when the cycle opts into the
+ * executive faculty, otherwise '' (a non-opted-in cycle never even queries the
+ * DB). Never throws — delegates to buildBusinessMetricsContext. Mirrors
+ * buildStrategySection.
+ */
+export async function buildBusinessMetricsSection(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  return businessMetricsOptsIn(schedule)
+    ? buildBusinessMetricsContext(app, schedule.orgId)
+    : ``
 }
 
 /**
@@ -1702,6 +1739,11 @@ async function runCliAgentSchedule(
   // Dev-loop cycles (steward work, adversary) opt in to none, so they pay for no
   // query and their assembled context is unchanged.
   const strategySection = await buildStrategySection(app, schedule)
+  // Gated executive faculty (read-only): a CEO/CTO/board cycle also receives the
+  // company-wide `## Business metrics` snapshot (revenue / signups / churn /
+  // engagement) so it can ground decisions in real data. Same prompt opt-in gate
+  // as the strategy section, so dev-loop cycles pay for no query.
+  const businessMetricsSection = await buildBusinessMetricsSection(app, schedule)
   const baseCommand = buildCliCommand(
     schedule,
     agent,
@@ -1715,7 +1757,8 @@ async function runCliAgentSchedule(
       coordinatorSection +
       sensorSection +
       backlogSection +
-      strategySection
+      strategySection +
+      businessMetricsSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
