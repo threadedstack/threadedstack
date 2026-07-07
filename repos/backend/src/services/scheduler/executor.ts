@@ -1039,12 +1039,50 @@ export async function buildOpsReviewContext(
 }
 
 /**
+ * Resolve the coordinator's active initiative for an `auto` marker. Instead of a
+ * hard-coded initiative name, read the agent's roadmap (maintained by the
+ * planning cycle) and extract its `Current initiative:` line. Returns '' when
+ * there is no agent, no roadmap, or no such line — the caller then injects the
+ * "select and declare one" kickoff note. Never throws.
+ */
+async function resolveAutoInitiative(app: TApp, schedule: Schedule): Promise<string> {
+  try {
+    const agentId = schedule.agentId
+    if (!agentId) return ``
+    const { db } = app.locals
+    const { data: roadmap } = await db.services.memory.getRoadmap(schedule.orgId, agentId)
+    const text = roadmap?.text ?? ``
+    const m = text.match(/current\s+initiative\s*:\s*([^\n\r]+)/i)
+    return m?.[1]?.trim() ?? ``
+  } catch {
+    return ``
+  }
+}
+
+/** Injected when an `auto` coordinator has no `Current initiative:` in its roadmap. */
+const AutoInitiativeUnsetNote =
+  `## Initiative: (none set)\n` +
+  `Your roadmap does not yet name a "Current initiative:". Choose the single highest-leverage ` +
+  `strategic theme from the "## Roadmap" above, give it a short stable name, and BEGIN it: file ONE ` +
+  `parent tdsk-tasks proposal with initiative:"<name>" and parentId omitted. Next cycle its ledger ` +
+  `appears here and you decompose it. Do nothing else this cycle.\n`
+
+/** Injected when an `auto` coordinator's resolved initiative has no rows yet. */
+const autoKickoffLedger = (initiative: string): string =>
+  `## Initiative: ${initiative}\n` +
+  `Coordinator ledger is EMPTY — this is the kickoff for this initiative. Decompose it into 1-3 ` +
+  `bounded parent tasks and delegate their children per your instructions. Emit tdsk-tasks with ` +
+  `initiative:"${initiative}".\n`
+
+/**
  * Build the injected coordinator ledger for a COORDINATOR cycle: surfaces the
  * current state of a named initiative (parents + children + statuses + PR URLs)
  * so the coordinator can decompose bounded child tasks and delegate them.
  *
  * Marker-gated: only injected when the schedule prompt contains
- * `<!-- coordinator-initiative: <name> -->`. When the marker is absent, or the
+ * `<!-- coordinator-initiative: <name> -->`. The marker value `auto` resolves
+ * the initiative dynamically from the roadmap's `Current initiative:` line
+ * instead of a hard-coded name. When the marker is absent, or a literal
  * initiative has no rows yet, returns '' (nothing injected). Read-only — never
  * throws; a failure only degrades context (logged + returns '').
  */
@@ -1056,15 +1094,24 @@ export async function buildCoordinatorContext(
     const m = (schedule.prompt ?? ``).match(
       /<!--\s*coordinator-initiative:\s*([^\s>][^-]*?)\s*-->/i
     )
-    const initiative = m?.[1]?.trim()
-    if (!initiative) return ``
+    const marker = m?.[1]?.trim()
+    if (!marker) return ``
 
     const { db } = app.locals
+
+    // `auto` marker: resolve the initiative from the roadmap instead of a
+    // hard-coded name. An unresolved auto initiative injects the kickoff note.
+    const isAuto = marker.toLowerCase() === `auto`
+    const initiative = isAuto ? await resolveAutoInitiative(app, schedule) : marker
+    if (!initiative) return AutoInitiativeUnsetNote
+
     const { data: rows } = await db.services.taskProposal.listByInitiative(
       schedule.orgId,
       initiative
     )
-    if (!rows?.length) return ``
+    // Empty ledger: the literal-marker path keeps its historical '' contract; the
+    // auto path names the initiative so the coordinator can kick it off.
+    if (!rows?.length) return isAuto ? autoKickoffLedger(initiative) : ``
 
     // Build a set of parent ids within this initiative for quick lookup.
     const parentIds = new Set(
