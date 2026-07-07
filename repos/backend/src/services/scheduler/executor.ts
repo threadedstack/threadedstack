@@ -45,14 +45,16 @@ import {
   OpsReviewInjectMaxChars,
   CoordinatorInjectMaxChars,
   EDecisionStatus,
+  EInitiativeStatus,
   StrategyBlockFence,
   DecisionsBlockFence,
   parseStrategyBlock,
   parseDecisionsBlock,
   parseDecisionPositionsBlock,
+  parseInitiativeCompleteBlock,
 } from '@tdsk/domain'
 import type { TStrategyUpdate } from '@tdsk/domain'
-import { isCeoSchedule, isBoardMemberSchedule } from '@TBE/constants/board'
+import { isCeoSchedule, isCtoSchedule, isBoardMemberSchedule } from '@TBE/constants/board'
 import { resolveBoard } from '@TBE/utils/agent/resolveBoard'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
@@ -734,6 +736,103 @@ export async function persistStrategy(
   } catch (err) {
     logger.debug(
       `[Board] Schedule ${schedule.id} — strategy capture skipped: ${(err as Error).message}`
+    )
+  }
+}
+
+/**
+ * Parse and apply any Active-Initiative completion report emitted by the CTO cycle.
+ * This is the ONLY routine trigger that unlocks re-direction of the frozen Active
+ * Initiative — the up-flow of the commitment & completion loop (spec §4.3).
+ *
+ * Only the CTO (isCtoSchedule) may report completion; a non-CTO cycle emitting the
+ * block is ignored entirely. A report is accepted ONLY when it matches the frozen
+ * Active Initiative exactly — the strategy has an `activeInitiative`, its status is
+ * still `active`, the report's `initiativeTitle` matches its title (trim/exact), and
+ * `evidenceRefs` is a non-empty string[]. On accept: mark the delivered initiative
+ * complete, then advance — promote the next backlog item as the new Active Initiative,
+ * or clear it when the backlog is empty. Any mismatch / missing evidence is a no-op
+ * (the initiative stays frozen). Never throws — a failure never fails the run.
+ */
+export async function persistInitiativeComplete(
+  app: TApp,
+  schedule: Schedule,
+  stdoutText: string
+): Promise<void> {
+  if (!isCtoSchedule(schedule)) return
+  const agentId = schedule.agentId
+  if (!agentId) return
+
+  try {
+    const reports = parseInitiativeCompleteBlock(stdoutText)
+    if (!reports.length) return
+
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    for (const report of reports) {
+      try {
+        const { data: strategy } = await db.services.companyStrategy.getByOrg(orgId)
+        const active = strategy?.activeInitiative
+
+        // Accept ONLY a report that matches the frozen Active Initiative exactly:
+        // right title, still active, and non-empty evidence. Anything else keeps
+        // the initiative frozen (no advance) — this is the completion gate's up-flow.
+        if (
+          !active ||
+          active.status !== EInitiativeStatus.active ||
+          active.title.trim() !== report.initiativeTitle.trim() ||
+          report.evidenceRefs.length === 0
+        ) {
+          logger.info(
+            `[Board] Schedule ${schedule.id} — initiative-complete report "${report.initiativeTitle}" did not match the frozen Active Initiative; no advance`
+          )
+          continue
+        }
+
+        // Mark the delivered initiative complete (audit), then advance the loop:
+        // promote the next backlog bet as the new Active Initiative, or clear it
+        // when the backlog is empty (no next bet queued yet).
+        await db.services.companyStrategy.setActiveInitiative(orgId, {
+          ...active,
+          status: EInitiativeStatus.complete,
+        })
+        const backlog = strategy?.backlog ?? []
+        if (backlog.length > 0)
+          await db.services.companyStrategy.promoteNextFromBacklog(orgId)
+        else await db.services.companyStrategy.clearActiveInitiative(orgId)
+
+        // Durable write-back recording the completion (title + evidence). Mirrors
+        // the persistEscalations resolution memory shape (kind:fact, embedding:null).
+        try {
+          await (db.services.memory as any).create({
+            orgId,
+            agentId,
+            kind: EMemoryKind.fact,
+            importance: 7,
+            text: `Active Initiative complete: ${active.title} — evidence: ${report.evidenceRefs.join(`, `)}`,
+            meta: { scheduleId: schedule.id, source: `initiative-complete` },
+            embedding: null,
+          } as any)
+        } catch (memErr) {
+          logger.warn(
+            `[Board] Schedule ${schedule.id} — initiative-complete memory write-back failed: ${(memErr as Error).message}`
+          )
+        }
+
+        logger.info(
+          `[Board] Schedule ${schedule.id} — Active Initiative "${active.title}" marked complete + advanced`
+        )
+      } catch (err) {
+        logger.error(
+          `[Board] Schedule ${schedule.id} — failed to apply initiative-complete report:`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Board] Schedule ${schedule.id} — initiative-complete capture skipped: ${(err as Error).message}`
     )
   }
 }
@@ -1802,6 +1901,10 @@ async function runCliAgentSchedule(
     await persistDecisions(app, schedule, stdoutText)
     await persistDecisionPositions(app, schedule, stdoutText)
     await persistStrategy(app, schedule, stdoutText)
+    // CTO up-flow: an Active-Initiative completion report advances the strategy
+    // (mark complete → promote the next backlog bet). This is the only routine
+    // trigger that unlocks re-direction of the frozen Active Initiative.
+    await persistInitiativeComplete(app, schedule, stdoutText)
     if (isCeoSchedule(schedule)) await resolveBoard(app, schedule)
   }
 

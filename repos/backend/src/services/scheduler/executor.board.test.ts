@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   EDecisionAxis,
   EDecisionStatus,
+  EInitiativeStatus,
   StrategyBlockFence,
   DecisionsBlockFence,
   DecisionPositionsBlockFence,
+  InitiativeCompleteBlockFence,
 } from '@tdsk/domain'
 
 vi.mock(`@TBE/utils/logger`, () => ({
@@ -36,11 +38,20 @@ vi.mock(`@TBE/constants/board`, () => ({
     const ceo = boardState.members.find((m) => m.isCEO)
     return !!ceo && s.agentId === ceo.agentId
   },
+  isCtoSchedule: (s: any) => {
+    const cto = boardState.members.find((m) => m.role === `cto`)
+    return !!cto && s.agentId === cto.agentId
+  },
   isBoardMemberSchedule: (s: any) =>
     boardState.members.some((m) => m.agentId === s.agentId),
 }))
 
-import { persistDecisions, persistDecisionPositions, persistStrategy } from './executor'
+import {
+  persistDecisions,
+  persistDecisionPositions,
+  persistStrategy,
+  persistInitiativeComplete,
+} from './executor'
 
 const buildApp = (services: Record<string, any>) =>
   ({ locals: { db: { services } } }) as any
@@ -243,6 +254,167 @@ describe(`persistStrategy`, () => {
     )
 
     expect(upsertByOrg).not.toHaveBeenCalled()
+  })
+})
+
+describe(`persistInitiativeComplete`, () => {
+  const activeStrategy = (overrides: Record<string, unknown> = {}) => ({
+    data: {
+      activeInitiative: {
+        title: `Ship billing v2`,
+        definitionOfDone: `merged+deployed+verified`,
+        evidence: [],
+        status: EInitiativeStatus.active,
+        committedAt: `2026-07-07T00:00:00Z`,
+      },
+      backlog: [{ title: `Revenue dashboard`, rationale: `see MRR`, priority: 1 }],
+      ...overrides,
+    },
+  })
+
+  const completeReport = (overrides: Record<string, unknown> = {}) =>
+    fenced(InitiativeCompleteBlockFence, [
+      {
+        initiativeTitle: `Ship billing v2`,
+        evidenceRefs: [`https://github.com/org/repo/pull/42`],
+        ...overrides,
+      },
+    ])
+
+  const buildStrategyApp = (getByOrgRes: any) => {
+    const getByOrg = vi.fn().mockResolvedValue(getByOrgRes)
+    const setActiveInitiative = vi.fn().mockResolvedValue({ data: {} })
+    const promoteNextFromBacklog = vi.fn().mockResolvedValue({ data: {} })
+    const clearActiveInitiative = vi.fn().mockResolvedValue({ data: {} })
+    const memoryCreate = vi.fn().mockResolvedValue({ data: { id: `mem_1` } })
+    const app = buildApp({
+      companyStrategy: {
+        getByOrg,
+        setActiveInitiative,
+        promoteNextFromBacklog,
+        clearActiveInitiative,
+      },
+      memory: { create: memoryCreate },
+    })
+    return {
+      app,
+      spies: {
+        getByOrg,
+        setActiveInitiative,
+        promoteNextFromBacklog,
+        clearActiveInitiative,
+        memoryCreate,
+      },
+    }
+  }
+
+  it(`marks the Active Initiative complete AND promotes the next backlog item on a valid CTO complete-report`, async () => {
+    const { app, spies } = buildStrategyApp(activeStrategy())
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_cto` }),
+      completeReport()
+    )
+
+    // the delivered initiative is marked complete (audit) ...
+    expect(spies.setActiveInitiative).toHaveBeenCalledWith(
+      `org-1`,
+      expect.objectContaining({
+        title: `Ship billing v2`,
+        status: EInitiativeStatus.complete,
+      })
+    )
+    // ... then the loop advances by promoting the next backlog bet (backlog non-empty)
+    expect(spies.promoteNextFromBacklog).toHaveBeenCalledWith(`org-1`)
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+    // and the completion is recorded as a durable memory (title + evidence)
+    expect(spies.memoryCreate).toHaveBeenCalledTimes(1)
+    expect(spies.memoryCreate.mock.calls[0][0]).toMatchObject({
+      orgId: `org-1`,
+      agentId: `ag_cto`,
+      text: expect.stringContaining(`Ship billing v2`),
+    })
+    expect(spies.memoryCreate.mock.calls[0][0].text).toContain(
+      `https://github.com/org/repo/pull/42`
+    )
+  })
+
+  it(`clears the Active Initiative when the backlog is empty`, async () => {
+    const { app, spies } = buildStrategyApp(activeStrategy({ backlog: [] }))
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_cto` }),
+      completeReport()
+    )
+
+    expect(spies.setActiveInitiative).toHaveBeenCalledWith(
+      `org-1`,
+      expect.objectContaining({ status: EInitiativeStatus.complete })
+    )
+    expect(spies.clearActiveInitiative).toHaveBeenCalledWith(`org-1`)
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+  })
+
+  it(`is a no-op when the report title does not match the frozen Active Initiative`, async () => {
+    const { app, spies } = buildStrategyApp(activeStrategy())
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_cto` }),
+      completeReport({ initiativeTitle: `Some other thing` })
+    )
+
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.memoryCreate).not.toHaveBeenCalled()
+  })
+
+  it(`is a no-op when evidenceRefs is empty (definition-of-done not proven)`, async () => {
+    const { app, spies } = buildStrategyApp(activeStrategy())
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_cto` }),
+      completeReport({ evidenceRefs: [] })
+    )
+
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+  })
+
+  it(`is a no-op when there is no active initiative (the steward/CTO cycle emitting the block stays inert)`, async () => {
+    const { app, spies } = buildStrategyApp({
+      data: { activeInitiative: null, backlog: [] },
+    })
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_cto` }),
+      completeReport()
+    )
+
+    expect(spies.getByOrg).toHaveBeenCalledWith(`org-1`)
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+  })
+
+  it(`persists NOTHING when a NON-CTO cycle (the CEO) emits the complete block`, async () => {
+    const { app, spies } = buildStrategyApp(activeStrategy())
+
+    await persistInitiativeComplete(
+      app,
+      schedule({ agentId: `ag_ceo` }),
+      completeReport()
+    )
+
+    expect(spies.getByOrg).not.toHaveBeenCalled()
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
   })
 })
 

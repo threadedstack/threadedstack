@@ -39,10 +39,37 @@ export const BoardMaxRounds = 3
 
 /**
  * Resolution note recorded when a committed active-initiative proposal cannot swap
- * the Active Initiative because one is already in flight (the Phase 4 completion
- * gate refines this into the stop-the-line abort path).
+ * the Active Initiative because one is already in flight and the proposal is NOT a
+ * stop-the-line abort (the routine completion-gate refusal — the frozen initiative
+ * only moves via a completion report or the stop-the-line abort below).
  */
 export const BoardBlockedActiveInitiativeNote = `blocked: active initiative in flight`
+
+/**
+ * The ONLY signal that marks an active-initiative proposal a stop-the-line abort —
+ * the rare, high-bar escape hatch that may move an in-flight Active Initiative. A
+ * proposal is a stop-the-line abort when its title starts with this prefix OR its
+ * evidence carries the `StopTheLineEvidenceFlag` entry. Chosen as an explicit,
+ * greppable marker so a routine re-direction can never be mistaken for an abort.
+ */
+export const StopTheLinePrefix = `STOP-THE-LINE:`
+
+/** Evidence entry that also marks an active-initiative proposal a stop-the-line abort. */
+export const StopTheLineEvidenceFlag = `stop-the-line`
+
+/**
+ * Resolution note recorded when a stop-the-line abort is refused because it lacks
+ * the high bar — every non-CEO board member must endorse the abort (the CEO's
+ * tiebreak power alone can NOT abort in-flight work).
+ */
+export const BoardAbortNotEndorsedNote = `blocked: stop-the-line abort lacks full non-CEO endorsement`
+
+/**
+ * Resolution note recorded when a stop-the-line abort is refused because it carries
+ * no wind-down plan — an abort must wind the Active Initiative down cleanly
+ * (finish-to-safe or fully revert), never leave it dangling.
+ */
+export const BoardAbortNoWindDownNote = `blocked: stop-the-line abort has no wind-down plan`
 
 /** The current executive board membership. SP1 = {CEO, CTO}. */
 export const getBoardMembers = (): TBoardMember[] => [
@@ -54,6 +81,16 @@ export const getBoardMembers = (): TBoardMember[] => [
 export const isCeoSchedule = (schedule: Schedule): boolean => {
   const ceo = getBoardMembers().find((member) => member.isCEO)
   return !!ceo && schedule.agentId === ceo.agentId
+}
+
+/**
+ * True when the schedule is driven by the CTO board member. The CTO is the only
+ * seat that may report an Active Initiative delivered (persistInitiativeComplete),
+ * so a non-CTO cycle emitting the completion block is ignored.
+ */
+export const isCtoSchedule = (schedule: Schedule): boolean => {
+  const cto = getBoardMembers().find((member) => member.role === `cto`)
+  return !!cto && schedule.agentId === cto.agentId
 }
 
 /** True when the schedule is driven by any current board member. */
