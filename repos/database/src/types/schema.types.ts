@@ -8,6 +8,7 @@ import type { skills } from '@TDB/schemas/skills'
 import type { skillProposals } from '@TDB/schemas/skillProposals'
 import type { taskProposals } from '@TDB/schemas/taskProposals'
 import type { escalations } from '@TDB/schemas/escalations'
+import type { decisionProposals } from '@TDB/schemas/decisionProposals'
 import type { verifications } from '@TDB/schemas/verifications'
 import type { opsActions } from '@TDB/schemas/opsActions'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
@@ -63,6 +64,8 @@ export type TDBTaskProposalSelect = TInferDates<typeof taskProposals.$inferSelec
 export type TDBTaskProposalInsert = TInferDates<typeof taskProposals.$inferInsert>
 export type TDBEscalationSelect = TInferDates<typeof escalations.$inferSelect>
 export type TDBEscalationInsert = TInferDates<typeof escalations.$inferInsert>
+export type TDBDecisionProposalSelect = TInferDates<typeof decisionProposals.$inferSelect>
+export type TDBDecisionProposalInsert = TInferDates<typeof decisionProposals.$inferInsert>
 export type TDBVerificationSelect = TInferDates<typeof verifications.$inferSelect>
 export type TDBVerificationInsert = TInferDates<typeof verifications.$inferInsert>
 export type TDBOpsActionSelect = TInferDates<typeof opsActions.$inferSelect>
@@ -183,6 +186,7 @@ export type TDBEntitySelect =
   | TDBSkillProposalSelect
   | TDBTaskProposalSelect
   | TDBEscalationSelect
+  | TDBDecisionProposalSelect
   | TDBVerificationSelect
   | TDBOpsActionSelect
   | TDBApiKeySelect
@@ -215,6 +219,7 @@ export type TDBEntityInsert =
   | TDBSkillProposalInsert
   | TDBTaskProposalInsert
   | TDBEscalationInsert
+  | TDBDecisionProposalInsert
   | TDBVerificationInsert
   | TDBOpsActionInsert
   | TDBApiKeyInsert

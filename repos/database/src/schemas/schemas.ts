@@ -45,6 +45,10 @@ export {
   escalationsRelations,
 } from '@TDB/schemas/escalations'
 export {
+  decisionProposals,
+  decisionProposalsRelations,
+} from '@TDB/schemas/decisionProposals'
+export {
   verifications,
   verificationsRelations,
 } from '@TDB/schemas/verifications'
