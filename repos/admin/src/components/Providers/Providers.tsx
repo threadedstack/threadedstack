@@ -2,9 +2,9 @@ import type { Provider } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { useState, useMemo } from 'react'
-import { EPermResource } from '@tdsk/domain'
+import { EProvider, EPermResource } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
-import { Box, Typography, Chip } from '@mui/material'
+import { Box, Tab, Tabs, Typography, Chip } from '@mui/material'
 import { deleteProvider } from '@TAF/actions/providers'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
@@ -46,6 +46,18 @@ const skeletonColumns = [
   { id: `actions`, label: `Actions`, align: `right` as const },
 ]
 
+const providerTypeTabs = [`all`, ...Object.values(EProvider)] as const
+type TProviderTypeTab = (typeof providerTypeTabs)[number]
+
+const providerTypeTabLabels: Record<TProviderTypeTab, string> = {
+  all: `All`,
+  [EProvider.ai]: `AI`,
+  [EProvider.git]: `Git`,
+  [EProvider.auth]: `Auth`,
+  [EProvider.docker]: `Docker`,
+  [EProvider.storage]: `Storage`,
+}
+
 export const Providers = ({ orgId }: TProviders) => {
   const [providers] = useProviders()
   const isInitialLoading = providers === undefined
@@ -56,6 +68,11 @@ export const Providers = ({ orgId }: TProviders) => {
   const [error, setError] = useState<Error | null>(null)
   const { canCreate, canUpdate, canDelete } = usePermissions()
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
+  const [activeTypeTab, setActiveTypeTab] = useState<TProviderTypeTab>(`all`)
+
+  const onTypeTabChange = (_event: React.SyntheticEvent, newValue: TProviderTypeTab) => {
+    setActiveTypeTab(newValue)
+  }
 
   const onCreateProvider = () => {
     setSelectedProvider(null)
@@ -91,12 +108,24 @@ export const Providers = ({ orgId }: TProviders) => {
     }
   }
 
+  const providersArray = useMemo(
+    () => (providers ? Object.values(providers) : []),
+    [providers]
+  )
+
+  const typeFilteredProviders = useMemo(
+    () =>
+      activeTypeTab === `all`
+        ? providersArray
+        : providersArray.filter((provider) => provider.type === activeTypeTab),
+    [providersArray, activeTypeTab]
+  )
+
   const filteredProviders = useMemo(() => {
-    const providersArray = providers ? Object.values(providers) : []
-    if (!searchQuery.trim()) return providersArray
+    if (!searchQuery.trim()) return typeFilteredProviders
 
     const query = searchQuery.toLowerCase()
-    return providersArray.filter(
+    return typeFilteredProviders.filter(
       (provider) =>
         provider.name?.toLowerCase().includes(query) ||
         provider.type?.toLowerCase().includes(query) ||
@@ -104,9 +133,9 @@ export const Providers = ({ orgId }: TProviders) => {
         provider.options?.baseUrl?.toLowerCase().includes(query) ||
         provider.id?.toLowerCase().includes(query)
     )
-  }, [providers, searchQuery])
+  }, [typeFilteredProviders, searchQuery])
 
-  const providersCount = providers ? Object.keys(providers).length : 0
+  const providersCount = providersArray.length
 
   const columns: TDataTableColumn<Provider>[] = [
     {
@@ -201,6 +230,14 @@ export const Providers = ({ orgId }: TProviders) => {
     },
   ]
 
+  const typeTabCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: providersArray.length }
+    for (const type of Object.values(EProvider)) {
+      counts[type] = providersArray.filter((provider) => provider.type === type).length
+    }
+    return counts
+  }, [providersArray])
+
   return (
     <PageLayout
       searchCount={0}
@@ -219,6 +256,26 @@ export const Providers = ({ orgId }: TProviders) => {
     >
       {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
 
+      {!isInitialLoading && !error && providersCount > 0 && (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Tabs
+            value={activeTypeTab}
+            onChange={onTypeTabChange}
+            aria-label='provider type tabs'
+          >
+            {providerTypeTabs.map((tab) => (
+              <Tab
+                key={tab}
+                value={tab}
+                label={`${providerTypeTabLabels[tab]} (${typeTabCounts[tab]})`}
+                id={`provider-type-tab-${tab}`}
+                aria-controls={`provider-type-tabpanel-${tab}`}
+              />
+            ))}
+          </Tabs>
+        </Box>
+      )}
+
       {!isInitialLoading && !error && providersCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
@@ -233,7 +290,13 @@ export const Providers = ({ orgId }: TProviders) => {
         !error &&
         providersCount > 0 &&
         filteredProviders.length === 0 && (
-          <EmptyState message='No providers match your search query.' />
+          <EmptyState
+            message={
+              searchQuery.trim()
+                ? 'No providers match your search query.'
+                : `No ${providerTypeTabLabels[activeTypeTab]} providers yet.`
+            }
+          />
         )}
 
       {!error && filteredProviders.length > 0 && (
