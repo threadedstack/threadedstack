@@ -119,7 +119,12 @@ const buildApp = () =>
           thread: {
             create: vi.fn().mockResolvedValue({ data: { id: `thread-1` } }),
             get: vi.fn().mockResolvedValue({
-              data: { id: `thread-existing`, orgId: `org-1`, agentId: `agent-1` },
+              data: {
+                id: `thread-existing`,
+                orgId: `org-1`,
+                agentId: `agent-1`,
+                userId: `test-user-id`,
+              },
             }),
           },
           message: { create: vi.fn().mockResolvedValue({ data: {} }) },
@@ -687,6 +692,44 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
     const db = mockReq.app?.locals.db as any
     db.services.thread.get.mockResolvedValue({
       data: { id: `thread-foreign`, orgId: `org-other`, agentId: `agent-other` },
+    })
+    mockFormatOAIError.mockReturnValue({
+      status: 400,
+      body: {
+        error: {
+          message: `Invalid threadId for this agent`,
+          type: `invalid_request_error`,
+          param: null,
+          code: null,
+        },
+      },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockFormatOAIError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: `Invalid threadId for this agent` })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(400)
+    expect(mockJson).toHaveBeenCalled()
+    expect(db.services.thread.create).not.toHaveBeenCalled()
+    expect(mockRunHeadless).not.toHaveBeenCalled()
+  })
+
+  it(`should return 400 when the supplied threadId belongs to a different user in the same org`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    mockReq.body = {
+      messages: [{ role: `user`, content: `Follow-up` }],
+      threadId: `thread-other-user`,
+    }
+    const db = mockReq.app?.locals.db as any
+    db.services.thread.get.mockResolvedValue({
+      data: {
+        id: `thread-other-user`,
+        orgId: `org-1`,
+        agentId: `agent-1`,
+        userId: `other-user-id`,
+      },
     })
     mockFormatOAIError.mockReturnValue({
       status: 400,

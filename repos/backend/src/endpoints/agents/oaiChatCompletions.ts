@@ -121,7 +121,8 @@ export const oaiChatCompletions: TEndpointConfig = {
         threadFetchErr ||
         !existingThread ||
         existingThread.orgId !== agentData.orgId ||
-        existingThread.agentId !== agentId
+        existingThread.agentId !== agentId ||
+        existingThread.userId !== userId
       ) {
         const { status, body: errBody } = formatOAIError(
           new Exception(400, `Invalid threadId for this agent`)
