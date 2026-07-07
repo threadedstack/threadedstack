@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { makeTheme } from '@tdsk/components'
 import { ThemeProvider } from '@mui/material/styles'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 const theme = makeTheme({ type: 'light' })
 const Wrapper = ({ children }: { children: ReactNode }) => (
@@ -124,8 +124,13 @@ describe(`Providers`, () => {
     renderWithTheme(<Providers orgId='org-1' />)
 
     fireEvent.click(screen.getByRole(`tab`, { name: `AI (2)` }))
-    const row = screen.getByText(`Anthropic`).closest(`tr`)!
-    expect(within(row).getByText(`anthropic`)).toBeTruthy()
+    fireEvent.change(
+      screen.getByPlaceholderText(`Search providers by name, type, or URL...`),
+      { target: { value: `openai` } }
+    )
+
+    expect(screen.getByText(`OpenAI`)).toBeTruthy()
+    expect(screen.queryByText(`Anthropic`)).toBeNull()
     expect(screen.queryByText(`GHCR`)).toBeNull()
   })
 })

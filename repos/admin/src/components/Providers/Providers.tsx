@@ -286,26 +286,29 @@ export const Providers = ({ orgId }: TProviders) => {
         />
       )}
 
-      {!isInitialLoading &&
-        !error &&
-        providersCount > 0 &&
-        filteredProviders.length === 0 && (
-          <EmptyState
-            message={
-              searchQuery.trim()
-                ? 'No providers match your search query.'
-                : `No ${providerTypeTabLabels[activeTypeTab]} providers yet.`
-            }
-          />
-        )}
-
-      {!error && filteredProviders.length > 0 && (
-        <DataTable
-          columns={columns}
-          data={filteredProviders}
-          onRowClick={onEditProvider}
-          getRowKey={(provider) => provider.id}
-        />
+      {!isInitialLoading && !error && providersCount > 0 && (
+        <div
+          role='tabpanel'
+          id={`provider-type-tabpanel-${activeTypeTab}`}
+          aria-labelledby={`provider-type-tab-${activeTypeTab}`}
+        >
+          {filteredProviders.length === 0 ? (
+            <EmptyState
+              message={
+                searchQuery.trim()
+                  ? 'No providers match your search query.'
+                  : `No ${providerTypeTabLabels[activeTypeTab]} providers yet.`
+              }
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredProviders}
+              onRowClick={onEditProvider}
+              getRowKey={(provider) => provider.id}
+            />
+          )}
+        </div>
       )}
 
       {orgId && (
