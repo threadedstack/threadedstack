@@ -69,6 +69,16 @@ describe(`needsUpdate`, () => {
     expect(needsUpdate({ ...d, cronExpression: `1 6 * * *` }, d)).toBe(true)
   })
 
+  it(`is true when orgId differs`, () => {
+    const d = def()
+    expect(needsUpdate({ ...d, orgId: `og_other` }, d)).toBe(true)
+  })
+
+  it(`is true when projectId differs`, () => {
+    const d = def()
+    expect(needsUpdate({ ...d, projectId: `pj_other` }, d)).toBe(true)
+  })
+
   it(`treats null and undefined timeoutMs as equal`, () => {
     const d = def({ timeoutMs: null })
     expect(needsUpdate({ ...d, timeoutMs: undefined }, d)).toBe(false)
