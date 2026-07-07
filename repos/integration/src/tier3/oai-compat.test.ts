@@ -523,4 +523,92 @@ describe.skipIf(!isFeatureEnabled('agents'))('Tier 3: OpenAI-Compatible API', ()
       expect(fullStreamContent.length).toBeGreaterThan(0)
     }, 120_000)
   })
+
+  // ─── threadId reuse (no duplicate seeding) ─────────────────────────
+
+  describe('threadId reuse across repeated calls', () => {
+    test.skipIf(!hasLLM())(
+      'a second call with the same threadId does not duplicate seeded messages',
+      async () => {
+        const threadRes = await post<{ id: string }>(
+          `/orgs/${ctx.orgId}/agents/${agentId}/threads`,
+          { name: uniqueName('OAI Reuse Thread') }
+        )
+        expect(threadRes.status).toBe(201)
+        const reuseThreadId = threadRes.data.id
+        threadIds.push(reuseThreadId)
+
+        // History that a naively-reseeding implementation would duplicate
+        // into the thread on every call — it must never appear at all,
+        // since a valid threadId skips seeding entirely.
+        const historyUserText = uniqueName('history-user-line')
+        const historyAssistantText = uniqueName('history-assistant-line')
+        const priorMessages = [
+          { role: 'user' as const, content: historyUserText },
+          { role: 'assistant' as const, content: historyAssistantText },
+        ]
+
+        const call1 = await post<{ id: string; choices: any[] }>(
+          `/agents/${agentId}/v1/chat/completions`,
+          {
+            threadId: reuseThreadId,
+            messages: [...priorMessages, { role: 'user', content: 'First turn prompt' }],
+            stream: false,
+          },
+          { timeout: 90_000 }
+        )
+        expect(call1.status).toBe(200)
+
+        const afterCall1 = await get<Record<string, any>[]>(
+          `/orgs/${ctx.orgId}/agents/${agentId}/threads/${reuseThreadId}/messages`
+        )
+        expect(afterCall1.status).toBe(200)
+        const countAfterCall1 = afterCall1.data.length
+
+        // Only the turn's own user+assistant pair should land — never the seeded history.
+        expect(countAfterCall1).toBeGreaterThanOrEqual(2)
+
+        const call2 = await post<{ id: string; choices: any[] }>(
+          `/agents/${agentId}/v1/chat/completions`,
+          {
+            threadId: reuseThreadId,
+            messages: [...priorMessages, { role: 'user', content: 'Second turn prompt' }],
+            stream: false,
+          },
+          { timeout: 90_000 }
+        )
+        expect(call2.status).toBe(200)
+
+        const afterCall2 = await get<Record<string, any>[]>(
+          `/orgs/${ctx.orgId}/agents/${agentId}/threads/${reuseThreadId}/messages`
+        )
+        expect(afterCall2.status).toBe(200)
+
+        // The second turn adds its own messages on top of the first, but
+        // must never duplicate the seeded history from either call — a
+        // regression that reintroduces unconditional reseeding would land
+        // historyUserText/historyAssistantText verbatim in the message list.
+        expect(afterCall2.data.length).toBeGreaterThan(countAfterCall1)
+
+        const contents = JSON.stringify(afterCall2.data)
+        expect(contents).not.toContain(historyUserText)
+        expect(contents).not.toContain(historyAssistantText)
+      },
+      90_000
+    )
+
+    test('an invalid threadId is rejected instead of silently creating a new thread', async () => {
+      const res = await post<{ error: { message: string; type: string } }>(
+        `/agents/${agentId || 'any-agent'}/v1/chat/completions`,
+        {
+          threadId: 'nonexistent-thread-id',
+          messages: [{ role: 'user', content: 'hi' }],
+          stream: false,
+        }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.error?.details).toMatchObject({ error: { type: 'invalid_request_error' } })
+    })
+  })
 })
