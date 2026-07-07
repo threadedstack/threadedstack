@@ -13,6 +13,20 @@ import { SandboxRuntimeConfigs, EContainerState } from '@tdsk/domain'
 const RehydratePollMs = 30_000
 
 /**
+ * Minimum time the watcher must actually observe a rehydrated run before it is
+ * allowed to enforce the schedule's timeoutMs. Backend downtime between the
+ * run's startedAt and the moment hydrateOrphanedRuns resumes watching counts
+ * against the deadline (the pod itself never paused), so a long enough outage
+ * can leave the deadline already elapsed the instant watching resumes — killing
+ * a run on its very first poll tick with zero chance to see it finish, even
+ * when the process is seconds from completing (worst case: a custom runtime,
+ * where resolveRuntimeBinary can't pgrep for liveness and the deadline is the
+ * only signal). This grace window guarantees at least one real observation
+ * period post-restart before enforcement kicks in.
+ */
+const RehydrationMinGraceMs = 2 * RehydratePollMs
+
+/**
  * Marker text stored in schedule_runs.error when a run is completed after
  * backend restart. Distinguishable from real runtime errors so callers/UX can
  * treat it as informational instead of a real failure signal.
@@ -148,7 +162,13 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
   const { data: schedule } = await db.services.schedule.get(run.scheduleId)
   const timeoutMs = schedule?.timeoutMs ?? ExecTimeoutMS
   const startedAtMs = new Date(run.startedAt).getTime()
-  const deadlineMs = startedAtMs + timeoutMs
+  const watchStartMs = Date.now()
+  // Never enforce a deadline that backend downtime already consumed without
+  // giving the resumed watcher at least one real chance to observe the run.
+  const deadlineMs = Math.max(
+    startedAtMs + timeoutMs,
+    watchStartMs + RehydrationMinGraceMs
+  )
 
   const runtimeBin = await resolveRuntimeBinary(app, schedule)
 
