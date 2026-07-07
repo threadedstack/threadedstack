@@ -21,6 +21,9 @@ export const Ids = {
     chatAgent: `ag_0000004`,
     generalAgent: `ag_0000005`,
     ollamaAgent: `ag_0000006`,
+    // Executive board — founder CEO seat (product-stable id; matches the backend
+    // board constant CeoAgentId). The CTO seat reuses the prod steward agent.
+    ceo: `ag_ceo0001`,
   },
   apikey: {
     tdskOrgKey: `ak_0000001`,
@@ -161,6 +164,9 @@ export const Ids = {
     custom: `sb_0000005`,
     openClaw: `sb_0000006`,
     piCodingAgent: `sb_0000007`,
+    // Executive board — CEO agent's body sandbox (product-stable id; matches the
+    // backend board constant CeoSandboxId).
+    ceoBody: `sb_ceo0001`,
   },
   domain: {
     orgDomain: `dm_0000001`,
