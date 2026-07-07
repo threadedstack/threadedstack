@@ -84,21 +84,19 @@ export const parseVerifyResultsBlock = (text: string): TVerifyResult[] => {
 
 // ─── verifyDeploy ─────────────────────────────────────────────────────────────
 
-export type TVerifyEnv = `production` | `staging`
+export type TVerifyEnv = `production`
 
 /** One probe result. */
 export type TVerifyProbeResult = { probe: TVerifyProbe; passed: boolean; detail?: string }
 
 /**
  * The env-to-host lookup. Kept in-file (not in domain) since it reflects
- * deploy-config reality. Update alongside deploy/values.*.yaml.
+ * deploy-config reality. Update alongside deploy/values.yaml.
  *
  * production: TDSK_CADDY_PX_HOST = px.threadedstack.app
- * staging:    TDSK_CADDY_PX_HOST = px-staging.threadedstack.app
  */
 const EnvHost: Record<TVerifyEnv, { proxy: string }> = {
   production: { proxy: `https://px.threadedstack.app` },
-  staging: { proxy: `https://px-staging.threadedstack.app` },
 }
 
 /** Minimal shape of app that verifyDeploy needs. */
