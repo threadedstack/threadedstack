@@ -1,21 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { shouldInterpret } from './skipHeuristic'
+import { EParserEvtType, EToolCallState } from '@tdsk/domain'
 import type { TParsedEvent } from '@tdsk/domain'
 
 function textEvent(content: string): TParsedEvent {
-  return { type: 'text', content, timestamp: Date.now() }
+  return { type: EParserEvtType.Text, content, timestamp: Date.now() }
 }
 
 function unknownEvent(raw: string): TParsedEvent {
-  return { type: 'unknown', raw, timestamp: Date.now() }
+  return { type: EParserEvtType.Unknown, raw, timestamp: Date.now() }
 }
 
 function toolCallEvent(): TParsedEvent {
   return {
-    type: 'tool-call',
+    type: EParserEvtType.ToolCall,
     tool: 'Read',
     target: 'src/index.ts',
-    status: 'running',
+    status: EToolCallState.Running,
     timestamp: Date.now(),
   }
 }

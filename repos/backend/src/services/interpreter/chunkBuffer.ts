@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { BypassEventTypes } from '@tdsk/domain'
+import { BypassEventTypes, EParserEvtType } from '@tdsk/domain'
 import type { TParsedEvent } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 
@@ -29,7 +29,7 @@ export class ChunkBuffer {
     if (isBypass) {
       this.#callbacks.onStampedEvent(event, undefined)
 
-      if (event.type === 'prompt-ready') {
+      if (event.type === EParserEvtType.PromptReady) {
         this.#flush()
       }
       return

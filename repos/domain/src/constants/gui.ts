@@ -1,3 +1,5 @@
+import { EParserEvtType } from '../types/parser.types'
+
 export const ComponentRegistry = [
   'Select',
   'Confirm',
@@ -21,15 +23,19 @@ export const AllowedHtmlElements = [
   'br',
 ] as const
 
-export const BypassEventTypes = ['activity', 'prompt-ready', 'input'] as const
+export const BypassEventTypes = [
+  EParserEvtType.Activity,
+  EParserEvtType.PromptReady,
+  EParserEvtType.Input,
+] as const
 
 export const BufferedEventTypes = [
-  'text',
-  'tool-call',
-  'permission',
-  'diff',
-  'error',
-  'unknown',
+  EParserEvtType.Text,
+  EParserEvtType.ToolCall,
+  EParserEvtType.Permission,
+  EParserEvtType.Diff,
+  EParserEvtType.Error,
+  EParserEvtType.Unknown,
 ] as const
 
 export type TComponentName = (typeof ComponentRegistry)[number]

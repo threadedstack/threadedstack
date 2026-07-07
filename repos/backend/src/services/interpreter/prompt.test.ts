@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getSystemPrompt, buildUserMessage } from './prompt'
-import { InterpreterSystem } from '@tdsk/domain'
+import { InterpreterSystem, EParserEvtType, EToolCallState } from '@tdsk/domain'
 import type { TParsedEvent, TGuiConfig } from '@tdsk/domain'
 
 const baseConfig: TGuiConfig = {
@@ -32,21 +32,21 @@ describe('buildUserMessage', () => {
 
   it('should return content for a text event', () => {
     const events: TParsedEvent[] = [
-      { type: 'text', content: 'Hello world', timestamp: ts },
+      { type: EParserEvtType.Text, content: 'Hello world', timestamp: ts },
     ]
     expect(buildUserMessage(events)).toBe('Hello world')
   })
 
   it('should return raw for an unknown event', () => {
     const events: TParsedEvent[] = [
-      { type: 'unknown', raw: 'raw terminal output', timestamp: ts },
+      { type: EParserEvtType.Unknown, raw: 'raw terminal output', timestamp: ts },
     ]
     expect(buildUserMessage(events)).toBe('raw terminal output')
   })
 
   it('should return "Error: {message}" for an error event', () => {
     const events: TParsedEvent[] = [
-      { type: 'error', message: 'something went wrong', timestamp: ts },
+      { type: EParserEvtType.Error, message: 'something went wrong', timestamp: ts },
     ]
     expect(buildUserMessage(events)).toBe('Error: something went wrong')
   })
@@ -54,10 +54,10 @@ describe('buildUserMessage', () => {
   it('should return "⏺ {tool} {target}" for a tool-call event', () => {
     const events: TParsedEvent[] = [
       {
-        type: 'tool-call',
+        type: EParserEvtType.ToolCall,
         tool: 'Read',
         target: 'src/index.ts',
-        status: 'running',
+        status: EToolCallState.Running,
         timestamp: ts,
       },
     ]
@@ -66,7 +66,11 @@ describe('buildUserMessage', () => {
 
   it('should return prompt for a permission event', () => {
     const events: TParsedEvent[] = [
-      { type: 'permission', prompt: 'Allow Edit to src/App.tsx?', timestamp: ts },
+      {
+        type: EParserEvtType.Permission,
+        prompt: 'Allow Edit to src/App.tsx?',
+        timestamp: ts,
+      },
     ]
     expect(buildUserMessage(events)).toBe('Allow Edit to src/App.tsx?')
   })
@@ -74,7 +78,7 @@ describe('buildUserMessage', () => {
   it('should return + and - lines for a diff event', () => {
     const events: TParsedEvent[] = [
       {
-        type: 'diff',
+        type: EParserEvtType.Diff,
         file: 'src/index.ts',
         additions: ['added line'],
         removals: ['removed line'],
@@ -86,27 +90,27 @@ describe('buildUserMessage', () => {
 
   it('should join multiple events by newline and filter empty strings', () => {
     const events: TParsedEvent[] = [
-      { type: 'text', content: 'First', timestamp: ts },
-      { type: 'text', content: 'Second', timestamp: ts },
+      { type: EParserEvtType.Text, content: 'First', timestamp: ts },
+      { type: EParserEvtType.Text, content: 'Second', timestamp: ts },
     ]
     expect(buildUserMessage(events)).toBe('First\nSecond')
   })
 
   it('should return empty string for activity events', () => {
-    const events: TParsedEvent[] = [{ type: 'activity', timestamp: ts }]
+    const events: TParsedEvent[] = [{ type: EParserEvtType.Activity, timestamp: ts }]
     expect(buildUserMessage(events)).toBe('')
   })
 
   it('should return empty string for prompt-ready events', () => {
-    const events: TParsedEvent[] = [{ type: 'prompt-ready', timestamp: ts }]
+    const events: TParsedEvent[] = [{ type: EParserEvtType.PromptReady, timestamp: ts }]
     expect(buildUserMessage(events)).toBe('')
   })
 
   it('should filter out activity and prompt-ready from mixed events', () => {
     const events: TParsedEvent[] = [
-      { type: 'activity', timestamp: ts },
-      { type: 'text', content: 'Visible text', timestamp: ts },
-      { type: 'prompt-ready', timestamp: ts },
+      { type: EParserEvtType.Activity, timestamp: ts },
+      { type: EParserEvtType.Text, content: 'Visible text', timestamp: ts },
+      { type: EParserEvtType.PromptReady, timestamp: ts },
     ]
     expect(buildUserMessage(events)).toBe('Visible text')
   })
