@@ -194,21 +194,26 @@ describe(`hydrateOrphanedRuns`, () => {
     expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
   })
 
-  it(`Running pod + pgrep says runtime alive => keeps watching, marks timeout when deadline elapses`, async () => {
+  it(`Running pod + pgrep says runtime alive => keeps watching, marks timeout once the post-restart grace window also elapses`, async () => {
     const started = new Date(Date.now() - 61_000).toISOString()
     const app = buildApp({
       runs: [baseRun({ startedAt: started })],
-      schedule: baseSchedule, // timeoutMs = 60_000 — already elapsed
+      schedule: baseSchedule, // timeoutMs = 60_000 — already elapsed before watching even starts
       sandboxRecord: baseSandbox,
       // Every poll: pod still Running.
-      podStates: [EContainerState.Running, EContainerState.Running],
+      podStates: [
+        EContainerState.Running,
+        EContainerState.Running,
+        EContainerState.Running,
+      ],
       // pgrep says runtime is still there.
       pgrepResult: { success: true },
     })
 
     await hydrateOrphanedRuns(app)
-    // One tick past the deadline check happens after the 30-second sleep.
-    await vi.advanceTimersByTimeAsync(31_000)
+    // Grace window (2 poll intervals = 60s from watch start) must fully elapse
+    // before the already-expired original deadline is enforced.
+    await vi.advanceTimersByTimeAsync(61_000)
 
     expect(app.__.complete).toHaveBeenCalled()
     const [, payload] = app.__.complete.mock.calls.at(-1)!
@@ -216,18 +221,22 @@ describe(`hydrateOrphanedRuns`, () => {
     expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
   })
 
-  it(`skips pgrep when runtime is custom and falls back to deadline enforcement`, async () => {
+  it(`skips pgrep when runtime is custom and falls back to deadline enforcement after the grace window`, async () => {
     const started = new Date(Date.now() - 61_000).toISOString()
     const app = buildApp({
       runs: [baseRun({ startedAt: started })],
       schedule: baseSchedule,
       // Custom runtime has no runtimeCommand → resolveRuntimeBinary returns null
       sandboxRecord: { id: `sb_1`, config: { runtime: `custom` } },
-      podStates: [EContainerState.Running, EContainerState.Running],
+      podStates: [
+        EContainerState.Running,
+        EContainerState.Running,
+        EContainerState.Running,
+      ],
     })
 
     await hydrateOrphanedRuns(app)
-    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.advanceTimersByTimeAsync(61_000)
 
     // pgrep should NEVER be called for a custom runtime.
     expect(app.__.sbInstance.exec).not.toHaveBeenCalled()
@@ -235,5 +244,33 @@ describe(`hydrateOrphanedRuns`, () => {
     expect(app.__.complete).toHaveBeenCalled()
     const [, payload] = app.__.complete.mock.calls.at(-1)!
     expect(payload.status).toBe(`timeout`)
+  })
+
+  it(`does not kill a run on the first post-restart poll just because backend downtime already exceeded the original deadline`, async () => {
+    // Run started 10 minutes ago against a 60s timeout — the deadline was blown
+    // long before this backend process even existed to watch it.
+    const started = new Date(Date.now() - 10 * 60_000).toISOString()
+    const app = buildApp({
+      runs: [baseRun({ startedAt: started })],
+      schedule: baseSchedule, // timeoutMs = 60_000
+      sandboxRecord: baseSandbox,
+      podStates: Array(6).fill(EContainerState.Running),
+      pgrepResult: { success: true }, // runtime still genuinely alive
+    })
+
+    await hydrateOrphanedRuns(app)
+
+    // First poll tick: without the grace window this would already be well
+    // past the (already-elapsed) deadline and get killed immediately.
+    await vi.advanceTimersByTimeAsync(31_000)
+    expect(app.__.complete).not.toHaveBeenCalled()
+
+    // Once the full grace window (60s from watch start) elapses, enforcement
+    // resumes as normal.
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(app.__.complete).toHaveBeenCalled()
+    const [, payload] = app.__.complete.mock.calls.at(-1)!
+    expect(payload.status).toBe(`timeout`)
+    expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
   })
 })
