@@ -19,6 +19,8 @@ import type { threads } from '@TDB/schemas/threads'
 import type { domains } from '@TDB/schemas/domains'
 import type { invoices } from '@TDB/schemas/invoices'
 import type { memories } from '@TDB/schemas/memories'
+import type { records } from '@TDB/schemas/records'
+import type { collections } from '@TDB/schemas/collections'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { DBError } from '@TDB/utils/error/error'
@@ -143,6 +145,11 @@ export type TDBPermissionOverrideInsert = TInferDateProps<
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
+export type TDBCollectionSelect = TInferDates<typeof collections.$inferSelect>
+export type TDBCollectionInsert = TInferDates<typeof collections.$inferInsert>
+export type TDBRecordSelect = TInferDates<typeof records.$inferSelect>
+export type TDBRecordInsert = TInferDates<typeof records.$inferInsert>
+
 export type TDBUserSelect = TInferDateProps<
   typeof users.$inferSelect,
   `createdAt` | `updatedAt` | `banExpires`
@@ -215,6 +222,8 @@ export type TDBEntitySelect =
   | TDBSubscriptionSelect
   | TDBSandboxSessionSelect
   | TDBPermissionOverrideSelect
+  | TDBCollectionSelect
+  | TDBRecordSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -250,6 +259,8 @@ export type TDBEntityInsert =
   | TDBSubscriptionInsert
   | TDBSandboxSessionInsert
   | TDBPermissionOverrideInsert
+  | TDBCollectionInsert
+  | TDBRecordInsert
 
 export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
   Partial<T>,
