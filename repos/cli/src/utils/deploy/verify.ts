@@ -1,5 +1,6 @@
 import type { TTaskActionArgs } from '@TSCL/types'
 
+import fs from 'node:fs'
 import { Logger } from '@tdsk/logger'
 import { capture } from '@TSCL/utils/proc/capture'
 import { getCtx } from '@TSCL/utils/config/getCtx'
@@ -8,6 +9,9 @@ import { getKubeMeta } from '@TSCL/utils/kube/getKubeMeta'
 
 /** In-cluster services that are health-checked and rolled back as a unit */
 const SERVICE_CONTEXTS = [`caddy`, `proxy`, `backend`]
+
+/** Rollback attempts before declaring the deploy unrecoverable */
+const ROLLBACK_ATTEMPTS = 2
 
 type TService = { ctx: string; deployment: string }
 
@@ -149,10 +153,16 @@ export const captureLogs = async (props: TTaskActionArgs) => {
   }
 }
 
-/** Restores each service to its previously recorded image and re-verifies */
+/**
+ * Restores each service to its previously recorded image and re-verifies.
+ * A rollback can fail transiently (the same class of flakiness that failed
+ * the initial rollout) so it is retried up to `attempts` times before being
+ * declared unrecoverable.
+ */
 export const rollback = async (
   props: TTaskActionArgs,
-  previous: TPreviousImages
+  previous: TPreviousImages,
+  attempts: number = ROLLBACK_ATTEMPTS
 ): Promise<boolean> => {
   if (!previous || !Object.keys(previous).length) {
     Logger.error(
@@ -161,20 +171,52 @@ export const rollback = async (
     return false
   }
 
-  for (const { ctx, deployment } of services(props)) {
-    const image = previous[ctx]
-    if (!image) continue
-    Logger.pair(`  Rolling back`, `${deployment} → ${image}`)
-    await capture(
-      `kubectl`,
-      kctl(props, [`set`, `image`, `deployment/${deployment}`, `${deployment}=${image}`])
-    )
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    for (const { ctx, deployment } of services(props)) {
+      const image = previous[ctx]
+      if (!image) continue
+      Logger.pair(`  Rolling back`, `${deployment} → ${image}`)
+      await capture(
+        `kubectl`,
+        kctl(props, [
+          `set`,
+          `image`,
+          `deployment/${deployment}`,
+          `${deployment}=${image}`,
+        ])
+      )
+    }
+
+    const rolled = await waitForRollout(props)
+    const healthy = await healthCheck(props, true)
+
+    if (rolled && healthy) return true
+
+    if (attempt < attempts)
+      Logger.warn(
+        `  Rollback attempt ${attempt}/${attempts} did not recover — retrying...`
+      )
   }
 
-  const rolled = await waitForRollout(props)
-  const healthy = await healthCheck(props, true)
+  return false
+}
 
-  return rolled && healthy
+/**
+ * Records whether the rollback fully recovered as a `rollback_failed` GitHub
+ * Actions step output, so the deploy workflow can escalate (open a health
+ * issue) when the automatic rollback itself did not restore service. A no-op
+ * outside of Actions (`GITHUB_OUTPUT` unset) or if the file can't be written —
+ * this is a best-effort signal and must never fail the deploy itself.
+ */
+export const writeRollbackOutcome = (recovered: boolean): void => {
+  const outputPath = process.env.GITHUB_OUTPUT
+  if (!outputPath) return
+
+  try {
+    fs.appendFileSync(outputPath, `rollback_failed=${recovered ? `false` : `true`}\n`)
+  } catch (err) {
+    Logger.warn(`  Could not write rollback outcome to GITHUB_OUTPUT: ${err}`)
+  }
 }
 
 /**
@@ -197,6 +239,7 @@ export const verifyOrRollback = async (
   await captureLogs(props)
 
   const recovered = await rollback(props, previous)
+  writeRollbackOutcome(recovered)
   recovered
     ? Logger.warn(
         `  Rolled back to the previous release. Investigate the failure before redeploying.`
