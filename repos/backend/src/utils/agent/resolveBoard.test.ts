@@ -17,6 +17,10 @@ const boardState = vi.hoisted(() => ({
 vi.mock(`@TBE/constants/board`, () => ({
   BoardMaxRounds: 3,
   BoardBlockedActiveInitiativeNote: `blocked: active initiative in flight`,
+  StopTheLinePrefix: `STOP-THE-LINE:`,
+  StopTheLineEvidenceFlag: `stop-the-line`,
+  BoardAbortNotEndorsedNote: `blocked: stop-the-line abort lacks full non-CEO endorsement`,
+  BoardAbortNoWindDownNote: `blocked: stop-the-line abort has no wind-down plan`,
   getBoardMembers: () => boardState.members,
   isCeoSchedule: (s: any) => {
     const ceo = boardState.members.find((m) => m.isCEO)
@@ -72,11 +76,19 @@ const buildDb = (opts: { proposals?: any[]; positions?: any[]; strategy?: any })
     .mockResolvedValue(opts.strategy !== undefined ? { data: opts.strategy } : {})
   const setActiveInitiative = vi.fn().mockResolvedValue({ data: {} })
   const upsertByOrg = vi.fn().mockResolvedValue({ data: {} })
+  const promoteNextFromBacklog = vi.fn().mockResolvedValue({ data: {} })
+  const clearActiveInitiative = vi.fn().mockResolvedValue({ data: {} })
   const db = {
     services: {
       decisionProposal: { listOpenByOrg, update, advanceRound },
       decisionPosition: { latestByProposal },
-      companyStrategy: { getByOrg, setActiveInitiative, upsertByOrg },
+      companyStrategy: {
+        getByOrg,
+        setActiveInitiative,
+        upsertByOrg,
+        promoteNextFromBacklog,
+        clearActiveInitiative,
+      },
     },
   }
   return {
@@ -89,6 +101,8 @@ const buildDb = (opts: { proposals?: any[]; positions?: any[]; strategy?: any })
       getByOrg,
       setActiveInitiative,
       upsertByOrg,
+      promoteNextFromBacklog,
+      clearActiveInitiative,
     },
   }
 }
@@ -261,13 +275,15 @@ describe(`resolveBoard — active-initiative commit gate`, () => {
     expect(spies.update.mock.calls[0][0].status).toBe(EDecisionStatus.committed)
   })
 
-  it(`blocks an active-initiative swap while one is in flight and notes it in the resolution`, async () => {
+  // CORE STABILITY GUARANTEE: re-direction blocked until initiative-complete.
+  it(`re-direction blocked until initiative-complete — a committed active-initiative swap is refused while one is active`, async () => {
     const { app, spies } = buildDb({
       proposals: [
         proposal({
           axis: EDecisionAxis.activeInitiative,
           round: 1,
           title: `Pivot the loop`,
+          description: `chase a shinier plan`,
         }),
       ],
       positions: [
@@ -283,11 +299,183 @@ describe(`resolveBoard — active-initiative commit gate`, () => {
 
     await resolveBoard(app, schedule())
 
-    // the frozen Active Initiative is never swapped mid-flight
+    // the frozen Active Initiative is never swapped mid-flight (no completion, no abort)
     expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
     const call = spies.update.mock.calls[0][0]
     expect(call.status).toBe(EDecisionStatus.committed)
     expect(call.resolution).toContain(`blocked: active initiative in flight`)
+  })
+
+  it(`allows a new Active Initiative once the prior one is no longer active (status complete)`, async () => {
+    const { app, spies } = buildDb({
+      proposals: [
+        proposal({
+          axis: EDecisionAxis.activeInitiative,
+          round: 1,
+          title: `Next big bet`,
+          description: `merged+deployed+verified`,
+        }),
+      ],
+      positions: [
+        position(`ag_ceo`, EStance.endorse, 1),
+        position(`ag_cto`, EStance.endorse, 1),
+      ],
+      strategy: {
+        positioning: `x`,
+        backlog: [],
+        activeInitiative: { title: `Done thing`, status: EInitiativeStatus.complete },
+      },
+    })
+
+    await resolveBoard(app, schedule())
+
+    expect(spies.setActiveInitiative).toHaveBeenCalledWith(
+      `org-1`,
+      expect.objectContaining({ title: `Next big bet`, status: EInitiativeStatus.active })
+    )
+  })
+})
+
+describe(`resolveBoard — stop-the-line abort`, () => {
+  const inFlightStrategy = (backlog: any[] = []) => ({
+    positioning: `x`,
+    backlog,
+    activeInitiative: {
+      title: `In-flight`,
+      definitionOfDone: `dod`,
+      evidence: [],
+      status: EInitiativeStatus.active,
+      committedAt: `2026-07-07T00:00:00Z`,
+    },
+  })
+
+  it(`stop-the-line abort winds down + promotes next — full non-CEO endorsement + wind-down note succeeds`, async () => {
+    const { app, spies } = buildDb({
+      proposals: [
+        proposal({
+          axis: EDecisionAxis.activeInitiative,
+          round: 1,
+          title: `STOP-THE-LINE: abort the failing initiative`,
+          description: `revert the merged PRs to a safe state`,
+          evidence: [`error-rate-spiked`],
+        }),
+      ],
+      positions: [
+        position(`ag_ceo`, EStance.endorse, 1),
+        position(`ag_cto`, EStance.endorse, 1),
+      ],
+      strategy: inFlightStrategy([
+        { title: `Recovery work`, rationale: `stabilize`, priority: 1 },
+      ]),
+    })
+
+    await resolveBoard(app, schedule())
+
+    // the in-flight initiative is marked aborted (wound down), not left dangling
+    expect(spies.setActiveInitiative).toHaveBeenCalledWith(
+      `org-1`,
+      expect.objectContaining({ title: `In-flight`, status: EInitiativeStatus.aborted })
+    )
+    // then the next backlog bet is promoted (backlog non-empty)
+    expect(spies.promoteNextFromBacklog).toHaveBeenCalledWith(`org-1`)
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+    const call = spies.update.mock.calls[0][0]
+    expect(call.status).toBe(EDecisionStatus.committed)
+    expect(call.resolution).toContain(`stop-the-line abort`)
+    expect(call.resolution).toContain(`revert the merged PRs to a safe state`)
+  })
+
+  it(`clears the Active Initiative on abort when the backlog is empty`, async () => {
+    const { app, spies } = buildDb({
+      proposals: [
+        proposal({
+          axis: EDecisionAxis.activeInitiative,
+          round: 1,
+          title: `Wind it down`,
+          description: `finish-to-safe then stop`,
+          evidence: [`stop-the-line`],
+        }),
+      ],
+      positions: [
+        position(`ag_ceo`, EStance.endorse, 1),
+        position(`ag_cto`, EStance.endorse, 1),
+      ],
+      strategy: inFlightStrategy([]),
+    })
+
+    await resolveBoard(app, schedule())
+
+    expect(spies.setActiveInitiative).toHaveBeenCalledWith(
+      `org-1`,
+      expect.objectContaining({ status: EInitiativeStatus.aborted })
+    )
+    expect(spies.clearActiveInitiative).toHaveBeenCalledWith(`org-1`)
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+  })
+
+  it(`blocks a stop-the-line abort WITHOUT full non-CEO endorsement (CEO tiebreak cannot abort alone)`, async () => {
+    const { app, spies } = buildDb({
+      proposals: [
+        proposal({
+          axis: EDecisionAxis.activeInitiative,
+          round: 3,
+          title: `STOP-THE-LINE: force an abort`,
+          description: `revert everything`,
+          evidence: [`stop-the-line`],
+        }),
+      ],
+      // round cap reached; CEO endorses (would tiebreak-commit) but the CTO objects,
+      // so the non-CEO high bar is NOT met.
+      positions: [
+        position(`ag_ceo`, EStance.endorse, 3),
+        position(`ag_cto`, EStance.object, 3),
+      ],
+      strategy: inFlightStrategy([
+        { title: `Recovery work`, rationale: `stabilize`, priority: 1 },
+      ]),
+    })
+
+    await resolveBoard(app, schedule())
+
+    // the abort is refused: the frozen Active Initiative is untouched
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.promoteNextFromBacklog).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+    const call = spies.update.mock.calls[0][0]
+    expect(call.status).toBe(EDecisionStatus.tiebroken)
+    expect(call.resolution).toContain(
+      `blocked: stop-the-line abort lacks full non-CEO endorsement`
+    )
+  })
+
+  it(`blocks a stop-the-line abort with no wind-down plan (empty description)`, async () => {
+    const { app, spies } = buildDb({
+      proposals: [
+        proposal({
+          axis: EDecisionAxis.activeInitiative,
+          round: 1,
+          title: `STOP-THE-LINE: abort`,
+          description: ``,
+          evidence: [`stop-the-line`],
+        }),
+      ],
+      positions: [
+        position(`ag_ceo`, EStance.endorse, 1),
+        position(`ag_cto`, EStance.endorse, 1),
+      ],
+      strategy: inFlightStrategy([]),
+    })
+
+    await resolveBoard(app, schedule())
+
+    expect(spies.setActiveInitiative).not.toHaveBeenCalled()
+    expect(spies.clearActiveInitiative).not.toHaveBeenCalled()
+    const call = spies.update.mock.calls[0][0]
+    expect(call.resolution).toContain(
+      `blocked: stop-the-line abort has no wind-down plan`
+    )
   })
 })
 

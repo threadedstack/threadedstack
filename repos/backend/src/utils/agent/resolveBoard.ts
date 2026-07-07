@@ -6,34 +6,92 @@ import { EStance, EDecisionAxis, EDecisionStatus, EInitiativeStatus } from '@tds
 import {
   BoardMaxRounds,
   getBoardMembers,
+  StopTheLinePrefix,
+  StopTheLineEvidenceFlag,
+  BoardAbortNoWindDownNote,
+  BoardAbortNotEndorsedNote,
   BoardBlockedActiveInitiativeNote,
 } from '@TBE/constants/board'
+
+/**
+ * Whether a committed proposal may act on the frozen Active Initiative. Only ever
+ * true for a stop-the-line abort that clears the high bar (every non-CEO member
+ * endorses); a routine active-initiative re-direction never carries it.
+ */
+type TCommitContext = { allNonCeoEndorse: boolean }
+
+/**
+ * A stop-the-line abort is the ONLY way a committed active-initiative proposal may
+ * move an in-flight Active Initiative. It is explicitly flagged so a routine
+ * re-direction can never be mistaken for one: the proposal title starts with
+ * `StopTheLinePrefix` OR its evidence carries the `StopTheLineEvidenceFlag` entry.
+ */
+const isStopTheLineAbort = (proposal: DecisionProposal): boolean => {
+  const title = (proposal.title ?? ``).trim().toUpperCase()
+  if (title.startsWith(StopTheLinePrefix.toUpperCase())) return true
+  return (proposal.evidence ?? []).some(
+    (ref) => ref.trim().toLowerCase() === StopTheLineEvidenceFlag
+  )
+}
 
 /**
  * Apply a committed / tiebroken proposal's intent to the org Company Strategy.
  *
  * - `active-initiative` axis: freeze the proposal as the single Active Initiative,
- *   but ONLY when none is in flight. If one already exists the strategy is left
- *   untouched and the caller records the blocked note (Phase 4 refines this into a
- *   stop-the-line abort).
+ *   but ONLY when none is in flight (status `active`). The completion gate keeps a
+ *   frozen initiative from being swapped mid-flight — the sole exception is a
+ *   stop-the-line abort that clears the high bar (all non-CEO members endorse) and
+ *   carries a wind-down plan; it marks the initiative `aborted` and promotes the
+ *   next backlog bet.
  * - `positioning` axis: overwrite the strategy positioning with the proposal.
  * - every other axis: append the proposal as a prioritized backlog item.
  *
- * Returns a `note` only when the effect was intentionally NOT applied (the blocked
- * active-initiative case), so the caller can surface it in the resolution.
+ * Returns a `note` only when the effect was intentionally NOT applied (a blocked
+ * gate case) or to record the abort, so the caller can surface it in the resolution.
  */
 async function commitProposalEffect(
   app: TApp,
-  proposal: DecisionProposal
+  proposal: DecisionProposal,
+  ctx: TCommitContext
 ): Promise<{ note?: string }> {
   const { db } = app.locals
   const orgId = proposal.orgId
 
   if (proposal.axis === EDecisionAxis.activeInitiative) {
     const { data: strategy } = await db.services.companyStrategy.getByOrg(orgId)
-    // Completion gate: the frozen Active Initiative is never swapped mid-flight.
-    if (strategy?.activeInitiative) return { note: BoardBlockedActiveInitiativeNote }
+    const active = strategy?.activeInitiative
+    const inFlight = !!active && active.status === EInitiativeStatus.active
 
+    if (inFlight) {
+      // Completion gate (the core stability guarantee): a frozen Active Initiative
+      // is NEVER swapped by a routine re-direction. It only moves via a completion
+      // report (persistInitiativeComplete) or the rare stop-the-line abort below —
+      // this is what stops strategy churn from thrashing the dev loop.
+      if (!isStopTheLineAbort(proposal)) return { note: BoardBlockedActiveInitiativeNote }
+      // High bar: EVERY non-CEO board member must endorse the abort. The CEO's
+      // tiebreak power alone can NOT abort in-flight work.
+      if (!ctx.allNonCeoEndorse) return { note: BoardAbortNotEndorsedNote }
+      // The abort must wind down cleanly — the proposal description is the wind-down
+      // plan (finish-to-safe or fully revert) and must be non-empty.
+      const windDown = (proposal.description ?? ``).trim()
+      if (!windDown) return { note: BoardAbortNoWindDownNote }
+
+      // Mark the in-flight initiative aborted (audit), then advance: promote the
+      // next backlog bet, or clear the Active Initiative when the backlog is empty.
+      await db.services.companyStrategy.setActiveInitiative(orgId, {
+        ...active,
+        status: EInitiativeStatus.aborted,
+      })
+      const backlog = strategy?.backlog ?? []
+      if (backlog.length > 0)
+        await db.services.companyStrategy.promoteNextFromBacklog(orgId)
+      else await db.services.companyStrategy.clearActiveInitiative(orgId)
+
+      return { note: `stop-the-line abort — wind-down: ${windDown}` }
+    }
+
+    // No initiative in flight (none, or a completed/aborted one left in place):
+    // freeze this proposal as the new Active Initiative.
     await db.services.companyStrategy.setActiveInitiative(orgId, {
       title: proposal.title,
       definitionOfDone: proposal.description,
@@ -71,10 +129,11 @@ async function commitProposal(
   app: TApp,
   proposal: DecisionProposal,
   status: EDecisionStatus,
-  baseResolution: string
+  baseResolution: string,
+  ctx: TCommitContext
 ): Promise<void> {
   const { db } = app.locals
-  const { note } = await commitProposalEffect(app, proposal)
+  const { note } = await commitProposalEffect(app, proposal, ctx)
   await db.services.decisionProposal.update({
     id: proposal.id,
     status,
@@ -135,8 +194,19 @@ export async function resolveBoard(app: TApp, schedule: Schedule): Promise<void>
           position?.stance === EStance.object || position?.stance === EStance.amend
       )
 
+      // The stop-the-line abort high bar: every non-CEO member's LATEST position is
+      // an endorse. Threaded into the commit effect so only a fully-endorsed abort
+      // may move an in-flight Active Initiative (the CEO tiebreak alone cannot).
+      const nonCeoMembers = members.filter((member) => !member.isCEO)
+      const allNonCeoEndorse =
+        nonCeoMembers.length > 0 &&
+        nonCeoMembers.every(
+          (member) => latestByAgent.get(member.agentId)?.stance === EStance.endorse
+        )
+      const ctx: TCommitContext = { allNonCeoEndorse }
+
       if (allEndorseThisRound) {
-        await commitProposal(app, proposal, EDecisionStatus.committed, `consensus`)
+        await commitProposal(app, proposal, EDecisionStatus.committed, `consensus`, ctx)
         logger.info(`[Board] Proposal ${proposal.id} committed by consensus`)
         continue
       }
@@ -156,7 +226,8 @@ export async function resolveBoard(app: TApp, schedule: Schedule): Promise<void>
             app,
             proposal,
             EDecisionStatus.tiebroken,
-            `ceo-tiebreak: ${ceoPosition.reasoning}`
+            `ceo-tiebreak: ${ceoPosition.reasoning}`,
+            ctx
           )
           logger.info(`[Board] Proposal ${proposal.id} tiebroken (CEO endorse)`)
         } else if (ceoPosition?.stance === EStance.object) {
