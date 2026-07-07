@@ -1053,7 +1053,14 @@ describe(`git stash`, { timeout: 10000 }, () => {
 
 // ─── 22. git clone (error handling) ────────────────────────────────────
 
-describe(`git clone`, () => {
+// A closed loopback port refuses the TCP connection immediately (no DNS
+// lookup, no OS-level connect timeout to race against vitest's test
+// timeout), unlike a real unresolvable hostname such as invalid.example.com
+// which sometimes hangs until vitest's 5000ms timeout fires (flaky in CI —
+// see gh run 28833662888).
+const UNREACHABLE_REMOTE = `http://127.0.0.1:1/repo.git`
+
+describe(`git clone`, { timeout: 10000 }, () => {
   it(`should error without URL`, async () => {
     const sandbox = await createSandbox()
 
@@ -1065,9 +1072,7 @@ describe(`git clone`, () => {
   it(`should parse --depth flag`, async () => {
     const sandbox = await createSandbox()
     // Will fail since no actual server, but the arg parsing is tested
-    const result = await sandbox.exec(
-      `git clone https://invalid.example.com/repo.git --depth 1`
-    )
+    const result = await sandbox.exec(`git clone ${UNREACHABLE_REMOTE} --depth 1`)
     // Expect network error, not arg-parsing error
     expect(result.success).toBe(false)
     expect(result.error).not.toContain(`must specify a repository`)
@@ -1075,9 +1080,7 @@ describe(`git clone`, () => {
 
   it(`should parse --branch flag`, async () => {
     const sandbox = await createSandbox()
-    const result = await sandbox.exec(
-      `git clone https://invalid.example.com/repo.git --branch develop`
-    )
+    const result = await sandbox.exec(`git clone ${UNREACHABLE_REMOTE} --branch develop`)
     expect(result.success).toBe(false)
     expect(result.error).not.toContain(`must specify a repository`)
   })
@@ -1085,7 +1088,7 @@ describe(`git clone`, () => {
 
 // ─── 23. git fetch (error handling) ────────────────────────────────────
 
-describe(`git fetch`, () => {
+describe(`git fetch`, { timeout: 10000 }, () => {
   it(`should error without remote`, async () => {
     const sandbox = await createSandbox()
 
@@ -1097,7 +1100,7 @@ describe(`git fetch`, () => {
   it(`should parse --prune flag`, async () => {
     const sandbox = await createSandbox()
     await initRepo(sandbox)
-    await sandbox.exec(`git remote add origin https://invalid.example.com/repo.git`)
+    await sandbox.exec(`git remote add origin ${UNREACHABLE_REMOTE}`)
 
     const result = await sandbox.exec(`git fetch origin --prune`)
     expect(result.success).toBe(false)
@@ -1108,7 +1111,7 @@ describe(`git fetch`, () => {
 
 // ─── 24. git pull (error handling) ─────────────────────────────────────
 
-describe(`git pull`, () => {
+describe(`git pull`, { timeout: 10000 }, () => {
   it(`should error without remote`, async () => {
     const sandbox = await createSandbox()
 
@@ -1120,7 +1123,7 @@ describe(`git pull`, () => {
   it(`should parse --ff-only flag`, async () => {
     const sandbox = await createSandbox()
     await initRepo(sandbox)
-    await sandbox.exec(`git remote add origin https://invalid.example.com/repo.git`)
+    await sandbox.exec(`git remote add origin ${UNREACHABLE_REMOTE}`)
 
     const result = await sandbox.exec(`git pull origin --ff-only`)
     expect(result.success).toBe(false)
@@ -1130,7 +1133,7 @@ describe(`git pull`, () => {
 
 // ─── 25. git push (error handling) ─────────────────────────────────────
 
-describe(`git push`, () => {
+describe(`git push`, { timeout: 10000 }, () => {
   it(`should error without remote`, async () => {
     const sandbox = await createSandbox()
 
@@ -1142,7 +1145,7 @@ describe(`git push`, () => {
   it(`should parse --force flag`, async () => {
     const sandbox = await createSandbox()
     await initRepo(sandbox)
-    await sandbox.exec(`git remote add origin https://invalid.example.com/repo.git`)
+    await sandbox.exec(`git remote add origin ${UNREACHABLE_REMOTE}`)
 
     const result = await sandbox.exec(`git push origin --force`)
     expect(result.success).toBe(false)
