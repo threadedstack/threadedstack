@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "WebFetch",
       "WebSearch",
@@ -152,7 +153,12 @@
       "Bash(cat npm/darwin-arm64/.npmignore)",
       "Bash(ls -la .npmrc)",
       "Bash(cat .npmrc)",
-      "Bash(/private/tmp/claude-501/**)"
+      "Bash(/private/tmp/claude-501/**)",
+      "Bash(ls -la src/services/sandbox/)",
+      "Bash(ls -la src/services/embeddings/)",
+      "Bash(ls -la src/utils/sandbox/)",
+      "Bash(ls -la src/services/endpoints/)",
+      "Bash(find src/services/endpoints -maxdepth 2 -type d)"
     ]
   },
   "sandbox": {
