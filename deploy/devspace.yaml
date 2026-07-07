@@ -491,6 +491,24 @@ deployments:
           - name: ${TDSK_BE_DEPLOYMENT}
             image: ${TDSK_BE_IMAGE}:${TDSK_BE_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
+            # Gate rollout on the API actually listening on TDSK_BE_PORT so the
+            # release's health check cannot race the backend's cold start (node +
+            # ~12MB bundle + DB pool + scheduler init can exceed the verify retry
+            # budget, which previously failed the deploy and rolled it back).
+            # startupProbe gives up to 5m of boot grace; readinessProbe keeps the
+            # old pod serving traffic until the new one is actually up.
+            startupProbe:
+              tcpSocket:
+                port: ${TDSK_BE_PORT}
+              periodSeconds: 5
+              failureThreshold: 60
+              timeoutSeconds: 3
+            readinessProbe:
+              tcpSocket:
+                port: ${TDSK_BE_PORT}
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 3
             env:
               - name: NODE_ENV
                 value: ${NODE_ENV}
