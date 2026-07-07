@@ -116,7 +116,17 @@ const buildApp = () =>
               data: { id: `agent-1`, orgId: `org-1`, projects: [] },
             }),
           },
-          thread: { create: vi.fn().mockResolvedValue({ data: { id: `thread-1` } }) },
+          thread: {
+            create: vi.fn().mockResolvedValue({ data: { id: `thread-1` } }),
+            get: vi.fn().mockResolvedValue({
+              data: {
+                id: `thread-existing`,
+                orgId: `org-1`,
+                agentId: `agent-1`,
+                userId: `test-user-id`,
+              },
+            }),
+          },
           message: { create: vi.fn().mockResolvedValue({ data: {} }) },
         },
       },
@@ -165,6 +175,7 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
       body: {
         messages: [{ role: `user`, content: `Hello` }],
       },
+      headers: {},
       query: {},
       on: mockOn as any,
     }
@@ -618,6 +629,128 @@ describe(`POST /agents/:id/v1/chat/completions - OAI Chat Completions`, () => {
     )
     expect(mockStatus).toHaveBeenCalledWith(500)
     expect(mockJson).toHaveBeenCalled()
+    expect(mockRunHeadless).not.toHaveBeenCalled()
+  })
+
+  // ── 18-20. Thread reuse via threadId ─────────────────────────────
+
+  it(`should reuse an existing thread supplied in the body and skip create/reseed`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    const priorMessages = [
+      { role: `user`, content: `First message` },
+      { role: `assistant`, content: `Response` },
+    ]
+    const currentMessage = { role: `user`, content: `Follow-up` }
+    mockReq.body = {
+      messages: [...priorMessages, currentMessage],
+      threadId: `thread-existing`,
+    }
+    mockExtractPrompt.mockReturnValue(`Follow-up`)
+    const db = mockReq.app?.locals.db as any
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(db.services.thread.get).toHaveBeenCalledWith(`thread-existing`)
+    expect(db.services.thread.create).not.toHaveBeenCalled()
+    expect(mockConvertOAIMessages).not.toHaveBeenCalled()
+    expect(db.services.message.create).not.toHaveBeenCalled()
+
+    expect(mockRunHeadless).toHaveBeenCalledWith(
+      mockReq,
+      db,
+      expect.objectContaining({
+        threadId: `thread-existing`,
+        resolvedConfig: expect.objectContaining({ orgId: `org-1` }),
+      })
+    )
+  })
+
+  it(`should reuse an existing thread supplied via the X-Thread-Id header`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    mockReq.body = { messages: [{ role: `user`, content: `Follow-up` }] }
+    mockReq.headers = { 'x-thread-id': `thread-existing` }
+    const db = mockReq.app?.locals.db as any
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(db.services.thread.get).toHaveBeenCalledWith(`thread-existing`)
+    expect(db.services.thread.create).not.toHaveBeenCalled()
+
+    expect(mockRunHeadless).toHaveBeenCalledWith(
+      mockReq,
+      db,
+      expect.objectContaining({ threadId: `thread-existing` })
+    )
+  })
+
+  it(`should return 400 when the supplied threadId does not belong to this agent`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    mockReq.body = {
+      messages: [{ role: `user`, content: `Follow-up` }],
+      threadId: `thread-foreign`,
+    }
+    const db = mockReq.app?.locals.db as any
+    db.services.thread.get.mockResolvedValue({
+      data: { id: `thread-foreign`, orgId: `org-other`, agentId: `agent-other` },
+    })
+    mockFormatOAIError.mockReturnValue({
+      status: 400,
+      body: {
+        error: {
+          message: `Invalid threadId for this agent`,
+          type: `invalid_request_error`,
+          param: null,
+          code: null,
+        },
+      },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockFormatOAIError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: `Invalid threadId for this agent` })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(400)
+    expect(mockJson).toHaveBeenCalled()
+    expect(db.services.thread.create).not.toHaveBeenCalled()
+    expect(mockRunHeadless).not.toHaveBeenCalled()
+  })
+
+  it(`should return 400 when the supplied threadId belongs to a different user in the same org`, async () => {
+    const ep = getEndpointCfg(oaiChatCompletions as any)
+    mockReq.body = {
+      messages: [{ role: `user`, content: `Follow-up` }],
+      threadId: `thread-other-user`,
+    }
+    const db = mockReq.app?.locals.db as any
+    db.services.thread.get.mockResolvedValue({
+      data: {
+        id: `thread-other-user`,
+        orgId: `org-1`,
+        agentId: `agent-1`,
+        userId: `other-user-id`,
+      },
+    })
+    mockFormatOAIError.mockReturnValue({
+      status: 400,
+      body: {
+        error: {
+          message: `Invalid threadId for this agent`,
+          type: `invalid_request_error`,
+          param: null,
+          code: null,
+        },
+      },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockFormatOAIError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: `Invalid threadId for this agent` })
+    )
+    expect(mockStatus).toHaveBeenCalledWith(400)
+    expect(mockJson).toHaveBeenCalled()
+    expect(db.services.thread.create).not.toHaveBeenCalled()
     expect(mockRunHeadless).not.toHaveBeenCalled()
   })
 
