@@ -50,7 +50,7 @@ export const createEndpoint: TEndpointConfig = {
     if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
     // Type-specific validation (e.g., proxy needs url, faas needs functionId)
-    const service = getEPService(type)
+    const service = getEPService(type, db)
     service.validateOptions(options)
 
     const endpointData = new Endpoint({

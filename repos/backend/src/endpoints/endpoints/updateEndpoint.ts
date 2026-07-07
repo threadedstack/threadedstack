@@ -48,10 +48,10 @@ export const updateEndpoint: TEndpointConfig = {
     const typeChanged = type !== undefined && type !== existing.type
     if (options !== undefined) {
       const effectiveType = type || existing.type
-      const service = getEPService(effectiveType)
+      const service = getEPService(effectiveType, db)
       if (options) service.validateOptions(options)
     } else if (!typeChanged && type !== undefined) {
-      const service = getEPService(type)
+      const service = getEPService(type, db)
       if (existing.options) service.validateOptions(existing.options)
     }
 

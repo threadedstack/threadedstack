@@ -167,7 +167,7 @@ describe(`proxy endpoint action`, () => {
     const req = buildMockReq()
     await endpoint.action!(req as any, mockRes as Response)
 
-    expect(getEPService).toHaveBeenCalledWith(EEndpointType.proxy)
+    expect(getEPService).toHaveBeenCalledWith(EEndpointType.proxy, req.app.locals.db)
   })
 
   it(`should validate project ownership`, async () => {
@@ -423,15 +423,14 @@ describe(`proxy endpoint action`, () => {
 
   // --- Execute ---
 
-  it(`should call service.execute with req, res, ep, and db`, async () => {
+  it(`should call service.execute with req, res, and ep`, async () => {
     const req = buildMockReq()
     await endpoint.action!(req as any, mockRes as Response)
 
     expect(mockService.execute).toHaveBeenCalledWith(
       req,
       mockRes,
-      expect.objectContaining({ id: `ep-1` }),
-      req.app.locals.db
+      expect.objectContaining({ id: `ep-1` })
     )
   })
 
@@ -462,7 +461,7 @@ describe(`proxy endpoint action`, () => {
     await endpoint.action!(req as any, mockRes as Response)
 
     // Verify full flow order
-    expect(getEPService).toHaveBeenCalledWith(EEndpointType.faas)
+    expect(getEPService).toHaveBeenCalledWith(EEndpointType.faas, req.app.locals.db)
     expect(mockService.validateProject).toHaveBeenCalled()
     expect(authenticateRequest).toHaveBeenCalledWith(req, mockRes)
     expect(mockService.checkPermission).toHaveBeenCalled()

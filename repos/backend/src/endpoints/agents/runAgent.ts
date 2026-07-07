@@ -36,8 +36,8 @@ export const runAgent: TEndpointConfig = {
 
     await requireAgentAccess(req, agentId, agentData.orgId, agentData)
 
-    const agentEndpoint = new AgentEndpoint()
-    await agentEndpoint.run(req, res, db, {
+    const agentEndpoint = new AgentEndpoint(db)
+    await agentEndpoint.run(req, res, {
       agentId,
       prompt,
       userId,

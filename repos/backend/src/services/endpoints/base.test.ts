@@ -33,10 +33,12 @@ class TestEndpointService extends BaseEndpoint {
 describe(`BaseEndpoint`, () => {
   let service: TestEndpointService
   let mockReq: Partial<TRequest>
+  let mockDb: { services: { secret: { list: ReturnType<typeof vi.fn> } } }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new TestEndpointService()
+    mockDb = { services: { secret: { list: vi.fn() } } }
+    service = new TestEndpointService(mockDb as any)
     mockReq = {
       method: `GET`,
       user: { id: `user-1` } as any,
@@ -89,16 +91,10 @@ describe(`BaseEndpoint`, () => {
   describe(`fetchSecrets`, () => {
     it(`should fetch secrets scoped to the endpoint project`, async () => {
       const mockSecrets = [{ id: `s1`, name: `SECRET_1` }]
-      const mockDb = {
-        services: {
-          secret: {
-            list: vi.fn().mockResolvedValue({ data: mockSecrets }),
-          },
-        },
-      }
+      mockDb.services.secret.list.mockResolvedValue({ data: mockSecrets })
 
       const endpoint = { projectId: `proj-123` } as any
-      const result = await service.fetchSecrets(mockDb as any, endpoint)
+      const result = await service.fetchSecrets(endpoint)
 
       expect(mockDb.services.secret.list).toHaveBeenCalledWith({
         where: { projectId: `proj-123` },
@@ -107,34 +103,22 @@ describe(`BaseEndpoint`, () => {
     })
 
     it(`should return empty array when no secrets found`, async () => {
-      const mockDb = {
-        services: {
-          secret: {
-            list: vi.fn().mockResolvedValue({ data: undefined }),
-          },
-        },
-      }
+      mockDb.services.secret.list.mockResolvedValue({ data: undefined })
 
       const endpoint = { projectId: `proj-123` } as any
-      const result = await service.fetchSecrets(mockDb as any, endpoint)
+      const result = await service.fetchSecrets(endpoint)
 
       expect(result).toEqual([])
     })
 
     it(`should throw 502 when database returns an error`, async () => {
-      const mockDb = {
-        services: {
-          secret: {
-            list: vi.fn().mockResolvedValue({
-              data: undefined,
-              error: { message: `connection refused` },
-            }),
-          },
-        },
-      }
+      mockDb.services.secret.list.mockResolvedValue({
+        data: undefined,
+        error: { message: `connection refused` },
+      })
 
       const endpoint = { projectId: `proj-123` } as any
-      await expect(service.fetchSecrets(mockDb as any, endpoint)).rejects.toThrow(
+      await expect(service.fetchSecrets(endpoint)).rejects.toThrow(
         `Failed to fetch secrets for project proj-123: connection refused`
       )
     })

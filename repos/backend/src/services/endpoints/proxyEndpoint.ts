@@ -1,6 +1,5 @@
 import type { Response } from 'express'
 import type { TRequest } from '@TBE/types'
-import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, TProxyEndpointConfig } from '@tdsk/domain'
 
 import { Exception } from '@tdsk/domain'
@@ -39,12 +38,7 @@ export class ProxyEndpoint extends BaseEndpoint {
     }
   }
 
-  async execute(
-    req: TRequest,
-    res: Response,
-    endpoint: Endpoint,
-    db: TDatabase
-  ): Promise<void> {
+  async execute(req: TRequest, res: Response, endpoint: Endpoint): Promise<void> {
     const opts = endpoint.options as TProxyEndpointConfig
     if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)
 
@@ -52,7 +46,7 @@ export class ProxyEndpoint extends BaseEndpoint {
     const proxyPath = req.params[0] || ''
 
     // Fetch secrets scoped to this project
-    const secrets = await this.fetchSecrets(db, endpoint)
+    const secrets = await this.fetchSecrets(endpoint)
 
     // Construct target URL for logging
     const targetUrl = `${opts.url}/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
