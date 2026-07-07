@@ -201,7 +201,11 @@ describe(`LocalSandbox`, () => {
 
       const result = await sandbox.evaluate(`export default 42`, { timeout: 10000 })
 
-      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(`export default 42`, 10000)
+      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(
+        `export default 42`,
+        10000,
+        undefined
+      )
       expect(result).toEqual({ output: `logged`, result: 42 })
     })
 
@@ -213,7 +217,24 @@ describe(`LocalSandbox`, () => {
 
       await sandbox.evaluate(`const x = 1`)
 
-      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(`const x = 1`, undefined)
+      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(
+        `const x = 1`,
+        undefined,
+        undefined
+      )
+    })
+
+    it(`should forward host bridges to isolateRunner eval`, async () => {
+      const bridges = { 'records.query': vi.fn(async () => `[]`) }
+      mockIsolateRunner.eval = vi.fn().mockResolvedValue({ output: ``, result: null })
+
+      await sandbox.evaluate(`export default 1`, { timeout: 5000, bridges })
+
+      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(
+        `export default 1`,
+        5000,
+        bridges
+      )
     })
 
     it(`should register modules before evaluation`, async () => {
