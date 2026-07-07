@@ -10,6 +10,7 @@ import type { taskProposals } from '@TDB/schemas/taskProposals'
 import type { escalations } from '@TDB/schemas/escalations'
 import type { decisionProposals } from '@TDB/schemas/decisionProposals'
 import type { decisionPositions } from '@TDB/schemas/decisionPositions'
+import type { companyStrategies } from '@TDB/schemas/companyStrategies'
 import type { verifications } from '@TDB/schemas/verifications'
 import type { opsActions } from '@TDB/schemas/opsActions'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
@@ -69,6 +70,8 @@ export type TDBDecisionProposalSelect = TInferDates<typeof decisionProposals.$in
 export type TDBDecisionProposalInsert = TInferDates<typeof decisionProposals.$inferInsert>
 export type TDBDecisionPositionSelect = TInferDates<typeof decisionPositions.$inferSelect>
 export type TDBDecisionPositionInsert = TInferDates<typeof decisionPositions.$inferInsert>
+export type TDBCompanyStrategySelect = TInferDates<typeof companyStrategies.$inferSelect>
+export type TDBCompanyStrategyInsert = TInferDates<typeof companyStrategies.$inferInsert>
 export type TDBVerificationSelect = TInferDates<typeof verifications.$inferSelect>
 export type TDBVerificationInsert = TInferDates<typeof verifications.$inferInsert>
 export type TDBOpsActionSelect = TInferDates<typeof opsActions.$inferSelect>
@@ -191,6 +194,7 @@ export type TDBEntitySelect =
   | TDBEscalationSelect
   | TDBDecisionProposalSelect
   | TDBDecisionPositionSelect
+  | TDBCompanyStrategySelect
   | TDBVerificationSelect
   | TDBOpsActionSelect
   | TDBApiKeySelect
@@ -225,6 +229,7 @@ export type TDBEntityInsert =
   | TDBEscalationInsert
   | TDBDecisionProposalInsert
   | TDBDecisionPositionInsert
+  | TDBCompanyStrategyInsert
   | TDBVerificationInsert
   | TDBOpsActionInsert
   | TDBApiKeyInsert
