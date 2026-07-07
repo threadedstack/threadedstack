@@ -160,7 +160,7 @@ The Local provider runs entirely in-process with no external dependencies. It is
 
 ### Kubernetes Provider (Production)
 
-The Kubernetes provider runs code inside dedicated K8s pods. It is used in production and staging environments for sandbox workspaces and any workload that requires real network access with secret injection.
+The Kubernetes provider runs code inside dedicated K8s pods. It is used in the production environment for sandbox workspaces and any workload that requires real network access with secret injection.
 
 **How it works:**
 
@@ -171,7 +171,7 @@ The Kubernetes provider runs code inside dedicated K8s pods. It is used in produ
 
 **When it is used:**
 
-- Production and staging deployments.
+- Production deployments.
 - AI tool execution that requires outbound API calls with real credentials.
 - Any workload that needs full container isolation, configurable resource limits, or access to secrets.
 
