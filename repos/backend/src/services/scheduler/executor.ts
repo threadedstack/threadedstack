@@ -44,8 +44,23 @@ import {
   OpsReviewInjectMax,
   OpsReviewInjectMaxChars,
   CoordinatorInjectMaxChars,
+  EDecisionStatus,
+  EInitiativeStatus,
+  StrategyBlockFence,
+  DecisionsBlockFence,
+  DecisionPositionsBlockFence,
+  InitiativeCompleteBlockFence,
+  parseStrategyBlock,
+  parseDecisionsBlock,
+  parseDecisionPositionsBlock,
+  parseInitiativeCompleteBlock,
 } from '@tdsk/domain'
+import type { TStrategyUpdate } from '@tdsk/domain'
+import { isCeoSchedule, isCtoSchedule, isBoardMemberSchedule } from '@TBE/constants/board'
+import { resolveBoard } from '@TBE/utils/agent/resolveBoard'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
+import { buildBusinessMetricsContext } from '@TBE/utils/agent/businessMetrics'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
 import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import {
@@ -499,6 +514,365 @@ async function persistSkillReviews(
  */
 export const promptOptsIn = (schedule: Schedule, fence: string): boolean =>
   (schedule.prompt ?? ``).includes(fence)
+
+/** Marker a cycle embeds to consume the Company Strategy faculty without emitting a board block. */
+export const CompanyStrategyMarker = `<!-- company-strategy -->`
+
+/**
+ * A cycle consumes the Company Strategy faculty when its prompt opts into an
+ * executive block — it emits a tdsk-strategy or tdsk-decisions block, or it
+ * carries the explicit company-strategy marker. Dev-loop cycles (steward work,
+ * adversary) opt into none of these, so they pay for no strategy query and their
+ * assembled context is byte-identical to before.
+ */
+export const strategyOptsIn = (schedule: Schedule): boolean =>
+  promptOptsIn(schedule, StrategyBlockFence) ||
+  promptOptsIn(schedule, DecisionsBlockFence) ||
+  (schedule.prompt ?? ``).includes(CompanyStrategyMarker)
+
+/**
+ * Gated Company Strategy section for a cycle's assembled context: the rendered
+ * `## Company Strategy` block when the cycle opts into the executive faculty AND
+ * a strategy row exists, otherwise '' (a non-opted-in cycle never even queries
+ * the DB). Never throws — delegates to buildCompanyStrategyContext. Mirrors the
+ * sensorSection/backlogSection gating.
+ */
+export async function buildStrategySection(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  return strategyOptsIn(schedule) ? buildCompanyStrategyContext(app, schedule) : ``
+}
+
+/**
+ * A cycle consumes the Business-metrics (revenue) faculty when its prompt opts
+ * into ANY executive block: it writes/reads strategy or opens a decision
+ * (strategyOptsIn), posts a board position (tdsk-decision-positions), or reports
+ * an Active Initiative delivered (tdsk-initiative-complete). These are exactly the
+ * CEO + CTO board/strategy cycles.
+ *
+ * Gating is by PROMPT opt-in, never by agentId: the CTO seat reuses the steward
+ * agent (see @TBE/constants/board), so an agentId gate would leak revenue context
+ * into the steward work cycle + adversary. Those dev-loop cycles emit none of the
+ * executive fences, so they opt in to nothing and their assembled context is
+ * byte-identical to before.
+ */
+export const businessMetricsOptsIn = (schedule: Schedule): boolean =>
+  strategyOptsIn(schedule) ||
+  promptOptsIn(schedule, DecisionPositionsBlockFence) ||
+  promptOptsIn(schedule, InitiativeCompleteBlockFence)
+
+/**
+ * Gated `## Business metrics` section for a cycle's assembled context: the
+ * rendered read-only revenue/business snapshot when the cycle opts into the
+ * executive faculty, otherwise '' (a non-opted-in cycle never even queries the
+ * DB). Never throws — delegates to buildBusinessMetricsContext. Mirrors
+ * buildStrategySection.
+ */
+export async function buildBusinessMetricsSection(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  return businessMetricsOptsIn(schedule)
+    ? buildBusinessMetricsContext(app, schedule.orgId)
+    : ``
+}
+
+/**
+ * Parse and persist any board decision-proposal block emitted by a board-member
+ * cycle: each parsed entry opens a `decision_proposals` row (status open, round 1)
+ * unless a still-open proposal with the same title already exists. Only board
+ * members (getBoardMembers) may open proposals, so a non-board cycle (steward,
+ * adversary) emitting this block persists NOTHING. Never throws — a failure never
+ * fails the run. Mirrors persistTaskProposals.
+ */
+export async function persistDecisions(
+  app: TApp,
+  schedule: Schedule,
+  stdoutText: string
+): Promise<void> {
+  if (!isBoardMemberSchedule(schedule)) return
+  const agentId = schedule.agentId
+  if (!agentId) return
+
+  try {
+    const entries = parseDecisionsBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    // Dedupe against still-open proposals by (orgId, title) so a member re-emitting
+    // the same decision never re-opens it. listOpenByOrg is already org-scoped.
+    const { data: openProposals } =
+      await db.services.decisionProposal.listOpenByOrg(orgId)
+    const openTitles = new Set(
+      (openProposals ?? []).map((proposal) => proposal.title.trim().toLowerCase())
+    )
+
+    let opened = 0
+    for (const entry of entries) {
+      const key = entry.title.trim().toLowerCase()
+      if (openTitles.has(key)) {
+        logger.info(
+          `[Board] Schedule ${schedule.id} — skipping duplicate open proposal "${entry.title}"`
+        )
+        continue
+      }
+      try {
+        const { error } = await db.services.decisionProposal.create({
+          orgId,
+          openedByAgentId: agentId,
+          title: entry.title,
+          axis: entry.axis,
+          description: entry.description,
+          evidence: entry.evidence ?? [],
+          status: EDecisionStatus.open,
+          round: 1,
+        })
+        if (error) {
+          logger.error(
+            `[Board] Schedule ${schedule.id} — failed to open decision proposal:`,
+            error.message
+          )
+          continue
+        }
+        openTitles.add(key)
+        opened++
+      } catch (err) {
+        logger.error(
+          `[Board] Schedule ${schedule.id} — failed to open decision proposal:`,
+          (err as Error).message
+        )
+      }
+    }
+    logger.info(
+      `[Board] Schedule ${schedule.id} — opened ${opened}/${entries.length} decision proposal(s)`
+    )
+  } catch (err) {
+    logger.debug(
+      `[Board] Schedule ${schedule.id} — decision capture skipped: ${(err as Error).message}`
+    )
+  }
+}
+
+/**
+ * Parse and persist any board decision-position block emitted by a board-member
+ * cycle: each entry records the member's stance on a proposal at the proposal's
+ * CURRENT round. A position on a missing or closed proposal (status not
+ * open/deliberating) is a no-op. Only board members may post positions, so a
+ * non-board cycle emitting this block persists NOTHING. Never throws.
+ */
+export async function persistDecisionPositions(
+  app: TApp,
+  schedule: Schedule,
+  stdoutText: string
+): Promise<void> {
+  if (!isBoardMemberSchedule(schedule)) return
+  const agentId = schedule.agentId
+  if (!agentId) return
+
+  try {
+    const entries = parseDecisionPositionsBlock(stdoutText)
+    if (!entries.length) return
+
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    let recorded = 0
+    for (const entry of entries) {
+      try {
+        const { data: proposal } = await db.services.decisionProposal.get(
+          entry.proposalId
+        )
+        // Skip positions on unknown proposals or ones already resolved.
+        if (
+          !proposal ||
+          proposal.orgId !== orgId ||
+          (proposal.status !== EDecisionStatus.open &&
+            proposal.status !== EDecisionStatus.deliberating)
+        )
+          continue
+
+        const { error } = await db.services.decisionPosition.create({
+          orgId,
+          proposalId: proposal.id,
+          agentId,
+          stance: entry.stance,
+          reasoning: entry.reasoning,
+          round: proposal.round,
+        })
+        if (error) {
+          logger.error(
+            `[Board] Schedule ${schedule.id} — failed to record position:`,
+            error.message
+          )
+          continue
+        }
+        recorded++
+      } catch (err) {
+        logger.error(
+          `[Board] Schedule ${schedule.id} — failed to record position:`,
+          (err as Error).message
+        )
+      }
+    }
+    if (entries.length)
+      logger.info(
+        `[Board] Schedule ${schedule.id} — recorded ${recorded}/${entries.length} board position(s)`
+      )
+  } catch (err) {
+    logger.debug(
+      `[Board] Schedule ${schedule.id} — position capture skipped: ${(err as Error).message}`
+    )
+  }
+}
+
+/**
+ * Parse and apply any Company Strategy block emitted by the CEO cycle. Only the
+ * CEO (isCeoSchedule) may write the strategy, so a non-CEO cycle emitting this
+ * block is ignored entirely. Applies ONLY the non-active-initiative fields
+ * (northStar / segments / positioning / backlog) — the Active Initiative never
+ * moves through here (only via the completion gate or a committed
+ * active-initiative proposal). Never throws.
+ */
+export async function persistStrategy(
+  app: TApp,
+  schedule: Schedule,
+  stdoutText: string
+): Promise<void> {
+  if (!isCeoSchedule(schedule)) return
+  const agentId = schedule.agentId
+  if (!agentId) return
+
+  try {
+    const entries = parseStrategyBlock(stdoutText)
+    if (!entries.length) return
+
+    // Merge every parsed update into one patch (last defined field wins). The
+    // parser guarantees each entry carries at least one recognized field.
+    const patch = entries.reduce<TStrategyUpdate & { updatedByAgentId: string }>(
+      (acc, entry) => {
+        if (entry.northStar !== undefined) acc.northStar = entry.northStar
+        if (entry.segments !== undefined) acc.segments = entry.segments
+        if (entry.positioning !== undefined) acc.positioning = entry.positioning
+        if (entry.backlog !== undefined) acc.backlog = entry.backlog
+        return acc
+      },
+      { updatedByAgentId: agentId }
+    )
+
+    const { db } = app.locals
+    const { error } = await db.services.companyStrategy.upsertByOrg(schedule.orgId, patch)
+    if (error)
+      logger.error(
+        `[Board] Schedule ${schedule.id} — failed to apply strategy update:`,
+        error.message
+      )
+    else logger.info(`[Board] Schedule ${schedule.id} — applied Company Strategy update`)
+  } catch (err) {
+    logger.debug(
+      `[Board] Schedule ${schedule.id} — strategy capture skipped: ${(err as Error).message}`
+    )
+  }
+}
+
+/**
+ * Parse and apply any Active-Initiative completion report emitted by the CTO cycle.
+ * This is the ONLY routine trigger that unlocks re-direction of the frozen Active
+ * Initiative — the up-flow of the commitment & completion loop (spec §4.3).
+ *
+ * Only the CTO (isCtoSchedule) may report completion; a non-CTO cycle emitting the
+ * block is ignored entirely. A report is accepted ONLY when it matches the frozen
+ * Active Initiative exactly — the strategy has an `activeInitiative`, its status is
+ * still `active`, the report's `initiativeTitle` matches its title (trim/exact), and
+ * `evidenceRefs` is a non-empty string[]. On accept: mark the delivered initiative
+ * complete, then advance — promote the next backlog item as the new Active Initiative,
+ * or clear it when the backlog is empty. Any mismatch / missing evidence is a no-op
+ * (the initiative stays frozen). Never throws — a failure never fails the run.
+ */
+export async function persistInitiativeComplete(
+  app: TApp,
+  schedule: Schedule,
+  stdoutText: string
+): Promise<void> {
+  if (!isCtoSchedule(schedule)) return
+  const agentId = schedule.agentId
+  if (!agentId) return
+
+  try {
+    const reports = parseInitiativeCompleteBlock(stdoutText)
+    if (!reports.length) return
+
+    const { db } = app.locals
+    const orgId = schedule.orgId
+
+    for (const report of reports) {
+      try {
+        const { data: strategy } = await db.services.companyStrategy.getByOrg(orgId)
+        const active = strategy?.activeInitiative
+
+        // Accept ONLY a report that matches the frozen Active Initiative exactly:
+        // right title, still active, and non-empty evidence. Anything else keeps
+        // the initiative frozen (no advance) — this is the completion gate's up-flow.
+        if (
+          !active ||
+          active.status !== EInitiativeStatus.active ||
+          active.title.trim() !== report.initiativeTitle.trim() ||
+          report.evidenceRefs.length === 0
+        ) {
+          logger.info(
+            `[Board] Schedule ${schedule.id} — initiative-complete report "${report.initiativeTitle}" did not match the frozen Active Initiative; no advance`
+          )
+          continue
+        }
+
+        // Mark the delivered initiative complete (audit), then advance the loop:
+        // promote the next backlog bet as the new Active Initiative, or clear it
+        // when the backlog is empty (no next bet queued yet).
+        await db.services.companyStrategy.setActiveInitiative(orgId, {
+          ...active,
+          status: EInitiativeStatus.complete,
+        })
+        const backlog = strategy?.backlog ?? []
+        if (backlog.length > 0)
+          await db.services.companyStrategy.promoteNextFromBacklog(orgId)
+        else await db.services.companyStrategy.clearActiveInitiative(orgId)
+
+        // Durable write-back recording the completion (title + evidence). Mirrors
+        // the persistEscalations resolution memory shape (kind:fact, embedding:null).
+        try {
+          await (db.services.memory as any).create({
+            orgId,
+            agentId,
+            kind: EMemoryKind.fact,
+            importance: 7,
+            text: `Active Initiative complete: ${active.title} — evidence: ${report.evidenceRefs.join(`, `)}`,
+            meta: { scheduleId: schedule.id, source: `initiative-complete` },
+            embedding: null,
+          } as any)
+        } catch (memErr) {
+          logger.warn(
+            `[Board] Schedule ${schedule.id} — initiative-complete memory write-back failed: ${(memErr as Error).message}`
+          )
+        }
+
+        logger.info(
+          `[Board] Schedule ${schedule.id} — Active Initiative "${active.title}" marked complete + advanced`
+        )
+      } catch (err) {
+        logger.error(
+          `[Board] Schedule ${schedule.id} — failed to apply initiative-complete report:`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Board] Schedule ${schedule.id} — initiative-complete capture skipped: ${(err as Error).message}`
+    )
+  }
+}
 
 /**
  * Build the injected recent-run-outcome context for a SENSOR cycle: the pod
@@ -1359,6 +1733,17 @@ async function runCliAgentSchedule(
   const backlogSection = promptOptsIn(schedule, TaskPickupsBlockFence)
     ? await buildTaskBacklogContext(app, schedule)
     : ``
+  // Gated executive faculty: a CEO/CTO/board cycle (its prompt emits a
+  // tdsk-strategy/tdsk-decisions block or carries the company-strategy marker)
+  // receives the org's Company Strategy so it can consume + direct from it.
+  // Dev-loop cycles (steward work, adversary) opt in to none, so they pay for no
+  // query and their assembled context is unchanged.
+  const strategySection = await buildStrategySection(app, schedule)
+  // Gated executive faculty (read-only): a CEO/CTO/board cycle also receives the
+  // company-wide `## Business metrics` snapshot (revenue / signups / churn /
+  // engagement) so it can ground decisions in real data. Same prompt opt-in gate
+  // as the strategy section, so dev-loop cycles pay for no query.
+  const businessMetricsSection = await buildBusinessMetricsSection(app, schedule)
   const baseCommand = buildCliCommand(
     schedule,
     agent,
@@ -1371,7 +1756,9 @@ async function runCliAgentSchedule(
       opsReviewSection +
       coordinatorSection +
       sensorSection +
-      backlogSection
+      backlogSection +
+      strategySection +
+      businessMetricsSection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
@@ -1550,6 +1937,18 @@ async function runCliAgentSchedule(
     // Capture adversary ops-review verdicts (approve/reject per dryRun row).
     // applyOpsReview re-scans before executing — the hard gate is server-side.
     await persistOpsReviews(app, schedule, agent.id, stdoutText)
+    // Executive board (gated by board membership / CEO role, so the steward and
+    // adversary dev-loop cycles are byte-for-byte unaffected): a board member
+    // opens decision proposals + posts positions; the CEO also writes the Company
+    // Strategy and resolves open proposals by consensus or its tiebreak.
+    await persistDecisions(app, schedule, stdoutText)
+    await persistDecisionPositions(app, schedule, stdoutText)
+    await persistStrategy(app, schedule, stdoutText)
+    // CTO up-flow: an Active-Initiative completion report advances the strategy
+    // (mark complete → promote the next backlog bet). This is the only routine
+    // trigger that unlocks re-direction of the frozen Active Initiative.
+    await persistInitiativeComplete(app, schedule, stdoutText)
+    if (isCeoSchedule(schedule)) await resolveBoard(app, schedule)
   }
 
   return result

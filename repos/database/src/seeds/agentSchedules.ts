@@ -23,6 +23,14 @@ const StewardAgentId = `ag_lvUbjp_`
 const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
 const AdversarySandboxId = `sb_xg7h1wl`
+// Executive board (AI Executive Layer SP1). The CEO seat is the seeded founder
+// agent + its body sandbox; these ids match the backend board constants
+// (CeoAgentId / CeoSandboxId) and the fullorg seed. The CTO seat reuses the
+// steward agent + sandbox above. All board schedules below ship `enabled:false`
+// and stay inert until the activation phase seeds the CEO agent in prod and
+// enables them.
+const CeoAgentId = `ag_ceo0001`
+const CeoSandboxId = `sb_ceo0001`
 
 export type TAgentScheduleDef = {
   /** Prompt filename stem under ./agent-schedules and the human-facing label. */
@@ -80,10 +88,13 @@ const make =
 
 const steward = make(StewardAgentId, StewardSandboxId)
 const adversary = make(AdversaryAgentId, AdversarySandboxId)
+const ceo = make(CeoAgentId, CeoSandboxId)
 
 /**
- * The 11 live self-development schedules. Cadence + bindings are pinned to the
- * production rows; the behavior is entirely in the referenced prompt files.
+ * The 11 live self-development schedules plus the 3 executive-board schedules
+ * (AI Executive Layer SP1), which ship `enabled:false` and stay inert until the
+ * activation phase. Cadence + bindings are pinned to the production rows; the
+ * behavior is entirely in the referenced prompt files.
  */
 export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
@@ -169,5 +180,35 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `5,20,35,50 * * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 3,
+  }),
+  // ── Executive board (AI Executive Layer SP1) — all disabled until activation ──
+  // The CEO strategy cycle runs daily (research + metrics -> strategy); the two
+  // board cycles run a few times/day so a decision can open and resolve within a
+  // day while the Active Initiative stays frozen. The CTO board cycle runs on the
+  // steward agent+sandbox (the CTO seat) but is a distinct schedule from the
+  // steward's dev-loop cycles.
+  ceo({
+    key: `ceo-strategy`,
+    id: `sd_ceostr1`,
+    cronExpression: `0 4 * * *`,
+    timeoutMs: 3_600_000,
+    maxConsecutiveErrors: 6,
+    enabled: false,
+  }),
+  ceo({
+    key: `ceo-board`,
+    id: `sd_ceobrd1`,
+    cronExpression: `0 */6 * * *`,
+    timeoutMs: 1_800_000,
+    maxConsecutiveErrors: 6,
+    enabled: false,
+  }),
+  steward({
+    key: `cto-board`,
+    id: `sd_ctobrd1`,
+    cronExpression: `30 */6 * * *`,
+    timeoutMs: 1_800_000,
+    maxConsecutiveErrors: 6,
+    enabled: false,
   }),
 ]

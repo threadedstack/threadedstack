@@ -25,16 +25,33 @@ const def = (over: Record<string, unknown> = {}) => ({
 })
 
 describe(`AgentScheduleDefs`, () => {
-  it(`defines all 11 self-development schedules with unique ids and real prompts`, () => {
-    expect(AgentScheduleDefs).toHaveLength(11)
+  it(`defines all 14 operating schedules (11 self-development + 3 executive-board) with unique ids and real prompts`, () => {
+    expect(AgentScheduleDefs).toHaveLength(14)
     const ids = AgentScheduleDefs.map((d) => d.id)
-    expect(new Set(ids).size).toBe(11)
+    expect(new Set(ids).size).toBe(14)
     for (const d of AgentScheduleDefs) {
       expect(d.prompt.length).toBeGreaterThan(50)
       expect(d.type).toBe(`prompt`)
       expect(d.orgId).toBe(`og_0000001`)
       expect(d.projectId).toBe(`pj_tIly2F1`)
       expect(d.cronExpression).toMatch(/[\d*]/)
+    }
+  })
+
+  it(`ships the executive-board schedules disabled and inert until activation`, () => {
+    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
+    for (const key of execKeys) {
+      expect(byKey[key]).toBeDefined()
+      expect(byKey[key].enabled).toBe(false)
+    }
+    // The CEO seat runs on the seeded founder agent; the CTO seat reuses the steward.
+    expect(byKey[`ceo-strategy`].agentId).toBe(`ag_ceo0001`)
+    expect(byKey[`ceo-board`].agentId).toBe(`ag_ceo0001`)
+    expect(byKey[`cto-board`].agentId).toBe(`ag_lvUbjp_`)
+    // Every self-development schedule stays enabled.
+    for (const d of AgentScheduleDefs) {
+      if (!execKeys.includes(d.key)) expect(d.enabled).toBe(true)
     }
   })
 
