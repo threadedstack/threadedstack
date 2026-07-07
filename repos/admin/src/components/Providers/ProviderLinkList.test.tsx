@@ -40,6 +40,12 @@ vi.mock(`@tdsk/components`, () => ({
   ),
 }))
 
+vi.mock(`@TAF/components/Agents/ModelSelect`, () => ({
+  ModelSelect: ({ id, brand }: any) => (
+    <div data-testid={`model-select-${id || brand}`} />
+  ),
+}))
+
 import { ProviderLinkList } from './ProviderLinkList'
 
 const theme = createTheme()
