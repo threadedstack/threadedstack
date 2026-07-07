@@ -1649,9 +1649,16 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
           )
 
           const uploadOk = await finalizeUploads()
+          // Persist the SAME fallback message used below for the thrown error —
+          // otherwise a failure with no result.error (e.g. bare non-zero exit,
+          // no stderr captured) writes a blank schedule_runs.error, and the
+          // fallback text only ever reaches the log, never the DB row.
+          const errorMessage = result.success
+            ? undefined
+            : result.error || `Command exited with non-zero code ${result.exitCode}`
           const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
             instanceId,
-            error: result.error,
+            error: errorMessage,
             durationMs: Date.now() - start,
             status: result.success ? `success` : `error`,
             ...(uploadOk && { stdoutKey, stderrKey }),
@@ -1662,10 +1669,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
               )
             : (markedComplete = true)
 
-          if (!result.success)
-            throw new Error(
-              result.error || `Command exited with non-zero code ${result.exitCode}`
-            )
+          if (!result.success) throw new Error(errorMessage)
 
           logger.info(
             `[Executor] Schedule ${schedule.id} — CLI-brain run completed in ${Date.now() - start}ms`
@@ -1767,9 +1771,16 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       const uploadOk = await finalizeUploads()
 
+      // Persist the SAME fallback message used below for the thrown error —
+      // otherwise a failure with no result.error (e.g. bare non-zero exit, no
+      // stderr captured) writes a blank schedule_runs.error, and the fallback
+      // text only ever reaches the log, never the DB row.
+      const errorMessage = result.success
+        ? undefined
+        : result.error || `Command exited with non-zero code ${result.exitCode}`
       const { error: completeErr } = await db.services.scheduleRun.complete(run.id, {
         instanceId,
-        error: result.error,
+        error: errorMessage,
         durationMs: Date.now() - start,
         status: result.success ? `success` : `error`,
         ...(uploadOk && { stdoutKey, stderrKey }),
@@ -1781,10 +1792,7 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
           )
         : (markedComplete = true)
 
-      if (!result.success)
-        throw new Error(
-          result.error || `Command exited with non-zero code ${result.exitCode}`
-        )
+      if (!result.success) throw new Error(errorMessage)
 
       logger.info(
         `[Executor] Schedule ${schedule.id} — completed successfully in ${Date.now() - start}ms`

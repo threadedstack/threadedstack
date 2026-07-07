@@ -488,6 +488,28 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
   })
 
+  it(`falls back to an exit-code message when the CLI exec fails with no error string`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    sbInstance.execStreaming.mockResolvedValue({
+      output: ``,
+      success: false,
+      exitCode: 7,
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(
+      /Command exited with non-zero code 7/
+    )
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({
+        status: `error`,
+        error: `Command exited with non-zero code 7`,
+      })
+    )
+  })
+
   it(`records an error when neither the agent environment nor the schedule has a sandbox`, async () => {
     const { app, services } = buildApp()
     services.agent.get.mockResolvedValue({ data: runtimeAgent({ environment: {} }) })
@@ -546,6 +568,27 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       app.locals.sandbox.getSandbox.mock.invocationCallOrder[0]
     )
     expect(sbInstance.execStreaming).toHaveBeenCalled()
+  })
+
+  it(`falls back to an exit-code message when the pod-schedule exec fails with no error string`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    sbInstance.execStreaming.mockResolvedValue({
+      output: ``,
+      success: false,
+      exitCode: 3,
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule({ agentId: undefined }) as any)).rejects.toThrow(
+      /Command exited with non-zero code 3/
+    )
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({
+        status: `error`,
+        error: `Command exited with non-zero code 3`,
+      })
+    )
   })
 
   it(`records an error run and still stops the pod when the readiness wait fails on the CLI-brain path`, async () => {
