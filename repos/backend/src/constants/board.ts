@@ -5,13 +5,13 @@ import type { Schedule } from '@tdsk/domain'
  *
  * Single source of truth for who sits on the executive board. Every board
  * persist/resolve path in the executor reads membership through the helpers here
- * (never hardcoded inline), so this phase is testable before the CEO agent is
- * seeded (Phase 6/7) — tests inject/override membership by mocking this module.
+ * (never hardcoded inline), so the board is testable independently of the seeded
+ * agents — tests inject/override membership by mocking this module.
  *
- * SP1 board = {CEO, CTO}. The CTO reuses the existing steward agent; the CEO is a
- * placeholder that Phase 6 replaces with the seeded agent id. Everything stays
- * dormant in prod until the CEO agent exists and the board schedules are enabled,
- * because no live schedule's agentId matches the placeholder CEO id yet.
+ * SP1 board = {CEO, CTO}. The CTO reuses the existing steward agent; the CEO is the
+ * seeded founder agent. Both stay dormant in prod until the CEO agent + its body
+ * sandbox are created there and the board schedules are enabled — the CEO board
+ * schedules ship disabled, so no live schedule drives a board path until activation.
  */
 
 /** Board seat roles. The CMO seat is designed-for now; its agent ships in SP2. */
@@ -25,11 +25,19 @@ export type TBoardMember = {
 }
 
 /**
- * Placeholder CEO agent id — Phase 6 replaces this with the seeded CEO agent id.
- * Until then no live schedule carries this agentId, so every CEO-gated path
- * (resolveBoard, persistStrategy) stays inert in prod.
+ * Stable id of the seeded CEO agent — the founder seat and first-among-equals
+ * tiebreaker. Kept in lockstep with the CEO agent seeded in the database repo
+ * (`fullorg.ts`) and the CEO board schedules (`agentSchedules.ts`). No live prod
+ * schedule carries this agentId until the CEO board schedules are enabled, so
+ * every CEO-gated path (resolveBoard, persistStrategy) stays inert until activation.
  */
-export const BoardCeoAgentId = `ag_CEO_PLACEHOLDER`
+export const CeoAgentId = `ag_ceo0001`
+
+/** Stable id of the CEO agent's body sandbox (its runtime pod). */
+export const CeoSandboxId = `sb_ceo0001`
+
+/** The CEO seat is driven by the seeded founder agent. */
+export const BoardCeoAgentId = CeoAgentId
 
 /** The CTO seat reuses the existing steward agent. */
 export const BoardCtoAgentId = `ag_lvUbjp_`
