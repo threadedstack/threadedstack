@@ -30,6 +30,7 @@ export type TOAIRequest = {
   temperature?: number
   messages: TOAIMessage[]
   stop?: string | string[]
+  threadId?: string
   presence_penalty?: number
   frequency_penalty?: number
   max_completion_tokens?: number

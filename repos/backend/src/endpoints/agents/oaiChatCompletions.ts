@@ -31,6 +31,10 @@ import {
  * The `model` field in the request body is an optional LLM model override.
  * All messages except the last user message are seeded into a new thread
  * as conversation history. The last user message becomes the agent prompt.
+ *
+ * A caller continuing an existing conversation can pass `threadId` in the
+ * request body (or an `X-Thread-Id` header) to reuse that thread instead —
+ * thread-create and message-reseed are both skipped in that case.
  */
 export const oaiChatCompletions: TEndpointConfig = {
   path: `/:id/v1/chat/completions`,
@@ -105,10 +109,33 @@ export const oaiChatCompletions: TEndpointConfig = {
       return
     }
 
-    // Seed thread with prior messages if conversation has history.
+    // Reuse an existing thread when the caller supplies one (body `threadId`
+    // or `X-Thread-Id` header) — skips thread-create + message-reseed entirely.
     let threadId: string | undefined
+    const incomingThreadId: string | undefined =
+      body.threadId || (req.headers[`x-thread-id`] as string | undefined)
+    if (incomingThreadId) {
+      const { data: existingThread, error: threadFetchErr } =
+        await db.services.thread.get(incomingThreadId)
+      if (
+        threadFetchErr ||
+        !existingThread ||
+        existingThread.orgId !== agentData.orgId ||
+        existingThread.agentId !== agentId
+      ) {
+        const { status, body: errBody } = formatOAIError(
+          new Exception(400, `Invalid threadId for this agent`)
+        )
+        res.status(status).json(errBody)
+        return
+      }
+      threadId = existingThread.id
+    }
+
+    // Seed thread with prior messages if conversation has history.
+    // Skipped entirely when reusing an existing thread supplied above.
     const priorMessages = body.messages.slice(0, -1)
-    if (priorMessages.length) {
+    if (!threadId && priorMessages.length) {
       const converted = convertOAIMessages(priorMessages)
       if (converted.length) {
         try {
