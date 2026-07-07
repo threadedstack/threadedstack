@@ -12,6 +12,7 @@ import type {
 import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
+import { RehydrationInterruptMarker } from '@TBE/services/scheduler/rehydrator'
 import {
   EProvider,
   EMsgType,
@@ -529,14 +530,22 @@ export async function buildRunOutcomeContext(
             (run.error ?? ``).trim() || `(no error text)`
           }`
         )
-      } else if (
-        run.status === `success` &&
-        run.durationMs != null &&
-        run.durationMs < EmptyRunDurationMs
-      ) {
-        bullets.push(
-          `- [success, possibly empty / no-op run] ${run.id} @ ${run.startedAt}: ${run.durationMs}ms`
-        )
+      } else if (run.status === `success`) {
+        // A run marked `success` by the rehydrator after a backend restart was
+        // INTERRUPTED mid-exec (the deploy that restarted the backend severed
+        // the exec stream), so it likely produced no deliverable. The rehydrator
+        // waits out poll cycles before marking, so such a run's duration is NOT
+        // short — the fast-empty check below misses it. Flag it explicitly by
+        // its interrupt marker so the sensor can surface the null cycle.
+        if ((run.error ?? ``).includes(RehydrationInterruptMarker)) {
+          bullets.push(
+            `- [success but INTERRUPTED by a backend restart — likely produced no deliverable, treat as a possibly-empty run] ${run.id} @ ${run.startedAt}`
+          )
+        } else if (run.durationMs != null && run.durationMs < EmptyRunDurationMs) {
+          bullets.push(
+            `- [success, possibly empty / no-op run] ${run.id} @ ${run.startedAt}: ${run.durationMs}ms`
+          )
+        }
       }
     }
     if (!bullets.length) return ``

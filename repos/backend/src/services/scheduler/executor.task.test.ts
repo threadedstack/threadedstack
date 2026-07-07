@@ -29,6 +29,7 @@ import {
   persistTaskProposals,
   persistTaskPickups,
 } from './executor'
+import { RehydrationInterruptMarker } from './rehydrator'
 
 const buildApp = (services: Record<string, any>) =>
   ({ locals: { db: { services } } }) as any
@@ -67,7 +68,7 @@ describe(`buildRunOutcomeContext`, () => {
       schedule()
     )
 
-    expect(listByOrg).toHaveBeenCalledWith(`org-1`, { limit: 15 })
+    expect(listByOrg).toHaveBeenCalledWith(`org-1`, { limit: 50 })
     expect(out).toContain(`## Recent run outcomes`)
     expect(out).toContain(`sr_err`)
     expect(out).toContain(`boom failure`)
@@ -79,6 +80,44 @@ describe(`buildRunOutcomeContext`, () => {
     expect(out).toContain(`1200ms`)
     // the currently-running row is never surfaced
     expect(out).not.toContain(`sr_running`)
+  })
+
+  it(`flags a long-running success interrupted by a backend restart (rehydrated)`, async () => {
+    const listByOrg = vi.fn().mockResolvedValue({
+      data: [
+        // The 07:30-style null cycle: marked success by the rehydrator after a
+        // deploy severed its exec stream. Duration is LONG (34 min), so the
+        // duration-based fast-empty check must NOT be what catches it.
+        {
+          id: `sr_severed`,
+          status: `success`,
+          durationMs: 2_054_173,
+          error: `${RehydrationInterruptMarker} — the runtime process had already exited by the time the new backend inspected the pod; ...`,
+          startedAt: `2026-07-07T07:30:55Z`,
+        },
+        // A genuinely normal long success — must stay unflagged.
+        {
+          id: `sr_normal`,
+          status: `success`,
+          durationMs: 900_000,
+          error: null,
+          startedAt: `2026-07-07T06:30:00Z`,
+        },
+      ],
+    })
+    const out = await buildRunOutcomeContext(
+      buildApp({ scheduleRun: { listByOrg } }),
+      schedule()
+    )
+
+    expect(out).toContain(`## Recent run outcomes`)
+    // the interrupted long-success is surfaced as a possibly-empty run
+    expect(out).toContain(`sr_severed`)
+    expect(out).toContain(`INTERRUPTED by a backend restart`)
+    // its long duration must NOT be reported as a fast/empty duration
+    expect(out).not.toContain(`2054173ms`)
+    // the normal long success is never surfaced
+    expect(out).not.toContain(`sr_normal`)
   })
 
   it(`returns '' when all runs are normal (success + long enough)`, async () => {
