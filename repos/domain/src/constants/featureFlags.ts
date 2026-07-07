@@ -25,6 +25,10 @@ export const FeatureFlags: TFeatureFlags = {
     enabled: true,
     description: `Durable agent memory store with scored retrieval`,
   },
+  collections: {
+    enabled: true,
+    description: `Project-scoped Collections/Records store with a safe query API`,
+  },
   delegation: {
     enabled: true,
     description: `Bounded task delegation via in-pod child coding processes`,
