@@ -44,8 +44,11 @@ import {
   OpsReviewInjectMax,
   OpsReviewInjectMaxChars,
   CoordinatorInjectMaxChars,
+  StrategyBlockFence,
+  DecisionsBlockFence,
 } from '@tdsk/domain'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
 import { parseTasksBlock, parseTaskPickupsBlock } from '@TBE/utils/agent/task'
 import { authorTaskProposal, markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import {
@@ -499,6 +502,35 @@ async function persistSkillReviews(
  */
 export const promptOptsIn = (schedule: Schedule, fence: string): boolean =>
   (schedule.prompt ?? ``).includes(fence)
+
+/** Marker a cycle embeds to consume the Company Strategy faculty without emitting a board block. */
+export const CompanyStrategyMarker = `<!-- company-strategy -->`
+
+/**
+ * A cycle consumes the Company Strategy faculty when its prompt opts into an
+ * executive block — it emits a tdsk-strategy or tdsk-decisions block, or it
+ * carries the explicit company-strategy marker. Dev-loop cycles (steward work,
+ * adversary) opt into none of these, so they pay for no strategy query and their
+ * assembled context is byte-identical to before.
+ */
+export const strategyOptsIn = (schedule: Schedule): boolean =>
+  promptOptsIn(schedule, StrategyBlockFence) ||
+  promptOptsIn(schedule, DecisionsBlockFence) ||
+  (schedule.prompt ?? ``).includes(CompanyStrategyMarker)
+
+/**
+ * Gated Company Strategy section for a cycle's assembled context: the rendered
+ * `## Company Strategy` block when the cycle opts into the executive faculty AND
+ * a strategy row exists, otherwise '' (a non-opted-in cycle never even queries
+ * the DB). Never throws — delegates to buildCompanyStrategyContext. Mirrors the
+ * sensorSection/backlogSection gating.
+ */
+export async function buildStrategySection(
+  app: TApp,
+  schedule: Schedule
+): Promise<string> {
+  return strategyOptsIn(schedule) ? buildCompanyStrategyContext(app, schedule) : ``
+}
 
 /**
  * Build the injected recent-run-outcome context for a SENSOR cycle: the pod
@@ -1359,6 +1391,12 @@ async function runCliAgentSchedule(
   const backlogSection = promptOptsIn(schedule, TaskPickupsBlockFence)
     ? await buildTaskBacklogContext(app, schedule)
     : ``
+  // Gated executive faculty: a CEO/CTO/board cycle (its prompt emits a
+  // tdsk-strategy/tdsk-decisions block or carries the company-strategy marker)
+  // receives the org's Company Strategy so it can consume + direct from it.
+  // Dev-loop cycles (steward work, adversary) opt in to none, so they pay for no
+  // query and their assembled context is unchanged.
+  const strategySection = await buildStrategySection(app, schedule)
   const baseCommand = buildCliCommand(
     schedule,
     agent,
@@ -1371,7 +1409,8 @@ async function runCliAgentSchedule(
       opsReviewSection +
       coordinatorSection +
       sensorSection +
-      backlogSection
+      backlogSection +
+      strategySection
   )
 
   // Accumulate raw Buffers with byte accounting and decode ONCE at the end.
