@@ -177,6 +177,18 @@ const seedMembers = (h: THarness) => {
   h.seed(`board_members`, `bm_cto`, { agentId: `ag_cto`, role: `cto`, isCEO: false })
 }
 
+/**
+ * The production membership shape since the CMO seat landed: THREE
+ * board_members records. resolveBoard derives its member set from these records
+ * (the Function source queries `board_members` and maps every row into
+ * `members`), so consensus/waiting/tiebreak go three-seat purely from data —
+ * no engine change.
+ */
+const seedThreeMembers = (h: THarness) => {
+  seedMembers(h)
+  h.seed(`board_members`, `bm_cmo`, { agentId: `ag_cmo`, role: `cmo`, isCEO: false })
+}
+
 const seedProposal = (h: THarness, overrides: Record<string, unknown> = {}) =>
   h.seed(`decision_proposals`, `dp_1`, {
     title: `Reposition to AI teams`,
@@ -574,6 +586,80 @@ describe(`resolveBoard Function — stop-the-line abort`, () => {
     expect(proposalData(h).resolution).toContain(
       `blocked: stop-the-line abort has no wind-down plan`
     )
+  })
+})
+
+describe(`resolveBoard Function — 3-seat board (membership-as-data drives consensus)`, () => {
+  it(`waits when only 2 of 3 members have endorsed (the CMO seat has not positioned)`, async () => {
+    const h = makeFakeDb()
+    seedThreeMembers(h)
+    seedProposal(h, { round: 1 })
+    seedPosition(h, `ag_ceo`, `endorse`, 1)
+    seedPosition(h, `ag_cto`, `endorse`, 1)
+    // No CMO position: 2 endorsements were FULL consensus for the 2-seat board,
+    // but with the third member record present the board must wait.
+
+    await resolve(h)
+
+    expect(proposalData(h)).toMatchObject({ status: `deliberating`, round: 1 })
+    expect(proposalData(h).resolution).toBeUndefined()
+    expect(strategyWrites(h)).toHaveLength(0)
+  })
+
+  it(`commits by consensus when all 3 members endorse the current round`, async () => {
+    const h = makeFakeDb()
+    seedThreeMembers(h)
+    seedProposal(h, { round: 1 })
+    seedPosition(h, `ag_ceo`, `endorse`, 1)
+    seedPosition(h, `ag_cto`, `endorse`, 1)
+    seedPosition(h, `ag_cmo`, `endorse`, 1)
+    seedStrategy(h, { positioning: `old`, backlog: [], activeInitiative: null })
+
+    await resolve(h)
+
+    expect(proposalData(h)).toMatchObject({
+      status: `committed`,
+      resolution: `consensus`,
+      round: 1,
+    })
+    // The commit effect ran for the positioning-axis proposal.
+    expect(strategyData(h).positioning).toBe(
+      `Shift positioning to autonomous AI eng teams`
+    )
+  })
+
+  it(`CEO tiebreak still works at the round cap with 3 seats (CEO endorse over a CMO objection)`, async () => {
+    const h = makeFakeDb()
+    seedThreeMembers(h)
+    seedProposal(h, { round: 3 })
+    seedPosition(h, `ag_ceo`, `endorse`, 3, `metrics back this`)
+    seedPosition(h, `ag_cto`, `endorse`, 3)
+    seedPosition(h, `ag_cmo`, `object`, 3)
+    seedStrategy(h, { positioning: `old`, backlog: [], activeInitiative: null })
+
+    await resolve(h)
+
+    const data = proposalData(h)
+    expect(data.status).toBe(`tiebroken`)
+    expect(data.resolution).toContain(`ceo-tiebreak:`)
+    expect(data.resolution).toContain(`metrics back this`)
+    expect(strategyData(h).positioning).toBe(
+      `Shift positioning to autonomous AI eng teams`
+    )
+  })
+
+  it(`advances the round on a CMO objection under the cap (3-seat dissent re-deliberates)`, async () => {
+    const h = makeFakeDb()
+    seedThreeMembers(h)
+    seedProposal(h, { round: 1 })
+    seedPosition(h, `ag_ceo`, `endorse`, 1)
+    seedPosition(h, `ag_cto`, `endorse`, 1)
+    seedPosition(h, `ag_cmo`, `object`, 1)
+
+    await resolve(h)
+
+    expect(proposalData(h)).toMatchObject({ round: 2, status: `deliberating` })
+    expect(strategyWrites(h)).toHaveLength(0)
   })
 })
 

@@ -18,8 +18,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // `contextSources`), and the trusted caller is injected from the schedule/agent
 // identity exactly as the executor does (executor.ts:1966 →
 // dispatchActions(app, schedule, agent.id, stdout)). The store is seeded with
-// the Phase-2 collections data (`ExecBoardRecordSeeds` — CEO+CTO board_members
-// and the empty-valid company_strategy singleton).
+// the Phase-2 collections data (`ExecBoardRecordSeeds` — the CEO+CTO+CMO
+// board_members and the empty-valid company_strategy singleton), so consensus
+// requires all THREE seats.
 //
 // The ONLY mocks are the Phase-3 harness's three (execBoardFunctions.test.ts /
 // execBoardResolve.test.ts): the V8 sandbox provider (`@tdsk/sandbox`), the
@@ -36,9 +37,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 //   1. CEO strategy cycle  — upsertStrategy + openDecision
 //   2. context render      — the open proposal appears WITH its record id
 //   3. CTO board cycle     — postPosition (endorse)
+//   3b. CMO board cycle    — postPosition (endorse; 3rd seat completes the round)
 //   4. CEO board cycle     — postPosition (endorse) + closing resolveBoard
 //   5. context round-trip  — committed positioning in, open decisions drained
 //   6. allowlist negative  — cto-board invoking upsertStrategy = zero writes
+//   7. CMO marketing cycle — saveMarketingArtifact drafts land in the Collection
 
 const { mockClose, mockEvaluate, mockReset, mockSandbox, mockCreate } = vi.hoisted(() => {
   const mockClose = vi.fn().mockResolvedValue(undefined)
@@ -87,6 +90,8 @@ const defByKey = (key: string) => {
 const CeoStrategyDef = defByKey(`ceo-strategy`)
 const CeoBoardDef = defByKey(`ceo-board`)
 const CtoBoardDef = defByKey(`cto-board`)
+const CmoBoardDef = defByKey(`cmo-board`)
+const CmoMarketingDef = defByKey(`cmo-marketing`)
 
 /** The board project every cycle is scoped to (the exec project). */
 const BoardProjectId = CeoStrategyDef.projectId
@@ -105,6 +110,8 @@ const toSchedule = (def: typeof CeoStrategyDef): Schedule =>
 const CeoStrategySchedule = toSchedule(CeoStrategyDef)
 const CeoBoardSchedule = toSchedule(CeoBoardDef)
 const CtoBoardSchedule = toSchedule(CtoBoardDef)
+const CmoBoardSchedule = toSchedule(CmoBoardDef)
+const CmoMarketingSchedule = toSchedule(CmoMarketingDef)
 
 // ── Harness (the Phase-3 ①/② in-memory store + Function resolution) ──────────
 
@@ -264,8 +271,8 @@ const fence = (json: string) => `\`\`\`${ActionsBlockFence}\n${json}\n\`\`\``
 const h = makeFakeDb()
 const app = { locals: { db: h.db } } as any
 
-// Phase-2 seed data: board_members (CEO ag_ceo0001 + CTO ag_lvUbjp_) and the
-// empty-valid company_strategy singleton (rec_strat1).
+// Phase-2 seed data: board_members (CEO ag_ceo0001 + CTO ag_lvUbjp_ + CMO
+// ag_cmo0001) and the empty-valid company_strategy singleton (rec_strat1).
 for (const seedRec of ExecBoardRecordSeeds)
   h.seed(seedRec.collection, seedRec.id, seedRec.data)
 
@@ -286,22 +293,44 @@ beforeEach(() => {
 describe(`exec board cycle — end-to-end on the primitives through the ② dispatch chain (⑤a-5)`, () => {
   it(`step 0: the driving schedules carry the Phase-4 config verbatim (allowlists + context sources)`, () => {
     expect(CeoStrategyDef.actions).toEqual({
-      functions: [`upsertStrategy`, `openDecision`],
+      functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
     })
     expect(CeoBoardDef.actions).toEqual({ functions: [`postPosition`, `resolveBoard`] })
     expect(CtoBoardDef.actions).toEqual({
-      functions: [`postPosition`, `reportInitiativeComplete`],
+      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
     })
-    // Every board cycle reads the strategy singleton + the open decisions.
-    for (const def of [CeoStrategyDef, CeoBoardDef, CtoBoardDef]) {
+    // The CMO seat: deliberation + marketing-axis proposals, and the daily
+    // drafting surface (which also owns the gtm plan). Only the CEO board
+    // cycle holds resolveBoard.
+    expect(CmoBoardDef.actions).toEqual({ functions: [`postPosition`, `openDecision`] })
+    expect(CmoMarketingDef.actions).toEqual({
+      functions: [
+        `saveMarketingArtifact`,
+        `openDecision`,
+        `upsertPlan`,
+        `updateMilestone`,
+      ],
+    })
+    // Every board cycle reads the strategy singleton + the open decisions +
+    // the active long-term plans (the planning system's context surface).
+    for (const def of [
+      CeoStrategyDef,
+      CeoBoardDef,
+      CtoBoardDef,
+      CmoBoardDef,
+      CmoMarketingDef,
+    ]) {
       const sources = (def.contextSources ?? []).map((source) => source.as)
       expect(sources).toContain(`Company Strategy`)
       expect(sources).toContain(`Open board decisions`)
+      expect(sources).toContain(`Plans`)
     }
-    // ⑤a-5 activation (2026-07-08): the board ships LIVE on the primitives.
+    // The board ships LIVE on the primitives; the CMO seat joins live.
     expect(CeoStrategyDef.enabled).toBe(true)
     expect(CeoBoardDef.enabled).toBe(true)
     expect(CtoBoardDef.enabled).toBe(true)
+    expect(CmoBoardDef.enabled).toBe(true)
+    expect(CmoMarketingDef.enabled).toBe(true)
   })
 
   it(`step 1: CEO strategy cycle — one tdsk-actions block drives upsertStrategy + openDecision end to end`, async () => {
@@ -408,7 +437,35 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
     })
   })
 
-  it(`step 4: CEO board cycle — postPosition + closing resolveBoard commit the proposal by consensus and run the commit effect`, async () => {
+  it(`step 3b: CMO board cycle — the third seat's endorse completes the round (membership-as-data)`, async () => {
+    const stdout = fence(
+      JSON.stringify([
+        {
+          function: `postPosition`,
+          args: {
+            proposalId,
+            stance: `endorse`,
+            reasoning: `sharper positioning is the first go-to-market unlock`,
+          },
+        },
+      ])
+    )
+
+    await dispatchActions(app, CmoBoardSchedule, CmoBoardDef.agentId, stdout)
+
+    const positions = h.rows(`decision_positions`)
+    expect(positions).toHaveLength(2)
+    expect(
+      positions.some(
+        (rec) =>
+          rec.data.agentId === CmoBoardDef.agentId &&
+          rec.data.stance === `endorse` &&
+          rec.data.round === 1
+      )
+    ).toBe(true)
+  })
+
+  it(`step 4: CEO board cycle — postPosition + closing resolveBoard commit the proposal by 3-seat consensus and run the commit effect`, async () => {
     const stdout = `Deliberation report.\n\n${fence(
       JSON.stringify([
         {
@@ -425,7 +482,7 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
 
     await dispatchActions(app, CeoBoardSchedule, CeoBoardDef.agentId, stdout)
 
-    // Both members endorsed round 1 → committed by consensus at round 1.
+    // All three members endorsed round 1 → committed by consensus at round 1.
     const proposal = h.row(`decision_proposals`, proposalId)!.data
     expect(proposal).toMatchObject({
       status: `committed`,
@@ -479,5 +536,43 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
     // ...so nothing was written anywhere.
     expect(h.record.upsert).not.toHaveBeenCalled()
     expect(h.row(`company_strategy`, `rec_strat1`)!.data).toEqual(strategyBefore)
+  })
+
+  it(`step 7: CMO marketing cycle — saveMarketingArtifact lands a draft in the marketing_artifacts Collection`, async () => {
+    const stdout = `Channel research report.\n\n${fence(
+      JSON.stringify([
+        {
+          function: `saveMarketingArtifact`,
+          args: {
+            kind: `ad-proposal`,
+            title: `Google Ads pilot — AI eng teams`,
+            body: `PROPOSAL (draft, no spend): $500/mo pilot targeting AI platform buyers.`,
+            status: `proposed`,
+            budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+            evidence: [`channel-benchmark-source`],
+          },
+        },
+      ])
+    )}\n\nReport complete.`
+
+    await dispatchActions(app, CmoMarketingSchedule, CmoMarketingDef.agentId, stdout)
+
+    // Resolved by name against the exec project (post-allowlist).
+    expect(h.fn.list).toHaveBeenCalledWith({
+      where: { projectId: BoardProjectId, name: `saveMarketingArtifact` },
+    })
+
+    // The draft/proposal landed with the trusted caller as its writer.
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data).toEqual({
+      kind: `ad-proposal`,
+      title: `Google Ads pilot — AI eng teams`,
+      body: `PROPOSAL (draft, no spend): $500/mo pilot targeting AI platform buyers.`,
+      status: `proposed`,
+      budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+      evidence: [`channel-benchmark-source`],
+      updatedByAgentId: CmoMarketingDef.agentId,
+    })
   })
 })
