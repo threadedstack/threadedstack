@@ -6,7 +6,17 @@ import { loadConfigs } from '@keg-hub/parse-config'
 import { emptyArr } from '@keg-hub/jsutils/emptyArr'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
-const aliases = hq.get(`webpack`)
+/**
+ * Alias map resolved lazily on first use — a top-level `hq.get()` call is a
+ * module side effect that (a) reads the filesystem at import time and (b)
+ * defeats bundler tree-shaking for every consumer of the domain barrel that
+ * never calls loadEnvs (e.g. the self-contained resident runtime bundle).
+ */
+let __ALIASES__: Record<string, string>
+const getAliases = () => {
+  __ALIASES__ ??= hq.get(`webpack`)
+  return __ALIASES__
+}
 
 /**
  * Cache holder for the loaded envs
@@ -41,8 +51,8 @@ export const loadEnvs = (cfg: TLoadEnvs) => {
       env,
       name,
       locations: [
-        aliases[`@ROOT`],
-        path.join(aliases[`@ROOT`], `deploy`),
+        getAliases()[`@ROOT`],
+        path.join(getAliases()[`@ROOT`], `deploy`),
         path.join(homedir(), `.config/tdsk`),
         ...locations,
       ],

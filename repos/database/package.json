@@ -31,6 +31,7 @@
     "reconcile:schedules": "tsx -r ./configs/aliases.ts scripts/reconcileSchedules.ts",
     "reconcile:exec-board": "tsx -r ./configs/aliases.ts scripts/reconcileExecBoard.ts",
     "reconcile:dev-loop": "tsx -r ./configs/aliases.ts scripts/reconcileDevLoop.ts",
+    "reconcile:resident": "tsx -r ./configs/aliases.ts scripts/reconcileResident.ts",
     "sync:task-proposals": "tsx -r ./configs/aliases.ts scripts/syncTaskProposals.ts",
     "rmf": "tsx -r ./configs/aliases.ts scripts/remove.ts",
     "purge": "tsx -r ./configs/aliases.ts scripts/purge.ts",

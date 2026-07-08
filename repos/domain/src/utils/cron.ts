@@ -2,9 +2,10 @@
  * Simple cron parser for 5-field cron expressions.
  * Supports: *, specific numbers, step values (x/N), comma-separated values, ranges (x-y)
  * Fields: minute hour dayOfMonth month dayOfWeek
+ *
+ * Shared home for cron evaluation: the backend scheduler (nextRunAt) and the
+ * resident runtime's agenda both compute next-fire times through it.
  */
-
-import { logger } from '@TBE/utils/logger'
 
 type TCronFields = {
   minutes: number[]
@@ -132,10 +133,7 @@ export function isValidCron(expression: string): boolean {
       fields.months.length > 0 &&
       fields.daysOfWeek.length > 0
     )
-  } catch (err) {
-    if (err instanceof TypeError || err instanceof RangeError)
-      logger.error(`[CronParser] Unexpected error validating cron:`, err)
-
+  } catch {
     return false
   }
 }

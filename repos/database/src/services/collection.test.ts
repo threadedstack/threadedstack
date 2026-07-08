@@ -122,6 +122,30 @@ describe(`Collection service`, () => {
     expect(res.data).toBeUndefined()
   })
 
+  it(`listByName returns the name's collections across ALL projects`, async () => {
+    mocks.enqueue([
+      fakeCollectionRow({ name: `resident_configs` }),
+      fakeCollectionRow({
+        id: `col_two0001`,
+        name: `resident_configs`,
+        projectId: `pj_proj002`,
+      }),
+    ])
+    const res = await service.listByName(`resident_configs`)
+
+    const where = render(mocks.chain.where.mock.calls[0][0])
+    expect(where.params).toEqual([`resident_configs`])
+    expect(res.data).toHaveLength(2)
+    expect(res.data?.map((row) => row.projectId)).toEqual([`pj_proj001`, `pj_proj002`])
+    res.data?.forEach((row) => expect(row).toBeInstanceOf(CollectionModel))
+  })
+
+  it(`listByName surfaces query errors`, async () => {
+    mocks.enqueue(new Error(`boom`))
+    const res = await service.listByName(`resident_configs`)
+    expect(res.error?.message).toBe(`boom`)
+  })
+
   it(`listByProject scopes to the project and returns models`, async () => {
     mocks.enqueue([
       fakeCollectionRow(),
