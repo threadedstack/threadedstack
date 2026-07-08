@@ -2,7 +2,7 @@ import type { TApp } from '@TBE/types'
 import type { Schedule } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
-import { parseActionsBlock } from '@TBE/utils/agent/actions'
+import { parseActionsBlock } from '@tdsk/domain'
 import { invokeAction } from '@TBE/utils/agent/invokeAction'
 
 /**

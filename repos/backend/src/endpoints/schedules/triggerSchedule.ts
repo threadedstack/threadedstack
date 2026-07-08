@@ -4,8 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { authorize } from '@TBE/middleware/authorize'
-import { parseNextRun } from '@TBE/services/scheduler/cronParser'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, parseNextRun, EPermAction, EPermResource } from '@tdsk/domain'
 
 export const triggerSchedule: TEndpointConfig = {
   path: `/:scheduleId/trigger`,

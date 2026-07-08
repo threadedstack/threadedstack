@@ -3,8 +3,14 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
-import { Exception, EPermAction, EPermResource, EScheduleType } from '@tdsk/domain'
+import {
+  Exception,
+  isValidCron,
+  parseNextRun,
+  EPermAction,
+  EPermResource,
+  EScheduleType,
+} from '@tdsk/domain'
 import { MinScheduleTimeoutMS, MaxScheduleTimeoutMS } from '@TBE/constants/sandbox'
 
 export const updateSchedule: TEndpointConfig = {

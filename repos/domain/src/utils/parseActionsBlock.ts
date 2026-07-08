@@ -1,7 +1,23 @@
-import type { TAgentAction } from '@tdsk/domain'
+import type { TAgentAction } from '@TDM/types/actions.types'
 
-import { logger } from '@TBE/utils/logger'
-import { ActionsBlockFence } from '@tdsk/domain'
+import { ActionsBlockFence } from '@TDM/constants/actions'
+
+/**
+ * Extract the LAST fenced ```<fence>``` block out of a text stream. Multiple
+ * blocks → the last one wins (mirrors the tdsk-actions / tdsk-memories fence
+ * conventions). Returns undefined when no block is present.
+ */
+export const extractLastFencedBlock = (
+  text: string,
+  fence: string
+): string | undefined => {
+  if (!text) return undefined
+
+  const fenceRegex = new RegExp(`\`\`\`${fence}\\s*\\n([\\s\\S]*?)\`\`\``, `g`)
+  let lastBlock: string | undefined
+  for (const match of text.matchAll(fenceRegex)) lastBlock = match[1]
+  return lastBlock
+}
 
 /**
  * Parse the LAST fenced ```tdsk-actions``` block out of runtime stdout into
@@ -9,23 +25,20 @@ import { ActionsBlockFence } from '@tdsk/domain'
  * `{ "actions": [ ... ] }`. A missing/invalid block, non-array payload, or
  * malformed JSON yields `[]` (no-op). Entries without a non-empty string
  * `function` are dropped; `args` defaults to `{}`.
+ *
+ * Shared home for the ② effect-surface parser: the backend dispatch path and
+ * the resident runtime's action pump both consume it.
  */
 export const parseActionsBlock = (text: string): TAgentAction[] => {
-  if (!text) return []
-
-  const fenceRegex = new RegExp(
-    `\`\`\`${ActionsBlockFence}\\s*\\n([\\s\\S]*?)\`\`\``,
-    `g`
-  )
-  let lastBlock: string | undefined
-  for (const match of text.matchAll(fenceRegex)) lastBlock = match[1]
+  const lastBlock = extractLastFencedBlock(text, ActionsBlockFence)
   if (lastBlock === undefined) return []
 
   let parsed: unknown
   try {
     parsed = JSON.parse(lastBlock)
   } catch {
-    logger.debug(`[actions] Ignoring malformed tdsk-actions block`)
+    // Malformed JSON in the block is a no-op by contract — the emitting
+    // session simply produced no dispatchable actions this turn.
     return []
   }
 

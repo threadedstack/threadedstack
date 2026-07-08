@@ -23,7 +23,10 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
   checkPermission: mockCheckPermission.mockResolvedValue(undefined),
 }))
 
-vi.mock(`@TBE/services/scheduler/cronParser`, () => ({
+// Partial mock: the cron helpers live in @tdsk/domain (shared with the resident
+// runtime); everything else (Schedule model, Exception, enums) stays real.
+vi.mock(`@tdsk/domain`, async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tdsk/domain')>()),
   isValidCron: vi.fn().mockReturnValue(true),
   parseNextRun: vi.fn().mockReturnValue(new Date(`2026-04-01T00:00:00Z`)),
 }))
@@ -408,7 +411,7 @@ describe(`POST / - createSchedule`, () => {
   })
 
   it(`should throw 400 when cron expression is invalid`, async () => {
-    const { isValidCron } = vi.mocked(await import(`@TBE/services/scheduler/cronParser`))
+    const { isValidCron } = vi.mocked(await import(`@tdsk/domain`))
     isValidCron.mockReturnValueOnce(false)
 
     mockReq.body = {
@@ -823,7 +826,7 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
   })
 
   it(`should throw 400 when updated cron expression is invalid`, async () => {
-    const { isValidCron } = vi.mocked(await import(`@TBE/services/scheduler/cronParser`))
+    const { isValidCron } = vi.mocked(await import(`@tdsk/domain`))
     scheduleService.get.mockResolvedValue({ data: mockSchedule })
     isValidCron.mockReturnValueOnce(false)
 

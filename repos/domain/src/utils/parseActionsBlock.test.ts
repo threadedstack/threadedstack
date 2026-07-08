@@ -1,13 +1,32 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
-import { parseActionsBlock } from './actions'
-import { ActionsBlockFence } from '@tdsk/domain'
-
-vi.mock(`@TBE/utils/logger`, () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}))
+import { ActionsBlockFence } from '@TDM/constants/actions'
+import { parseActionsBlock, extractLastFencedBlock } from './parseActionsBlock'
 
 const fence = (json: string) => `\`\`\`${ActionsBlockFence}\n${json}\n\`\`\``
+
+describe(`extractLastFencedBlock`, () => {
+  it(`returns undefined for an empty string`, () => {
+    expect(extractLastFencedBlock(``, ActionsBlockFence)).toBeUndefined()
+  })
+
+  it(`returns undefined when no block with the fence exists`, () => {
+    expect(extractLastFencedBlock(`plain text`, ActionsBlockFence)).toBeUndefined()
+  })
+
+  it(`extracts the block body for the given fence`, () => {
+    expect(extractLastFencedBlock(fence(`[1,2]`), ActionsBlockFence)).toBe(`[1,2]\n`)
+  })
+
+  it(`returns the LAST block when multiple are present`, () => {
+    const text = `${fence(`first`)}\nmiddle\n${fence(`second`)}`
+    expect(extractLastFencedBlock(text, ActionsBlockFence)).toBe(`second\n`)
+  })
+
+  it(`does not match a different fence label`, () => {
+    expect(extractLastFencedBlock(fence(`[1]`), `tdsk-memories`)).toBeUndefined()
+  })
+})
 
 describe(`parseActionsBlock`, () => {
   it(`returns [] for an empty string`, () => {
