@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource, EEscalationStatus } from '@tdsk/domain'
+import { parseStatusFilter } from '@TBE/utils/validation/parseStatusFilter'
 
 const ValidStatuses = new Set(Object.values(EEscalationStatus))
 
@@ -21,14 +22,10 @@ export const listEscalations: TEndpointConfig = {
 
     if (!orgId) throw new Exception(400, `orgId is required`)
 
-    if (
-      typeof req.query.status === `string` &&
-      !ValidStatuses.has(req.query.status as any)
-    )
-      throw new Exception(400, `status must be one of: ${[...ValidStatuses].join(`, `)}`)
+    const status = parseStatusFilter(req.query.status, ValidStatuses)
 
     const where: Record<string, string> = { orgId }
-    if (typeof req.query.status === `string`) where.status = req.query.status
+    if (status) where.status = status
     if (typeof req.query.agentId === `string`) where.agentId = req.query.agentId
 
     const { data, error } = await db.services.escalation.list({ where })
