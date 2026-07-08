@@ -18,7 +18,9 @@ import { hashKey, ApiKeyPrefix } from '@tdsk/domain'
  *    - All other routes get 401
  * 5. Hash API key and look up in database
  * 6. Validate (active, not expired)
- * 7. Set req.user with key's userId, orgId, projectId, and apiKeyId
+ * 7. Resident-bound keys (residentAgentId set) pass through WITHOUT a user
+ *    principal — the backend's residentAuth verifies the raw bearer itself
+ * 8. Set req.user with key's userId, orgId, projectId, and apiKeyId
  */
 export const validateApiKeyAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -58,6 +60,27 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
           error: apiKey.isExpired() ? `API key expired` : `API key revoked`,
         })
         return
+      }
+
+      // Resident carve-out: a resident-bound key (minted by the backend's
+      // mintResidentToken) has NO userId and NEVER attaches a user principal.
+      // The request passes through with its Authorization header intact and
+      // the backend's residentAuth middleware is the authority — it verifies
+      // the raw bearer + the residentAgentId binding itself. The proxy still
+      // strips/rewrites X-User-* headers on forward, so no principal rides in.
+      if (apiKey.residentAgentId) {
+        logger.debug(`Resident API key validated for agent: ${apiKey.residentAgentId}`)
+
+        app.locals.db.services.apiKey.touchLastUsed(apiKey.id).catch((err: Error) =>
+          logger.error({
+            message: `Failed to update API key lastUsedAt`,
+            apiKeyId: apiKey.id,
+            residentAgentId: apiKey.residentAgentId,
+            error: err.message,
+          })
+        )
+
+        return next()
       }
 
       if (!apiKey.userId) {

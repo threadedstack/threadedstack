@@ -20,7 +20,9 @@ export const CrashLoopMaxRestarts = 3
 
 /**
  * The pod env contract. MUST mirror repos/resident/src/constants.ts — the
- * runtime refuses to boot unless ALL five are present (readResidentEnv).
+ * runtime refuses to boot unless the five identity vars are present
+ * (readResidentEnv). `config` carries the agent's resident_configs record as
+ * JSON so the runtime boots network-free; the records API only REFRESHES it.
  */
 export const ResidentEnvVars = {
   agentId: `TDSK_RESIDENT_AGENT_ID`,
@@ -28,6 +30,7 @@ export const ResidentEnvVars = {
   backendUrl: `TDSK_BACKEND_URL`,
   orgId: `TDSK_RESIDENT_ORG_ID`,
   projectId: `TDSK_RESIDENT_PROJECT_ID`,
+  config: `TDSK_RESIDENT_CONFIG`,
 } as const
 
 export type TWatchdogAction =
@@ -57,8 +60,20 @@ export type TResidentWatchdogOpts = {
   crashLoopWindowMs?: number
   crashLoopMaxRestarts?: number
   nowFn?: () => number
-  /** In-cluster backend base URL override (defaults to http://<egress.serviceName>:<server.port>). */
+  /** Backend base URL override (defaults to the PUBLIC proxy URL, config.proxy.url). */
   backendUrl?: string
+}
+
+/** Hosts a sandbox pod can NEVER reach — loopback/wildcard binds of another machine. */
+const PodUnreachableHosts = new Set([`0.0.0.0`, `localhost`, `127.0.0.1`, `::1`, `[::1]`])
+
+/** True when the URL's host is a loopback/wildcard address (pod-unreachable). */
+export const isPodUnreachableUrl = (url: string): boolean => {
+  try {
+    return PodUnreachableHosts.has(new URL(url).hostname)
+  } catch {
+    return false
+  }
 }
 
 export type TResidentWatchdog = {
@@ -82,7 +97,8 @@ export type TResidentWatchdog = {
  * the agent's body sandbox (`agent.environment.sandboxId`), and ensures a
  * resident-mode pod exists with a fresh heartbeat (a `resident_status` write
  * younger than 3 minutes). Missing pod or stale heartbeat ⇒ (re)start via the
- * sandbox service WITH the full five-var env contract, minting (rotating) the
+ * sandbox service WITH the full env contract (five identity vars + the
+ * resident_configs record as TDSK_RESIDENT_CONFIG), minting (rotating) the
  * pod-scoped token via `mintResidentToken` each start. A crash-looping
  * resident (≥3 watchdog restarts inside an hour, tracked in-memory) is marked
  * `degraded` on its resident_status record and skipped until the hour rolls.
@@ -105,26 +121,30 @@ export const createResidentWatchdog = (
   let timer: ReturnType<typeof setInterval> | undefined
   let current: Promise<TWatchdogSummary> | undefined
   let warnedNoSandbox = false
+  let warnedUnreachableUrl = false
 
   /** Watchdog-initiated restart timestamps per agent (the crash-loop window). */
   const restartLog = new Map<string, number[]>()
   /** Last watchdog-initiated pod start per agent (the startup grace). */
   const lastStartAt = new Map<string, number>()
 
+  /**
+   * Residents reach the backend via the PUBLIC proxy URL through the egress
+   * MITM, exactly like any other client — there is no special in-cluster path.
+   * Warns (once) when the configured URL is obviously unreachable from a pod
+   * (loopback/wildcard host, e.g. the local-dev http://0.0.0.0:7118) — the
+   * reconcile marks those residents degraded instead of crash-looping pods.
+   */
   const resolveBackendUrl = (): string | undefined => {
     if (opts.backendUrl) return opts.backendUrl
-    // Prefer the K8s-injected ClusterIP env: sandbox pods have NO cluster DNS
-    // (by security posture), so a service NAME is unresolvable in-pod — the
-    // URL must carry the service IP. TDSK_BACKEND_SERVICE_HOST/_PORT are
-    // injected into backend pods by Kubernetes (enableServiceLinks) and the
-    // ClusterIP is stable for the service's lifetime.
-    const svcHost = process.env.TDSK_BACKEND_SERVICE_HOST
-    const svcPort = process.env.TDSK_BACKEND_SERVICE_PORT
-    if (svcHost && svcPort) return `http://${svcHost}:${svcPort}`
-    const config = app.locals.config
-    const serviceName = config?.egress?.serviceName
-    const port = config?.server?.port
-    return serviceName && port ? `http://${serviceName}:${port}` : undefined
+    const url = app.locals.config?.proxy?.url || undefined
+    if (url && isPodUnreachableUrl(url) && !warnedUnreachableUrl) {
+      warnedUnreachableUrl = true
+      logger.warn(
+        `[ResidentWatchdog] config.proxy.url (TDSK_PX_URL) is ${url} — a loopback/wildcard address is unreachable from a sandbox pod. Residents will be marked degraded until TDSK_PX_URL is a pod-reachable URL.`
+      )
+    }
+    return url
   }
 
   /** Upsert degraded=true onto the agent's resident_status record (idempotent). */
@@ -243,8 +263,20 @@ export const createResidentWatchdog = (
         return {
           ...base,
           action: `error`,
-          reason: `no in-cluster backend URL (egress.serviceName/server.port unset)`,
+          reason: `no backend URL (config.proxy.url / TDSK_PX_URL unset)`,
         }
+
+      // A loopback/wildcard proxy URL (local-dev http://0.0.0.0:7118) can
+      // never be dialed from a pod — degrade with a clear reason instead of
+      // starting a pod that would crash-loop on an unreachable backend.
+      if (isPodUnreachableUrl(backendUrl)) {
+        await markDegraded(projectId, agentId)
+        return {
+          ...base,
+          action: `degraded`,
+          reason: `config.proxy.url ${backendUrl} is unreachable from a pod (loopback/wildcard host) — set TDSK_PX_URL to a pod-reachable URL`,
+        }
+      }
 
       // This IS a watchdog restart — count it toward the crash-loop window
       // (rolling restarts excepted) BEFORE the attempt, so a start that
@@ -281,6 +313,9 @@ export const createResidentWatchdog = (
           [ResidentEnvVars.backendUrl]: backendUrl,
           [ResidentEnvVars.orgId]: agent.orgId,
           [ResidentEnvVars.projectId]: projectId,
+          // The resident_configs record, injected so boot is network-free —
+          // the runtime refreshes from the records API AFTER it is up.
+          [ResidentEnvVars.config]: JSON.stringify(record.data ?? {}),
         },
       })
       lastStartAt.set(agentId, now)

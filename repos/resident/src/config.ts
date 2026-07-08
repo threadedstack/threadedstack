@@ -27,8 +27,9 @@ import {
  * Read + validate the pod env contract. TDSK_RESIDENT_AGENT_ID rides the pod
  * manifest (podManifest.ts); TDSK_RESIDENT_TOKEN + TDSK_BACKEND_URL are minted/
  * injected at pod start (residentToken.ts); org + project scope the records and
- * dispatch URLs, injected alongside the token (or carried by the
- * TDSK_RESIDENT_CONFIG fallback JSON for tests).
+ * dispatch URLs, injected alongside the token. TDSK_RESIDENT_CONFIG carries the
+ * agent's resident_configs record as JSON, injected by the watchdog at pod
+ * start so boot is network-free — the records API only REFRESHES it.
  */
 export const readResidentEnv = (
   env: Record<string, string | undefined> = process.env
@@ -147,7 +148,7 @@ export const normalizeResidentConfig = (
 export type TConfigManager = {
   load: () => Promise<TResidentConfig>
   get: () => TResidentConfig
-  /** Throttled re-fetch (no-op in env-fallback mode); failures keep the last good config. */
+  /** Throttled re-fetch from the records API; failures keep the last good config. */
   maybeRefresh: () => Promise<void>
 }
 
@@ -159,15 +160,18 @@ export type TConfigManagerOpts = {
 }
 
 /**
- * Fetch + refresh the resident config. Source of truth is the
- * `resident_configs` record for this agentId (records query API); the
- * TDSK_RESIDENT_CONFIG env JSON is the static fallback for tests/dev.
+ * Boot + refresh the resident config. Precedence:
+ *  - BOOT: the TDSK_RESIDENT_CONFIG env JSON injected at pod start — boot is
+ *    network-free and MUST succeed with the env config alone. When the env is
+ *    absent (tests/legacy) load() fetches the record instead.
+ *  - REFRESH: the `resident_configs` record for this agentId (records query
+ *    API), re-fetched periodically. A failed refresh keeps the last good
+ *    config — it is never fatal.
  */
 export const createConfigManager = (opts: TConfigManagerOpts): TConfigManager => {
   const { env, api } = opts
   const nowFn = opts.nowFn ?? Date.now
   const refreshMs = opts.refreshMs ?? ConfigRefreshMs
-  const isStatic = Boolean(env.configJson)
 
   let current: TResidentConfig | undefined
   let lastFetchedAt = 0
@@ -189,11 +193,8 @@ export const createConfigManager = (opts: TConfigManagerOpts): TConfigManager =>
 
   return {
     load: async () => {
-      current = isStatic
-        ? normalizeResidentConfig(
-            parseInlineConfig(env.configJson as string),
-            env.agentId
-          )
+      current = env.configJson
+        ? normalizeResidentConfig(parseInlineConfig(env.configJson), env.agentId)
         : await fetchFromRecords()
       lastFetchedAt = nowFn()
       return current
@@ -205,7 +206,7 @@ export const createConfigManager = (opts: TConfigManagerOpts): TConfigManager =>
     },
 
     maybeRefresh: async () => {
-      if (isStatic || !current) return
+      if (!current) return
       if (nowFn() - lastFetchedAt < refreshMs) return
       lastFetchedAt = nowFn()
       try {
