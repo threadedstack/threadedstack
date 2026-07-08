@@ -137,6 +137,20 @@ current `if (isCeoSchedule(schedule)) await resolveBoard(...)` does, but through
 a hard-coded executor branch. `resolveBoard` is on the CEO board schedule's `actions` allowlist. (No
 separate resolution schedule — keeping it one cycle preserves today's timing and ordering.)
 
+### 5.1 Trusted caller identity (a small additive extension to ②)
+The role gates (`isCEO` for `upsertStrategy`, `role=='cto'` for `reportInitiativeComplete`, "is a board
+member" for `openDecision`/`postPosition`) must key off **who actually invoked the Function**, and that
+identity must be **trusted** — it cannot come from the model's own `tdsk-actions` output (a prompt could
+claim any agentId). Today ② passes only the block's `args` into `context.args`. This sub-project extends
+② additively: the platform injects a **trusted `context.caller`** — `{ agentId, scheduleId }` taken from
+the invoking run (`dispatchActions` already receives `agentId` + `schedule`; the live `invoke` tool uses
+the running agent's own id) — into the Function context, alongside `args`, never from model output. The
+board Functions resolve the caller's `board_members` record from `context.caller.agentId` and enforce
+role gates against it. `TFunctionContext` gains an optional `caller?: { agentId?: string; scheduleId?:
+string }`; `invokeAction`/`dispatchActions`/`createInvokeProvider` thread it through; the isolate receives
+it as plain data (no capability). This is generic — any consumer's effect Function can authorize by
+caller — and inert for existing callers (they simply pass no `caller`).
+
 ## 6. Context injection (`contextSources`)
 
 The board schedules carry `contextSources` entries (③) instead of the hard-coded builders:
