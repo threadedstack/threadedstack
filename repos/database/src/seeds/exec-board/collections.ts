@@ -43,10 +43,10 @@ export type TExecBoardCollectionDef = {
 }
 
 /**
- * The five board Collections. The first four mirror the columns of the tables
+ * The six board Collections. The first four mirror the columns of the tables
  * they replace 1:1 (data columns only — the `base` id/timestamps and the org
  * scope become the Collection's own id + project scope); `marketing_artifacts`
- * is native to the primitives (the CMO seat has no legacy table). Fields the
+ * and `plans` are native to the primitives (no legacy table). Fields the
  * source column marks NOT NULL are `required`; nullable columns are optional.
  */
 export const ExecBoardCollectionDefs: TExecBoardCollectionDef[] = [
@@ -118,6 +118,30 @@ export const ExecBoardCollectionDefs: TExecBoardCollectionDef[] = [
       { name: `status`, type: EFieldType.string, required: true },
       { name: `budget`, type: EFieldType.object },
       { name: `evidence`, type: EFieldType.array },
+    ],
+  },
+  {
+    // plans — the board's long-term planning surface: goals, estimations,
+    // milestones, and progress. Kinds: company (the CEO's whole-company plan),
+    // gtm (the CMO's go-to-market plan), initiative (a chartered initiative
+    // plan). Top-level types are enforced by this schema; the keyResults
+    // ({metric, target, current, unit}) and milestones ({title, status,
+    // estimate, targetDate, completedAt, evidence}) entry shapes are validated
+    // inside the upsertPlan/updateMilestone Functions — the marketing_artifacts
+    // convention.
+    id: `col_plans1`,
+    name: `plans`,
+    description: `Board long-term plans — goals, key results ({metric, target, current, unit}), and milestones ({title, status open|in-progress|done, estimate, targetDate, completedAt, evidence}) per lane (kind company|gtm|initiative, owner ceo|cmo|cto). Written only via upsertPlan/updateMilestone; active plans focus every exec cycle's research and deliberation.`,
+    schema: [
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `objective`, type: EFieldType.string, required: true },
+      { name: `owner`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `keyResults`, type: EFieldType.array },
+      { name: `milestones`, type: EFieldType.array },
+      { name: `linkedInitiative`, type: EFieldType.string },
+      { name: `notes`, type: EFieldType.string },
     ],
   },
 ]
@@ -202,7 +226,7 @@ export type TExecBoardSeedSummary = {
 }
 
 /**
- * Idempotently seed the five board Collections + membership/strategy records
+ * Idempotently seed the six board Collections + membership/strategy records
  * into the exec project. Collections are created only when absent (keyed by
  * projectId+name); records are upserted by stable id (create-or-replace), so a
  * re-run makes no changes. Never throws — every outcome is captured in the

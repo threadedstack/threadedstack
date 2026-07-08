@@ -62,8 +62,8 @@ const makeFakeServices = () => {
 }
 
 describe(`ExecBoardCollectionDefs`, () => {
-  it(`defines the five board collections with unique names + stable ids`, () => {
-    expect(ExecBoardCollectionDefs).toHaveLength(5)
+  it(`defines the six board collections with unique names + stable ids`, () => {
+    expect(ExecBoardCollectionDefs).toHaveLength(6)
     const names = ExecBoardCollectionDefs.map((c) => c.name)
     expect(names).toEqual([
       `board_members`,
@@ -71,9 +71,10 @@ describe(`ExecBoardCollectionDefs`, () => {
       `decision_positions`,
       `company_strategy`,
       `marketing_artifacts`,
+      `plans`,
     ])
     const ids = ExecBoardCollectionDefs.map((c) => c.id)
-    expect(new Set(ids).size).toBe(5)
+    expect(new Set(ids).size).toBe(6)
     // Every id is a valid entity id (col_ prefix + 6 chars = 10-char nanoid shape).
     for (const id of ids) expect(id).toMatch(/^[A-Za-z0-9_-]{10}$/)
   })
@@ -147,6 +148,28 @@ describe(`ExecBoardCollectionDefs`, () => {
     // Draft-only surface: the description discloses that nothing sends externally.
     expect(ma.description).toContain(`draft/proposal`)
   })
+
+  it(`plans carries the long-term planning shape (kind/title/objective/owner/status required)`, () => {
+    const plans = ExecBoardCollectionDefs.find((c) => c.name === `plans`)!
+    expect(plans.id).toBe(`col_plans1`)
+    expect(plans.schema).toEqual([
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `objective`, type: EFieldType.string, required: true },
+      { name: `owner`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `keyResults`, type: EFieldType.array },
+      { name: `milestones`, type: EFieldType.array },
+      { name: `linkedInitiative`, type: EFieldType.string },
+      { name: `notes`, type: EFieldType.string },
+    ])
+    // Entry shapes (keyResults/milestones) are validated inside the Functions —
+    // the marketing_artifacts convention; the description documents both.
+    expect(plans.description).toContain(`{metric, target, current, unit}`)
+    expect(plans.description).toContain(
+      `{title, status open|in-progress|done, estimate, targetDate, completedAt, evidence}`
+    )
+  })
 })
 
 describe(`ExecBoardRecordSeeds`, () => {
@@ -184,19 +207,19 @@ describe(`ExecBoardRecordSeeds`, () => {
 })
 
 describe(`reconcileExecBoard`, () => {
-  it(`creates the 5 collections + upserts the 4 seed records into the exec project`, async () => {
+  it(`creates the 6 collections + upserts the 4 seed records into the exec project`, async () => {
     const { services, collections, records } = makeFakeServices()
 
     const summary = await reconcileExecBoard(services)
 
     expect(summary).toMatchObject({
-      collectionsCreated: 5,
+      collectionsCreated: 6,
       collectionsUnchanged: 0,
       recordsUpserted: 4,
       errors: 0,
     })
 
-    // All 5 collections exist under the exec project with their schemas.
+    // All 6 collections exist under the exec project with their schemas.
     for (const def of ExecBoardCollectionDefs) {
       const stored = collections.get(`${OpsProjectId}:${def.name}`)
       expect(stored).toBeDefined()
@@ -240,17 +263,17 @@ describe(`reconcileExecBoard`, () => {
 
     const second = await reconcileExecBoard(services)
 
-    // Re-run: nothing new created, all five collections reported unchanged.
+    // Re-run: nothing new created, all six collections reported unchanged.
     expect(second).toMatchObject({
       collectionsCreated: 0,
-      collectionsUnchanged: 5,
+      collectionsUnchanged: 6,
       recordsUpserted: 4,
       errors: 0,
     })
     // Row counts are unchanged (records upsert in place by stable id).
     expect(collections.size).toBe(collectionsAfterFirst)
     expect(records.size).toBe(recordsAfterFirst)
-    expect(collections.size).toBe(5)
+    expect(collections.size).toBe(6)
     expect(records.size).toBe(4)
   })
 
@@ -272,7 +295,7 @@ describe(`reconcileExecBoard`, () => {
       },
     }
     const summary = await reconcileExecBoard(services as any)
-    expect(summary.errors).toBe(5)
+    expect(summary.errors).toBe(6)
     expect(summary.collectionsCreated).toBe(0)
     expect(
       summary.results.every((r) => r.kind !== `collection` || r.action === `error`)

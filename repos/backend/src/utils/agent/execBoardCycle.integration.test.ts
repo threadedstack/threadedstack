@@ -293,19 +293,26 @@ beforeEach(() => {
 describe(`exec board cycle — end-to-end on the primitives through the ② dispatch chain (⑤a-5)`, () => {
   it(`step 0: the driving schedules carry the Phase-4 config verbatim (allowlists + context sources)`, () => {
     expect(CeoStrategyDef.actions).toEqual({
-      functions: [`upsertStrategy`, `openDecision`],
+      functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
     })
     expect(CeoBoardDef.actions).toEqual({ functions: [`postPosition`, `resolveBoard`] })
     expect(CtoBoardDef.actions).toEqual({
-      functions: [`postPosition`, `reportInitiativeComplete`],
+      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
     })
     // The CMO seat: deliberation + marketing-axis proposals, and the daily
-    // drafting surface. Only the CEO board cycle holds resolveBoard.
+    // drafting surface (which also owns the gtm plan). Only the CEO board
+    // cycle holds resolveBoard.
     expect(CmoBoardDef.actions).toEqual({ functions: [`postPosition`, `openDecision`] })
     expect(CmoMarketingDef.actions).toEqual({
-      functions: [`saveMarketingArtifact`, `openDecision`],
+      functions: [
+        `saveMarketingArtifact`,
+        `openDecision`,
+        `upsertPlan`,
+        `updateMilestone`,
+      ],
     })
-    // Every board cycle reads the strategy singleton + the open decisions.
+    // Every board cycle reads the strategy singleton + the open decisions +
+    // the active long-term plans (the planning system's context surface).
     for (const def of [
       CeoStrategyDef,
       CeoBoardDef,
@@ -316,6 +323,7 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
       const sources = (def.contextSources ?? []).map((source) => source.as)
       expect(sources).toContain(`Company Strategy`)
       expect(sources).toContain(`Open board decisions`)
+      expect(sources).toContain(`Plans`)
     }
     // The board ships LIVE on the primitives; the CMO seat joins live.
     expect(CeoStrategyDef.enabled).toBe(true)

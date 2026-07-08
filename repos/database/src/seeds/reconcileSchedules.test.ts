@@ -81,15 +81,19 @@ describe(`AgentScheduleDefs`, () => {
   it(`wires the 5 board schedules to the board Functions + contextSources (⑤a-4)`, () => {
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
 
-    // Per-role ② effect-surface allowlists — each seat may invoke only its Functions.
+    // Per-role ② effect-surface allowlists — each seat may invoke only its
+    // Functions. Plan authorship (upsertPlan) rides the two daily cycles (the
+    // CEO's company/initiative plans, the CMO's gtm plan — the Function
+    // validates owner vs the caller's board role); progress reporting
+    // (updateMilestone) additionally rides the CTO board cycle.
     expect(byKey[`ceo-strategy`].actions).toEqual({
-      functions: [`upsertStrategy`, `openDecision`],
+      functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
     })
     expect(byKey[`ceo-board`].actions).toEqual({
       functions: [`postPosition`, `resolveBoard`],
     })
     expect(byKey[`cto-board`].actions).toEqual({
-      functions: [`postPosition`, `reportInitiativeComplete`],
+      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
     })
     // The CMO deliberates + may open marketing-axis proposals (mirrors how
     // ceo-strategy holds openDecision); its daily cycle drafts artifacts. Only
@@ -98,11 +102,17 @@ describe(`AgentScheduleDefs`, () => {
       functions: [`postPosition`, `openDecision`],
     })
     expect(byKey[`cmo-marketing`].actions).toEqual({
-      functions: [`saveMarketingArtifact`, `openDecision`],
+      functions: [
+        `saveMarketingArtifact`,
+        `openDecision`,
+        `upsertPlan`,
+        `updateMilestone`,
+      ],
     })
 
-    // Every board cycle reads the strategy singleton + open decisions from the
-    // board Collections; the three deliberation cycles additionally read positions.
+    // Every board cycle reads the strategy singleton + open decisions + the
+    // ACTIVE long-term plans from the board Collections; the three
+    // deliberation cycles additionally read positions.
     for (const key of [
       `ceo-strategy`,
       `ceo-board`,
@@ -123,10 +133,17 @@ describe(`AgentScheduleDefs`, () => {
           where: [{ field: `status`, op: `in`, value: [`open`, `deliberating`] }],
         },
       })
+      expect(byAs[`Plans`]).toMatchObject({
+        collection: `plans`,
+        query: {
+          where: [{ field: `status`, op: `eq`, value: `active` }],
+          limit: 10,
+        },
+      })
     }
-    expect(byKey[`ceo-strategy`].contextSources).toHaveLength(2)
+    expect(byKey[`ceo-strategy`].contextSources).toHaveLength(3)
     for (const key of [`ceo-board`, `cto-board`, `cmo-board`]) {
-      expect(byKey[key].contextSources).toHaveLength(3)
+      expect(byKey[key].contextSources).toHaveLength(4)
       const byAs = Object.fromEntries(
         (byKey[key].contextSources ?? []).map((s) => [s.as, s])
       )
@@ -137,7 +154,7 @@ describe(`AgentScheduleDefs`, () => {
     }
     // The marketing cycle reads its own recent artifacts (newest first via the
     // record service's default order) so it advances drafts, never duplicates.
-    expect(byKey[`cmo-marketing`].contextSources).toHaveLength(3)
+    expect(byKey[`cmo-marketing`].contextSources).toHaveLength(4)
     const marketingByAs = Object.fromEntries(
       (byKey[`cmo-marketing`].contextSources ?? []).map((s) => [s.as, s])
     )
@@ -208,6 +225,78 @@ describe(`AgentScheduleDefs`, () => {
     // Both CMO prompts opt into the executive Business-metrics faculty.
     expect(byKey[`cmo-board`]).toContain(`<!-- company-strategy -->`)
     expect(byKey[`cmo-marketing`]).toContain(`<!-- company-strategy -->`)
+  })
+
+  it(`carries the PLANNING section + targeted-research rule in every exec prompt`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
+    for (const key of execKeys) {
+      // The Plans context arrives automatically; the section explains the shape.
+      expect(byKey[key]).toContain(`PLANNING (long-term plans)`)
+      expect(byKey[key]).toContain(`"## Plans" section arrives automatically`)
+      // Plans keep the work focused: research targets open milestones only, and
+      // every finding cites the milestone/keyResult it advances.
+      expect(byKey[key]).toContain(`TARGETED RESEARCH RULE`)
+      expect(byKey[key]).toContain(`active plans' open milestones`)
+      expect(byKey[key]).toContain(`keyResult`)
+    }
+    // Plan authorship rides the two daily cycles; both document the real
+    // Function contracts (dedupe key, lane rule, auto completedAt, evidence cap).
+    for (const key of [`ceo-strategy`, `cmo-marketing`]) {
+      expect(byKey[key]).toContain(`upsertPlan`)
+      expect(byKey[key]).toContain(`updateMilestone`)
+      expect(byKey[key]).toContain(`kind+title pair dedupes`)
+      expect(byKey[key]).toContain(
+        `completedAt\` is stamped automatically when it becomes done`
+      )
+      expect(byKey[key]).toContain(`capped at 20`)
+    }
+    // The CTO board cycle reports execution progress but never authors plans.
+    expect(byKey[`cto-board`]).toContain(`updateMilestone`)
+    expect(byKey[`cto-board`]).not.toContain(`upsertPlan`)
+    // The two deliberation-only cycles hold NO plan writes — their prompts
+    // reference plan progress in positions instead of documenting the writers.
+    for (const key of [`ceo-board`, `cmo-board`]) {
+      expect(byKey[key]).not.toContain(`upsertPlan`)
+      expect(byKey[key]).not.toContain(`updateMilestone`)
+      expect(byKey[key]).toContain(`references plan progress`)
+    }
+  })
+
+  it(`carries the primitives-faculty section + capability-build path in every exec prompt`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
+    for (const key of execKeys) {
+      // The platform the execs run is ALSO their toolbox — the full inventory.
+      expect(byKey[key]).toContain(`ALSO your own toolbox`)
+      expect(byKey[key]).toContain(`Collections:`)
+      expect(byKey[key]).toContain(`Functions:`)
+      expect(byKey[key]).toContain(`Providers:`)
+      expect(byKey[key]).toContain(`Endpoints:`)
+      expect(byKey[key]).toContain(`Schedules:`)
+      expect(byKey[key]).toContain(`Skills + Memories`)
+      // Secrets are injected server-side; execs never see or handle keys.
+      expect(byKey[key]).toContain(`server-side secret injection`)
+      // The four-step capability-build path, ending at the owner escalation
+      // for JUST the secret/budget — never fabricated credentials.
+      expect(byKey[key]).toContain(`CAPABILITY-BUILD PATH`)
+      expect(byKey[key]).toContain(`CTO/steward dev loop`)
+      expect(byKey[key]).toContain(`config/seeds`)
+      expect(byKey[key]).toContain(`JUST the secret or budget`)
+      expect(byKey[key]).toContain(`NEVER fabricate`)
+    }
   })
 
   it(`keeps the 11 live dev-loop schedules free of actions + contextSources, except work-cycle's ⑤b-4a pickup allowlist`, () => {

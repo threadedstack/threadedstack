@@ -87,6 +87,18 @@ const MarketingArtifactsSource: TContextSource = {
   query: { limit: 20 },
   as: `Recent marketing artifacts`,
 }
+// Every exec cycle's view of the ACTIVE long-term plans (planning system):
+// the board maintains plans records (kind company|gtm|initiative) via
+// upsertPlan/updateMilestone, and every exec prompt reads the active ones so
+// research stays targeted at open milestones and positions cite plan progress.
+const BoardPlansSource: TContextSource = {
+  collection: `plans`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.eq, value: `active` }],
+    limit: 10,
+  },
+  as: `Plans`,
+}
 
 // ── Dev-loop workflow context sources (Dev-Loop on Primitives ⑤b-3) ──────────
 // Declarative replacements for the hard-coded dev-loop context builders in
@@ -405,6 +417,12 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   // contextSources that inject the board Collections into its prompt. The CEO
   // board cycle owns resolution (spec ÃÂ§5: it closes its tdsk-actions block with
   // `resolveBoard`), mirroring the hard-coded isCeoSchedule executor branch.
+  // Every exec def reads the active plans (BoardPlansSource); plan authorship
+  // is lane-scoped — the CEO strategy cycle writes company/initiative plans,
+  // the CMO marketing cycle writes the gtm plan (upsertPlan validates the
+  // caller's role against the plan's owner) — and progress reporting
+  // (updateMilestone) additionally rides the CTO board cycle, which reports
+  // execution progress.
   ceo({
     key: `ceo-strategy`,
     id: `sd_ceostr1`,
@@ -412,8 +430,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
     enabled: true,
-    contextSources: [BoardStrategySource, BoardOpenDecisionsSource],
-    actions: { functions: [`upsertStrategy`, `openDecision`] },
+    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPlansSource],
+    actions: {
+      functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
+    },
   }),
   ceo({
     key: `ceo-board`,
@@ -422,7 +442,12 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
     enabled: true,
-    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
+    contextSources: [
+      BoardStrategySource,
+      BoardOpenDecisionsSource,
+      BoardPositionsSource,
+      BoardPlansSource,
+    ],
     actions: { functions: [`postPosition`, `resolveBoard`] },
   }),
   steward({
@@ -432,8 +457,15 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
     enabled: true,
-    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
-    actions: { functions: [`postPosition`, `reportInitiativeComplete`] },
+    contextSources: [
+      BoardStrategySource,
+      BoardOpenDecisionsSource,
+      BoardPositionsSource,
+      BoardPlansSource,
+    ],
+    actions: {
+      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
+    },
   }),
   // The CMO deliberation cycle lands at :45 — after the CTO's :30, before the
   // next CEO board cycle resolves at :00 — so all three seats position within
@@ -447,7 +479,12 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
     enabled: true,
-    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
+    contextSources: [
+      BoardStrategySource,
+      BoardOpenDecisionsSource,
+      BoardPositionsSource,
+      BoardPlansSource,
+    ],
     actions: { functions: [`postPosition`, `openDecision`] },
   }),
   // The CMO's daily marketing cycle runs an hour after the CEO strategy cycle
@@ -466,7 +503,15 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
       BoardStrategySource,
       MarketingArtifactsSource,
       BoardOpenDecisionsSource,
+      BoardPlansSource,
     ],
-    actions: { functions: [`saveMarketingArtifact`, `openDecision`] },
+    actions: {
+      functions: [
+        `saveMarketingArtifact`,
+        `openDecision`,
+        `upsertPlan`,
+        `updateMilestone`,
+      ],
+    },
   }),
 ]

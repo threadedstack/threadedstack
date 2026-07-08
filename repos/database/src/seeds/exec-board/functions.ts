@@ -4,15 +4,18 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { OpenDecisionFunctionDef } from '@TDB/seeds/exec-board/functions/openDecision'
 import { PostPositionFunctionDef } from '@TDB/seeds/exec-board/functions/postPosition'
 import { ResolveBoardFunctionDef } from '@TDB/seeds/exec-board/functions/resolveBoard'
+import { UpsertPlanFunctionDef } from '@TDB/seeds/exec-board/functions/upsertPlan'
 import { UpsertStrategyFunctionDef } from '@TDB/seeds/exec-board/functions/upsertStrategy'
+import { UpdateMilestoneFunctionDef } from '@TDB/seeds/exec-board/functions/updateMilestone'
 import { ReportInitiativeCompleteFunctionDef } from '@TDB/seeds/exec-board/functions/reportInitiativeComplete'
 import { SaveMarketingArtifactFunctionDef } from '@TDB/seeds/exec-board/functions/saveMarketingArtifact'
 
 /**
  * Board effect Function seeding — Exec-Board on Primitives (⑤a-3).
  *
- * The 6 board Functions (openDecision / postPosition / upsertStrategy /
- * reportInitiativeComplete / saveMarketingArtifact / resolveBoard) live as
+ * The 8 board Functions (openDecision / postPosition / upsertStrategy /
+ * reportInitiativeComplete / saveMarketingArtifact / upsertPlan /
+ * updateMilestone / resolveBoard) live as
  * git-versioned source strings in `seeds/exec-board/functions/*` and reconcile
  * into the exec project's `functions` table here, the same declarative pattern
  * as `reconcileSchedules`: missing → create, drifted (name/description/content/
@@ -34,13 +37,15 @@ export type TExecBoardFunctionDef = {
   content: string
 }
 
-/** The six board effect Functions, in invocation-surface order. */
+/** The eight board effect Functions, in invocation-surface order. */
 export const ExecBoardFunctionDefs: TExecBoardFunctionDef[] = [
   OpenDecisionFunctionDef,
   PostPositionFunctionDef,
   UpsertStrategyFunctionDef,
   ReportInitiativeCompleteFunctionDef,
   SaveMarketingArtifactFunctionDef,
+  UpsertPlanFunctionDef,
+  UpdateMilestoneFunctionDef,
   ResolveBoardFunctionDef,
 ]
 
@@ -89,7 +94,7 @@ export const functionNeedsUpdate = (
   existing.projectId !== projectId
 
 /**
- * Idempotently seed the six board Function records into the exec project:
+ * Idempotently seed the eight board Function records into the exec project:
  * missing row → create, drifted declarative field → update (git is the source
  * of truth for the bodies), else unchanged. Never throws — every outcome is
  * captured in the summary.
