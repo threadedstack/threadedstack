@@ -757,9 +757,10 @@ const agents = {
   }),
   // Executive board — the founding CMO. A runtime-brain, autonomous agent
   // (mirrors the CEO's shape) that owns go-to-market, growth, and marketing.
-  // Its board schedules (cmo-board / cmo-marketing) run live once the reconciler
-  // creates them on deploy. The `soul` is the founder persona injected into its
-  // every cycle.
+  // It runs as a RESIDENT (Resident Agents R4): its resident_configs seed
+  // (seeds/resident/records.ts) carries the marketing agenda + the
+  // deliberation/plans watches; its two cron defs ship disabled. The `soul`
+  // is the founder persona injected into its every cycle.
   cmo: new Agent({
     orgId: org.id,
     id: Ids.agent.cmo,

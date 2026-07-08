@@ -325,12 +325,15 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
       expect(sources).toContain(`Open board decisions`)
       expect(sources).toContain(`Plans`)
     }
-    // The board ships LIVE on the primitives; the CMO seat joins live.
+    // The CEO/CTO seats ship LIVE on cron; the CMO runs as a RESIDENT
+    // (Resident Agents R4 — seeds/resident/records.ts), so its two cron defs
+    // ship disabled while their prompts/allowlists/sources (asserted above)
+    // remain the single source the resident config reuses.
     expect(CeoStrategyDef.enabled).toBe(true)
     expect(CeoBoardDef.enabled).toBe(true)
     expect(CtoBoardDef.enabled).toBe(true)
-    expect(CmoBoardDef.enabled).toBe(true)
-    expect(CmoMarketingDef.enabled).toBe(true)
+    expect(CmoBoardDef.enabled).toBe(false)
+    expect(CmoMarketingDef.enabled).toBe(false)
   })
 
   it(`step 1: CEO strategy cycle — one tdsk-actions block drives upsertStrategy + openDecision end to end`, async () => {

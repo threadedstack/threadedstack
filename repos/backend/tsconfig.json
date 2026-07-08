@@ -56,6 +56,9 @@
       "@tdsk/sandbox": ["../sandbox/src"],
       "@tdsk/sandbox/*": ["../sandbox/src/*"],
 
+      "@tdsk/resident": ["../resident/src"],
+      "@tdsk/resident/*": ["../resident/src/*"],
+
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 
