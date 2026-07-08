@@ -18,14 +18,17 @@ loop. It is the in-pod equivalent of the harness running this session:
 ```
 ┌─ sandbox pod (long-lived) ─────────────────────────────────────────┐
 │  resident runtime (main process, replaces `sleep infinity`)        │
-│  ├─ event loop (serialized turns)                                  │
-│  │   ├─ AGENDA   — the agent's own cadences (board-meeting,        │
-│  │   │             planning, research, development) as data;       │
-│  │   │             fires "it's time for X" turns                   │
-│  │   ├─ INBOX    — agent-to-agent + system messages; injected as   │
-│  │   │             turns the moment they arrive                    │
-│  │   └─ WATCHES  — records queries (open decisions, plan           │
-│  │                 milestones, deploy events); fire on change      │
+│  ├─ event loop (serialized turns — NEVER waits idle)               │
+│  │   ├─ AGENDA   — MANDATORY regular work as data (board-meeting,  │
+│  │   │             planning, research, development); fires         │
+│  │   │             "it's time for X" turns                         │
+│  │   ├─ INBOX    — external messages (other agents, external       │
+│  │   │             sources); injected as turns on arrival          │
+│  │   ├─ WATCHES  — records queries (open decisions, plan           │
+│  │   │             milestones, deploy events); fire on change      │
+│  │   └─ SELF-DIRECTED — when the queue is empty: "choose your      │
+│  │                 next most valuable action given your plans,     │
+│  │                 goals, and watches" — idle time IS work time    │
 │  ├─ session manager — one persistent claude session via            │
 │  │   `claude -p --resume <sessionId>` per turn (state on disk,     │
 │  │   crash-tolerant, naturally serialized)                         │
@@ -46,6 +49,25 @@ loop. It is the in-pod equivalent of the harness running this session:
 
 Turns are **serialized** (one at a time, events queue) — the same discipline as this session.
 Long-running work happens in sub-agents; the resident stays responsive.
+
+## 1.1 Autonomy principles (non-negotiable)
+
+1. **Self-directing, never input-waiting.** The event loop always has a next turn: agenda work is
+   mandatory and enforced (the runtime fires it whether or not the agent is "busy"; overdue agenda
+   items preempt self-directed work); between obligations the agent chooses its own next action.
+   An idle resident is a bug.
+2. **Externally addressable.** Anyone with a message path — other agents, external systems, a
+   future UI — can post to the inbox; messages become turns immediately. This is how agents
+   communicate, coordinate, and hand each other work.
+3. **NO human input exists.** Decisions are theirs (the board's consensus/tiebreak machinery for
+   shared direction; their own judgment for their lane). When they hit a problem, they have the
+   tools to solve it: research (web), build missing capabilities (the primitives faculty:
+   Collections/Functions/Providers/Skills via the dev-loop), spawn sub-agents, message other
+   agents, or route work to the dev loop. Problems are work items, not blockers.
+4. **Nothing ever blocks on a human.** The single unavoidable boundary — material only a human
+   possesses (e.g. an external service's paid API key) — is handled without waiting: set up
+   everything, park the item with its state recorded (a plan milestone/decision note), continue
+   other work, and proceed the moment the material appears. Waiting is never a state.
 
 ## 2. What is generic vs. what is data
 
