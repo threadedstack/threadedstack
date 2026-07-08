@@ -1,9 +1,11 @@
 import type { TApp } from '@TBE/types'
+import type { TSandboxChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 
 import { EQueryOp } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { mintResidentToken } from '@TBE/utils/agent/residentToken'
 import { ResidentConfigsCollection } from '@TBE/utils/agent/residentAllowlist'
+import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 
 /** The heartbeat collection the resident's `heartbeat` Function upserts. */
 export const ResidentStatusCollection = `resident_status`
@@ -297,6 +299,37 @@ export const createResidentWatchdog = (
           )
       }
 
+      // Resolve the ai-provider failover chain BEFORE startPod — provider
+      // parity with scheduled runs (executor) and delegateTask (resolveAgentConfig).
+      // The primary (priority-0) provider's env becomes the pod default so the
+      // resident's `claude -p` authenticates against a FUNDED provider instead
+      // of falling through to an unfunded fallback; every provider's placeholder
+      // is injected so egress can swap whichever token a fallback attempt uses.
+      // A misconfigured provider throws — degrade with a clear reason (mirrors
+      // the unreachable-URL path) rather than crash-looping an unauthed pod.
+      let providerChain: TSandboxChain
+      try {
+        providerChain = (
+          await resolveSandboxProviderChain(db, {
+            orgId: agent.orgId,
+            sandboxId,
+            projectId,
+            logContext: `[ResidentWatchdog] ${agentId} —`,
+          })
+        ).chain
+      } catch (chainErr) {
+        const reason = chainErr instanceof Error ? chainErr.message : String(chainErr)
+        logger.error(
+          `[ResidentWatchdog] Provider chain resolution failed for ${agentId}: ${reason}`
+        )
+        await markDegraded(projectId, agentId)
+        return {
+          ...base,
+          action: `degraded`,
+          reason: `provider auth misconfigured: ${reason}`,
+        }
+      }
+
       // Mint (rotate) the pod-scoped token: previous ACTIVE resident keys for
       // the agent are revoked, and the fresh secret exists ONLY in this env.
       const { key } = await mintResidentToken(db, agent.orgId, agentId)
@@ -307,6 +340,13 @@ export const createResidentWatchdog = (
         sandboxId,
         projectId,
         egressOpts: app.locals.config.egress,
+        // Provider tokens (ANTHROPIC_*) — the pod default auth. Disjoint from the
+        // resident identity vars below (TDSK_RESIDENT_*); startPod applies this
+        // first and the caller's extraEnv last, so neither clobbers the other.
+        providerChain: {
+          primaryEnv: providerChain.primaryEnv,
+          placeholders: providerChain.placeholders,
+        },
         extraEnv: {
           [ResidentEnvVars.agentId]: agentId,
           [ResidentEnvVars.token]: key,
