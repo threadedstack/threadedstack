@@ -4,12 +4,15 @@ import type {
   TRecordQuery,
   TFunctionRequest,
   TFunctionContext,
+  TScanContentInput,
+  TTaskSourceSignal,
   IRecordsCapability,
   TFunctionExecResult,
 } from '@tdsk/domain'
 
 import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
+import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { EFunLanguage, ESandboxType } from '@tdsk/domain'
 import {
@@ -95,7 +98,9 @@ type TExecuteOpts = {
    * Host-side db handle used to build the Function's project-scoped `records`
    * capability. It stays entirely host-side — it is NEVER serialized into, set
    * on, or otherwise crossed into the V8 isolate. When present, the executor
-   * exposes `context.records` to the handler via a platform-mediated bridge.
+   * exposes `context.records` to the handler via a platform-mediated bridge —
+   * and, because that is when the bridge surface exists at all, the
+   * dependency-free `context.scan` capability rides along with it.
    */
   db?: TDatabase
 }
@@ -194,6 +199,48 @@ const buildRecordsBridges = (
   }
 }
 
+/** Bridge-callback names exposed to the isolate for the scan capability. */
+const ScanBridge = {
+  content: `scan.content`,
+} as const
+
+/**
+ * Wrap the deterministic content scanner as a JSON-marshalling host bridge.
+ * The bridge runs the REAL `scanTaskProposal` engine host-side (fail-closed
+ * text scan over title/description/evidence/sourceSignal); only the JSON input
+ * and the JSON verdict cross the isolate boundary — never the rules/regexes.
+ * The scanner is pure and dependency-free (no db, no I/O), so the bridge needs
+ * no host handles: it can be injected whenever bridges are built.
+ */
+const buildScanBridges = (): Record<string, (argsJson: string) => Promise<string>> => ({
+  [ScanBridge.content]: async (argsJson) => {
+    const [input] = JSON.parse(argsJson) as [TScanContentInput?]
+    return JSON.stringify(
+      scanTaskProposal({
+        title: input?.title ?? ``,
+        description: input?.description ?? ``,
+        evidence: input?.evidence ?? ``,
+        // The scanner only ever joins sourceSignal into the text it scans —
+        // the enum constraint on proposals is irrelevant to scanning, so the
+        // capability accepts arbitrary text for it.
+        sourceSignal: (input?.sourceSignal ?? ``) as TTaskSourceSignal,
+      })
+    )
+  },
+})
+
+/**
+ * Reconstruct `context.scan` inside the isolate from the `__hostCall` host
+ * bridge — same marshalling shape as `recordsContextCode`: JSON args out, JSON
+ * verdict back. Only emitted when the scan bridge is passed in.
+ */
+const scanContextCode = `context.scan = (() => {
+  const call = (name, args) => __hostCall(name, JSON.stringify(args)).then((r) => JSON.parse(r));
+  return {
+    content: (input) => call('${ScanBridge.content}', [input]),
+  };
+})();`
+
 /**
  * Reconstruct `context.records` inside the isolate from the `__hostCall` host
  * bridge. Each method marshals a JSON args array out through the bridge and
@@ -218,7 +265,8 @@ const recordsContextCode = `context.records = (() => {
 const buildWrapperCode = (
   request: TFunctionRequest,
   context: TFunctionContext,
-  withRecords = false
+  withRecords = false,
+  withScan = false
 ): string => {
   const requestJson = JSON.stringify(request)
   const contextJson = JSON.stringify(context)
@@ -226,7 +274,7 @@ const buildWrapperCode = (
   return `import handler from 'function';
 const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
-${withRecords ? `${recordsContextCode}\n` : ``}let output;
+${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}let output;
 try {
   const raw = await handler(request, context);
   output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
@@ -273,27 +321,32 @@ export class FunctionExecutor {
       // 2. Acquire sandbox from pool (or create new)
       sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS)
 
-      // Build the project-scoped records bridge host-side (only when a db handle
-      // is supplied and the function is project-scoped). The bridge closures keep
-      // the db handle host-side; only the callback ref + JSON payloads cross into
-      // the isolate.
-      const records =
+      // Build the host-bridge surface (only when a db handle is supplied and the
+      // function is project-scoped). The records bridge closures keep the db
+      // handle host-side; the scan bridge is dependency-free and rides along
+      // whenever the surface is built — only callback refs + JSON payloads cross
+      // into the isolate. The bridgeless path stays byte-identical.
+      const bridges =
         opts?.db && func.projectId
-          ? buildRecordsBridges(opts.db, func.projectId)
+          ? {
+              ...buildRecordsBridges(opts.db, func.projectId),
+              ...buildScanBridges(),
+            }
           : undefined
 
       // 3. Build wrapper that imports 'function' module and calls handler
       const wrapperCode = buildWrapperCode(
         opts?.request || {},
         opts?.context || {},
-        Boolean(records)
+        Boolean(bridges),
+        Boolean(bridges)
       )
 
       // 4. Evaluate via V8 isolate with function code registered as module
       const evalResult = await sandbox.evaluate(wrapperCode, {
         timeout: opts?.timeout || DefaultTimeoutMS,
         modules: { function: code },
-        ...(records ? { bridges: records } : {}),
+        ...(bridges ? { bridges } : {}),
       })
 
       // Sandbox executed successfully — return to pool

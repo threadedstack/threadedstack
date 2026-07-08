@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { AgentScheduleDefs } from '@TDB/seeds/agentSchedules'
+import {
+  AgentScheduleDefs,
+  DevTaskBacklogSource,
+  DevEscalationsSource,
+  DevOpenProposalsSource,
+  DevCoordinatorLedgerSource,
+  DevVerificationsRecentSource,
+  DevVerificationsInFlightSource,
+} from '@TDB/seeds/agentSchedules'
 import {
   needsUpdate,
   declarativeFields,
@@ -128,6 +136,33 @@ describe(`AgentScheduleDefs`, () => {
       expect(
         needsUpdate({ ...declarativeFields(d), contextSources: null, actions: null }, d)
       ).toBe(false)
+    }
+  })
+
+  it(`keeps ALL 14 defs free of the ⑤b-3 dev-loop context sources (cutovers are Phase 4)`, () => {
+    // The six source constants exist (exported for the Phase 4 cutovers + the
+    // backend rendering-parity tests) but are attached to NOTHING: no def may
+    // read the dev-loop workflow collections yet — the live loop still runs on
+    // the hard-coded executor builders.
+    const devLoopSources = [
+      DevTaskBacklogSource,
+      DevOpenProposalsSource,
+      DevEscalationsSource,
+      DevVerificationsInFlightSource,
+      DevVerificationsRecentSource,
+      DevCoordinatorLedgerSource,
+    ]
+    const devLoopCollections = new Set(devLoopSources.map((s) => s.collection))
+    expect(devLoopCollections).toEqual(
+      new Set([`task_proposals`, `verifications`, `escalations`])
+    )
+
+    expect(AgentScheduleDefs).toHaveLength(14)
+    for (const d of AgentScheduleDefs) {
+      for (const source of d.contextSources ?? []) {
+        expect(devLoopSources).not.toContain(source)
+        expect(devLoopCollections.has(source.collection)).toBe(false)
+      }
     }
   })
 

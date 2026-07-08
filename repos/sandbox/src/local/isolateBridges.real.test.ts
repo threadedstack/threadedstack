@@ -117,6 +117,86 @@ export default { success: true, output: r };`
     expect(result).toEqual({ success: true, output: { ok: true } })
   })
 
+  it(`round-trips a scan-shaped bridge: fields out as JSON, fail-closed verdict back in`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    // Shaped exactly like the executor's scan bridge: JSON [input] in, JSON
+    // { passed, findings } verdict out — the scanner logic stays host-side.
+    const bridges = {
+      'scan.content': async (argsJson: string) => {
+        const [input] = JSON.parse(argsJson)
+        const text = [input.title, input.description].join(`\n`)
+        return JSON.stringify(
+          /rm\s+-rf/.test(text)
+            ? { passed: false, findings: [`[destructive] recursive delete`] }
+            : { passed: true, findings: [] }
+        )
+      },
+    }
+
+    await runner.registerModule(
+      `function`,
+      `export default async (request, context) => {
+        const verdict = await context.scan.content({ title: 'Cleanup', description: 'rm -rf /tmp/cache' });
+        if (!verdict.passed) return { rejected: true, findings: verdict.findings };
+        return { rejected: false };
+      }`
+    )
+
+    // Mirrors the executor's scanContextCode reconstruction of context.scan.
+    const wrapper = `import handler from 'function';
+const context = {};
+context.scan = {
+  content: (input) =>
+    __hostCall('scan.content', JSON.stringify([input])).then((r) => JSON.parse(r)),
+};
+let output;
+try {
+  const raw = await handler({}, context);
+  output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
+} catch (err) {
+  output = { success: false, error: err?.message || String(err) };
+}
+export default output;`
+
+    const { result } = await evaluate(runner, wrapper, bridges)
+    expect(result).toEqual({
+      success: true,
+      output: { rejected: true, findings: [`[destructive] recursive delete`] },
+    })
+  })
+
+  it(`waits out a SLOW scan bridge (>=100ms): the verdict lands after the module suspends`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    const bridges = {
+      'scan.content': async (argsJson: string) => {
+        // A scan verdict rides the same start/settle bridge path as db work —
+        // prove it still lands when the host takes >=100ms to produce it.
+        await new Promise((resolve) => setTimeout(resolve, 120))
+        const [input] = JSON.parse(argsJson)
+        const malicious = input.title === `evil`
+        return JSON.stringify({
+          passed: !malicious,
+          findings: malicious ? [`[test] rejected`] : [],
+        })
+      },
+    }
+
+    const wrapper = `const call = (input) =>
+  __hostCall('scan.content', JSON.stringify([input])).then((r) => JSON.parse(r));
+const verdict = await call({ title: 'evil', description: 'payload' });
+export default { success: true, output: verdict };`
+
+    const { result } = await evaluate(runner, wrapper, bridges)
+    expect(result).toEqual({
+      success: true,
+      output: { passed: false, findings: [`[test] rejected`] },
+    })
+  })
+
   it(`serves multiple concurrent bridge calls without cross-talk`, async () => {
     const runner = buildRunner()
     await runner.init()
