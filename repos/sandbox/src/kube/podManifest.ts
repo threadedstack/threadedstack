@@ -199,6 +199,9 @@ const buildSandboxContainer = (
   // before the workspace-ready marker, so it gates the AI tool on setup.
   if (config.setupScript)
     env.push({ name: `TDSK_SETUP_SCRIPT`, value: config.setupScript })
+  // Resident mode: identify the bound agent to the in-pod resident runtime
+  if (config.resident)
+    env.push({ name: `TDSK_RESIDENT_AGENT_ID`, value: config.resident.agentId })
 
   const ports = buildPorts(config.ports)
 
@@ -255,7 +258,22 @@ const buildSandboxContainer = (
       ? SandboxRuntimeConfigs[runtime]
       : undefined
 
-  if (runtimeConfig?.command) {
+  if (config.resident) {
+    // Resident mode: the resident runtime is the pod's main process. The
+    // launcher rides `args` (NOT `command`) so the image ENTRYPOINT
+    // (sandbox-entrypoint.sh) still runs first — clone into /workspace, setup
+    // script, workspace-ready marker — and then `exec "$@"`s the launcher.
+    // Setting `command` would replace the entrypoint and skip the clone that
+    // puts repos/resident in place. The `|| sleep 3600` keeps the pod alive
+    // for debugging when the runtime crashes: restartPolicy is Never, so a
+    // bare crash would otherwise terminate the pod (CrashLoop churn via
+    // recreation) and destroy its on-disk session state.
+    container.args = [
+      `/bin/sh`,
+      `-lc`,
+      `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+    ]
+  } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command
     container.command = runtimeConfig.command
     if (runtimeConfig.args) container.args = runtimeConfig.args

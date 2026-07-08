@@ -1477,6 +1477,48 @@ describe(`SandboxService`, () => {
       expect(kube.deletePod).toHaveBeenCalledWith(`project-pod`, 30)
     })
 
+    it(`should never reap pods whose effective config has resident set`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/sandbox-id`]: `sb-1`,
+            [`tdsk.app/project-id`]: `proj-1`,
+          },
+        },
+      })
+      const mockSandbox = {
+        config: { idleTimeoutMinutes: 0.001 },
+        getEffectiveConfig: vi.fn().mockReturnValue({
+          // Resident pods are long-lived — even a tiny idle timeout must be
+          // ignored when the effective config carries `resident`.
+          config: { idleTimeoutMinutes: 0.001, resident: { agentId: `ag_agent001` } },
+        }),
+        getProjectAlias() {
+          return undefined
+        },
+        getProjectConfig() {
+          return undefined
+        },
+      }
+      db.services.sandbox.get.mockResolvedValue({ data: mockSandbox, error: null })
+
+      svc.updateActivity(`resident-pod`)
+
+      const original = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original, idleInterval: 50, timeoutMin: 0 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(mockSandbox.getEffectiveConfig).toHaveBeenCalledWith(`proj-1`)
+      expect(kube.deletePod).not.toHaveBeenCalled()
+    })
+
     it(`should cleanup pod tracking when getPod returns 404 via statusCode`, async () => {
       const kubeError = Object.assign(new Error(`Not Found`), { statusCode: 404 })
       kube.getPod.mockRejectedValue(kubeError)

@@ -41,6 +41,24 @@ export class ApiKey extends Base<
   }
 
   /**
+   * List the ACTIVE resident-bound keys for an agent. Used by
+   * mintResidentToken to rotate: any key returned here is revoked before a
+   * fresh resident key is created.
+   */
+  getByResidentAgent = async (agentId: string) => {
+    try {
+      const resp = await this.db
+        .select()
+        .from(apiKeys)
+        .where(and(eq(apiKeys.residentAgentId, agentId), eq(apiKeys.active, true)))
+
+      return { data: resp.map((row) => this.model(row)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
    * Update the lastUsedAt timestamp for a key
    */
   touchLastUsed = async (id: string) => {

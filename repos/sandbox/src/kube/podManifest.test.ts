@@ -407,6 +407,61 @@ describe(`buildPodManifest`, () => {
     expect(manifestEmpty.spec!.imagePullSecrets).toBeUndefined()
   })
 
+  describe(`resident mode`, () => {
+    const residentOpts = () =>
+      buildOpts({
+        config: { image: `node:20`, resident: { agentId: `ag_agent001` } },
+      })
+
+    it(`should launch the resident runtime via args, preserving the entrypoint`, () => {
+      const container = buildPodManifest(residentOpts()).spec!.containers![0]
+      // args (NOT command) so the image ENTRYPOINT still clones /workspace
+      // before exec'ing the launcher; `|| sleep 3600` keeps the pod alive for
+      // debugging on crash under restartPolicy Never.
+      expect(container.command).toBeUndefined()
+      expect(container.args).toEqual([
+        `/bin/sh`,
+        `-lc`,
+        `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+      ])
+    })
+
+    it(`should inject TDSK_RESIDENT_AGENT_ID into the container env`, () => {
+      const env = buildPodManifest(residentOpts()).spec!.containers![0].env!
+      expect(env).toContainEqual({
+        name: `TDSK_RESIDENT_AGENT_ID`,
+        value: `ag_agent001`,
+      })
+    })
+
+    it(`should take precedence over an explicit custom command`, () => {
+      const container = buildPodManifest(
+        buildOpts({
+          config: {
+            image: `node:20`,
+            command: [`/bin/bash`],
+            args: [`-c`, `run-something`],
+            resident: { agentId: `ag_agent001` },
+          },
+        })
+      ).spec!.containers![0]
+      expect(container.command).toBeUndefined()
+      expect(container.args).toEqual([
+        `/bin/sh`,
+        `-lc`,
+        `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+      ])
+    })
+
+    it(`should not affect non-resident sandboxes (sleep infinity fallback)`, () => {
+      const container = buildPodManifest(buildOpts()).spec!.containers![0]
+      expect(container.command).toBeUndefined()
+      expect(container.args).toEqual([`sleep`, `infinity`])
+      const env = container.env!
+      expect(env.some((e) => e.name === `TDSK_RESIDENT_AGENT_ID`)).toBe(false)
+    })
+  })
+
   it(`should apply nodeSelector when provided`, () => {
     const opts = {
       ...buildOpts(),
