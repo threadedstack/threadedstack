@@ -96,6 +96,27 @@ export default output;`
     expect(result).toEqual({ success: false, error: `db unavailable` })
   })
 
+  it(`waits out a SLOW host bridge: module suspends at top-level await, evaluate() returns early, extraction polls to completion`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    const bridges = {
+      'slow.op': async () => {
+        // Real bridges do real work (DB round-trips) — the module suspends at
+        // its await, module.evaluate() resolves during the suspension, and the
+        // default export only materializes after the settle resumes it.
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        return JSON.stringify({ ok: true })
+      },
+    }
+
+    const wrapper = `const r = await __hostCall('slow.op', '[]').then((x) => JSON.parse(x));
+export default { success: true, output: r };`
+
+    const { result } = await evaluate(runner, wrapper, bridges)
+    expect(result).toEqual({ success: true, output: { ok: true } })
+  })
+
   it(`serves multiple concurrent bridge calls without cross-talk`, async () => {
     const runner = buildRunner()
     await runner.init()
