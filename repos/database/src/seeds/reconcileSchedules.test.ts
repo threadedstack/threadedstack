@@ -47,7 +47,7 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`ships the executive-board schedules ENABLED (⑤a-5 activation; the CMO seat joins live)`, () => {
+  it(`ships the CEO/CTO board schedules ENABLED and the CMO defs DISABLED (resident handoff, R4)`, () => {
     const execKeys = [
       `ceo-strategy`,
       `ceo-board`,
@@ -56,10 +56,16 @@ describe(`AgentScheduleDefs`, () => {
       `cmo-marketing`,
     ]
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
-    for (const key of execKeys) {
-      expect(byKey[key]).toBeDefined()
+    for (const key of execKeys) expect(byKey[key]).toBeDefined()
+    // CEO + CTO seats run on cron (⑤a activation).
+    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`])
       expect(byKey[key].enabled).toBe(true)
-    }
+    // The CMO runs as a RESIDENT (Resident Agents R4): its marketing cycle is
+    // the resident agenda and its deliberation is a decision_proposals watch
+    // (seeds/resident/records.ts), so both cron defs ship disabled. The defs
+    // (and their prompt files) remain — the resident config reuses them.
+    expect(byKey[`cmo-board`].enabled).toBe(false)
+    expect(byKey[`cmo-marketing`].enabled).toBe(false)
     // The CEO + CMO seats run on the seeded founder agents; the CTO seat reuses the steward.
     expect(byKey[`ceo-strategy`].agentId).toBe(`ag_ceo0001`)
     expect(byKey[`ceo-board`].agentId).toBe(`ag_ceo0001`)

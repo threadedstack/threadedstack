@@ -53,6 +53,9 @@
       "@tdsk/database": ["../database/src"],
       "@tdsk/database/*": ["../database/src/*"],
 
+      "@tdsk/resident": ["../resident/src"],
+      "@tdsk/resident/*": ["../resident/src/*"],
+
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 
