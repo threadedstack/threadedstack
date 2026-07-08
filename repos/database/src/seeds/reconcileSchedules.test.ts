@@ -124,12 +124,16 @@ describe(`AgentScheduleDefs`, () => {
     expect(byKey[`cto-board`]).toContain(`tdsk-memories`)
   })
 
-  it(`keeps the 11 live dev-loop schedules free of actions + contextSources, with no reconcile churn`, () => {
+  it(`keeps the 11 live dev-loop schedules free of actions + contextSources, except work-cycle's ⑤b-4a pickup allowlist`, () => {
     const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
     const live = AgentScheduleDefs.filter((d) => !execKeys.includes(d.key))
     expect(live).toHaveLength(11)
     for (const d of live) {
+      // NO contextSources on any live def: the legacy context builders stay
+      // authoritative through the dual-emit transition (the work cycle's
+      // backlog keeps flowing via the tdsk-task-picked prompt-fence gate).
       expect(d.contextSources).toBeUndefined()
+      if (d.key === `work-cycle`) continue
       expect(d.actions).toBeUndefined()
       // A live DB row reads both columns back as null; null == undefined must
       // stay a no-op so the live loop never churns on deploy.
@@ -137,6 +141,41 @@ describe(`AgentScheduleDefs`, () => {
         needsUpdate({ ...declarativeFields(d), contextSources: null, actions: null }, d)
       ).toBe(false)
     }
+
+    // ⑤b-4a DUAL-EMIT cutover: work-cycle carries EXACTLY the pickupTask
+    // allowlist — the collection records the same pickup the legacy fence
+    // (still the authoritative table write) reports.
+    const workCycle = live.find((d) => d.key === `work-cycle`)
+    expect(workCycle?.actions).toEqual({ functions: [`pickupTask`] })
+    expect(workCycle?.contextSources).toBeUndefined()
+    // The live row (null actions) reconciles ONCE to gain the allowlist...
+    expect(
+      needsUpdate(
+        { ...declarativeFields(workCycle!), contextSources: null, actions: null },
+        workCycle!
+      )
+    ).toBe(true)
+    // ...then a jsonb round trip of the updated row never churns again.
+    expect(
+      needsUpdate(JSON.parse(JSON.stringify(declarativeFields(workCycle!))), workCycle!)
+    ).toBe(false)
+  })
+
+  it(`work-cycle prompt DUAL-EMITS pickups: legacy fence AND tdsk-actions pickupTask (⑤b-4a)`, () => {
+    const prompt = AgentScheduleDefs.find((d) => d.key === `work-cycle`)?.prompt ?? ``
+    // The legacy fence stays verbatim — it is both the authoritative table
+    // write AND the promptOptsIn gate (executor.ts:1401) that keeps the legacy
+    // backlog context flowing into the cycle.
+    expect(prompt).toContain(`tdsk-task-picked`)
+    expect(prompt).toContain(
+      `[{"proposalId":"<tp_ id exactly as shown>","prUrl":"<the PR URL you opened>","note":"<one short line>"}]`
+    )
+    // The transitional actions block records the SAME pickup in the Collection,
+    // with the args the pickupTask Function body actually accepts.
+    expect(prompt).toContain(`tdsk-actions`)
+    expect(prompt).toContain(
+      `[{"function":"pickupTask","args":{"proposalId":"<tp_ id exactly as shown>","prUrl":"<the PR URL you opened>","note":"<one short line>"}}]`
+    )
   })
 
   it(`keeps ALL 14 defs free of the ⑤b-3 dev-loop context sources (cutovers are Phase 4)`, () => {

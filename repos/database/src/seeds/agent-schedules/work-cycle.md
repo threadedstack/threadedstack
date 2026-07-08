@@ -38,6 +38,19 @@ When you open the PR for a picked proposal, record the pickup by ending your rep
 
 Valid JSON array, one entry per proposal you picked this cycle (normally 0 or 1, since you open one PR per cycle). This marks the proposal promoted server-side so it is not re-offered next cycle. Omit the block when you picked no sensor-detected proposal.
 
+DUAL-EMIT (transitional, dev-loop cutover 4a): the platform is migrating pickup state onto its Collections primitive; during the transition the table row stays authoritative and the `tdsk-task-picked` block above remains REQUIRED exactly as specified. Whenever you emit a `tdsk-task-picked` block, ALSO record the SAME pickup in the `task_proposals` Collection by emitting exactly one fenced actions block:
+
+```tdsk-actions
+[{"function":"pickupTask","args":{"proposalId":"<tp_ id exactly as shown>","prUrl":"<the PR URL you opened>","note":"<one short line>"}}]
+```
+
+`pickupTask` args:
+- `proposalId` (string, REQUIRED): the proposal's `tp_` id exactly as shown in the "## Proposed backlog (sensor-detected)" section. The Collection records carry the same ids, so this one id addresses both; there is no dedupeKey lookup — a wrong or missing id means the record write is skipped (reported as "proposal not found").
+- `prUrl` (string, optional): the PR URL you opened; whitespace-only or omitted stores null.
+- `note` (string, optional): one short line; stored as the record's promotion reason (defaults to "Picked by work cycle" when omitted).
+
+Your identity is injected server-side as the trusted caller — never put an agentId in args. Only `pickupTask` is allowlisted this cycle; any other function is skipped. Use one array entry per pickup (normally one), and omit the `tdsk-actions` block entirely when you picked no sensor-detected proposal. This block is additive parity telemetry: it never replaces the `tdsk-task-picked` block, and both must reference the same proposal and PR.
+
 
 ESCALATIONS (P4b): When you hit a need you cannot yet act on — an infra change in `.github/workflows/` or `deploy/` (until P4e ships), an ops action like restarting a pod (until P4d ships), or anything involving secrets or credentials (hard-line off-limits, always) — file a STRUCTURED ESCALATION rather than a memory note or a silent skip.
 
