@@ -159,6 +159,33 @@ needs a platform change beyond this list, the design has failed the test. The ex
 - Runaway control: turn serialization + sub-agent caps + the watchdog's error tracking (repeated
   crash-loop ⇒ mark resident degraded + escalate) replace `maxConsecutiveErrors`.
 
+## 5.1 Self-extension — agents BUILD the tools and skills they need (owner directive)
+
+Remove limitations: an agent that needs a capability manufactures it from the primitives and then
+reuses it. Two artifacts, two speeds:
+
+**Skills (reusable methodology — e.g. the CMO's copywriting standards):** the EXISTING pipeline
+generalizes to every agent: author via the skill-proposal surface → deterministic security scan →
+curator review → promote → attach to the authoring agent → **mounted into its sandbox** (the
+skills configMap already does this), available every subsequent turn. Exec prompts gain the
+mandate: "when you repeat a methodology twice, author it as a Skill."
+
+**Functions/Endpoints (reusable capability — e.g. a web-scrape Function the CEO builds once):**
+- **Fast path (self-serve):** a generic `authorFunction` surface — the agent submits
+  `{name, description, language, content}`; the platform scans it (the same fail-closed
+  deterministic scanner), creates it **project-scoped and isolate-bound** (V8 sandbox, no fs/net
+  except bridged capabilities, secrets never present). Execution still requires an allowlist
+  entry — the agent adds it to its OWN allowlist via `updateResidentConfig`, so every
+  self-granted capability is an auditable record. Safety = scan + isolate + project scope +
+  allowlist audit trail, not human review.
+- **Deep path (dev-loop):** capabilities needing Providers/secrets/platform seams go through the
+  task-proposal → steward pipeline (the primitives-faculty build path) — e.g. an Endpoint+Provider
+  pair for an external API, which the fast-path Function then calls.
+
+The two compose: build the scrape Function once (fast path), wrap its know-how in a Skill, reuse
+both forever. This applies to BOTH execution modes — scheduled agents author via their run
+outputs, residents via any turn.
+
 ## 6. Two first-class execution modes (OWNER CORRECTION — the scheduled model is NOT removed)
 
 The platform offers **both modes, configured per agent** — "configure the type of agent you want
