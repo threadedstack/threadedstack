@@ -71,9 +71,20 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
   }
 
   return {
+    // Reads go through the resident READ surface (residentAuth) — the
+    // collections API sits behind the accounts-level user authentication and
+    // 401s the resident token (proven live 2026-07-08).
     queryRecords: (collection: string, query: TRecordQuery) =>
-      post<TResidentRecord[]>(`${base}/collections/${collection}/records/query`, query),
+      post<TResidentRecord[]>(`${base}/agents/${agentId}/records/query`, {
+        collection,
+        query,
+      }),
 
+    // Raw record WRITES have no resident surface by design (writes flow
+    // through dispatch Functions). This remains only as the inbox
+    // read-receipt fallback for configs without a markMessageRead Function;
+    // it fails closed (401) and callers already tolerate that (in-memory
+    // seen-set protects against refires).
     upsertRecord: (collection: string, record) =>
       post<TResidentRecord>(`${base}/collections/${collection}/records`, record),
 
