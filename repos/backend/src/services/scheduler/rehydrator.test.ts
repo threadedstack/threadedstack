@@ -246,6 +246,55 @@ describe(`hydrateOrphanedRuns`, () => {
     expect(payload.status).toBe(`timeout`)
   })
 
+  it(`a transient Failed reading during the watch loop is confirmed before being treated as terminal (recovers => keeps watching)`, async () => {
+    const app = buildApp({
+      runs: [baseRun()],
+      schedule: baseSchedule,
+      sandboxRecord: baseSandbox,
+      // inspectAndDispatch's initial read: Running (dispatches to the watch
+      // loop instead of completing immediately). Watch-loop poll 1: Failed
+      // (transient 404). Confirmation re-check: Running (recovered). Watch
+      // loop poll 2: Succeeded.
+      podStates: [
+        EContainerState.Running,
+        EContainerState.Failed,
+        EContainerState.Running,
+        EContainerState.Succeeded,
+      ],
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.runAllTimersAsync()
+
+    expect(app.__.complete).toHaveBeenCalledTimes(1)
+    const [, payload] = app.__.complete.mock.calls[0]
+    expect(payload.status).toBe(`success`)
+  })
+
+  it(`a Failed reading confirmed by a second read during the watch loop completes as error`, async () => {
+    const app = buildApp({
+      runs: [baseRun()],
+      schedule: baseSchedule,
+      sandboxRecord: baseSandbox,
+      // inspectAndDispatch's initial read: Running. Watch-loop poll 1: Failed.
+      // Confirmation re-check: still Failed.
+      podStates: [
+        EContainerState.Running,
+        EContainerState.Failed,
+        EContainerState.Failed,
+      ],
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.runAllTimersAsync()
+
+    expect(app.__.complete).toHaveBeenCalledTimes(1)
+    const [, payload] = app.__.complete.mock.calls[0]
+    expect(payload.status).toBe(`error`)
+    expect(payload.error).toMatch(/confirmed on re-check/)
+    expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
+  })
+
   it(`does not kill a run on the first post-restart poll just because backend downtime already exceeded the original deadline`, async () => {
     // Run started 10 minutes ago against a 60s timeout — the deadline was blown
     // long before this backend process even existed to watch it.
