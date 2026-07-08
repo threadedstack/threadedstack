@@ -24,6 +24,9 @@ export const Ids = {
     // Executive board — founder CEO seat (product-stable id; matches the backend
     // board constant CeoAgentId). The CTO seat reuses the prod steward agent.
     ceo: `ag_ceo0001`,
+    // Executive board — founder CMO seat (product-stable id; matches the
+    // agentSchedules CmoAgentId and the exec-board BoardCmoAgentId).
+    cmo: `ag_cmo0001`,
   },
   apikey: {
     tdskOrgKey: `ak_0000001`,
@@ -167,6 +170,9 @@ export const Ids = {
     // Executive board — CEO agent's body sandbox (product-stable id; matches the
     // backend board constant CeoSandboxId).
     ceoBody: `sb_ceo0001`,
+    // Executive board — CMO agent's body sandbox (product-stable id; matches the
+    // agentSchedules CmoSandboxId).
+    cmoBody: `sb_cmo0001`,
   },
   domain: {
     orgDomain: `dm_0000001`,

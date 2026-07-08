@@ -27,10 +27,12 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
  * (`CeoAgentId` / `BoardCtoAgentId` in `repos/backend/src/constants/board.ts`)
  * and the fullorg + agentSchedules seeds. The database repo cannot import the
  * backend, so the CTO literal is mirrored here exactly as `agentSchedules.ts`
- * mirrors it; the CEO id is the seeded founder agent (`Ids.agent.ceo`).
+ * mirrors it; the CEO and CMO ids are the seeded founder agents
+ * (`Ids.agent.ceo` / `Ids.agent.cmo`).
  */
 export const BoardCeoAgentId = Ids.agent.ceo
 export const BoardCtoAgentId = `ag_lvUbjp_`
+export const BoardCmoAgentId = Ids.agent.cmo
 
 /** A board Collection definition: a stable id, name, description, and field schema. */
 export type TExecBoardCollectionDef = {
@@ -41,10 +43,11 @@ export type TExecBoardCollectionDef = {
 }
 
 /**
- * The four board Collections. Each schema mirrors the columns of the table it
- * replaces 1:1 (data columns only — the `base` id/timestamps and the org scope
- * become the Collection's own id + project scope). Fields the source column
- * marks NOT NULL are `required`; nullable columns are optional.
+ * The six board Collections. The first four mirror the columns of the tables
+ * they replace 1:1 (data columns only — the `base` id/timestamps and the org
+ * scope become the Collection's own id + project scope); `marketing_artifacts`
+ * and `plans` are native to the primitives (no legacy table). Fields the
+ * source column marks NOT NULL are `required`; nullable columns are optional.
  */
 export const ExecBoardCollectionDefs: TExecBoardCollectionDef[] = [
   {
@@ -101,6 +104,46 @@ export const ExecBoardCollectionDefs: TExecBoardCollectionDef[] = [
       { name: `activeInitiative`, type: EFieldType.object },
     ],
   },
+  {
+    // marketing_artifacts — the CMO's drafting surface (go-to-market reframe).
+    // Every record is a DRAFT/PROPOSAL for the board: no external-send
+    // capability exists, so a budget is data, never a spend.
+    id: `col_mktar1`,
+    name: `marketing_artifacts`,
+    description: `CMO go-to-market/marketing artifacts — gtm-plans, channel plans, campaign drafts, ad-buy proposals (with budgets), and business-plan sections. Every record is a draft/proposal for the board; no external sends exist.`,
+    schema: [
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `body`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `budget`, type: EFieldType.object },
+      { name: `evidence`, type: EFieldType.array },
+    ],
+  },
+  {
+    // plans — the board's long-term planning surface: goals, estimations,
+    // milestones, and progress. Kinds: company (the CEO's whole-company plan),
+    // gtm (the CMO's go-to-market plan), initiative (a chartered initiative
+    // plan). Top-level types are enforced by this schema; the keyResults
+    // ({metric, target, current, unit}) and milestones ({title, status,
+    // estimate, targetDate, completedAt, evidence}) entry shapes are validated
+    // inside the upsertPlan/updateMilestone Functions — the marketing_artifacts
+    // convention.
+    id: `col_plans1`,
+    name: `plans`,
+    description: `Board long-term plans — goals, key results ({metric, target, current, unit}), and milestones ({title, status open|in-progress|done, estimate, targetDate, completedAt, evidence}) per lane (kind company|gtm|initiative, owner ceo|cmo|cto). Written only via upsertPlan/updateMilestone; active plans focus every exec cycle's research and deliberation.`,
+    schema: [
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `objective`, type: EFieldType.string, required: true },
+      { name: `owner`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `keyResults`, type: EFieldType.array },
+      { name: `milestones`, type: EFieldType.array },
+      { name: `linkedInitiative`, type: EFieldType.string },
+      { name: `notes`, type: EFieldType.string },
+    ],
+  },
 ]
 
 /** A seed record: which collection it belongs to, a stable id, and the document. */
@@ -111,10 +154,12 @@ export type TExecBoardRecordSeed = {
 }
 
 /**
- * Seed records — the two board_members (CEO + CTO) and the single
+ * Seed records — the three board_members (CEO + CTO + CMO) and the single
  * company_strategy singleton. Seeded fresh with a valid empty-initial strategy
  * ({ northStar:'', segments:[], positioning:'', backlog:[], activeInitiative:null }).
  * Each carries a stable id so the upsert is idempotent (re-run = no new rows).
+ * Membership IS the consensus set: resolveBoard derives its member list from
+ * these records, so seeding the CMO row makes consensus three-seat everywhere.
  */
 export const ExecBoardRecordSeeds: TExecBoardRecordSeed[] = [
   {
@@ -126,6 +171,11 @@ export const ExecBoardRecordSeeds: TExecBoardRecordSeed[] = [
     collection: `board_members`,
     id: `rec_bmcto1`,
     data: { agentId: BoardCtoAgentId, role: `cto`, isCEO: false },
+  },
+  {
+    collection: `board_members`,
+    id: `rec_bmcmo1`,
+    data: { agentId: BoardCmoAgentId, role: `cmo`, isCEO: false },
   },
   {
     collection: `company_strategy`,
@@ -176,7 +226,7 @@ export type TExecBoardSeedSummary = {
 }
 
 /**
- * Idempotently seed the four board Collections + membership/strategy records
+ * Idempotently seed the six board Collections + membership/strategy records
  * into the exec project. Collections are created only when absent (keyed by
  * projectId+name); records are upserted by stable id (create-or-replace), so a
  * re-run makes no changes. Never throws — every outcome is captured in the

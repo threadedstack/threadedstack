@@ -50,8 +50,11 @@ vi.mock(`@TBE/utils/logger`, () => ({
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import { OpenDecisionFunctionDef } from '@tdsk/database/seeds/exec-board/functions/openDecision'
 import { PostPositionFunctionDef } from '@tdsk/database/seeds/exec-board/functions/postPosition'
+import { UpsertPlanFunctionDef } from '@tdsk/database/seeds/exec-board/functions/upsertPlan'
 import { UpsertStrategyFunctionDef } from '@tdsk/database/seeds/exec-board/functions/upsertStrategy'
+import { UpdateMilestoneFunctionDef } from '@tdsk/database/seeds/exec-board/functions/updateMilestone'
 import { ReportInitiativeCompleteFunctionDef } from '@tdsk/database/seeds/exec-board/functions/reportInitiativeComplete'
+import { SaveMarketingArtifactFunctionDef } from '@tdsk/database/seeds/exec-board/functions/saveMarketingArtifact'
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
@@ -128,10 +131,11 @@ const makeFakeDb = () => {
 
 type THarness = ReturnType<typeof makeFakeDb>
 
-/** Seed the SP1 board membership as records (getBoardMembers-as-data). */
+/** Seed the three-seat board membership as records (getBoardMembers-as-data). */
 const seedMembers = (h: THarness) => {
   h.seed(`board_members`, `bm_ceo`, { agentId: `ag_ceo`, role: `ceo`, isCEO: true })
   h.seed(`board_members`, `bm_cto`, { agentId: `ag_cto`, role: `cto`, isCEO: false })
+  h.seed(`board_members`, `bm_cmo`, { agentId: `ag_cmo`, role: `cmo`, isCEO: false })
 }
 
 /**
@@ -702,5 +706,770 @@ describe(`reportInitiativeComplete Function`, () => {
       reason: `only the CTO may report initiative completion`,
     })
     expect(h.row(`company_strategy`, `rec_strat`)!.data.activeInitiative).toEqual(Active)
+  })
+})
+
+// ── saveMarketingArtifact — the CMO drafting surface (board-member gated) ─────
+
+describe(`saveMarketingArtifact Function`, () => {
+  it(`creates a draft artifact (trimmed inputs, coerced evidence, writer = trusted caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: ` ad-proposal `,
+        title: `  Google Ads pilot — AI eng teams  `,
+        body: `Proposal: $500/mo pilot targeting AI platform buyers.`,
+        status: `draft`,
+        budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+        evidence: [`benchmark-cac-source`, 42],
+      },
+      { agentId: `ag_cmo`, scheduleId: `sd_cmo` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: false })
+
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data).toEqual({
+      kind: `ad-proposal`,
+      title: `Google Ads pilot — AI eng teams`,
+      body: `Proposal: $500/mo pilot targeting AI platform buyers.`,
+      status: `draft`,
+      budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+      evidence: [`benchmark-cac-source`],
+      updatedByAgentId: `ag_cmo`,
+    })
+  })
+
+  it(`dedupes by trimmed lowercase title + kind — a re-draft updates in place`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `gtm-plan`, title: `Launch plan v1`, body: `first draft`, status: `draft` },
+      { agentId: `ag_cmo` }
+    )
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `gtm-plan`,
+        title: `  launch plan V1 `,
+        body: `board-ready revision`,
+        status: `proposed`,
+      },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: true })
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data).toMatchObject({
+      title: `launch plan V1`,
+      body: `board-ready revision`,
+      status: `proposed`,
+    })
+
+    // A DIFFERENT kind with the same title is a new artifact, never a collision.
+    await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `campaign`,
+        title: `Launch plan v1`,
+        body: `campaign spin-off`,
+        status: `draft`,
+      },
+      { agentId: `ag_cmo` }
+    )
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(2)
+  })
+
+  it(`revises by explicit record id and caps the body at ~8000 chars (truncated, kept)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    h.seed(`marketing_artifacts`, `ma_1`, {
+      kind: `business-plan`,
+      title: `Business plan — GTM section`,
+      body: `old`,
+      status: `draft`,
+      budget: null,
+      evidence: [],
+    })
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        id: `ma_1`,
+        kind: `business-plan`,
+        title: `Business plan — GTM section`,
+        body: `x`.repeat(9001),
+        status: `proposed`,
+      },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      saved: true,
+      updated: true,
+      artifactId: `ma_1`,
+    })
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data.body).toHaveLength(8000)
+    expect(artifacts[0].data.status).toBe(`proposed`)
+  })
+
+  it(`rejects an invalid status and missing required fields (nothing written)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const badStatus = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `campaign`, title: `t`, body: `b`, status: `sent` },
+      { agentId: `ag_cmo` }
+    )
+    expect(badStatus.output).toEqual({ ok: false, reason: `invalid status: sent` })
+
+    const missing = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `campaign`, title: ``, body: `b`, status: `draft` },
+      { agentId: `ag_cmo` }
+    )
+    expect(missing.output).toEqual({
+      ok: false,
+      reason: `kind, title, and body are required`,
+    })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(0)
+  })
+
+  it(`rejects a non-member caller even when args spoof a member id (gate reads context.caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `campaign`,
+        title: `Sneaky campaign`,
+        body: `should not land`,
+        status: `draft`,
+        // Model-emitted args claiming a member identity are ignored by the gate.
+        agentId: `ag_cmo`,
+        updatedByAgentId: `ag_cmo`,
+      },
+      { agentId: `ag_intruder` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toEqual({ ok: false, reason: `caller is not a board member` })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(0)
+  })
+
+  it(`accepts any board member as the caller (the ⑤a member gate, not a role gate)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `channel-plan`,
+        title: `CEO-drafted channel note`,
+        body: `b`,
+        status: `draft`,
+      },
+      { agentId: `ag_ceo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(1)
+  })
+})
+
+// ── upsertPlan — the long-term planning write (board-member + role-lane gated) ─
+
+describe(`upsertPlan Function`, () => {
+  const CompanyPlanArgs = {
+    kind: `company`,
+    title: `  ThreadedStack 12-month plan  `,
+    objective: `  Reach first paying customers  `,
+    owner: `ceo`,
+    status: `active`,
+    keyResults: [
+      { metric: ` Paying customers `, target: 10, current: 0, unit: `customers` },
+      { metric: `broken — no target` },
+      `not an object`,
+    ],
+    milestones: [
+      {
+        title: ` Launch plan approved `,
+        status: `open`,
+        estimate: `2 weeks`,
+        targetDate: `2026-08-01`,
+        evidence: [`ref-1`, 42],
+      },
+      { title: `broken — bad status`, status: `someday` },
+      { status: `open` },
+    ],
+    linkedInitiative: ` Launch v1 `,
+    notes: `Estimation basis: comparable dev-tool launches.`,
+  }
+
+  it(`creates a plan (trimmed inputs, malformed keyResults/milestones dropped, writer = trusted caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(UpsertPlanFunctionDef, h, CompanyPlanArgs, {
+      agentId: `ag_ceo`,
+      scheduleId: `sd_ceo`,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: false })
+
+    const plans = h.rows(`plans`)
+    expect(plans).toHaveLength(1)
+    expect(plans[0].data).toEqual({
+      kind: `company`,
+      title: `ThreadedStack 12-month plan`,
+      objective: `Reach first paying customers`,
+      owner: `ceo`,
+      status: `active`,
+      keyResults: [
+        { metric: `Paying customers`, target: 10, current: 0, unit: `customers` },
+      ],
+      milestones: [
+        {
+          title: `Launch plan approved`,
+          status: `open`,
+          estimate: `2 weeks`,
+          targetDate: `2026-08-01`,
+          completedAt: null,
+          evidence: [`ref-1`],
+        },
+      ],
+      linkedInitiative: `Launch v1`,
+      notes: `Estimation basis: comparable dev-tool launches.`,
+      updatedByAgentId: `ag_ceo`,
+    })
+  })
+
+  it(`caps objective and notes at ~4000 chars (truncated, never rejected)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      {
+        kind: `company`,
+        title: `Long plan`,
+        objective: `o`.repeat(4100),
+        owner: `ceo`,
+        status: `draft`,
+        notes: `n`.repeat(4100),
+      },
+      { agentId: `ag_ceo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true })
+    const data = h.rows(`plans`)[0].data
+    expect(data.objective).toHaveLength(4000)
+    expect(data.notes).toHaveLength(4000)
+  })
+
+  it(`dedupes by kind + trimmed lowercase title — a re-upsert patches recognized fields only`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      {
+        kind: `gtm`,
+        title: `GTM plan Q3`,
+        objective: `First 10 customers`,
+        owner: `cmo`,
+        status: `draft`,
+        keyResults: [{ metric: `signups`, target: 100, current: 0, unit: `users` }],
+        milestones: [{ title: `Channel research done`, status: `open` }],
+      },
+      { agentId: `ag_cmo` }
+    )
+    // Same kind + case/whitespace-variant title, only status passed: everything
+    // else must survive the patch (upsertStrategy last-write-wins semantics).
+    const result = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `gtm`, title: `  gtm PLAN q3 `, status: `active` },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: true })
+    const plans = h.rows(`plans`)
+    expect(plans).toHaveLength(1)
+    // Passed fields land last-write-wins (title takes the new trimmed casing —
+    // the saveMarketingArtifact dedupe convention); untouched fields survive.
+    expect(plans[0].data).toMatchObject({
+      title: `gtm PLAN q3`,
+      objective: `First 10 customers`,
+      status: `active`,
+      keyResults: [{ metric: `signups`, target: 100, current: 0, unit: `users` }],
+    })
+    expect(plans[0].data.milestones).toHaveLength(1)
+  })
+
+  it(`patches by explicit record id and rejects an unknown id`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    h.seed(`plans`, `pl_1`, {
+      kind: `company`,
+      title: `Company plan`,
+      objective: `obj`,
+      owner: `ceo`,
+      status: `draft`,
+      keyResults: [],
+      milestones: [],
+      linkedInitiative: ``,
+      notes: ``,
+    })
+
+    const patched = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { id: `pl_1`, status: `active` },
+      { agentId: `ag_ceo` }
+    )
+    expect(patched.output).toMatchObject({
+      ok: true,
+      saved: true,
+      updated: true,
+      planId: `pl_1`,
+    })
+    expect(h.row(`plans`, `pl_1`)!.data).toMatchObject({
+      status: `active`,
+      objective: `obj`,
+    })
+
+    const missing = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { id: `pl_ghost`, status: `active` },
+      { agentId: `ag_ceo` }
+    )
+    expect(missing.output).toEqual({ ok: false, reason: `plan not found: pl_ghost` })
+  })
+
+  it(`validates the role-vs-owner lane matrix (CEO any; CMO cmo+gtm; CTO cto+initiative)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    // CMO cannot own/author a company plan — the directive's reject case.
+    const cmoCompany = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `company`, title: `Hijack`, objective: `o`, owner: `ceo`, status: `draft` },
+      { agentId: `ag_cmo` }
+    )
+    expect(cmoCompany.output).toEqual({
+      ok: false,
+      reason: `role cmo may only write cmo-owned gtm plans`,
+    })
+
+    // CMO in-lane: cmo-owned gtm plan lands.
+    const cmoGtm = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `gtm`, title: `GTM plan`, objective: `o`, owner: `cmo`, status: `active` },
+      { agentId: `ag_cmo` }
+    )
+    expect(cmoGtm.output).toMatchObject({ ok: true, saved: true })
+
+    // CTO out-of-lane: a gtm plan is rejected...
+    const ctoGtm = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `gtm`, title: `CTO gtm`, objective: `o`, owner: `cto`, status: `draft` },
+      { agentId: `ag_cto` }
+    )
+    expect(ctoGtm.output).toEqual({
+      ok: false,
+      reason: `role cto may only write cto-owned initiative plans`,
+    })
+
+    // ...but a cto-owned initiative plan lands.
+    const ctoInitiative = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      {
+        kind: `initiative`,
+        title: `Initiative plan`,
+        objective: `o`,
+        owner: `cto`,
+        status: `active`,
+      },
+      { agentId: `ag_cto` }
+    )
+    expect(ctoInitiative.output).toMatchObject({ ok: true, saved: true })
+
+    // The CEO may write any lane — including the CMO's gtm plan.
+    const ceoGtm = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { id: h.rows(`plans`)[0].id, status: `done` },
+      { agentId: `ag_ceo` }
+    )
+    expect(ceoGtm.output).toMatchObject({ ok: true, saved: true, updated: true })
+
+    expect(h.rows(`plans`)).toHaveLength(2)
+  })
+
+  it(`runs the lane check on the EFFECTIVE record — a CMO cannot patch a CEO-owned plan by id`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    h.seed(`plans`, `pl_ceo`, {
+      kind: `company`,
+      title: `Company plan`,
+      objective: `obj`,
+      owner: `ceo`,
+      status: `active`,
+      keyResults: [],
+      milestones: [],
+      linkedInitiative: ``,
+      notes: ``,
+    })
+
+    const result = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { id: `pl_ceo`, status: `dropped` },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toEqual({
+      ok: false,
+      reason: `role cmo may only write cmo-owned gtm plans`,
+    })
+    expect(h.row(`plans`, `pl_ceo`)!.data.status).toBe(`active`)
+  })
+
+  it(`rejects invalid kind/status/owner enums and incomplete creations (nothing written)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const badKind = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `vibes`, title: `t`, objective: `o`, owner: `ceo`, status: `draft` },
+      { agentId: `ag_ceo` }
+    )
+    expect(badKind.output).toEqual({ ok: false, reason: `invalid kind: vibes` })
+
+    const badStatus = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `company`, title: `t`, objective: `o`, owner: `ceo`, status: `paused` },
+      { agentId: `ag_ceo` }
+    )
+    expect(badStatus.output).toEqual({ ok: false, reason: `invalid status: paused` })
+
+    const badOwner = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `company`, title: `t`, objective: `o`, owner: `board`, status: `draft` },
+      { agentId: `ag_ceo` }
+    )
+    expect(badOwner.output).toEqual({ ok: false, reason: `invalid owner: board` })
+
+    // Creation without every schema-required field is rejected.
+    const incomplete = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { kind: `company`, title: `t`, status: `draft` },
+      { agentId: `ag_ceo` }
+    )
+    expect(incomplete.output).toEqual({
+      ok: false,
+      reason: `kind, title, objective, owner, and status are required to create a plan`,
+    })
+
+    // No recognized field at all is rejected (upsertStrategy parity).
+    const unrecognized = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      { unrelated: `field` },
+      { agentId: `ag_ceo` }
+    )
+    expect(unrecognized.output).toEqual({
+      ok: false,
+      reason: `no recognized plan fields`,
+    })
+
+    expect(h.rows(`plans`)).toHaveLength(0)
+  })
+
+  it(`rejects a non-member caller even when args spoof a member id (gate reads context.caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      UpsertPlanFunctionDef,
+      h,
+      {
+        kind: `company`,
+        title: `Sneaky plan`,
+        objective: `o`,
+        owner: `ceo`,
+        status: `draft`,
+        agentId: `ag_ceo`,
+        updatedByAgentId: `ag_ceo`,
+      },
+      { agentId: `ag_intruder` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toEqual({ ok: false, reason: `caller is not a board member` })
+    expect(h.rows(`plans`)).toHaveLength(0)
+  })
+})
+
+// ── updateMilestone — the progress-tracking write (board-member gated) ────────
+
+describe(`updateMilestone Function`, () => {
+  const seedPlan = (h: THarness, overrides: Record<string, unknown> = {}) =>
+    h.seed(`plans`, `pl_1`, {
+      kind: `company`,
+      title: `Company plan`,
+      objective: `obj`,
+      owner: `ceo`,
+      status: `active`,
+      keyResults: [
+        { metric: `Paying customers`, target: 10, current: 0, unit: `customers` },
+        { metric: `MRR`, target: 1000, current: 0, unit: `usd` },
+      ],
+      milestones: [
+        {
+          title: `Launch plan approved`,
+          status: `open`,
+          estimate: `2 weeks`,
+          targetDate: `2026-08-01`,
+          completedAt: null,
+          evidence: [`ref-0`],
+        },
+        {
+          title: `First customer signed`,
+          status: `open`,
+          estimate: ``,
+          targetDate: ``,
+          completedAt: null,
+          evidence: [],
+        },
+      ],
+      linkedInitiative: ``,
+      notes: ``,
+      ...overrides,
+    })
+
+  it(`patches the named milestone: done stamps completedAt, evidence appends, KR current advances`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    seedPlan(h)
+
+    const result = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      {
+        planId: `pl_1`,
+        milestoneTitle: `  launch PLAN approved `,
+        status: `done`,
+        current: [
+          { metric: ` paying CUSTOMERS `, current: 2 },
+          { metric: `unknown metric`, current: 5 },
+          { metric: `` },
+        ],
+        evidence: [`merged PR #99`, 42, `gtm artifact ma_1`],
+      },
+      { agentId: `ag_cto` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toMatchObject({
+      ok: true,
+      updated: true,
+      planId: `pl_1`,
+      milestone: `Launch plan approved`,
+      keyResultsUpdated: 1,
+    })
+
+    const data = h.row(`plans`, `pl_1`)!.data
+    const done = data.milestones[0]
+    expect(done.status).toBe(`done`)
+    // completedAt is stamped automatically the moment status becomes done.
+    expect(done.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(result.output).toMatchObject({ completedAt: done.completedAt })
+    // Evidence APPENDS (non-strings dropped) — never replaces.
+    expect(done.evidence).toEqual([`ref-0`, `merged PR #99`, `gtm artifact ma_1`])
+    // KR current advanced by metric match; unknown metrics are ignored.
+    expect(data.keyResults).toEqual([
+      { metric: `Paying customers`, target: 10, current: 2, unit: `customers` },
+      { metric: `MRR`, target: 1000, current: 0, unit: `usd` },
+    ])
+    // The untouched milestone is preserved; the write records its author.
+    expect(data.milestones[1]).toMatchObject({ title: `First customer signed` })
+    expect(data.updatedByAgentId).toBe(`ag_cto`)
+  })
+
+  it(`caps a milestone's evidence list at the most recent 20 entries`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    const existing = Array.from({ length: 19 }, (_, idx) => `ref-${idx}`)
+    seedPlan(h, {
+      milestones: [
+        {
+          title: `Launch plan approved`,
+          status: `in-progress`,
+          estimate: ``,
+          targetDate: ``,
+          completedAt: null,
+          evidence: existing,
+        },
+      ],
+    })
+
+    await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      {
+        planId: `pl_1`,
+        milestoneTitle: `Launch plan approved`,
+        evidence: [`ref-19`, `ref-20`, `ref-21`],
+      },
+      { agentId: `ag_ceo` }
+    )
+
+    const evidence = h.row(`plans`, `pl_1`)!.data.milestones[0].evidence
+    expect(evidence).toHaveLength(20)
+    // The most recent 20 survive: the oldest two rolled off.
+    expect(evidence[0]).toBe(`ref-2`)
+    expect(evidence[19]).toBe(`ref-21`)
+  })
+
+  it(`does not stamp completedAt for non-done statuses and preserves an existing stamp`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    seedPlan(h)
+
+    await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `Launch plan approved`, status: `in-progress` },
+      { agentId: `ag_cto` }
+    )
+    expect(h.row(`plans`, `pl_1`)!.data.milestones[0].completedAt).toBeNull()
+
+    // A milestone already stamped keeps its original completedAt on re-done.
+    seedPlan(h, {
+      milestones: [
+        {
+          title: `Launch plan approved`,
+          status: `done`,
+          estimate: ``,
+          targetDate: ``,
+          completedAt: `2026-07-01T00:00:00.000Z`,
+          evidence: [],
+        },
+      ],
+    })
+    const result = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `Launch plan approved`, status: `done` },
+      { agentId: `ag_cto` }
+    )
+    expect(result.output).toMatchObject({ completedAt: `2026-07-01T00:00:00.000Z` })
+  })
+
+  it(`rejects a missing plan, a missing milestone, an invalid status, and an empty patch`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    seedPlan(h)
+
+    const noPlan = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_ghost`, milestoneTitle: `Launch plan approved`, status: `done` },
+      { agentId: `ag_cto` }
+    )
+    expect(noPlan.output).toEqual({ ok: false, reason: `plan not found: pl_ghost` })
+
+    const noMilestone = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `No such milestone`, status: `done` },
+      { agentId: `ag_cto` }
+    )
+    expect(noMilestone.output).toEqual({
+      ok: false,
+      reason: `milestone not found: No such milestone`,
+    })
+
+    const badStatus = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `Launch plan approved`, status: `blocked` },
+      { agentId: `ag_cto` }
+    )
+    expect(badStatus.output).toEqual({ ok: false, reason: `invalid status: blocked` })
+
+    const empty = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `Launch plan approved` },
+      { agentId: `ag_cto` }
+    )
+    expect(empty.output).toEqual({
+      ok: false,
+      reason: `nothing to update: pass status, current, or evidence`,
+    })
+  })
+
+  it(`is member-gated, not role-gated — any seat reports progress; non-members are rejected`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    seedPlan(h)
+
+    // The CMO can progress a CEO-owned plan's milestone (cross-lane progress).
+    const cmo = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `First customer signed`, status: `in-progress` },
+      { agentId: `ag_cmo` }
+    )
+    expect(cmo.output).toMatchObject({ ok: true, updated: true })
+
+    const intruder = await runFn(
+      UpdateMilestoneFunctionDef,
+      h,
+      { planId: `pl_1`, milestoneTitle: `First customer signed`, status: `done` },
+      { agentId: `ag_intruder` }
+    )
+    expect(intruder.output).toEqual({
+      ok: false,
+      reason: `caller is not a board member`,
+    })
+    expect(h.row(`plans`, `pl_1`)!.data.milestones[1].status).toBe(`in-progress`)
   })
 })

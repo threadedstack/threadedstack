@@ -5,6 +5,7 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import {
   BoardCeoAgentId,
   BoardCtoAgentId,
+  BoardCmoAgentId,
   reconcileExecBoard,
   ExecBoardRecordSeeds,
   ExecBoardCollectionDefs,
@@ -61,17 +62,19 @@ const makeFakeServices = () => {
 }
 
 describe(`ExecBoardCollectionDefs`, () => {
-  it(`defines the four board collections with unique names + stable ids`, () => {
-    expect(ExecBoardCollectionDefs).toHaveLength(4)
+  it(`defines the six board collections with unique names + stable ids`, () => {
+    expect(ExecBoardCollectionDefs).toHaveLength(6)
     const names = ExecBoardCollectionDefs.map((c) => c.name)
     expect(names).toEqual([
       `board_members`,
       `decision_proposals`,
       `decision_positions`,
       `company_strategy`,
+      `marketing_artifacts`,
+      `plans`,
     ])
     const ids = ExecBoardCollectionDefs.map((c) => c.id)
-    expect(new Set(ids).size).toBe(4)
+    expect(new Set(ids).size).toBe(6)
     // Every id is a valid entity id (col_ prefix + 6 chars = 10-char nanoid shape).
     for (const id of ids) expect(id).toMatch(/^[A-Za-z0-9_-]{10}$/)
   })
@@ -131,24 +134,63 @@ describe(`ExecBoardCollectionDefs`, () => {
       { name: `activeInitiative`, type: EFieldType.object },
     ])
   })
+
+  it(`marketing_artifacts carries the CMO artifact shape (kind/title/body/status required)`, () => {
+    const ma = ExecBoardCollectionDefs.find((c) => c.name === `marketing_artifacts`)!
+    expect(ma.schema).toEqual([
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `body`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `budget`, type: EFieldType.object },
+      { name: `evidence`, type: EFieldType.array },
+    ])
+    // Draft-only surface: the description discloses that nothing sends externally.
+    expect(ma.description).toContain(`draft/proposal`)
+  })
+
+  it(`plans carries the long-term planning shape (kind/title/objective/owner/status required)`, () => {
+    const plans = ExecBoardCollectionDefs.find((c) => c.name === `plans`)!
+    expect(plans.id).toBe(`col_plans1`)
+    expect(plans.schema).toEqual([
+      { name: `kind`, type: EFieldType.string, required: true },
+      { name: `title`, type: EFieldType.string, required: true },
+      { name: `objective`, type: EFieldType.string, required: true },
+      { name: `owner`, type: EFieldType.string, required: true },
+      { name: `status`, type: EFieldType.string, required: true },
+      { name: `keyResults`, type: EFieldType.array },
+      { name: `milestones`, type: EFieldType.array },
+      { name: `linkedInitiative`, type: EFieldType.string },
+      { name: `notes`, type: EFieldType.string },
+    ])
+    // Entry shapes (keyResults/milestones) are validated inside the Functions —
+    // the marketing_artifacts convention; the description documents both.
+    expect(plans.description).toContain(`{metric, target, current, unit}`)
+    expect(plans.description).toContain(
+      `{title, status open|in-progress|done, estimate, targetDate, completedAt, evidence}`
+    )
+  })
 })
 
 describe(`ExecBoardRecordSeeds`, () => {
-  it(`seeds two board members (CEO isCEO:true, CTO isCEO:false) + one strategy singleton`, () => {
+  it(`seeds three board members (CEO isCEO:true, CTO + CMO isCEO:false) + one strategy singleton`, () => {
     const members = ExecBoardRecordSeeds.filter((r) => r.collection === `board_members`)
     const strategy = ExecBoardRecordSeeds.filter(
       (r) => r.collection === `company_strategy`
     )
-    expect(members).toHaveLength(2)
+    expect(members).toHaveLength(3)
     expect(strategy).toHaveLength(1)
 
     const ceo = members.find((r) => r.data.role === `ceo`)!
     const cto = members.find((r) => r.data.role === `cto`)!
+    const cmo = members.find((r) => r.data.role === `cmo`)!
     expect(ceo.data).toEqual({ agentId: BoardCeoAgentId, role: `ceo`, isCEO: true })
     expect(cto.data).toEqual({ agentId: BoardCtoAgentId, role: `cto`, isCEO: false })
-    // CEO id matches the seeded founder agent; CTO reuses the prod steward agent.
+    expect(cmo.data).toEqual({ agentId: BoardCmoAgentId, role: `cmo`, isCEO: false })
+    // CEO + CMO ids match the seeded founder agents; CTO reuses the prod steward agent.
     expect(BoardCeoAgentId).toBe(`ag_ceo0001`)
     expect(BoardCtoAgentId).toBe(`ag_lvUbjp_`)
+    expect(BoardCmoAgentId).toBe(`ag_cmo0001`)
 
     // Strategy singleton is a valid empty-initial strategy.
     expect(strategy[0].data).toEqual({
@@ -165,19 +207,19 @@ describe(`ExecBoardRecordSeeds`, () => {
 })
 
 describe(`reconcileExecBoard`, () => {
-  it(`creates the 4 collections + upserts the 3 seed records into the exec project`, async () => {
+  it(`creates the 6 collections + upserts the 4 seed records into the exec project`, async () => {
     const { services, collections, records } = makeFakeServices()
 
     const summary = await reconcileExecBoard(services)
 
     expect(summary).toMatchObject({
-      collectionsCreated: 4,
+      collectionsCreated: 6,
       collectionsUnchanged: 0,
-      recordsUpserted: 3,
+      recordsUpserted: 4,
       errors: 0,
     })
 
-    // All 4 collections exist under the exec project with their schemas.
+    // All 6 collections exist under the exec project with their schemas.
     for (const def of ExecBoardCollectionDefs) {
       const stored = collections.get(`${OpsProjectId}:${def.name}`)
       expect(stored).toBeDefined()
@@ -185,8 +227,8 @@ describe(`reconcileExecBoard`, () => {
       expect(stored.schema).toEqual(def.schema)
     }
 
-    // 2 board_members + 1 company_strategy record present with the seeded data.
-    expect(records.size).toBe(3)
+    // 3 board_members + 1 company_strategy record present with the seeded data.
+    expect(records.size).toBe(4)
     const byId = (id: string) => records.get(id)
     expect(byId(`rec_bmceo1`).data).toEqual({
       agentId: BoardCeoAgentId,
@@ -196,6 +238,11 @@ describe(`reconcileExecBoard`, () => {
     expect(byId(`rec_bmcto1`).data).toEqual({
       agentId: BoardCtoAgentId,
       role: `cto`,
+      isCEO: false,
+    })
+    expect(byId(`rec_bmcmo1`).data).toEqual({
+      agentId: BoardCmoAgentId,
+      role: `cmo`,
       isCEO: false,
     })
     expect(byId(`rec_strat1`).data).toEqual({
@@ -216,18 +263,18 @@ describe(`reconcileExecBoard`, () => {
 
     const second = await reconcileExecBoard(services)
 
-    // Re-run: nothing new created, all four collections reported unchanged.
+    // Re-run: nothing new created, all six collections reported unchanged.
     expect(second).toMatchObject({
       collectionsCreated: 0,
-      collectionsUnchanged: 4,
-      recordsUpserted: 3,
+      collectionsUnchanged: 6,
+      recordsUpserted: 4,
       errors: 0,
     })
     // Row counts are unchanged (records upsert in place by stable id).
     expect(collections.size).toBe(collectionsAfterFirst)
     expect(records.size).toBe(recordsAfterFirst)
-    expect(collections.size).toBe(4)
-    expect(records.size).toBe(3)
+    expect(collections.size).toBe(6)
+    expect(records.size).toBe(4)
   })
 
   it(`defaults the target project to the exec project (pj_tIly2F1)`, async () => {
@@ -248,7 +295,7 @@ describe(`reconcileExecBoard`, () => {
       },
     }
     const summary = await reconcileExecBoard(services as any)
-    expect(summary.errors).toBe(4)
+    expect(summary.errors).toBe(6)
     expect(summary.collectionsCreated).toBe(0)
     expect(
       summary.results.every((r) => r.kind !== `collection` || r.action === `error`)
