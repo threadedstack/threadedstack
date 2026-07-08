@@ -298,11 +298,10 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
       expect(sources).toContain(`Company Strategy`)
       expect(sources).toContain(`Open board decisions`)
     }
-    // The lifecycle stays inert in prod: all 3 still ship disabled (⑤a-5 step 4
-    // is the lead's disclosed-go activation, not this test's).
-    expect(CeoStrategyDef.enabled).toBe(false)
-    expect(CeoBoardDef.enabled).toBe(false)
-    expect(CtoBoardDef.enabled).toBe(false)
+    // ⑤a-5 activation (2026-07-08): the board ships LIVE on the primitives.
+    expect(CeoStrategyDef.enabled).toBe(true)
+    expect(CeoBoardDef.enabled).toBe(true)
+    expect(CtoBoardDef.enabled).toBe(true)
   })
 
   it(`step 1: CEO strategy cycle — one tdsk-actions block drives upsertStrategy + openDecision end to end`, async () => {

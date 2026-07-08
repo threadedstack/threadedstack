@@ -7,7 +7,7 @@ import { EQueryOp } from '@tdsk/domain'
 
 /**
  * Canonical, git-versioned definitions of the autonomous agent's own operating
- * schedules — its "curriculum" (planning, work cycle, coordinator, sensor, etc.).
+ * schedules Ã¢ÂÂ its "curriculum" (planning, work cycle, coordinator, sensor, etc.).
  *
  * `scripts/reconcileSchedules.ts` runs as a deploy step and upserts each row's
  * DECLARATIVE fields from here into the live `schedules` table, so the agent's
@@ -19,7 +19,7 @@ import { EQueryOp } from '@tdsk/domain'
 
 // Stable identities of the live self-development org/project, the two agents,
 // and their sandboxes. These are wiring (which rows to reconcile), not product
-// config — the agnostic behavior lives entirely in the prompt files below.
+// config Ã¢ÂÂ the agnostic behavior lives entirely in the prompt files below.
 export const OpsOrgId = `og_0000001`
 export const OpsProjectId = `pj_tIly2F1`
 const StewardAgentId = `ag_lvUbjp_`
@@ -29,13 +29,13 @@ const AdversarySandboxId = `sb_xg7h1wl`
 // Executive board (AI Executive Layer SP1). The CEO seat is the seeded founder
 // agent + its body sandbox; these ids match the backend board constants
 // (CeoAgentId / CeoSandboxId) and the fullorg seed. The CTO seat reuses the
-// steward agent + sandbox above. All board schedules below ship `enabled:false`
-// and stay inert until the activation phase seeds the CEO agent in prod and
-// enables them.
+// steward agent + sandbox above. The board runs LIVE on the platform primitives
+// (the 5a activation, 2026-07-08): Collections for state, Functions invoked via
+// tdsk-actions for effects, contextSources for context.
 const CeoAgentId = `ag_ceo0001`
 const CeoSandboxId = `sb_ceo0001`
 
-// ── Board cycle context sources (generalization ③) ──────────────────────────
+// Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
 // board cycle reads the durable strategy singleton and the still-open decision
 // proposals from the board Collections (seeds/exec-board/collections.ts); the
@@ -78,13 +78,13 @@ export type TAgentScheduleDef = {
   /**
    * Optional declarative context sources injected into the cycle prompt. Absent
    * on every live schedule today (they use the hard-coded builders), so the
-   * reconciler treats undefined here as equal to a null DB column — no churn.
+   * reconciler treats undefined here as equal to a null DB column Ã¢ÂÂ no churn.
    */
   contextSources?: TContextSource[]
   /**
-   * Optional opt-in effect-surface allowlist (generalization ②). Absent on every
+   * Optional opt-in effect-surface allowlist (generalization Ã¢ÂÂ¡). Absent on every
    * live schedule today, so the reconciler treats undefined here as equal to a
-   * null DB column — no churn — and the effect surface stays inert.
+   * null DB column Ã¢ÂÂ no churn Ã¢ÂÂ and the effect surface stays inert.
    */
   actions?: TActionsConfig | null
   /** Loaded from ./agent-schedules/<key>.md at module load. */
@@ -139,9 +139,9 @@ const ceo = make(CeoAgentId, CeoSandboxId)
 
 /**
  * The 11 live self-development schedules plus the 3 executive-board schedules
- * (AI Executive Layer SP1), which ship `enabled:false` and stay inert until the
- * activation phase. Cadence + bindings are pinned to the production rows; the
- * behavior is entirely in the referenced prompt files.
+ * (LIVE on the primitives since the ⑤a activation, 2026-07-08). Cadence +
+ * bindings are pinned to the production rows; the behavior is entirely in the
+ * referenced prompt files.
  */
 export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
@@ -187,7 +187,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     // each change-request round cost ~50 min and pushed multi-round PRs past the
     // "one new PR per hour" target (the review gate blocks new work-cycle PRs
     // while one is open). 15-min pr-response mirrors the 15-min adversary cadence
-    // so a request→fix→re-review round completes fast. `5,20,35,50` is a superset
+    // so a requestÃ¢ÂÂfixÃ¢ÂÂre-review round completes fast. `5,20,35,50` is a superset
     // of `5,35`, so the reconciler transition skips no fire.
     cronExpression: `5,20,35,50 * * * *`,
     timeoutMs: 3_600_000,
@@ -227,7 +227,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     // Every 15 min. A steward PR that falls BEHIND (concurrent merge to main)
     // costs one adversary cycle to rebase (rule 2a: update-branch then defer)
     // plus one to review, so at the old 30-min cadence a rebased PR could sit
-    // ~60 min before merge — past the "one new PR per hour" throughput target.
+    // ~60 min before merge Ã¢ÂÂ past the "one new PR per hour" throughput target.
     // 15-min cadence halves that. `5,20,35,50` is a superset of the old
     // `20,50`, so the reconciler transition skips no fire; :05/:35 land ~5 min
     // after the :30 work cycle opens a PR, giving fast first-review pickup.
@@ -235,16 +235,16 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 3,
   }),
-  // ── Executive board (AI Executive Layer SP1) — all disabled until activation ──
+  // Ã¢ÂÂÃ¢ÂÂ Executive board (AI Executive Layer SP1) Ã¢ÂÂ all disabled until activation Ã¢ÂÂÃ¢ÂÂ
   // The CEO strategy cycle runs daily (research + metrics -> strategy); the two
   // board cycles run a few times/day so a decision can open and resolve within a
   // day while the Active Initiative stays frozen. The CTO board cycle runs on the
   // steward agent+sandbox (the CTO seat) but is a distinct schedule from the
   // steward's dev-loop cycles.
-  // Each board schedule carries the ② effect-surface allowlist of exactly the
-  // Functions its role may invoke (seeds/exec-board/functions/*) and the ③
+  // Each board schedule carries the Ã¢ÂÂ¡ effect-surface allowlist of exactly the
+  // Functions its role may invoke (seeds/exec-board/functions/*) and the Ã¢ÂÂ¢
   // contextSources that inject the board Collections into its prompt. The CEO
-  // board cycle owns resolution (spec §5: it closes its tdsk-actions block with
+  // board cycle owns resolution (spec ÃÂ§5: it closes its tdsk-actions block with
   // `resolveBoard`), mirroring the hard-coded isCeoSchedule executor branch.
   ceo({
     key: `ceo-strategy`,
@@ -252,7 +252,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `0 4 * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
-    enabled: false,
+    enabled: true,
     contextSources: [BoardStrategySource, BoardOpenDecisionsSource],
     actions: { functions: [`upsertStrategy`, `openDecision`] },
   }),
@@ -262,7 +262,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `0 */6 * * *`,
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
-    enabled: false,
+    enabled: true,
     contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
     actions: { functions: [`postPosition`, `resolveBoard`] },
   }),
@@ -272,7 +272,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `30 */6 * * *`,
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
-    enabled: false,
+    enabled: true,
     contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
     actions: { functions: [`postPosition`, `reportInitiativeComplete`] },
   }),

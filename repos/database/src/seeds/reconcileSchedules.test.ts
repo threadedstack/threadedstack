@@ -38,12 +38,12 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`ships the executive-board schedules disabled and inert until activation`, () => {
+  it(`ships the executive-board schedules ENABLED (⑤a-5 activation, 2026-07-08)`, () => {
     const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
     for (const key of execKeys) {
       expect(byKey[key]).toBeDefined()
-      expect(byKey[key].enabled).toBe(false)
+      expect(byKey[key].enabled).toBe(true)
     }
     // The CEO seat runs on the seeded founder agent; the CTO seat reuses the steward.
     expect(byKey[`ceo-strategy`].agentId).toBe(`ag_ceo0001`)
