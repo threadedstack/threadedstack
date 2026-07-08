@@ -27,6 +27,17 @@ const RehydratePollMs = 30_000
 const RehydrationMinGraceMs = 2 * RehydratePollMs
 
 /**
+ * getPodState collapses a bare 404 from the K8s API into `Failed` (see
+ * sandbox.ts's getPodState) so an API-server/informer blip can produce that
+ * exact same reading for a pod that is still very much alive — a genuinely
+ * deleted pod won't come back on a re-read moments later. A single Failed
+ * reading in the watch loop gets one confirming re-check after this delay
+ * before it is treated as terminal, to avoid killing a healthy run on a
+ * transient read.
+ */
+const RehydrateFailedConfirmDelayMs = 5_000
+
+/**
  * Stable substring present in EVERY rehydration note (success or timeout). A run
  * carrying this in `schedule_runs.error` was INTERRUPTED by a backend restart
  * (the deploy that restarted the backend severed the exec stream), not run
@@ -200,12 +211,29 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
       continue
     }
 
-    if (state === EContainerState.Failed || state === EContainerState.Terminating) {
+    if (state === EContainerState.Terminating) {
       await completeRun(
         app,
         run,
         `error`,
         `Pod ${instanceId} entered ${state} during rehydration watch`
+      )
+      await bestEffortStopPod(app, instanceId)
+      return
+    }
+    if (state === EContainerState.Failed) {
+      const stillFailed = await confirmPodFailed(app, instanceId)
+      if (!stillFailed) {
+        logger.warn(
+          `[Scheduler] Run ${run.id} pod ${instanceId} read Failed once (likely a transient 404) but recovered on re-check — continuing to watch`
+        )
+        continue
+      }
+      await completeRun(
+        app,
+        run,
+        `error`,
+        `Pod ${instanceId} entered Failed during rehydration watch (confirmed on re-check)`
       )
       await bestEffortStopPod(app, instanceId)
       return
@@ -241,6 +269,24 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
       await bestEffortStopPod(app, instanceId)
       return
     }
+  }
+}
+
+/**
+ * Re-check a pod that just read as Failed after a short delay. Returns true
+ * only if the second read also comes back Failed/Terminating; returns false
+ * (treat as a transient blip, keep watching) both when the pod recovers and
+ * when the re-check itself errors — an error here gets another chance on the
+ * next regular poll tick rather than prematurely killing the run.
+ */
+async function confirmPodFailed(app: TApp, instanceId: string): Promise<boolean> {
+  const { sandbox } = app.locals
+  await sleep(RehydrateFailedConfirmDelayMs)
+  try {
+    const recheck = await sandbox!.getPodState(instanceId)
+    return recheck === EContainerState.Failed || recheck === EContainerState.Terminating
+  } catch {
+    return false
   }
 }
 
