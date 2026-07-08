@@ -485,7 +485,10 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
       timer = setInterval(() => {
         void tick()
       }, scanIntervalMs)
-      timer.unref?.()
+      // Ref'd ON PURPOSE: this interval is what keeps the resident process
+      // alive — an unref'd timer let Node exit 0 right after boot (live
+      // failure 2026-07-08, pods Completed minutes after "runtime is live").
+      // Tests stop the loop via shutdown(), which clears the interval.
       log.info(`Event loop started (scan every ${scanIntervalMs}ms)`)
     },
 
