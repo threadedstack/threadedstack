@@ -22,6 +22,23 @@ On EVERY cycle where you have a named initiative:
 [{"title":"<imperative one-line>","description":"<what/why + a concrete plan>","priority":"P0|P1|P2|P3|P4","evidence":"<citation: parent tp_ id, or the roadmap line>","sourceSignal":"other","dedupeKey":"initiative:<name>:child:<slug>","initiative":"<name>","parentId":"<tp_ id of the parent row this child belongs under, or omit if this IS a parent>","repos":["<the repo(s) this child touches>"]}]
 ```
 
+DUAL-EMIT (transitional, dev-loop cutover 4b): the platform is migrating proposal state onto its Collections primitive; during the transition the table row stays authoritative and the `tdsk-tasks` block above remains REQUIRED exactly as specified. Whenever you emit a `tdsk-tasks` block, ALSO record the SAME proposals in the `task_proposals` Collection by emitting exactly one fenced actions block — one array entry per `tdsk-tasks` entry, same order, values copied verbatim:
+
+```tdsk-actions
+[{"function":"proposeTask","args":{"title":"<same title>","description":"<same description>","priority":"<same priority>","evidence":"<same evidence>","sourceSignal":"other","dedupeKey":"<same dedupeKey>","initiative":"<name>","parentId":"<same parentId — omit if this IS a parent>","repos":["<same repos>"]}}]
+```
+
+`proposeTask` args (field-for-field the matching `tdsk-tasks` entry's fields):
+- `title`, `description`, `evidence` (strings, REQUIRED): blank or missing any of the three and the action is rejected; description/evidence are truncated server-side to 6000/4000 chars, the same caps as the legacy block.
+- `priority` (string, optional): `P0`-`P4`; anything else falls back to `P3`.
+- `sourceSignal` (string, optional): `other` here, matching the legacy block; anything outside `ci|deploy-marker|health|schedule-run|log|other` falls back to `other`.
+- `dedupeKey` (string, optional): copy the entry's `initiative:<name>:` key; when omitted it is derived as `<sourceSignal>:<slugified title>` capped at 200 chars — the same derivation the table write uses, so row and record dedupe on the same key. Each entry dedupes against still-open (pending|scanned) records BEFORE creating, and the same fail-closed security scan runs at authoring time: a failing scan still creates the record with status `rejected`, never a silent skip.
+- `initiative` (string): the resolved <name>, same as the entry (omitted or whitespace-only stores null).
+- `parentId` (string, optional): the parent's tp_ id, same as the entry; omit when this IS a parent (stores null).
+- `repos` (string array, optional): copy the entry's list; non-string items are dropped.
+
+Your identity is injected server-side as the trusted caller — never put an agentId in args. Only `proposeTask` is allowlisted this cycle; any other function is skipped — the step-4 `tdsk-task-picked` block stays exactly as specified, with NO actions counterpart from this cycle. Omit the `tdsk-actions` block entirely when you file no proposals. This block is additive parity telemetry: it never replaces the `tdsk-tasks` block, and both must carry the same proposals.
+
 3) For each UNCLAIMED child in the ledger this cycle (cap the number of in-flight children at 3 to respect the delegation concurrency cap), invoke:
    `delegateTask({task: "<child description including title + evidence + expected PR shape>", ...})`
    delegateTask spawns a child claude-p run in the sandbox. The child opens its own gated `steward/*` PR (adversary + CI). Do NOT wait for it inline — delegateTask returns quickly; the child continues in the pod. Next cycle you will see the promoted status + prUrl on the child row.
