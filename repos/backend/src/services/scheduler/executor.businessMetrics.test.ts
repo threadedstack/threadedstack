@@ -1,10 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import {
-  StrategyBlockFence,
-  DecisionsBlockFence,
-  DecisionPositionsBlockFence,
-  InitiativeCompleteBlockFence,
-} from '@tdsk/domain'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -40,37 +34,7 @@ beforeEach(() => {
 })
 
 describe(`businessMetricsOptsIn`, () => {
-  it(`is true when the cycle writes a tdsk-strategy block (CEO strategy)`, () => {
-    expect(
-      businessMetricsOptsIn(schedule({ prompt: `emit a ${StrategyBlockFence} block` }))
-    ).toBe(true)
-  })
-
-  it(`is true when the cycle opens a tdsk-decisions proposal`, () => {
-    expect(
-      businessMetricsOptsIn(
-        schedule({ prompt: `open a ${DecisionsBlockFence} proposal` })
-      )
-    ).toBe(true)
-  })
-
-  it(`is true for a CTO board cycle posting a tdsk-decision-positions block`, () => {
-    expect(
-      businessMetricsOptsIn(
-        schedule({ prompt: `post your ${DecisionPositionsBlockFence} stance` })
-      )
-    ).toBe(true)
-  })
-
-  it(`is true for a CTO completion cycle emitting tdsk-initiative-complete`, () => {
-    expect(
-      businessMetricsOptsIn(
-        schedule({ prompt: `report via ${InitiativeCompleteBlockFence}` })
-      )
-    ).toBe(true)
-  })
-
-  it(`is true when the prompt carries the company-strategy marker`, () => {
+  it(`is true when the prompt carries the company-strategy marker (CEO/CTO board cycles)`, () => {
     expect(
       businessMetricsOptsIn(
         schedule({ prompt: `CEO cycle ${CompanyStrategyMarker} directive` })
@@ -78,7 +42,7 @@ describe(`businessMetricsOptsIn`, () => {
     ).toBe(true)
   })
 
-  it(`is false for a steward work cycle (no executive fence, no marker)`, () => {
+  it(`is false for a steward work cycle (no marker)`, () => {
     expect(
       businessMetricsOptsIn(
         schedule({ prompt: `pick a scanned task and open a PR (tdsk-task-picked)` })
@@ -105,7 +69,7 @@ describe(`buildBusinessMetricsSection (assembled cycle context)`, () => {
 
     const out = await buildBusinessMetricsSection(
       buildApp(),
-      schedule({ prompt: `CEO strategy cycle — emit ${StrategyBlockFence}` })
+      schedule({ prompt: `CEO strategy cycle ${CompanyStrategyMarker}` })
     )
 
     expect(metricsBuilder).toHaveBeenCalledWith(expect.anything(), `org-1`)
@@ -113,13 +77,13 @@ describe(`buildBusinessMetricsSection (assembled cycle context)`, () => {
     expect(out).toContain(`Estimated MRR: $305/mo`)
   })
 
-  it(`INCLUDES the section for a CTO board cycle opting in via ${DecisionPositionsBlockFence}`, async () => {
+  it(`INCLUDES the section for a CTO board cycle carrying the marker`, async () => {
     metricsBuilder.mockResolvedValue(
       `## Business metrics\nActive subscriptions: 0 total\n\n`
     )
     const out = await buildBusinessMetricsSection(
       buildApp(),
-      schedule({ prompt: `board cycle — post ${DecisionPositionsBlockFence}` })
+      schedule({ prompt: `CTO board cycle ${CompanyStrategyMarker} — deliberate` })
     )
     expect(metricsBuilder).toHaveBeenCalledWith(expect.anything(), `org-1`)
     expect(out).toContain(`## Business metrics`)

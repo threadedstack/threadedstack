@@ -5,7 +5,7 @@
  * endorsement or a CEO tiebreak. The Company Strategy is the org-level artifact the
  * CEO owns and the whole system (execs + dev loop) consumes.
  * Mirrors the task-proposal / escalation type conventions (enum + `${enum}` string
- * union + input / record shapes).
+ * union + record shapes).
  */
 
 /** Lifecycle status of a board decision proposal. */
@@ -50,44 +50,11 @@ export enum EInitiativeStatus {
 
 export type TInitiativeStatus = `${EInitiativeStatus}`
 
-/** Input for opening a board decision proposal (id / org / agent resolved by the caller). */
-export type TDecisionProposalInput = {
-  title: string
-  axis: TDecisionAxis
-  description: string
-  evidence?: string[]
-}
-
-/** Input for posting a per-round board position on a proposal. */
-export type TDecisionPositionInput = {
-  proposalId: string
-  stance: TStance
-  reasoning: string
-}
-
 /** One prioritized future initiative on the Company Strategy backlog. */
 export type TStrategyBacklogItem = {
   title: string
   rationale: string
   priority: number
-}
-
-/**
- * A partial update to the non-active-initiative fields of the Company Strategy.
- * Active-Initiative changes never flow through here — only via the completion gate
- * or a committed active-initiative-axis proposal.
- */
-export type TStrategyUpdate = {
-  northStar?: string
-  segments?: string[]
-  positioning?: string
-  backlog?: TStrategyBacklogItem[]
-}
-
-/** A CTO report that the named Active Initiative has been delivered. */
-export type TInitiativeComplete = {
-  initiativeTitle: string
-  evidenceRefs: string[]
 }
 
 /**

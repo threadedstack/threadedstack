@@ -50,10 +50,9 @@ const monthlyMrrCents = (plan: Plan, seats: number): number => {
  *
  * Subscriptions/users/quotas are not scoped to `orgId` — they represent the whole
  * company's book of business; `orgId` identifies the executive org whose cycle is
- * being assembled (used for defensive logging + injection-convention parity with
- * buildCompanyStrategyContext).
+ * being assembled (used for defensive logging).
  *
- * Dormant + defensive (mirrors buildCompanyStrategyContext): the primary read
+ * Dormant + defensive (mirrors buildRunOutcomeContext): the primary read
  * failing (or the whole builder throwing) degrades context to '' (logged) and
  * never throws — safe in prod before any data exists. Secondary signals
  * (signups/waitlist/engagement/MRR) degrade individually to zero/omitted so a
