@@ -1,4 +1,5 @@
 import type { TRecordQuery } from './collection.types'
+import type { TScanResult } from './skillProposal.types'
 
 export enum EFunLanguage {
   python = `python`,
@@ -43,6 +44,36 @@ export interface IRecordsCapability {
   count(collection: string, query?: TRecordQuery): Promise<number>
 }
 
+/**
+ * Untrusted text fields submitted to the content-scan capability. Mirrors the
+ * field surface of the platform's deterministic task-proposal scanner: every
+ * provided field is scanned as free text; omitted fields scan as empty.
+ * `sourceSignal` is plain text here (not the proposal enum) — the scanner
+ * treats it purely as content to scan, never as a discriminator.
+ */
+export type TScanContentInput = {
+  title?: string
+  description?: string
+  evidence?: string
+  sourceSignal?: string
+}
+
+/**
+ * Deterministic, fail-closed content-scan capability injected into a Function's
+ * execution context.
+ *
+ * A platform-mediated bridge over the host's deterministic text scanner (the
+ * same fail-closed engine gating task proposals): the isolate sends the
+ * untrusted fields as JSON and receives the verdict as JSON — the scanner
+ * itself (rules, regexes, normalizer) never crosses into the sandbox. The scan
+ * is pure and dependency-free: same input always yields the same verdict.
+ * `passed: false` means at least one finding — callers MUST treat that as a
+ * hard reject before persisting or re-injecting the content.
+ */
+export interface IScanCapability {
+  content(input: TScanContentInput): Promise<TScanResult>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
@@ -54,6 +85,12 @@ export type TFunctionContext = {
    * direct db connection.
    */
   records?: IRecordsCapability
+  /**
+   * Deterministic fail-closed content scanner. Present whenever the executor
+   * builds its host-bridge surface; reached through a platform-mediated bridge —
+   * the scanner never crosses into the isolate.
+   */
+  scan?: IScanCapability
   /**
    * Platform-injected, trusted identity of the invoker (never from model output).
    * Effect Functions authorize by this (e.g. board role gates).
