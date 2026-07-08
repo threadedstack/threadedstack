@@ -20,7 +20,8 @@ export const invokeAction = async (
   db: TDatabase,
   projectId: string,
   action: TAgentAction,
-  allowlist: string[]
+  allowlist: string[],
+  caller?: { agentId?: string; scheduleId?: string }
 ): Promise<TInvokeResult> => {
   try {
     if (!allowlist.includes(action.function))
@@ -35,7 +36,7 @@ export const invokeAction = async (
 
     const res = await FunctionExecutor.execute(func, {
       db,
-      context: { args: action.args },
+      context: { args: action.args, caller },
     })
     return res.success
       ? { ok: true, data: res.output }

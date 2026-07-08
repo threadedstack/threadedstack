@@ -105,4 +105,36 @@ describe(`invokeAction`, () => {
 
     expect(res).toEqual({ ok: false, error: `isolate exploded` })
   })
+
+  it(`forwards a platform-injected caller into the executor context`, async () => {
+    const db = buildDb({ data: [mockFunc] })
+    mockExecute.mockResolvedValue({ success: true, output: { ok: true }, duration: 5 })
+
+    const caller = { agentId: `ag_ceo0001`, scheduleId: `sch-board` }
+    const res = await invokeAction(
+      {} as any,
+      db,
+      `proj-1`,
+      action,
+      [`recordProposal`],
+      caller
+    )
+
+    expect(mockExecute).toHaveBeenCalledWith(mockFunc, {
+      db,
+      context: { args: { title: `x` }, caller },
+    })
+    expect(res).toEqual({ ok: true, data: { ok: true } })
+  })
+
+  it(`leaves the context caller absent when none is passed (back-compat)`, async () => {
+    const db = buildDb({ data: [mockFunc] })
+    mockExecute.mockResolvedValue({ success: true, output: { ok: true }, duration: 5 })
+
+    await invokeAction({} as any, db, `proj-1`, action, [`recordProposal`])
+
+    const passedContext = mockExecute.mock.calls[0][1].context
+    expect(passedContext.caller).toBeUndefined()
+    expect(passedContext).toEqual({ args: { title: `x` } })
+  })
 })

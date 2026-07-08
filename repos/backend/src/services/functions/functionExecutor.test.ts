@@ -456,6 +456,50 @@ describe(`FunctionExecutor`, () => {
     })
   })
 
+  // ── Caller Identity (context.caller crosses into the isolate) ────
+  //
+  // The executor serializes the WHOLE context object into the wrapper the isolate
+  // runs, so a platform-injected `caller` rides along as plain data (no capability)
+  // exactly like `context.args`. A Function body can authorize off
+  // `context.caller.agentId` — an identity that only the platform can set.
+
+  describe(`caller identity`, () => {
+    // Reconstruct the context the isolate sees from the serialized wrapper, exactly
+    // as the isolate does: JSON.parse of the embedded, double-encoded context JSON.
+    const contextFromWrapper = (wrapperCode: string) => {
+      const marker = `const context = JSON.parse(`
+      const start = wrapperCode.indexOf(marker) + marker.length
+      const end = wrapperCode.indexOf(`);`, start)
+      const literal = wrapperCode.slice(start, end)
+      return JSON.parse(JSON.parse(literal))
+    }
+
+    it(`crosses a platform-injected caller so a Function body reads context.caller.agentId`, async () => {
+      const func = makeFunc({ projectId: `proj-caller` })
+      const caller = { agentId: `ag_ceo0001`, scheduleId: `sch-board` }
+
+      // Simulate the isolate: reconstruct the serialized context the wrapper carries,
+      // then run a handler that authorizes off context.caller.agentId.
+      mockEvaluate.mockImplementation(async (wrapperCode: string) => {
+        const context = contextFromWrapper(wrapperCode)
+        const handler = (_req: any, ctx: any) => ({ seenAgentId: ctx.caller.agentId })
+        return { output: ``, result: { success: true, output: handler({}, context) } }
+      })
+
+      const result = await FunctionExecutor.execute(func, {
+        context: { args: { title: `x` }, caller },
+      })
+
+      // The handler read the trusted caller identity out of context.caller.
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual({ seenAgentId: `ag_ceo0001` })
+
+      // The caller is serialized into the wrapper the isolate runs (it crossed).
+      const wrapperCode = mockEvaluate.mock.calls[0][0] as string
+      expect(wrapperCode).toContain(`ag_ceo0001`)
+    })
+  })
+
   // ── Sandbox Pool Tests ───────────────────────────────────────────
   //
   // The pool is module-level state that persists across tests.
