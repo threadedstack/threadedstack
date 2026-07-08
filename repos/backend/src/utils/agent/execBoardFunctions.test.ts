@@ -52,6 +52,7 @@ import { OpenDecisionFunctionDef } from '@tdsk/database/seeds/exec-board/functio
 import { PostPositionFunctionDef } from '@tdsk/database/seeds/exec-board/functions/postPosition'
 import { UpsertStrategyFunctionDef } from '@tdsk/database/seeds/exec-board/functions/upsertStrategy'
 import { ReportInitiativeCompleteFunctionDef } from '@tdsk/database/seeds/exec-board/functions/reportInitiativeComplete'
+import { SaveMarketingArtifactFunctionDef } from '@tdsk/database/seeds/exec-board/functions/saveMarketingArtifact'
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
@@ -128,10 +129,11 @@ const makeFakeDb = () => {
 
 type THarness = ReturnType<typeof makeFakeDb>
 
-/** Seed the SP1 board membership as records (getBoardMembers-as-data). */
+/** Seed the three-seat board membership as records (getBoardMembers-as-data). */
 const seedMembers = (h: THarness) => {
   h.seed(`board_members`, `bm_ceo`, { agentId: `ag_ceo`, role: `ceo`, isCEO: true })
   h.seed(`board_members`, `bm_cto`, { agentId: `ag_cto`, role: `cto`, isCEO: false })
+  h.seed(`board_members`, `bm_cmo`, { agentId: `ag_cmo`, role: `cmo`, isCEO: false })
 }
 
 /**
@@ -702,5 +704,195 @@ describe(`reportInitiativeComplete Function`, () => {
       reason: `only the CTO may report initiative completion`,
     })
     expect(h.row(`company_strategy`, `rec_strat`)!.data.activeInitiative).toEqual(Active)
+  })
+})
+
+// ── saveMarketingArtifact — the CMO drafting surface (board-member gated) ─────
+
+describe(`saveMarketingArtifact Function`, () => {
+  it(`creates a draft artifact (trimmed inputs, coerced evidence, writer = trusted caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: ` ad-proposal `,
+        title: `  Google Ads pilot — AI eng teams  `,
+        body: `Proposal: $500/mo pilot targeting AI platform buyers.`,
+        status: `draft`,
+        budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+        evidence: [`benchmark-cac-source`, 42],
+      },
+      { agentId: `ag_cmo`, scheduleId: `sd_cmo` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: false })
+
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data).toEqual({
+      kind: `ad-proposal`,
+      title: `Google Ads pilot — AI eng teams`,
+      body: `Proposal: $500/mo pilot targeting AI platform buyers.`,
+      status: `draft`,
+      budget: { amountUsd: 500, period: `month`, channel: `google-ads` },
+      evidence: [`benchmark-cac-source`],
+      updatedByAgentId: `ag_cmo`,
+    })
+  })
+
+  it(`dedupes by trimmed lowercase title + kind — a re-draft updates in place`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `gtm-plan`, title: `Launch plan v1`, body: `first draft`, status: `draft` },
+      { agentId: `ag_cmo` }
+    )
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `gtm-plan`,
+        title: `  launch plan V1 `,
+        body: `board-ready revision`,
+        status: `proposed`,
+      },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true, updated: true })
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data).toMatchObject({
+      title: `launch plan V1`,
+      body: `board-ready revision`,
+      status: `proposed`,
+    })
+
+    // A DIFFERENT kind with the same title is a new artifact, never a collision.
+    await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `campaign`,
+        title: `Launch plan v1`,
+        body: `campaign spin-off`,
+        status: `draft`,
+      },
+      { agentId: `ag_cmo` }
+    )
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(2)
+  })
+
+  it(`revises by explicit record id and caps the body at ~8000 chars (truncated, kept)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    h.seed(`marketing_artifacts`, `ma_1`, {
+      kind: `business-plan`,
+      title: `Business plan — GTM section`,
+      body: `old`,
+      status: `draft`,
+      budget: null,
+      evidence: [],
+    })
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        id: `ma_1`,
+        kind: `business-plan`,
+        title: `Business plan — GTM section`,
+        body: `x`.repeat(9001),
+        status: `proposed`,
+      },
+      { agentId: `ag_cmo` }
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      saved: true,
+      updated: true,
+      artifactId: `ma_1`,
+    })
+    const artifacts = h.rows(`marketing_artifacts`)
+    expect(artifacts).toHaveLength(1)
+    expect(artifacts[0].data.body).toHaveLength(8000)
+    expect(artifacts[0].data.status).toBe(`proposed`)
+  })
+
+  it(`rejects an invalid status and missing required fields (nothing written)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const badStatus = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `campaign`, title: `t`, body: `b`, status: `sent` },
+      { agentId: `ag_cmo` }
+    )
+    expect(badStatus.output).toEqual({ ok: false, reason: `invalid status: sent` })
+
+    const missing = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      { kind: `campaign`, title: ``, body: `b`, status: `draft` },
+      { agentId: `ag_cmo` }
+    )
+    expect(missing.output).toEqual({
+      ok: false,
+      reason: `kind, title, and body are required`,
+    })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(0)
+  })
+
+  it(`rejects a non-member caller even when args spoof a member id (gate reads context.caller)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `campaign`,
+        title: `Sneaky campaign`,
+        body: `should not land`,
+        status: `draft`,
+        // Model-emitted args claiming a member identity are ignored by the gate.
+        agentId: `ag_cmo`,
+        updatedByAgentId: `ag_cmo`,
+      },
+      { agentId: `ag_intruder` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toEqual({ ok: false, reason: `caller is not a board member` })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(0)
+  })
+
+  it(`accepts any board member as the caller (the ⑤a member gate, not a role gate)`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    const result = await runFn(
+      SaveMarketingArtifactFunctionDef,
+      h,
+      {
+        kind: `channel-plan`,
+        title: `CEO-drafted channel note`,
+        body: `b`,
+        status: `draft`,
+      },
+      { agentId: `ag_ceo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, saved: true })
+    expect(h.rows(`marketing_artifacts`)).toHaveLength(1)
   })
 })

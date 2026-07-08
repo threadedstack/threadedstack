@@ -39,17 +39,18 @@ const makeFakeService = () => {
 }
 
 describe(`ExecBoardFunctionDefs`, () => {
-  it(`defines the five board Functions with unique names + stable ids`, () => {
-    expect(ExecBoardFunctionDefs).toHaveLength(5)
+  it(`defines the six board Functions with unique names + stable ids`, () => {
+    expect(ExecBoardFunctionDefs).toHaveLength(6)
     expect(ExecBoardFunctionDefs.map((def) => def.name)).toEqual([
       `openDecision`,
       `postPosition`,
       `upsertStrategy`,
       `reportInitiativeComplete`,
+      `saveMarketingArtifact`,
       `resolveBoard`,
     ])
     const ids = ExecBoardFunctionDefs.map((def) => def.id)
-    expect(new Set(ids).size).toBe(5)
+    expect(new Set(ids).size).toBe(6)
     // Every id is a valid entity id (fn_ prefix + 7 chars = 10-char id shape).
     for (const id of ids) expect(id).toMatch(/^fn_[A-Za-z0-9_-]{7}$/)
   })
@@ -62,7 +63,7 @@ describe(`ExecBoardFunctionDefs`, () => {
     }
   })
 
-  it(`gates the four effect Functions by the trusted context.caller, never args`, () => {
+  it(`gates the five effect Functions by the trusted context.caller, never args`, () => {
     const gated = ExecBoardFunctionDefs.filter((def) => def.name !== `resolveBoard`)
     for (const def of gated) {
       expect(def.content).toContain(`caller.agentId`)
@@ -92,13 +93,13 @@ describe(`ExecBoardFunctionDefs`, () => {
 })
 
 describe(`reconcileExecBoardFunctions`, () => {
-  it(`creates the five Function records in the exec project when missing`, async () => {
+  it(`creates the six Function records in the exec project when missing`, async () => {
     const { service, rows } = makeFakeService()
 
     const summary = await reconcileExecBoardFunctions(service)
 
-    expect(summary).toMatchObject({ created: 5, updated: 0, unchanged: 0, errors: 0 })
-    expect(rows.size).toBe(5)
+    expect(summary).toMatchObject({ created: 6, updated: 0, unchanged: 0, errors: 0 })
+    expect(rows.size).toBe(6)
     for (const def of ExecBoardFunctionDefs) {
       const row = rows.get(def.id)
       expect(row).toMatchObject({
@@ -111,7 +112,7 @@ describe(`reconcileExecBoardFunctions`, () => {
     }
   })
 
-  it(`is idempotent — a re-run reports all five unchanged and writes nothing`, async () => {
+  it(`is idempotent — a re-run reports all six unchanged and writes nothing`, async () => {
     const { service, rows } = makeFakeService()
 
     await reconcileExecBoardFunctions(service)
@@ -119,8 +120,8 @@ describe(`reconcileExecBoardFunctions`, () => {
 
     const second = await reconcileExecBoardFunctions(service)
 
-    expect(second).toMatchObject({ created: 0, updated: 0, unchanged: 5, errors: 0 })
-    expect(rows.size).toBe(5)
+    expect(second).toMatchObject({ created: 0, updated: 0, unchanged: 6, errors: 0 })
+    expect(rows.size).toBe(6)
     for (const [id, row] of snapshot) expect(rows.get(id)).toEqual(row)
   })
 
@@ -133,7 +134,7 @@ describe(`reconcileExecBoardFunctions`, () => {
 
     const summary = await reconcileExecBoardFunctions(service)
 
-    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 4, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 5, errors: 0 })
     expect(rows.get(def.id).content).toBe(def.content)
   })
 
@@ -144,7 +145,7 @@ describe(`reconcileExecBoardFunctions`, () => {
       update: async () => ({ data: {} }),
     }
     const summary = await reconcileExecBoardFunctions(service)
-    expect(summary.errors).toBe(5)
+    expect(summary.errors).toBe(6)
     expect(summary.created).toBe(0)
     expect(summary.results.every((res) => res.action === `error`)).toBe(true)
   })

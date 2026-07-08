@@ -47,6 +47,11 @@ const AdversarySandboxId = `sb_xg7h1wl`
 // tdsk-actions for effects, contextSources for context.
 const CeoAgentId = `ag_ceo0001`
 const CeoSandboxId = `sb_ceo0001`
+// The CMO seat is the seeded founder-CMO agent + its body sandbox; these ids
+// match the fullorg seed (Ids.agent.cmo / Ids.sandbox.cmoBody) and the
+// exec-board membership record (BoardCmoAgentId).
+const CmoAgentId = `ag_cmo0001`
+const CmoSandboxId = `sb_cmo0001`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
@@ -72,6 +77,15 @@ const BoardPositionsSource: TContextSource = {
   collection: `decision_positions`,
   query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
   as: `Board positions`,
+}
+// The CMO marketing cycle's view of its own drafting surface: the most recent
+// marketing_artifacts records (newest first via the record service's default
+// createdAt-desc order), so a cycle advances existing drafts by their record id
+// instead of duplicating them.
+const MarketingArtifactsSource: TContextSource = {
+  collection: `marketing_artifacts`,
+  query: { limit: 20 },
+  as: `Recent marketing artifacts`,
 }
 
 // ── Dev-loop workflow context sources (Dev-Loop on Primitives ⑤b-3) ──────────
@@ -268,12 +282,15 @@ const make =
 const steward = make(StewardAgentId, StewardSandboxId)
 const adversary = make(AdversaryAgentId, AdversarySandboxId)
 const ceo = make(CeoAgentId, CeoSandboxId)
+const cmo = make(CmoAgentId, CmoSandboxId)
 
 /**
- * The 11 live self-development schedules plus the 3 executive-board schedules
- * (LIVE on the primitives since the ⑤a activation, 2026-07-08). Cadence +
- * bindings are pinned to the production rows; the behavior is entirely in the
- * referenced prompt files.
+ * The 11 live self-development schedules plus the 5 executive-board schedules
+ * (LIVE on the primitives since the ⑤a activation, 2026-07-08; the CMO seat
+ * joins live — its two defs ship enabled and the reconciler creates them on
+ * deploy, after the CMO agent record exists in prod). Cadence + bindings are
+ * pinned to the production rows; the behavior is entirely in the referenced
+ * prompt files.
  */
 export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
@@ -377,11 +394,12 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     maxConsecutiveErrors: 3,
   }),
   // Ã¢ÂÂÃ¢ÂÂ Executive board (AI Executive Layer SP1) Ã¢ÂÂ all disabled until activation Ã¢ÂÂÃ¢ÂÂ
-  // The CEO strategy cycle runs daily (research + metrics -> strategy); the two
-  // board cycles run a few times/day so a decision can open and resolve within a
-  // day while the Active Initiative stays frozen. The CTO board cycle runs on the
-  // steward agent+sandbox (the CTO seat) but is a distinct schedule from the
-  // steward's dev-loop cycles.
+  // The CEO strategy cycle runs daily (research + metrics -> strategy) and the
+  // CMO marketing cycle follows an hour later (research -> GTM/marketing drafts);
+  // the three board cycles run a few times/day so a decision can open, gather
+  // every seat's position, and resolve within a day while the Active Initiative
+  // stays frozen. The CTO board cycle runs on the steward agent+sandbox (the CTO
+  // seat) but is a distinct schedule from the steward's dev-loop cycles.
   // Each board schedule carries the Ã¢ÂÂ¡ effect-surface allowlist of exactly the
   // Functions its role may invoke (seeds/exec-board/functions/*) and the Ã¢ÂÂ¢
   // contextSources that inject the board Collections into its prompt. The CEO
@@ -416,5 +434,39 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     enabled: true,
     contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
     actions: { functions: [`postPosition`, `reportInitiativeComplete`] },
+  }),
+  // The CMO deliberation cycle lands at :45 — after the CTO's :30, before the
+  // next CEO board cycle resolves at :00 — so all three seats position within
+  // one 6-hour deliberation window. The CMO holds `openDecision` (mirroring how
+  // ceo-strategy holds it) so marketing-axis direction changes enter the board
+  // as proposals; only the CEO board cycle holds `resolveBoard`.
+  cmo({
+    key: `cmo-board`,
+    id: `sd_cmobrd1`,
+    cronExpression: `45 */6 * * *`,
+    timeoutMs: 1_800_000,
+    maxConsecutiveErrors: 6,
+    enabled: true,
+    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
+    actions: { functions: [`postPosition`, `openDecision`] },
+  }),
+  // The CMO's daily marketing cycle runs an hour after the CEO strategy cycle
+  // (research → GTM/marketing artifacts as drafts/proposals via
+  // saveMarketingArtifact; decision-worthy direction changes via openDecision).
+  // It reads its own recent artifacts so it advances drafts instead of
+  // duplicating them.
+  cmo({
+    key: `cmo-marketing`,
+    id: `sd_cmomkt1`,
+    cronExpression: `0 5 * * *`,
+    timeoutMs: 3_600_000,
+    maxConsecutiveErrors: 6,
+    enabled: true,
+    contextSources: [
+      BoardStrategySource,
+      MarketingArtifactsSource,
+      BoardOpenDecisionsSource,
+    ],
+    actions: { functions: [`saveMarketingArtifact`, `openDecision`] },
   }),
 ]

@@ -755,6 +755,30 @@ const agents = {
       streaming: true,
     },
   }),
+  // Executive board — the founding CMO. A runtime-brain, autonomous agent
+  // (mirrors the CEO's shape) that owns go-to-market, growth, and marketing.
+  // Its board schedules (cmo-board / cmo-marketing) run live once the reconciler
+  // creates them on deploy. The `soul` is the founder persona injected into its
+  // every cycle.
+  cmo: new Agent({
+    orgId: org.id,
+    id: Ids.agent.cmo,
+    name: `CMO`,
+    description: `Founding CMO — owns go-to-market, growth, and marketing from researched channels and real buyer understanding`,
+    soul: `You are the founding CMO of ThreadedStack. You own go-to-market, growth, and marketing. You are direct, data-driven, and creative — you research the channels and the buyers before you spend a word or a dollar, and you are brutally honest about what is not working. You know that a great product nobody has heard of is a failed product, and your job is to make sure ThreadedStack gets heard by exactly the people whose problem it solves. You draft everything as a proposal for the board — positioning, launch plans, channel plans, campaigns, ad budgets — grounded in sources you actually read, honest channel economics, and a real understanding of the buyer, so ThreadedStack reaches its market and grows into a successful, profitable business.`,
+    active: true,
+    autonomous: true,
+    brain: EAgentBrain.runtime,
+    providerLinks: [
+      { priority: 0, provider: providers.anthropic },
+      { priority: 1, provider: providers.zai },
+      { priority: 2, provider: providers.openrouter },
+    ],
+    secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+    },
+  }),
 }
 
 // --- Endpoints ---
@@ -1399,6 +1423,15 @@ const sandboxes = {
     name: `CEO Body`,
     config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
   }),
+  // Executive board — the CMO agent's body sandbox (its runtime pod). Mirrors
+  // the CEO body's claude-code runtime shape.
+  cmoBody: new Sandbox({
+    id: Ids.sandbox.cmoBody,
+    builtIn: true,
+    orgId: org.id,
+    name: `CMO Body`,
+    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+  }),
 }
 
 // --- Sandbox → Provider links (seeded via sandbox.addProvider in seed runner) ---
@@ -1458,6 +1491,11 @@ const sandboxProviderLinks = [
   { sandboxId: Ids.sandbox.ceoBody, providerId: providers.zai.id, priority: 1 },
   { sandboxId: Ids.sandbox.ceoBody, providerId: providers.openrouter.id, priority: 2 },
   { sandboxId: Ids.sandbox.ceoBody, providerId: providers.ollama.id, priority: 3 },
+  // CMO Body: anthropic (primary), zai, openrouter, ollama cloud (fallbacks) — mirrors CEO Body
+  { sandboxId: Ids.sandbox.cmoBody, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.cmoBody, providerId: providers.zai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.cmoBody, providerId: providers.openrouter.id, priority: 2 },
+  { sandboxId: Ids.sandbox.cmoBody, providerId: providers.ollama.id, priority: 3 },
   // Custom: no providers linked -- bring your own
 ]
 

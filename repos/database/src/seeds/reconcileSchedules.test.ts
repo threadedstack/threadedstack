@@ -34,10 +34,10 @@ const def = (over: Record<string, unknown> = {}) => ({
 })
 
 describe(`AgentScheduleDefs`, () => {
-  it(`defines all 14 operating schedules (11 self-development + 3 executive-board) with unique ids and real prompts`, () => {
-    expect(AgentScheduleDefs).toHaveLength(14)
+  it(`defines all 16 operating schedules (11 self-development + 5 executive-board) with unique ids and real prompts`, () => {
+    expect(AgentScheduleDefs).toHaveLength(16)
     const ids = AgentScheduleDefs.map((d) => d.id)
-    expect(new Set(ids).size).toBe(14)
+    expect(new Set(ids).size).toBe(16)
     for (const d of AgentScheduleDefs) {
       expect(d.prompt.length).toBeGreaterThan(50)
       expect(d.type).toBe(`prompt`)
@@ -47,24 +47,38 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`ships the executive-board schedules ENABLED (⑤a-5 activation, 2026-07-08)`, () => {
-    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+  it(`ships the executive-board schedules ENABLED (⑤a-5 activation; the CMO seat joins live)`, () => {
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
     for (const key of execKeys) {
       expect(byKey[key]).toBeDefined()
       expect(byKey[key].enabled).toBe(true)
     }
-    // The CEO seat runs on the seeded founder agent; the CTO seat reuses the steward.
+    // The CEO + CMO seats run on the seeded founder agents; the CTO seat reuses the steward.
     expect(byKey[`ceo-strategy`].agentId).toBe(`ag_ceo0001`)
     expect(byKey[`ceo-board`].agentId).toBe(`ag_ceo0001`)
     expect(byKey[`cto-board`].agentId).toBe(`ag_lvUbjp_`)
+    expect(byKey[`cmo-board`].agentId).toBe(`ag_cmo0001`)
+    expect(byKey[`cmo-marketing`].agentId).toBe(`ag_cmo0001`)
+    expect(byKey[`cmo-board`].sandboxId).toBe(`sb_cmo0001`)
+    expect(byKey[`cmo-marketing`].sandboxId).toBe(`sb_cmo0001`)
+    // The CMO deliberation lands between the CTO's :30 and the CEO's next :00
+    // resolution; the marketing cycle runs daily an hour after ceo-strategy.
+    expect(byKey[`cmo-board`].cronExpression).toBe(`45 */6 * * *`)
+    expect(byKey[`cmo-marketing`].cronExpression).toBe(`0 5 * * *`)
     // Every self-development schedule stays enabled.
     for (const d of AgentScheduleDefs) {
       if (!execKeys.includes(d.key)) expect(d.enabled).toBe(true)
     }
   })
 
-  it(`wires the 3 board schedules to the board Functions + contextSources (⑤a-4)`, () => {
+  it(`wires the 5 board schedules to the board Functions + contextSources (⑤a-4)`, () => {
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
 
     // Per-role ② effect-surface allowlists — each seat may invoke only its Functions.
@@ -77,10 +91,25 @@ describe(`AgentScheduleDefs`, () => {
     expect(byKey[`cto-board`].actions).toEqual({
       functions: [`postPosition`, `reportInitiativeComplete`],
     })
+    // The CMO deliberates + may open marketing-axis proposals (mirrors how
+    // ceo-strategy holds openDecision); its daily cycle drafts artifacts. Only
+    // the CEO board cycle ever holds resolveBoard.
+    expect(byKey[`cmo-board`].actions).toEqual({
+      functions: [`postPosition`, `openDecision`],
+    })
+    expect(byKey[`cmo-marketing`].actions).toEqual({
+      functions: [`saveMarketingArtifact`, `openDecision`],
+    })
 
     // Every board cycle reads the strategy singleton + open decisions from the
-    // board Collections; the two deliberation cycles additionally read positions.
-    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`]) {
+    // board Collections; the three deliberation cycles additionally read positions.
+    for (const key of [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]) {
       const byAs = Object.fromEntries(
         (byKey[key].contextSources ?? []).map((s) => [s.as, s])
       )
@@ -96,7 +125,7 @@ describe(`AgentScheduleDefs`, () => {
       })
     }
     expect(byKey[`ceo-strategy`].contextSources).toHaveLength(2)
-    for (const key of [`ceo-board`, `cto-board`]) {
+    for (const key of [`ceo-board`, `cto-board`, `cmo-board`]) {
       expect(byKey[key].contextSources).toHaveLength(3)
       const byAs = Object.fromEntries(
         (byKey[key].contextSources ?? []).map((s) => [s.as, s])
@@ -106,11 +135,27 @@ describe(`AgentScheduleDefs`, () => {
         query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
       })
     }
+    // The marketing cycle reads its own recent artifacts (newest first via the
+    // record service's default order) so it advances drafts, never duplicates.
+    expect(byKey[`cmo-marketing`].contextSources).toHaveLength(3)
+    const marketingByAs = Object.fromEntries(
+      (byKey[`cmo-marketing`].contextSources ?? []).map((s) => [s.as, s])
+    )
+    expect(marketingByAs[`Recent marketing artifacts`]).toMatchObject({
+      collection: `marketing_artifacts`,
+      query: { limit: 20 },
+    })
   })
 
   it(`board prompts emit one tdsk-actions block instead of the bespoke fences`, () => {
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
-    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`]) {
+    for (const key of [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]) {
       expect(byKey[key]).toContain(`tdsk-actions`)
       expect(byKey[key]).not.toContain(`tdsk-strategy`)
       expect(byKey[key]).not.toContain(`tdsk-decisions`)
@@ -122,10 +167,57 @@ describe(`AgentScheduleDefs`, () => {
     // The CTO board cycle owns the completion report + its memory write-back.
     expect(byKey[`cto-board`]).toContain(`reportInitiativeComplete`)
     expect(byKey[`cto-board`]).toContain(`tdsk-memories`)
+    // The CMO cycles carry exactly their allowlisted contracts: deliberation
+    // posts positions + may open marketing-axis decisions; the daily cycle
+    // drafts artifacts + may open decisions. Neither ever resolves the board.
+    expect(byKey[`cmo-board`]).toContain(`postPosition`)
+    expect(byKey[`cmo-board`]).toContain(`openDecision`)
+    expect(byKey[`cmo-board`]).not.toContain(`resolveBoard`)
+    expect(byKey[`cmo-marketing`]).toContain(`saveMarketingArtifact`)
+    expect(byKey[`cmo-marketing`]).toContain(`openDecision`)
+    expect(byKey[`cmo-marketing`]).not.toContain(`resolveBoard`)
+    expect(byKey[`cmo-board`]).toContain(`tdsk-memories`)
+    expect(byKey[`cmo-marketing`]).toContain(`tdsk-memories`)
+  })
+
+  it(`carries the pre-launch go-to-market reframe + explicit research mandate in every exec prompt`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
+    for (const key of execKeys) {
+      // Company-stage reframe: zero usage = no go-to-market yet, NOT churn.
+      expect(byKey[key]).toContain(`PRE-LAUNCH`)
+      expect(byKey[key]).toContain(`NOT churn`)
+      // Web research is an explicit faculty of every exec seat.
+      expect(byKey[key]).toContain(`RESEARCH MANDATE`)
+    }
+    // The three deliberation prompts state the three-seat consensus rule.
+    for (const key of [`ceo-board`, `cto-board`, `cmo-board`]) {
+      expect(byKey[key]).toContain(`THREE seats`)
+      expect(byKey[key]).toContain(`CEO/CTO/CMO`)
+    }
+    // The strategy prompt reorients its lanes toward go-to-market.
+    expect(byKey[`ceo-strategy`]).toContain(`go-to-market`)
+    // The marketing cycle discloses draft-only: no external sends exist.
+    expect(byKey[`cmo-marketing`]).toContain(`DRAFT-ONLY`)
+    // Both CMO prompts opt into the executive Business-metrics faculty.
+    expect(byKey[`cmo-board`]).toContain(`<!-- company-strategy -->`)
+    expect(byKey[`cmo-marketing`]).toContain(`<!-- company-strategy -->`)
   })
 
   it(`keeps the 11 live dev-loop schedules free of actions + contextSources, except work-cycle's ⑤b-4a pickup allowlist`, () => {
-    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
     const live = AgentScheduleDefs.filter((d) => !execKeys.includes(d.key))
     expect(live).toHaveLength(11)
     for (const d of live) {
@@ -178,7 +270,7 @@ describe(`AgentScheduleDefs`, () => {
     )
   })
 
-  it(`keeps ALL 14 defs free of the ⑤b-3 dev-loop context sources (cutovers are Phase 4)`, () => {
+  it(`keeps ALL 16 defs free of the ⑤b-3 dev-loop context sources (cutovers are Phase 4)`, () => {
     // The six source constants exist (exported for the Phase 4 cutovers + the
     // backend rendering-parity tests) but are attached to NOTHING: no def may
     // read the dev-loop workflow collections yet — the live loop still runs on
@@ -196,7 +288,7 @@ describe(`AgentScheduleDefs`, () => {
       new Set([`task_proposals`, `verifications`, `escalations`])
     )
 
-    expect(AgentScheduleDefs).toHaveLength(14)
+    expect(AgentScheduleDefs).toHaveLength(16)
     for (const d of AgentScheduleDefs) {
       for (const source of d.contextSources ?? []) {
         expect(devLoopSources).not.toContain(source)
@@ -206,7 +298,13 @@ describe(`AgentScheduleDefs`, () => {
   })
 
   it(`board defs round-trip the reconciler without churn`, () => {
-    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+    const execKeys = [
+      `ceo-strategy`,
+      `ceo-board`,
+      `cto-board`,
+      `cmo-board`,
+      `cmo-marketing`,
+    ]
     for (const d of AgentScheduleDefs.filter((def) => execKeys.includes(def.key))) {
       // Simulate the DB write/read round trip (jsonb serializes the enum op to
       // its string): an unchanged row must not count as an update.

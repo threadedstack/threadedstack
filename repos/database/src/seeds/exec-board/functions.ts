@@ -6,21 +6,23 @@ import { PostPositionFunctionDef } from '@TDB/seeds/exec-board/functions/postPos
 import { ResolveBoardFunctionDef } from '@TDB/seeds/exec-board/functions/resolveBoard'
 import { UpsertStrategyFunctionDef } from '@TDB/seeds/exec-board/functions/upsertStrategy'
 import { ReportInitiativeCompleteFunctionDef } from '@TDB/seeds/exec-board/functions/reportInitiativeComplete'
+import { SaveMarketingArtifactFunctionDef } from '@TDB/seeds/exec-board/functions/saveMarketingArtifact'
 
 /**
  * Board effect Function seeding — Exec-Board on Primitives (⑤a-3).
  *
- * The 5 board Functions (openDecision / postPosition / upsertStrategy /
- * reportInitiativeComplete / resolveBoard) live as git-versioned source strings
- * in `seeds/exec-board/functions/*` and reconcile into the exec project's
- * `functions` table here, the same declarative pattern as `reconcileSchedules`:
- * missing → create, drifted (name/description/content/language/projectId) →
- * update, else unchanged (no churn). Pure and DB-agnostic (injected service
- * slice), so it is unit-testable without a live connection; the deploy runner
- * in `scripts/reconcileExecBoard.ts` wires it to the real function service.
+ * The 6 board Functions (openDecision / postPosition / upsertStrategy /
+ * reportInitiativeComplete / saveMarketingArtifact / resolveBoard) live as
+ * git-versioned source strings in `seeds/exec-board/functions/*` and reconcile
+ * into the exec project's `functions` table here, the same declarative pattern
+ * as `reconcileSchedules`: missing → create, drifted (name/description/content/
+ * language/projectId) → update, else unchanged (no churn). Pure and DB-agnostic
+ * (injected service slice), so it is unit-testable without a live connection;
+ * the deploy runner in `scripts/reconcileExecBoard.ts` wires it to the real
+ * function service.
  *
- * Additive and inert: nothing invokes these until the board schedules carry
- * their `actions` allowlists (⑤a-4) and are enabled (⑤a-5).
+ * Invocation is gated per schedule by the ② `actions` allowlists on the board
+ * schedule defs (seeds/agentSchedules.ts).
  */
 
 /** A board Function definition: stable id + the seedable function record fields. */
@@ -32,12 +34,13 @@ export type TExecBoardFunctionDef = {
   content: string
 }
 
-/** The five board effect Functions, in invocation-surface order. */
+/** The six board effect Functions, in invocation-surface order. */
 export const ExecBoardFunctionDefs: TExecBoardFunctionDef[] = [
   OpenDecisionFunctionDef,
   PostPositionFunctionDef,
   UpsertStrategyFunctionDef,
   ReportInitiativeCompleteFunctionDef,
+  SaveMarketingArtifactFunctionDef,
   ResolveBoardFunctionDef,
 ]
 
@@ -86,7 +89,7 @@ export const functionNeedsUpdate = (
   existing.projectId !== projectId
 
 /**
- * Idempotently seed the five board Function records into the exec project:
+ * Idempotently seed the six board Function records into the exec project:
  * missing row → create, drifted declarative field → update (git is the source
  * of truth for the bodies), else unchanged. Never throws — every outcome is
  * captured in the summary.
