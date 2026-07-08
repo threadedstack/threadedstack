@@ -274,6 +274,54 @@ describe(`onMonitorConnect`, () => {
     })
   })
 
+  describe(`project scoping`, () => {
+    it(`restricts a non-admin to sandboxes in their projects, including project-less sandboxes`, async () => {
+      const ws = buildMockWs()
+      const app = buildMockApp({
+        role: {
+          getOrgRole: vi.fn().mockResolvedValue({ data: { type: ERoleType.member } }),
+          getUserProjects: vi.fn().mockResolvedValue({ data: [`proj-1`] }),
+        },
+        sandboxDb: {
+          listByOrg: vi.fn().mockResolvedValue({
+            data: [
+              { id: `sb-in-project`, projects: [{ id: `proj-1` }] },
+              { id: `sb-other-project`, projects: [{ id: `proj-2` }] },
+              { id: `sb-no-project`, projects: [] },
+            ],
+          }),
+        },
+      })
+      mockVerifyShellToken.mockReturnValue({ orgId: ORG_ID, userId: USER_ID })
+
+      await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor?token=valid`), app)
+
+      const accessibleIds = (
+        app.locals.sandbox!.addOrgMonitor as ReturnType<typeof vi.fn>
+      ).mock.calls[0][2] as Set<string>
+      expect(accessibleIds.has(`sb-in-project`)).toBe(true)
+      expect(accessibleIds.has(`sb-no-project`)).toBe(true)
+      expect(accessibleIds.has(`sb-other-project`)).toBe(false)
+    })
+
+    it(`closes with 4005 when the user projects lookup fails`, async () => {
+      const ws = buildMockWs()
+      const app = buildMockApp({
+        role: {
+          getOrgRole: vi.fn().mockResolvedValue({ data: { type: ERoleType.member } }),
+          getUserProjects: vi
+            .fn()
+            .mockResolvedValue({ error: new Error(`db unavailable`) }),
+        },
+      })
+      mockVerifyShellToken.mockReturnValue({ orgId: ORG_ID, userId: USER_ID })
+
+      await onMonitorConnect(ws, buildMockReq(`/_/sandboxes/monitor?token=valid`), app)
+
+      expect(ws.close).toHaveBeenCalledWith(4005, `Failed to verify project access`)
+    })
+  })
+
   describe(`cleanup`, () => {
     it(`removes org monitor on close`, async () => {
       const ws = buildMockWs()
