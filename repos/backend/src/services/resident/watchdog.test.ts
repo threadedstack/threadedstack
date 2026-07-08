@@ -15,6 +15,24 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
 
+// The watchdog resolves the ai-provider failover chain before startPod, exactly
+// like the executor/resolveAgentConfig. Mock it so the primary provider's env
+// (funded auth) is the pod default; individual tests re-point it to assert the
+// injected providerChain and the degrade-on-throw path.
+const mockResolveSandboxProviderChain = vi.fn().mockResolvedValue({
+  sandboxConfig: {},
+  chain: {
+    primaryBrand: `anthropic`,
+    primaryEnv: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_primary` },
+    placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+    fallbacks: [],
+  },
+})
+vi.mock(`@TBE/utils/sandbox/resolveSandboxChain`, () => ({
+  resolveSandboxProviderChain: (...args: any[]) =>
+    mockResolveSandboxProviderChain(...args),
+}))
+
 const OrgId = `og_org00001`
 const AgentId = `ag_agent001`
 const ProjectId = `pj_proj0001`
@@ -150,6 +168,17 @@ const staleStatus = (nowMs: number) => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Restore the default (funded primary provider) chain after clearAllMocks
+  // wipes per-test overrides.
+  mockResolveSandboxProviderChain.mockResolvedValue({
+    sandboxConfig: {},
+    chain: {
+      primaryBrand: `anthropic`,
+      primaryEnv: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_primary` },
+      placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+      fallbacks: [],
+    },
+  })
 })
 
 describe(`resident watchdog — reconcile matrix`, () => {
@@ -198,6 +227,26 @@ describe(`resident watchdog — reconcile matrix`, () => {
     // PLUS the resident_configs record injected as JSON — network-free boot
     expect(JSON.parse(call.extraEnv[ResidentEnvVars.config])).toEqual(configRecord.data)
     expect(Object.keys(call.extraEnv)).toHaveLength(6)
+    // Provider parity: the pre-resolved failover chain rides in the SEPARATE
+    // providerChain param (NOT extraEnv), so the pod's `claude -p` authenticates
+    // against the FUNDED primary provider. Chain env is disjoint from the
+    // resident identity vars, so neither clobbers the other in startPod.
+    expect(mockResolveSandboxProviderChain).toHaveBeenCalledWith(
+      ctx.db,
+      expect.objectContaining({
+        orgId: OrgId,
+        sandboxId: SandboxId,
+        projectId: ProjectId,
+      })
+    )
+    expect(call.providerChain).toEqual({
+      primaryEnv: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_primary` },
+      placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+    })
+    // No key collision between provider env and resident identity vars
+    expect(Object.keys(call.providerChain.primaryEnv)).not.toContain(
+      ResidentEnvVars.agentId
+    )
   })
 
   it(`stale: pod exists but heartbeat is old ⇒ stop pod, rotate token, restart`, async () => {
@@ -368,6 +417,28 @@ describe(`resident watchdog — config/resolution guards`, () => {
     }
   })
 
+  it(`degrades (never starts) when provider chain resolution throws (misconfigured providers)`, async () => {
+    const ctx = build({ pods: [] })
+    mockResolveSandboxProviderChain.mockRejectedValueOnce(
+      new Error(`Provider auth configuration error: unscoped secret placeholder`)
+    )
+    const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+    const summary = await watchdog.tick()
+
+    expect(summary.results[0].action).toBe(`degraded`)
+    expect(summary.results[0].reason).toContain(`provider auth misconfigured`)
+    expect(summary.results[0].reason).toContain(`unscoped secret placeholder`)
+    // A throw degrades — it does NOT crash the tick or start an unauthed pod
+    expect(ctx.startPod).not.toHaveBeenCalled()
+    expect(summary.checked).toBe(1)
+    // Marked degraded on the resident_status record, like the unreachable path
+    expect(ctx.recordUpserts).toContainEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({ agentId: AgentId, degraded: true }),
+      })
+    )
+  })
+
   it(`is idle without a sandbox service (K8s unavailable)`, async () => {
     const ctx = build({ noSandboxService: true })
     const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
@@ -399,6 +470,12 @@ describe(`resident watchdog — release rolling-restart`, () => {
     expect(Object.keys(call.extraEnv).sort()).toEqual(
       Object.values(ResidentEnvVars).sort()
     )
+    // Rolling restarts get provider parity too — the funded chain rides in the
+    // separate providerChain param, disjoint from the resident identity vars.
+    expect(call.providerChain).toEqual({
+      primaryEnv: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_primary` },
+      placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+    })
 
     // Rolling restarts never count toward the crash-loop window: repeat
     // sweeps keep restarting instead of tripping degraded.
