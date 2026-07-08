@@ -117,7 +117,7 @@ describe(`ResidentCollectionDefs`, () => {
 })
 
 describe(`reconcileResident`, () => {
-  it(`creates the four Collections when missing — and NO seed records`, async () => {
+  it(`creates the four Collections when missing — records reconcile separately (records.ts)`, async () => {
     const { service, rows } = makeFakeService()
 
     const summary = await reconcileResident(service, `pj_ops00001`)

@@ -49,8 +49,9 @@ const CeoAgentId = `ag_ceo0001`
 const CeoSandboxId = `sb_ceo0001`
 // The CMO seat is the seeded founder-CMO agent + its body sandbox; these ids
 // match the fullorg seed (Ids.agent.cmo / Ids.sandbox.cmoBody) and the
-// exec-board membership record (BoardCmoAgentId).
-const CmoAgentId = `ag_cmo0001`
+// exec-board membership record (BoardCmoAgentId). Exported: the CMO's
+// resident config seed (seeds/resident/records.ts) keys its record by this id.
+export const CmoAgentId = `ag_cmo0001`
 const CmoSandboxId = `sb_cmo0001`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
@@ -60,20 +61,22 @@ const CmoSandboxId = `sb_cmo0001`
 // two deliberation cycles additionally read the posted per-round positions.
 // Positions cannot be filtered per-proposal in a static query, so the source
 // injects the most recent rounds (orderBy round desc, limit 50) and the prompts
-// match them to proposals by `proposalId`.
-const BoardStrategySource: TContextSource = {
+// match them to proposals by `proposalId`. Exported: the CMO's resident config
+// seed (seeds/resident/records.ts) reuses these exact source shapes as the
+// resident session's contextSources.
+export const BoardStrategySource: TContextSource = {
   collection: `company_strategy`,
   query: {},
   as: `Company Strategy`,
 }
-const BoardOpenDecisionsSource: TContextSource = {
+export const BoardOpenDecisionsSource: TContextSource = {
   collection: `decision_proposals`,
   query: {
     where: [{ field: `status`, op: EQueryOp.in, value: [`open`, `deliberating`] }],
   },
   as: `Open board decisions`,
 }
-const BoardPositionsSource: TContextSource = {
+export const BoardPositionsSource: TContextSource = {
   collection: `decision_positions`,
   query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
   as: `Board positions`,
@@ -82,7 +85,7 @@ const BoardPositionsSource: TContextSource = {
 // marketing_artifacts records (newest first via the record service's default
 // createdAt-desc order), so a cycle advances existing drafts by their record id
 // instead of duplicating them.
-const MarketingArtifactsSource: TContextSource = {
+export const MarketingArtifactsSource: TContextSource = {
   collection: `marketing_artifacts`,
   query: { limit: 20 },
   as: `Recent marketing artifacts`,
@@ -91,7 +94,7 @@ const MarketingArtifactsSource: TContextSource = {
 // the board maintains plans records (kind company|gtm|initiative) via
 // upsertPlan/updateMilestone, and every exec prompt reads the active ones so
 // research stays targeted at open milestones and positions cite plan progress.
-const BoardPlansSource: TContextSource = {
+export const BoardPlansSource: TContextSource = {
   collection: `plans`,
   query: {
     where: [{ field: `status`, op: EQueryOp.eq, value: `active` }],
@@ -108,9 +111,8 @@ const BoardPlansSource: TContextSource = {
 // below stays byte-identical. Where a legacy builder merged two reads, two
 // sources express it. A query that omits `orderBy` renders newest-first (the
 // record service defaults to createdAt desc), matching the legacy services'
-// newest-first reads. Exported (unlike the board trio) so the backend
-// rendering-parity tests and the Phase 4 cutover defs reference one canonical
-// definition.
+// newest-first reads. Exported so the backend rendering-parity tests and the
+// Phase 4 cutover defs reference one canonical definition.
 
 /**
  * Replaces `buildTaskBacklogContext` (executor.ts:646 — the WORK cycle's
@@ -254,8 +256,11 @@ const promptsDir = join(dirname(fileURLToPath(import.meta.url)), `agent-schedule
  * Load a prompt `.md` and strip the single trailing newline the file carries,
  * so the stored value matches the intended prompt and the reconciler's
  * change-detection does not churn on a cosmetic newline every deploy.
+ * Exported: the CMO's resident config seed (seeds/resident/records.ts) loads
+ * its agenda/watch/session prompts through the same mechanism, from the same
+ * directory.
  */
-const loadPrompt = (key: string): string =>
+export const loadPrompt = (key: string): string =>
   readFileSync(join(promptsDir, `${key}.md`), `utf8`).replace(/\n$/, ``)
 
 type TDefCore = {
@@ -298,9 +303,10 @@ const cmo = make(CmoAgentId, CmoSandboxId)
 
 /**
  * The 11 live self-development schedules plus the 5 executive-board schedules
- * (LIVE on the primitives since the ⑤a activation, 2026-07-08; the CMO seat
- * joins live — its two defs ship enabled and the reconciler creates them on
- * deploy, after the CMO agent record exists in prod). Cadence + bindings are
+ * (LIVE on the primitives since the ⑤a activation, 2026-07-08). The CMO seat
+ * runs as a RESIDENT (Resident Agents R4 — seeds/resident/records.ts), so its
+ * two defs ship DISABLED: the resident's agenda carries the marketing cycle
+ * and its deliberation watch replaces the board cron. Cadence + bindings are
  * pinned to the production rows; the behavior is entirely in the referenced
  * prompt files.
  */
@@ -467,18 +473,21 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
       functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
     },
   }),
-  // The CMO deliberation cycle lands at :45 — after the CTO's :30, before the
-  // next CEO board cycle resolves at :00 — so all three seats position within
-  // one 6-hour deliberation window. The CMO holds `openDecision` (mirroring how
-  // ceo-strategy holds it) so marketing-axis direction changes enter the board
-  // as proposals; only the CEO board cycle holds `resolveBoard`.
+  // DISABLED: the CMO runs as a RESIDENT (Resident Agents R4). Its
+  // deliberation moved to the resident's `deliberation` watch on
+  // decision_proposals (seeds/resident/records.ts) — positions post within
+  // minutes of a decision appearing instead of waiting for the :45 cron. The
+  // def is kept (disabled) so the reconciler holds the prod row off and the
+  // prompt file stays the single source the resident watch reuses. The CMO
+  // still holds `openDecision` on its resident allowlist; only the CEO board
+  // cycle holds `resolveBoard`.
   cmo({
     key: `cmo-board`,
     id: `sd_cmobrd1`,
     cronExpression: `45 */6 * * *`,
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
-    enabled: true,
+    enabled: false,
     contextSources: [
       BoardStrategySource,
       BoardOpenDecisionsSource,
@@ -487,18 +496,18 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     ],
     actions: { functions: [`postPosition`, `openDecision`] },
   }),
-  // The CMO's daily marketing cycle runs an hour after the CEO strategy cycle
-  // (research → GTM/marketing artifacts as drafts/proposals via
-  // saveMarketingArtifact; decision-worthy direction changes via openDecision).
-  // It reads its own recent artifacts so it advances drafts instead of
-  // duplicating them.
+  // DISABLED: the CMO runs as a RESIDENT (Resident Agents R4). The daily
+  // marketing cycle moved to the resident's `marketing` agenda item (same
+  // `0 5 * * *` cadence, same prompt file — seeds/resident/records.ts). The
+  // def is kept (disabled) so the reconciler holds the prod row off and the
+  // prompt file stays the single source the resident agenda reuses.
   cmo({
     key: `cmo-marketing`,
     id: `sd_cmomkt1`,
     cronExpression: `0 5 * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
-    enabled: true,
+    enabled: false,
     contextSources: [
       BoardStrategySource,
       MarketingArtifactsSource,

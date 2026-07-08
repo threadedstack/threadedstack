@@ -20,8 +20,9 @@ import { UpdateResidentConfigFunctionDef } from '@TDB/seeds/resident/functions/u
  * connection; the deploy runner in `scripts/reconcileResident.ts` wires it to
  * the real function service.
  *
- * Additive and inert: nothing invokes these until a resident_configs record
- * carries them on its `actions` allowlist (R4 activation).
+ * A Function is invocable only by a resident whose resident_configs record
+ * carries it on its `actions` allowlist — the CMO pilot's record
+ * (seeds/resident/records.ts) carries all five.
  */
 
 /** A resident Function definition: stable id + the seedable function record fields. */

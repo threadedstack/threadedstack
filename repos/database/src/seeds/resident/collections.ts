@@ -14,14 +14,14 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
  * `resident_transcripts` (per-turn observability — the appendTranscript
  * Function is records-only, so turns land here rather than on a thread).
  *
- * Additive and inert: there are NO seed records — no resident_configs row
- * exists until an agent is activated (R4), so the watchdog and the dispatch
- * allowlist resolver both find nothing. `reconcileResident` below is a pure,
- * DB-agnostic upsert (injected service), the same pattern as
- * `reconcileDevLoop`, so it is unit-testable without a live connection. The
- * deploy runner in `scripts/reconcileResident.ts` wires it to the real
- * collection service. Idempotent: an existing collection (keyed by
- * projectId+name) is left untouched, so a re-run creates nothing new.
+ * This module owns the COLLECTIONS only; the activated residents'
+ * resident_configs seed records live in `seeds/resident/records.ts` (R4).
+ * `reconcileResident` below is a pure, DB-agnostic upsert (injected service),
+ * the same pattern as `reconcileDevLoop`, so it is unit-testable without a
+ * live connection. The deploy runner in `scripts/reconcileResident.ts` wires
+ * it to the real collection service. Idempotent: an existing collection
+ * (keyed by projectId+name) is left untouched, so a re-run creates nothing
+ * new.
  */
 
 /** A resident Collection definition: a stable id, name, description, and field schema. */
@@ -129,9 +129,10 @@ export type TResidentSeedSummary = {
 /**
  * Idempotently seed the four resident Collections into the target project.
  * Collections are created only when absent (keyed by projectId+name), so a
- * re-run makes no changes. There are NO seed records — resident_configs rows
- * are created per agent at activation (R4). Never throws — every outcome is
- * captured in the summary.
+ * re-run makes no changes. Seeds NO records itself — activated residents'
+ * resident_configs records reconcile via `reconcileResidentConfigs`
+ * (seeds/resident/records.ts). Never throws — every outcome is captured in
+ * the summary.
  */
 export const reconcileResident = async (
   services: TResidentSeedServices,

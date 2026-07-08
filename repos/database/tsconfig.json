@@ -41,6 +41,9 @@
       "@tdsk/domain": ["../domain/src"],
       "@tdsk/domain/*": ["../domain/src/*"],
 
+      "@tdsk/resident": ["../resident/src"],
+      "@tdsk/resident/*": ["../resident/src/*"],
+
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
 
