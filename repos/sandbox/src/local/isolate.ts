@@ -201,6 +201,7 @@ export class IsolateRunner {
       fs: this.#fs,
       env: this.#env,
       bash: this.#bash,
+      context: this.#context,
       maxTimerMs: this.#maxTimerMs,
       onLog: (...args: any[]) => {
         this.#output.push(args.map(String).join(` `))
@@ -290,23 +291,61 @@ export class IsolateRunner {
     this.#output = []
 
     // Expose the provided host bridges to the evaluated code as a single async
-    // host callback (`__hostCall(name, argsJson)`), mirroring the fetch shim.
-    // The callback runs host-side; the isolate only receives the callback ref and
-    // marshals JSON strings across it — never a raw handle to the host resource.
+    // surface (`__hostCall(name, argsJson) -> Promise<string>`). ivm.Callback
+    // does NOT await an async host fn's returned Promise — it structured-clones
+    // the raw return value, so an async fn yields "#<Promise> could not be
+    // cloned" inside the isolate. The working shape (mirroring the timer shim)
+    // is start/settle: a SYNC start callback kicks off the host work and the
+    // host settles back into the isolate via evalClosure when it finishes. The
+    // bridge fns run host-side; only JSON strings cross the boundary.
     const bridgeNames = bridges ? Object.keys(bridges) : []
     if (bridgeNames.length) {
       const ivm = await loadIvm()
       await this.#context!.global.set(
-        `__hostCall`,
-        new ivm.Callback(
-          async (name: string, argsJson: string): Promise<string> => {
-            const fn = bridges![name]
-            if (!fn) throw new Error(`Unknown host bridge: ${name}`)
-            return await fn(argsJson)
-          },
-          { async: true }
-        )
+        `__hostCallStart`,
+        new ivm.Callback((id: number, name: string, argsJson: string): void => {
+          const settle = (ok: boolean, payload: string) => {
+            // The isolate may have been torn down (timeout/close) before the
+            // host work settled — dropping the settle is safe: the pending
+            // promise dies with the context.
+            this.#context
+              ?.evalClosure(`__hostCallSettle($0, $1, $2)`, [id, ok, payload], {
+                timeout: 1000,
+                arguments: { copy: true },
+              })
+              .catch(() => {})
+          }
+          const fn = bridges![name]
+          if (!fn) {
+            settle(false, `Unknown host bridge: ${name}`)
+            return
+          }
+          fn(argsJson).then(
+            (result) => settle(true, result),
+            (err) => settle(false, err instanceof Error ? err.message : String(err))
+          )
+        })
       )
+      // Isolate-side prelude: __hostCall registers a pending promise and asks
+      // the host to start; __hostCallSettle resolves/rejects it when the host
+      // calls back in. Re-installed per evaluation (pooled isolates), so the
+      // pending map never leaks across runs.
+      await this.#context!.eval(`
+        globalThis.__hostCallPending = new Map();
+        globalThis.__hostCallSeq = 0;
+        globalThis.__hostCall = (name, argsJson) =>
+          new Promise((resolve, reject) => {
+            const id = ++globalThis.__hostCallSeq;
+            globalThis.__hostCallPending.set(id, { resolve, reject });
+            __hostCallStart(id, name, argsJson);
+          });
+        globalThis.__hostCallSettle = (id, ok, payload) => {
+          const pending = globalThis.__hostCallPending.get(id);
+          if (!pending) return;
+          globalThis.__hostCallPending.delete(id);
+          ok ? pending.resolve(payload) : pending.reject(new Error(payload));
+        };
+      `)
     }
 
     const userModule = await this.#isolate!.compileModule(code, {
@@ -325,7 +364,10 @@ export class IsolateRunner {
     // this run on a pooled isolate (top-level await guarantees all bridge calls
     // have already settled by the time evaluation resolves).
     if (bridgeNames.length) {
-      await this.#context!.global.delete(`__hostCall`).catch(() => {})
+      await this.#context!.global.delete(`__hostCallStart`).catch(() => {})
+      await this.#context!.eval(
+        `delete globalThis.__hostCall; delete globalThis.__hostCallSettle; delete globalThis.__hostCallPending; delete globalThis.__hostCallSeq;`
+      ).catch(() => {})
     }
 
     // Try to retrieve the default export via structured clone
