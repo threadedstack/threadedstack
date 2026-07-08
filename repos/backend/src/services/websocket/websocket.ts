@@ -113,6 +113,7 @@ export class Websocket {
       customFunctions: session.customFunctions,
       memoryProvider: session.memoryProvider,
       recordsProvider: session.recordsProvider,
+      invokeProvider: session.invokeProvider,
       skillProvider: session.skillProvider,
       taskProvider: session.taskProvider,
       escalationProvider: session.escalationProvider,

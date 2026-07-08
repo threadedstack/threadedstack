@@ -5,6 +5,7 @@ import type {
   IEscalationProvider,
   IMemoryProvider,
   IRecordsProvider,
+  IInvokeProvider,
   ISkillProvider,
 } from '@tdsk/agent'
 import type { TMemoryKind, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
@@ -14,6 +15,7 @@ import { logger } from '@TBE/utils/logger'
 import { SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { Exception, EMemoryKind, ESandboxType, isFeatureEnabled } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
+import { invokeAction } from '@TBE/utils/agent/invokeAction'
 import { createDelegateProvider } from '@TBE/utils/agent/delegation'
 import { createOpsProvider } from '@TBE/utils/agent/opsProvider'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
@@ -146,6 +148,22 @@ export const createRecordsProvider = (
 })
 
 /**
+ * Build the backend IInvokeProvider bridging the agent `invoke` tool to the
+ * effect core (generalization ②). Scoped to one project + an allowlist; every
+ * call routes through `invokeAction`, so the live tool and the deferred
+ * `tdsk-actions` block share the same dispatch, resolution, and gating.
+ */
+export const createInvokeProvider = (
+  app: TApp,
+  db: TDatabase,
+  projectId: string,
+  allowlist: string[]
+): IInvokeProvider => ({
+  invoke: (functionName, args) =>
+    invokeAction(app, db, projectId, { function: functionName, args }, allowlist),
+})
+
+/**
  * Build the backend ISkillProvider bridging the api-brain skill tools to the
  * skill + skillProposal DB services + the security scan. Mirrors
  * createMemoryProvider: a pure closure over db scoped to one org/agent.
@@ -228,7 +246,7 @@ export const resolveAgentConfig = async (
   app: TApp,
   opts?: TResolveAgentOpts
 ): Promise<TResolvedAgentConfig> => {
-  const { userId, projectId, providerId, overrides, onPodStart } = opts || {}
+  const { userId, projectId, providerId, overrides, onPodStart, actions } = opts || {}
 
   // 1. Load agent with provider and secrets (unsanitized to access secret values)
   const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
@@ -437,6 +455,14 @@ export const resolveAgentConfig = async (
     recordsProvider:
       isFeatureEnabled(`collections`) && projectId
         ? createRecordsProvider(db, projectId)
+        : undefined,
+    // Live effect tool (generalization ②). Gated purely on config: only when the
+    // agent is project-scoped AND a non-empty allowlist was supplied via
+    // opts.actions. Empty/absent ⇒ undefined ⇒ no `invoke` tool exposed (mirrors
+    // contextSources being config-gated, not behind a feature flag).
+    invokeProvider:
+      projectId && actions?.length
+        ? createInvokeProvider(app, db, projectId, actions)
         : undefined,
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)

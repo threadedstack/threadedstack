@@ -3,7 +3,7 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { agents } from '@TDB/schemas/agents'
 import { threads } from '@TDB/schemas/threads'
-import type { TContextSource } from '@tdsk/domain'
+import type { TActionsConfig, TContextSource } from '@tdsk/domain'
 
 import { base } from '@TDB/utils/schema/base'
 import { ScheduleIdPrefix } from '@tdsk/domain'
@@ -49,6 +49,10 @@ export const schedules = pgTable(
     // the results under a `## <as>` heading. Nullable + additive — a schedule
     // without contextSources runs no extra query and is byte-unchanged.
     contextSources: jsonb(`context_sources`).$type<TContextSource[]>(),
+    // Opt-in effect-surface allowlist (generalization ②). The executor dispatches
+    // a ```tdsk-actions``` block only when this lists ≥1 Function name. Nullable +
+    // additive — a schedule without `actions` is byte-unchanged and inert.
+    actions: jsonb(`actions`).$type<TActionsConfig>(),
     sandboxId: varchar(`sandbox_id`, { length: 10 })
       .references(() => sandboxes.id, { onDelete: `cascade` })
       .notNull(),

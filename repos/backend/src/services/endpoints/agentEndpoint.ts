@@ -114,6 +114,7 @@ export class AgentEndpoint extends BaseEndpoint {
       sandboxConfig: config.sandboxConfig,
       memoryProvider: config.memoryProvider,
       recordsProvider: config.recordsProvider,
+      invokeProvider: config.invokeProvider,
       skillProvider: config.skillProvider,
       taskProvider: config.taskProvider,
       escalationProvider: config.escalationProvider,

@@ -58,6 +58,7 @@ import {
 import type { TStrategyUpdate } from '@tdsk/domain'
 import { isCeoSchedule, isCtoSchedule, isBoardMemberSchedule } from '@TBE/constants/board'
 import { resolveBoard } from '@TBE/utils/agent/resolveBoard'
+import { dispatchActions } from '@TBE/utils/agent/dispatchActions'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import { buildCompanyStrategyContext } from '@TBE/utils/agent/companyStrategy'
 import { buildBusinessMetricsContext } from '@TBE/utils/agent/businessMetrics'
@@ -1957,6 +1958,12 @@ async function runCliAgentSchedule(
     // trigger that unlocks re-direction of the frozen Active Initiative.
     await persistInitiativeComplete(app, schedule, stdoutText)
     if (isCeoSchedule(schedule)) await resolveBoard(app, schedule)
+
+    // Generic effect surface (generalization ②): dispatch a ```tdsk-actions```
+    // block to consumer Functions. No-op unless this schedule opts in via
+    // `actions`. Runs AFTER the 13 hard-coded persist* handlers, which are
+    // unchanged — ② lands alongside them until ⑤ migrates the loop.
+    await dispatchActions(app, schedule, agent.id, stdoutText)
   }
 
   return result

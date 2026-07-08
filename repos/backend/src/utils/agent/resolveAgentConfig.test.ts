@@ -663,6 +663,45 @@ describe(`resolveAgentConfig`, () => {
       resolveBodyParams: vi.fn().mockResolvedValue(undefined),
     }))
   })
+
+  it(`builds invokeProvider when opts.actions is non-empty and project-scoped`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      projectId: `proj-1`,
+      actions: [`recordProposal`],
+    })
+
+    expect(result.invokeProvider).toBeDefined()
+    expect(typeof result.invokeProvider?.invoke).toBe(`function`)
+  })
+
+  it(`does not build invokeProvider when opts.actions is empty`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      projectId: `proj-1`,
+      actions: [],
+    })
+
+    expect(result.invokeProvider).toBeUndefined()
+  })
+
+  it(`does not build invokeProvider when opts.actions is absent`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      projectId: `proj-1`,
+    })
+
+    expect(result.invokeProvider).toBeUndefined()
+  })
+
+  it(`does not build invokeProvider without a project scope, even with actions`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      actions: [`recordProposal`],
+    })
+
+    expect(result.invokeProvider).toBeUndefined()
+  })
 })
 
 describe(`createRecordsProvider`, () => {
@@ -749,5 +788,59 @@ describe(`createRecordsProvider`, () => {
 
     db.services.record.delete.mockResolvedValue({})
     expect(await provider.delete(`tasks`, `gone`)).toEqual({ deleted: false })
+  })
+})
+
+describe(`createInvokeProvider`, () => {
+  let createInvokeProvider: typeof import('./resolveAgentConfig').createInvokeProvider
+
+  const buildInvokeDb = (func?: any) => ({
+    services: {
+      function: {
+        list: vi.fn().mockResolvedValue({
+          data: func ? [func] : [],
+        }),
+      },
+    },
+  })
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    const mod = await import(`./resolveAgentConfig`)
+    createInvokeProvider = mod.createInvokeProvider
+  })
+
+  it(`invoke routes an allowlisted function through invokeAction to the executor`, async () => {
+    const { FunctionExecutor } = await import(`@TBE/services/functions/functionExecutor`)
+    const func = { id: `fn-1`, name: `recordProposal`, projectId: `proj-1` }
+    const db = buildInvokeDb(func)
+    const provider = createInvokeProvider(buildMockApp(), db as any, `proj-1`, [
+      `recordProposal`,
+    ])
+
+    const result = await provider.invoke(`recordProposal`, { title: `Ship it` })
+
+    expect(db.services.function.list).toHaveBeenCalledWith({
+      where: { projectId: `proj-1`, name: `recordProposal` },
+    })
+    expect(FunctionExecutor.execute).toHaveBeenCalledWith(func, {
+      db,
+      context: { args: { title: `Ship it` } },
+    })
+    expect(result).toEqual({ ok: true, data: `result` })
+  })
+
+  it(`invoke rejects a function that is not on the allowlist without executing`, async () => {
+    const { FunctionExecutor } = await import(`@TBE/services/functions/functionExecutor`)
+    const db = buildInvokeDb({ id: `fn-1`, name: `blocked` })
+    const provider = createInvokeProvider(buildMockApp(), db as any, `proj-1`, [
+      `allowed`,
+    ])
+
+    const result = await provider.invoke(`blocked`, {})
+
+    expect(result.ok).toBe(false)
+    expect(db.services.function.list).not.toHaveBeenCalled()
+    expect(FunctionExecutor.execute).not.toHaveBeenCalled()
   })
 })

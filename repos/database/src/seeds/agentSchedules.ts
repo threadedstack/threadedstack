@@ -1,4 +1,4 @@
-import type { TContextSource } from '@tdsk/domain'
+import type { TActionsConfig, TContextSource } from '@tdsk/domain'
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -54,6 +54,12 @@ export type TAgentScheduleDef = {
    * reconciler treats undefined here as equal to a null DB column — no churn.
    */
   contextSources?: TContextSource[]
+  /**
+   * Optional opt-in effect-surface allowlist (generalization ②). Absent on every
+   * live schedule today, so the reconciler treats undefined here as equal to a
+   * null DB column — no churn — and the effect surface stays inert.
+   */
+  actions?: TActionsConfig | null
   /** Loaded from ./agent-schedules/<key>.md at module load. */
   prompt: string
 }

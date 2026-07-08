@@ -94,6 +94,7 @@ export enum EAgentTool {
   collectionGet = `collectionGet`,
   collectionUpsert = `collectionUpsert`,
   collectionDelete = `collectionDelete`,
+  invoke = `invoke`,
 }
 
 export type TAgentToolType = `${EAgentTool}`
