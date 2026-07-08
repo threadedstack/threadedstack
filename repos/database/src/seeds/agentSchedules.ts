@@ -289,6 +289,15 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `30 * * * *`,
     timeoutMs: 14_400_000,
     maxConsecutiveErrors: 6,
+    // ⑤b-4a DUAL-EMIT cutover: the work cycle may invoke `pickupTask`
+    // (seeds/dev-loop/functions/pickupTask.ts) so its pickups ALSO land in the
+    // task_proposals Collection while the legacy tdsk-task-picked fence keeps
+    // the table authoritative. NO contextSources here: the legacy backlog
+    // builder keeps flowing because its gate reads the PROMPT text —
+    // executor.ts:1401 `promptOptsIn(schedule, TaskPickupsBlockFence)` checks
+    // `schedule.prompt.includes('tdsk-task-picked')`, and the dual-emit prompt
+    // keeps that fence verbatim.
+    actions: { functions: [`pickupTask`] },
   }),
   steward({
     key: `coordinator`,

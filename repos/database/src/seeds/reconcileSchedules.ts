@@ -25,9 +25,11 @@ export type TReconcileAction = `created` | `updated` | `unchanged` | `error`
  * order across a write/read round trip, so a plain JSON.stringify diff would
  * churn a schedule whose contextSources round-trips. Sorting keys makes the
  * comparison stable. `null`/`undefined` both collapse to `"null"`, so a schedule
- * without contextSources never counts as changed.
+ * without contextSources never counts as changed. Exported for the dev-loop
+ * table->collection sync (seeds/dev-loop/syncTaskProposals.ts), which needs the
+ * same jsonb-safe drift comparison for record documents.
  */
-const stableStringify = (value: unknown): string => {
+export const stableStringify = (value: unknown): string => {
   if (value === null || value === undefined) return `null`
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(`,`)}]`
   if (typeof value === `object`) {
