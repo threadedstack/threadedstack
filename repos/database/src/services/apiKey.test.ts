@@ -3,6 +3,12 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { ApiKey as ApiKeyModel } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock the logger to avoid config/db initialization side-effects — its module
+// load imports db.config, which throws in the env-less deploy test step.
+vi.mock(`@TDB/utils/logger`, () => ({
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}))
+
 const dialect = new PgDialect()
 const render = (chunk: any) => dialect.sqlToQuery(chunk)
 
