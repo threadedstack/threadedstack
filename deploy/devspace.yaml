@@ -449,6 +449,17 @@ deployments:
             app.kubernetes.io/component: tdsk-backend
           egressPorts:
             - port: ${TDSK_BE_EGRESS_PORT}
+        # Resident-mode pods (always-on agents) additionally reach the backend
+        # API port for dispatch/records — egress is additive across policies,
+        # so residents keep the MITM+DNS base allowances above.
+        residentNetworkPolicy:
+          name: resident-egress-policy
+          podSelector:
+            tdsk.app/resident: "true"
+          egressSelector:
+            app.kubernetes.io/component: tdsk-backend
+          egressPorts:
+            - port: ${TDSK_BE_PORT}
         serviceAccountName: tdsk-backend-sa
         customServiceAccount:
           name: tdsk-backend-sa

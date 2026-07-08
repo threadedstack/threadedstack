@@ -143,6 +143,8 @@ const buildMeta = (opts: TBuildPodMeta) => {
   }
 
   if (opts.projectId) labels[PodLabelKeys.projectId] = sanitizeLabel(opts.projectId)
+  // Resident pods carry the label the resident egress NetworkPolicy selects on.
+  if (opts.config.resident) labels[PodLabelKeys.resident] = `true`
 
   return {
     labels,
@@ -271,10 +273,13 @@ const buildSandboxContainer = (
     // for debugging when the runtime crashes: restartPolicy is Never, so a
     // bare crash would otherwise terminate the pod (CrashLoop churn via
     // recreation) and destroy its on-disk session state.
+    // Build-if-missing: the clone carries src only; if dist is absent (or a
+    // crash left it stale), build once before launching. Proven live 2026-07-08:
+    // the first resident boot died on a missing dist masked by the sleep.
     container.args = [
       `/bin/sh`,
       `-lc`,
-      `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+      `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
     ]
   } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command

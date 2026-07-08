@@ -422,7 +422,7 @@ describe(`buildPodManifest`, () => {
       expect(container.args).toEqual([
         `/bin/sh`,
         `-lc`,
-        `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+        `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
       ])
     })
 
@@ -432,6 +432,14 @@ describe(`buildPodManifest`, () => {
         name: `TDSK_RESIDENT_AGENT_ID`,
         value: `ag_agent001`,
       })
+    })
+
+    it(`should label resident pods for the resident egress NetworkPolicy`, () => {
+      const labels = buildPodManifest(residentOpts()).metadata!.labels!
+      expect(labels[`tdsk.app/resident`]).toBe(`true`)
+      // Ordinary sandboxes must NOT carry the label (they stay MITM-locked).
+      const plain = buildPodManifest(buildOpts()).metadata!.labels!
+      expect(plain[`tdsk.app/resident`]).toBeUndefined()
     })
 
     it(`should not duplicate TDSK_RESIDENT_AGENT_ID when extraEnv already carries it`, () => {
@@ -460,7 +468,7 @@ describe(`buildPodManifest`, () => {
       expect(container.args).toEqual([
         `/bin/sh`,
         `-lc`,
-        `cd /workspace && node repos/resident/dist/index.js || sleep 3600`,
+        `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
       ])
     })
 
