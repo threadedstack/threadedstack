@@ -58,12 +58,6 @@ export type TAgentEnvironment = {
   instanceId?: string
   /** K8s-only: sandbox config ID — pod is auto-started via SandboxService (mutually exclusive with instanceId) */
   sandboxId?: string
-  /** Resident dispatch allowlist: names of project-scoped Functions the agent's
-   * resident dispatch surface may invoke. Resolved SERVER-SIDE by
-   * `resolveResidentAllowlist` — never taken from the request. This is the R1
-   * home of the resident config; R3 moves the source to the `resident_configs`
-   * collection behind the same resolver. */
-  residentActions?: string[]
 }
 
 /**

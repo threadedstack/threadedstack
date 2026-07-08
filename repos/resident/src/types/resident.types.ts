@@ -172,6 +172,20 @@ export type TResidentRecord = {
   data: Record<string, unknown>
 }
 
+/** A self-authored Function submission (parsed from a ```tdsk-author-function``` block). */
+export type TAuthorFunctionRequest = {
+  name: string
+  description?: string
+  language: string
+  content: string
+}
+
+/** The authored Function row returned by the author-function endpoint. */
+export type TAuthoredFunction = {
+  id: string
+  name: string
+}
+
 /** The resident API client — the ONLY HTTP boundary in the runtime. */
 export type TResidentApi = {
   queryRecords: (
@@ -183,6 +197,10 @@ export type TResidentApi = {
     record: { id?: string; data: Record<string, unknown> }
   ) => Promise<TApiResult<TResidentRecord>>
   dispatch: (actions: TAgentAction[]) => Promise<TApiResult<TDispatchResult[]>>
+  /** POST a self-authored Function to the R3 author-function endpoint (spec §5.1). */
+  authorFunction: (
+    request: TAuthorFunctionRequest
+  ) => Promise<TApiResult<TAuthoredFunction>>
 }
 
 /** Heartbeat status payload. */
@@ -218,4 +236,8 @@ export type TPumpReport = {
   failed: number
   allowlistRejected: number
   memoriesSkipped: number
+  /** ```tdsk-author-function``` submissions accepted by the platform. */
+  functionsAuthored: number
+  /** ```tdsk-author-function``` submissions rejected (scan/validation/collision). */
+  functionsRejected: number
 }

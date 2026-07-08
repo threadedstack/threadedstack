@@ -2,6 +2,7 @@ import type { Server as HTTP } from 'http'
 import type { Server as HTTPS } from 'https'
 import type { WebSocketServer } from 'ws'
 import type { Scheduler } from '@TBE/services/scheduler'
+import type { TResidentWatchdog } from '@TBE/services/resident/watchdog'
 
 import { logger } from '@TBE/utils/logger'
 import { sigs } from '@TBE/constants/values'
@@ -11,6 +12,7 @@ const SHUTDOWN_TIMEOUT_MS = 5_000
 type TSignalOpts = {
   wss?: WebSocketServer
   scheduler?: Scheduler
+  residentWatchdog?: TResidentWatchdog
 }
 
 export const signals = (server: HTTP | HTTPS, opts?: TSignalOpts) => {
@@ -23,12 +25,19 @@ export const signals = (server: HTTP | HTTPS, opts?: TSignalOpts) => {
 
       logger.info(`Received ${sig}, starting graceful shutdown`)
 
-      // 1. Stop the scheduler
+      // 1. Stop the scheduler + the resident watchdog (sibling reconcilers)
       if (opts?.scheduler) {
         try {
           opts.scheduler.stop()
         } catch (e) {
           logger.error(`Failed to stop scheduler:`, (e as Error).message)
+        }
+      }
+      if (opts?.residentWatchdog) {
+        try {
+          opts.residentWatchdog.stop()
+        } catch (e) {
+          logger.error(`Failed to stop resident watchdog:`, (e as Error).message)
         }
       }
 

@@ -434,6 +434,17 @@ describe(`buildPodManifest`, () => {
       })
     })
 
+    it(`should not duplicate TDSK_RESIDENT_AGENT_ID when extraEnv already carries it`, () => {
+      // The watchdog injects the full resident env contract via extraEnv —
+      // the manifest must not emit a second entry for the same name.
+      const env = buildPodManifest({
+        ...residentOpts(),
+        extraEnv: { TDSK_RESIDENT_AGENT_ID: `ag_agent001` },
+      }).spec!.containers![0].env!
+      const entries = env.filter((e) => e.name === `TDSK_RESIDENT_AGENT_ID`)
+      expect(entries).toEqual([{ name: `TDSK_RESIDENT_AGENT_ID`, value: `ag_agent001` }])
+    })
+
     it(`should take precedence over an explicit custom command`, () => {
       const container = buildPodManifest(
         buildOpts({

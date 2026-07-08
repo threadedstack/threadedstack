@@ -199,8 +199,11 @@ const buildSandboxContainer = (
   // before the workspace-ready marker, so it gates the AI tool on setup.
   if (config.setupScript)
     env.push({ name: `TDSK_SETUP_SCRIPT`, value: config.setupScript })
-  // Resident mode: identify the bound agent to the in-pod resident runtime
-  if (config.resident)
+  // Resident mode: identify the bound agent to the in-pod resident runtime.
+  // The watchdog also supplies TDSK_RESIDENT_AGENT_ID via extraEnv (with the
+  // rest of the pod env contract), so only push when not already present —
+  // never emit a duplicate env entry.
+  if (config.resident && !env.some((entry) => entry.name === `TDSK_RESIDENT_AGENT_ID`))
     env.push({ name: `TDSK_RESIDENT_AGENT_ID`, value: config.resident.agentId })
 
   const ports = buildPorts(config.ports)

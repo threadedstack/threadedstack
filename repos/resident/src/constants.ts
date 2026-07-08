@@ -70,6 +70,16 @@ export const DefaultSubAgentMaxConcurrent = 3
 export const SpawnBlockFence = `tdsk-spawn`
 
 /**
+ * Resident-local fence: the session authors a Function with
+ * ```tdsk-author-function``` — `{ name, description?, language?, content }`
+ * (single object or array), POSTed to the R3 author-function endpoint.
+ */
+export const AuthorFunctionBlockFence = `tdsk-author-function`
+
+/** Language default for authored Functions when the fence omits one. */
+export const DefaultAuthorLanguage = `javascript`
+
+/**
  * The compaction checkpoint turn — this session's /compact, verbatim in spirit:
  * durable memories out, then a summary that seeds the next session.
  */

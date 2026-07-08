@@ -79,7 +79,6 @@ const buildAgent = (overrides: Record<string, any> = {}) =>
     name: `steward`,
     orgId: OrgId,
     projects: [{ id: ProjectId }] as any,
-    environment: { residentActions: [`recordProposal`] },
     ...overrides,
   })
 
@@ -91,7 +90,11 @@ const mockFunc = {
   content: `export default async () => ({})`,
 }
 
-const buildApp = (agent: Agent | null = buildAgent()) =>
+/** The allowlist source: the agent's resident_configs record (R3 resolver). */
+const buildApp = (
+  agent: Agent | null = buildAgent(),
+  actions: string[] | null = [`recordProposal`]
+) =>
   ({
     locals: {
       config: { server: {} },
@@ -102,6 +105,14 @@ const buildApp = (agent: Agent | null = buildAgent()) =>
           },
           function: {
             list: vi.fn().mockResolvedValue({ data: [mockFunc] }),
+          },
+          record: {
+            query: vi.fn().mockResolvedValue({
+              data:
+                actions === null
+                  ? []
+                  : [{ id: `rec_cfg001`, data: { agentId: AgentId, actions } }],
+            }),
           },
           apiKey: {
             getByHash: vi
@@ -273,7 +284,8 @@ describe(`dispatchAgentActions`, () => {
   })
 
   it(`the request cannot supply its own allowlist`, async () => {
-    const app = buildApp(buildAgent({ environment: {} }))
+    // No resident_configs record at all — the resolver fails closed to []
+    const app = buildApp(buildAgent(), null)
 
     const { ctx, run } = dispatch(app, {
       allowlist: [`deleteEverything`],

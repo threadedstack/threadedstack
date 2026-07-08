@@ -20,6 +20,9 @@ export const functions = pgTable(
     defaultArgs: jsonb(`default_args`).default({}),
     dependencies: jsonb(`dependencies`).default({}),
     inputSchema: jsonb(`input_schema`).default([]).$type<TFunctionParam[]>(),
+    // Provenance/annotation metadata — e.g. { authoredBy, version } stamped by
+    // the authorFunction self-extension surface (resident agents R3).
+    meta: jsonb(`meta`).$type<Record<string, any>>(),
     language: varchar(`language`, { length: 50 }).default(EFunLanguage.typescript),
     endpointId: varchar(`endpoint_id`, { length: 10 }).references(() => endpoints.id, {
       onDelete: `cascade`,

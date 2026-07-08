@@ -6,6 +6,8 @@ import type {
   TDispatchResult,
   TResidentConfig,
   TResidentRecord,
+  TAuthoredFunction,
+  TAuthorFunctionRequest,
 } from './types/resident.types'
 
 import { EventEmitter } from 'node:events'
@@ -86,6 +88,7 @@ export type TFakeApi = TResidentApi & {
     record: { id?: string; data: Record<string, unknown> }
   }>
   queries: Array<{ collection: string; query: unknown }>
+  authored: TAuthorFunctionRequest[]
   /** Override per-collection query responses. */
   onQuery: (
     fn: (collection: string, query: unknown) => TApiResult<TResidentRecord[]> | undefined
@@ -95,6 +98,10 @@ export type TFakeApi = TResidentApi & {
     fn: (
       actions: Array<{ function: string; args: Record<string, unknown> }>
     ) => TApiResult<TDispatchResult[]>
+  ) => void
+  /** Override authorFunction behavior (default: accepted). */
+  onAuthor: (
+    fn: (request: TAuthorFunctionRequest) => TApiResult<TAuthoredFunction>
   ) => void
 }
 
@@ -108,16 +115,23 @@ export const makeFakeApi = (): TFakeApi => {
         actions: Array<{ function: string; args: Record<string, unknown> }>
       ) => TApiResult<TDispatchResult[]>)
     | undefined
+  let authorHandler:
+    | ((request: TAuthorFunctionRequest) => TApiResult<TAuthoredFunction>)
+    | undefined
 
   const api: TFakeApi = {
     dispatched: [],
     upserts: [],
     queries: [],
+    authored: [],
     onQuery: (fn) => {
       queryHandler = fn
     },
     onDispatch: (fn) => {
       dispatchHandler = fn
+    },
+    onAuthor: (fn) => {
+      authorHandler = fn
     },
     queryRecords: async (collection, query) => {
       api.queries.push({ collection, query })
@@ -132,6 +146,13 @@ export const makeFakeApi = (): TFakeApi => {
       return (
         dispatchHandler?.(actions) ??
         okResult<TDispatchResult[]>(actions.map(() => ({ ok: true })))
+      )
+    },
+    authorFunction: async (request) => {
+      api.authored.push(request)
+      return (
+        authorHandler?.(request) ??
+        okResult<TAuthoredFunction>({ id: `fn_test001`, name: request.name })
       )
     },
   }

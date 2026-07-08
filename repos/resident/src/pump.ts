@@ -1,5 +1,10 @@
 import type { TAgentAction } from '@tdsk/domain'
-import type { TPumpReport, TResidentApi, TResidentConfig } from './types/resident.types'
+import type {
+  TPumpReport,
+  TResidentApi,
+  TResidentConfig,
+  TAuthorFunctionRequest,
+} from './types/resident.types'
 
 import { log } from './log'
 import {
@@ -10,6 +15,8 @@ import {
 import {
   DispatchMaxAttempts,
   DispatchRetryDelaysMs,
+  DefaultAuthorLanguage,
+  AuthorFunctionBlockFence,
   DispatchMaxActionsPerCall,
 } from './constants'
 
@@ -85,12 +92,54 @@ const extractMemoryActions = (
 }
 
 /**
+ * Parse the resident-local ```tdsk-author-function``` fence (spec §5.1 fast
+ * path) — mirror of the tdsk-spawn fence pattern: a JSON object or array of
+ * `{ name, description?, language?, content }` submissions. Entries missing a
+ * non-empty name or content are dropped; language defaults to javascript.
+ */
+export const parseAuthorFunctionBlock = (text: string): TAuthorFunctionRequest[] => {
+  const block = extractLastFencedBlock(text, AuthorFunctionBlockFence)
+  if (block === undefined) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(block)
+  } catch {
+    return []
+  }
+  const items = Array.isArray(parsed) ? parsed : [parsed]
+
+  const requests: TAuthorFunctionRequest[] = []
+  for (const raw of items) {
+    if (!raw || typeof raw !== `object` || Array.isArray(raw)) continue
+    const item = raw as Record<string, unknown>
+    if (typeof item.name !== `string` || !item.name.trim().length) continue
+    if (typeof item.content !== `string` || !item.content.trim().length) continue
+    requests.push({
+      name: item.name.trim(),
+      content: item.content,
+      language:
+        typeof item.language === `string` && item.language.length
+          ? item.language
+          : DefaultAuthorLanguage,
+      description:
+        typeof item.description === `string` && item.description.length
+          ? item.description
+          : undefined,
+    })
+  }
+  return requests
+}
+
+/**
  * The action pump: parse ```tdsk-actions``` (the shared ② parser) +
- * ```tdsk-memories``` out of EVERY turn's output and POST them to the R1
- * dispatch endpoint immediately — chunked to the endpoint's 20-action cap,
- * retried with backoff on transport/5xx failures, every action's result
- * logged. 4xx responses are terminal (a malformed request never heals by
- * retrying).
+ * ```tdsk-memories``` + ```tdsk-author-function``` out of EVERY turn's output
+ * and POST them to the R1 dispatch / R3 author-function endpoints immediately
+ * — dispatches chunked to the endpoint's 20-action cap, retried with backoff
+ * on transport/5xx failures, every action's result logged. 4xx responses are
+ * terminal (a malformed request never heals by retrying). Author submissions
+ * are single-shot: a scan/collision rejection is logged and counted, and the
+ * session can rephrase and re-emit on a later turn.
  */
 export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
   const { api, getConfig } = opts
@@ -135,7 +184,28 @@ export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
         failed: 0,
         allowlistRejected: 0,
         memoriesSkipped: memories.skipped,
+        functionsAuthored: 0,
+        functionsRejected: 0,
       }
+
+      // Self-extension fast path: POST each authored Function to the R3
+      // author endpoint. Single-shot on purpose — a rejection (scan,
+      // validation, collision) is terminal for this turn.
+      for (const request of parseAuthorFunctionBlock(outputText)) {
+        const res = await api.authorFunction(request)
+        if (res.ok) {
+          report.functionsAuthored += 1
+          log.info(
+            `Authored function ${request.name}${res.data?.id ? ` (${res.data.id})` : ``}`
+          )
+        } else {
+          report.functionsRejected += 1
+          log.warn(
+            `authorFunction ${request.name} rejected: ${res.error ?? `status ${res.status}`}`
+          )
+        }
+      }
+
       if (!all.length) return report
 
       for (let i = 0; i < all.length; i += chunkSize) {

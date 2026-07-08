@@ -4,6 +4,8 @@ import type {
   TResidentApi,
   TDispatchResult,
   TResidentRecord,
+  TAuthoredFunction,
+  TAuthorFunctionRequest,
 } from './types/resident.types'
 
 import { log } from './log'
@@ -77,5 +79,8 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
 
     dispatch: (actions: TAgentAction[]) =>
       post<TDispatchResult[]>(`${base}/agents/${agentId}/dispatch`, { actions }),
+
+    authorFunction: (request: TAuthorFunctionRequest) =>
+      post<TAuthoredFunction>(`${base}/agents/${agentId}/author-function`, request),
   }
 }

@@ -21,10 +21,11 @@ export type TTranscript = {
 }
 
 /**
- * Turn observability: append each turn's in/out to the agent's continuity
- * thread through the `appendTranscript` Function named in config. Config-driven
- * like every housekeeping surface — unconfigured means skipped with a debug
- * line, and a failed append never fails the turn.
+ * Turn observability: append each turn's in/out to the agent's transcript
+ * store (the `resident_transcripts` collection — the platform Function is
+ * records-only) through the `appendTranscript` Function named in config.
+ * Config-driven like every housekeeping surface — unconfigured means skipped
+ * with a debug line, and a failed append never fails the turn.
  */
 export const createTranscript = (opts: TTranscriptOpts): TTranscript => {
   const maxChars = opts.maxChars ?? TranscriptFieldMaxChars

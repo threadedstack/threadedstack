@@ -61,6 +61,10 @@ type TStartPodOpts = {
     placeholders: TPlaceholderMap
     primaryEnv: Record<string, string>
   }
+  // Caller-supplied container env, applied LAST (after provider resolution) so
+  // a trusted internal caller can pin exact values — e.g. the resident
+  // watchdog's pod env contract (TDSK_RESIDENT_* + TDSK_BACKEND_URL).
+  extraEnv?: Record<string, string>
 }
 
 type TPodFilter = {
@@ -395,6 +399,10 @@ export class SandboxService {
         }
       }
     }
+
+    // Caller-supplied env wins over anything resolved above — the caller is a
+    // trusted internal surface (see TStartPodOpts.extraEnv).
+    if (opts.extraEnv) Object.assign(extraEnv, opts.extraEnv)
 
     const manifest = buildPodManifest({
       orgId,

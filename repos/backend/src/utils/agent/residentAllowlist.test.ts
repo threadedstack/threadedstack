@@ -1,58 +1,86 @@
-import { Agent } from '@tdsk/domain'
-import { describe, it, expect } from 'vitest'
+import { Agent, EQueryOp } from '@tdsk/domain'
+import { describe, it, expect, vi } from 'vitest'
 
-import { resolveResidentAllowlist } from './residentAllowlist'
+import { resolveResidentAllowlist, ResidentConfigsCollection } from './residentAllowlist'
 
-const db = {} as any
+const AgentId = `ag_agent001`
+const ProjectId = `pj_proj0001`
+
+const buildAgent = () => new Agent({ id: AgentId, name: `res`, orgId: `og_org00001` })
+
+const buildDb = (records: any[] | Error = []) =>
+  ({
+    services: {
+      record: {
+        query: vi
+          .fn()
+          .mockResolvedValue(
+            records instanceof Error ? { error: records } : { data: records }
+          ),
+      },
+    },
+  }) as any
 
 describe(`resolveResidentAllowlist`, () => {
-  it(`returns the residentActions from the agent's environment`, async () => {
-    const agent = new Agent({
-      name: `res`,
-      orgId: `og_org00001`,
-      environment: { residentActions: [`sendAgentMessage`, `heartbeat`] },
-    })
+  it(`returns the actions array from the agent's resident_configs record`, async () => {
+    const db = buildDb([
+      {
+        id: `rec_cfg001`,
+        data: { agentId: AgentId, actions: [`sendAgentMessage`, `heartbeat`] },
+      },
+    ])
 
-    const allowlist = await resolveResidentAllowlist(db, agent, `pj_proj0001`)
+    const allowlist = await resolveResidentAllowlist(db, buildAgent(), ProjectId)
+
     expect(allowlist).toEqual([`sendAgentMessage`, `heartbeat`])
+    // Resolved server-side from the dispatch project's collection, keyed by
+    // the agent's identity — never anything the request supplied.
+    expect(db.services.record.query).toHaveBeenCalledWith(
+      ProjectId,
+      ResidentConfigsCollection,
+      {
+        where: [{ field: `agentId`, op: EQueryOp.eq, value: AgentId }],
+        limit: 1,
+      }
+    )
   })
 
-  it(`returns an empty allowlist when the agent has no resident config`, async () => {
-    const agent = new Agent({ name: `res`, orgId: `og_org00001` })
-
-    expect(await resolveResidentAllowlist(db, agent, `pj_proj0001`)).toEqual([])
+  it(`fails closed to [] when the agent has no resident_configs record`, async () => {
+    expect(await resolveResidentAllowlist(buildDb([]), buildAgent(), ProjectId)).toEqual(
+      []
+    )
   })
 
-  it(`honors a project-level environment override for the target project`, async () => {
-    const agent = new Agent({
-      name: `res`,
-      orgId: `og_org00001`,
-      environment: { residentActions: [`baseAction`] },
-      projectConfigs: [
-        {
-          agentId: `ag_agent001`,
-          projectId: `pj_proj0001`,
-          environment: { residentActions: [`projectAction`] },
-        } as any,
-      ],
-    })
+  it(`fails closed to [] when no projectId is given`, async () => {
+    const db = buildDb([{ id: `rec_cfg001`, data: { agentId: AgentId, actions: [`x`] } }])
+    expect(await resolveResidentAllowlist(db, buildAgent())).toEqual([])
+    expect(db.services.record.query).not.toHaveBeenCalled()
+  })
 
-    expect(await resolveResidentAllowlist(db, agent, `pj_proj0001`)).toEqual([
-      `projectAction`,
+  it(`fails closed to [] when the record has no actions array`, async () => {
+    const db = buildDb([{ id: `rec_cfg001`, data: { agentId: AgentId } }])
+    expect(await resolveResidentAllowlist(db, buildAgent(), ProjectId)).toEqual([])
+
+    const notArray = buildDb([
+      { id: `rec_cfg001`, data: { agentId: AgentId, actions: `sendAgentMessage` } },
     ])
-    // A different project falls back to the agent-level environment
-    expect(await resolveResidentAllowlist(db, agent, `pj_other001`)).toEqual([
-      `baseAction`,
+    expect(await resolveResidentAllowlist(notArray, buildAgent(), ProjectId)).toEqual([])
+  })
+
+  it(`drops non-string entries from the actions array`, async () => {
+    const db = buildDb([
+      {
+        id: `rec_cfg001`,
+        data: { agentId: AgentId, actions: [`heartbeat`, 7, null, { evil: true }] },
+      },
+    ])
+    expect(await resolveResidentAllowlist(db, buildAgent(), ProjectId)).toEqual([
+      `heartbeat`,
     ])
   })
 
-  it(`falls back to the agent-level environment when no projectId is given`, async () => {
-    const agent = new Agent({
-      name: `res`,
-      orgId: `og_org00001`,
-      environment: { residentActions: [`baseAction`] },
-    })
-
-    expect(await resolveResidentAllowlist(db, agent)).toEqual([`baseAction`])
+  it(`fails closed to [] when the records query errors`, async () => {
+    const db = buildDb(new Error(`db down`))
+    expect(await resolveResidentAllowlist(db, buildAgent(), ProjectId)).toEqual([])
   })
 })

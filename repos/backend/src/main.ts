@@ -14,6 +14,7 @@ import { setupSandbox } from '@TBE/middleware/setupSandbox'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
 import { setupScheduler } from '@TBE/middleware/setupScheduler'
+import { setupResidentWatchdog } from '@TBE/middleware/setupResidentWatchdog'
 import { setupSandboxProxy } from '@TBE/middleware/sandboxProxy'
 import { PaymentsService } from '@TBE/services/payments/payments'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
@@ -39,8 +40,9 @@ export const main = async (config: TBEConfig) => {
   setupErrorHandler(app)
 
   const scheduler = setupScheduler(app)
+  const residentWatchdog = setupResidentWatchdog(app)
   const { server, wss } = initServer()
-  signals(server, { wss, scheduler })
+  signals(server, { wss, scheduler, residentWatchdog })
 
   return {
     app,

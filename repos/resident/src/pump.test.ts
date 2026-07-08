@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createActionPump } from './pump'
+import { createActionPump, parseAuthorFunctionBlock } from './pump'
 import { makeFakeApi, makeConfig } from './testUtils'
 
 const actionsFence = (json: string) => `\`\`\`tdsk-actions\n${json}\n\`\`\``
 const memoriesFence = (json: string) => `\`\`\`tdsk-memories\n${json}\n\`\`\``
+const authorFence = (json: string) => `\`\`\`tdsk-author-function\n${json}\n\`\`\``
 
 const manyActions = (count: number) =>
   JSON.stringify(
@@ -36,6 +37,8 @@ describe(`action pump`, () => {
       failed: 0,
       allowlistRejected: 0,
       memoriesSkipped: 0,
+      functionsAuthored: 0,
+      functionsRejected: 0,
     })
     expect(api.dispatched).toHaveLength(1)
     expect(api.dispatched[0][0]).toEqual({
@@ -163,5 +166,104 @@ describe(`action pump`, () => {
       `a`,
       `writeMemory`,
     ])
+  })
+})
+
+describe(`parseAuthorFunctionBlock`, () => {
+  const submission = {
+    name: `scrapePage`,
+    description: `Fetch a page`,
+    language: `javascript`,
+    content: `export default async () => ({ ok: true })`,
+  }
+
+  it(`parses an array of submissions`, () => {
+    const parsed = parseAuthorFunctionBlock(authorFence(JSON.stringify([submission])))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`parses a single-object fence`, () => {
+    const parsed = parseAuthorFunctionBlock(authorFence(JSON.stringify(submission)))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`defaults language to javascript and drops empty description`, () => {
+    const parsed = parseAuthorFunctionBlock(
+      authorFence(JSON.stringify({ name: `f`, content: `x`, description: `` }))
+    )
+    expect(parsed).toEqual([
+      { name: `f`, content: `x`, language: `javascript`, description: undefined },
+    ])
+  })
+
+  it(`drops entries missing a non-empty name or content`, () => {
+    const parsed = parseAuthorFunctionBlock(
+      authorFence(
+        JSON.stringify([
+          { name: ``, content: `x` },
+          { name: `f` },
+          { content: `x` },
+          `not-an-object`,
+          { name: `ok`, content: `y` },
+        ])
+      )
+    )
+    expect(parsed.map((r) => r.name)).toEqual([`ok`])
+  })
+
+  it(`returns [] for no fence or malformed JSON`, () => {
+    expect(parseAuthorFunctionBlock(`no fences here`)).toEqual([])
+    expect(parseAuthorFunctionBlock(authorFence(`{not json`))).toEqual([])
+  })
+})
+
+describe(`author-function pump integration`, () => {
+  const submission = {
+    name: `scrapePage`,
+    language: `javascript`,
+    content: `export default async () => ({ ok: true })`,
+  }
+
+  it(`POSTs parsed submissions to the author endpoint and counts acceptance`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(authorFence(JSON.stringify([submission])))
+
+    expect(api.authored).toEqual([{ ...submission, description: undefined }])
+    expect(report.functionsAuthored).toBe(1)
+    expect(report.functionsRejected).toBe(0)
+    // Authoring is not a dispatch action
+    expect(report.total).toBe(0)
+    expect(api.dispatched).toHaveLength(0)
+  })
+
+  it(`counts a platform rejection (scan/collision) without failing the pump`, async () => {
+    const api = makeFakeApi()
+    api.onAuthor(() => ({
+      ok: false,
+      status: 422,
+      error: `authorFunction rejected by security scan`,
+    }))
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(authorFence(JSON.stringify([submission])))
+
+    expect(report.functionsAuthored).toBe(0)
+    expect(report.functionsRejected).toBe(1)
+  })
+
+  it(`authors and dispatches from the same turn output`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(
+      `${authorFence(JSON.stringify([submission]))}\n${actionsFence(`[{"function":"updateResidentConfig","args":{"actions":["scrapePage"]}}]`)}`
+    )
+
+    expect(report.functionsAuthored).toBe(1)
+    expect(report.dispatched).toBe(1)
+    expect(api.authored).toHaveLength(1)
+    expect(api.dispatched[0][0].function).toBe(`updateResidentConfig`)
   })
 })
