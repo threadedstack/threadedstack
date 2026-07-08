@@ -16,6 +16,7 @@ const {
   mockDelete,
   mockDerefInto,
   mockContextEval,
+  mockEvalClosure,
   mockEvaluate,
   mockInstantiate,
   mockCompileModule,
@@ -28,6 +29,7 @@ const {
   mockDelete: vi.fn(),
   mockDerefInto: vi.fn(),
   mockContextEval: vi.fn(),
+  mockEvalClosure: vi.fn(),
   mockEvaluate: vi.fn(),
   mockInstantiate: vi.fn(),
   mockCompileModule: vi.fn(),
@@ -53,6 +55,7 @@ vi.mock(`isolated-vm`, () => {
       derefInto: () => mockDerefInto(),
     },
     eval: (...args: any[]) => mockContextEval(...args),
+    evalClosure: (...args: any[]) => mockEvalClosure(...args),
     release: () => mockRelease(),
   }
 
@@ -68,6 +71,7 @@ vi.mock(`isolated-vm`, () => {
   mockEvaluate.mockResolvedValue(undefined)
   mockGet.mockResolvedValue(undefined)
   mockDelete.mockResolvedValue(undefined)
+  mockContextEval.mockResolvedValue(undefined)
 
   return {
     default: {
@@ -115,6 +119,7 @@ describe(`IsolateRunner`, () => {
         derefInto: () => mockDerefInto(),
       },
       eval: (...args: any[]) => mockContextEval(...args),
+      evalClosure: (...args: any[]) => mockEvalClosure(...args),
       release: () => mockRelease(),
     })
     mockCompileModule.mockResolvedValue({
@@ -202,7 +207,9 @@ describe(`IsolateRunner`, () => {
       await runner.init()
 
       const setCallArgs = mockSet.mock.calls.map((c: any) => c[0])
-      expect(setCallArgs).toContain(`_fetch`)
+      // fetch uses the start/settle bridge shape (ivm.Callback cannot await an
+      // async host fn), so the registered callback is the SYNC starter.
+      expect(setCallArgs).toContain(`_fetchStart`)
     })
 
     it(`should set up globalThis.fetch via context eval`, async () => {
@@ -545,39 +552,91 @@ describe(`IsolateRunner`, () => {
   })
 
   describe(`host bridges`, () => {
-    it(`registers a __hostCall host callback and tears it down after eval`, async () => {
+    it(`registers the __hostCallStart callback + isolate prelude and tears both down after eval`, async () => {
       const bridge = vi.fn(async () => `null`)
 
       await runner[`eval`](`export default 1`, 1000, { 'demo.echo': bridge })
 
-      // The bridge is exposed to the isolate as the async host callback __hostCall
-      expect(mockSet).toHaveBeenCalledWith(`__hostCall`, expect.any(Function))
-      // ...and removed after evaluation so it never outlives this run on a pool
-      expect(mockDelete).toHaveBeenCalledWith(`__hostCall`)
+      // The bridge surface is a SYNC start callback (ivm.Callback cannot await
+      // an async host fn's Promise) plus an isolate-side __hostCall prelude.
+      expect(mockSet).toHaveBeenCalledWith(`__hostCallStart`, expect.any(Function))
+      const preludeCall = mockContextEval.mock.calls.find((c: any[]) =>
+        String(c[0]).includes(`globalThis.__hostCall =`)
+      )
+      expect(preludeCall).toBeDefined()
+      // ...and both are removed after evaluation so nothing outlives this run
+      expect(mockDelete).toHaveBeenCalledWith(`__hostCallStart`)
+      const teardownCall = mockContextEval.mock.calls.find((c: any[]) =>
+        String(c[0]).includes(`delete globalThis.__hostCall`)
+      )
+      expect(teardownCall).toBeDefined()
     })
 
-    it(`routes __hostCall to the named bridge, executing it host-side`, async () => {
+    it(`routes a start call to the named bridge host-side and settles back via evalClosure`, async () => {
       const bridge = vi.fn(async (argsJson: string) =>
         JSON.stringify({ received: JSON.parse(argsJson) })
       )
+      mockEvalClosure.mockResolvedValue(undefined)
 
       await runner[`eval`](`export default 1`, 1000, { 'demo.echo': bridge })
 
-      // Grab the __hostCall callback and invoke it exactly as the isolate would
-      const setCall = mockSet.mock.calls.find((c: any[]) => c[0] === `__hostCall`)
-      const hostCall = setCall![1] as (n: string, a: string) => Promise<string>
+      // Grab the __hostCallStart callback and invoke it exactly as the isolate would
+      const setCall = mockSet.mock.calls.find((c: any[]) => c[0] === `__hostCallStart`)
+      const start = setCall![1] as (id: number, n: string, a: string) => void
 
-      const out = await hostCall(`demo.echo`, JSON.stringify([`hi`]))
+      start(7, `demo.echo`, JSON.stringify([`hi`]))
+      // The bridge runs host-side; the settle arrives asynchronously
+      await vi.waitFor(() => expect(mockEvalClosure).toHaveBeenCalled())
 
       expect(bridge).toHaveBeenCalledWith(JSON.stringify([`hi`]))
-      expect(JSON.parse(out)).toEqual({ received: [`hi`] })
+      const [code, args] = mockEvalClosure.mock.calls[0]
+      expect(code).toContain(`__hostCallSettle`)
+      expect(args[0]).toBe(7)
+      expect(args[1]).toBe(true)
+      expect(JSON.parse(args[2])).toEqual({ received: [`hi`] })
     })
 
-    it(`does not register __hostCall when no bridges are provided`, async () => {
+    it(`settles a rejected bridge back as ok=false with the error message`, async () => {
+      const bridge = vi.fn(async () => {
+        throw new Error(`bridge exploded`)
+      })
+      mockEvalClosure.mockResolvedValue(undefined)
+
+      await runner[`eval`](`export default 1`, 1000, { 'demo.echo': bridge })
+      const setCall = mockSet.mock.calls.find((c: any[]) => c[0] === `__hostCallStart`)
+      const start = setCall![1] as (id: number, n: string, a: string) => void
+
+      start(3, `demo.echo`, `[]`)
+      await vi.waitFor(() => expect(mockEvalClosure).toHaveBeenCalled())
+
+      const [, args] = mockEvalClosure.mock.calls[0]
+      expect(args[0]).toBe(3)
+      expect(args[1]).toBe(false)
+      expect(args[2]).toBe(`bridge exploded`)
+    })
+
+    it(`settles an unknown bridge name back as ok=false`, async () => {
+      const bridge = vi.fn(async () => `null`)
+      mockEvalClosure.mockResolvedValue(undefined)
+
+      await runner[`eval`](`export default 1`, 1000, { 'demo.echo': bridge })
+      const setCall = mockSet.mock.calls.find((c: any[]) => c[0] === `__hostCallStart`)
+      const start = setCall![1] as (id: number, n: string, a: string) => void
+
+      start(1, `nope.missing`, `[]`)
+      await vi.waitFor(() => expect(mockEvalClosure).toHaveBeenCalled())
+
+      const [, args] = mockEvalClosure.mock.calls[0]
+      expect(args[1]).toBe(false)
+      expect(String(args[2])).toContain(`Unknown host bridge`)
+      expect(bridge).not.toHaveBeenCalled()
+    })
+
+    it(`does not register the bridge surface when no bridges are provided`, async () => {
       await runIsolate(runner, `export default 1`)
 
-      expect(mockSet).not.toHaveBeenCalledWith(`__hostCall`, expect.anything())
-      expect(mockDelete).not.toHaveBeenCalledWith(`__hostCall`)
+      expect(mockSet).not.toHaveBeenCalledWith(`__hostCallStart`, expect.anything())
+      expect(mockDelete).not.toHaveBeenCalledWith(`__hostCallStart`)
     })
   })
 })
