@@ -157,10 +157,13 @@ export const createInvokeProvider = (
   app: TApp,
   db: TDatabase,
   projectId: string,
-  allowlist: string[]
+  allowlist: string[],
+  agentId: string
 ): IInvokeProvider => ({
   invoke: (functionName, args) =>
-    invokeAction(app, db, projectId, { function: functionName, args }, allowlist),
+    invokeAction(app, db, projectId, { function: functionName, args }, allowlist, {
+      agentId,
+    }),
 })
 
 /**
@@ -462,7 +465,7 @@ export const resolveAgentConfig = async (
     // contextSources being config-gated, not behind a feature flag).
     invokeProvider:
       projectId && actions?.length
-        ? createInvokeProvider(app, db, projectId, actions)
+        ? createInvokeProvider(app, db, projectId, actions, agentId)
         : undefined,
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)

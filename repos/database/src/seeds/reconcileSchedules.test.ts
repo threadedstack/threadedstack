@@ -38,12 +38,12 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`ships the executive-board schedules disabled and inert until activation`, () => {
+  it(`ships the executive-board schedules ENABLED (⑤a-5 activation, 2026-07-08)`, () => {
     const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
     for (const key of execKeys) {
       expect(byKey[key]).toBeDefined()
-      expect(byKey[key].enabled).toBe(false)
+      expect(byKey[key].enabled).toBe(true)
     }
     // The CEO seat runs on the seeded founder agent; the CTO seat reuses the steward.
     expect(byKey[`ceo-strategy`].agentId).toBe(`ag_ceo0001`)
@@ -52,6 +52,91 @@ describe(`AgentScheduleDefs`, () => {
     // Every self-development schedule stays enabled.
     for (const d of AgentScheduleDefs) {
       if (!execKeys.includes(d.key)) expect(d.enabled).toBe(true)
+    }
+  })
+
+  it(`wires the 3 board schedules to the board Functions + contextSources (⑤a-4)`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
+
+    // Per-role ② effect-surface allowlists — each seat may invoke only its Functions.
+    expect(byKey[`ceo-strategy`].actions).toEqual({
+      functions: [`upsertStrategy`, `openDecision`],
+    })
+    expect(byKey[`ceo-board`].actions).toEqual({
+      functions: [`postPosition`, `resolveBoard`],
+    })
+    expect(byKey[`cto-board`].actions).toEqual({
+      functions: [`postPosition`, `reportInitiativeComplete`],
+    })
+
+    // Every board cycle reads the strategy singleton + open decisions from the
+    // board Collections; the two deliberation cycles additionally read positions.
+    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`]) {
+      const byAs = Object.fromEntries(
+        (byKey[key].contextSources ?? []).map((s) => [s.as, s])
+      )
+      expect(byAs[`Company Strategy`]).toMatchObject({
+        collection: `company_strategy`,
+        query: {},
+      })
+      expect(byAs[`Open board decisions`]).toMatchObject({
+        collection: `decision_proposals`,
+        query: {
+          where: [{ field: `status`, op: `in`, value: [`open`, `deliberating`] }],
+        },
+      })
+    }
+    expect(byKey[`ceo-strategy`].contextSources).toHaveLength(2)
+    for (const key of [`ceo-board`, `cto-board`]) {
+      expect(byKey[key].contextSources).toHaveLength(3)
+      const byAs = Object.fromEntries(
+        (byKey[key].contextSources ?? []).map((s) => [s.as, s])
+      )
+      expect(byAs[`Board positions`]).toMatchObject({
+        collection: `decision_positions`,
+        query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
+      })
+    }
+  })
+
+  it(`board prompts emit one tdsk-actions block instead of the bespoke fences`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
+    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`]) {
+      expect(byKey[key]).toContain(`tdsk-actions`)
+      expect(byKey[key]).not.toContain(`tdsk-strategy`)
+      expect(byKey[key]).not.toContain(`tdsk-decisions`)
+      expect(byKey[key]).not.toContain(`tdsk-decision-positions`)
+      expect(byKey[key]).not.toContain(`tdsk-initiative-complete`)
+    }
+    // Resolution rides the CEO board cycle: its block closes with resolveBoard.
+    expect(byKey[`ceo-board`]).toContain(`{"function": "resolveBoard", "args": {}}`)
+    // The CTO board cycle owns the completion report + its memory write-back.
+    expect(byKey[`cto-board`]).toContain(`reportInitiativeComplete`)
+    expect(byKey[`cto-board`]).toContain(`tdsk-memories`)
+  })
+
+  it(`keeps the 11 live dev-loop schedules free of actions + contextSources, with no reconcile churn`, () => {
+    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+    const live = AgentScheduleDefs.filter((d) => !execKeys.includes(d.key))
+    expect(live).toHaveLength(11)
+    for (const d of live) {
+      expect(d.contextSources).toBeUndefined()
+      expect(d.actions).toBeUndefined()
+      // A live DB row reads both columns back as null; null == undefined must
+      // stay a no-op so the live loop never churns on deploy.
+      expect(
+        needsUpdate({ ...declarativeFields(d), contextSources: null, actions: null }, d)
+      ).toBe(false)
+    }
+  })
+
+  it(`board defs round-trip the reconciler without churn`, () => {
+    const execKeys = [`ceo-strategy`, `ceo-board`, `cto-board`]
+    for (const d of AgentScheduleDefs.filter((def) => execKeys.includes(def.key))) {
+      // Simulate the DB write/read round trip (jsonb serializes the enum op to
+      // its string): an unchanged row must not count as an update.
+      const roundTripped = JSON.parse(JSON.stringify(declarativeFields(d)))
+      expect(needsUpdate(roundTripped, d)).toBe(false)
     }
   })
 

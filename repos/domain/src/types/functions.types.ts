@@ -54,6 +54,11 @@ export type TFunctionContext = {
    * direct db connection.
    */
   records?: IRecordsCapability
+  /**
+   * Platform-injected, trusted identity of the invoker (never from model output).
+   * Effect Functions authorize by this (e.g. board role gates).
+   */
+  caller?: { agentId?: string; scheduleId?: string }
 }
 
 /** Return value from a FaaS function handler (maps to HTTP response) */

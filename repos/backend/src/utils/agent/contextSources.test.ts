@@ -50,10 +50,28 @@ describe(`buildContextSourcesSection`, () => {
       limit: 5,
     })
     expect(out).toContain(`## Open proposals`)
-    // Only the record documents are rendered (not the row envelope ids).
+    // The document is rendered WITH its record id, so consumers (e.g. board
+    // prompts) can reference records by id in follow-up effects.
     expect(out).toContain(`"title": "Ship it"`)
     expect(out).toContain(`"status": "open"`)
-    expect(out).not.toContain(`rec_1`)
+    expect(out).toContain(`"id": "rec_1"`)
+    expect(out).toContain(`"id": "rec_2"`)
+  })
+
+  it(`lets a data field named id win over the record id (data is the document)`, async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ data: [{ id: `rec_9`, data: { id: `custom-id`, a: 1 } }] })
+
+    const out = await buildContextSourcesSection(
+      buildApp(query),
+      schedule({
+        contextSources: [{ collection: `c`, query: {}, as: `Docs` }],
+      })
+    )
+
+    expect(out).toContain(`"id": "custom-id"`)
+    expect(out).not.toContain(`rec_9`)
   })
 
   it(`renders each of multiple sources under its own heading`, async () => {

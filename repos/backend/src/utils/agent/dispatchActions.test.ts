@@ -75,7 +75,8 @@ describe(`dispatchActions`, () => {
       mockDb,
       `proj-1`,
       { function: `f`, args: { x: 1 } },
-      [`f`]
+      [`f`],
+      { agentId: `ag_1`, scheduleId: `sch-1` }
     )
   })
 
@@ -104,7 +105,8 @@ describe(`dispatchActions`, () => {
         function: `g`,
         args: {},
       },
-      [`f`, `g`]
+      [`f`, `g`],
+      { agentId: `ag_1`, scheduleId: `sch-1` }
     )
   })
 
@@ -125,7 +127,8 @@ describe(`dispatchActions`, () => {
         function: `g`,
         args: {},
       },
-      [`f`]
+      [`f`],
+      { agentId: `ag_1`, scheduleId: `sch-1` }
     )
   })
 })

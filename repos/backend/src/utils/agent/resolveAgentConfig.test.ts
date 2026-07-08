@@ -814,18 +814,23 @@ describe(`createInvokeProvider`, () => {
     const { FunctionExecutor } = await import(`@TBE/services/functions/functionExecutor`)
     const func = { id: `fn-1`, name: `recordProposal`, projectId: `proj-1` }
     const db = buildInvokeDb(func)
-    const provider = createInvokeProvider(buildMockApp(), db as any, `proj-1`, [
-      `recordProposal`,
-    ])
+    const provider = createInvokeProvider(
+      buildMockApp(),
+      db as any,
+      `proj-1`,
+      [`recordProposal`],
+      `ag_self`
+    )
 
     const result = await provider.invoke(`recordProposal`, { title: `Ship it` })
 
     expect(db.services.function.list).toHaveBeenCalledWith({
       where: { projectId: `proj-1`, name: `recordProposal` },
     })
+    // The live invoke tool injects the running agent's OWN id as the trusted caller.
     expect(FunctionExecutor.execute).toHaveBeenCalledWith(func, {
       db,
-      context: { args: { title: `Ship it` } },
+      context: { args: { title: `Ship it` }, caller: { agentId: `ag_self` } },
     })
     expect(result).toEqual({ ok: true, data: `result` })
   })
@@ -833,9 +838,13 @@ describe(`createInvokeProvider`, () => {
   it(`invoke rejects a function that is not on the allowlist without executing`, async () => {
     const { FunctionExecutor } = await import(`@TBE/services/functions/functionExecutor`)
     const db = buildInvokeDb({ id: `fn-1`, name: `blocked` })
-    const provider = createInvokeProvider(buildMockApp(), db as any, `proj-1`, [
-      `allowed`,
-    ])
+    const provider = createInvokeProvider(
+      buildMockApp(),
+      db as any,
+      `proj-1`,
+      [`allowed`],
+      `ag_self`
+    )
 
     const result = await provider.invoke(`blocked`, {})
 

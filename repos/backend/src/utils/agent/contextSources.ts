@@ -35,7 +35,14 @@ export async function buildContextSourcesSection(
         source.collection,
         source.query
       )
-      const documents = (records ?? []).map((record) => record.data)
+      // Render the record id alongside the document so consumers (e.g. board
+      // prompts) can reference records by id in follow-up effects (postPosition
+      // resolves proposals via records.get by record id). A data field named
+      // `id` wins the spread — data is the document; the record id is a default.
+      const documents = (records ?? []).map((record) => ({
+        id: record.id,
+        ...(record.data as Record<string, unknown>),
+      }))
       const body = documents.length ? JSON.stringify(documents, null, 2) : `(no records)`
 
       const cap = source.max ?? ContextSourceInjectMaxChars

@@ -32,7 +32,8 @@ export const dispatchActions = async (
         app.locals.db,
         schedule.projectId,
         action,
-        allowlist
+        allowlist,
+        { agentId, scheduleId: schedule.id }
       )
       if (res.ok)
         logger.info(
