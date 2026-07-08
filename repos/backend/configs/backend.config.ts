@@ -71,6 +71,10 @@ const {
   TDSK_SB_IMAGE = `ghcr.io/threadedstack/tdsk-sandbox`,
   TDSK_SB_INIT_IMAGE = `ghcr.io/threadedstack/tdsk-init`,
 
+  // The public proxy URL (e.g. https://px.threadedstack.app) — the URL every
+  // client, INCLUDING resident pods, uses to reach the backend
+  TDSK_PX_URL,
+
   // The deployed proxy host url
   // New domains are validated against this URL to ensure the CName is configured properly
   TDSK_CADDY_PX_HOST,
@@ -112,8 +116,9 @@ export const config = {
       : undefined,
   },
   proxy: {
-    // Validate if this URL field is needed
-    url: ``,
+    // The PUBLIC proxy URL — resident pods reach the backend through it (via
+    // the egress MITM) like any other client
+    url: TDSK_PX_URL || ``,
     headerKey: TDSK_BE_HEADER_KEY,
     headerValue: TDSK_BE_HEADER_VALUE,
     publicRoutes: (TDSK_BE_PUBLIC_ROUTES || ``)

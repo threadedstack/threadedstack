@@ -463,6 +463,83 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockNext).toHaveBeenCalled()
   })
 
+  it(`should pass a resident key through WITHOUT attaching a user principal`, async () => {
+    const residentKey = new ApiKey({
+      id: `key-resident`,
+      name: `resident:ag_agent001`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_resi`,
+      active: true,
+      permissions: [],
+      orgId: `org-resident`,
+      residentAgentId: `ag_agent001`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_resident_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: residentKey })
+    const headers = { authorization: `Bearer tdsk_resident_key` }
+    const mockReq = {
+      path: `/_/orgs/org-resident/projects/proj-1/agents/ag_agent001/dispatch`,
+      headers,
+    } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    // Passes through: no user principal, no rejection — the backend's
+    // residentAuth verifies the raw bearer itself
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockReq.user).toBeUndefined()
+    expect(mockRes.status).not.toHaveBeenCalled()
+    // Authorization header rides through untouched
+    expect(mockReq.headers).toEqual({ authorization: `Bearer tdsk_resident_key` })
+    expect(mockDb.services.apiKey.touchLastUsed).toHaveBeenCalledWith(`key-resident`)
+  })
+
+  it(`should return 401 for a revoked resident key`, async () => {
+    const revokedResident = new ApiKey({
+      id: `key-resident-revoked`,
+      name: `resident:ag_agent001`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_resi`,
+      active: false,
+      residentAgentId: `ag_agent001`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_resident_revoked`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: revokedResident })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `API key revoked` })
+    expect(mockNext).not.toHaveBeenCalled()
+    expect(mockReq.user).toBeUndefined()
+  })
+
+  it(`should return 401 for an expired resident key`, async () => {
+    const expiredResident = new ApiKey({
+      id: `key-resident-expired`,
+      name: `resident:ag_agent001`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_resi`,
+      active: true,
+      residentAgentId: `ag_agent001`,
+      expiresAt: new Date(Date.now() - 86400000),
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_resident_expired`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: expiredResident })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `API key expired` })
+    expect(mockNext).not.toHaveBeenCalled()
+    expect(mockReq.user).toBeUndefined()
+  })
+
   it(`should not block request if touchLastUsed fails`, async () => {
     const validKey = new ApiKey({
       id: `key-8`,

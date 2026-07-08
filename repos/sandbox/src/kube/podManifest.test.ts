@@ -434,14 +434,6 @@ describe(`buildPodManifest`, () => {
       })
     })
 
-    it(`should label resident pods for the resident egress NetworkPolicy`, () => {
-      const labels = buildPodManifest(residentOpts()).metadata!.labels!
-      expect(labels[`tdsk.app/resident`]).toBe(`true`)
-      // Ordinary sandboxes must NOT carry the label (they stay MITM-locked).
-      const plain = buildPodManifest(buildOpts()).metadata!.labels!
-      expect(plain[`tdsk.app/resident`]).toBeUndefined()
-    })
-
     it(`should not duplicate TDSK_RESIDENT_AGENT_ID when extraEnv already carries it`, () => {
       // The watchdog injects the full resident env contract via extraEnv —
       // the manifest must not emit a second entry for the same name.

@@ -12,7 +12,7 @@ export type TResidentEnv = {
   agentId: string
   /** TDSK_RESIDENT_TOKEN — the pod-scoped api key (Bearer). */
   token: string
-  /** TDSK_BACKEND_URL — in-cluster backend base URL. */
+  /** TDSK_BACKEND_URL — the PUBLIC proxy URL (backend reached via the MITM). */
   backendUrl: string
   /** TDSK_RESIDENT_ORG_ID — org owning the agent (records/dispatch URL scope). */
   orgId: string
@@ -22,7 +22,7 @@ export type TResidentEnv = {
   stateDir: string
   /** TDSK_RESIDENT_WORKDIR — cwd for claude child processes. */
   workdir: string
-  /** TDSK_RESIDENT_CONFIG — inline JSON config (env fallback for tests/dev). */
+  /** TDSK_RESIDENT_CONFIG — the resident_configs record JSON injected at pod start (network-free boot). */
   configJson?: string
 }
 

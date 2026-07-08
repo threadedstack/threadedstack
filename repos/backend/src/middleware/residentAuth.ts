@@ -14,7 +14,9 @@ import { hashKey, Exception, ApiKeyPrefix } from '@tdsk/domain'
  * admins use the normal authenticated surfaces instead.
  *
  * Verifies the RAW Authorization header itself (rather than proxy-forwarded
- * user headers) because residents call the backend in-cluster directly.
+ * user headers): residents call the backend through the public proxy, which
+ * passes resident-bound keys through WITHOUT attaching a user principal — the
+ * bearer is the sole credential and this middleware is the authority.
  */
 export const residentAuth = async (
   req: TRequest,

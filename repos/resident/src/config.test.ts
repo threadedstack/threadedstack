@@ -32,7 +32,7 @@ describe(`readResidentEnv`, () => {
     )
   })
 
-  it(`lets the inline config JSON supply org/project/agent scope (test fallback)`, () => {
+  it(`lets the injected config JSON supply org/project/agent scope`, () => {
     const env = readResidentEnv({
       TDSK_RESIDENT_TOKEN: `tdsk_secret`,
       TDSK_BACKEND_URL: `http://backend`,
@@ -108,7 +108,7 @@ describe(`normalizeResidentConfig`, () => {
 })
 
 describe(`config manager`, () => {
-  it(`env-fallback mode: loads from the inline JSON and never queries`, async () => {
+  it(`boots from the injected env config with NO HTTP fetch`, async () => {
     const api = makeFakeApi()
     const env = readResidentEnv({
       ...fullEnv,
@@ -118,12 +118,75 @@ describe(`config manager`, () => {
     })
     const manager = createConfigManager({ env, api })
 
+    // Boot succeeds on the env config alone — zero records queries
     const config = await manager.load()
     expect(config.agenda).toHaveLength(1)
     expect(api.queries).toHaveLength(0)
+  })
 
-    await manager.maybeRefresh()
+  it(`refresh OVERRIDES the env-boot config once the records fetch succeeds`, async () => {
+    const api = makeFakeApi()
+    api.onQuery((collection) =>
+      collection === ResidentConfigCollection
+        ? {
+            ok: true,
+            status: 200,
+            data: [
+              {
+                id: `cfg-1`,
+                data: { selfDirected: { prompt: `from-records`, minIdleMs: 1000 } },
+              },
+            ],
+          }
+        : undefined
+    )
+    const env = readResidentEnv({
+      ...fullEnv,
+      TDSK_RESIDENT_CONFIG: JSON.stringify({
+        selfDirected: { prompt: `from-env`, minIdleMs: 1000 },
+      }),
+    })
+    const now = { value: 1_000_000 }
+    const manager = createConfigManager({
+      env,
+      api,
+      refreshMs: 10_000,
+      nowFn: () => now.value,
+    })
+
+    await manager.load()
+    expect(manager.get().selfDirected.prompt).toBe(`from-env`)
     expect(api.queries).toHaveLength(0)
+
+    // The refresh window passes — the records API becomes the live source
+    now.value += 10_001
+    await manager.maybeRefresh()
+    expect(api.queries).toHaveLength(1)
+    expect(manager.get().selfDirected.prompt).toBe(`from-records`)
+  })
+
+  it(`refresh failure keeps the last good (env-boot) config — never fatal`, async () => {
+    const api = makeFakeApi()
+    api.onQuery(() => ({ ok: false, status: 500, error: `boom` }))
+    const env = readResidentEnv({
+      ...fullEnv,
+      TDSK_RESIDENT_CONFIG: JSON.stringify({
+        selfDirected: { prompt: `from-env`, minIdleMs: 1000 },
+      }),
+    })
+    const now = { value: 1_000_000 }
+    const manager = createConfigManager({
+      env,
+      api,
+      refreshMs: 10_000,
+      nowFn: () => now.value,
+    })
+
+    await manager.load()
+    now.value += 10_001
+    await expect(manager.maybeRefresh()).resolves.toBeUndefined()
+    expect(api.queries).toHaveLength(1)
+    expect(manager.get().selfDirected.prompt).toBe(`from-env`)
   })
 
   it(`records mode: loads the resident_configs record by agentId`, async () => {

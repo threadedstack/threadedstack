@@ -117,6 +117,8 @@ const build = ({
       sandbox: noSandboxService ? undefined : { startPod, stopPod, findActiveInstances },
       config: {
         server: { port: 5885 },
+        // Residents dial the backend via the PUBLIC proxy URL (config.proxy.url)
+        proxy: { url: `https://px.example.test` },
         egress: { serviceName: `tdsk-backend`, servicePort: 8889 },
       },
     },
@@ -163,8 +165,15 @@ describe(`resident watchdog — reconcile matrix`, () => {
     expect(ctx.stopPod).not.toHaveBeenCalled()
   })
 
-  it(`missing: no pod ⇒ start with the FULL five-var env contract`, async () => {
-    const ctx = build({ pods: [] })
+  it(`missing: no pod ⇒ start with the FULL env contract (identity vars + config JSON)`, async () => {
+    const configRecord = {
+      id: `rec_cfg001`,
+      data: {
+        agentId: AgentId,
+        agenda: [{ key: `daily`, cron: `0 9 * * *`, prompt: `p` }],
+      },
+    }
+    const ctx = build({ pods: [], configRecords: [configRecord] })
     const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
 
     const summary = await watchdog.tick()
@@ -178,13 +187,17 @@ describe(`resident watchdog — reconcile matrix`, () => {
       projectId: ProjectId,
       userId: `11111111-2222-3333-4444-555555555555`,
     })
-    // ALL five env vars — the runtime refuses to boot with any missing
+    // ALL five identity vars — the runtime refuses to boot with any missing
     expect(call.extraEnv[ResidentEnvVars.agentId]).toBe(AgentId)
     expect(call.extraEnv[ResidentEnvVars.orgId]).toBe(OrgId)
     expect(call.extraEnv[ResidentEnvVars.projectId]).toBe(ProjectId)
-    expect(call.extraEnv[ResidentEnvVars.backendUrl]).toBe(`http://tdsk-backend:5885`)
+    // The backend URL is the PUBLIC proxy URL (config.proxy.url) — residents
+    // reach the backend through the MITM like any other client
+    expect(call.extraEnv[ResidentEnvVars.backendUrl]).toBe(`https://px.example.test`)
     expect(call.extraEnv[ResidentEnvVars.token]).toMatch(new RegExp(`^${ApiKeyPrefix}`))
-    expect(Object.keys(call.extraEnv)).toHaveLength(5)
+    // PLUS the resident_configs record injected as JSON — network-free boot
+    expect(JSON.parse(call.extraEnv[ResidentEnvVars.config])).toEqual(configRecord.data)
+    expect(Object.keys(call.extraEnv)).toHaveLength(6)
   })
 
   it(`stale: pod exists but heartbeat is old ⇒ stop pod, rotate token, restart`, async () => {
@@ -311,14 +324,48 @@ describe(`resident watchdog — config/resolution guards`, () => {
     })
   })
 
-  it(`errors (never starts) when no in-cluster backend URL can be derived`, async () => {
+  it(`errors (never starts) when config.proxy.url is unset`, async () => {
     const ctx = build({ pods: [] })
-    ;(ctx.app.locals.config as any).egress.serviceName = undefined
+    ;(ctx.app.locals.config as any).proxy.url = ``
     const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
     const summary = await watchdog.tick()
     expect(summary.results[0].action).toBe(`error`)
-    expect(summary.results[0].reason).toContain(`no in-cluster backend URL`)
+    expect(summary.results[0].reason).toContain(`no backend URL`)
+    expect(summary.results[0].reason).toContain(`config.proxy.url`)
     expect(ctx.startPod).not.toHaveBeenCalled()
+  })
+
+  it(`prefers the opts.backendUrl override over config.proxy.url`, async () => {
+    const ctx = build({ pods: [] })
+    const watchdog = createResidentWatchdog(ctx.app, {
+      nowFn: () => Now,
+      backendUrl: `https://override.example.test`,
+    })
+    const summary = await watchdog.tick()
+    expect(summary.results[0].action).toBe(`started`)
+    const call = ctx.startPod.mock.calls[0][0]
+    expect(call.extraEnv[ResidentEnvVars.backendUrl]).toBe(
+      `https://override.example.test`
+    )
+  })
+
+  it(`degrades (never starts) when config.proxy.url is pod-unreachable (0.0.0.0/localhost)`, async () => {
+    for (const url of [`http://0.0.0.0:7118`, `http://localhost:7118`]) {
+      const ctx = build({ pods: [] })
+      ;(ctx.app.locals.config as any).proxy.url = url
+      const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+      const summary = await watchdog.tick()
+      expect(summary.results[0].action).toBe(`degraded`)
+      expect(summary.results[0].reason).toContain(`unreachable from a pod`)
+      expect(summary.results[0].reason).toContain(url)
+      expect(ctx.startPod).not.toHaveBeenCalled()
+      // Marked degraded on the resident_status record — no crash-looping pods
+      expect(ctx.recordUpserts).toContainEqual(
+        expect.objectContaining({
+          data: expect.objectContaining({ agentId: AgentId, degraded: true }),
+        })
+      )
+    }
   })
 
   it(`is idle without a sandbox service (K8s unavailable)`, async () => {
