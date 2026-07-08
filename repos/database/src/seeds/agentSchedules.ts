@@ -3,6 +3,7 @@ import type { TActionsConfig, TContextSource } from '@tdsk/domain'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { EQueryOp } from '@tdsk/domain'
 
 /**
  * Canonical, git-versioned definitions of the autonomous agent's own operating
@@ -33,6 +34,32 @@ const AdversarySandboxId = `sb_xg7h1wl`
 // enables them.
 const CeoAgentId = `ag_ceo0001`
 const CeoSandboxId = `sb_ceo0001`
+
+// ── Board cycle context sources (generalization ③) ──────────────────────────
+// Declarative replacements for the hard-coded board context builders: every
+// board cycle reads the durable strategy singleton and the still-open decision
+// proposals from the board Collections (seeds/exec-board/collections.ts); the
+// two deliberation cycles additionally read the posted per-round positions.
+// Positions cannot be filtered per-proposal in a static query, so the source
+// injects the most recent rounds (orderBy round desc, limit 50) and the prompts
+// match them to proposals by `proposalId`.
+const BoardStrategySource: TContextSource = {
+  collection: `company_strategy`,
+  query: {},
+  as: `Company Strategy`,
+}
+const BoardOpenDecisionsSource: TContextSource = {
+  collection: `decision_proposals`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.in, value: [`open`, `deliberating`] }],
+  },
+  as: `Open board decisions`,
+}
+const BoardPositionsSource: TContextSource = {
+  collection: `decision_positions`,
+  query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
+  as: `Board positions`,
+}
 
 export type TAgentScheduleDef = {
   /** Prompt filename stem under ./agent-schedules and the human-facing label. */
@@ -81,6 +108,8 @@ type TDefCore = {
   timeoutMs: number | null
   maxConsecutiveErrors: number
   enabled?: boolean
+  contextSources?: TContextSource[]
+  actions?: TActionsConfig
 }
 
 const make =
@@ -97,6 +126,10 @@ const make =
     sandboxId,
     orgId: OpsOrgId,
     projectId: OpsProjectId,
+    // Conditional spread keeps the keys ABSENT on the 11 live dev-loop defs, so
+    // they stay byte-identical (reconciler: undefined == null DB column, no churn).
+    ...(d.contextSources ? { contextSources: d.contextSources } : {}),
+    ...(d.actions ? { actions: d.actions } : {}),
     prompt: loadPrompt(d.key),
   })
 
@@ -208,6 +241,11 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   // day while the Active Initiative stays frozen. The CTO board cycle runs on the
   // steward agent+sandbox (the CTO seat) but is a distinct schedule from the
   // steward's dev-loop cycles.
+  // Each board schedule carries the ② effect-surface allowlist of exactly the
+  // Functions its role may invoke (seeds/exec-board/functions/*) and the ③
+  // contextSources that inject the board Collections into its prompt. The CEO
+  // board cycle owns resolution (spec §5: it closes its tdsk-actions block with
+  // `resolveBoard`), mirroring the hard-coded isCeoSchedule executor branch.
   ceo({
     key: `ceo-strategy`,
     id: `sd_ceostr1`,
@@ -215,6 +253,8 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
     enabled: false,
+    contextSources: [BoardStrategySource, BoardOpenDecisionsSource],
+    actions: { functions: [`upsertStrategy`, `openDecision`] },
   }),
   ceo({
     key: `ceo-board`,
@@ -223,6 +263,8 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
     enabled: false,
+    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
+    actions: { functions: [`postPosition`, `resolveBoard`] },
   }),
   steward({
     key: `cto-board`,
@@ -231,5 +273,7 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
     enabled: false,
+    contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPositionsSource],
+    actions: { functions: [`postPosition`, `reportInitiativeComplete`] },
   }),
 ]
