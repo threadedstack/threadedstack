@@ -4,6 +4,7 @@ import type {
   IEscalationProvider,
   IMemoryProvider,
   IRecordsProvider,
+  IInvokeProvider,
   ISkillProvider,
   IDelegateProvider,
   IOpsProvider,
@@ -66,6 +67,14 @@ export type TAgentRuntimeConfig = {
    */
   recordsProvider?: IRecordsProvider
   /**
+   * Invoke provider (backend-implemented) for the live effect surface
+   * (generalization ②). Present only when the agent is project-scoped AND a
+   * non-empty allowlist was supplied via `opts.actions`; wired into the
+   * AgentRunner so the api brain exposes the `invoke` tool, routing through the
+   * same `invokeAction` core as the deferred `tdsk-actions` block.
+   */
+  invokeProvider?: IInvokeProvider
+  /**
    * Skill self-improvement provider (backend-implemented). Present only when the
    * `skills` feature flag is enabled; wired into the AgentRunner so the api brain
    * exposes the authorSkill/skillsList/skillView tools.
@@ -126,6 +135,12 @@ export type TResolveAgentOpts = {
    * here so their teardown path can always reap the pod.
    */
   onPodStart?: (podName: string) => void
+  /**
+   * Effect-surface allowlist (generalization ②): the set of project-scoped
+   * Function names the live `invoke` tool may call. Non-empty + a resolved
+   * project ⇒ the `invoke` tool is exposed; empty/absent ⇒ no tool (inert).
+   */
+  actions?: string[]
 }
 
 export type TAgentExecOpts = {

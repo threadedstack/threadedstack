@@ -12,6 +12,7 @@ import type {
   IEscalationProvider,
   IMemoryProvider,
   IRecordsProvider,
+  IInvokeProvider,
   ISkillProvider,
   IDelegateProvider,
   TDelegateToolOpts,
@@ -793,6 +794,71 @@ export const createRecordTools = (
             content: [
               { type: `text` as const, text: `Collection delete failed: ${message}` },
             ],
+            details: { success: false },
+          }
+        }
+      },
+    },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates the live effect tool (`invoke`) backed by an IInvokeProvider
+ * (generalization ②). Mirrors createRecordTools: the agent package declares the
+ * tool; the backend implements the provider (bridged to the effect core
+ * `invokeAction`) and injects it. A single tool that runs a project-scoped,
+ * allowlisted Function by name and surfaces its `{ ok, data, error }` result.
+ * Filtered by `allowedTools` like the other factories.
+ */
+export const createInvokeTools = (
+  invokeProvider: IInvokeProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
+    {
+      name: EAgentTool.invoke,
+      label: `Invoke`,
+      description: `Invoke a project Function by name with args and return its result. The Function is resolved within the agent's project and gated by an allowlist; returns { ok, data, error }.`,
+      parameters: Type.Object({
+        function: Type.String({ description: `The Function name to invoke` }),
+        args: Type.Optional(
+          Type.Record(Type.String(), Type.Unknown(), {
+            description: `Arguments passed to the Function as its context.args`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { function: string; args?: Record<string, unknown> },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Invoking function: ${params.function}` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await invokeProvider.invoke(params.function, params.args ?? {})
+          const text = result.ok
+            ? `Function ${params.function} succeeded: ${JSON.stringify(result.data)}`
+            : `Function ${params.function} failed: ${result.error ?? `unknown error`}`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: {
+              success: result.ok,
+              function: params.function,
+              data: result.data,
+              error: result.error,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown invoke error`
+          logger.warn(`invoke tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Invoke failed: ${message}` }],
             details: { success: false },
           }
         }

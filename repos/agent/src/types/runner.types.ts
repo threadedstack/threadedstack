@@ -1,5 +1,6 @@
 import type { IMemoryProvider } from './memory.types'
 import type { IRecordsProvider } from './records.types'
+import type { IInvokeProvider } from './invoke.types'
 import type { ISkillProvider } from './skill.types'
 import type { ITaskProvider } from './task.types'
 import type { IEscalationProvider } from './escalation.types'
@@ -100,6 +101,14 @@ export type TAgentInitOpts = {
    * to the agent's project collections. Gated by the `collections` feature flag.
    */
   recordsProvider?: IRecordsProvider
+  /**
+   * Invoke provider (backend-implemented) for the live effect surface
+   * (generalization ②). When present, the runner exposes the `invoke` tool,
+   * which runs a project-scoped, allowlisted Function through the same
+   * `invokeAction` core as the deferred `tdsk-actions` block. Gated purely on
+   * config (an allowlist supplied via the run opts); absent ⇒ no `invoke` tool.
+   */
+  invokeProvider?: IInvokeProvider
   /**
    * Skill self-improvement provider (backend-implemented). When present, the
    * runner exposes authorSkill/skillsList/skillView tools.

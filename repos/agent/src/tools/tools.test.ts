@@ -7,6 +7,7 @@ import {
   createWebTools,
   createMemoryTools,
   createRecordTools,
+  createInvokeTools,
   createSandboxTools,
   createDelegateTools,
   buildCustomFunctionTools,
@@ -1335,6 +1336,120 @@ describe(`createRecordTools`, () => {
       expect(result.details).toEqual(
         expect.objectContaining({ success: false, deleted: false })
       )
+    })
+  })
+})
+
+describe(`createInvokeTools`, () => {
+  const makeProvider = () => ({
+    invoke: vi.fn().mockResolvedValue({ ok: true, data: { recorded: true } }),
+  })
+
+  describe(`tool creation and filtering`, () => {
+    it(`should return the invoke tool when no filter is provided`, () => {
+      const tools = createInvokeTools(makeProvider())
+      expect(tools).toHaveLength(1)
+      expect(tools.map((t) => t.name)).toEqual([EAgentTool.invoke])
+    })
+
+    it(`should include invoke when its name is allowed`, () => {
+      const tools = createInvokeTools(makeProvider(), [EAgentTool.invoke])
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(EAgentTool.invoke)
+    })
+
+    it(`should return the invoke tool when allowedTools is empty`, () => {
+      const tools = createInvokeTools(makeProvider(), [])
+      expect(tools).toHaveLength(1)
+    })
+
+    it(`should exclude invoke when allowedTools has no matches`, () => {
+      const tools = createInvokeTools(makeProvider(), [`shellExec`])
+      expect(tools).toHaveLength(0)
+    })
+
+    it(`should have a description and parameters`, () => {
+      const tools = createInvokeTools(makeProvider())
+      expect(tools[0].description).toBeTruthy()
+      expect(tools[0].parameters).toBeDefined()
+    })
+  })
+
+  describe(`invoke`, () => {
+    it(`should call provider.invoke with function + args and surface the result`, async () => {
+      const provider = makeProvider()
+      const tools = createInvokeTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.invoke)!
+      const result = await tool.execute(
+        `call-1`,
+        { function: `recordProposal`, args: { title: `Ship it` } },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.invoke).toHaveBeenCalledWith(`recordProposal`, {
+        title: `Ship it`,
+      })
+      const text = (result.content[0] as any).text
+      expect(text).toContain(`recordProposal`)
+      expect(text).toContain(`succeeded`)
+      expect(result.details).toEqual(
+        expect.objectContaining({
+          success: true,
+          function: `recordProposal`,
+          data: { recorded: true },
+        })
+      )
+    })
+
+    it(`should default args to {} when omitted`, async () => {
+      const provider = makeProvider()
+      const tools = createInvokeTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.invoke)!
+      await tool.execute(
+        `call-1`,
+        { function: `recordProposal` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(provider.invoke).toHaveBeenCalledWith(`recordProposal`, {})
+    })
+
+    it(`should surface a provider { ok:false } as a failure result`, async () => {
+      const provider = makeProvider()
+      provider.invoke.mockResolvedValue({ ok: false, error: `function not allowed: x` })
+      const tools = createInvokeTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.invoke)!
+      const result = await tool.execute(
+        `call-1`,
+        { function: `x`, args: {} },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect((result.content[0] as any).text).toContain(
+        `Function x failed: function not allowed: x`
+      )
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: false, error: `function not allowed: x` })
+      )
+    })
+
+    it(`should catch a thrown provider error and return a failure message`, async () => {
+      const provider = makeProvider()
+      provider.invoke.mockRejectedValue(new Error(`boom`))
+      const tools = createInvokeTools(provider)
+      const tool = tools.find((t) => t.name === EAgentTool.invoke)!
+      const result = await tool.execute(
+        `call-1`,
+        { function: `recordProposal`, args: {} },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect((result.content[0] as any).text).toContain(`Invoke failed: boom`)
+      expect(result.details).toEqual(expect.objectContaining({ success: false }))
     })
   })
 })
