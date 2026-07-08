@@ -13,6 +13,8 @@ export class Function extends Base {
   inputSchema?: TFunctionParam[]
   defaultArgs?: Record<string, any>
   dependencies?: Record<string, any>
+  /** Provenance/annotation metadata — e.g. `{ authoredBy, version }` stamped by the authorFunction self-extension surface. */
+  meta?: Record<string, any>
   language: string = EFunLanguage.typescript
 
   constructor(func: Partial<Function>) {

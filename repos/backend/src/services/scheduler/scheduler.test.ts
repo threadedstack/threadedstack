@@ -2,16 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Scheduler, createScheduler } from './scheduler'
 import { logger } from '@TBE/utils/logger'
 
+// parseNextRun now lives in @tdsk/domain (shared with the resident runtime)
 vi.mock('@tdsk/domain', () => ({
   isFeatureEnabled: vi.fn(() => true),
+  parseNextRun: vi.fn().mockReturnValue(new Date(`2026-04-01T00:00:00Z`)),
 }))
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}))
-
-vi.mock(`@TBE/services/scheduler/cronParser`, () => ({
-  parseNextRun: vi.fn().mockReturnValue(new Date(`2026-04-01T00:00:00Z`)),
 }))
 
 vi.mock(`@TBE/services/scheduler/rehydrator`, () => ({

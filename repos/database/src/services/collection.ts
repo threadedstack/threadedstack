@@ -44,6 +44,26 @@ export class Collection extends Base<
     }
   }
 
+  /**
+   * Every collection with the given name across ALL projects, newest first.
+   * The resident watchdog's cross-project enumeration — resident_configs is a
+   * per-project collection, and the watchdog reconciles every project that
+   * holds one.
+   */
+  async listByName(name: string): Promise<TDBApiRes<CollectionModel[]>> {
+    try {
+      const rows = await this.db
+        .select()
+        .from(collections)
+        .where(eq(collections.name, name))
+        .orderBy(desc(collections.createdAt))
+
+      return { data: rows.map((row) => this.model(row as TDBCollectionSelect)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
   /** All collections for a project, newest first. Project-scoped. */
   async listByProject(projectId: string): Promise<TDBApiRes<CollectionModel[]>> {
     try {

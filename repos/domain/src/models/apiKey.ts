@@ -16,6 +16,10 @@ export class ApiKey extends Base {
   expiresAt?: Date | string
   lastUsedAt?: Date | string
   permissions?: TPermission[]
+  /** Resident-bound key: authorizes ONLY the resident dispatch surface for this
+   * agent. Minted/rotated by the platform (mintResidentToken) at resident pod
+   * start — never user-created. */
+  residentAgentId?: string
 
   constructor(apiKey: Partial<ApiKey>) {
     super()

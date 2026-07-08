@@ -1,9 +1,8 @@
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { Schedule } from '@tdsk/domain'
-import { isFeatureEnabled } from '@tdsk/domain'
+import { isFeatureEnabled, parseNextRun } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
-import { parseNextRun } from '@TBE/services/scheduler/cronParser'
 import { hydrateOrphanedRuns } from '@TBE/services/scheduler/rehydrator'
 
 /**

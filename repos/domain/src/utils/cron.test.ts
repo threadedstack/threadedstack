@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isValidCron, parseNextRun } from './cronParser'
+import { isValidCron, parseNextRun } from './cron'
 
 /**
  * Helper to create a Date in local time.

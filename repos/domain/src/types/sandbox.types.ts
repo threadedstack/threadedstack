@@ -266,6 +266,11 @@ export type TKubeSandboxConfig = {
   skillPath?: string
   /** Sandbox-level generative UI config override (overrides org-level guiConfig when set) */
   guiConfig?: TGuiConfig
+  /** Resident mode: the pod is a long-lived always-on body for one agent. The
+   * container's main process becomes the resident runtime launcher (instead of
+   * `sleep infinity`), the idle reaper exempts the pod, and
+   * `TDSK_RESIDENT_AGENT_ID` is injected into the pod env. */
+  resident?: { agentId: string }
 }
 
 export type TPlaceholderEntry = {
