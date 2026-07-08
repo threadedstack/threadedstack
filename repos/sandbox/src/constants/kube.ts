@@ -15,6 +15,11 @@ export const PodLabelKeys = {
   managed: `tdsk.app/managed`,
   sandboxId: `tdsk.app/sandbox-id`,
   projectId: `tdsk.app/project-id`,
+  // Resident-mode pods (always-on agents) — selected by the resident egress
+  // NetworkPolicy, which additionally allows the backend API port so the
+  // in-pod runtime can reach dispatch/records. Ordinary sandboxes stay locked
+  // to the egress MITM + DNS only.
+  resident: `tdsk.app/resident`,
 } as const
 
 export const PodAnnotationKeys = {

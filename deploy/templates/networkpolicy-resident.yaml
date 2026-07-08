@@ -1,0 +1,38 @@
+{{- if $.Values.residentNetworkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $.Values.residentNetworkPolicy.name | default "resident-egress-policy" | quote }}
+  labels:
+    "app.kubernetes.io/name": "tdsk-app"
+    "app.kubernetes.io/component": {{ $.Release.Name | quote }}
+    "app.kubernetes.io/managed-by": {{ $.Release.Service | quote }}
+  annotations:
+    "helm.sh/chart": "{{ $.Chart.Name }}-{{ $.Chart.Version }}"
+spec:
+  # Resident-mode pods (always-on agents). NetworkPolicy egress is additive
+  # across policies, so resident pods keep the base sandbox-egress-policy
+  # allowances (egress MITM + DNS) and ADDITIONALLY may reach the backend API
+  # port for dispatch/records. Ordinary sandboxes are not selected here.
+  podSelector:
+    matchLabels:
+      {{- range $key, $val := $.Values.residentNetworkPolicy.podSelector }}
+      {{ $key }}: {{ $val | quote }}
+      {{- end }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- range $key, $val := $.Values.residentNetworkPolicy.egressSelector }}
+              {{ $key }}: {{ $val | quote }}
+              {{- end }}
+      ports:
+      {{- range $.Values.residentNetworkPolicy.egressPorts }}
+        - port: {{ .port }}
+          {{- if .protocol }}
+          protocol: {{ .protocol }}
+          {{- end }}
+      {{- end }}
+{{- end }}
