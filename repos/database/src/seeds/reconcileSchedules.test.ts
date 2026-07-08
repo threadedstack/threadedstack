@@ -20,6 +20,7 @@ const def = (over: Record<string, unknown> = {}) => ({
   sandboxId: `sb_1`,
   orgId: `og_1`,
   projectId: `pj_1`,
+  userId: `00000000-0000-0000-0000-000000000000`,
   prompt: `hello world this prompt is long enough`,
   ...over,
 })
@@ -237,6 +238,14 @@ describe(`needsUpdate`, () => {
     expect(needsUpdate({ ...d, actions: null }, d)).toBe(true)
   })
 
+  it(`repairs a null userId (executor rejects agent-backed schedules without one)`, () => {
+    const d = def()
+    // Reconciler-created rows predating the userId field read back null.
+    expect(needsUpdate({ ...d, userId: null }, d)).toBe(true)
+    // A row already carrying the ops user does not churn.
+    expect(needsUpdate({ ...d }, d)).toBe(false)
+  })
+
   it(`ignores runtime bookkeeping fields`, () => {
     const d = def()
     expect(needsUpdate({ ...d, nextRunAt: new Date(), consecutiveErrors: 4 }, d)).toBe(
@@ -263,6 +272,7 @@ describe(`declarativeFields`, () => {
         `sandboxId`,
         `timeoutMs`,
         `type`,
+        `userId`,
       ].sort()
     )
     expect(f).not.toHaveProperty(`nextRunAt`)
