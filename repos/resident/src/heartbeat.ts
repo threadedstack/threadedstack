@@ -56,7 +56,7 @@ export const createHeartbeat = (opts: THeartbeatOpts): THeartbeat => {
       timer = setInterval(() => {
         void beat().catch((err) => log.error(`Heartbeat error:`, err))
       }, intervalMs)
-      timer.unref?.()
+      // Ref'd on purpose — see loop.ts: unref'd timers let the process exit.
     },
     stop: () => {
       if (timer) clearInterval(timer)

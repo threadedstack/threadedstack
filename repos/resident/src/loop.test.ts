@@ -532,6 +532,22 @@ describe(`turn assembly + effects`, () => {
 })
 
 describe(`status + shutdown`, () => {
+  it(`start() holds a REF'D interval — the process must not exit while the loop runs`, async () => {
+    // Live failure 2026-07-08: unref'd timers let Node exit 0 minutes after
+    // "runtime is live" (pods Completed). The scan interval IS the process
+    // keepalive; it must stay ref'd until shutdown clears it.
+    const setIntervalSpy = vi.spyOn(globalThis, `setInterval`)
+    const { loop } = makeLoop()
+    loop.start()
+    try {
+      const timer = setIntervalSpy.mock.results.at(-1)?.value as NodeJS.Timeout
+      expect(timer.hasRef?.()).not.toBe(false)
+    } finally {
+      await loop.shutdown()
+      setIntervalSpy.mockRestore()
+    }
+  })
+
   it(`exposes queue depth + activity for the heartbeat`, async () => {
     const { loop } = makeLoop()
     loop.enqueue({ kind: EResidentEventKind.agenda, key: `a1`, prompt: `p` })
