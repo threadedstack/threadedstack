@@ -64,6 +64,7 @@ export const declarativeFields = (def: TAgentScheduleDef) => ({
   orgId: def.orgId,
   projectId: def.projectId,
   contextSources: def.contextSources ?? null,
+  actions: def.actions ?? null,
 })
 
 /** True when any declarative field on the live row differs from the definition. */
@@ -78,7 +79,8 @@ export const needsUpdate = (existing: any, def: TAgentScheduleDef): boolean =>
   existing.sandboxId !== def.sandboxId ||
   existing.orgId !== def.orgId ||
   existing.projectId !== def.projectId ||
-  stableStringify(existing.contextSources) !== stableStringify(def.contextSources)
+  stableStringify(existing.contextSources) !== stableStringify(def.contextSources) ||
+  stableStringify(existing.actions) !== stableStringify(def.actions)
 
 /**
  * Upsert each definition's declarative fields into the schedules table:

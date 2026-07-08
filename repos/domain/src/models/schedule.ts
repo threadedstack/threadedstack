@@ -1,4 +1,4 @@
-import type { TContextSource } from '@TDM/types'
+import type { TActionsConfig, TContextSource } from '@TDM/types'
 
 import { Base } from '@TDM/models/base'
 import { EScheduleType } from '@TDM/types'
@@ -21,6 +21,8 @@ export class Schedule extends Base {
   maxConsecutiveErrors: number = 5
   type: EScheduleType = EScheduleType.prompt
   contextSources?: TContextSource[] | null
+  /** Opt-in effect-surface allowlist (generalization ②). Null/absent ⇒ off. */
+  actions?: TActionsConfig | null
 
   constructor(schedule: Partial<Schedule>) {
     super()

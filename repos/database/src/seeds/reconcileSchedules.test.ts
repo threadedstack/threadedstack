@@ -139,6 +139,19 @@ describe(`needsUpdate`, () => {
     ).toBe(true)
   })
 
+  it(`treats null/undefined actions as equal (live schedules do not churn)`, () => {
+    const d = def()
+    // def() sets no actions; a live row reads it back as null.
+    expect(needsUpdate({ ...d, actions: null }, d)).toBe(false)
+    expect(needsUpdate({ ...d, actions: undefined }, d)).toBe(false)
+  })
+
+  it(`is true when a schedule gains actions`, () => {
+    const d = def({ actions: { functions: [`f`] } })
+    // Live row has none yet -> reconciler must see the added allowlist as a change.
+    expect(needsUpdate({ ...d, actions: null }, d)).toBe(true)
+  })
+
   it(`ignores runtime bookkeeping fields`, () => {
     const d = def()
     expect(needsUpdate({ ...d, nextRunAt: new Date(), consecutiveErrors: 4 }, d)).toBe(
@@ -152,6 +165,7 @@ describe(`declarativeFields`, () => {
     const f = declarativeFields(def())
     expect(Object.keys(f).sort()).toEqual(
       [
+        `actions`,
         `agentId`,
         `contextSources`,
         `cronExpression`,
