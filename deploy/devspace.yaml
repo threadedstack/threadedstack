@@ -460,6 +460,10 @@ deployments:
             app.kubernetes.io/component: tdsk-backend
           egressPorts:
             - port: ${TDSK_BE_PORT}
+          # k3s service CIDR — the ClusterIP path residents actually dial
+          # (no cluster DNS in sandbox pods; podSelector rules don't match
+          # service-DNAT'd traffic on this CNI).
+          serviceCidr: 10.43.0.0/16
         serviceAccountName: tdsk-backend-sa
         customServiceAccount:
           name: tdsk-backend-sa

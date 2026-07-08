@@ -113,6 +113,14 @@ export const createResidentWatchdog = (
 
   const resolveBackendUrl = (): string | undefined => {
     if (opts.backendUrl) return opts.backendUrl
+    // Prefer the K8s-injected ClusterIP env: sandbox pods have NO cluster DNS
+    // (by security posture), so a service NAME is unresolvable in-pod — the
+    // URL must carry the service IP. TDSK_BACKEND_SERVICE_HOST/_PORT are
+    // injected into backend pods by Kubernetes (enableServiceLinks) and the
+    // ClusterIP is stable for the service's lifetime.
+    const svcHost = process.env.TDSK_BACKEND_SERVICE_HOST
+    const svcPort = process.env.TDSK_BACKEND_SERVICE_PORT
+    if (svcHost && svcPort) return `http://${svcHost}:${svcPort}`
     const config = app.locals.config
     const serviceName = config?.egress?.serviceName
     const port = config?.server?.port

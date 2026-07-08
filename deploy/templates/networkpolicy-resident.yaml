@@ -35,4 +35,21 @@ spec:
           protocol: {{ .protocol }}
           {{- end }}
       {{- end }}
+    {{- if $.Values.residentNetworkPolicy.serviceCidr }}
+    # Service-VIP path: the CNI's policy enforcement does not match
+    # service-DNAT'd traffic against podSelectors (verified live 2026-07-08:
+    # pod-IP 200, ClusterIP timeout until this ipBlock landed). Residents call
+    # the backend by ClusterIP (no cluster DNS in sandbox pods), so the service
+    # CIDR must be admitted on the same ports.
+    - to:
+        - ipBlock:
+            cidr: {{ $.Values.residentNetworkPolicy.serviceCidr | quote }}
+      ports:
+      {{- range $.Values.residentNetworkPolicy.egressPorts }}
+        - port: {{ .port }}
+          {{- if .protocol }}
+          protocol: {{ .protocol }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
 {{- end }}
