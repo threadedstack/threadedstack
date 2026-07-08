@@ -305,7 +305,7 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`keeps the 11 live dev-loop schedules free of actions + contextSources, except work-cycle's ⑤b-4a pickup allowlist`, () => {
+  it(`keeps the 11 live dev-loop schedules free of actions + contextSources, except the ⑤b-4a/4b dual-emit allowlists`, () => {
     const execKeys = [
       `ceo-strategy`,
       `ceo-board`,
@@ -313,14 +313,26 @@ describe(`AgentScheduleDefs`, () => {
       `cmo-board`,
       `cmo-marketing`,
     ]
+    // ⑤b-4a/4b DUAL-EMIT cutovers: each dual-emitting def carries EXACTLY the
+    // Function its legacy fence mirrors — the collection records the same
+    // write the legacy fence (still the authoritative table write) reports.
+    // 4a: work-cycle pickups (tdsk-task-picked -> pickupTask); 4b: every
+    // tdsk-tasks-emitting cycle's proposals (tdsk-tasks -> proposeTask).
+    const dualEmitAllowlists: Record<string, string[]> = {
+      'work-cycle': [`pickupTask`],
+      planning: [`proposeTask`],
+      coordinator: [`proposeTask`],
+      sensor: [`proposeTask`],
+    }
     const live = AgentScheduleDefs.filter((d) => !execKeys.includes(d.key))
     expect(live).toHaveLength(11)
     for (const d of live) {
       // NO contextSources on any live def: the legacy context builders stay
-      // authoritative through the dual-emit transition (the work cycle's
-      // backlog keeps flowing via the tdsk-task-picked prompt-fence gate).
+      // authoritative through the dual-emit transition (the sensor faculties
+      // and the work cycle's backlog keep flowing via the tdsk-tasks /
+      // tdsk-task-picked prompt-fence gates).
       expect(d.contextSources).toBeUndefined()
-      if (d.key === `work-cycle`) continue
+      if (d.key in dualEmitAllowlists) continue
       expect(d.actions).toBeUndefined()
       // A live DB row reads both columns back as null; null == undefined must
       // stay a no-op so the live loop never churns on deploy.
@@ -329,23 +341,19 @@ describe(`AgentScheduleDefs`, () => {
       ).toBe(false)
     }
 
-    // ⑤b-4a DUAL-EMIT cutover: work-cycle carries EXACTLY the pickupTask
-    // allowlist — the collection records the same pickup the legacy fence
-    // (still the authoritative table write) reports.
-    const workCycle = live.find((d) => d.key === `work-cycle`)
-    expect(workCycle?.actions).toEqual({ functions: [`pickupTask`] })
-    expect(workCycle?.contextSources).toBeUndefined()
-    // The live row (null actions) reconciles ONCE to gain the allowlist...
-    expect(
-      needsUpdate(
-        { ...declarativeFields(workCycle!), contextSources: null, actions: null },
-        workCycle!
+    for (const [key, functions] of Object.entries(dualEmitAllowlists)) {
+      const d = live.find((entry) => entry.key === key)
+      expect(d?.actions).toEqual({ functions })
+      expect(d?.contextSources).toBeUndefined()
+      // The live row (null actions) reconciles ONCE to gain the allowlist...
+      expect(
+        needsUpdate({ ...declarativeFields(d!), contextSources: null, actions: null }, d!)
+      ).toBe(true)
+      // ...then a jsonb round trip of the updated row never churns again.
+      expect(needsUpdate(JSON.parse(JSON.stringify(declarativeFields(d!))), d!)).toBe(
+        false
       )
-    ).toBe(true)
-    // ...then a jsonb round trip of the updated row never churns again.
-    expect(
-      needsUpdate(JSON.parse(JSON.stringify(declarativeFields(workCycle!))), workCycle!)
-    ).toBe(false)
+    }
   })
 
   it(`work-cycle prompt DUAL-EMITS pickups: legacy fence AND tdsk-actions pickupTask (⑤b-4a)`, () => {
@@ -362,6 +370,34 @@ describe(`AgentScheduleDefs`, () => {
     expect(prompt).toContain(`tdsk-actions`)
     expect(prompt).toContain(
       `[{"function":"pickupTask","args":{"proposalId":"<tp_ id exactly as shown>","prUrl":"<the PR URL you opened>","note":"<one short line>"}}]`
+    )
+  })
+
+  it(`sensor/planning/coordinator prompts DUAL-EMIT proposals: legacy fence AND tdsk-actions proposeTask (⑤b-4b)`, () => {
+    const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
+    // The legacy fence stays verbatim — it is both the authoritative table
+    // write AND the promptOptsIn gate (executor.ts:1397) that keeps the sensor
+    // faculties (run outcomes + open-proposals digest) flowing into the cycles.
+    for (const key of [`sensor`, `planning`, `coordinator`]) {
+      expect(byKey[key]).toContain(`tdsk-tasks`)
+      expect(byKey[key]).toContain(`"title":"<imperative one-line>"`)
+      expect(byKey[key]).toContain(`tdsk-actions`)
+    }
+    // Each prompt's distinctive legacy dedupeKey placeholder survives verbatim.
+    expect(byKey[`sensor`]).toContain(`"dedupeKey":"<stable key for this anomaly`)
+    expect(byKey[`planning`]).toContain(`"dedupeKey":"strategy:<slug>"`)
+    expect(byKey[`coordinator`]).toContain(`"dedupeKey":"initiative:<name>:child:<slug>"`)
+    // The transitional actions block records the SAME proposals in the
+    // Collection, with the args the proposeTask Function body actually accepts
+    // — field-for-field the legacy entry's fields, per prompt.
+    expect(byKey[`sensor`]).toContain(
+      `[{"function":"proposeTask","args":{"title":"<same title>","description":"<same description>","priority":"<same priority>","evidence":"<same evidence>","sourceSignal":"<same sourceSignal>","dedupeKey":"<same dedupeKey>","repos":["<same repos>"]}}]`
+    )
+    expect(byKey[`planning`]).toContain(
+      `[{"function":"proposeTask","args":{"title":"<same title>","description":"<same description>","priority":"<same priority>","evidence":"<same evidence>","sourceSignal":"other","dedupeKey":"<same dedupeKey>","initiative":"<same initiative — parent only, omit otherwise>","repos":["<same repos>"]}}]`
+    )
+    expect(byKey[`coordinator`]).toContain(
+      `[{"function":"proposeTask","args":{"title":"<same title>","description":"<same description>","priority":"<same priority>","evidence":"<same evidence>","sourceSignal":"other","dedupeKey":"<same dedupeKey>","initiative":"<name>","parentId":"<same parentId — omit if this IS a parent>","repos":["<same repos>"]}}]`
     )
   })
 

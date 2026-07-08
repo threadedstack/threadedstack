@@ -317,6 +317,17 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `0 6 * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
+    // ⑤b-4b DUAL-EMIT cutover: every tdsk-tasks-emitting cycle (planning,
+    // coordinator, sensor) may invoke `proposeTask`
+    // (seeds/dev-loop/functions/proposeTask.ts) so its proposals ALSO land in
+    // the task_proposals Collection while the legacy tdsk-tasks fence keeps the
+    // table authoritative. NO contextSources here: the legacy sensor faculties
+    // (run outcomes + open-proposals digest) keep flowing because their gate
+    // reads the PROMPT text — executor.ts:1397
+    // `promptOptsIn(schedule, TasksBlockFence)` checks
+    // `schedule.prompt.includes('tdsk-tasks')`, and the dual-emit prompts keep
+    // that fence verbatim.
+    actions: { functions: [`proposeTask`] },
   }),
   steward({
     key: `work-cycle`,
@@ -340,6 +351,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `0 5 * * *`,
     timeoutMs: 14_400_000,
     maxConsecutiveErrors: 6,
+    // ⑤b-4b DUAL-EMIT cutover: `proposeTask` allowlisted — see the planning
+    // def's comment; the legacy tdsk-tasks fence stays verbatim and the table
+    // stays authoritative.
+    actions: { functions: [`proposeTask`] },
   }),
   steward({
     key: `sensor`,
@@ -347,6 +362,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `40 */2 * * *`,
     timeoutMs: 5_400_000,
     maxConsecutiveErrors: 6,
+    // ⑤b-4b DUAL-EMIT cutover: `proposeTask` allowlisted — see the planning
+    // def's comment; the legacy tdsk-tasks fence stays verbatim and the table
+    // stays authoritative.
+    actions: { functions: [`proposeTask`] },
   }),
   steward({
     key: `observer`,

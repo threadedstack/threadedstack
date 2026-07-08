@@ -28,3 +28,18 @@ Rules:
 - dedupeKey MUST be stable for the same underlying anomaly across cycles and MUST NOT collide with a dedupeKey already listed in "## Recently proposed backlog".
 - These are PROPOSALS only. You open no PRs and change no code in this cycle.
 
+DUAL-EMIT (transitional, dev-loop cutover 4b): the platform is migrating proposal state onto its Collections primitive; during the transition the table row stays authoritative and the `tdsk-tasks` block above remains REQUIRED exactly as specified. Whenever you emit a `tdsk-tasks` block, ALSO record the SAME proposals in the `task_proposals` Collection by emitting exactly one fenced actions block — one array entry per `tdsk-tasks` entry, same order, values copied verbatim:
+
+```tdsk-actions
+[{"function":"proposeTask","args":{"title":"<same title>","description":"<same description>","priority":"<same priority>","evidence":"<same evidence>","sourceSignal":"<same sourceSignal>","dedupeKey":"<same dedupeKey>","repos":["<same repos>"]}}]
+```
+
+`proposeTask` args (field-for-field the matching `tdsk-tasks` entry's fields):
+- `title`, `description`, `evidence` (strings, REQUIRED): blank or missing any of the three and the action is rejected; description/evidence are truncated server-side to 6000/4000 chars, the same caps as the legacy block.
+- `priority` (string, optional): `P0`-`P4`; anything else falls back to `P3`.
+- `sourceSignal` (string, optional): `ci|deploy-marker|health|schedule-run|log|other`; anything else falls back to `other`.
+- `dedupeKey` (string, optional): copy the entry's key; when omitted it is derived as `<sourceSignal>:<slugified title>` capped at 200 chars — the same derivation the table write uses, so row and record dedupe on the same key. Each entry dedupes against still-open (pending|scanned) records BEFORE creating, and the same fail-closed security scan runs at authoring time: a failing scan still creates the record with status `rejected`, never a silent skip.
+- `repos` (string array, optional): copy the entry's list; non-string items are dropped.
+
+Your identity is injected server-side as the trusted caller — never put an agentId in args. Only `proposeTask` is allowlisted this cycle; any other function is skipped. Omit the `tdsk-actions` block entirely when you file no proposals. This block is additive parity telemetry: it never replaces the `tdsk-tasks` block, and both must carry the same proposals.
+
