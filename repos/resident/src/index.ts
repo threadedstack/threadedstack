@@ -56,7 +56,8 @@ export const installSignalHandlers = (opts: TSignalHandlerOpts): void => {
  * Resident runtime wire-up — the pod's main process (launched by podManifest
  * as `node repos/resident/dist/index.js`):
  *
- *   env contract → api client → config (records API, env fallback) → session
+ *   env contract → api client → config (network-free boot from the injected
+ *   TDSK_RESIDENT_CONFIG env, refreshed from the records API) → session
  *   (disk state) → pump/compactor/transcript/sub-agents → event loop +
  *   heartbeat → signal handlers.
  */

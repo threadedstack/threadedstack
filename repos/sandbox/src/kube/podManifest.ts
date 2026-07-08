@@ -143,8 +143,6 @@ const buildMeta = (opts: TBuildPodMeta) => {
   }
 
   if (opts.projectId) labels[PodLabelKeys.projectId] = sanitizeLabel(opts.projectId)
-  // Resident pods carry the label the resident egress NetworkPolicy selects on.
-  if (opts.config.resident) labels[PodLabelKeys.resident] = `true`
 
   return {
     labels,
