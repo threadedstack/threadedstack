@@ -358,24 +358,38 @@ export class IsolateRunner {
       return shim
     })
 
+    const deadline = Date.now() + timeout
     await userModule.evaluate({ timeout })
 
-    // Tear the host bridge down immediately after evaluation so it never outlives
-    // this run on a pooled isolate (top-level await guarantees all bridge calls
-    // have already settled by the time evaluation resolves).
-    if (bridgeNames.length) {
-      await this.#context!.global.delete(`__hostCallStart`).catch(() => {})
-      await this.#context!.eval(
-        `delete globalThis.__hostCall; delete globalThis.__hostCallSettle; delete globalThis.__hostCallPending; delete globalThis.__hostCallSeq;`
-      ).catch(() => {})
-    }
-
-    // Try to retrieve the default export via structured clone
+    // Try to retrieve the default export via structured clone.
+    //
+    // module.evaluate() resolves when a top-level-await module SUSPENDS (its
+    // first await that isn't already settled), NOT when it completes — and
+    // while suspended, ns.get('default') throws "default is not defined". A
+    // module awaiting a slow host bridge is exactly that case, so when bridges
+    // are in play we poll through that throw until the export materializes
+    // (the settle resumed the module and it finished) or the eval deadline
+    // passes. Bridge-free modules keep the old single-attempt semantics.
     let result: any
-    try {
-      const ns = userModule.namespace
-      result = await ns.get(`default`, { copy: true })
-    } catch {
+    let extractFailed = false
+    const ns = userModule.namespace
+    for (;;) {
+      try {
+        result = await ns.get(`default`, { copy: true })
+        break
+      } catch (err: any) {
+        const msg = String(err?.message || ``)
+        const stillEvaluating =
+          msg.includes(`is not defined`) || msg.includes(`before initialization`)
+        if (stillEvaluating && bridgeNames.length && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 15))
+          continue
+        }
+        extractFailed = true
+        break
+      }
+    }
+    if (extractFailed) {
       // Structured clone failed (non-serializable properties) — try JSON fallback
       try {
         const bridge = await this.#isolate!.compileModule(
@@ -397,6 +411,17 @@ export class IsolateRunner {
         if (!String(err?.message || ``).includes(`released`))
           console.warn(`Failed to extract default export from user code:`, err)
       }
+    }
+
+    // Tear the host bridge down AFTER result extraction — extraction is what
+    // waits out in-flight bridge calls (a suspended top-level-await module
+    // resumes only when the host settles back in), so deleting the surface any
+    // earlier would strand those calls. Nothing outlives this run on a pool.
+    if (bridgeNames.length) {
+      await this.#context!.global.delete(`__hostCallStart`).catch(() => {})
+      await this.#context!.eval(
+        `delete globalThis.__hostCall; delete globalThis.__hostCallSettle; delete globalThis.__hostCallPending; delete globalThis.__hostCallSeq;`
+      ).catch(() => {})
     }
 
     userModule.release()
