@@ -3,7 +3,14 @@ import type { TActionsConfig, TContextSource } from '@tdsk/domain'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { EQueryOp } from '@tdsk/domain'
+import {
+  EQueryOp,
+  VerifyInjectMax,
+  VerifyLookbackPrs,
+  EscalationInjectMax,
+  TaskBacklogInjectMax,
+} from '@tdsk/domain'
+import { RecordQueryMaxLimit } from '@TDB/utils/database/recordQuery'
 
 /**
  * Canonical, git-versioned definitions of the autonomous agent's own operating
@@ -65,6 +72,122 @@ const BoardPositionsSource: TContextSource = {
   collection: `decision_positions`,
   query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
   as: `Board positions`,
+}
+
+// ── Dev-loop workflow context sources (Dev-Loop on Primitives ⑤b-3) ──────────
+// Declarative replacements for the hard-coded dev-loop context builders in
+// repos/backend/src/services/scheduler/executor.ts, reading the ⑤b-2 dev-loop
+// Collections (seeds/dev-loop/collections.ts). Defined here but attached to NO
+// schedule def — the Phase 4 cutovers wire them def-by-def, so every live def
+// below stays byte-identical. Where a legacy builder merged two reads, two
+// sources express it. A query that omits `orderBy` renders newest-first (the
+// record service defaults to createdAt desc), matching the legacy services'
+// newest-first reads. Exported (unlike the board trio) so the backend
+// rendering-parity tests and the Phase 4 cutover defs reference one canonical
+// definition.
+
+/**
+ * Replaces `buildTaskBacklogContext` (executor.ts:646 — the WORK cycle's
+ * pickup-ready backlog via taskProposal.listBacklog): scanned proposals,
+ * priority-ordered P0-first, capped at the legacy entry budget. listBacklog's
+ * SECONDARY newest-first tiebreak is not expressible in the single-field
+ * orderBy; the cutover prompt treats equal-priority entries as unordered
+ * (pick any — priority is the only load-bearing order).
+ */
+export const DevTaskBacklogSource: TContextSource = {
+  collection: `task_proposals`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.eq, value: `scanned` }],
+    orderBy: { field: `priority`, direction: `asc` },
+    limit: TaskBacklogInjectMax,
+  },
+  as: `Proposed backlog (sensor-detected)`,
+}
+
+/**
+ * Replaces `buildOpenProposalsDigest` (executor.ts:613 — the SENSOR cycle's
+ * do-not-duplicate digest): every still-open (pending + scanned) proposal.
+ * The legacy read was unbounded; the query API caps at 100 (newest first via
+ * the default createdAt-desc order), far above any observed open-backlog size.
+ */
+export const DevOpenProposalsSource: TContextSource = {
+  collection: `task_proposals`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.in, value: [`pending`, `scanned`] }],
+    limit: RecordQueryMaxLimit,
+  },
+  as: `Recently proposed backlog (do not duplicate)`,
+}
+
+/**
+ * Replaces `buildEscalationContext` (executor.ts:769 — every runtime cycle's
+ * open-escalations view): routed + open escalations with routed listed FIRST
+ * (text desc: 'routed' > 'open' — the same routed-first order the legacy
+ * builder produced by concatenating its two reads), capped at the legacy
+ * entry budget.
+ */
+export const DevEscalationsSource: TContextSource = {
+  collection: `escalations`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.in, value: [`routed`, `open`] }],
+    orderBy: { field: `status`, direction: `desc` },
+    limit: EscalationInjectMax,
+  },
+  as: `Open escalations (do NOT re-raise; act on routed ones)`,
+}
+
+/**
+ * Replaces the in-flight half of `buildVerifyContext` (executor.ts:891):
+ * pending + verifying rows that still need probing, pending listed first
+ * (text asc: 'pending' < 'verifying' — the legacy concatenation order),
+ * capped at the legacy entry budget.
+ */
+export const DevVerificationsInFlightSource: TContextSource = {
+  collection: `verifications`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.in, value: [`pending`, `verifying`] }],
+    orderBy: { field: `status`, direction: `asc` },
+    limit: VerifyInjectMax,
+  },
+  as: `Verifications in flight (probe these)`,
+}
+
+/**
+ * Replaces the done-set half of `buildVerifyContext` (executor.ts:891): the
+ * most recent terminal (verified | regressed) rows, whose prNumbers the
+ * cutover prompt skips as already probed. Newest-first via the default
+ * createdAt-desc order — sharper than the legacy read, which filtered the
+ * terminal rows out of the newest VerifyLookbackPrs rows overall and so
+ * could surface fewer.
+ */
+export const DevVerificationsRecentSource: TContextSource = {
+  collection: `verifications`,
+  query: {
+    where: [{ field: `status`, op: EQueryOp.in, value: [`verified`, `regressed`] }],
+    limit: VerifyLookbackPrs,
+  },
+  as: `Recent terminal verifications (done-set — skip these PR numbers)`,
+}
+
+/**
+ * Replaces `buildCoordinatorContext` (executor.ts:1140 — the COORDINATOR
+ * cycle's initiative ledger). The ONE intent a static query cannot express is
+ * the initiative filter (the live marker is `auto`, resolved from the roadmap
+ * at runtime), so the source injects EVERY initiative-carrying proposal
+ * (`ne ''` — records without an initiative compare as SQL NULL and never
+ * match), grouped by initiative via orderBy, at the API's max limit. The
+ * cutover prompt selects its current initiative's rows by their `initiative`
+ * field and rebuilds the parent/child ledger from `parentId` — the hierarchy
+ * was always assembled app-side; the source only needs the records.
+ */
+export const DevCoordinatorLedgerSource: TContextSource = {
+  collection: `task_proposals`,
+  query: {
+    where: [{ field: `initiative`, op: EQueryOp.ne, value: `` }],
+    orderBy: { field: `initiative`, direction: `asc` },
+    limit: RecordQueryMaxLimit,
+  },
+  as: `Coordinator ledger (all initiatives)`,
 }
 
 export type TAgentScheduleDef = {
