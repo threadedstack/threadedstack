@@ -130,8 +130,7 @@ const monitorConnected = async (
 
     accessibleIds = new Set<string>()
     for (const sb of orgSandboxes ?? []) {
-      const sbProjects = (sb as any).projects as Array<{ id: string }> | undefined
-      if (!sbProjects?.length || sbProjects.some((p) => projectIdSet.has(p.id))) {
+      if (!sb.projects.length || sb.projects.some((p) => projectIdSet.has(p.id))) {
         accessibleIds.add(sb.id)
       }
     }
