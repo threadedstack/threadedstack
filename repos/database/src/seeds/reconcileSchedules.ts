@@ -63,6 +63,7 @@ export const declarativeFields = (def: TAgentScheduleDef) => ({
   sandboxId: def.sandboxId,
   orgId: def.orgId,
   projectId: def.projectId,
+  userId: def.userId,
   contextSources: def.contextSources ?? null,
   actions: def.actions ?? null,
 })
@@ -79,6 +80,7 @@ export const needsUpdate = (existing: any, def: TAgentScheduleDef): boolean =>
   existing.sandboxId !== def.sandboxId ||
   existing.orgId !== def.orgId ||
   existing.projectId !== def.projectId ||
+  (existing.userId ?? null) !== (def.userId ?? null) ||
   stableStringify(existing.contextSources) !== stableStringify(def.contextSources) ||
   stableStringify(existing.actions) !== stableStringify(def.actions)
 

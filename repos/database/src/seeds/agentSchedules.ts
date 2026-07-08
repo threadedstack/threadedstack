@@ -22,6 +22,12 @@ import { EQueryOp } from '@tdsk/domain'
 // config Ã¢ÂÂ the agnostic behavior lives entirely in the prompt files below.
 export const OpsOrgId = `og_0000001`
 export const OpsProjectId = `pj_tIly2F1`
+// The system/ops user every agent-backed schedule runs as. The executor
+// requires a userId on agent-backed schedules (executor.ts throws without one),
+// and all 11 live rows carry this value — declaring it here means the
+// reconciler creates new schedules runnable and repairs any null rows, with
+// zero churn on the live ones.
+export const OpsUserId = `00000000-0000-0000-0000-000000000000`
 const StewardAgentId = `ag_lvUbjp_`
 const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
@@ -75,6 +81,8 @@ export type TAgentScheduleDef = {
   sandboxId: string
   orgId: string
   projectId: string
+  /** System user the schedule runs as — required by the executor for agent-backed schedules. */
+  userId: string
   /**
    * Optional declarative context sources injected into the cycle prompt. Absent
    * on every live schedule today (they use the hard-coded builders), so the
@@ -126,6 +134,7 @@ const make =
     sandboxId,
     orgId: OpsOrgId,
     projectId: OpsProjectId,
+    userId: OpsUserId,
     // Conditional spread keeps the keys ABSENT on the 11 live dev-loop defs, so
     // they stay byte-identical (reconciler: undefined == null DB column, no churn).
     ...(d.contextSources ? { contextSources: d.contextSources } : {}),
