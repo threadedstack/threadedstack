@@ -569,11 +569,11 @@ export const onShellConnect = async (
     for (const client of session.attachments) {
       if (client.readyState === 1) {
         client.send(data)
-        if ((client as any).bufferedAmount > SBBackpressureThreshold) {
+        if (client.bufferedAmount > SBBackpressureThreshold) {
           exec.stdout.pause()
           const start = Date.now()
           const resume = () => {
-            if ((client as any).bufferedAmount <= SBBackpressureThreshold) {
+            if (client.bufferedAmount <= SBBackpressureThreshold) {
               exec.stdout.resume()
             } else if (Date.now() - start > SBBackpressureMaxWait) {
               logger.warn(
