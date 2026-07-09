@@ -254,8 +254,14 @@ describe(`resident watchdog — reconcile matrix`, () => {
   it(`passes the ordered fallback provider envs so the in-pod runtime fails over`, async () => {
     const configRecord = { id: `rec_cfg001`, data: { agentId: AgentId } }
     const fallbacks = [
-      { brand: `zai`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai`, ANTHROPIC_BASE_URL: `https://zai` } },
-      { brand: `openrouter`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_or`, ANTHROPIC_BASE_URL: `https://or` } },
+      {
+        brand: `zai`,
+        env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai`, ANTHROPIC_BASE_URL: `https://zai` },
+      },
+      {
+        brand: `openrouter`,
+        env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_or`, ANTHROPIC_BASE_URL: `https://or` },
+      },
     ]
     mockResolveSandboxProviderChain.mockResolvedValueOnce({
       sandboxConfig: {},
@@ -274,7 +280,9 @@ describe(`resident watchdog — reconcile matrix`, () => {
 
     const call = ctx.startPod.mock.calls[0][0]
     // The pod default is the funded primary (OAuth, no OpenRouter base URL).
-    expect(call.providerChain.primaryEnv).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary` })
+    expect(call.providerChain.primaryEnv).toEqual({
+      CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary`,
+    })
     // The ordered fallbacks reach the pod verbatim (brand + placeholder env).
     expect(JSON.parse(call.extraEnv[ResidentEnvVars.fallbacks])).toEqual(fallbacks)
   })
@@ -362,13 +370,44 @@ describe(`resident watchdog — reconcile matrix`, () => {
     expect(ctx.startPod).toHaveBeenCalledTimes(1)
   })
 
+  it(`backend-boot grace: a present pod with a stale heartbeat is NOT torn down within the grace, then IS once it elapses`, async () => {
+    // The every-deploy churn case: a resident whose pod SURVIVED a backend
+    // restart but whose heartbeat went stale while the backend was down. The
+    // watchdog just came up (its start-anchor is Now), so the grace is active.
+    const ctx = build({ pods: [`tdsk-sb-pod-0`], statusRecord: staleStatus(Now) })
+    let now = Now
+    const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => now })
+
+    // start() anchors the backend-boot grace on the watchdog's start time; stop()
+    // drops the interval timer; the flush lets the fire-and-forget initial tick
+    // start() kicks off settle so `current` clears before the explicit tick.
+    watchdog.start()
+    watchdog.stop()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Within the grace: present pod + stale heartbeat ⇒ SKIPPED, never torn down.
+    const within = await watchdog.tick()
+    expect(within.results[0]).toMatchObject({
+      action: `skipped`,
+      reason: expect.stringContaining(`backend-boot grace`),
+    })
+    expect(ctx.stopPod).not.toHaveBeenCalled()
+    expect(ctx.startPod).not.toHaveBeenCalled()
+
+    // Past the grace (BootGraceMs is 6 min): a resident STILL stale (never
+    // re-beat) IS restarted — the grace only DEFERS the judgement, not disables it.
+    now = Now + 7 * 60_000
+    const after = await watchdog.tick()
+    expect(after.results[0]).toMatchObject({ action: `restarted` })
+    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+    expect(ctx.startPod).toHaveBeenCalledTimes(1)
+  })
+
   it(`boot budget: a present pod that has NOT heartbeated since start is NOT torn down`, async () => {
     const ctx = build({ statusRecord: undefined })
     // No pod on the first tick (→ start); the pod then appears but is still
     // cloning/building and never heartbeats.
-    ctx.findActiveInstances
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([`tdsk-sb-pod-0`])
+    ctx.findActiveInstances.mockResolvedValueOnce([]).mockResolvedValue([`tdsk-sb-pod-0`])
     let now = Now
     const watchdog = createResidentWatchdog(ctx.app, {
       nowFn: () => now,
