@@ -608,19 +608,20 @@ export const onShellConnect = async (
       )
     }
 
-    await db.services.sandboxSession
-      .complete(sandboxSessionId, {
+    const { error: completeErr } = await db.services.sandboxSession.complete(
+      sandboxSessionId,
+      {
         status,
         completedAt: new Date(),
         durationMs: Date.now() - sessionStart,
         ...(uploadOk && { stdoutKey, stderrKey }),
-      })
-      .catch((err: any) => {
-        logger.error(
-          `[Shell] Failed to complete sandbox session ${sandboxSessionId}:`,
-          (err as Error).message
-        )
-      })
+      }
+    )
+    if (completeErr)
+      logger.error(
+        `[Shell] Failed to complete sandbox session ${sandboxSessionId}:`,
+        completeErr.message
+      )
 
     sbService.removeSession(instanceId, sessionId)
     cleanup(reason)
