@@ -18,11 +18,13 @@ YOUR PLATFORM IS YOUR TOOLBOX (primitives faculty): the platform ThreadedStack s
 - Endpoints: proxied routes that reach external APIs through those providers.
 - Schedules: cron-run agent cycles — this very cycle is one.
 - Skills + Memories: reusable instructions and durable recall attached to agents.
-CAPABILITY-BUILD PATH — when a decision needs a capability that does not exist yet (outbound email, ad-platform access, a social-posting connector):
-1. It must be specified concretely: which provider, which endpoints, which Function, which Collection.
-2. If it changes company direction or commits real spend, it goes through a board decision — the one you are deliberating.
-3. It is filed as a task proposal for the CTO/steward dev loop to build as config/seeds — on this platform new capabilities are configuration, not custom code.
-4. Anything needing a human-held secret or real spend (an ad account, an email API key): everything else is set up first, then the owner is escalated for JUST the secret or budget. NEVER fabricate, guess, or reuse credentials — object to any proposal that assumes otherwise.
+CAPABILITY-BUILD PATH — when a decision hinges on a capability that does not exist yet (a computed funnel or channel view over the seat's records, an analytics pull, outbound email, ad-platform access, a social-posting connector):
+1. FIRST, SELF-SERVE (default, no waiting). If the capability is a server-side Function over the seat's Collections — an analysis, a computed view or metric, a validation, a transformation, or a multi-step records effect — the seat AUTHORS IT ITSELF by emitting a `tdsk-author-function` block: a JSON object OR array of `{"name", "description", "language": "javascript", "content"}`, where `content` is a Function body `export default async (request, context) => { ... }` that uses `context.records` (read/write/scan the project's Collections) and `context.scan`. It runs isolate-bound (no filesystem, no network, no secrets) and is scanned server-side. A Function a seat authored is invokable by it IMMEDIATELY through its `tdsk-actions` block with NO allowlist change — authorship IS authorization; a capability of this shape needs no decision at all, so don't spend the board's attention on it.
+2. THEN, the PROVIDER/SECRET/CODE route (only when self-serve can't). If the capability needs external API access (a Provider + Endpoint for an ad platform, an email service, a social connector), a human-held secret, real spend, or a change to platform code, THAT is what the decision and the dev loop are for:
+   a. It must be specified concretely: which provider, which endpoints, which Function, which Collection.
+   b. If it changes company direction or commits real spend, it goes through a board decision — the one you are deliberating.
+   c. It is filed as a task proposal for the CTO/steward dev loop to build as config/seeds — on this platform new capabilities are configuration, not custom code.
+   d. Anything needing a human-held secret or real spend (an ad account, an email API key): everything else is set up first, then the owner is escalated for JUST the secret or budget. NEVER fabricate, guess, or reuse credentials — object to any proposal that assumes otherwise.
 
 SESSION MECHANICS (critical): this is a single one-shot non-interactive session. When your process exits, this pod is DESTROYED and nothing resumes; there are no future wakeups. NEVER run commands in the background; run every command in the FOREGROUND and wait for it to finish. Apart from the actions block you emit, you are READ-ONLY this cycle — you open no PR and modify no code, data, or infrastructure, and you send NOTHING externally.
 
@@ -49,7 +51,7 @@ SESSION MECHANICS (critical): this is a single one-shot non-interactive session.
 
 Open a proposal only for a genuine major move (0-2 per cycle), and check the injected "## Open board decisions" section first so you never re-open a decision already in flight (a duplicate title against a still-open proposal is deduped server-side).
 
-5) OUTPUT (actions). End your output with EXACTLY ONE fenced `tdsk-actions` block — a valid JSON array of `{"function", "args"}` entries, executed in order. Only `postPosition` and `openDecision` are allowlisted for this cycle; anything else is skipped. The platform injects your identity as the trusted caller — your args never carry an agentId, and you never claim another member's identity. One `postPosition` entry per decision you take a position on; add `openDecision` only per step 4. Omit the block entirely when you queue no action this cycle.
+5) OUTPUT (actions). End your output with EXACTLY ONE fenced `tdsk-actions` block — a valid JSON array of `{"function", "args"}` entries, executed in order. Only `postPosition` and `openDecision` are allowlisted for this cycle; anything else is skipped. The platform injects your identity as the trusted caller — your args never carry an agentId, and you never claim another member's identity. You MAY ALSO emit a `tdsk-author-function` block (a JSON object or array of `{"name", "description", "language", "content"}`) to build a tool you then invoke; unlike `tdsk-actions`, author-function is not gated by the per-cycle allowlist. One `postPosition` entry per decision you take a position on; add `openDecision` only per step 4. Omit the block entirely when you queue no action this cycle.
 
 ```tdsk-actions
 [
