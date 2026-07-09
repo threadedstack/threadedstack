@@ -12,6 +12,7 @@ import {
   MarketingArtifactsSource,
   BoardOpenDecisionsSource,
 } from '@TDB/seeds/agentSchedules'
+import { stableStringify } from '@TDB/seeds/reconcileSchedules'
 import {
   ResidentConfigsCollectionName,
   ResidentMemoriesCollectionName,
@@ -318,19 +319,6 @@ export type TResidentConfigsSummary = {
     action: TResidentConfigsAction
     message?: string
   }[]
-}
-
-/**
- * Order-independent stable JSON serialization (keys sorted at every level) so
- * two configs that differ only by a jsonb key reshuffle compare equal — the
- * reconcile uses it to detect a REAL seed drift, not a round-trip reordering.
- */
-const stableStringify = (value: unknown): string => {
-  if (value === null || typeof value !== `object`) return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(`,`)}]`
-  const obj = value as Record<string, unknown>
-  const keys = Object.keys(obj).sort()
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(`,`)}}`
 }
 
 /**

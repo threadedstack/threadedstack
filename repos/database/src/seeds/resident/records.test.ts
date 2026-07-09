@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { normalizeResidentConfig } from '@tdsk/resident/config'
+import { stableStringify } from '@TDB/seeds/reconcileSchedules'
 import {
   loadPrompt,
   CeoAgentId,
@@ -344,6 +345,25 @@ describe(`CeoResidentConfigSeed`, () => {
     expect(normalized.subAgents).toEqual({ maxConcurrent: 2 })
     expect(normalized.selfDirected).toEqual(CeoResidentConfigSeed.data.selfDirected)
     expect(normalized.functions).toEqual(CeoResidentConfigSeed.data.functions)
+  })
+})
+
+describe(`stableStringify (reused from reconcileSchedules — single source of truth)`, () => {
+  // records.ts used to carry its own private stableStringify that diverged
+  // from the canonical one: null collapsed to the text "null" but undefined
+  // fell through to raw JSON.stringify(undefined) (the JS value, not a
+  // string), which a template literal renders as the text "undefined" — so a
+  // config differing only by null-vs-undefined in a nested field reported
+  // spurious drift instead of comparing equal. Now that reconcileResidentConfigs
+  // imports the shared implementation, both collapse to "null" everywhere.
+  it(`treats null and undefined as equal at the top level`, () => {
+    expect(stableStringify(null)).toBe(stableStringify(undefined))
+  })
+
+  it(`treats null and undefined as equal for a nested field value`, () => {
+    expect(stableStringify({ debounceMs: null })).toBe(
+      stableStringify({ debounceMs: undefined })
+    )
   })
 })
 
