@@ -299,7 +299,8 @@ describe(`resident watchdog — reconcile matrix`, () => {
 
     expect(summary.results[0]).toMatchObject({ action: `restarted` })
     expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
-    // Token ROTATION: the previous resident key is revoked before the new mint
+    // Token ROTATION: the prior resident key is revoked (after the new pod
+    // starts — the old pod keeps a valid token through its shutdown).
     expect(ctx.apiKeyRevokes).toEqual([`ak_old00001`])
     expect(ctx.apiKeyCreates).toHaveLength(1)
     expect(ctx.apiKeyCreates[0]).toMatchObject({ residentAgentId: AgentId })
@@ -359,6 +360,94 @@ describe(`resident watchdog — reconcile matrix`, () => {
       reason: `startup grace`,
     })
     expect(ctx.startPod).toHaveBeenCalledTimes(1)
+  })
+
+  it(`boot budget: a present pod that has NOT heartbeated since start is NOT torn down`, async () => {
+    const ctx = build({ statusRecord: undefined })
+    // No pod on the first tick (→ start); the pod then appears but is still
+    // cloning/building and never heartbeats.
+    ctx.findActiveInstances
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([`tdsk-sb-pod-0`])
+    let now = Now
+    const watchdog = createResidentWatchdog(ctx.app, {
+      nowFn: () => now,
+      startupGraceMs: 60_000,
+      bootBudgetMs: 10 * 60_000,
+    })
+
+    // Tick 1: no pod → start (records lastStartAt = Now).
+    expect((await watchdog.tick()).results[0].action).toBe(`started`)
+    expect(ctx.startPod).toHaveBeenCalledTimes(1)
+
+    // Tick 2: past the startup grace, within the boot budget, pod present but
+    // never beat → skipped as booting; the pod is NOT torn down.
+    now += 2 * 60_000
+    const booting = await watchdog.tick()
+    expect(booting.results[0]).toMatchObject({
+      action: `skipped`,
+      reason: `booting (no heartbeat yet, within boot budget)`,
+    })
+    expect(ctx.stopPod).not.toHaveBeenCalled()
+    expect(ctx.startPod).toHaveBeenCalledTimes(1)
+
+    // Tick 3: boot budget elapsed with STILL no heartbeat → now it restarts.
+    now += 11 * 60_000
+    const failed = await watchdog.tick()
+    expect(failed.results[0].action).toBe(`restarted`)
+    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+  })
+
+  it(`chain resolution throws with a LIVE (stale) pod ⇒ degrade WITHOUT tearing it down`, async () => {
+    const ctx = build({ pods: [`tdsk-sb-pod-0`], statusRecord: staleStatus(Now) })
+    mockResolveSandboxProviderChain.mockRejectedValueOnce(
+      new Error(`provider secret missing`)
+    )
+    const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+
+    const summary = await watchdog.tick()
+
+    expect(summary.results[0]).toMatchObject({
+      action: `degraded`,
+      reason: expect.stringContaining(`provider auth misconfigured`),
+    })
+    // H1: the chain resolves BEFORE any teardown — a throw leaves the running
+    // pod + its token intact (no stop, no start, no token minted).
+    expect(ctx.stopPod).not.toHaveBeenCalled()
+    expect(ctx.startPod).not.toHaveBeenCalled()
+    expect(ctx.apiKeyCreates).toHaveLength(0)
+  })
+
+  it(`(re)start ordering: create token → stop old → start new → revoke prior keys`, async () => {
+    const old = new ApiKey({
+      id: `ak_old00001`,
+      orgId: OrgId,
+      active: true,
+      residentAgentId: AgentId,
+      name: `resident:${AgentId}`,
+    })
+    const ctx = build({
+      pods: [`tdsk-sb-pod-0`],
+      statusRecord: staleStatus(Now),
+      existingKeys: [old],
+    })
+    const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+
+    await watchdog.tick()
+
+    const createAt = ctx.db.services.apiKey.create.mock.invocationCallOrder[0]
+    const stopAt = ctx.stopPod.mock.invocationCallOrder[0]
+    const startAt = ctx.startPod.mock.invocationCallOrder[0]
+    const revokeAt = ctx.db.services.apiKey.revoke.mock.invocationCallOrder[0]
+
+    // Create the new token BEFORE tearing down the old pod (its token stays valid).
+    expect(createAt).toBeLessThan(stopAt)
+    // Stop the old pod BEFORE starting the new one (one body per resident).
+    expect(stopAt).toBeLessThan(startAt)
+    // Revoke prior keys only AFTER the new pod has started.
+    expect(startAt).toBeLessThan(revokeAt)
+    // The freshly-minted key is never revoked; only the prior one is.
+    expect(ctx.apiKeyRevokes).toEqual([`ak_old00001`])
   })
 })
 

@@ -8,8 +8,8 @@ import { hashKey, Exception, ApiKeyPrefix } from '@tdsk/domain'
  * Auth middleware for the resident dispatch surface. The ONLY accepted
  * principal is a Bearer `tdsk_*` api key that (a) verifies normally (hash
  * lookup, active, not expired) AND (b) is resident-bound to exactly the
- * `:agentId` in the URL (`residentAgentId` on the key row, minted by
- * mintResidentToken). Every other principal — no key, a user JWT, a normal
+ * `:agentId` in the URL (`residentAgentId` on the key row, minted by the
+ * resident watchdog via createResidentToken). Every other principal — no key, a user JWT, a normal
  * org/project api key, a resident key for another agent — is rejected;
  * admins use the normal authenticated surfaces instead.
  *

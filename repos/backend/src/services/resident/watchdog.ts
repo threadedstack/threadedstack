@@ -33,9 +33,11 @@ export const CrashLoopMaxRestarts = 3
 
 /**
  * The pod env contract. MUST mirror repos/resident/src/constants.ts — the
- * runtime refuses to boot unless the five identity vars are present
- * (readResidentEnv). `config` carries the agent's resident_configs record as
- * JSON so the runtime boots network-free; the records API only REFRESHES it.
+ * runtime refuses to boot unless the five identity vars (agentId/token/
+ * backendUrl/orgId/projectId) are present (readResidentEnv). `config` carries
+ * the agent's resident_configs record as JSON so the runtime boots network-free
+ * (the records API only REFRESHES it); `fallbacks` carries the ordered fallback
+ * provider envs for in-pod failover (optional).
  */
 export const ResidentEnvVars = {
   agentId: `TDSK_RESIDENT_AGENT_ID`,
@@ -114,10 +116,13 @@ export type TResidentWatchdog = {
  * resident-mode pod exists with a fresh heartbeat (a `resident_status` write
  * younger than 3 minutes). Missing pod or stale heartbeat ⇒ (re)start via the
  * sandbox service WITH the full env contract (five identity vars + the
- * resident_configs record as TDSK_RESIDENT_CONFIG), minting (rotating) the
- * pod-scoped token via `mintResidentToken` each start. A crash-looping
- * resident (≥3 watchdog restarts inside an hour, tracked in-memory) is marked
- * `degraded` on its resident_status record and skipped until the hour rolls.
+ * resident_configs record as TDSK_RESIDENT_CONFIG + the provider fallbacks). To
+ * avoid tearing a healthy pod down on a transient error, the provider chain is
+ * resolved and the new pod-scoped token CREATED (createResidentToken) BEFORE the
+ * old pod is stopped — prior keys are revoked (revokeResidentKeysExcept) only
+ * after the new pod starts, so the old pod keeps a valid token through its
+ * shutdown. A crash-looping resident (≥3 watchdog restarts inside an hour,
+ * tracked in-memory) is marked `degraded` and skipped until the hour rolls.
  *
  * A SIBLING of the scheduler: same lifecycle home (started in main, stopped
  * by signals), zero entanglement with the schedule tick. Inert until R4 — no
