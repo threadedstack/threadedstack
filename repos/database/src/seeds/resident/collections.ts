@@ -37,6 +37,7 @@ export const ResidentConfigsCollectionName = `resident_configs`
 export const AgentMessagesCollectionName = `agent_messages`
 export const ResidentStatusCollectionName = `resident_status`
 export const ResidentTranscriptsCollectionName = `resident_transcripts`
+export const ResidentMemoriesCollectionName = `resident_memories`
 
 /**
  * The four resident Collections. `resident_configs` carries the spec §2 record
@@ -98,6 +99,19 @@ export const ResidentCollectionDefs: TResidentCollectionDef[] = [
       { name: `event`, type: EFieldType.string, required: true },
       { name: `input`, type: EFieldType.string },
       { name: `output`, type: EFieldType.string },
+      { name: `at`, type: EFieldType.string, required: true },
+    ],
+  },
+  {
+    id: `col_resmem`,
+    name: ResidentMemoriesCollectionName,
+    description: `Durable resident memories — { agentId, text, importance (1-10), kind?, meta?, at }, appended (one record per memory) by the writeMemory Function from a turn's tdsk-memories block. The records-only durable-recall store: the session's contextSources surface the most recent/important entries back into future turns so learning survives compaction.`,
+    schema: [
+      { name: `agentId`, type: EFieldType.string, required: true },
+      { name: `text`, type: EFieldType.string, required: true },
+      { name: `importance`, type: EFieldType.number },
+      { name: `kind`, type: EFieldType.string },
+      { name: `meta`, type: EFieldType.object },
       { name: `at`, type: EFieldType.string, required: true },
     ],
   },

@@ -4,6 +4,7 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { HeartbeatFunctionDef } from '@TDB/seeds/resident/functions/heartbeat'
 import { MarkMessageReadFunctionDef } from '@TDB/seeds/resident/functions/markMessageRead'
 import { SendAgentMessageFunctionDef } from '@TDB/seeds/resident/functions/sendAgentMessage'
+import { WriteMemoryFunctionDef } from '@TDB/seeds/resident/functions/writeMemory'
 import { AppendTranscriptFunctionDef } from '@TDB/seeds/resident/functions/appendTranscript'
 import { UpdateResidentConfigFunctionDef } from '@TDB/seeds/resident/functions/updateResidentConfig'
 
@@ -34,13 +35,14 @@ export type TResidentFunctionDef = {
   content: string
 }
 
-/** The five resident effect Functions, in invocation-surface order. */
+/** The resident effect Functions, in invocation-surface order. */
 export const ResidentFunctionDefs: TResidentFunctionDef[] = [
   SendAgentMessageFunctionDef,
   UpdateResidentConfigFunctionDef,
   HeartbeatFunctionDef,
   AppendTranscriptFunctionDef,
   MarkMessageReadFunctionDef,
+  WriteMemoryFunctionDef,
 ]
 
 /** The function-service slice the reconcile needs (Base get/create/update). */

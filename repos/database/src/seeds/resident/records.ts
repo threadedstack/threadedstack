@@ -11,16 +11,35 @@ import {
   MarketingArtifactsSource,
   BoardOpenDecisionsSource,
 } from '@TDB/seeds/agentSchedules'
-import { ResidentConfigsCollectionName } from '@TDB/seeds/resident/collections'
+import {
+  ResidentConfigsCollectionName,
+  ResidentMemoriesCollectionName,
+} from '@TDB/seeds/resident/collections'
+
+/**
+ * Durable-recall source: the resident's own most-recent memories (newest first),
+ * surfaced back into every turn so learning written via writeMemory survives
+ * compaction. Scoped to the resident's agentId (the seed is CMO-specific).
+ */
+export const CmoMemoriesSource: TContextSource = {
+  as: `Recent memories`,
+  collection: ResidentMemoriesCollectionName,
+  query: {
+    where: [{ field: `agentId`, op: EQueryOp.eq, value: CmoAgentId }],
+    orderBy: { field: `at`, direction: `desc` },
+    limit: 20,
+  } as TRecordQuery,
+}
 
 /**
  * Resident config seed records — Resident Agents R4 (CMO pilot activation).
  *
- * One declarative `resident_configs` record per ACTIVATED resident, seeded
- * create-if-absent by `reconcileResidentConfigs` below: the record is the
- * agent's OWN document (it evolves it via updateResidentConfig), so an
- * existing record is NEVER overwritten by a deploy — git seeds the starting
- * state, the agent owns it from there. Every field name and unit matches what
+ * One declarative `resident_configs` record per ACTIVATED resident, reconciled
+ * by `reconcileResidentConfigs` below: created if absent, and re-applied from
+ * this seed on drift WHILE the platform owns it, so a capability/prompt update
+ * here reaches a live resident. The moment the agent evolves the record via
+ * updateResidentConfig it is stamped `evolvedByAgent` and becomes its OWN
+ * document — from there a deploy never overwrites it. Every field name and unit matches what
  * the R2 runtime reads (repos/resident/src/config.ts `normalizeResidentConfig`
  * / types/resident.types.ts `TResidentConfig`); the records.test.ts guard runs
  * this seed through that exact parser so config/runtime drift can never land.
@@ -117,6 +136,7 @@ export const CmoResidentConfigSeed: TResidentConfigSeedRecord = {
         BoardOpenDecisionsSource,
         BoardPositionsSource,
         BoardPlansSource,
+        CmoMemoriesSource,
       ],
     },
     subAgents: { maxConcurrent: 2 },
@@ -138,14 +158,16 @@ export const CmoResidentConfigSeed: TResidentConfigSeedRecord = {
       `heartbeat`,
       `appendTranscript`,
       `markMessageRead`,
+      `writeMemory`,
     ],
     // The housekeeping map the R2 runtime dispatches through (TResidentFunctions).
-    // No writeMemory Function exists on the platform, so the key is omitted —
-    // the pump skips tdsk-memories blocks with a log line, never assumes it.
+    // `writeMemory` persists a turn's tdsk-memories block into resident_memories;
+    // CmoMemoriesSource above surfaces them back, so learning survives compaction.
     functions: {
       heartbeat: `heartbeat`,
       appendTranscript: `appendTranscript`,
       markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
     },
   },
 }
@@ -167,12 +189,20 @@ export type TResidentConfigRecordService = {
     collectionName: string,
     input: { id?: string; data: Record<string, unknown> }
   ) => Promise<{ data?: any; error?: any }>
+  replaceIfMarkerUnset: (
+    projectId: string,
+    collectionName: string,
+    id: string,
+    markerKey: string,
+    data: Record<string, unknown>
+  ) => Promise<{ data?: any; error?: any; skipped?: boolean }>
 }
 
-export type TResidentConfigsAction = `created` | `unchanged` | `error`
+export type TResidentConfigsAction = `created` | `updated` | `unchanged` | `error`
 
 export type TResidentConfigsSummary = {
   created: number
+  updated: number
   unchanged: number
   errors: number
   results: {
@@ -183,12 +213,27 @@ export type TResidentConfigsSummary = {
 }
 
 /**
- * Idempotently seed the resident config records: a resident with NO
- * `resident_configs` record (keyed by agentId within the target project) gets
- * its seed created; an existing record — even one the agent has since evolved
- * — is left byte-untouched (the record is agent-owned after activation; git
- * only supplies the starting state). Never throws — every outcome is captured
- * in the summary.
+ * Order-independent stable JSON serialization (keys sorted at every level) so
+ * two configs that differ only by a jsonb key reshuffle compare equal — the
+ * reconcile uses it to detect a REAL seed drift, not a round-trip reordering.
+ */
+const stableStringify = (value: unknown): string => {
+  if (value === null || typeof value !== `object`) return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(`,`)}]`
+  const obj = value as Record<string, unknown>
+  const keys = Object.keys(obj).sort()
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(`,`)}}`
+}
+
+/**
+ * Reconcile the resident config records so platform capability/prompt updates
+ * propagate to live residents. A resident with NO `resident_configs` record is
+ * created from its seed. An EXISTING record is UPDATED from the seed UNLESS the
+ * agent has taken ownership (`data.evolvedByAgent === true`, stamped by
+ * updateResidentConfig) — an agent-evolved config is left byte-untouched. So an
+ * added capability (an added Function, an updated prompt) reaches a resident
+ * that has not customized its own config, while an agent that has evolved its
+ * config keeps it. Never throws — every outcome is captured in the summary.
  */
 export const reconcileResidentConfigs = async (
   service: TResidentConfigRecordService,
@@ -197,6 +242,7 @@ export const reconcileResidentConfigs = async (
 ): Promise<TResidentConfigsSummary> => {
   const summary: TResidentConfigsSummary = {
     created: 0,
+    updated: 0,
     unchanged: 0,
     errors: 0,
     results: [],
@@ -221,9 +267,48 @@ export const reconcileResidentConfigs = async (
       }
 
       if (existing.data?.length) {
-        summary.unchanged++
-        summary.results.push({ agentId, action: `unchanged` })
-        log(`  ➖ resident config ${agentId} — exists (agent-owned, untouched)`)
+        const row = existing.data[0]
+        // Agent has taken ownership → never touch it.
+        if (row.data?.evolvedByAgent === true) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(`  ➖ resident config ${agentId} — agent-evolved, untouched`)
+          continue
+        }
+        // Platform still owns it → re-apply the seed ONLY when it drifts, so a
+        // re-run of an up-to-date config is a true no-op (stable, order-
+        // independent compare — a jsonb round trip reorders keys).
+        if (stableStringify(row.data) === stableStringify(seed.data)) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(`  ➖ resident config ${agentId} — up to date`)
+          continue
+        }
+        // Drift → propagate the capability/prompt update. The write is an ATOMIC
+        // guarded replace (only lands while the row is still platform-owned), so
+        // an updateResidentConfig call that stamps `evolvedByAgent` between the
+        // read above and this write is never clobbered — the guard skips instead.
+        const upd = await service.replaceIfMarkerUnset(
+          projectId,
+          ResidentConfigsCollectionName,
+          row.id,
+          `evolvedByAgent`,
+          seed.data
+        )
+        if (upd.error) fail(agentId, `update failed: ${upd.error.message}`)
+        else if (upd.skipped) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(
+            `  ➖ resident config ${agentId} — agent claimed ownership mid-reconcile, untouched`
+          )
+        } else {
+          summary.updated++
+          summary.results.push({ agentId, action: `updated` })
+          log(
+            `  🔄 resident config ${agentId} — updated from seed (not yet agent-evolved)`
+          )
+        }
         continue
       }
 

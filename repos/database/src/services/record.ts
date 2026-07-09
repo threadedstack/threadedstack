@@ -7,7 +7,7 @@ import type {
 } from '@TDB/types'
 import type { TAnyObj, TRecordQuery, TCollectionSchema } from '@tdsk/domain'
 
-import { eq, and, desc, count } from 'drizzle-orm'
+import { eq, and, sql, desc, count } from 'drizzle-orm'
 import { records } from '@TDB/schemas/records'
 import { collections } from '@TDB/schemas/collections'
 import { EFieldType } from '@tdsk/domain'
@@ -126,6 +126,54 @@ export class Record {
         .returning()
 
       return { data: this.model(row as TDBRecordSelect) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Atomic guarded replace: overwrite an existing record's `data` by id ONLY if
+   * the row's current data does NOT already carry `markerKey` equal to the JSON
+   * `true`. The predicate and the write are ONE statement (a single UPDATE with
+   * a row lock), so a concurrent writer that sets the marker between a caller's
+   * read and this call cannot be clobbered — the WHERE simply excludes the row
+   * and `{ skipped: true }` is returned instead. Used by the resident-config
+   * reconcile to never overwrite a config the agent claimed ownership of
+   * (`evolvedByAgent: true`) in the read-then-write race window. `markerKey` is
+   * bound as a parameter (never interpolated), so it is injection-safe.
+   */
+  async replaceIfMarkerUnset(
+    projectId: string,
+    collectionName: string,
+    id: string,
+    markerKey: string,
+    data: TAnyObj
+  ): Promise<TDBApiResType<RecordModel> & { skipped?: boolean }> {
+    try {
+      const collection = await this.#resolveCollection(projectId, collectionName)
+      if (!collection) return { error: new DBError(`Collection not found`), status: 404 }
+
+      if (collection.schema && Array.isArray(collection.schema)) {
+        const invalid = this.#validateData(data, collection.schema)
+        if (invalid) return { error: new DBError(invalid), status: 400 }
+      }
+
+      const [row] = await this.db
+        .update(records)
+        .set({ data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(records.id, id),
+            eq(records.collectionId, collection.id),
+            eq(records.projectId, projectId),
+            // marker absent (NULL) or not 'true' → eligible; 'true' → excluded.
+            sql`(${records.data} ->> ${markerKey}) IS DISTINCT FROM 'true'`
+          )
+        )
+        .returning()
+
+      // No row updated → the guard blocked it (marker was set concurrently).
+      return row ? { data: this.model(row as TDBRecordSelect) } : { skipped: true }
     } catch (error: any) {
       return { error }
     }

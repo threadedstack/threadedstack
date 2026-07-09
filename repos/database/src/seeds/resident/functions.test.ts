@@ -39,17 +39,18 @@ const makeFakeService = () => {
 }
 
 describe(`ResidentFunctionDefs`, () => {
-  it(`defines the five resident Functions with unique names + stable ids`, () => {
-    expect(ResidentFunctionDefs).toHaveLength(5)
+  it(`defines the six resident Functions with unique names + stable ids`, () => {
+    expect(ResidentFunctionDefs).toHaveLength(6)
     expect(ResidentFunctionDefs.map((def) => def.name)).toEqual([
       `sendAgentMessage`,
       `updateResidentConfig`,
       `heartbeat`,
       `appendTranscript`,
       `markMessageRead`,
+      `writeMemory`,
     ])
     const ids = ResidentFunctionDefs.map((def) => def.id)
-    expect(new Set(ids).size).toBe(5)
+    expect(new Set(ids).size).toBe(6)
     // Every id is a valid entity id (fn_ prefix + 7 chars = 10-char id shape).
     for (const id of ids) expect(id).toMatch(/^fn_[A-Za-z0-9_-]{7}$/)
   })
@@ -134,13 +135,13 @@ describe(`ResidentFunctionDefs`, () => {
 })
 
 describe(`reconcileResidentFunctions`, () => {
-  it(`creates the five Function records in the target project when missing`, async () => {
+  it(`creates the six Function records in the target project when missing`, async () => {
     const { service, rows } = makeFakeService()
 
     const summary = await reconcileResidentFunctions(service)
 
-    expect(summary).toMatchObject({ created: 5, updated: 0, unchanged: 0, errors: 0 })
-    expect(rows.size).toBe(5)
+    expect(summary).toMatchObject({ created: 6, updated: 0, unchanged: 0, errors: 0 })
+    expect(rows.size).toBe(6)
     for (const def of ResidentFunctionDefs) {
       expect(rows.get(def.id)).toMatchObject({
         id: def.id,
@@ -152,7 +153,7 @@ describe(`reconcileResidentFunctions`, () => {
     }
   })
 
-  it(`is idempotent — a re-run reports all five unchanged and writes nothing`, async () => {
+  it(`is idempotent — a re-run reports all six unchanged and writes nothing`, async () => {
     const { service, rows } = makeFakeService()
 
     await reconcileResidentFunctions(service)
@@ -160,7 +161,7 @@ describe(`reconcileResidentFunctions`, () => {
 
     const second = await reconcileResidentFunctions(service)
 
-    expect(second).toMatchObject({ created: 0, updated: 0, unchanged: 5, errors: 0 })
+    expect(second).toMatchObject({ created: 0, updated: 0, unchanged: 6, errors: 0 })
     for (const [id, row] of snapshot) expect(rows.get(id)).toEqual(row)
   })
 
@@ -173,7 +174,7 @@ describe(`reconcileResidentFunctions`, () => {
 
     const summary = await reconcileResidentFunctions(service)
 
-    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 4, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 5, errors: 0 })
     expect(rows.get(target.id).content).toBe(target.content)
   })
 
@@ -191,7 +192,7 @@ describe(`reconcileResidentFunctions`, () => {
     const summary = await reconcileResidentFunctions(failing)
 
     expect(summary.errors).toBe(1)
-    expect(summary.created).toBe(4)
+    expect(summary.created).toBe(5)
     const failed = summary.results.find((r) => r.action === `error`)
     expect(failed).toMatchObject({ name: `heartbeat` })
     expect(failed?.message).toContain(`insert refused`)

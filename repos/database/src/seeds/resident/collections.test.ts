@@ -8,6 +8,7 @@ import {
   ResidentStatusCollectionName,
   ResidentConfigsCollectionName,
   ResidentTranscriptsCollectionName,
+  ResidentMemoriesCollectionName,
 } from '@TDB/seeds/resident/collections'
 
 /**
@@ -36,16 +37,17 @@ const makeFakeService = () => {
 }
 
 describe(`ResidentCollectionDefs`, () => {
-  it(`defines the four resident Collections with unique names + stable ids`, () => {
-    expect(ResidentCollectionDefs).toHaveLength(4)
+  it(`defines the five resident Collections with unique names + stable ids`, () => {
+    expect(ResidentCollectionDefs).toHaveLength(5)
     expect(ResidentCollectionDefs.map((def) => def.name)).toEqual([
       ResidentConfigsCollectionName,
       AgentMessagesCollectionName,
       ResidentStatusCollectionName,
       ResidentTranscriptsCollectionName,
+      ResidentMemoriesCollectionName,
     ])
     const ids = ResidentCollectionDefs.map((def) => def.id)
-    expect(new Set(ids).size).toBe(4)
+    expect(new Set(ids).size).toBe(5)
     // Every id is a valid entity id (col_ prefix + 6 chars = 10-char id shape).
     for (const id of ids) expect(id).toMatch(/^col_[A-Za-z0-9_-]{6}$/)
   })
@@ -117,17 +119,17 @@ describe(`ResidentCollectionDefs`, () => {
 })
 
 describe(`reconcileResident`, () => {
-  it(`creates the four Collections when missing — records reconcile separately (records.ts)`, async () => {
+  it(`creates the five Collections when missing — records reconcile separately (records.ts)`, async () => {
     const { service, rows } = makeFakeService()
 
     const summary = await reconcileResident(service, `pj_ops00001`)
 
     expect(summary).toMatchObject({
-      collectionsCreated: 4,
+      collectionsCreated: 5,
       collectionsUnchanged: 0,
       errors: 0,
     })
-    expect(rows.size).toBe(4)
+    expect(rows.size).toBe(5)
     for (const def of ResidentCollectionDefs) {
       expect(rows.get(`pj_ops00001:${def.name}`)).toMatchObject({
         id: def.id,
@@ -138,7 +140,7 @@ describe(`reconcileResident`, () => {
     }
   })
 
-  it(`is idempotent — a re-run reports all four unchanged and writes nothing`, async () => {
+  it(`is idempotent — a re-run reports all five unchanged and writes nothing`, async () => {
     const { service, rows } = makeFakeService()
 
     await reconcileResident(service, `pj_ops00001`)
@@ -148,10 +150,10 @@ describe(`reconcileResident`, () => {
 
     expect(second).toMatchObject({
       collectionsCreated: 0,
-      collectionsUnchanged: 4,
+      collectionsUnchanged: 5,
       errors: 0,
     })
-    expect(rows.size).toBe(4)
+    expect(rows.size).toBe(5)
     for (const [key, row] of snapshot) expect(rows.get(key)).toEqual(row)
   })
 
@@ -170,7 +172,7 @@ describe(`reconcileResident`, () => {
     const summary = await reconcileResident(failing, `pj_ops00001`)
 
     expect(summary.errors).toBe(1)
-    expect(summary.collectionsCreated).toBe(3)
+    expect(summary.collectionsCreated).toBe(4)
     const failed = summary.results.find((r) => r.action === `error`)
     expect(failed).toMatchObject({ name: AgentMessagesCollectionName })
     expect(failed?.message).toContain(`insert refused`)

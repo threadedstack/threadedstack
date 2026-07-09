@@ -13,6 +13,7 @@ import {
 } from '@TDB/seeds/agentSchedules'
 import { ResidentConfigsCollectionName } from '@TDB/seeds/resident/collections'
 import {
+  CmoMemoriesSource,
   CmoResidentConfigSeed,
   ResidentConfigSeedRecords,
   reconcileResidentConfigs,
@@ -48,6 +49,22 @@ const makeFakeRecordService = () => {
       ) => {
         const row = { id: input.id, projectId, collection, data: input.data }
         rows.set(key(projectId, collection, input.data.agentId as string), row)
+        return { data: { ...row } }
+      },
+      // Mirrors the real atomic guard: overwrite ONLY if the stored row does not
+      // already carry markerKey === true, else report skipped (no clobber).
+      replaceIfMarkerUnset: async (
+        projectId: string,
+        collection: string,
+        id: string,
+        markerKey: string,
+        data: Record<string, unknown>
+      ) => {
+        const agentId = data.agentId as string
+        const existing = rows.get(key(projectId, collection, agentId))
+        if (existing?.data?.[markerKey] === true) return { skipped: true }
+        const row = { id, projectId, collection, data }
+        rows.set(key(projectId, collection, agentId), row)
         return { data: { ...row } }
       },
     },
@@ -92,14 +109,14 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.selfDirected.prompt).toContain(`Advance your GTM lane`)
     expect(data.selfDirected.prompt).toContain(`open milestones`)
 
-    // The housekeeping map the R2 runtime dispatches through — writeMemory is
-    // deliberately absent (no such Function exists on the platform).
+    // The housekeeping map the R2 runtime dispatches through — writeMemory
+    // persists a turn's tdsk-memories block into resident_memories.
     expect(data.functions).toEqual({
       heartbeat: `heartbeat`,
       appendTranscript: `appendTranscript`,
       markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
     })
-    expect(data.functions.writeMemory).toBeUndefined()
   })
 
   it(`reuses the scheduled defs' prompts, queries, and context sources verbatim`, () => {
@@ -117,13 +134,15 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.session.seedPrompt).toContain(`RESEARCH MANDATE`)
     expect(data.session.seedPrompt).toContain(`primitives faculty`)
 
-    // The five context sources the two scheduled defs used, exact shapes.
+    // The five board context sources the two scheduled defs used, plus the
+    // resident's own durable-memory recall source — exact shapes.
     expect(data.session.contextSources).toEqual([
       BoardStrategySource,
       MarketingArtifactsSource,
       BoardOpenDecisionsSource,
       BoardPositionsSource,
       BoardPlansSource,
+      CmoMemoriesSource,
     ])
 
     // The watch queries reference the matching sources' queries, so the
@@ -132,13 +151,14 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.watches[1].query).toBe(BoardPlansSource.query)
   })
 
-  it(`allowlists the union of both disabled defs' actions plus the 5 housekeeping Functions`, () => {
+  it(`allowlists the union of both disabled defs' actions plus the 6 housekeeping Functions`, () => {
     const housekeeping = [
       `sendAgentMessage`,
       `updateResidentConfig`,
       `heartbeat`,
       `appendTranscript`,
       `markMessageRead`,
+      `writeMemory`,
     ]
     const union = new Set([
       ...(cmoBoardDef.actions?.functions ?? []),
@@ -175,7 +195,7 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(normalized.session.seedPrompt).toBe(
       CmoResidentConfigSeed.data.session.seedPrompt
     )
-    expect(normalized.session.contextSources).toHaveLength(5)
+    expect(normalized.session.contextSources).toHaveLength(6)
     expect(normalized.subAgents).toEqual({ maxConcurrent: 2 })
     expect(normalized.selfDirected).toEqual(CmoResidentConfigSeed.data.selfDirected)
     expect(normalized.functions).toEqual(CmoResidentConfigSeed.data.functions)
@@ -225,13 +245,15 @@ describe(`reconcileResidentConfigs`, () => {
     ).toEqual(CmoResidentConfigSeed.data)
   })
 
-  it(`NEVER overwrites an agent-evolved record — git only seeds the starting state`, async () => {
+  it(`NEVER overwrites an agent-evolved record (evolvedByAgent marker) — the agent owns it`, async () => {
     const { service, rows, key } = makeFakeRecordService()
-    // The agent evolved its own record via updateResidentConfig after activation.
+    // The agent evolved its own record via updateResidentConfig after
+    // activation — that write stamps evolvedByAgent, which claims ownership.
     const evolved = {
       ...CmoResidentConfigSeed.data,
       inbox: { pollMs: 5_000 },
       selfDirected: { prompt: `my own cadence`, minIdleMs: 120_000 },
+      evolvedByAgent: true,
     }
     await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
       id: CmoResidentConfigSeed.id,
@@ -240,10 +262,80 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 0, unchanged: 1, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
     ).toEqual(evolved)
+  })
+
+  it(`propagates a seed update to a NOT-yet-evolved config (platform still owns it)`, async () => {
+    const { service, rows, key } = makeFakeRecordService()
+    // A live config created from an OLD seed (a capability the current seed adds
+    // is absent) and never touched by the agent — no evolvedByAgent marker.
+    const stale = {
+      ...CmoResidentConfigSeed.data,
+      actions: CmoResidentConfigSeed.data.actions.filter((a) => a !== `writeMemory`),
+    }
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CmoResidentConfigSeed.id,
+      data: stale,
+    })
+
+    const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
+
+    // Drift → re-applied from the current seed so the capability propagates.
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 0, errors: 0 })
+    expect(summary.results).toEqual([{ agentId: CmoAgentId, action: `updated` }])
+    const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
+    expect(stored.data).toEqual(CmoResidentConfigSeed.data)
+    expect(stored.data.actions).toContain(`writeMemory`)
+    // Record id preserved through the in-place update.
+    expect(stored.id).toBe(CmoResidentConfigSeed.id)
+  })
+
+  it(`atomic guard: does NOT clobber a config the agent evolves DURING the reconcile`, async () => {
+    const { service, rows, key } = makeFakeRecordService()
+    // A stale, platform-owned config: drifted from the seed, no ownership marker
+    // — so the reconcile's read sees "not evolved + drift" and takes the update
+    // path.
+    const stale = {
+      ...CmoResidentConfigSeed.data,
+      actions: CmoResidentConfigSeed.data.actions.filter((a) => a !== `writeMemory`),
+    }
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CmoResidentConfigSeed.id,
+      data: stale,
+    })
+
+    // Simulate the TOCTOU race: the agent calls updateResidentConfig (stamping
+    // evolvedByAgent + its own edit) in the window AFTER the reconcile reads the
+    // row but BEFORE it writes. We hook query to flip the stored row right after
+    // it returns the pre-race snapshot.
+    const evolved = {
+      ...stale,
+      selfDirected: { prompt: `my own cadence`, minIdleMs: 120_000 },
+      evolvedByAgent: true,
+    }
+    const raced = {
+      ...service,
+      query: async (projectId: string, collection: string, q: any) => {
+        const res = await service.query(projectId, collection, q)
+        const k = key(projectId, collection, CmoAgentId)
+        const cur = rows.get(k)
+        if (cur && cur.data?.evolvedByAgent !== true)
+          rows.set(k, { ...cur, data: evolved })
+        return res // the pre-race snapshot (no marker) — drives the update path
+      },
+    }
+
+    const summary = await reconcileResidentConfigs(raced as any, `pj_ops00001`)
+
+    // The guard blocked the write: reported unchanged, and the agent's evolved
+    // record survives byte-for-byte (NOT overwritten with the seed).
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
+    const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
+    expect(stored.data).toEqual(evolved)
+    expect(stored.data.evolvedByAgent).toBe(true)
   })
 
   it(`captures query and create failures without throwing`, async () => {

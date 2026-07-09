@@ -56,8 +56,12 @@ export const UpdateResidentConfigFunctionSource = `export default async (request
     return { ok: false, reason: 'no recognized config fields in patch' }
 
   // agentId is re-pinned to the caller — the record can never be re-homed.
+  // evolvedByAgent flags that the agent has taken ownership: from here the
+  // deploy reconcile leaves the config untouched (before this flag is set, the
+  // platform re-applies the seed so capability/prompt updates propagate).
   const data = Object.assign({}, existing[0].data, patch, {
     agentId: caller.agentId,
+    evolvedByAgent: true,
   })
   await records.upsert('resident_configs', { id: existing[0].id, data: data })
   return { ok: true, updated: applied }
