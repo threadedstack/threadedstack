@@ -47,7 +47,7 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`ships the CEO/CTO board schedules ENABLED and the CMO defs DISABLED (resident handoff, R4)`, () => {
+  it(`ships the CTO board schedule ENABLED and the CEO (R5) + CMO (R4) defs DISABLED (resident handoff)`, () => {
     const execKeys = [
       `ceo-strategy`,
       `ceo-board`,
@@ -57,9 +57,13 @@ describe(`AgentScheduleDefs`, () => {
     ]
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
     for (const key of execKeys) expect(byKey[key]).toBeDefined()
-    // CEO + CTO seats run on cron (⑤a activation).
-    for (const key of [`ceo-strategy`, `ceo-board`, `cto-board`])
-      expect(byKey[key].enabled).toBe(true)
+    // Only the CTO seat runs on cron; the CEO + CMO run as RESIDENTS.
+    expect(byKey[`cto-board`].enabled).toBe(true)
+    // The CEO runs as a RESIDENT (Resident Agents R5): its strategy cycle is the
+    // resident `strategy` agenda and its board review is the `board-review`
+    // agenda (seeds/resident/records.ts), so both cron defs ship disabled.
+    expect(byKey[`ceo-strategy`].enabled).toBe(false)
+    expect(byKey[`ceo-board`].enabled).toBe(false)
     // The CMO runs as a RESIDENT (Resident Agents R4): its marketing cycle is
     // the resident agenda and its deliberation is a decision_proposals watch
     // (seeds/resident/records.ts), so both cron defs ship disabled. The defs

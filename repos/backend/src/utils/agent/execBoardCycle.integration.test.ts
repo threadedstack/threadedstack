@@ -325,13 +325,14 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
       expect(sources).toContain(`Open board decisions`)
       expect(sources).toContain(`Plans`)
     }
-    // The CEO/CTO seats ship LIVE on cron; the CMO runs as a RESIDENT
-    // (Resident Agents R4 — seeds/resident/records.ts), so its two cron defs
-    // ship disabled while their prompts/allowlists/sources (asserted above)
-    // remain the single source the resident config reuses.
-    expect(CeoStrategyDef.enabled).toBe(true)
-    expect(CeoBoardDef.enabled).toBe(true)
+    // Only the CTO seat ships LIVE on cron; the CEO runs as a RESIDENT
+    // (Resident Agents R5) and the CMO as a RESIDENT (R4) —
+    // seeds/resident/records.ts — so their cron defs ship disabled while their
+    // prompts/allowlists/sources (asserted above) remain the single source the
+    // resident configs reuse.
     expect(CtoBoardDef.enabled).toBe(true)
+    expect(CeoStrategyDef.enabled).toBe(false)
+    expect(CeoBoardDef.enabled).toBe(false)
     expect(CmoBoardDef.enabled).toBe(false)
     expect(CmoMarketingDef.enabled).toBe(false)
   })
