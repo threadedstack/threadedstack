@@ -190,10 +190,11 @@ export type TResidentConfigRecordService = {
   ) => Promise<{ data?: any; error?: any }>
 }
 
-export type TResidentConfigsAction = `created` | `unchanged` | `error`
+export type TResidentConfigsAction = `created` | `updated` | `unchanged` | `error`
 
 export type TResidentConfigsSummary = {
   created: number
+  updated: number
   unchanged: number
   errors: number
   results: {
@@ -204,12 +205,27 @@ export type TResidentConfigsSummary = {
 }
 
 /**
- * Idempotently seed the resident config records: a resident with NO
- * `resident_configs` record (keyed by agentId within the target project) gets
- * its seed created; an existing record — even one the agent has since evolved
- * — is left byte-untouched (the record is agent-owned after activation; git
- * only supplies the starting state). Never throws — every outcome is captured
- * in the summary.
+ * Order-independent stable JSON serialization (keys sorted at every level) so
+ * two configs that differ only by a jsonb key reshuffle compare equal — the
+ * reconcile uses it to detect a REAL seed drift, not a round-trip reordering.
+ */
+const stableStringify = (value: unknown): string => {
+  if (value === null || typeof value !== `object`) return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(`,`)}]`
+  const obj = value as Record<string, unknown>
+  const keys = Object.keys(obj).sort()
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(`,`)}}`
+}
+
+/**
+ * Reconcile the resident config records so platform capability/prompt updates
+ * propagate to live residents. A resident with NO `resident_configs` record is
+ * created from its seed. An EXISTING record is UPDATED from the seed UNLESS the
+ * agent has taken ownership (`data.evolvedByAgent === true`, stamped by
+ * updateResidentConfig) — an agent-evolved config is left byte-untouched. So an
+ * added capability (an added Function, an updated prompt) reaches a resident
+ * that has not customized its own config, while an agent that has evolved its
+ * config keeps it. Never throws — every outcome is captured in the summary.
  */
 export const reconcileResidentConfigs = async (
   service: TResidentConfigRecordService,
@@ -218,6 +234,7 @@ export const reconcileResidentConfigs = async (
 ): Promise<TResidentConfigsSummary> => {
   const summary: TResidentConfigsSummary = {
     created: 0,
+    updated: 0,
     unchanged: 0,
     errors: 0,
     results: [],
@@ -242,9 +259,36 @@ export const reconcileResidentConfigs = async (
       }
 
       if (existing.data?.length) {
-        summary.unchanged++
-        summary.results.push({ agentId, action: `unchanged` })
-        log(`  ➖ resident config ${agentId} — exists (agent-owned, untouched)`)
+        const row = existing.data[0]
+        // Agent has taken ownership → never touch it.
+        if (row.data?.evolvedByAgent === true) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(`  ➖ resident config ${agentId} — agent-evolved, untouched`)
+          continue
+        }
+        // Platform still owns it → re-apply the seed ONLY when it drifts, so a
+        // re-run of an up-to-date config is a true no-op (stable, order-
+        // independent compare — a jsonb round trip reorders keys).
+        if (stableStringify(row.data) === stableStringify(seed.data)) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(`  ➖ resident config ${agentId} — up to date`)
+          continue
+        }
+        // Drift → propagate the capability/prompt update. Preserve the record id.
+        const upd = await service.upsert(projectId, ResidentConfigsCollectionName, {
+          id: row.id,
+          data: seed.data,
+        })
+        if (upd.error) fail(agentId, `update failed: ${upd.error.message}`)
+        else {
+          summary.updated++
+          summary.results.push({ agentId, action: `updated` })
+          log(
+            `  🔄 resident config ${agentId} — updated from seed (not yet agent-evolved)`
+          )
+        }
         continue
       }
 

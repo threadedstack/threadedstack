@@ -59,6 +59,7 @@ ife(async () => {
   console.log(`   🔄 Functions updated:     ${fnSummary.updated}`)
   console.log(`   ➖ Functions unchanged:   ${fnSummary.unchanged}`)
   console.log(`   ✅ Configs created:       ${cfgSummary.created}`)
+  console.log(`   🔄 Configs updated:       ${cfgSummary.updated}`)
   console.log(`   ➖ Configs unchanged:     ${cfgSummary.unchanged}`)
   console.log(`   ❌ Errors:                ${errors}`)
   console.log(`═══════════════════════════════════════`)

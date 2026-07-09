@@ -229,13 +229,15 @@ describe(`reconcileResidentConfigs`, () => {
     ).toEqual(CmoResidentConfigSeed.data)
   })
 
-  it(`NEVER overwrites an agent-evolved record — git only seeds the starting state`, async () => {
+  it(`NEVER overwrites an agent-evolved record (evolvedByAgent marker) — the agent owns it`, async () => {
     const { service, rows, key } = makeFakeRecordService()
-    // The agent evolved its own record via updateResidentConfig after activation.
+    // The agent evolved its own record via updateResidentConfig after
+    // activation — that write stamps evolvedByAgent, which claims ownership.
     const evolved = {
       ...CmoResidentConfigSeed.data,
       inbox: { pollMs: 5_000 },
       selfDirected: { prompt: `my own cadence`, minIdleMs: 120_000 },
+      evolvedByAgent: true,
     }
     await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
       id: CmoResidentConfigSeed.id,
@@ -244,10 +246,35 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 0, unchanged: 1, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
     ).toEqual(evolved)
+  })
+
+  it(`propagates a seed update to a NOT-yet-evolved config (platform still owns it)`, async () => {
+    const { service, rows, key } = makeFakeRecordService()
+    // A live config created from an OLD seed (a capability the current seed adds
+    // is absent) and never touched by the agent — no evolvedByAgent marker.
+    const stale = {
+      ...CmoResidentConfigSeed.data,
+      actions: CmoResidentConfigSeed.data.actions.filter((a) => a !== `writeMemory`),
+    }
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CmoResidentConfigSeed.id,
+      data: stale,
+    })
+
+    const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
+
+    // Drift → re-applied from the current seed so the capability propagates.
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 0, errors: 0 })
+    expect(summary.results).toEqual([{ agentId: CmoAgentId, action: `updated` }])
+    const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
+    expect(stored.data).toEqual(CmoResidentConfigSeed.data)
+    expect(stored.data.actions).toContain(`writeMemory`)
+    // Record id preserved through the in-place update.
+    expect(stored.id).toBe(CmoResidentConfigSeed.id)
   })
 
   it(`captures query and create failures without throwing`, async () => {
