@@ -1,7 +1,12 @@
 import { Sandbox, DefaultResources } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
 import { VolumeMountName, CACertMountPath } from '@TSB/constants/values'
-import { buildPodName, buildPodManifest, sanitizeLabel } from './podManifest'
+import {
+  buildPodName,
+  buildPodManifest,
+  sanitizeLabel,
+  ResidentTerminationGraceSeconds,
+} from './podManifest'
 import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
 
 const makeSandbox = (overrides: Partial<ConstructorParameters<typeof Sandbox>[0]> = {}) =>
@@ -431,6 +436,26 @@ describe(`buildPodManifest`, () => {
       expect(script).toContain(`while [ $n -lt 5 ]`)
       expect(script).toContain(`exit 1`)
       expect(script).not.toContain(`sleep 3600`)
+      // build-if-missing must run INSIDE the retry loop: a transient build failure
+      // then retries like a runtime crash, instead of burning all N attempts
+      // running a dist file that was never produced (the old permanent crash loop).
+      expect(script.indexOf(`while [ $n -lt 5 ]`)).toBeLessThan(
+        script.indexOf(`|| pnpm --filter @tdsk/resident build`)
+      )
+      // SIGTERM (the launcher is PID 1) must be forwarded to the runtime so it runs
+      // its graceful compaction checkpoint instead of being SIGKILLed: the runtime
+      // is backgrounded and a trap forwards TERM to the child.
+      expect(script).toContain(`trap term TERM`)
+      expect(script).toContain(`kill -TERM "$child"`)
+      expect(script).toContain(`node repos/resident/dist/index.js & child=$!`)
+    })
+
+    it(`grants a bounded termination grace so the runtime can checkpoint on SIGTERM`, () => {
+      const spec = buildPodManifest(residentOpts()).spec!
+      expect(spec.terminationGracePeriodSeconds).toBe(ResidentTerminationGraceSeconds)
+      // sanity: the grace must be bounded, not the 15min turn timeout, so it
+      // does not stall every rolling restart
+      expect(ResidentTerminationGraceSeconds).toBeLessThanOrEqual(180)
     })
 
     it(`should inject TDSK_RESIDENT_AGENT_ID into the container env`, () => {
@@ -473,11 +498,14 @@ describe(`buildPodManifest`, () => {
     })
 
     it(`should not affect non-resident sandboxes (sleep infinity fallback)`, () => {
-      const container = buildPodManifest(buildOpts()).spec!.containers![0]
+      const manifest = buildPodManifest(buildOpts())
+      const container = manifest.spec!.containers![0]
       expect(container.command).toBeUndefined()
       expect(container.args).toEqual([`sleep`, `infinity`])
       const env = container.env!
       expect(env.some((e) => e.name === `TDSK_RESIDENT_AGENT_ID`)).toBe(false)
+      // non-resident pods keep the K8s default grace (nothing to checkpoint)
+      expect(manifest.spec!.terminationGracePeriodSeconds).toBeUndefined()
     })
   })
 

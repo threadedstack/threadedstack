@@ -132,4 +132,25 @@ describe(`SIGTERM graceful path (the rolling-restart contract)`, () => {
     expect(shutdown).toHaveBeenCalledTimes(1)
     expect(exits).toEqual([0])
   })
+
+  it(`exits 0 best-effort when shutdown exceeds the deadline (not left to SIGKILL)`, async () => {
+    const proc = new EventEmitter()
+    const exits: number[] = []
+
+    installSignalHandlers({
+      // a shutdown that never resolves (in-flight turn/checkpoint hangs)
+      loop: makeLoopDouble(() => new Promise<void>(() => undefined)),
+      heartbeat: makeHeartbeatDouble(),
+      proc,
+      exitFn: (code) => {
+        exits.push(code)
+      },
+      shutdownDeadlineMs: 5,
+    })
+
+    proc.emit(`SIGTERM`)
+    expect(exits).toEqual([]) // still within the deadline
+    await new Promise((resolve) => setTimeout(resolve, 25)) // past the 5ms deadline
+    expect(exits).toEqual([0])
+  })
 })

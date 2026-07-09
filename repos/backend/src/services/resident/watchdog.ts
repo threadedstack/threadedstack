@@ -2,6 +2,7 @@ import type { TApp } from '@TBE/types'
 import type { TSandboxChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 
 import { EQueryOp, CliMaxProviderFailovers } from '@tdsk/domain'
+import { ResidentTerminationGraceSeconds } from '@tdsk/sandbox'
 import { logger } from '@TBE/utils/logger'
 import {
   createResidentToken,
@@ -439,11 +440,12 @@ export const createResidentWatchdog = (
       }
       lastStartAt.set(agentId, now)
 
-      // Tear down stale pods (the old pod keeps its still-active token for its
-      // 30s graceful-shutdown checkpoint), then start the fresh pod.
+      // Tear down stale pods (the old pod keeps its still-active token through
+      // its graceful-shutdown checkpoint window — ResidentTerminationGrace
+      // Seconds, matching the pod spec), then start the fresh pod.
       for (const staleId of pods) {
         await sandboxService!
-          .stopPod(staleId)
+          .stopPod(staleId, ResidentTerminationGraceSeconds)
           .catch((err: Error) =>
             logger.error(
               `[ResidentWatchdog] Failed to stop stale pod ${staleId}: ${err.message}`

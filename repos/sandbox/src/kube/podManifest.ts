@@ -60,6 +60,17 @@ export const buildPodName = (sandboxId: string): string => {
 /**
  * Build a complete K8s pod manifest for a sandbox
  */
+/**
+ * K8s termination grace for a RESIDENT pod. The resident runtime checkpoints on
+ * SIGTERM (finish in-flight turn → compaction) — a 30s default SIGKILLs it
+ * mid-checkpoint. This bounded window (NOT the runtime's 15min turn timeout,
+ * which would stall every rolling restart) lets a normal turn + checkpoint
+ * finish. MUST exceed the resident's own shutdown deadline (DefaultShutdown
+ * DeadlineMs in repos/resident/src/constants.ts) so the runtime exits 0 before
+ * SIGKILL. The watchdog's stopPod teardown passes this same value.
+ */
+export const ResidentTerminationGraceSeconds = 150
+
 export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
   const {
     orgId,
@@ -108,6 +119,12 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
+      // Resident pods checkpoint on SIGTERM, so grant a bounded graceful window
+      // (see ResidentTerminationGraceSeconds). Non-resident sandboxes keep the
+      // K8s default (30s) — nothing to checkpoint.
+      ...(config.resident && {
+        terminationGracePeriodSeconds: ResidentTerminationGraceSeconds,
+      }),
       ...(runtimeClassName && { runtimeClassName, dnsPolicy: `Default` }),
       ...(nodeSelector &&
         Object.keys(nodeSelector).length && {
@@ -278,12 +295,25 @@ const buildSandboxContainer = (
     // (no token rotation, no cold reboot). After N consecutive crashes we exit
     // non-zero so the pod fails fast and the watchdog recreates it (surfacing a
     // persistent crash in ~minutes, not an hour).
-    // Build-if-missing: the clone carries src only; if dist is absent (or a
-    // crash left it stale), build once before launching.
+    // Build-if-missing runs INSIDE the retry loop: the clone carries src only, so
+    // dist must be built on first boot. Keeping the build in the loop means a
+    // transient build failure (e.g. a flaky fetch) is retried like a runtime crash
+    // — the original "build once before the loop" turned any single build failure
+    // into all N retries running a file that does not exist (a permanent crash
+    // loop). Each attempt: ensure dist (build if absent), run it if present; a
+    // runtime crash leaves dist in place so the next attempt resumes the on-disk
+    // session. After N attempts we exit non-zero so the watchdog recreates the pod.
+    //
+    // Graceful shutdown: the entrypoint `exec`s this launcher, so it is PID 1 and
+    // K8s sends it SIGTERM on teardown. A bare `while node ...; done` (no trap)
+    // would let PID 1 ignore SIGTERM and the runtime child never receive it, so
+    // the pod is SIGKILLed after the grace period — skipping the runtime's
+    // finish-turn + compaction checkpoint. So we run the runtime in the background
+    // and `trap` SIGTERM to forward it to the child, then wait for its clean exit.
     container.args = [
       `/bin/sh`,
       `-lc`,
-      `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; }; n=0; while [ $n -lt 5 ]; do node repos/resident/dist/index.js; code=$?; n=$((n+1)); echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
+      `cd /workspace; n=0; term(){ if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null; wait "$child" 2>/dev/null; fi; exit 0; }; trap term TERM INT; while [ $n -lt 5 ]; do n=$((n+1)); [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build || true; if [ -f repos/resident/dist/index.js ]; then node repos/resident/dist/index.js & child=$!; wait "$child"; code=$?; child=; echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; else echo "[resident-launcher] build produced no dist, attempt $n/5"; fi; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
     ]
   } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command

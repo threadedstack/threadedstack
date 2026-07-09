@@ -45,6 +45,16 @@ export const DefaultMinIdleMs = 60_000
 export const HeartbeatIntervalMs = 30_000
 export const ConfigRefreshMs = 60_000
 
+/**
+ * Upper bound on the SIGTERM graceful-shutdown path (finish in-flight turn +
+ * write checkpoint). Without it, shutdown can wait a full turn timeout (~15min)
+ * plus a checkpoint turn — far past the pod's termination grace, so K8s SIGKILLs
+ * mid-checkpoint anyway. Capping it lets a normal turn finish, then exits 0
+ * best-effort. MUST be < the pod's ResidentTerminationGraceSeconds (150s, in
+ * repos/sandbox/src/kube/podManifest.ts) so the runtime exits before SIGKILL.
+ */
+export const DefaultShutdownDeadlineMs = 135_000
+
 /** Wall-clock timeout for a single resident→backend HTTP request (never hang a beat/poll). */
 export const ApiRequestTimeoutMs = 30_000
 

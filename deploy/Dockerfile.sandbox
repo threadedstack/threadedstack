@@ -33,10 +33,27 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
     && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# pnpm via corepack — prepare at build time so the pod never downloads it
-# at runtime (egress is fail-closed inside sandboxes)
+# pnpm via corepack — bake the REPO-PINNED version (package.json's packageManager
+# field) at build time so no pod ever downloads pnpm at runtime. Preparing
+# `pnpm@latest` was a latent bug: it mismatched the repo pin, so corepack re-fetched
+# the pinned version at runtime through the egress MITM proxy, which crashes Node's
+# undici HTTP parser (assert(!this.paused)) and leaves the resident runtime unbuilt
+# (a permanent crash loop). Reading packageManager keeps this in lockstep with the
+# repo — a root package.json change already rebuilds this image (changedContexts),
+# so there is no version to drift. A shared COREPACK_HOME lets BOTH root (the
+# resident launcher) and the sandbox user (the setup script) hit one prewarmed
+# cache — verified offline, cross-user (--network none, both users). It is
+# `chown`ed to the sandbox user (NOT left root-read-only): the baked pin still
+# cache-hits, but a project pinning a DIFFERENT pnpm can still fall back to a
+# writable per-user download instead of failing hard with EACCES.
+ENV COREPACK_HOME=/usr/local/corepack
+COPY package.json /tmp/tdsk-corepack/package.json
 RUN corepack enable \
-    && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@latest --activate
+    && cd /tmp/tdsk-corepack \
+    && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare --activate \
+    && chown -R sandbox:sandbox "$COREPACK_HOME" \
+    && chmod -R a+rX "$COREPACK_HOME" \
+    && rm -rf /tmp/tdsk-corepack
 
 # Antigravity CLI (standalone Go binary)
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash \
