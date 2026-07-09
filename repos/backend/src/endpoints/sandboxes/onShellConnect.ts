@@ -714,7 +714,6 @@ function wireWebSocket(
   })
 
   ws.on(`close`, () => {
-    wsMeta.delete(ws)
     cleanup(`WebSocket closed`)
   })
   ws.on(`error`, (err) => cleanup(`WebSocket error: ${err.message}`))
