@@ -7,6 +7,7 @@ import { spawn } from '@TSCL/utils/proc/spawn'
 import { devspace } from '@TSCL/utils/devspace'
 import { pushSafe } from '@TSCL/utils/db/pushSafe'
 import { reconcileSchedules } from '@TSCL/utils/db/reconcileSchedules'
+import { reconcileResident } from '@TSCL/utils/db/reconcileResident'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { docker } from '@TSCL/utils/docker/docker'
@@ -211,8 +212,10 @@ const releaseAct: TTaskAction = async (args) => {
   if (params?.database !== false) {
     Logger.pair(`[sync]`, `Reconciling agent schedules from repo...`)
     await reconcileSchedules({ config, log: params?.log })
+    Logger.pair(`[sync]`, `Reconciling resident data plane from repo...`)
+    await reconcileResident({ config, log: params?.log })
   } else {
-    Logger.pair(`[sync]`, `Schedule reconcile skipped (--no-database).`)
+    Logger.pair(`[sync]`, `Schedule + resident reconcile skipped (--no-database).`)
   }
 
   // 8. [5/5] Build + deploy only the changed frontends via Firebase
