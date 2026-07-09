@@ -1,11 +1,21 @@
 import type { ChildProcess } from 'node:child_process'
-import type { TTurnResult, TSessionState } from './types/resident.types'
+import type {
+  TTurnResult,
+  TSessionState,
+  TProviderFallback,
+} from './types/resident.types'
 
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { log } from './log'
+import {
+  matchTransientSignal,
+  CliMaxTransientRetries,
+  CliTransientRetryDelaysMs,
+  CliSameProviderRetriesBeforeFailover,
+} from '@tdsk/domain'
 import {
   ClaudeCliBin,
   ClaudeCliEnv,
@@ -34,6 +44,15 @@ export type TSessionManagerOpts = {
   spawnFn?: TSpawnFn
   /** Extra env for the claude child (merged over process.env). */
   env?: Record<string, string>
+  /**
+   * Ordered fallback provider env overlays. On a TRANSIENT primary failure the
+   * turn re-runs against each in order (its env overlays ANTHROPIC_AUTH_TOKEN/
+   * BASE_URL for that invocation) — the in-pod mirror of the scheduled
+   * executor's provider failover.
+   */
+  fallbackEnvs?: TProviderFallback[]
+  /** Backoff (ms) before each same-provider transient retry. Tests inject [0]. */
+  retryDelaysMs?: number[]
 }
 
 export type TSessionManager = {
@@ -65,7 +84,17 @@ export const createSessionManager = (opts: TSessionManagerOpts): TSessionManager
   const killGraceMs = opts.killGraceMs ?? ChildKillGraceMs
   const turnTimeoutMs = opts.turnTimeoutMs ?? DefaultTurnTimeoutMs
   const outputMaxChars = opts.outputMaxChars ?? TurnOutputMaxChars
+  const fallbackEnvs = opts.fallbackEnvs ?? []
+  const retryDelaysMs = opts.retryDelaysMs ?? CliTransientRetryDelaysMs
   const stateFile = path.join(opts.stateDir, SessionStateFile)
+
+  /**
+   * A transient upstream signal in the turn result — scanned over BOTH the
+   * assistant output (the CLI JSON envelope's `result`, where an "API Error:
+   * 529"/overloaded lands) and stderr. Reuses the executor's exact detector.
+   */
+  const transientSignal = (result: TTurnResult): string | undefined =>
+    matchTransientSignal(result.output) ?? matchTransientSignal(result.error ?? ``)
 
   const loadState = (): TSessionState => {
     try {
@@ -100,7 +129,10 @@ export const createSessionManager = (opts: TSessionManagerOpts): TSessionManager
     }
   }
 
-  const runChild = (prompt: string): Promise<TTurnResult> =>
+  const runChild = (
+    prompt: string,
+    providerEnv: Record<string, string> = {}
+  ): Promise<TTurnResult> =>
     new Promise((resolve) => {
       const startedAt = Date.now()
       const args = buildTurnArgs(prompt, state.sessionId)
@@ -109,7 +141,9 @@ export const createSessionManager = (opts: TSessionManagerOpts): TSessionManager
       try {
         child = spawnFn(ClaudeCliBin, args, {
           cwd: workdir,
-          env: { ...process.env, ...opts.env, ...ClaudeCliEnv },
+          // providerEnv LAST so a fallback provider's token/base-URL overrides
+          // the pod-default (primary) provider env for this single attempt.
+          env: { ...process.env, ...opts.env, ...ClaudeCliEnv, ...providerEnv },
         }) as ChildProcess
       } catch (err) {
         return resolve({
@@ -177,9 +211,50 @@ export const createSessionManager = (opts: TSessionManagerOpts): TSessionManager
     getCheckpointSummary: () => state.checkpointSummary,
 
     runTurn: async (prompt: string) => {
-      const result = await runChild(prompt)
+      // Ordered provider attempts: the primary runs with the pod-default env;
+      // each fallback overlays its own env so its token/base-URL override the
+      // pod defaults for that invocation. Every attempt --resumes the SAME
+      // (pre-turn) session id, so failover keeps continuity. Mirrors the
+      // scheduled executor's failover (same caps + transient detector).
+      const attempts: Array<{ brand: string; env: Record<string, string> }> = [
+        { brand: `primary`, env: {} },
+        ...fallbackEnvs.map((fb) => ({ brand: fb.brand, env: fb.env })),
+      ]
 
-      if (result.sessionId) state.sessionId = result.sessionId
+      let result!: TTurnResult
+      for (let p = 0; p < attempts.length; p++) {
+        const hasNext = p < attempts.length - 1
+        // Brief same-provider transient retries while a fallback remains; the
+        // terminal provider exhausts the full transient-retry budget.
+        const maxRetries = hasNext
+          ? CliSameProviderRetriesBeforeFailover
+          : CliMaxTransientRetries
+
+        result = await runChild(prompt, attempts[p].env)
+        for (let a = 0; !result.ok && a < maxRetries; a++) {
+          const signal = transientSignal(result)
+          if (!signal) break // non-transient → a same-provider retry won't help
+          const delay = retryDelaysMs[a] ?? retryDelaysMs[retryDelaysMs.length - 1]
+          log.warn(
+            `Turn transient failure on ${attempts[p].brand} — retry ${a + 1}/${maxRetries} in ${delay}ms: ${signal}`
+          )
+          await new Promise((r) => setTimeout(r, delay))
+          result = await runChild(prompt, attempts[p].env)
+        }
+
+        if (result.ok) break
+        // Only a transient failure warrants failing over to the next provider.
+        const signal = transientSignal(result)
+        if (!signal) break
+        if (hasNext)
+          log.warn(
+            `Provider failover ${attempts[p].brand} → ${attempts[p + 1].brand}: ${signal}`
+          )
+      }
+
+      // Persist the session id ONLY from a successful attempt — a failed
+      // attempt may report a half-written session that would poison --resume.
+      if (result.ok && result.sessionId) state.sessionId = result.sessionId
       state.turnCount += 1
       state.totalBytes += Buffer.byteLength(prompt) + Buffer.byteLength(result.output)
       persist()

@@ -9,6 +9,7 @@ import type {
 } from './types/resident.types'
 
 import { log } from './log'
+import { ApiRequestTimeoutMs } from './constants'
 
 export type TResidentApiOpts = {
   backendUrl: string
@@ -18,6 +19,8 @@ export type TResidentApiOpts = {
   agentId: string
   /** Backend admin path segment (default `_`). */
   adminPath?: string
+  /** Per-request wall-clock timeout (default ApiRequestTimeoutMs). */
+  requestTimeoutMs?: number
   /** Injectable for tests — the runtime's ONLY HTTP boundary. */
   fetchFn?: typeof fetch
 }
@@ -32,9 +35,14 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
   const { backendUrl, token, orgId, projectId, agentId, fetchFn } = opts
   const doFetch = fetchFn ?? fetch
   const admin = opts.adminPath ?? `_`
+  const requestTimeoutMs = opts.requestTimeoutMs ?? ApiRequestTimeoutMs
   const base = `${backendUrl.replace(/\/+$/, ``)}/${admin}/orgs/${orgId}/projects/${projectId}`
 
   const post = async <T>(url: string, body: unknown): Promise<TApiResult<T>> => {
+    // Bound every request — a hung backend connection must never block a
+    // heartbeat/inbox poll indefinitely (the loop + heartbeat are serialized).
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), requestTimeoutMs)
     try {
       const res = await doFetch(url, {
         method: `POST`,
@@ -43,6 +51,7 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
           'content-type': `application/json`,
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       })
 
       let payload: any
@@ -64,9 +73,16 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
 
       return { ok: true, status: res.status, data: payload?.data as T }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const aborted = err instanceof Error && err.name === `AbortError`
+      const message = aborted
+        ? `Request timed out after ${requestTimeoutMs}ms`
+        : err instanceof Error
+          ? err.message
+          : String(err)
       log.debug(`API request failed: POST ${url}: ${message}`)
       return { ok: false, status: 0, error: message }
+    } finally {
+      clearTimeout(timer)
     }
   }
 

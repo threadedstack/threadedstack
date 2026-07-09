@@ -86,6 +86,9 @@ export const startResident = async (): Promise<{
     stateDir: env.stateDir,
     workdir: env.workdir,
     turnTimeoutMs: loaded.session.turnTimeoutMs,
+    // Ordered fallback providers injected by the watchdog — the in-pod turn
+    // fails over on a transient primary failure, like the scheduled executor.
+    fallbackEnvs: env.providerFallbacks,
   })
 
   const pump = createActionPump({ api, getConfig: config.get })
@@ -105,6 +108,7 @@ export const startResident = async (): Promise<{
   const subAgents = createSubAgentPool({
     maxConcurrent: loaded.subAgents.maxConcurrent,
     workdir: env.workdir,
+    fallbackEnvs: env.providerFallbacks,
     onComplete: (result) => loop.enqueueSubAgentResult(result),
   })
   loop.attachSubAgents(subAgents)
