@@ -416,14 +416,21 @@ describe(`buildPodManifest`, () => {
     it(`should launch the resident runtime via args, preserving the entrypoint`, () => {
       const container = buildPodManifest(residentOpts()).spec!.containers![0]
       // args (NOT command) so the image ENTRYPOINT still clones /workspace
-      // before exec'ing the launcher; `|| sleep 3600` keeps the pod alive for
-      // debugging on crash under restartPolicy Never.
+      // before exec'ing the launcher. The in-pod supervisor restarts the runtime
+      // (resuming its on-disk session) and exits non-zero after N crashes so the
+      // watchdog recreates the pod — never an unbounded sleep that masks a dead
+      // runtime under restartPolicy Never.
       expect(container.command).toBeUndefined()
-      expect(container.args).toEqual([
-        `/bin/sh`,
-        `-lc`,
-        `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
-      ])
+      expect(container.args?.[0]).toBe(`/bin/sh`)
+      expect(container.args?.[1]).toBe(`-lc`)
+      const script = container.args?.[2] as string
+      expect(script).toContain(
+        `[ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build`
+      )
+      expect(script).toContain(`node repos/resident/dist/index.js`)
+      expect(script).toContain(`while [ $n -lt 5 ]`)
+      expect(script).toContain(`exit 1`)
+      expect(script).not.toContain(`sleep 3600`)
     })
 
     it(`should inject TDSK_RESIDENT_AGENT_ID into the container env`, () => {
@@ -457,11 +464,12 @@ describe(`buildPodManifest`, () => {
         })
       ).spec!.containers![0]
       expect(container.command).toBeUndefined()
-      expect(container.args).toEqual([
-        `/bin/sh`,
-        `-lc`,
-        `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
-      ])
+      expect(container.args?.[0]).toBe(`/bin/sh`)
+      const script = container.args?.[2] as string
+      expect(script).toContain(`node repos/resident/dist/index.js`)
+      expect(script).toContain(`exit 1`)
+      // The explicit custom command/args are ignored in resident mode.
+      expect(script).not.toContain(`run-something`)
     })
 
     it(`should not affect non-resident sandboxes (sleep infinity fallback)`, () => {

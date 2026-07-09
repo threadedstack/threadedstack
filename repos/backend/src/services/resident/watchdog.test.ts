@@ -226,7 +226,9 @@ describe(`resident watchdog — reconcile matrix`, () => {
     expect(call.extraEnv[ResidentEnvVars.token]).toMatch(new RegExp(`^${ApiKeyPrefix}`))
     // PLUS the resident_configs record injected as JSON — network-free boot
     expect(JSON.parse(call.extraEnv[ResidentEnvVars.config])).toEqual(configRecord.data)
-    expect(Object.keys(call.extraEnv)).toHaveLength(6)
+    // PLUS the ordered fallback provider envs so the in-pod runtime fails over.
+    expect(JSON.parse(call.extraEnv[ResidentEnvVars.fallbacks])).toEqual([])
+    expect(Object.keys(call.extraEnv)).toHaveLength(7)
     // Provider parity: the pre-resolved failover chain rides in the SEPARATE
     // providerChain param (NOT extraEnv), so the pod's `claude -p` authenticates
     // against the FUNDED primary provider. Chain env is disjoint from the
@@ -247,6 +249,34 @@ describe(`resident watchdog — reconcile matrix`, () => {
     expect(Object.keys(call.providerChain.primaryEnv)).not.toContain(
       ResidentEnvVars.agentId
     )
+  })
+
+  it(`passes the ordered fallback provider envs so the in-pod runtime fails over`, async () => {
+    const configRecord = { id: `rec_cfg001`, data: { agentId: AgentId } }
+    const fallbacks = [
+      { brand: `zai`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai`, ANTHROPIC_BASE_URL: `https://zai` } },
+      { brand: `openrouter`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_or`, ANTHROPIC_BASE_URL: `https://or` } },
+    ]
+    mockResolveSandboxProviderChain.mockResolvedValueOnce({
+      sandboxConfig: {},
+      chain: {
+        primaryBrand: `anthropic`,
+        // The funded primary (OAuth) — no OpenRouter base URL leaking in.
+        primaryEnv: { CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary` },
+        placeholders: { tdsk_ph_primary: { secretId: `sc-1` } },
+        fallbacks,
+      },
+    })
+    const ctx = build({ pods: [], configRecords: [configRecord] })
+    const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+
+    await watchdog.tick()
+
+    const call = ctx.startPod.mock.calls[0][0]
+    // The pod default is the funded primary (OAuth, no OpenRouter base URL).
+    expect(call.providerChain.primaryEnv).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: `tdsk_ph_primary` })
+    // The ordered fallbacks reach the pod verbatim (brand + placeholder env).
+    expect(JSON.parse(call.extraEnv[ResidentEnvVars.fallbacks])).toEqual(fallbacks)
   })
 
   it(`stale: pod exists but heartbeat is old ⇒ stop pod, rotate token, restart`, async () => {

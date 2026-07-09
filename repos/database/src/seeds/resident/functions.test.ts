@@ -102,13 +102,17 @@ describe(`ResidentFunctionDefs`, () => {
     expect(update.content).toContain(`agentId: caller.agentId`)
   })
 
-  it(`upserts resident_status by the caller identity in heartbeat and clears degraded`, () => {
+  it(`upserts resident_status by the caller identity and MERGES (never writes watchdog-owned degraded)`, () => {
     const beat = ResidentFunctionDefs.find((def) => def.name === `heartbeat`)!
     expect(beat.content).toContain(`resident_status`)
     expect(beat.content).toContain(
       `{ field: 'agentId', op: 'eq', value: caller.agentId }`
     )
-    expect(beat.content).toContain(`degraded: false`)
+    // The watchdog is the SOLE owner of `degraded` — the beat must merge over
+    // the existing record and never write the flag (else a live beat would
+    // clobber the watchdog's crash-loop assessment).
+    expect(beat.content).toContain(`...prev`)
+    expect(beat.content).not.toContain(`degraded`)
   })
 
   it(`appends caller-stamped resident_transcripts records (records-only thread stand-in)`, () => {

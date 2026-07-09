@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ApiKey, hashKey, ApiKeyPrefix } from '@tdsk/domain'
 
-import { mintResidentToken } from './residentToken'
+import {
+  mintResidentToken,
+  createResidentToken,
+  revokeResidentKeysExcept,
+} from './residentToken'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -49,19 +53,25 @@ describe(`mintResidentToken`, () => {
     expect(key.startsWith(created.keyPrefix)).toBe(true)
   })
 
-  it(`rotates: revokes every previously-active resident key first`, async () => {
+  it(`rotates create-first-then-revoke: the new key survives, every prior key is revoked`, async () => {
     const { db, services } = buildDb()
     services.apiKey.getByResidentAgent.mockResolvedValue({
-      data: [new ApiKey({ id: `ak_old00001` }), new ApiKey({ id: `ak_old00002` })],
+      data: [
+        new ApiKey({ id: `ak_old00001` }),
+        new ApiKey({ id: `ak_old00002` }),
+        new ApiKey({ id: `ak_new00001` }), // the freshly-minted key must be kept
+      ],
     })
 
     await mintResidentToken(db, `og_org00001`, `ag_agent001`)
 
+    expect(services.apiKey.create).toHaveBeenCalledOnce()
     expect(services.apiKey.getByResidentAgent).toHaveBeenCalledWith(`ag_agent001`)
     expect(services.apiKey.revoke).toHaveBeenCalledTimes(2)
     expect(services.apiKey.revoke).toHaveBeenCalledWith(`ak_old00001`)
     expect(services.apiKey.revoke).toHaveBeenCalledWith(`ak_old00002`)
-    expect(services.apiKey.create).toHaveBeenCalledOnce()
+    // Never revokes the key it just minted.
+    expect(services.apiKey.revoke).not.toHaveBeenCalledWith(`ak_new00001`)
   })
 
   it(`mints a unique secret per call`, async () => {
@@ -72,7 +82,7 @@ describe(`mintResidentToken`, () => {
     expect(first.key).not.toBe(second.key)
   })
 
-  it(`throws a 500 Exception when the existing-key lookup fails`, async () => {
+  it(`throws a 500 when the prior-key lookup fails (after the new key is created)`, async () => {
     const { db, services } = buildDb()
     services.apiKey.getByResidentAgent.mockResolvedValue({
       error: new Error(`db down`),
@@ -81,10 +91,11 @@ describe(`mintResidentToken`, () => {
     await expect(
       mintResidentToken(db, `og_org00001`, `ag_agent001`)
     ).rejects.toMatchObject({ status: 500 })
-    expect(services.apiKey.create).not.toHaveBeenCalled()
+    // create-first: the new key exists before revoke is attempted.
+    expect(services.apiKey.create).toHaveBeenCalledOnce()
   })
 
-  it(`throws a 500 Exception when rotation (revoke) fails`, async () => {
+  it(`throws a 500 when revoking a prior key fails (after the new key is created)`, async () => {
     const { db, services } = buildDb()
     services.apiKey.getByResidentAgent.mockResolvedValue({
       data: [new ApiKey({ id: `ak_old00001` })],
@@ -94,7 +105,7 @@ describe(`mintResidentToken`, () => {
     await expect(
       mintResidentToken(db, `og_org00001`, `ag_agent001`)
     ).rejects.toMatchObject({ status: 500 })
-    expect(services.apiKey.create).not.toHaveBeenCalled()
+    expect(services.apiKey.create).toHaveBeenCalledOnce()
   })
 
   it(`throws a 500 Exception when the create fails`, async () => {
@@ -104,5 +115,61 @@ describe(`mintResidentToken`, () => {
     await expect(
       mintResidentToken(db, `og_org00001`, `ag_agent001`)
     ).rejects.toMatchObject({ status: 500 })
+    // create failed → no revoke sweep is attempted.
+    expect(services.apiKey.revoke).not.toHaveBeenCalled()
+  })
+})
+
+describe(`createResidentToken`, () => {
+  it(`creates a key WITHOUT listing or revoking any prior keys`, async () => {
+    const { db, services } = buildDb()
+
+    const { key, apiKey } = await createResidentToken(db, `og_org00001`, `ag_agent001`)
+
+    expect(apiKey.id).toBe(`ak_new00001`)
+    expect(key.startsWith(ApiKeyPrefix)).toBe(true)
+    expect(services.apiKey.create).toHaveBeenCalledOnce()
+    // The whole point of the split: the old pod's token stays valid — no revoke here.
+    expect(services.apiKey.getByResidentAgent).not.toHaveBeenCalled()
+    expect(services.apiKey.revoke).not.toHaveBeenCalled()
+  })
+
+  it(`throws a 500 Exception when the create fails`, async () => {
+    const { db, services } = buildDb()
+    services.apiKey.create.mockResolvedValue({ error: new Error(`insert failed`) })
+
+    await expect(
+      createResidentToken(db, `og_org00001`, `ag_agent001`)
+    ).rejects.toMatchObject({ status: 500 })
+  })
+})
+
+describe(`revokeResidentKeysExcept`, () => {
+  it(`revokes every active resident key except the one to keep`, async () => {
+    const { db, services } = buildDb()
+    services.apiKey.getByResidentAgent.mockResolvedValue({
+      data: [
+        new ApiKey({ id: `ak_old00001` }),
+        new ApiKey({ id: `ak_keep0001` }),
+        new ApiKey({ id: `ak_old00002` }),
+      ],
+    })
+
+    await revokeResidentKeysExcept(db, `ag_agent001`, `ak_keep0001`)
+
+    expect(services.apiKey.revoke).toHaveBeenCalledTimes(2)
+    expect(services.apiKey.revoke).toHaveBeenCalledWith(`ak_old00001`)
+    expect(services.apiKey.revoke).toHaveBeenCalledWith(`ak_old00002`)
+    expect(services.apiKey.revoke).not.toHaveBeenCalledWith(`ak_keep0001`)
+  })
+
+  it(`throws a 500 when the key lookup fails`, async () => {
+    const { db, services } = buildDb()
+    services.apiKey.getByResidentAgent.mockResolvedValue({ error: new Error(`db down`) })
+
+    await expect(
+      revokeResidentKeysExcept(db, `ag_agent001`, `ak_keep0001`)
+    ).rejects.toMatchObject({ status: 500 })
+    expect(services.apiKey.revoke).not.toHaveBeenCalled()
   })
 })
