@@ -58,4 +58,58 @@ describe(`resident api`, () => {
     expect(res.status).toBe(0)
     expect(res.error).toMatch(/timed out/)
   })
+
+  it(`retries a transport failure (dead keep-alive socket) and succeeds on a fresh connection`, async () => {
+    let calls = 0
+    const fetchFn = (async () => {
+      calls += 1
+      if (calls === 1) {
+        // The reused-but-dead socket through the hairpin throws (not an HTTP response).
+        const err = new Error(`fetch failed`)
+        ;(err as any).cause = { code: `ECONNRESET` }
+        throw err
+      }
+      return { ok: true, status: 200, json: async () => ({ data: { beat: true } }) }
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn })
+
+    const res = await api.queryRecords(`c`, emptyQuery)
+    expect(calls).toBe(2) // first threw, retried on a fresh connection
+    expect(res.ok).toBe(true)
+    expect(res.data).toEqual({ beat: true })
+  })
+
+  it(`gives up after the retry budget when the transport keeps failing`, async () => {
+    let calls = 0
+    const fetchFn = (async () => {
+      calls += 1
+      throw new Error(`fetch failed`)
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn })
+
+    const res = await api.queryRecords(`c`, emptyQuery)
+    // 1 initial + ApiNetworkRetryMax(2) retries = 3 attempts.
+    expect(calls).toBe(3)
+    expect(res).toMatchObject({ ok: false, status: 0 })
+    expect(res.error).toMatch(/fetch failed/)
+  })
+
+  it(`does NOT retry a timeout (returns after one attempt so a heartbeat is never blocked N×)`, async () => {
+    let calls = 0
+    const fetchFn = ((_url: string, init: any) => {
+      calls += 1
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener(`abort`, () => {
+          const err = new Error(`aborted`)
+          err.name = `AbortError`
+          reject(err)
+        })
+      })
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn, requestTimeoutMs: 5 })
+
+    const res = await api.queryRecords(`c`, emptyQuery)
+    expect(calls).toBe(1) // a timeout is NOT retried
+    expect(res.error).toMatch(/timed out/)
+  })
 })
