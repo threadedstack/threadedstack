@@ -30,6 +30,7 @@ const buildApp = (opts: {
   podStates?: EContainerState[]
   pgrepResult?: { success: boolean; exitCode?: number } | Error
   completeResp?: any
+  recentRuns?: any[]
 }) => {
   const podStates = opts.podStates ?? []
   let stateIdx = 0
