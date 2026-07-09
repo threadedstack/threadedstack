@@ -431,6 +431,12 @@ describe(`buildPodManifest`, () => {
       expect(script).toContain(`while [ $n -lt 5 ]`)
       expect(script).toContain(`exit 1`)
       expect(script).not.toContain(`sleep 3600`)
+      // build-if-missing must run INSIDE the retry loop: a transient build failure
+      // then retries like a runtime crash, instead of burning all N attempts
+      // running a dist file that was never produced (the old permanent crash loop).
+      expect(script.indexOf(`while [ $n -lt 5 ]`)).toBeLessThan(
+        script.indexOf(`|| pnpm --filter @tdsk/resident build`)
+      )
     })
 
     it(`should inject TDSK_RESIDENT_AGENT_ID into the container env`, () => {

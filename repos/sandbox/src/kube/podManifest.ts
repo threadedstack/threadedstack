@@ -278,12 +278,18 @@ const buildSandboxContainer = (
     // (no token rotation, no cold reboot). After N consecutive crashes we exit
     // non-zero so the pod fails fast and the watchdog recreates it (surfacing a
     // persistent crash in ~minutes, not an hour).
-    // Build-if-missing: the clone carries src only; if dist is absent (or a
-    // crash left it stale), build once before launching.
+    // Build-if-missing runs INSIDE the retry loop: the clone carries src only, so
+    // dist must be built on first boot. Keeping the build in the loop means a
+    // transient build failure (e.g. a flaky fetch) is retried like a runtime crash
+    // — the original "build once before the loop" turned any single build failure
+    // into all N retries running a file that does not exist (a permanent crash
+    // loop). Each attempt: ensure dist (build if absent), run it if present; a
+    // runtime crash leaves dist in place so the next attempt resumes the on-disk
+    // session. After N attempts we exit non-zero so the watchdog recreates the pod.
     container.args = [
       `/bin/sh`,
       `-lc`,
-      `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; }; n=0; while [ $n -lt 5 ]; do node repos/resident/dist/index.js; code=$?; n=$((n+1)); echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
+      `cd /workspace; n=0; while [ $n -lt 5 ]; do n=$((n+1)); [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build || true; if [ -f repos/resident/dist/index.js ]; then node repos/resident/dist/index.js; code=$?; echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; else echo "[resident-launcher] build produced no dist, attempt $n/5"; fi; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
     ]
   } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command
