@@ -450,25 +450,36 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   // caller's role against the plan's owner) — and progress reporting
   // (updateMilestone) additionally rides the CTO board cycle, which reports
   // execution progress.
+  // DISABLED: the CEO runs as a RESIDENT (Resident Agents R5). The daily
+  // strategy cycle moved to the resident's `strategy` agenda item (same
+  // `0 4 * * *` cadence, same prompt file — seeds/resident/records.ts). The def
+  // is kept (disabled) so the reconciler holds the prod row off and the prompt
+  // file stays the single source the resident agenda reuses.
   ceo({
     key: `ceo-strategy`,
     id: `sd_ceostr1`,
     cronExpression: `0 4 * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
-    enabled: true,
+    enabled: false,
     contextSources: [BoardStrategySource, BoardOpenDecisionsSource, BoardPlansSource],
     actions: {
       functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
     },
   }),
+  // DISABLED: the CEO runs as a RESIDENT (Resident Agents R5). Board review
+  // moved to the resident's `board-review` agenda item (`0 */3 * * *`, same
+  // prompt file — seeds/resident/records.ts). Resolution is agenda-paced, NOT a
+  // fast watch: the CEO holds resolveBoard, so it must give the board a
+  // deliberation window rather than resolve on every decision change. The def
+  // is kept (disabled) as the single prompt source the resident agenda reuses.
   ceo({
     key: `ceo-board`,
     id: `sd_ceobrd1`,
     cronExpression: `0 */6 * * *`,
     timeoutMs: 1_800_000,
     maxConsecutiveErrors: 6,
-    enabled: true,
+    enabled: false,
     contextSources: [
       BoardStrategySource,
       BoardOpenDecisionsSource,
