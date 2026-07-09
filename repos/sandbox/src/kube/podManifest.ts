@@ -286,10 +286,17 @@ const buildSandboxContainer = (
     // loop). Each attempt: ensure dist (build if absent), run it if present; a
     // runtime crash leaves dist in place so the next attempt resumes the on-disk
     // session. After N attempts we exit non-zero so the watchdog recreates the pod.
+    //
+    // Graceful shutdown: the entrypoint `exec`s this launcher, so it is PID 1 and
+    // K8s sends it SIGTERM on teardown. A bare `while node ...; done` (no trap)
+    // would let PID 1 ignore SIGTERM and the runtime child never receive it, so
+    // the pod is SIGKILLed after the grace period — skipping the runtime's
+    // finish-turn + compaction checkpoint. So we run the runtime in the background
+    // and `trap` SIGTERM to forward it to the child, then wait for its clean exit.
     container.args = [
       `/bin/sh`,
       `-lc`,
-      `cd /workspace; n=0; while [ $n -lt 5 ]; do n=$((n+1)); [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build || true; if [ -f repos/resident/dist/index.js ]; then node repos/resident/dist/index.js; code=$?; echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; else echo "[resident-launcher] build produced no dist, attempt $n/5"; fi; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
+      `cd /workspace; n=0; term(){ if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null; wait "$child" 2>/dev/null; fi; exit 0; }; trap term TERM INT; while [ $n -lt 5 ]; do n=$((n+1)); [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build || true; if [ -f repos/resident/dist/index.js ]; then node repos/resident/dist/index.js & child=$!; wait "$child"; code=$?; child=; echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; else echo "[resident-launcher] build produced no dist, attempt $n/5"; fi; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
     ]
   } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command

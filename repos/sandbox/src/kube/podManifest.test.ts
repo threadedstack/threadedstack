@@ -437,6 +437,12 @@ describe(`buildPodManifest`, () => {
       expect(script.indexOf(`while [ $n -lt 5 ]`)).toBeLessThan(
         script.indexOf(`|| pnpm --filter @tdsk/resident build`)
       )
+      // SIGTERM (the launcher is PID 1) must be forwarded to the runtime so it runs
+      // its graceful compaction checkpoint instead of being SIGKILLed: the runtime
+      // is backgrounded and a trap forwards TERM to the child.
+      expect(script).toContain(`trap term TERM`)
+      expect(script).toContain(`kill -TERM "$child"`)
+      expect(script).toContain(`node repos/resident/dist/index.js & child=$!`)
     })
 
     it(`should inject TDSK_RESIDENT_AGENT_ID into the container env`, () => {
