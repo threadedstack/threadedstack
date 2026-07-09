@@ -5,6 +5,7 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { reconcileResident } from '@TDB/seeds/resident/collections'
 import { reconcileResidentFunctions } from '@TDB/seeds/resident/functions'
 import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
+import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
 
 /**
  * Deploy-time reconcile of the resident data plane (Resident Agents R3+R4):
@@ -20,10 +21,14 @@ import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
  * never overwrites it again (the update is an atomic guarded replace, so a
  * self-evolution racing the reconcile is never clobbered). The whole resident
  * surface lives in git-versioned config and lands through the normal PR ->
- * deploy pipeline. Idempotent: collections are create-if-absent and Functions
- * and configs update only on drift, so a re-run makes no changes. A seeded
- * config stays inert until its agent's body sandbox is flipped to resident
- * mode — the watchdog skips non-resident sandboxes.
+ * deploy pipeline. Finally it reconciles the resident ACTIVATIONS: for each
+ * agentId in the git-declared ResidentActivations list, it sets the agent's body
+ * sandbox to resident mode (`config.resident = { agentId }`) so activation is
+ * durable and re-asserted every deploy, not a one-off manual flip. A seeded
+ * config whose agent is NOT in that list stays inert (the watchdog skips a
+ * non-resident sandbox) — the inert-first pattern. Idempotent: collections are
+ * create-if-absent, Functions/configs update only on drift, and activations set
+ * only when the flag is missing, so a re-run makes no changes.
  */
 
 const nodeEnv = process.env.NODE_ENV
@@ -53,7 +58,24 @@ ife(async () => {
     (msg) => console.log(msg)
   )
 
-  const errors = summary.errors + fnSummary.errors + cfgSummary.errors
+  console.log(`🔌 Reconciling resident sandbox activations from repo config...`)
+  const actSummary = await reconcileResidentActivations(
+    {
+      agent: db.services.agent,
+      sandbox: {
+        get: (id) => db.services.sandbox.get(id),
+        // The reconcile passes the full read-merged config; bridge its loose
+        // Record type to the sandbox service's strict update-input type.
+        update: (data) =>
+          db.services.sandbox.update(
+            data as Parameters<typeof db.services.sandbox.update>[0]
+          ),
+      },
+    },
+    (msg) => console.log(msg)
+  )
+
+  const errors = summary.errors + fnSummary.errors + cfgSummary.errors + actSummary.errors
 
   console.log(`═══════════════════════════════════════`)
   console.log(`📊 Resident reconcile summary:`)
@@ -65,6 +87,8 @@ ife(async () => {
   console.log(`   ✅ Configs created:       ${cfgSummary.created}`)
   console.log(`   🔄 Configs updated:       ${cfgSummary.updated}`)
   console.log(`   ➖ Configs unchanged:     ${cfgSummary.unchanged}`)
+  console.log(`   🔌 Activations set:       ${actSummary.activated}`)
+  console.log(`   ➖ Activations unchanged: ${actSummary.unchanged}`)
   console.log(`   ❌ Errors:                ${errors}`)
   console.log(`═══════════════════════════════════════`)
 
