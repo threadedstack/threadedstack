@@ -26,3 +26,14 @@ export const PodAnnotationKeys = {
 export const PodManagedSelector = `${PodLabelKeys.managed}=true`
 
 export const KubeSBPrefix = `sb`
+
+// K8s apiserver status codes that indicate a transient/retryable failure
+// (e.g. the apiserver's own --request-timeout firing as a 504) rather than
+// a real client error.
+export const KubeRetryableStatusCodes = new Set([429, 500, 502, 503, 504])
+
+// Retries (not counting the initial attempt) for idempotent read-only K8s
+// API calls on a retryable status code.
+export const KubeRetryMaxAttempts = 2
+export const KubeRetryInitialDelayMs = 250
+export const KubeRetryBackoffMultiplier = 2

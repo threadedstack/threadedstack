@@ -1228,13 +1228,24 @@ describe(`KubeClient`, () => {
       )
     })
 
-    it(`rethrows non-404 errors`, async () => {
+    it(`rethrows non-404 errors after exhausting transient retries`, async () => {
       const err = Object.assign(new Error(`Internal Server Error`), { code: 500 })
       mockAppsApi.readNamespacedDeployment.mockRejectedValue(err)
 
+      const promise = client.readDeployment(`my-deploy`)
+      const assertion = expect(promise).rejects.toMatchObject({ code: 500 })
+      await vi.advanceTimersByTimeAsync(1000)
+      await assertion
+    })
+
+    it(`rethrows a non-retryable error (e.g. 400) immediately, without delay`, async () => {
+      const err = Object.assign(new Error(`Bad Request`), { code: 400 })
+      mockAppsApi.readNamespacedDeployment.mockRejectedValue(err)
+
       await expect(client.readDeployment(`my-deploy`)).rejects.toMatchObject({
-        code: 500,
+        code: 400,
       })
+      expect(mockAppsApi.readNamespacedDeployment).toHaveBeenCalledOnce()
     })
   })
 
@@ -1567,6 +1578,48 @@ describe(`KubeClient`, () => {
           },
         ])
       ).rejects.toThrow(`403 Forbidden`)
+    })
+  })
+
+  // --- getPod / listPods — transient retry ---
+
+  describe(`getPod — transient retry`, () => {
+    it(`retries once on a 504 from the apiserver then returns the pod`, async () => {
+      const pod = makePod()
+      mockCoreApi.readNamespacedPod
+        .mockRejectedValueOnce(Object.assign(new Error(`Timeout`), { code: 504 }))
+        .mockResolvedValueOnce(pod)
+
+      const promise = client.getPod(`tdsk-sb-test1234-abcd`)
+      await vi.advanceTimersByTimeAsync(1000)
+      const result = await promise
+
+      expect(result).toBe(pod)
+      expect(mockCoreApi.readNamespacedPod).toHaveBeenCalledTimes(2)
+    })
+
+    it(`does not retry a 404 — propagates immediately`, async () => {
+      const err = Object.assign(new Error(`Not Found`), { code: 404 })
+      mockCoreApi.readNamespacedPod.mockRejectedValue(err)
+
+      await expect(client.getPod(`missing-pod`)).rejects.toBe(err)
+      expect(mockCoreApi.readNamespacedPod).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe(`listPods — transient retry`, () => {
+    it(`retries on a 503 then returns the pod list`, async () => {
+      const pod = makePod()
+      mockCoreApi.listNamespacedPod
+        .mockRejectedValueOnce(Object.assign(new Error(`Unavailable`), { code: 503 }))
+        .mockResolvedValueOnce({ items: [pod] })
+
+      const promise = client.listPods()
+      await vi.advanceTimersByTimeAsync(1000)
+      const result = await promise
+
+      expect(result).toEqual([pod])
+      expect(mockCoreApi.listNamespacedPod).toHaveBeenCalledTimes(2)
     })
   })
 })

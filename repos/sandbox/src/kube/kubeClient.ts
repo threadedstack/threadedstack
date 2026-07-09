@@ -18,6 +18,7 @@ import { logger } from '@TSB/utils/logger'
 import * as k8s from '@kubernetes/client-node'
 import { getKubeNS } from '@TSB/kube/getKubeNS'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
+import { withKubeRetry } from '@TSB/kube/withKubeRetry'
 import { EProto, EContainerState } from '@tdsk/domain'
 import { toContainerState, getTerminationReason } from '@TSB/kube/toContainerState'
 
@@ -95,17 +96,21 @@ export class KubeClient {
   }
 
   async getPod(name: string): Promise<k8s.V1Pod> {
-    return await this.coreApi.readNamespacedPod({
-      name,
-      namespace: this.namespace,
-    })
+    return await withKubeRetry(`getPod(${name})`, () =>
+      this.coreApi.readNamespacedPod({
+        name,
+        namespace: this.namespace,
+      })
+    )
   }
 
   async listPods(labelSelector?: string): Promise<k8s.V1Pod[]> {
-    const resp = await this.coreApi.listNamespacedPod({
-      namespace: this.namespace,
-      labelSelector: labelSelector || PodManagedSelector,
-    })
+    const resp = await withKubeRetry(`listPods`, () =>
+      this.coreApi.listNamespacedPod({
+        namespace: this.namespace,
+        labelSelector: labelSelector || PodManagedSelector,
+      })
+    )
     return resp.items
   }
 
@@ -550,10 +555,12 @@ export class KubeClient {
     conditions: Array<{ name: string; status: string }>
   }> {
     try {
-      const dep = await this.appsApi.readNamespacedDeployment({
-        name,
-        namespace: this.namespace,
-      })
+      const dep = await withKubeRetry(`readDeployment(${name})`, () =>
+        this.appsApi.readNamespacedDeployment({
+          name,
+          namespace: this.namespace,
+        })
+      )
 
       const annotations = dep.metadata?.annotations ?? {}
       const status = dep.status ?? {}
@@ -596,10 +603,12 @@ export class KubeClient {
       node: string | undefined
     }>
   > {
-    const resp = await this.coreApi.listNamespacedPod({
-      namespace: this.namespace,
-      labelSelector,
-    })
+    const resp = await withKubeRetry(`listPodsBySelector(${labelSelector})`, () =>
+      this.coreApi.listNamespacedPod({
+        namespace: this.namespace,
+        labelSelector,
+      })
+    )
 
     return resp.items.map((pod) => ({
       name: pod.metadata?.name ?? ``,
@@ -619,13 +628,15 @@ export class KubeClient {
     name: string,
     opts?: { tailLines?: number; previous?: boolean; container?: string }
   ): Promise<string> {
-    return await this.coreApi.readNamespacedPodLog({
-      name,
-      namespace: this.namespace,
-      tailLines: opts?.tailLines,
-      previous: opts?.previous,
-      container: opts?.container,
-    })
+    return await withKubeRetry(`readPodLogs(${name})`, () =>
+      this.coreApi.readNamespacedPodLog({
+        name,
+        namespace: this.namespace,
+        tailLines: opts?.tailLines,
+        previous: opts?.previous,
+        container: opts?.container,
+      })
+    )
   }
 
   /**
@@ -703,9 +714,11 @@ export class KubeClient {
   async listResourceQuotas(): Promise<
     Array<{ name: string; hard: Record<string, string>; used: Record<string, string> }>
   > {
-    const resp = await this.coreApi.listNamespacedResourceQuota({
-      namespace: this.namespace,
-    })
+    const resp = await withKubeRetry(`listResourceQuotas`, () =>
+      this.coreApi.listNamespacedResourceQuota({
+        namespace: this.namespace,
+      })
+    )
 
     return resp.items.map((quota) => ({
       name: quota.metadata?.name ?? ``,
