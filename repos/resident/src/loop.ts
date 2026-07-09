@@ -408,7 +408,11 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
               )
           }
 
-        if (event.kind === EResidentEventKind.inbox) await markMessagesRead(event)
+        // Only mark inbox messages read when the turn actually SUCCEEDED — a
+        // failed turn (e.g. all providers down) leaves them unread so they are
+        // reprocessed rather than silently dropped.
+        if (result.ok && event.kind === EResidentEventKind.inbox)
+          await markMessagesRead(event)
 
         if (compactor.shouldCompact()) await compactor.compact()
       } catch (err) {

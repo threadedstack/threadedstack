@@ -42,7 +42,8 @@ export const apiKeys = pgTable(
     }),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
     /** Resident-bound key: authorizes ONLY the resident dispatch surface for
-     * this agent (minted/rotated by mintResidentToken at resident pod start) */
+     * this agent (minted/rotated by the resident watchdog —
+     * createResidentToken/revokeResidentKeysExcept — at resident pod start) */
     residentAgentId: varchar(`resident_agent_id`, { length: 10 }).references(
       () => agents.id,
       { onDelete: `cascade` }

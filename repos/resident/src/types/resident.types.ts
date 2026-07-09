@@ -24,6 +24,18 @@ export type TResidentEnv = {
   workdir: string
   /** TDSK_RESIDENT_CONFIG — the resident_configs record JSON injected at pod start (network-free boot). */
   configJson?: string
+  /**
+   * TDSK_RESIDENT_PROVIDER_FALLBACKS — ordered fallback provider envs (parsed
+   * from JSON) the runtime tries, in order, when the primary provider hits a
+   * transient upstream failure. Empty when unset/malformed (no failover).
+   */
+  providerFallbacks: TProviderFallback[]
+}
+
+/** One fallback AI-provider's env overlay (placeholder tokens + base URL). */
+export type TProviderFallback = {
+  brand: string
+  env: Record<string, string>
 }
 
 /** A mandatory recurring agenda item — regular work as data. */

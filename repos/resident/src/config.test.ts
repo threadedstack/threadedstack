@@ -32,6 +32,40 @@ describe(`readResidentEnv`, () => {
     )
   })
 
+  it(`defaults providerFallbacks to [] when the env var is unset`, () => {
+    expect(readResidentEnv(fullEnv).providerFallbacks).toEqual([])
+  })
+
+  it(`parses the ordered provider fallbacks from JSON`, () => {
+    const fallbacks = [
+      { brand: `zai`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai` } },
+      { brand: `openrouter`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_or` } },
+    ]
+    const env = readResidentEnv({
+      ...fullEnv,
+      TDSK_RESIDENT_PROVIDER_FALLBACKS: JSON.stringify(fallbacks),
+    })
+    expect(env.providerFallbacks).toEqual(fallbacks)
+  })
+
+  it(`tolerates malformed / non-array fallbacks (never fatal → [])`, () => {
+    expect(
+      readResidentEnv({ ...fullEnv, TDSK_RESIDENT_PROVIDER_FALLBACKS: `{not json` })
+        .providerFallbacks
+    ).toEqual([])
+    expect(
+      readResidentEnv({ ...fullEnv, TDSK_RESIDENT_PROVIDER_FALLBACKS: `{"a":1}` })
+        .providerFallbacks
+    ).toEqual([])
+    // Entries missing brand/env are filtered out.
+    expect(
+      readResidentEnv({
+        ...fullEnv,
+        TDSK_RESIDENT_PROVIDER_FALLBACKS: JSON.stringify([{ brand: `zai` }, { env: {} }]),
+      }).providerFallbacks
+    ).toEqual([])
+  })
+
   it(`lets the injected config JSON supply org/project/agent scope`, () => {
     const env = readResidentEnv({
       TDSK_RESIDENT_TOKEN: `tdsk_secret`,

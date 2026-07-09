@@ -62,6 +62,46 @@ describe(`sub-agent pool`, () => {
     })
   })
 
+  it(`fails over to a fallback provider on a transient failure`, async () => {
+    const results: TSubAgentResult[] = []
+    const { spawnFn, calls } = makeSpawnFn((call, index) => {
+      if (index === 0) {
+        call.child.emitStdout(
+          JSON.stringify({
+            type: `result`,
+            result: `API Error: 529 Overloaded`,
+            session_id: `s`,
+            is_error: true,
+          })
+        )
+        call.child.emitClose(0)
+      } else {
+        call.child.emitStdout(claudeJson(`recovered on fallback`, `sub-sess`))
+        call.child.emitClose(0)
+      }
+    })
+    const pool = createSubAgentPool({
+      maxConcurrent: 2,
+      depth: 0,
+      spawnFn,
+      fallbackEnvs: [{ brand: `zai`, env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai` } }],
+      onComplete: (result) => results.push(result),
+    })
+
+    expect(pool.spawnSubAgent({ key: `research`, prompt: `dig in` }).ok).toBe(true)
+    await waitForResults(results, 1)
+
+    // One primary attempt (no same-provider retry), then the fallback; a single
+    // completion, from the fallback provider.
+    expect(calls).toHaveLength(2)
+    expect(calls[0].options.env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+    expect(calls[1].options.env.ANTHROPIC_AUTH_TOKEN).toBe(`tdsk_ph_zai`)
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ ok: true, output: `recovered on fallback` })
+    // The concurrency slot spans all attempts and is released exactly once.
+    expect(pool.activeCount()).toBe(0)
+  })
+
   it(`refuses to spawn past the concurrency cap, then frees the slot`, async () => {
     const results: TSubAgentResult[] = []
     let releaseFirst: (() => void) | undefined

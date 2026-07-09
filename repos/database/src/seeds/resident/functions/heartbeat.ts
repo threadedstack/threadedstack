@@ -6,9 +6,10 @@ import { EFunLanguage } from '@tdsk/domain'
  * Upserts the caller's `resident_status` record (keyed by the
  * platform-injected `context.caller.agentId` — one liveness record per
  * resident, never another agent's). The record's write time IS the liveness
- * signal the watchdog reads (<3 min = fresh); a live beat also clears
- * `degraded`, since the watchdog's in-memory crash-loop window — not the
- * record flag — decides restart skipping.
+ * signal the watchdog reads (<3 min = fresh). The `degraded` flag is owned
+ * SOLELY by the watchdog (set on crash-loop / misconfig, cleared on a healthy
+ * tick), so the beat MERGES over the existing record and never writes
+ * `degraded` — otherwise a live beat would clobber the watchdog's assessment.
  */
 export const HeartbeatFunctionSource = `export default async (request, context) => {
   const args = context.args || {}
@@ -23,7 +24,11 @@ export const HeartbeatFunctionSource = `export default async (request, context) 
     limit: 1,
   })
 
+  // Merge over any existing record so watchdog-owned fields survive the beat
+  // (the watchdog is the sole writer of the crash-loop status flag).
+  const prev = existing.length ? (existing[0].data || {}) : {}
   const data = {
+    ...prev,
     agentId: caller.agentId,
     sessionId: typeof args.sessionId === 'string' ? args.sessionId : null,
     queueDepth: typeof args.queueDepth === 'number' ? args.queueDepth : 0,
@@ -33,9 +38,6 @@ export const HeartbeatFunctionSource = `export default async (request, context) 
         : 'unknown',
     lastTurnAt: typeof args.lastTurnAt === 'string' ? args.lastTurnAt : null,
     turnCount: typeof args.turnCount === 'number' ? args.turnCount : 0,
-    // A live beat IS the liveness signal — the watchdog re-marks degraded
-    // whenever its crash-loop window says otherwise.
-    degraded: false,
   }
   const saved = await records.upsert(
     'resident_status',
@@ -49,7 +51,7 @@ export const HeartbeatFunctionSource = `export default async (request, context) 
 export const HeartbeatFunctionDef = {
   id: `fn_rhearbt`,
   name: `heartbeat`,
-  description: `Upsert the caller's resident_status liveness record ({ sessionId, queueDepth, currentActivity, lastTurnAt, turnCount }), keyed by the platform-injected caller identity. The record's write time is the heartbeat freshness the watchdog reads; a live beat clears degraded.`,
+  description: `Upsert the caller's resident_status liveness record ({ sessionId, queueDepth, currentActivity, lastTurnAt, turnCount }), keyed by the platform-injected caller identity. The record's write time is the heartbeat freshness the watchdog reads. The 'degraded' flag is watchdog-owned; the beat merges over the existing record and never writes it.`,
   language: EFunLanguage.javascript,
   content: HeartbeatFunctionSource,
 }

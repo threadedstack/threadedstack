@@ -267,17 +267,23 @@ const buildSandboxContainer = (
     // (sandbox-entrypoint.sh) still runs first — clone into /workspace, setup
     // script, workspace-ready marker — and then `exec "$@"`s the launcher.
     // Setting `command` would replace the entrypoint and skip the clone that
-    // puts repos/resident in place. The `|| sleep 3600` keeps the pod alive
-    // for debugging when the runtime crashes: restartPolicy is Never, so a
-    // bare crash would otherwise terminate the pod (CrashLoop churn via
-    // recreation) and destroy its on-disk session state.
+    // puts repos/resident in place.
+    //
+    // In-pod supervisor: restartPolicy is Never, so a bare crash would
+    // terminate the pod AND destroy its on-disk session state; an unbounded
+    // `sleep` would instead mask a dead runtime as a "Running" pod the
+    // watchdog cannot see fail for up to an hour. So we restart the runtime
+    // in-pod up to N times with a short backoff — the session state lives on
+    // the /workspace volume, so each in-pod restart RESUMES where it left off
+    // (no token rotation, no cold reboot). After N consecutive crashes we exit
+    // non-zero so the pod fails fast and the watchdog recreates it (surfacing a
+    // persistent crash in ~minutes, not an hour).
     // Build-if-missing: the clone carries src only; if dist is absent (or a
-    // crash left it stale), build once before launching. Proven live 2026-07-08:
-    // the first resident boot died on a missing dist masked by the sleep.
+    // crash left it stale), build once before launching.
     container.args = [
       `/bin/sh`,
       `-lc`,
-      `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; } && node repos/resident/dist/index.js || sleep 3600`,
+      `cd /workspace && { [ -f repos/resident/dist/index.js ] || pnpm --filter @tdsk/resident build; }; n=0; while [ $n -lt 5 ]; do node repos/resident/dist/index.js; code=$?; n=$((n+1)); echo "[resident-launcher] runtime exited (code=$code), attempt $n/5"; sleep 10; done; echo "[resident-launcher] runtime crashed 5x — exiting so the watchdog recreates the pod"; exit 1`,
     ]
   } else if (runtimeConfig?.command) {
     // Built-in runtime: use the runtime's container start command

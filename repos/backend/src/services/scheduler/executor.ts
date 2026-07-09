@@ -44,6 +44,12 @@ import {
   OpsReviewInjectMax,
   OpsReviewInjectMaxChars,
   CoordinatorInjectMaxChars,
+  matchTransientSignal,
+  CliMaxTransientRetries,
+  CliMaxProviderFailovers,
+  isTransientUpstreamFailure,
+  CliTransientRetryDelaysMs,
+  CliSameProviderRetriesBeforeFailover,
 } from '@tdsk/domain'
 import { dispatchActions } from '@TBE/utils/agent/dispatchActions'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
@@ -68,16 +74,7 @@ import {
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { parseSkillBlock, parseSkillReviewsBlock } from '@TBE/utils/agent/skill'
 import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
-import {
-  buildEnvPrefix,
-  parseMemoryBlock,
-  matchTransientSignal,
-  CliMaxTransientRetries,
-  CliMaxProviderFailovers,
-  isTransientUpstreamFailure,
-  CliTransientRetryDelaysMs,
-  CliSameProviderRetriesBeforeFailover,
-} from '@TBE/utils/agent/memory'
+import { buildEnvPrefix, parseMemoryBlock } from '@TBE/utils/agent/memory'
 
 /** Max characters of the previous report composed into a CLI-brain prompt (tail-capped) */
 const PrevReportMaxChars = 8000

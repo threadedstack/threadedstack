@@ -13,17 +13,22 @@ import { EResidentEventKind } from './types/resident.types'
 type TFakeSession = TSessionManager & {
   turns: string[]
   scriptOutput: (output: string) => void
+  scriptOk: (ok: boolean) => void
 }
 
 const makeFakeSession = (): TFakeSession => {
   const turns: string[] = []
   let nextOutput = `turn output`
+  let nextOk = true
   const state: TSessionState = { turnCount: 0, totalBytes: 0 }
 
   return {
     turns,
     scriptOutput: (output: string) => {
       nextOutput = output
+    },
+    scriptOk: (ok: boolean) => {
+      nextOk = ok
     },
     hasSession: () => Boolean(state.sessionId),
     getSessionId: () => state.sessionId,
@@ -40,10 +45,10 @@ const makeFakeSession = (): TFakeSession => {
       state.sessionId = `sess-1`
       state.turnCount += 1
       return {
-        ok: true,
+        ok: nextOk,
         output: nextOutput,
         sessionId: `sess-1`,
-        exitCode: 0,
+        exitCode: nextOk ? 0 : 1,
         timedOut: false,
         durationMs: 5,
       }
@@ -397,6 +402,33 @@ describe(`inbox`, () => {
     now.value += 10
     await loop.scan()
     expect(loop.getQueueDepth()).toBe(0)
+  })
+
+  it(`does NOT mark a message read when the turn FAILED (so it is reprocessed)`, async () => {
+    const now = { value: 1_000_000 }
+    const config = makeConfig({ inbox: { pollMs: 1, collection: `agent_messages` } })
+    const { loop, api, session } = makeLoop({}, { config, now })
+
+    api.onQuery((collection) =>
+      collection === `agent_messages`
+        ? {
+            ok: true,
+            status: 200,
+            data: [{ id: `m1`, data: { from: `ag_ceo`, subject: `align` } }],
+          }
+        : undefined
+    )
+
+    // Every provider is down → the turn fails.
+    session.scriptOk(false)
+
+    now.value += 10
+    await loop.scan()
+    await loop.runNext()
+
+    expect(session.turns).toHaveLength(1) // the turn ran
+    // …but the message was NOT marked read — no read-receipt upsert.
+    expect(api.upserts).toHaveLength(0)
   })
 
   it(`uses the configured markMessageRead Function when present`, async () => {
