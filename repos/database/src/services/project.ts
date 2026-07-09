@@ -145,7 +145,8 @@ export class Project extends Base<
 
       const hasFields = Object.keys(updateData).length > 0
       if (hasFields) {
-        await super.update({ id, ...updateData } as any)
+        const result = await super.update({ id, ...updateData } as any)
+        if (result.error) return result
       }
 
       return this.get(id)
