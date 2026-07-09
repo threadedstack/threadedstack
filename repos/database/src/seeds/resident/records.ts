@@ -34,11 +34,12 @@ export const CmoMemoriesSource: TContextSource = {
 /**
  * Resident config seed records — Resident Agents R4 (CMO pilot activation).
  *
- * One declarative `resident_configs` record per ACTIVATED resident, seeded
- * create-if-absent by `reconcileResidentConfigs` below: the record is the
- * agent's OWN document (it evolves it via updateResidentConfig), so an
- * existing record is NEVER overwritten by a deploy — git seeds the starting
- * state, the agent owns it from there. Every field name and unit matches what
+ * One declarative `resident_configs` record per ACTIVATED resident, reconciled
+ * by `reconcileResidentConfigs` below: created if absent, and re-applied from
+ * this seed on drift WHILE the platform owns it, so a capability/prompt update
+ * here reaches a live resident. The moment the agent evolves the record via
+ * updateResidentConfig it is stamped `evolvedByAgent` and becomes its OWN
+ * document — from there a deploy never overwrites it. Every field name and unit matches what
  * the R2 runtime reads (repos/resident/src/config.ts `normalizeResidentConfig`
  * / types/resident.types.ts `TResidentConfig`); the records.test.ts guard runs
  * this seed through that exact parser so config/runtime drift can never land.
