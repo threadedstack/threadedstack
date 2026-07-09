@@ -459,12 +459,14 @@ export const resolveAgentConfig = async (
       isFeatureEnabled(`collections`) && projectId
         ? createRecordsProvider(db, projectId)
         : undefined,
-    // Live effect tool (generalization ②). Gated purely on config: only when the
-    // agent is project-scoped AND a non-empty allowlist was supplied via
-    // opts.actions. Empty/absent ⇒ undefined ⇒ no `invoke` tool exposed (mirrors
-    // contextSources being config-gated, not behind a feature flag).
+    // Live effect tool (generalization ②). Gated on OPT-IN: the agent is
+    // project-scoped AND opted into the effect surface via opts.actions (an
+    // array, even empty). An empty allowlist still exposes `invoke` so the agent
+    // can call Functions IT AUTHORED (authorship = authorization); ABSENT
+    // (undefined) ⇒ no `invoke` tool. Per-action authorization lives in
+    // invokeAction. Config-gated, not behind a feature flag.
     invokeProvider:
-      projectId && actions?.length
+      projectId && actions
         ? createInvokeProvider(app, db, projectId, actions, agentId)
         : undefined,
     // Only wire the skill self-improvement tools when the feature is enabled

@@ -38,14 +38,27 @@ describe(`dispatchActions`, () => {
     expect(mockInvoke).not.toHaveBeenCalled()
   })
 
-  it(`is a no-op when the actions allowlist is empty`, async () => {
+  it(`dispatches even when the allowlist is empty (opted in) — invokeAction is the authorization gate`, async () => {
+    mockInvoke.mockResolvedValue({ ok: false, error: `function not allowed: f` })
     await dispatchActions(
       app,
       buildSchedule({ functions: [] }),
       `ag_1`,
       fence(`[{"function":"f"}]`)
     )
-    expect(mockInvoke).not.toHaveBeenCalled()
+    // Declaring `actions` opts the seat onto the effect surface even with an
+    // empty allowlist, so the action IS dispatched; invokeAction authorizes it
+    // (allowlist OR authored-by-caller) — here it rejects `f` as neither. This is
+    // what lets an agent invoke a Function it AUTHORED with no allowlist entry.
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(mockInvoke).toHaveBeenCalledWith(
+      app,
+      mockDb,
+      `proj-1`,
+      expect.objectContaining({ function: `f` }),
+      [],
+      expect.objectContaining({ agentId: `ag_1` })
+    )
   })
 
   it(`is a no-op when stdout carries no actions block even if opted in`, async () => {

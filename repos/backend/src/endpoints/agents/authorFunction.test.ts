@@ -6,12 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { EPMethod } from '@TBE/types'
 import { residentAuth } from '@TBE/middleware/residentAuth'
+import { residentAuthorFunction, authorAgentFunction } from './authorFunction'
 import {
-  residentAuthorFunction,
-  authorAgentFunction,
   MaxFunctionNameChars,
   MaxAuthorContentChars,
-} from './authorFunction'
+} from '@TBE/utils/agent/authorFunction'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -133,13 +132,13 @@ describe(`authorAgentFunction — input validation`, () => {
     ).rejects.toMatchObject({ status: 400 })
   })
 
-  it(`400s an unknown language`, async () => {
+  it(`400s an invalid (unknown) language`, async () => {
     await expect(
       author(buildApp(), validBody({ language: `brainfuck` })).run
     ).rejects.toMatchObject({ status: 400 })
-    await expect(
-      author(buildApp(), validBody({ language: undefined })).run
-    ).rejects.toMatchObject({ status: 400 })
+    // An OMITTED language is no longer a 400 — it defaults to javascript (the
+    // same lenient default as the executor's tdsk-author-function path). The
+    // default-language path is covered in the authorFunction core unit test.
   })
 })
 

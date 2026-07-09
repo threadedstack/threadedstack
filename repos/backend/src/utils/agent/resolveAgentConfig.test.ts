@@ -675,11 +675,22 @@ describe(`resolveAgentConfig`, () => {
     expect(typeof result.invokeProvider?.invoke).toBe(`function`)
   })
 
-  it(`does not build invokeProvider when opts.actions is empty`, async () => {
+  it(`builds invokeProvider when opts.actions is an empty array (opted in — self-authored tools stay invokable)`, async () => {
     const db = buildMockDb()
     const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
       projectId: `proj-1`,
       actions: [],
+    })
+
+    // An empty-but-declared allowlist still exposes `invoke` so the agent can
+    // call a Function it authored (authorship = authorization).
+    expect(result.invokeProvider).toBeDefined()
+  })
+
+  it(`does not build invokeProvider when opts.actions is absent (not opted in)`, async () => {
+    const db = buildMockDb()
+    const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
+      projectId: `proj-1`,
     })
 
     expect(result.invokeProvider).toBeUndefined()
@@ -849,7 +860,9 @@ describe(`createInvokeProvider`, () => {
     const result = await provider.invoke(`blocked`, {})
 
     expect(result.ok).toBe(false)
-    expect(db.services.function.list).not.toHaveBeenCalled()
+    // The Function is resolved (authorship is the second authorization path),
+    // but it is neither allowlisted nor authored by this agent — so it never runs.
+    expect(db.services.function.list).toHaveBeenCalled()
     expect(FunctionExecutor.execute).not.toHaveBeenCalled()
   })
 })

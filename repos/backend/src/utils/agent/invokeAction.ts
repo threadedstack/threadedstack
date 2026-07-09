@@ -24,15 +24,21 @@ export const invokeAction = async (
   caller?: { agentId?: string; scheduleId?: string }
 ): Promise<TInvokeResult> => {
   try {
-    if (!allowlist.includes(action.function))
-      return { ok: false, error: `function not allowed: ${action.function}` }
-
     const { data: funcs, error } = await db.services.function.list({
       where: { projectId, name: action.function },
     })
     if (error) return { ok: false, error: error.message }
     const func = funcs?.[0]
     if (!func) return { ok: false, error: `function not found: ${action.function}` }
+
+    // Authorization: the caller's declared allowlist OR a Function THIS agent
+    // authored itself (`meta.authoredBy`). Authorship IS authorization — an
+    // agent can always invoke the tools it built, so self-authored Functions
+    // are usable without mutating the git-controlled schedule allowlist.
+    const authored =
+      Boolean(caller?.agentId) && func.meta?.authoredBy === caller?.agentId
+    if (!allowlist.includes(action.function) && !authored)
+      return { ok: false, error: `function not allowed: ${action.function}` }
 
     const res = await FunctionExecutor.execute(func, {
       db,

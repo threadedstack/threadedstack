@@ -19,8 +19,13 @@ export const dispatchActions = async (
   agentId: string,
   stdoutText: string
 ): Promise<void> => {
-  const allowlist = schedule.actions?.functions
-  if (!allowlist?.length) return
+  // Gate on OPT-IN, not on a non-empty allowlist: a schedule that declares
+  // `actions` is on the effect surface even if its allowlist is empty, because
+  // an agent can still invoke Functions IT AUTHORED (authorship = authorization,
+  // see invokeAction). Per-action authorization (allowlist OR authored-by-caller)
+  // happens in invokeAction; here we only skip agents that never opted in.
+  if (!schedule.actions) return
+  const allowlist = schedule.actions.functions ?? []
 
   const actions = parseActionsBlock(stdoutText)
   if (!actions.length) return
