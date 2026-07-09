@@ -27,6 +27,28 @@ export const StartupGraceMs = 5 * 60_000
  * guarantees another cold boot (a self-reinforcing false-degrade loop).
  */
 export const BootBudgetMs = 12 * 60_000
+/**
+ * Backend-boot grace: for this long AFTER the watchdog itself (re)starts, a
+ * PRESENT resident pod whose heartbeat is stale is NOT torn down. A deploy
+ * restarts the backend, and while it is down the resident cannot dispatch its
+ * 30s heartbeat, so `resident_status` goes stale — but the resident POD is a
+ * separate K8s pod (restartPolicy:Never + in-pod supervisor) that survived and
+ * resumes beating within ~30s of the backend returning. The watchdog's
+ * per-agent start memory (`lastStartAt`) is in-memory and lost on the backend
+ * restart, so without this grace the fresh backend sees "present pod + stale
+ * heartbeat" and needlessly tears down a healthy resident on EVERY deploy
+ * (turnCount reset, session continuity + any in-flight turn lost). Longer than
+ * one stale window so a healthy resident re-registers a fresh beat first.
+ *
+ * MUST strictly exceed the backend's own startupProbe ceiling — the anchor is
+ * the watchdog's start, which can fire early in a boot that itself runs minutes
+ * (deploy/devspace.yaml gives the backend a 5-min startupProbe: 60 × 5s, with a
+ * comment that boot "can exceed" tighter budgets). Set to 6 min = that 5-min
+ * ceiling + a ~1-min margin for the resident to re-beat once the backend is
+ * routable and for the next 60s tick to observe it, so a slow-but-healthy deploy
+ * cannot churn a live resident. Keep it above devspace's startupProbe if either changes.
+ */
+export const BootGraceMs = 6 * 60_000
 /** Crash-loop window: this many watchdog restarts inside an hour ⇒ degraded. */
 export const CrashLoopWindowMs = 60 * 60_000
 export const CrashLoopMaxRestarts = 3
@@ -75,6 +97,7 @@ export type TResidentWatchdogOpts = {
   staleMs?: number
   startupGraceMs?: number
   bootBudgetMs?: number
+  bootGraceMs?: number
   crashLoopWindowMs?: number
   crashLoopMaxRestarts?: number
   nowFn?: () => number
@@ -137,6 +160,7 @@ export const createResidentWatchdog = (
   const staleMs = opts.staleMs ?? HeartbeatStaleMs
   const startupGraceMs = opts.startupGraceMs ?? StartupGraceMs
   const bootBudgetMs = opts.bootBudgetMs ?? BootBudgetMs
+  const bootGraceMs = opts.bootGraceMs ?? BootGraceMs
   const crashLoopWindowMs = opts.crashLoopWindowMs ?? CrashLoopWindowMs
   const crashLoopMaxRestarts = opts.crashLoopMaxRestarts ?? CrashLoopMaxRestarts
 
@@ -144,6 +168,14 @@ export const createResidentWatchdog = (
   let current: Promise<TWatchdogSummary> | undefined
   let warnedNoSandbox = false
   let warnedUnreachableUrl = false
+  /**
+   * When THIS watchdog process started ticking — the anchor for the backend-boot
+   * grace, set in start() (which the backend calls on boot). A deploy's
+   * stale-heartbeat window must not tear down healthy residents whose pods
+   * survived the backend restart. 0 until start() runs (so a watchdog only ever
+   * driven via a direct tick(), i.e. tests, applies no grace by default).
+   */
+  let watchdogStartedAt = 0
 
   /** Watchdog-initiated restart timestamps per agent (the crash-loop window). */
   const restartLog = new Map<string, number[]>()
@@ -318,17 +350,29 @@ export const createResidentWatchdog = (
       // beat has since gone stale.
       if (!force && pods.length) {
         const beatSinceStart = hbAt > (startedAt ?? 0)
-        if (
-          !beatSinceStart &&
-          startedAt !== undefined &&
-          now - startedAt < bootBudgetMs
-        )
+        if (!beatSinceStart && startedAt !== undefined && now - startedAt < bootBudgetMs)
           return {
             ...base,
             action: `skipped`,
             reason: `booting (no heartbeat yet, within boot budget)`,
           }
       }
+
+      // Backend-boot grace: right after THIS backend (re)started, a present pod
+      // with a stale heartbeat is almost certainly a resident whose pod SURVIVED
+      // the backend restart but could not dispatch its heartbeat while the
+      // backend was down. Do NOT tear it down — it re-beats within ~30s of the
+      // backend returning and the next tick confirms it healthy. Only a pod that
+      // is STILL stale after this grace (a genuinely wedged runtime) falls
+      // through to a restart. `lastStartAt` is in-memory and lost on the backend
+      // restart, so this grace — anchored on the watchdog's own start time — is
+      // what stops the healthy-resident churn on every deploy.
+      if (!force && pods.length && now - watchdogStartedAt < bootGraceMs)
+        return {
+          ...base,
+          action: `skipped`,
+          reason: `backend-boot grace (present pod; heartbeat may be stale from the backend restart)`,
+        }
 
       const backendUrl = resolveBackendUrl()
       if (!backendUrl)
@@ -557,6 +601,7 @@ export const createResidentWatchdog = (
         logger.warn(`[ResidentWatchdog] Already running`)
         return
       }
+      watchdogStartedAt = nowFn()
       logger.info(`[ResidentWatchdog] Starting resident watchdog (${tickMs}ms tick)`)
       void tick().catch((err) =>
         logger.error(`[ResidentWatchdog] Initial tick failed: ${err}`)
