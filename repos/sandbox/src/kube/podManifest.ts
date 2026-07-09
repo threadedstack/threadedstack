@@ -60,6 +60,17 @@ export const buildPodName = (sandboxId: string): string => {
 /**
  * Build a complete K8s pod manifest for a sandbox
  */
+/**
+ * K8s termination grace for a RESIDENT pod. The resident runtime checkpoints on
+ * SIGTERM (finish in-flight turn → compaction) — a 30s default SIGKILLs it
+ * mid-checkpoint. This bounded window (NOT the runtime's 15min turn timeout,
+ * which would stall every rolling restart) lets a normal turn + checkpoint
+ * finish. MUST exceed the resident's own shutdown deadline (DefaultShutdown
+ * DeadlineMs in repos/resident/src/constants.ts) so the runtime exits 0 before
+ * SIGKILL. The watchdog's stopPod teardown passes this same value.
+ */
+export const ResidentTerminationGraceSeconds = 150
+
 export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
   const {
     orgId,
@@ -108,6 +119,12 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
+      // Resident pods checkpoint on SIGTERM, so grant a bounded graceful window
+      // (see ResidentTerminationGraceSeconds). Non-resident sandboxes keep the
+      // K8s default (30s) — nothing to checkpoint.
+      ...(config.resident && {
+        terminationGracePeriodSeconds: ResidentTerminationGraceSeconds,
+      }),
       ...(runtimeClassName && { runtimeClassName, dnsPolicy: `Default` }),
       ...(nodeSelector &&
         Object.keys(nodeSelector).length && {

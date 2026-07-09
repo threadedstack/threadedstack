@@ -2,6 +2,7 @@ import type { TApp } from '@TBE/types'
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Agent, ApiKey, Sandbox, ApiKeyPrefix } from '@tdsk/domain'
+import { ResidentTerminationGraceSeconds } from '@tdsk/sandbox'
 
 import {
   ResidentEnvVars,
@@ -306,7 +307,10 @@ describe(`resident watchdog — reconcile matrix`, () => {
     const summary = await watchdog.tick()
 
     expect(summary.results[0]).toMatchObject({ action: `restarted` })
-    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+    expect(ctx.stopPod).toHaveBeenCalledWith(
+      `tdsk-sb-pod-0`,
+      ResidentTerminationGraceSeconds
+    )
     // Token ROTATION: the prior resident key is revoked (after the new pod
     // starts — the old pod keeps a valid token through its shutdown).
     expect(ctx.apiKeyRevokes).toEqual([`ak_old00001`])
@@ -399,7 +403,10 @@ describe(`resident watchdog — reconcile matrix`, () => {
     now = Now + 7 * 60_000
     const after = await watchdog.tick()
     expect(after.results[0]).toMatchObject({ action: `restarted` })
-    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+    expect(ctx.stopPod).toHaveBeenCalledWith(
+      `tdsk-sb-pod-0`,
+      ResidentTerminationGraceSeconds
+    )
     expect(ctx.startPod).toHaveBeenCalledTimes(1)
   })
 
@@ -434,7 +441,10 @@ describe(`resident watchdog — reconcile matrix`, () => {
     now += 11 * 60_000
     const failed = await watchdog.tick()
     expect(failed.results[0].action).toBe(`restarted`)
-    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+    expect(ctx.stopPod).toHaveBeenCalledWith(
+      `tdsk-sb-pod-0`,
+      ResidentTerminationGraceSeconds
+    )
   })
 
   it(`chain resolution throws with a LIVE (stale) pod ⇒ degrade WITHOUT tearing it down`, async () => {
@@ -622,7 +632,10 @@ describe(`resident watchdog — release rolling-restart`, () => {
     const summary = await watchdog.rollingRestart()
 
     expect(summary.results[0]).toMatchObject({ action: `restarted` })
-    expect(ctx.stopPod).toHaveBeenCalledWith(`tdsk-sb-pod-0`)
+    expect(ctx.stopPod).toHaveBeenCalledWith(
+      `tdsk-sb-pod-0`,
+      ResidentTerminationGraceSeconds
+    )
     expect(ctx.startPod).toHaveBeenCalledTimes(1)
     const call = ctx.startPod.mock.calls[0][0]
     expect(Object.keys(call.extraEnv).sort()).toEqual(

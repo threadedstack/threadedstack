@@ -840,10 +840,13 @@ export class SandboxService {
   }
 
   /**
-   * Stop a pod (delete it from K8s)
+   * Stop a pod (delete it from K8s). `gracePeriod` (seconds) defaults to 30 —
+   * the resident watchdog passes a longer window so the resident runtime can
+   * finish its SIGTERM checkpoint before SIGKILL (see ResidentTerminationGrace
+   * Seconds); idle-pod cleanup keeps the short default (nothing to checkpoint).
    */
-  async stopPod(instanceId: string): Promise<void> {
-    await this.kube.deletePod(instanceId, 30)
+  async stopPod(instanceId: string, gracePeriod = 30): Promise<void> {
+    await this.kube.deletePod(instanceId, gracePeriod)
     this.cleanupInstance(instanceId)
   }
 

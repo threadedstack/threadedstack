@@ -2,6 +2,7 @@ import type { TEventLoop } from './loop'
 import type { THeartbeat } from './heartbeat'
 
 import { log } from './log'
+import { DefaultShutdownDeadlineMs } from './constants'
 import { createResidentApi } from './api'
 import { createEventLoop } from './loop'
 import { createActionPump } from './pump'
@@ -22,6 +23,8 @@ export type TSignalHandlerOpts = {
   /** Injectable process boundary for tests. */
   proc?: TSignalTarget
   exitFn?: (code: number) => void
+  /** Cap on the graceful-shutdown path before a best-effort exit (test override). */
+  shutdownDeadlineMs?: number
 }
 
 /**
@@ -34,15 +37,34 @@ export const installSignalHandlers = (opts: TSignalHandlerOpts): void => {
   const exitFn = opts.exitFn ?? ((code: number) => process.exit(code))
   let shuttingDown = false
 
+  const deadlineMs = opts.shutdownDeadlineMs ?? DefaultShutdownDeadlineMs
+
   const shutdown = (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
     log.info(`Received ${signal} — graceful shutdown (finish turn → checkpoint → exit 0)`)
     opts.heartbeat.stop()
-    opts.loop
-      .shutdown()
-      .then(() => exitFn(0))
+
+    // Bound the shutdown: `loop.shutdown()` awaits the in-flight turn then writes
+    // a checkpoint, either of which can run for minutes. Past the pod's
+    // termination grace K8s SIGKILLs us anyway, so cap the wait and exit 0
+    // best-effort — a normal turn/checkpoint still finishes inside the deadline.
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<`deadline`>((resolve) => {
+      deadlineTimer = setTimeout(() => resolve(`deadline`), deadlineMs)
+    })
+
+    Promise.race([opts.loop.shutdown().then(() => `done` as const), deadline])
+      .then((outcome) => {
+        if (deadlineTimer) clearTimeout(deadlineTimer)
+        if (outcome === `deadline`)
+          log.warn(
+            `Shutdown exceeded ${deadlineMs}ms — exiting best-effort before SIGKILL`
+          )
+        exitFn(0)
+      })
       .catch((err) => {
+        if (deadlineTimer) clearTimeout(deadlineTimer)
         log.error(`Shutdown failed:`, err)
         exitFn(1)
       })
