@@ -48,6 +48,16 @@ export const ConfigRefreshMs = 60_000
 /** Wall-clock timeout for a single resident→backend HTTP request (never hang a beat/poll). */
 export const ApiRequestTimeoutMs = 30_000
 
+/**
+ * Network-level retry for a resident request. A reused-but-dead keep-alive
+ * socket through the egress hairpin (pod → public URL → MITM → cluster) throws
+ * ECONNRESET/"fetch failed"; a retry opens a FRESH connection. Retried ONLY on a
+ * transport throw (never an HTTP error response), so a transient reset can't drop
+ * a heartbeat/poll and trip a false watchdog restart.
+ */
+export const ApiNetworkRetryMax = 2
+export const ApiNetworkRetryDelaysMs = [200, 800]
+
 /** Inbox scan page size + the remembered-message cap (refire protection). */
 export const InboxQueryLimit = 50
 export const SeenMessagesMax = 500

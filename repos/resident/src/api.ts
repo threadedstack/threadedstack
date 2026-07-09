@@ -9,7 +9,11 @@ import type {
 } from './types/resident.types'
 
 import { log } from './log'
-import { ApiRequestTimeoutMs } from './constants'
+import {
+  ApiRequestTimeoutMs,
+  ApiNetworkRetryMax,
+  ApiNetworkRetryDelaysMs,
+} from './constants'
 
 export type TResidentApiOpts = {
   backendUrl: string
@@ -39,50 +43,79 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
   const base = `${backendUrl.replace(/\/+$/, ``)}/${admin}/orgs/${orgId}/projects/${projectId}`
 
   const post = async <T>(url: string, body: unknown): Promise<TApiResult<T>> => {
-    // Bound every request — a hung backend connection must never block a
-    // heartbeat/inbox poll indefinitely (the loop + heartbeat are serialized).
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), requestTimeoutMs)
-    try {
-      const res = await doFetch(url, {
-        method: `POST`,
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': `application/json`,
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      })
-
-      let payload: any
+    // Retry ONLY a transport throw (a dead keep-alive socket through the egress
+    // hairpin throws ECONNRESET/"fetch failed") — a fresh attempt opens a new
+    // connection. An HTTP error RESPONSE (4xx/5xx) is returned, never retried
+    // here. Each attempt is independently timeout-bounded so a hung backend
+    // never stalls a heartbeat/poll (the loop + heartbeat are serialized).
+    for (let attempt = 0; ; attempt++) {
+      // Bound this attempt.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), requestTimeoutMs)
+      let result: TApiResult<T> | undefined
+      let retry = false
       try {
-        payload = await res.json()
-      } catch {
-        payload = undefined
-      }
+        const res = await doFetch(url, {
+          method: `POST`,
+          headers: {
+            authorization: `Bearer ${token}`,
+            'content-type': `application/json`,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
 
-      if (!res.ok)
-        return {
-          ok: false,
-          status: res.status,
-          error:
-            payload?.error?.message ??
-            payload?.message ??
-            `Request failed with status ${res.status}`,
+        let payload: any
+        try {
+          payload = await res.json()
+        } catch {
+          payload = undefined
         }
 
-      return { ok: true, status: res.status, data: payload?.data as T }
-    } catch (err) {
-      const aborted = err instanceof Error && err.name === `AbortError`
-      const message = aborted
-        ? `Request timed out after ${requestTimeoutMs}ms`
-        : err instanceof Error
-          ? err.message
-          : String(err)
-      log.debug(`API request failed: POST ${url}: ${message}`)
-      return { ok: false, status: 0, error: message }
-    } finally {
-      clearTimeout(timer)
+        result = res.ok
+          ? { ok: true, status: res.status, data: payload?.data as T }
+          : {
+              ok: false,
+              status: res.status,
+              error:
+                payload?.error?.message ??
+                payload?.message ??
+                `Request failed with status ${res.status}`,
+            }
+      } catch (err) {
+        const aborted = err instanceof Error && err.name === `AbortError`
+        const message = aborted
+          ? `Request timed out after ${requestTimeoutMs}ms`
+          : err instanceof Error
+            ? err.message
+            : String(err)
+        // A TIMEOUT is not retried (that could block a heartbeat for N×timeout);
+        // the caller retries on its next cycle. Only a connection-level throw
+        // (dead keep-alive socket) is retried with a fresh connection.
+        if (!aborted && attempt < ApiNetworkRetryMax) {
+          retry = true
+          log.debug(
+            `API request failed (attempt ${attempt + 1}/${
+              ApiNetworkRetryMax + 1
+            }), retrying: POST ${url}: ${message}`
+          )
+        } else {
+          log.debug(`API request failed: POST ${url}: ${message}`)
+          result = { ok: false, status: 0, error: message }
+        }
+      } finally {
+        clearTimeout(timer)
+      }
+
+      if (result) return result
+      if (retry)
+        await new Promise((resolve) =>
+          setTimeout(
+            resolve,
+            ApiNetworkRetryDelaysMs[attempt] ??
+              ApiNetworkRetryDelaysMs[ApiNetworkRetryDelaysMs.length - 1]
+          )
+        )
     }
   }
 
