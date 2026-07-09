@@ -533,8 +533,10 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
       )
     )
 
-    // The allowlist gate rejects BEFORE resolution or execution...
-    expect(h.fn.list).not.toHaveBeenCalled()
+    // The Function is resolved (authorship — meta.authoredBy — is the second
+    // authorization path), but it is neither allowlisted for the cto-board seat
+    // nor authored by it, so nothing executes...
+    expect(h.fn.list).toHaveBeenCalled()
     expect(mockEvaluate).not.toHaveBeenCalled()
     // ...so nothing was written anywhere.
     expect(h.record.upsert).not.toHaveBeenCalled()

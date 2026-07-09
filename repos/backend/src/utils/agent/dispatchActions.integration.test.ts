@@ -226,8 +226,9 @@ describe(`dispatchActions — end-to-end effect surface (②)`, () => {
       fence(`[{ "function": "recordProposal", "args": { "title": "Ship it" } }]`)
     )
 
-    // The allowlist gate rejects before any resolution or execution.
-    expect(fn.list).not.toHaveBeenCalled()
+    // The Function is resolved (authorship is the second authorization path),
+    // but it is neither allowlisted nor authored by the caller, so nothing runs.
+    expect(fn.list).toHaveBeenCalled()
     expect(record.upsert).not.toHaveBeenCalled()
     expect(mockEvaluate).not.toHaveBeenCalled()
 

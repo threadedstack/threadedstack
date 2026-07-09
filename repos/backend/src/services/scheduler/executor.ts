@@ -73,6 +73,10 @@ import {
 } from '@TBE/utils/agent/promptCommand'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 import { parseSkillBlock, parseSkillReviewsBlock } from '@TBE/utils/agent/skill'
+import {
+  parseAuthorFunctionBlock,
+  authorAgentFunctionCore,
+} from '@TBE/utils/agent/authorFunction'
 import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
 import { buildEnvPrefix, parseMemoryBlock } from '@TBE/utils/agent/memory'
 
@@ -424,6 +428,64 @@ async function buildProposalReviewContext(
  * successful runtime run: each entry becomes a skill_proposals row that is
  * immediately security-scanned (scanned | rejected). Never throws.
  */
+/**
+ * Parse and apply any ```tdsk-author-function``` block from a successful run:
+ * the agent BUILDS its own tool. Each submission routes through the shared
+ * `authorAgentFunctionCore` (fail-closed scan + project scope + authored-by
+ * audit — the SAME path the resident endpoint uses), so a scheduled agent can
+ * self-extend its capabilities. The authored Function is invokable by its author
+ * without an allowlist change (see invokeAction authorship=authorization).
+ * Never throws — one bad submission can't abort the run or its siblings.
+ */
+async function persistAuthoredFunctions(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const submissions = parseAuthorFunctionBlock(stdoutText)
+    if (!submissions.length) return
+
+    const { db } = app.locals
+    for (const sub of submissions) {
+      try {
+        const result = await authorAgentFunctionCore(db, {
+          orgId: schedule.orgId,
+          projectId: schedule.projectId,
+          agentId,
+          name: sub.name,
+          content: sub.content,
+          description: sub.description,
+          language: sub.language,
+        })
+        if (result.ok) {
+          logger.info(
+            `[Executor] Schedule ${schedule.id} — agent ${agentId} authored function ${
+              result.fn.name
+            } (v${result.fn.meta?.version ?? 1})`
+          )
+        } else {
+          logger.warn(
+            `[Executor] Schedule ${schedule.id} — authorFunction "${sub.name}" rejected (${result.status}): ${result.error}`
+          )
+        }
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to author function "${sub.name}":`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — author-function capture skipped: ${
+        (err as Error).message
+      }`
+    )
+  }
+}
+
 async function persistSkillProposals(
   app: TApp,
   schedule: Schedule,
@@ -1604,6 +1666,12 @@ async function runCliAgentSchedule(
     // Capture adversary ops-review verdicts (approve/reject per dryRun row).
     // applyOpsReview re-scans before executing — the hard gate is server-side.
     await persistOpsReviews(app, schedule, agent.id, stdoutText)
+
+    // Self-authored tools (tdsk-author-function): the agent BUILDS a Function it
+    // needs, scanned server-side. BEFORE dispatchActions so a Function authored
+    // this run is already present + invokable (by its author) when this run's
+    // own ```tdsk-actions``` block dispatches.
+    await persistAuthoredFunctions(app, schedule, agent.id, stdoutText)
 
     // Generic effect surface (generalization ②): dispatch a ```tdsk-actions```
     // block to consumer Functions. No-op unless this schedule opts in via

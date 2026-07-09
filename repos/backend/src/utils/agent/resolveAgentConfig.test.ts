@@ -849,7 +849,9 @@ describe(`createInvokeProvider`, () => {
     const result = await provider.invoke(`blocked`, {})
 
     expect(result.ok).toBe(false)
-    expect(db.services.function.list).not.toHaveBeenCalled()
+    // The Function is resolved (authorship is the second authorization path),
+    // but it is neither allowlisted nor authored by this agent — so it never runs.
+    expect(db.services.function.list).toHaveBeenCalled()
     expect(FunctionExecutor.execute).not.toHaveBeenCalled()
   })
 })

@@ -40,14 +40,49 @@ beforeEach(() => {
 })
 
 describe(`invokeAction`, () => {
-  it(`rejects a function not in the allowlist and never calls the executor`, async () => {
+  it(`rejects a function not in the allowlist (and not authored by the caller) without executing`, async () => {
     const db = buildDb({ data: [mockFunc] })
-    const res = await invokeAction({} as any, db, `proj-1`, action, [`other`])
+    const res = await invokeAction({} as any, db, `proj-1`, action, [`other`], {
+      agentId: `ag_someone`,
+    })
 
     expect(res.ok).toBe(false)
     expect(res.error).toContain(`function not allowed`)
     expect(mockExecute).not.toHaveBeenCalled()
-    expect(db.services.function.list).not.toHaveBeenCalled()
+    // The Function IS resolved first now — authorship (meta.authoredBy) is the
+    // second authorization path, so it must be looked up before rejecting.
+    expect(db.services.function.list).toHaveBeenCalled()
+  })
+
+  it(`invokes a Function the caller AUTHORED even when it is not in the allowlist (authorship = authorization)`, async () => {
+    // A self-authored tool carries meta.authoredBy = the caller agent.
+    const authored = { ...mockFunc, meta: { authoredBy: `ag_builder`, version: 1 } }
+    const db = buildDb({ data: [authored] })
+    mockExecute.mockResolvedValue({ success: true, output: { built: true }, duration: 3 })
+
+    // allowlist does NOT include the function; the caller authored it.
+    const res = await invokeAction({} as any, db, `proj-1`, action, [`other`], {
+      agentId: `ag_builder`,
+    })
+
+    expect(mockExecute).toHaveBeenCalledWith(authored, {
+      db,
+      context: { args: { title: `x` }, caller: { agentId: `ag_builder` } },
+    })
+    expect(res).toEqual({ ok: true, data: { built: true } })
+  })
+
+  it(`does NOT let an agent invoke another agent's authored Function outside the allowlist`, async () => {
+    const authored = { ...mockFunc, meta: { authoredBy: `ag_other`, version: 1 } }
+    const db = buildDb({ data: [authored] })
+
+    const res = await invokeAction({} as any, db, `proj-1`, action, [`allowed-elsewhere`], {
+      agentId: `ag_builder`,
+    })
+
+    expect(res.ok).toBe(false)
+    expect(res.error).toContain(`function not allowed`)
+    expect(mockExecute).not.toHaveBeenCalled()
   })
 
   it(`returns { ok:false } without throwing when the function is not found`, async () => {
