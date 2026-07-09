@@ -42,8 +42,8 @@ export class ApiKey extends Base<
 
   /**
    * List the ACTIVE resident-bound keys for an agent. Used by
-   * mintResidentToken to rotate: any key returned here is revoked before a
-   * fresh resident key is created.
+   * revokeResidentKeysExcept to rotate: every key returned here except the
+   * freshly-minted one is revoked after the new pod starts.
    */
   getByResidentAgent = async (agentId: string) => {
     try {

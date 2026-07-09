@@ -1,9 +1,12 @@
 import type { TApp } from '@TBE/types'
 import type { TSandboxChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 
-import { EQueryOp } from '@tdsk/domain'
+import { EQueryOp, CliMaxProviderFailovers } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
-import { mintResidentToken } from '@TBE/utils/agent/residentToken'
+import {
+  createResidentToken,
+  revokeResidentKeysExcept,
+} from '@TBE/utils/agent/residentToken'
 import { ResidentConfigsCollection } from '@TBE/utils/agent/residentAllowlist'
 import { resolveSandboxProviderChain } from '@TBE/utils/sandbox/resolveSandboxChain'
 
@@ -14,17 +17,27 @@ export const ResidentStatusCollection = `resident_status`
 export const WatchdogTickMs = 60_000
 /** A resident_status write older than this is a stale heartbeat. */
 export const HeartbeatStaleMs = 3 * 60_000
-/** After a (re)start, give the pod this long to clone/boot/beat before re-checking. */
+/** After a (re)start, skip re-checks entirely for this long (pod-not-yet-listed race). */
 export const StartupGraceMs = 5 * 60_000
+/**
+ * Boot budget: a present pod that has NEVER heartbeated since we started it is
+ * still cloning + building — it is NOT torn down until this elapses. Longer
+ * than StartupGraceMs because a cold `git clone` + `pnpm build` legitimately
+ * runs past 5 minutes; tearing a booting pod down discards its /workspace and
+ * guarantees another cold boot (a self-reinforcing false-degrade loop).
+ */
+export const BootBudgetMs = 12 * 60_000
 /** Crash-loop window: this many watchdog restarts inside an hour ⇒ degraded. */
 export const CrashLoopWindowMs = 60 * 60_000
 export const CrashLoopMaxRestarts = 3
 
 /**
  * The pod env contract. MUST mirror repos/resident/src/constants.ts — the
- * runtime refuses to boot unless the five identity vars are present
- * (readResidentEnv). `config` carries the agent's resident_configs record as
- * JSON so the runtime boots network-free; the records API only REFRESHES it.
+ * runtime refuses to boot unless the five identity vars (agentId/token/
+ * backendUrl/orgId/projectId) are present (readResidentEnv). `config` carries
+ * the agent's resident_configs record as JSON so the runtime boots network-free
+ * (the records API only REFRESHES it); `fallbacks` carries the ordered fallback
+ * provider envs for in-pod failover (optional).
  */
 export const ResidentEnvVars = {
   agentId: `TDSK_RESIDENT_AGENT_ID`,
@@ -33,6 +46,8 @@ export const ResidentEnvVars = {
   orgId: `TDSK_RESIDENT_ORG_ID`,
   projectId: `TDSK_RESIDENT_PROJECT_ID`,
   config: `TDSK_RESIDENT_CONFIG`,
+  /** Ordered fallback provider envs (JSON) so the in-pod runtime fails over like the executor. Optional. */
+  fallbacks: `TDSK_RESIDENT_PROVIDER_FALLBACKS`,
 } as const
 
 export type TWatchdogAction =
@@ -59,6 +74,7 @@ export type TResidentWatchdogOpts = {
   tickMs?: number
   staleMs?: number
   startupGraceMs?: number
+  bootBudgetMs?: number
   crashLoopWindowMs?: number
   crashLoopMaxRestarts?: number
   nowFn?: () => number
@@ -100,10 +116,13 @@ export type TResidentWatchdog = {
  * resident-mode pod exists with a fresh heartbeat (a `resident_status` write
  * younger than 3 minutes). Missing pod or stale heartbeat ⇒ (re)start via the
  * sandbox service WITH the full env contract (five identity vars + the
- * resident_configs record as TDSK_RESIDENT_CONFIG), minting (rotating) the
- * pod-scoped token via `mintResidentToken` each start. A crash-looping
- * resident (≥3 watchdog restarts inside an hour, tracked in-memory) is marked
- * `degraded` on its resident_status record and skipped until the hour rolls.
+ * resident_configs record as TDSK_RESIDENT_CONFIG + the provider fallbacks). To
+ * avoid tearing a healthy pod down on a transient error, the provider chain is
+ * resolved and the new pod-scoped token CREATED (createResidentToken) BEFORE the
+ * old pod is stopped — prior keys are revoked (revokeResidentKeysExcept) only
+ * after the new pod starts, so the old pod keeps a valid token through its
+ * shutdown. A crash-looping resident (≥3 watchdog restarts inside an hour,
+ * tracked in-memory) is marked `degraded` and skipped until the hour rolls.
  *
  * A SIBLING of the scheduler: same lifecycle home (started in main, stopped
  * by signals), zero entanglement with the schedule tick. Inert until R4 — no
@@ -117,6 +136,7 @@ export const createResidentWatchdog = (
   const tickMs = opts.tickMs ?? WatchdogTickMs
   const staleMs = opts.staleMs ?? HeartbeatStaleMs
   const startupGraceMs = opts.startupGraceMs ?? StartupGraceMs
+  const bootBudgetMs = opts.bootBudgetMs ?? BootBudgetMs
   const crashLoopWindowMs = opts.crashLoopWindowMs ?? CrashLoopWindowMs
   const crashLoopMaxRestarts = opts.crashLoopMaxRestarts ?? CrashLoopMaxRestarts
 
@@ -171,6 +191,30 @@ export const createResidentWatchdog = (
     if (error)
       logger.error(
         `[ResidentWatchdog] Failed to mark ${agentId} degraded: ${error.message}`
+      )
+  }
+
+  /**
+   * Clear a previously-set `degraded` flag once a resident is confirmed healthy.
+   * The watchdog is the SOLE owner of `degraded` (the heartbeat merges over the
+   * record and never writes it), so recovery is surfaced here. Only writes when
+   * the flag is actually set, to avoid a DB write on every healthy tick.
+   */
+  const clearDegraded = async (
+    projectId: string,
+    agentId: string,
+    statusRow?: { id: string; data?: Record<string, unknown> }
+  ): Promise<void> => {
+    if (!statusRow || statusRow.data?.degraded !== true) return
+    const { db } = app.locals
+    const { error } = await db.services.record.upsert(
+      projectId,
+      ResidentStatusCollection,
+      { id: statusRow.id, data: { ...(statusRow.data ?? {}), agentId, degraded: false } }
+    )
+    if (error)
+      logger.error(
+        `[ResidentWatchdog] Failed to clear degraded for ${agentId}: ${error.message}`
       )
   }
 
@@ -238,8 +282,8 @@ export const createResidentWatchdog = (
           reason: `sandbox ${sandboxId} resident mode is bound to ${residentMode.agentId}`,
         }
 
-      // Startup grace: a pod we just (re)started needs time to clone, boot,
-      // and land its first heartbeat before it can be judged stale.
+      // Startup grace: skip re-checks entirely right after a (re)start, while
+      // the pod may not even be listed by the K8s API yet.
       const startedAt = lastStartAt.get(agentId)
       if (!force && startedAt !== undefined && now - startedAt < startupGraceMs)
         return { ...base, action: `skipped`, reason: `startup grace` }
@@ -249,15 +293,41 @@ export const createResidentWatchdog = (
         agent.orgId
       )
 
+      // Heartbeat freshness — the resident_status write time is the liveness
+      // signal. Queried up front so both the healthy path and the boot-budget
+      // check can use it.
+      const { data: statusRows } = await db.services.record.query(
+        projectId,
+        ResidentStatusCollection,
+        { where: [{ field: `agentId`, op: EQueryOp.eq, value: agentId }], limit: 1 }
+      )
+      const statusRow = statusRows?.[0]
+      const hbAt = statusRow?.updatedAt ? new Date(statusRow.updatedAt).getTime() : 0
+      const fresh = Boolean(hbAt && now - hbAt < staleMs)
+
+      if (!force && pods.length && fresh) {
+        // Confirmed live — the watchdog owns `degraded`, so clear it on recovery.
+        await clearDegraded(projectId, agentId, statusRow)
+        return { ...base, action: `healthy` }
+      }
+
+      // Boot budget: a present pod that has NOT heartbeated since we started it
+      // is still cloning/building — do NOT tear it down (that discards its
+      // /workspace clone + build and guarantees another cold boot). Only fall
+      // through to a (re)start once the boot budget elapses, or a pod that DID
+      // beat has since gone stale.
       if (!force && pods.length) {
-        const { data: statusRows } = await db.services.record.query(
-          projectId,
-          ResidentStatusCollection,
-          { where: [{ field: `agentId`, op: EQueryOp.eq, value: agentId }], limit: 1 }
+        const beatSinceStart = hbAt > (startedAt ?? 0)
+        if (
+          !beatSinceStart &&
+          startedAt !== undefined &&
+          now - startedAt < bootBudgetMs
         )
-        const updatedAt = statusRows?.[0]?.updatedAt
-        const fresh = Boolean(updatedAt && now - new Date(updatedAt).getTime() < staleMs)
-        if (fresh) return { ...base, action: `healthy` }
+          return {
+            ...base,
+            action: `skipped`,
+            reason: `booting (no heartbeat yet, within boot budget)`,
+          }
       }
 
       const backendUrl = resolveBackendUrl()
@@ -280,33 +350,14 @@ export const createResidentWatchdog = (
         }
       }
 
-      // This IS a watchdog restart — count it toward the crash-loop window
-      // (rolling restarts excepted) BEFORE the attempt, so a start that
-      // crashes the backend path still counts.
-      if (!force) {
-        restarts.push(now)
-        restartLog.set(agentId, restarts)
-      }
-
-      // A stale-but-present pod is torn down first — one body per resident.
-      for (const instanceId of pods) {
-        await sandboxService!
-          .stopPod(instanceId)
-          .catch((err: Error) =>
-            logger.error(
-              `[ResidentWatchdog] Failed to stop stale pod ${instanceId}: ${err.message}`
-            )
-          )
-      }
-
-      // Resolve the ai-provider failover chain BEFORE startPod — provider
-      // parity with scheduled runs (executor) and delegateTask (resolveAgentConfig).
-      // The primary (priority-0) provider's env becomes the pod default so the
-      // resident's `claude -p` authenticates against a FUNDED provider instead
-      // of falling through to an unfunded fallback; every provider's placeholder
-      // is injected so egress can swap whichever token a fallback attempt uses.
-      // A misconfigured provider throws — degrade with a clear reason (mirrors
-      // the unreachable-URL path) rather than crash-looping an unauthed pod.
+      // Resolve the ai-provider failover chain FIRST — before any teardown or
+      // restart accounting. The primary (priority-0) env is the pod default so
+      // the resident's `claude -p` authenticates against a FUNDED provider;
+      // every provider's placeholder is injected so egress can swap whichever
+      // token an attempt uses; the ordered fallbacks ride the pod env so the
+      // in-pod runtime fails over exactly like the scheduled executor. A
+      // misconfigured provider throws → degrade with the running pod + its
+      // token still intact (never tear down for a transient resolution error).
       let providerChain: TSandboxChain
       try {
         providerChain = (
@@ -330,9 +381,31 @@ export const createResidentWatchdog = (
         }
       }
 
-      // Mint (rotate) the pod-scoped token: previous ACTIVE resident keys for
-      // the agent are revoked, and the fresh secret exists ONLY in this env.
-      const { key } = await mintResidentToken(db, agent.orgId, agentId)
+      // Create the fresh pod-scoped token BEFORE teardown (create-only, no
+      // revoke yet) so the OLD pod keeps a valid token through its graceful
+      // shutdown checkpoint. If this throws, nothing has been torn down.
+      const { key, apiKey } = await createResidentToken(db, agent.orgId, agentId)
+
+      // Now committed to a (re)start: count it toward the crash-loop window and
+      // grace-protect the agent, so even a startPod failure backs off instead
+      // of churning K8s every tick (rolling restarts never count).
+      if (!force) {
+        restarts.push(now)
+        restartLog.set(agentId, restarts)
+      }
+      lastStartAt.set(agentId, now)
+
+      // Tear down stale pods (the old pod keeps its still-active token for its
+      // 30s graceful-shutdown checkpoint), then start the fresh pod.
+      for (const staleId of pods) {
+        await sandboxService!
+          .stopPod(staleId)
+          .catch((err: Error) =>
+            logger.error(
+              `[ResidentWatchdog] Failed to stop stale pod ${staleId}: ${err.message}`
+            )
+          )
+      }
 
       const instanceId = await sandboxService!.startPod({
         orgId: agent.orgId,
@@ -340,7 +413,7 @@ export const createResidentWatchdog = (
         sandboxId,
         projectId,
         egressOpts: app.locals.config.egress,
-        // Provider tokens (ANTHROPIC_*) — the pod default auth. Disjoint from the
+        // Provider primary env — the pod default auth. Disjoint from the
         // resident identity vars below (TDSK_RESIDENT_*); startPod applies this
         // first and the caller's extraEnv last, so neither clobbers the other.
         providerChain: {
@@ -356,9 +429,23 @@ export const createResidentWatchdog = (
           // The resident_configs record, injected so boot is network-free —
           // the runtime refreshes from the records API AFTER it is up.
           [ResidentEnvVars.config]: JSON.stringify(record.data ?? {}),
+          // Ordered fallback provider envs (placeholder tokens + base URLs, all
+          // egress-swappable) so the in-pod runtime fails over on a transient
+          // primary failure — capped to match the executor's failover depth.
+          [ResidentEnvVars.fallbacks]: JSON.stringify(
+            providerChain.fallbacks
+              .slice(0, CliMaxProviderFailovers)
+              .map((fb) => ({ brand: fb.brand, env: fb.env }))
+          ),
         },
       })
-      lastStartAt.set(agentId, now)
+
+      // Old pod is gone → revoke every prior resident key except the new one.
+      await revokeResidentKeysExcept(db, agentId, apiKey.id).catch((err: Error) =>
+        logger.error(
+          `[ResidentWatchdog] Failed to revoke prior resident keys for ${agentId}: ${err.message}`
+        )
+      )
 
       logger.info(
         `[ResidentWatchdog] ${pods.length ? `Restarted` : `Started`} resident pod ${instanceId} for agent ${agentId}`
@@ -400,6 +487,12 @@ export const createResidentWatchdog = (
       return summary
     }
 
+    // One body per resident: an agent referenced by resident_configs in more
+    // than one project must NOT be reconciled twice in a pass, or the two
+    // passes would rotate each other's token + stop/start the same sandbox pod
+    // (a tug-of-war). First record for an agentId wins.
+    const seenAgents = new Set<string>()
+
     for (const collection of collections ?? []) {
       const { data: records, error: recordsErr } = await db.services.record.query(
         collection.projectId,
@@ -414,6 +507,15 @@ export const createResidentWatchdog = (
       }
 
       for (const record of records ?? []) {
+        const aId =
+          typeof record.data?.agentId === `string` ? (record.data.agentId as string) : ``
+        if (aId && seenAgents.has(aId)) {
+          logger.warn(
+            `[ResidentWatchdog] Duplicate resident_configs for agent ${aId} in project ${collection.projectId} — skipping (one body per resident)`
+          )
+          continue
+        }
+        if (aId) seenAgents.add(aId)
         summary.checked++
         summary.results.push(await reconcileResident(collection.projectId, record, force))
       }

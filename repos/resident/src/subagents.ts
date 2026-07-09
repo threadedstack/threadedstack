@@ -1,12 +1,17 @@
 import type { ChildProcess } from 'node:child_process'
 import type { TSpawnFn } from './session'
-import type { TSpawnRequest, TSubAgentResult } from './types/resident.types'
+import type {
+  TSpawnRequest,
+  TSubAgentResult,
+  TProviderFallback,
+} from './types/resident.types'
 
 import { spawn } from 'node:child_process'
 
 import { log } from './log'
 import {
   DelegationMaxDepth,
+  matchTransientSignal,
   DelegationDepthEnvVar,
   extractLastFencedBlock,
   DelegationOutputMaxChars,
@@ -31,6 +36,8 @@ export type TSubAgentPoolOpts = {
   killGraceMs?: number
   spawnFn?: TSpawnFn
   env?: Record<string, string>
+  /** Ordered fallback provider env overlays — a sub-agent fails over on a transient failure. */
+  fallbackEnvs?: TProviderFallback[]
   /** Completion sink — the loop enqueues these as internal events. */
   onComplete: (result: TSubAgentResult) => void
 }
@@ -114,69 +121,113 @@ export const createSubAgentPool = (opts: TSubAgentPoolOpts): TSubAgentPool => {
         : (opts.timeoutMs ?? DelegationDefaultTimeoutMs)
       const timeoutMs = Math.min(Math.max(requested, 1000), DelegationMaxTimeoutMs)
 
-      let child: ChildProcess
-      try {
-        child = spawnFn(ClaudeCliBin, buildTurnArgs(request.prompt), {
-          cwd: opts.workdir,
-          env: {
-            ...process.env,
-            ...opts.env,
-            ...ClaudeCliEnv,
-            [DelegationDepthEnvVar]: String(depth + 1),
-          },
-        }) as ChildProcess
-      } catch (err) {
-        return { ok: false, error: (err as Error).message }
-      }
+      // Ordered provider attempts: the primary uses the pod-default env; each
+      // fallback overlays its own env. On a TRANSIENT failure with a fallback
+      // remaining, the sub-agent re-spawns against the next provider (best
+      // effort — no same-provider retry). One concurrency slot spans all
+      // attempts (counted once here, released once on the terminal outcome).
+      const attempts: Array<{ brand: string; env: Record<string, string> }> = [
+        { brand: `primary`, env: {} },
+        ...(opts.fallbackEnvs ?? []).map((fb) => ({ brand: fb.brand, env: fb.env })),
+      ]
 
       active += 1
       const startedAt = Date.now()
-      let stdout = ``
-      let settled = false
-      let timedOut = false
 
-      child.stdout?.on(`data`, (chunk: Buffer | string) => {
-        stdout = tailCap(stdout + String(chunk), outputMaxChars)
-      })
-      child.stderr?.on(`data`, (chunk: Buffer | string) => {
-        stdout = tailCap(stdout + String(chunk), outputMaxChars)
-      })
+      const launch = (attemptIndex: number): { ok: boolean; error?: string } => {
+        const attempt = attempts[attemptIndex]
+        let child: ChildProcess
+        try {
+          child = spawnFn(ClaudeCliBin, buildTurnArgs(request.prompt), {
+            cwd: opts.workdir,
+            // attempt.env LAST so a fallback provider's token/base-URL overrides
+            // the pod-default provider env for this attempt.
+            env: {
+              ...process.env,
+              ...opts.env,
+              ...ClaudeCliEnv,
+              ...attempt.env,
+              [DelegationDepthEnvVar]: String(depth + 1),
+            },
+          }) as ChildProcess
+        } catch (err) {
+          active -= 1
+          // A first-attempt spawn failure is a refusal (never started). A later
+          // attempt's failure must still report completion — the caller already
+          // saw {ok:true} for this sub-agent.
+          if (attemptIndex > 0)
+            opts.onComplete({
+              key,
+              ok: false,
+              timedOut: false,
+              output: `sub-agent spawn failed: ${(err as Error).message}`,
+              durationMs: Date.now() - startedAt,
+            })
+          return { ok: false, error: (err as Error).message }
+        }
 
-      const timer = setTimeout(() => {
-        timedOut = true
-        child.kill(`SIGTERM`)
-        const hardKill = setTimeout(() => child.kill(`SIGKILL`), killGraceMs)
-        hardKill.unref?.()
-      }, timeoutMs)
-      timer.unref?.()
+        let stdout = ``
+        let settled = false
+        let timedOut = false
 
-      const settle = (exitCode: number | null, error?: string) => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        active -= 1
-
-        const parsed = parseClaudeJsonOutput(stdout)
-        const ok = !timedOut && exitCode === 0 && !parsed.isError && !error
-        log.info(
-          `Sub-agent ${key} finished (ok=${ok}, exit=${exitCode ?? `n/a`}, timedOut=${timedOut})`
-        )
-
-        opts.onComplete({
-          key,
-          ok,
-          timedOut,
-          output: tailCap(parsed.resultText, outputMaxChars),
-          exitCode: exitCode ?? undefined,
-          durationMs: Date.now() - startedAt,
+        child.stdout?.on(`data`, (chunk: Buffer | string) => {
+          stdout = tailCap(stdout + String(chunk), outputMaxChars)
         })
+        child.stderr?.on(`data`, (chunk: Buffer | string) => {
+          stdout = tailCap(stdout + String(chunk), outputMaxChars)
+        })
+
+        const timer = setTimeout(() => {
+          timedOut = true
+          child.kill(`SIGTERM`)
+          const hardKill = setTimeout(() => child.kill(`SIGKILL`), killGraceMs)
+          hardKill.unref?.()
+        }, timeoutMs)
+        timer.unref?.()
+
+        const settle = (exitCode: number | null, error?: string) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+
+          const parsed = parseClaudeJsonOutput(stdout)
+          const ok = !timedOut && exitCode === 0 && !parsed.isError && !error
+
+          // Transient failure with a fallback remaining → try the next provider.
+          const signal = !ok && !timedOut ? matchTransientSignal(stdout) : undefined
+          if (signal && attemptIndex + 1 < attempts.length) {
+            log.warn(
+              `Sub-agent ${key} provider failover ${attempt.brand} → ${
+                attempts[attemptIndex + 1].brand
+              }: ${signal}`
+            )
+            launch(attemptIndex + 1)
+            return
+          }
+
+          active -= 1
+          log.info(
+            `Sub-agent ${key} finished (ok=${ok}, exit=${exitCode ?? `n/a`}, timedOut=${timedOut})`
+          )
+          opts.onComplete({
+            key,
+            ok,
+            timedOut,
+            output: tailCap(parsed.resultText, outputMaxChars),
+            exitCode: exitCode ?? undefined,
+            durationMs: Date.now() - startedAt,
+          })
+        }
+
+        child.on(`error`, (err) => settle(null, err.message))
+        child.on(`close`, (code) => settle(code))
+        return { ok: true }
       }
 
-      child.on(`error`, (err) => settle(null, err.message))
-      child.on(`close`, (code) => settle(code))
-
-      log.info(`Sub-agent ${key} started (depth ${depth + 1}, timeout ${timeoutMs}ms)`)
-      return { ok: true }
+      const launched = launch(0)
+      if (launched.ok)
+        log.info(`Sub-agent ${key} started (depth ${depth + 1}, timeout ${timeoutMs}ms)`)
+      return launched
     },
   }
 }

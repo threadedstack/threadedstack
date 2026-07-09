@@ -12,6 +12,8 @@ export const ResidentProjectIdEnvVar = `TDSK_RESIDENT_PROJECT_ID`
 export const ResidentStateDirEnvVar = `TDSK_RESIDENT_STATE_DIR`
 export const ResidentWorkdirEnvVar = `TDSK_RESIDENT_WORKDIR`
 export const ResidentConfigEnvVar = `TDSK_RESIDENT_CONFIG`
+/** Ordered fallback provider envs (JSON) for in-pod turn failover. Optional. */
+export const ResidentProviderFallbacksEnvVar = `TDSK_RESIDENT_PROVIDER_FALLBACKS`
 
 /** On-disk session state home (the workspace volume survives container restarts). */
 export const DefaultStateDir = `/workspace/.tdsk-resident`
@@ -42,6 +44,9 @@ export const DefaultWatchDebounceMs = 60_000
 export const DefaultMinIdleMs = 60_000
 export const HeartbeatIntervalMs = 30_000
 export const ConfigRefreshMs = 60_000
+
+/** Wall-clock timeout for a single resident→backend HTTP request (never hang a beat/poll). */
+export const ApiRequestTimeoutMs = 30_000
 
 /** Inbox scan page size + the remembered-message cap (refire protection). */
 export const InboxQueryLimit = 50

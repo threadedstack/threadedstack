@@ -1,4 +1,9 @@
-import type { TResidentApi, TResidentEnv, TResidentConfig } from './types/resident.types'
+import type {
+  TResidentApi,
+  TResidentEnv,
+  TResidentConfig,
+  TProviderFallback,
+} from './types/resident.types'
 
 import { log } from './log'
 import { isValidCron, EQueryOp } from '@tdsk/domain'
@@ -21,7 +26,35 @@ import {
   DefaultInboxCollection,
   ResidentBackendUrlEnvVar,
   DefaultSubAgentMaxConcurrent,
+  ResidentProviderFallbacksEnvVar,
 } from './constants'
+
+/**
+ * Parse the ordered fallback provider envs injected by the watchdog. Never
+ * fatal — a missing or malformed value yields `[]` (no failover) with a warn,
+ * so a bad env can't stop the resident booting.
+ */
+const parseProviderFallbacks = (raw?: string): TProviderFallback[] => {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (fb): fb is TProviderFallback =>
+        Boolean(fb) &&
+        typeof fb.brand === `string` &&
+        Boolean(fb.env) &&
+        typeof fb.env === `object`
+    )
+  } catch (err) {
+    log.warn(
+      `${ResidentProviderFallbacksEnvVar} is not valid JSON — no provider failover: ${
+        (err as Error).message
+      }`
+    )
+    return []
+  }
+}
 
 /**
  * Read + validate the pod env contract. TDSK_RESIDENT_AGENT_ID rides the pod
@@ -59,6 +92,7 @@ export const readResidentEnv = (
     orgId,
     projectId,
     configJson,
+    providerFallbacks: parseProviderFallbacks(env[ResidentProviderFallbacksEnvVar]),
     stateDir: env[ResidentStateDirEnvVar] || DefaultStateDir,
     workdir: env[ResidentWorkdirEnvVar] || DefaultWorkdir,
   }

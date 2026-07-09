@@ -151,3 +151,89 @@ describe(`session manager`, () => {
     expect(result.error).toMatch(/ENOENT/)
   })
 })
+
+/** The claude CLI JSON envelope for a FAILED turn (is_error). */
+const claudeFail = (result: string, sessionId = `sess-fail`): string =>
+  JSON.stringify({ type: `result`, result, session_id: sessionId, is_error: true })
+
+describe(`session manager — provider failover`, () => {
+  const zai = {
+    brand: `zai`,
+    env: { ANTHROPIC_AUTH_TOKEN: `tdsk_ph_zai`, ANTHROPIC_BASE_URL: `https://zai` },
+  }
+
+  it(`fails over to a fallback provider on a TRANSIENT primary failure`, async () => {
+    // primary #1 (529) → same-provider retry #2 (529) → failover to zai (ok)
+    const { spawnFn, calls } = makeSpawnFn((call, index) => {
+      if (index < 2) {
+        call.child.emitStdout(claudeFail(`API Error: 529 Overloaded`))
+        call.child.emitClose(0)
+      } else {
+        call.child.emitStdout(claudeJson(`recovered on zai`, `sess-zai`))
+        call.child.emitClose(0)
+      }
+    })
+    const session = createSessionManager({
+      stateDir,
+      spawnFn,
+      fallbackEnvs: [zai],
+      retryDelaysMs: [0, 0],
+    })
+
+    const result = await session.runTurn(`do work`)
+
+    // primary tried twice (one same-provider retry), then the fallback.
+    expect(calls).toHaveLength(3)
+    // The primary attempts carry NO fallback token; the fallback attempt does.
+    expect(calls[0].options.env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+    expect(calls[2].options.env.ANTHROPIC_AUTH_TOKEN).toBe(`tdsk_ph_zai`)
+    expect(calls[2].options.env.ANTHROPIC_BASE_URL).toBe(`https://zai`)
+    expect(result.ok).toBe(true)
+    expect(result.output).toBe(`recovered on zai`)
+    expect(session.getSessionId()).toBe(`sess-zai`)
+  })
+
+  it(`does NOT fail over on a non-transient failure (a fallback won't help)`, async () => {
+    const { spawnFn, calls } = makeSpawnFn((call) => {
+      call.child.emitStdout(claudeFail(`SyntaxError: bad tool call`))
+      call.child.emitClose(1)
+    })
+    const session = createSessionManager({
+      stateDir,
+      spawnFn,
+      fallbackEnvs: [zai],
+      retryDelaysMs: [0, 0],
+    })
+
+    const result = await session.runTurn(`do work`)
+
+    // One attempt only — no same-provider retry, no failover.
+    expect(calls).toHaveLength(1)
+    expect(result.ok).toBe(false)
+  })
+
+  it(`never persists a session id from a FAILED attempt (no --resume poisoning)`, async () => {
+    const { spawnFn } = makeSpawnFn((call) => {
+      call.child.emitStdout(claudeFail(`SyntaxError: bad`, `sess-should-not-stick`))
+      call.child.emitClose(1)
+    })
+    const session = createSessionManager({ stateDir, spawnFn, retryDelaysMs: [0, 0] })
+
+    const result = await session.runTurn(`turn`)
+
+    expect(result.ok).toBe(false)
+    expect(session.getSessionId()).toBeUndefined()
+  })
+
+  it(`with no fallbacks, behaves exactly like a single-provider turn`, async () => {
+    const { spawnFn, calls } = makeSpawnFn((call) => {
+      call.child.emitStdout(claudeJson(`ok`, `sess-a`))
+      call.child.emitClose(0)
+    })
+    const session = createSessionManager({ stateDir, spawnFn })
+
+    const result = await session.runTurn(`turn`)
+    expect(calls).toHaveLength(1)
+    expect(result.ok).toBe(true)
+  })
+})
