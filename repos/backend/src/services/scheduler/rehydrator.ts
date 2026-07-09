@@ -3,7 +3,19 @@ import type { ScheduleRun, Schedule, TSandboxRuntimeId } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS } from '@TBE/constants/sandbox'
-import { SandboxRuntimeConfigs, EContainerState } from '@tdsk/domain'
+import { SandboxRuntimeConfigs, EContainerState, EScheduleType } from '@tdsk/domain'
+
+/**
+ * A severed null cycle (a backend-restart deploy cut the exec stream before the
+ * pod produced a deliverable, e.g. a work-cycle PR) would otherwise wait a full
+ * cron interval to retry — breaking the "≥1 deliverable per interval" cadence
+ * because a steward PR merge deploys and severs the very next cycle. So a
+ * severed prompt cycle is re-queued to re-run shortly (deploy-free by then).
+ */
+const SeveredReRunDelayMs = 3 * 60_000
+/** Loop guard window + cap: if this many of the recent runs are already severed, stop re-queuing. */
+const SeveredReRunLoopWindow = 5
+const SeveredReRunLoopMax = 3
 
 /**
  * Poll interval for the per-run rehydration watcher. Small enough to catch a
@@ -416,6 +428,60 @@ async function completeRun(
   logger.info(
     `[Scheduler] Rehydrated run ${run.id} marked ${status} (durationMs=${durationMs})`
   )
+
+  // A severed cycle that produced NO deliverable (success-but-empty) is re-queued
+  // so it re-runs deploy-free within minutes and still lands its PR this interval,
+  // instead of waiting a full cron interval (which breaks ≥1 PR/hour).
+  if (status === `success` && note === RehydrationSuccessNote)
+    await reQueueSeveredCycle(app, run)
+}
+
+/**
+ * Re-queue a severed null cycle to re-run shortly. Bounded: skipped for ancient
+ * orphans (cold-boot resurrection) and when the schedule has already re-run into
+ * repeated severs (a deploy-storm loop guard). Never throws — a re-queue failure
+ * must not break rehydration; the natural cron fire remains the fallback.
+ */
+async function reQueueSeveredCycle(app: TApp, run: ScheduleRun): Promise<void> {
+  const { db } = app.locals
+  try {
+    const { data: schedule } = await db.services.schedule.get(run.scheduleId)
+    if (!schedule?.enabled || schedule.type !== EScheduleType.prompt) return
+
+    // Loop guard: if recent runs are already mostly severs, stop re-queuing (a
+    // deploy storm would otherwise re-fire endlessly).
+    const { data: recent } = await db.services.scheduleRun.listBySchedule(
+      run.scheduleId,
+      {
+        limit: SeveredReRunLoopWindow,
+      }
+    )
+    const severed = (recent ?? []).filter(
+      (r) => typeof r.error === `string` && r.error.includes(RehydrationInterruptMarker)
+    ).length
+    if (severed >= SeveredReRunLoopMax) {
+      logger.warn(
+        `[Scheduler] Not re-queuing ${run.scheduleId} — ${severed} recent severed runs (avoiding a re-run loop)`
+      )
+      return
+    }
+
+    const nextRunAt = new Date(Date.now() + SeveredReRunDelayMs)
+    const { error } = await db.services.schedule.markRun(run.scheduleId, nextRunAt)
+    if (error) {
+      logger.error(
+        `[Scheduler] Failed to re-queue severed schedule ${run.scheduleId}: ${error.message}`
+      )
+      return
+    }
+    logger.warn(
+      `[Scheduler] Run ${run.id} was severed with no deliverable — re-queued schedule ${run.scheduleId} to re-run at ${nextRunAt.toISOString()}`
+    )
+  } catch (err) {
+    logger.error(
+      `[Scheduler] reQueueSeveredCycle failed for ${run.scheduleId}: ${(err as Error).message}`
+    )
+  }
 }
 
 async function bestEffortStopPod(app: TApp, instanceId: string): Promise<void> {

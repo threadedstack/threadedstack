@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { EContainerState } from '@tdsk/domain'
+import { EContainerState, EScheduleType } from '@tdsk/domain'
 import { hydrateOrphanedRuns } from './rehydrator'
 
 vi.mock('@tdsk/domain', async () => {
@@ -30,6 +30,7 @@ const buildApp = (opts: {
   podStates?: EContainerState[]
   pgrepResult?: { success: boolean; exitCode?: number } | Error
   completeResp?: any
+  recentRuns?: any[]
 }) => {
   const podStates = opts.podStates ?? []
   let stateIdx = 0
@@ -39,6 +40,8 @@ const buildApp = (opts: {
     opts.markAsError ?? vi.fn().mockResolvedValue({ data: { count: 0, ids: [] } })
   const complete = vi.fn().mockResolvedValue(opts.completeResp ?? { data: {} })
   const scheduleGet = vi.fn().mockResolvedValue({ data: opts.schedule })
+  const markRun = vi.fn().mockResolvedValue({ data: {} })
+  const listBySchedule = vi.fn().mockResolvedValue({ data: opts.recentRuns ?? [] })
   const sandboxGet = vi.fn().mockResolvedValue({ data: opts.sandboxRecord })
 
   const getPodState = vi.fn().mockImplementation(async () => {
@@ -60,9 +63,9 @@ const buildApp = (opts: {
     locals: {
       db: {
         services: {
-          schedule: { get: scheduleGet },
+          schedule: { get: scheduleGet, markRun },
           sandbox: { get: sandboxGet },
-          scheduleRun: { listRunning, markAsError, complete },
+          scheduleRun: { listRunning, markAsError, complete, listBySchedule },
         },
       },
       sandbox: { getPodState, getSandbox, stopPod },
@@ -79,6 +82,8 @@ const buildApp = (opts: {
       markAsError,
       complete,
       scheduleGet,
+      markRun,
+      listBySchedule,
       sandboxGet,
       getPodState,
       getSandbox,
@@ -172,6 +177,64 @@ describe(`hydrateOrphanedRuns`, () => {
     const [, payload] = app.__.complete.mock.calls[0]
     expect(payload.status).toBe(`success`)
     expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
+  })
+
+  it(`re-queues a SEVERED prompt cycle to re-run shortly (deploy-severs-workcycle mitigation)`, async () => {
+    const app = buildApp({
+      runs: [baseRun()],
+      schedule: { ...baseSchedule, enabled: true, type: EScheduleType.prompt },
+      sandboxRecord: baseSandbox,
+      // The real sever: pod still Running but the runtime (claude) already exited.
+      podStates: [EContainerState.Running],
+      pgrepResult: { success: false, exitCode: 1 },
+      recentRuns: [],
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.runAllTimersAsync()
+
+    // Marked success (severed null cycle) AND re-queued to re-run soon.
+    expect(app.__.complete).toHaveBeenCalledTimes(1)
+    expect(app.__.markRun).toHaveBeenCalledTimes(1)
+    const [schedId, nextRunAt] = app.__.markRun.mock.calls[0]
+    expect(schedId).toBe(`sd_1`)
+    expect(nextRunAt.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it(`does NOT re-queue when recent runs are already mostly severs (loop guard)`, async () => {
+    const app = buildApp({
+      runs: [baseRun()],
+      schedule: { ...baseSchedule, enabled: true, type: EScheduleType.prompt },
+      sandboxRecord: baseSandbox,
+      podStates: [EContainerState.Running],
+      pgrepResult: { success: false, exitCode: 1 },
+      recentRuns: [
+        { error: `Rehydrated after backend restart — a` },
+        { error: `Rehydrated after backend restart — b` },
+        { error: `Rehydrated after backend restart — c` },
+      ],
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.runAllTimersAsync()
+
+    expect(app.__.complete).toHaveBeenCalledTimes(1)
+    expect(app.__.markRun).not.toHaveBeenCalled()
+  })
+
+  it(`does NOT re-queue a disabled or non-prompt schedule`, async () => {
+    const app = buildApp({
+      runs: [baseRun()],
+      schedule: { ...baseSchedule, enabled: false, type: EScheduleType.prompt },
+      sandboxRecord: baseSandbox,
+      podStates: [EContainerState.Running],
+      pgrepResult: { success: false, exitCode: 1 },
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.runAllTimersAsync()
+
+    expect(app.__.markRun).not.toHaveBeenCalled()
   })
 
   it(`Running pod + pgrep says runtime is gone (exit 1) => success`, async () => {
