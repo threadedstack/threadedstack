@@ -227,4 +227,56 @@ describe(`Record service`, () => {
       expect(res.data).toBe(4)
     })
   })
+
+  describe(`replaceIfMarkerUnset`, () => {
+    it(`updates a scoped record under an atomic marker guard, binding the marker as a param`, async () => {
+      mocks.enqueue([fakeCollectionRow()], [fakeRecordRow({ data: { status: `open` } })])
+      const res = await service.replaceIfMarkerUnset(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        `evolvedByAgent`,
+        { status: `open` }
+      )
+
+      expect(mocks.updateFn).toHaveBeenCalledTimes(1)
+      // The write is scoped to id + collection + project AND guarded on the
+      // marker, which is bound as a PARAM (never interpolated → injection-safe).
+      const where = render(mocks.chain.where.mock.calls[1][0])
+      expect(where.params).toContain(`rec_r000001`)
+      expect(where.params).toContain(`col_items01`)
+      expect(where.params).toContain(`pj_projA0`)
+      expect(where.params).toContain(`evolvedByAgent`)
+      expect(where.sql).toMatch(/IS DISTINCT FROM/i)
+      expect(res.data).toBeInstanceOf(RecordModel)
+      expect(res.skipped).toBeUndefined()
+    })
+
+    it(`reports skipped (no clobber) when the guard excludes the row`, async () => {
+      // Update returns no row → the marker was already set concurrently.
+      mocks.enqueue([fakeCollectionRow()], [])
+      const res = await service.replaceIfMarkerUnset(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        `evolvedByAgent`,
+        { status: `x` }
+      )
+      expect(res.skipped).toBe(true)
+      expect(res.data).toBeUndefined()
+    })
+
+    it(`returns 404 when the collection does not exist (no update runs)`, async () => {
+      mocks.enqueue([])
+      const res = await service.replaceIfMarkerUnset(
+        `pj_projA0`,
+        `missing`,
+        `rec_x`,
+        `evolvedByAgent`,
+        {}
+      )
+      expect(res.status).toBe(404)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+  })
 })

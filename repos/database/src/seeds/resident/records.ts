@@ -189,6 +189,13 @@ export type TResidentConfigRecordService = {
     collectionName: string,
     input: { id?: string; data: Record<string, unknown> }
   ) => Promise<{ data?: any; error?: any }>
+  replaceIfMarkerUnset: (
+    projectId: string,
+    collectionName: string,
+    id: string,
+    markerKey: string,
+    data: Record<string, unknown>
+  ) => Promise<{ data?: any; error?: any; skipped?: boolean }>
 }
 
 export type TResidentConfigsAction = `created` | `updated` | `unchanged` | `error`
@@ -277,13 +284,25 @@ export const reconcileResidentConfigs = async (
           log(`  ➖ resident config ${agentId} — up to date`)
           continue
         }
-        // Drift → propagate the capability/prompt update. Preserve the record id.
-        const upd = await service.upsert(projectId, ResidentConfigsCollectionName, {
-          id: row.id,
-          data: seed.data,
-        })
+        // Drift → propagate the capability/prompt update. The write is an ATOMIC
+        // guarded replace (only lands while the row is still platform-owned), so
+        // an updateResidentConfig call that stamps `evolvedByAgent` between the
+        // read above and this write is never clobbered — the guard skips instead.
+        const upd = await service.replaceIfMarkerUnset(
+          projectId,
+          ResidentConfigsCollectionName,
+          row.id,
+          `evolvedByAgent`,
+          seed.data
+        )
         if (upd.error) fail(agentId, `update failed: ${upd.error.message}`)
-        else {
+        else if (upd.skipped) {
+          summary.unchanged++
+          summary.results.push({ agentId, action: `unchanged` })
+          log(
+            `  ➖ resident config ${agentId} — agent claimed ownership mid-reconcile, untouched`
+          )
+        } else {
           summary.updated++
           summary.results.push({ agentId, action: `updated` })
           log(

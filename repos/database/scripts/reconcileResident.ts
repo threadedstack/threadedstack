@@ -8,18 +8,22 @@ import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
 
 /**
  * Deploy-time reconcile of the resident data plane (Resident Agents R3+R4):
- * idempotently creates the four resident Collections (resident_configs /
- * agent_messages / resident_status / resident_transcripts), reconciles the
- * git-versioned bodies of the five resident effect Functions
+ * idempotently creates the resident Collections (resident_configs /
+ * agent_messages / resident_status / resident_transcripts / resident_memories),
+ * reconciles the git-versioned bodies of the resident effect Functions
  * (sendAgentMessage / updateResidentConfig / heartbeat / appendTranscript /
- * markMessageRead), and seeds the activated residents' resident_configs
- * records (create-if-absent — the record is agent-owned after activation, so
- * an existing one is never overwritten) into the ops project. The whole
- * resident surface lives in git-versioned config and lands through the normal
- * PR -> deploy pipeline. Idempotent: existing collections and records are
- * skipped and Functions update only on drift, so a re-run makes no changes.
- * A seeded config stays inert until its agent's body sandbox is flipped to
- * resident mode — the watchdog skips non-resident sandboxes.
+ * markMessageRead / writeMemory), and reconciles the activated residents'
+ * resident_configs records into the ops project. A config is created if absent
+ * and re-applied from its seed on drift WHILE the platform owns it, so a
+ * capability/prompt update reaches a live resident; once the agent evolves the
+ * record via updateResidentConfig it is stamped `evolvedByAgent` and a deploy
+ * never overwrites it again (the update is an atomic guarded replace, so a
+ * self-evolution racing the reconcile is never clobbered). The whole resident
+ * surface lives in git-versioned config and lands through the normal PR ->
+ * deploy pipeline. Idempotent: collections are create-if-absent and Functions
+ * and configs update only on drift, so a re-run makes no changes. A seeded
+ * config stays inert until its agent's body sandbox is flipped to resident
+ * mode — the watchdog skips non-resident sandboxes.
  */
 
 const nodeEnv = process.env.NODE_ENV

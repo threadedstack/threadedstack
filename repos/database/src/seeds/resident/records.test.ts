@@ -51,6 +51,22 @@ const makeFakeRecordService = () => {
         rows.set(key(projectId, collection, input.data.agentId as string), row)
         return { data: { ...row } }
       },
+      // Mirrors the real atomic guard: overwrite ONLY if the stored row does not
+      // already carry markerKey === true, else report skipped (no clobber).
+      replaceIfMarkerUnset: async (
+        projectId: string,
+        collection: string,
+        id: string,
+        markerKey: string,
+        data: Record<string, unknown>
+      ) => {
+        const agentId = data.agentId as string
+        const existing = rows.get(key(projectId, collection, agentId))
+        if (existing?.data?.[markerKey] === true) return { skipped: true }
+        const row = { id, projectId, collection, data }
+        rows.set(key(projectId, collection, agentId), row)
+        return { data: { ...row } }
+      },
     },
   }
 }
@@ -275,6 +291,51 @@ describe(`reconcileResidentConfigs`, () => {
     expect(stored.data.actions).toContain(`writeMemory`)
     // Record id preserved through the in-place update.
     expect(stored.id).toBe(CmoResidentConfigSeed.id)
+  })
+
+  it(`atomic guard: does NOT clobber a config the agent evolves DURING the reconcile`, async () => {
+    const { service, rows, key } = makeFakeRecordService()
+    // A stale, platform-owned config: drifted from the seed, no ownership marker
+    // — so the reconcile's read sees "not evolved + drift" and takes the update
+    // path.
+    const stale = {
+      ...CmoResidentConfigSeed.data,
+      actions: CmoResidentConfigSeed.data.actions.filter((a) => a !== `writeMemory`),
+    }
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CmoResidentConfigSeed.id,
+      data: stale,
+    })
+
+    // Simulate the TOCTOU race: the agent calls updateResidentConfig (stamping
+    // evolvedByAgent + its own edit) in the window AFTER the reconcile reads the
+    // row but BEFORE it writes. We hook query to flip the stored row right after
+    // it returns the pre-race snapshot.
+    const evolved = {
+      ...stale,
+      selfDirected: { prompt: `my own cadence`, minIdleMs: 120_000 },
+      evolvedByAgent: true,
+    }
+    const raced = {
+      ...service,
+      query: async (projectId: string, collection: string, q: any) => {
+        const res = await service.query(projectId, collection, q)
+        const k = key(projectId, collection, CmoAgentId)
+        const cur = rows.get(k)
+        if (cur && cur.data?.evolvedByAgent !== true)
+          rows.set(k, { ...cur, data: evolved })
+        return res // the pre-race snapshot (no marker) — drives the update path
+      },
+    }
+
+    const summary = await reconcileResidentConfigs(raced as any, `pj_ops00001`)
+
+    // The guard blocked the write: reported unchanged, and the agent's evolved
+    // record survives byte-for-byte (NOT overwritten with the seed).
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
+    const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
+    expect(stored.data).toEqual(evolved)
+    expect(stored.data.evolvedByAgent).toBe(true)
   })
 
   it(`captures query and create failures without throwing`, async () => {
