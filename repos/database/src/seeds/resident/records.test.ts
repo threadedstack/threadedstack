@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { normalizeResidentConfig } from '@tdsk/resident/config'
 import {
   loadPrompt,
+  CeoAgentId,
   CmoAgentId,
   AgentScheduleDefs,
   BoardPlansSource,
@@ -14,13 +15,17 @@ import {
 import { ResidentConfigsCollectionName } from '@TDB/seeds/resident/collections'
 import {
   CmoMemoriesSource,
+  CeoMemoriesSource,
   CmoResidentConfigSeed,
+  CeoResidentConfigSeed,
   ResidentConfigSeedRecords,
   reconcileResidentConfigs,
 } from '@TDB/seeds/resident/records'
 
 const cmoBoardDef = AgentScheduleDefs.find((def) => def.key === `cmo-board`)!
 const cmoMarketingDef = AgentScheduleDefs.find((def) => def.key === `cmo-marketing`)!
+const ceoStrategyDef = AgentScheduleDefs.find((def) => def.key === `ceo-strategy`)!
+const ceoBoardDef = AgentScheduleDefs.find((def) => def.key === `ceo-board`)!
 
 /**
  * An in-memory fake of the record service's query/upsert slice — enough to
@@ -73,7 +78,10 @@ const makeFakeRecordService = () => {
 
 describe(`CmoResidentConfigSeed`, () => {
   it(`carries the full R4 pilot config for the CMO agent`, () => {
-    expect(ResidentConfigSeedRecords).toEqual([CmoResidentConfigSeed])
+    expect(ResidentConfigSeedRecords).toEqual([
+      CmoResidentConfigSeed,
+      CeoResidentConfigSeed,
+    ])
     // Stable record id (rec_ prefix + 6 chars = the 10-char records.id shape).
     expect(CmoResidentConfigSeed.id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
 
@@ -217,14 +225,143 @@ describe(`CmoResidentConfigSeed`, () => {
   })
 })
 
+describe(`CeoResidentConfigSeed`, () => {
+  it(`carries the full R5 config for the CEO agent`, () => {
+    // Stable record id (rec_ prefix + 6 chars = the 10-char records.id shape).
+    expect(CeoResidentConfigSeed.id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
+
+    const { data } = CeoResidentConfigSeed
+    expect(data.agentId).toBe(CeoAgentId)
+
+    // Agenda: the daily strategy cycle + the 3-hourly board review.
+    expect(data.agenda).toHaveLength(2)
+    expect(data.agenda.map((item) => item.key)).toEqual([`strategy`, `board-review`])
+    expect(data.agenda[0]).toMatchObject({ key: `strategy`, cron: `0 4 * * *` })
+    expect(data.agenda[1]).toMatchObject({ key: `board-review`, cron: `0 */3 * * *` })
+
+    // Watches: exactly ONE — the slow-lane plans review.
+    expect(data.watches).toHaveLength(1)
+    expect(data.watches[0].key).toBe(`plans`)
+    expect(data.watches[0]).toMatchObject({ collection: `plans`, debounceMs: 600_000 })
+
+    // LOAD-BEARING R5 DESIGN PROPERTY (design-refute guard): the CEO must NOT
+    // fast-watch board decisions. It holds resolveBoard, and resolution must be
+    // paced by the periodic board-review agenda so it sees accrued positions
+    // rather than spinning against the CTO's slower position cadence. A watch on
+    // decision_proposals would collapse the openDecision (strategy) vs
+    // resolveBoard (board) separation — so assert there is none.
+    expect(data.watches.every((watch) => watch.collection !== `decision_proposals`)).toBe(
+      true
+    )
+
+    expect(data.inbox).toEqual({ pollMs: 15_000 })
+    // Explicit copies of the R2 defaults (DefaultMaxTurns / DefaultMaxBytes).
+    expect(data.compaction).toEqual({ maxTurns: 40, maxBytes: 400_000 })
+    expect(data.subAgents).toEqual({ maxConcurrent: 2 })
+    expect(data.selfDirected.minIdleMs).toBe(600_000)
+    // The self-directed guard: never resolve a decision opened this same turn.
+    expect(data.selfDirected.prompt).toContain(
+      `NEVER resolve a decision you opened this turn`
+    )
+
+    // The housekeeping map the R2 runtime dispatches through.
+    expect(data.functions).toEqual({
+      heartbeat: `heartbeat`,
+      appendTranscript: `appendTranscript`,
+      markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
+    })
+  })
+
+  it(`reuses the scheduled defs' prompts and context sources verbatim`, () => {
+    const { data } = CeoResidentConfigSeed
+
+    // The two agenda items load the SAME prompt files the (still-live) ceo cron
+    // defs load — one source of truth per prompt.
+    expect(data.agenda[0].prompt).toBe(ceoStrategyDef.prompt)
+    expect(data.agenda[1].prompt).toBe(ceoBoardDef.prompt)
+    expect(data.session.seedPrompt).toBe(loadPrompt(`ceo-resident-session`))
+    // The session seed carries the soul + the standing directives.
+    expect(data.session.seedPrompt).toContain(`founding CEO of ThreadedStack`)
+    expect(data.session.seedPrompt).toContain(`RESIDENT agent`)
+    expect(data.session.seedPrompt).toContain(`BOARD RESOLUTION`)
+    expect(data.session.seedPrompt).toContain(
+      `NEVER resolve a decision your own turn opened`
+    )
+    expect(data.session.seedPrompt).toContain(`ACTIVE INITIATIVE`)
+
+    // The board context sources plus the resident's own durable-memory recall
+    // source — exact shapes, in order.
+    expect(data.session.contextSources).toEqual([
+      BoardStrategySource,
+      BoardOpenDecisionsSource,
+      BoardPositionsSource,
+      BoardPlansSource,
+      CeoMemoriesSource,
+    ])
+  })
+
+  it(`allowlists BOTH openDecision AND resolveBoard (union) — separation is prompt-enforced`, () => {
+    // The config allowlist is the UNION of the strategy cycle (opens decisions)
+    // and the board cycle (resolves them). The open/resolve SEPARATION is
+    // enforced by the ceo-resident-session prompt, NOT by the allowlist — both
+    // capabilities live here.
+    const { actions } = CeoResidentConfigSeed.data
+    expect(actions).toContain(`openDecision`)
+    expect(actions).toContain(`resolveBoard`)
+    expect(actions).toContain(`upsertStrategy`)
+    expect(actions).toContain(`postPosition`)
+    expect(actions).toContain(`writeMemory`)
+    // The self-directed prompt is where the same-turn open/resolve ban lives.
+    expect(CeoResidentConfigSeed.data.selfDirected.prompt).toContain(
+      `NEVER resolve a decision you opened this turn`
+    )
+  })
+
+  it(`satisfies the R2 runtime's config parser exactly, through a jsonb round trip`, () => {
+    // Simulate the record's DB write/read round trip, then run it through the
+    // ACTUAL parser the resident runtime boots with — the drift guard: a field
+    // rename, a bad cron, or a malformed watch in this seed fails HERE, not in
+    // a prod pod.
+    const roundTripped = JSON.parse(JSON.stringify(CeoResidentConfigSeed.data))
+    const normalized = normalizeResidentConfig(roundTripped, CeoAgentId)
+
+    // Nothing dropped: both agenda items and the single watch survive validation.
+    expect(normalized.agenda).toEqual(
+      JSON.parse(JSON.stringify(CeoResidentConfigSeed.data.agenda))
+    )
+    expect(normalized.agenda).toHaveLength(2)
+    expect(normalized.watches).toEqual(
+      JSON.parse(JSON.stringify(CeoResidentConfigSeed.data.watches))
+    )
+    expect(normalized.watches).toHaveLength(1)
+
+    // Every explicit value lands verbatim; only the inbox collection default
+    // is filled in (the seed deliberately omits it — agent_messages).
+    expect(normalized.agentId).toBe(CeoAgentId)
+    expect(normalized.inbox).toEqual({ pollMs: 15_000, collection: `agent_messages` })
+    expect(normalized.compaction).toEqual({ maxTurns: 40, maxBytes: 400_000 })
+    expect(normalized.subAgents).toEqual({ maxConcurrent: 2 })
+    expect(normalized.selfDirected).toEqual(CeoResidentConfigSeed.data.selfDirected)
+    expect(normalized.functions).toEqual(CeoResidentConfigSeed.data.functions)
+  })
+})
+
 describe(`reconcileResidentConfigs`, () => {
   it(`creates the CMO record when absent`, async () => {
     const { service, rows, key } = makeFakeRecordService()
+    // Pre-seed the CEO config up to date so it reconciles as unchanged and does
+    // not perturb this CMO-create scenario (the reconcile now processes both).
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CeoResidentConfigSeed.id,
+      data: CeoResidentConfigSeed.data,
+    })
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 1, unchanged: 0, errors: 0 })
-    expect(summary.results).toEqual([{ agentId: CmoAgentId, action: `created` }])
+    expect(summary).toMatchObject({ created: 1, unchanged: 1, errors: 0 })
+    // results carries both seeds; assert the CMO created entry is present.
+    expect(summary.results).toContainEqual({ agentId: CmoAgentId, action: `created` })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
     expect(stored).toMatchObject({ id: CmoResidentConfigSeed.id })
     expect(stored.data).toEqual(CmoResidentConfigSeed.data)
@@ -232,13 +369,19 @@ describe(`reconcileResidentConfigs`, () => {
 
   it(`round-trips idempotently — a re-run reports unchanged and writes nothing`, async () => {
     const { service, rows, key } = makeFakeRecordService()
+    // Pre-seed the CEO config up to date; the first reconcile then only creates
+    // the CMO, and the second reconcile reports both seeds unchanged.
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CeoResidentConfigSeed.id,
+      data: CeoResidentConfigSeed.data,
+    })
 
     await reconcileResidentConfigs(service, `pj_ops00001`)
     const snapshot = JSON.parse(JSON.stringify([...rows]))
 
     const second = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(second).toMatchObject({ created: 0, unchanged: 1, errors: 0 })
+    expect(second).toMatchObject({ created: 0, unchanged: 2, errors: 0 })
     expect(JSON.parse(JSON.stringify([...rows]))).toEqual(snapshot)
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
@@ -247,6 +390,12 @@ describe(`reconcileResidentConfigs`, () => {
 
   it(`NEVER overwrites an agent-evolved record (evolvedByAgent marker) — the agent owns it`, async () => {
     const { service, rows, key } = makeFakeRecordService()
+    // Pre-seed the CEO config up to date so it reconciles as unchanged alongside
+    // the evolved CMO record below.
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CeoResidentConfigSeed.id,
+      data: CeoResidentConfigSeed.data,
+    })
     // The agent evolved its own record via updateResidentConfig after
     // activation — that write stamps evolvedByAgent, which claims ownership.
     const evolved = {
@@ -262,7 +411,7 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 2, errors: 0 })
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
     ).toEqual(evolved)
@@ -270,6 +419,12 @@ describe(`reconcileResidentConfigs`, () => {
 
   it(`propagates a seed update to a NOT-yet-evolved config (platform still owns it)`, async () => {
     const { service, rows, key } = makeFakeRecordService()
+    // Pre-seed the CEO config up to date so it reconciles as unchanged while the
+    // stale, platform-owned CMO config below takes the update path.
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CeoResidentConfigSeed.id,
+      data: CeoResidentConfigSeed.data,
+    })
     // A live config created from an OLD seed (a capability the current seed adds
     // is absent) and never touched by the agent — no evolvedByAgent marker.
     const stale = {
@@ -284,8 +439,8 @@ describe(`reconcileResidentConfigs`, () => {
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
     // Drift → re-applied from the current seed so the capability propagates.
-    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 0, errors: 0 })
-    expect(summary.results).toEqual([{ agentId: CmoAgentId, action: `updated` }])
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 1, errors: 0 })
+    expect(summary.results).toContainEqual({ agentId: CmoAgentId, action: `updated` })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
     expect(stored.data).toEqual(CmoResidentConfigSeed.data)
     expect(stored.data.actions).toContain(`writeMemory`)
@@ -295,6 +450,12 @@ describe(`reconcileResidentConfigs`, () => {
 
   it(`atomic guard: does NOT clobber a config the agent evolves DURING the reconcile`, async () => {
     const { service, rows, key } = makeFakeRecordService()
+    // Pre-seed the CEO config up to date so it reconciles as unchanged while the
+    // raced CMO config below exercises the atomic guard.
+    await service.upsert(`pj_ops00001`, ResidentConfigsCollectionName, {
+      id: CeoResidentConfigSeed.id,
+      data: CeoResidentConfigSeed.data,
+    })
     // A stale, platform-owned config: drifted from the seed, no ownership marker
     // — so the reconcile's read sees "not evolved + drift" and takes the update
     // path.
@@ -330,9 +491,10 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(raced as any, `pj_ops00001`)
 
-    // The guard blocked the write: reported unchanged, and the agent's evolved
-    // record survives byte-for-byte (NOT overwritten with the seed).
-    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
+    // The guard blocked the write: reported unchanged (CMO raced + CEO
+    // up-to-date), and the agent's evolved CMO record survives byte-for-byte
+    // (NOT overwritten with the seed).
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 2, errors: 0 })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
     expect(stored.data).toEqual(evolved)
     expect(stored.data.evolvedByAgent).toBe(true)
@@ -344,7 +506,8 @@ describe(`reconcileResidentConfigs`, () => {
       upsert: async () => ({ data: {} }),
     }
     const queryFail = await reconcileResidentConfigs(failingQuery as any, `pj_x`)
-    expect(queryFail.errors).toBe(1)
+    // The fake errors for EVERY seed, so both residents (CMO + CEO) fail.
+    expect(queryFail.errors).toBe(2)
     expect(queryFail.results[0]).toMatchObject({ action: `error` })
     expect(queryFail.results[0].message).toContain(`db down`)
 
@@ -353,7 +516,7 @@ describe(`reconcileResidentConfigs`, () => {
       upsert: async () => ({ error: new Error(`insert refused`) }),
     }
     const upsertFail = await reconcileResidentConfigs(failingUpsert as any, `pj_x`)
-    expect(upsertFail.errors).toBe(1)
+    expect(upsertFail.errors).toBe(2)
     expect(upsertFail.results[0].message).toContain(`insert refused`)
   })
 })
