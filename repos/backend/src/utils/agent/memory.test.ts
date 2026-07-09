@@ -5,9 +5,7 @@ import {
   clampImportance,
   parseMemoryBlock,
   truncateMemoryText,
-  matchTransientSignal,
   MemoryDefaultImportance,
-  isTransientUpstreamFailure,
 } from './memory'
 import {
   MemoriesBlockFence,
@@ -50,49 +48,8 @@ describe(`truncateMemoryText`, () => {
   })
 })
 
-// ── isTransientUpstreamFailure ───────────────────────────────────────
-
-describe(`isTransientUpstreamFailure`, () => {
-  it.each([
-    `API Error: 529 Overloaded`,
-    `the model is Overloaded, retry`,
-    `HTTP 503 Service Unavailable`,
-    `got a 502 bad gateway`,
-    `429 rate limit exceeded`,
-    `rate-limited by upstream`,
-    `API Error: 500 something`,
-    `500 Internal Server Error`,
-  ])(`detects transient signal: %s`, (text) => {
-    expect(isTransientUpstreamFailure(text)).toBe(true)
-  })
-
-  it.each([
-    ``,
-    `Task completed successfully`,
-    `SyntaxError: unexpected token`,
-    `command not found: claude`,
-    `exit code 1`,
-  ])(`treats normal output as non-transient: %s`, (text) => {
-    expect(isTransientUpstreamFailure(text)).toBe(false)
-  })
-})
-
-// ── matchTransientSignal ─────────────────────────────────────────────
-
-describe(`matchTransientSignal`, () => {
-  it(`returns the matched signal substring`, () => {
-    expect(matchTransientSignal(`API Error: 529 Overloaded`)).toBe(`API Error: 529`)
-    expect(matchTransientSignal(`the model is 529 today`)).toBe(`529`)
-    expect(matchTransientSignal(`the model is Overloaded`)).toBe(`Overloaded`)
-    expect(matchTransientSignal(`429 rate limit exceeded`)).toBe(`rate limit`)
-    expect(matchTransientSignal(`HTTP 503 Service Unavailable`)).toBe(`503`)
-  })
-
-  it(`returns undefined when there is no transient signal`, () => {
-    expect(matchTransientSignal(``)).toBeUndefined()
-    expect(matchTransientSignal(`Task completed successfully`)).toBeUndefined()
-  })
-})
+// (transient-signal detection moved to @tdsk/domain runtimeFailover — see
+//  repos/domain/src/constants/runtimeFailover.test.ts)
 
 // ── buildEnvPrefix ───────────────────────────────────────────────────
 
