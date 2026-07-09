@@ -13,6 +13,7 @@ import {
 } from '@TDB/seeds/agentSchedules'
 import { ResidentConfigsCollectionName } from '@TDB/seeds/resident/collections'
 import {
+  CmoMemoriesSource,
   CmoResidentConfigSeed,
   ResidentConfigSeedRecords,
   reconcileResidentConfigs,
@@ -92,14 +93,14 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.selfDirected.prompt).toContain(`Advance your GTM lane`)
     expect(data.selfDirected.prompt).toContain(`open milestones`)
 
-    // The housekeeping map the R2 runtime dispatches through — writeMemory is
-    // deliberately absent (no such Function exists on the platform).
+    // The housekeeping map the R2 runtime dispatches through — writeMemory
+    // persists a turn's tdsk-memories block into resident_memories.
     expect(data.functions).toEqual({
       heartbeat: `heartbeat`,
       appendTranscript: `appendTranscript`,
       markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
     })
-    expect(data.functions.writeMemory).toBeUndefined()
   })
 
   it(`reuses the scheduled defs' prompts, queries, and context sources verbatim`, () => {
@@ -117,13 +118,15 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.session.seedPrompt).toContain(`RESEARCH MANDATE`)
     expect(data.session.seedPrompt).toContain(`primitives faculty`)
 
-    // The five context sources the two scheduled defs used, exact shapes.
+    // The five board context sources the two scheduled defs used, plus the
+    // resident's own durable-memory recall source — exact shapes.
     expect(data.session.contextSources).toEqual([
       BoardStrategySource,
       MarketingArtifactsSource,
       BoardOpenDecisionsSource,
       BoardPositionsSource,
       BoardPlansSource,
+      CmoMemoriesSource,
     ])
 
     // The watch queries reference the matching sources' queries, so the
@@ -132,13 +135,14 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.watches[1].query).toBe(BoardPlansSource.query)
   })
 
-  it(`allowlists the union of both disabled defs' actions plus the 5 housekeeping Functions`, () => {
+  it(`allowlists the union of both disabled defs' actions plus the 6 housekeeping Functions`, () => {
     const housekeeping = [
       `sendAgentMessage`,
       `updateResidentConfig`,
       `heartbeat`,
       `appendTranscript`,
       `markMessageRead`,
+      `writeMemory`,
     ]
     const union = new Set([
       ...(cmoBoardDef.actions?.functions ?? []),
@@ -175,7 +179,7 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(normalized.session.seedPrompt).toBe(
       CmoResidentConfigSeed.data.session.seedPrompt
     )
-    expect(normalized.session.contextSources).toHaveLength(5)
+    expect(normalized.session.contextSources).toHaveLength(6)
     expect(normalized.subAgents).toEqual({ maxConcurrent: 2 })
     expect(normalized.selfDirected).toEqual(CmoResidentConfigSeed.data.selfDirected)
     expect(normalized.functions).toEqual(CmoResidentConfigSeed.data.functions)

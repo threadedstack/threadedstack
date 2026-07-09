@@ -11,7 +11,25 @@ import {
   MarketingArtifactsSource,
   BoardOpenDecisionsSource,
 } from '@TDB/seeds/agentSchedules'
-import { ResidentConfigsCollectionName } from '@TDB/seeds/resident/collections'
+import {
+  ResidentConfigsCollectionName,
+  ResidentMemoriesCollectionName,
+} from '@TDB/seeds/resident/collections'
+
+/**
+ * Durable-recall source: the resident's own most-recent memories (newest first),
+ * surfaced back into every turn so learning written via writeMemory survives
+ * compaction. Scoped to the resident's agentId (the seed is CMO-specific).
+ */
+export const CmoMemoriesSource: TContextSource = {
+  as: `Recent memories`,
+  collection: ResidentMemoriesCollectionName,
+  query: {
+    where: [{ field: `agentId`, op: EQueryOp.eq, value: CmoAgentId }],
+    orderBy: { field: `at`, direction: `desc` },
+    limit: 20,
+  } as TRecordQuery,
+}
 
 /**
  * Resident config seed records — Resident Agents R4 (CMO pilot activation).
@@ -117,6 +135,7 @@ export const CmoResidentConfigSeed: TResidentConfigSeedRecord = {
         BoardOpenDecisionsSource,
         BoardPositionsSource,
         BoardPlansSource,
+        CmoMemoriesSource,
       ],
     },
     subAgents: { maxConcurrent: 2 },
@@ -138,14 +157,16 @@ export const CmoResidentConfigSeed: TResidentConfigSeedRecord = {
       `heartbeat`,
       `appendTranscript`,
       `markMessageRead`,
+      `writeMemory`,
     ],
     // The housekeeping map the R2 runtime dispatches through (TResidentFunctions).
-    // No writeMemory Function exists on the platform, so the key is omitted —
-    // the pump skips tdsk-memories blocks with a log line, never assumes it.
+    // `writeMemory` persists a turn's tdsk-memories block into resident_memories;
+    // CmoMemoriesSource above surfaces them back, so learning survives compaction.
     functions: {
       heartbeat: `heartbeat`,
       appendTranscript: `appendTranscript`,
       markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
     },
   },
 }
