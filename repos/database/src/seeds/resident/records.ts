@@ -3,6 +3,7 @@ import type { TContextSource, TRecordQuery } from '@tdsk/domain'
 import { EQueryOp } from '@tdsk/domain'
 import {
   loadPrompt,
+  CeoAgentId,
   CmoAgentId,
   OpsProjectId,
   BoardPlansSource,
@@ -26,6 +27,17 @@ export const CmoMemoriesSource: TContextSource = {
   collection: ResidentMemoriesCollectionName,
   query: {
     where: [{ field: `agentId`, op: EQueryOp.eq, value: CmoAgentId }],
+    orderBy: { field: `at`, direction: `desc` },
+    limit: 20,
+  } as TRecordQuery,
+}
+
+/** The CEO resident's durable-recall source (its own memories, newest first). */
+export const CeoMemoriesSource: TContextSource = {
+  as: `Recent memories`,
+  collection: ResidentMemoriesCollectionName,
+  query: {
+    where: [{ field: `agentId`, op: EQueryOp.eq, value: CeoAgentId }],
     orderBy: { field: `at`, direction: `desc` },
     limit: 20,
   } as TRecordQuery,
@@ -172,9 +184,105 @@ export const CmoResidentConfigSeed: TResidentConfigSeedRecord = {
   },
 }
 
+/**
+ * The CEO resident config (Resident Agents R5). Prompt reuse: the strategy
+ * agenda loads `agent-schedules/ceo-strategy.md` and the board-review agenda
+ * loads `agent-schedules/ceo-board.md` (the SAME files the disabled sd_ceostr1/
+ * sd_ceobrd1 crons load), via the same `loadPrompt`; the session seed is
+ * `agent-schedules/ceo-resident-session.md`.
+ *
+ * Board resolution is a PERIODIC agenda (every 3h), NOT a fast watch: the CEO
+ * RESOLVES decisions (unlike the CMO, which only POSTS positions on its fast
+ * deliberation watch), and resolution must be paced to the board's deliberation
+ * window. A 60s decision watch would spin uselessly against the CTO's slower
+ * position cadence and would collapse the deliberate openDecision (strategy
+ * cycle) vs resolveBoard (board cycle) separation. The only watch is `plans`.
+ */
+export const CeoResidentConfigSeed: TResidentConfigSeedRecord = {
+  id: `rec_ceores`,
+  data: {
+    agentId: CeoAgentId,
+    agenda: [
+      // The daily strategy cycle, unchanged cadence — replaces sd_ceostr1.
+      {
+        key: `strategy`,
+        cron: `0 4 * * *`,
+        prompt: loadPrompt(`ceo-strategy`),
+      },
+      // Board review every 3h (NOT a fast watch): post the CEO's position and
+      // resolve RIPE decisions. Paced so resolveBoard sees accrued positions
+      // rather than spinning; replaces the 6-hourly sd_ceobrd1 cron.
+      {
+        key: `board-review`,
+        cron: `0 */3 * * *`,
+        prompt: loadPrompt(`ceo-board`),
+      },
+    ],
+    watches: [
+      // Plans move slower than decisions — a 10-minute debounce keeps this to
+      // lane-review cadence. The CEO owns the company + initiative plans. There
+      // is deliberately NO decision watch: the CEO resolves, and resolution is
+      // agenda-paced (see the doc above), never watch-fast.
+      {
+        key: `plans`,
+        collection: BoardPlansSource.collection,
+        query: BoardPlansSource.query,
+        debounceMs: 600_000,
+        prompt: [
+          `The active plans changed — review whether the company or initiative plans need action.`,
+          `Check your company and initiative plans' open milestones and keyResults against the change shown in the matched records: if a plan you own is affected, act (advance a milestone, update strategy, or prepare a board decision); if not, say so in one line and stop.`,
+        ].join(`\n`),
+      },
+    ],
+    inbox: { pollMs: 15_000 },
+    compaction: { maxTurns: 40, maxBytes: 400_000 },
+    session: {
+      seedPrompt: loadPrompt(`ceo-resident-session`),
+      contextSources: [
+        BoardStrategySource,
+        BoardOpenDecisionsSource,
+        BoardPositionsSource,
+        BoardPlansSource,
+        CeoMemoriesSource,
+      ],
+    },
+    subAgents: { maxConcurrent: 2 },
+    selfDirected: {
+      minIdleMs: 600_000,
+      prompt: `Advance company strategy: refine positioning and segments from research, maintain the company and initiative plans' open milestones, and prepare decisions for the board. NEVER resolve a decision you opened this turn.`,
+    },
+    // The dispatch allowlist: the union of the strategy cycle (upsertStrategy,
+    // openDecision, upsertPlan, updateMilestone) and the board cycle
+    // (postPosition, resolveBoard) allowlists, plus the housekeeping Functions.
+    // openDecision and resolveBoard stay prompt-separated (strategy agenda opens,
+    // board-review agenda resolves) per the ceo-resident-session guard.
+    actions: [
+      `upsertStrategy`,
+      `openDecision`,
+      `upsertPlan`,
+      `updateMilestone`,
+      `postPosition`,
+      `resolveBoard`,
+      `sendAgentMessage`,
+      `updateResidentConfig`,
+      `heartbeat`,
+      `appendTranscript`,
+      `markMessageRead`,
+      `writeMemory`,
+    ],
+    functions: {
+      heartbeat: `heartbeat`,
+      appendTranscript: `appendTranscript`,
+      markMessageRead: `markMessageRead`,
+      writeMemory: `writeMemory`,
+    },
+  },
+}
+
 /** Every resident config seed, in activation order. */
 export const ResidentConfigSeedRecords: TResidentConfigSeedRecord[] = [
   CmoResidentConfigSeed,
+  CeoResidentConfigSeed,
 ]
 
 /** The record-service slice the reconcile needs (project+collection-scoped). */

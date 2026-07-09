@@ -45,7 +45,9 @@ const AdversarySandboxId = `sb_xg7h1wl`
 // steward agent + sandbox above. The board runs LIVE on the platform primitives
 // (the 5a activation, 2026-07-08): Collections for state, Functions invoked via
 // tdsk-actions for effects, contextSources for context.
-const CeoAgentId = `ag_ceo0001`
+// Exported: the CEO's resident config seed (seeds/resident/records.ts) keys its
+// record by this id (Resident Agents R5 — CEO activation).
+export const CeoAgentId = `ag_ceo0001`
 const CeoSandboxId = `sb_ceo0001`
 // The CMO seat is the seeded founder-CMO agent + its body sandbox; these ids
 // match the fullorg seed (Ids.agent.cmo / Ids.sandbox.cmoBody) and the
