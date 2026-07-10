@@ -35,6 +35,9 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
  * shadow team is stood up.
  */
 
+/** Collection name — mirrored by the dev-team resident configs (seeds/resident/records.ts) and the team Functions. */
+export const DevTasksCollectionName = `dev_tasks`
+
 /** A dev-team Collection definition: a stable id, name, description, and field schema. */
 export type TDevTeamCollectionDef = {
   id: string
@@ -46,7 +49,7 @@ export type TDevTeamCollectionDef = {
 export const DevTeamCollectionDefs: TDevTeamCollectionDef[] = [
   {
     id: `col_dvtsk1`,
-    name: `dev_tasks`,
+    name: DevTasksCollectionName,
     description: `Realtime dev-team work items — the concurrent task/review state machine (backlog → claimed → pr_open → in_review → approved/changes_requested → merged). Every transition is claimed atomically via records.cas; claims carry renewable leases; reviews bind to headSha.`,
     schema: [
       { name: `title`, type: EFieldType.string, required: true },
