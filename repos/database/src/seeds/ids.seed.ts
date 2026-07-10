@@ -27,6 +27,11 @@ export const Ids = {
     // Executive board — founder CMO seat (product-stable id; matches the
     // agentSchedules CmoAgentId and the exec-board BoardCmoAgentId).
     cmo: `ag_cmo0001`,
+    // Realtime engineering team — the two resident engineer seats
+    // (product-stable ids; match the agentSchedules EngOneAgentId/EngTwoAgentId
+    // and the resident config seeds). The CTO lead reuses the prod steward agent.
+    engineerOne: `ag_eng0001`,
+    engineerTwo: `ag_eng0002`,
   },
   apikey: {
     tdskOrgKey: `ak_0000001`,
@@ -173,6 +178,10 @@ export const Ids = {
     // Executive board — CMO agent's body sandbox (product-stable id; matches the
     // agentSchedules CmoSandboxId).
     cmoBody: `sb_cmo0001`,
+    // Realtime engineering team — the engineer agents' body sandboxes (their
+    // runtime pods). Inert until flipped to resident mode at team activation.
+    engOneBody: `sb_eng0001`,
+    engTwoBody: `sb_eng0002`,
   },
   domain: {
     orgDomain: `dm_0000001`,

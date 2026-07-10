@@ -35,7 +35,12 @@ export const OpsProjectId = `pj_tIly2F1`
 // reconciler creates new schedules runnable and repairs any null rows, with
 // zero churn on the live ones.
 export const OpsUserId = `00000000-0000-0000-0000-000000000000`
-const StewardAgentId = `ag_lvUbjp_`
+// The steward agent is ALSO the CTO board seat (the cto-board def below runs on
+// it; exec-board BoardCtoAgentId matches). Exported: the CTO's resident config
+// seed (seeds/resident/records.ts) keys its record by this id — ONE identity
+// carrying the scheduled dev-loop, the board seat, and the (shadow, inert until
+// its sandbox is flipped to resident mode) dev-team lead duties.
+export const StewardAgentId = `ag_lvUbjp_`
 const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
 const AdversarySandboxId = `sb_xg7h1wl`
@@ -55,6 +60,15 @@ const CeoSandboxId = `sb_ceo0001`
 // resident config seed (seeds/resident/records.ts) keys its record by this id.
 export const CmoAgentId = `ag_cmo0001`
 const CmoSandboxId = `sb_cmo0001`
+// Realtime engineering team (Phase 2) — the two resident engineer seats; ids
+// match the fullorg seed (Ids.agent.engineerOne/Two + their body sandboxes).
+// Exported: the engineer resident config seeds (seeds/resident/records.ts) key
+// their records AND their per-agent dev_tasks watch/source queries by these
+// ids. No schedule def runs on them — engineers are resident-only (watch/
+// inbox/self-directed), and their seeds stay inert until their body sandboxes
+// are flipped to resident mode.
+export const EngOneAgentId = `ag_eng0001`
+export const EngTwoAgentId = `ag_eng0002`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
