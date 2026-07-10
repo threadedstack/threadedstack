@@ -11,6 +11,7 @@
     "api-keys",
     "billing",
     "proxy-endpoints",
-    "faas-endpoints"
+    "faas-endpoints",
+    "collections"
   ]
 }
