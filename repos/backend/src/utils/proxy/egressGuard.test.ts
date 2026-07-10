@@ -53,6 +53,8 @@ describe(`egressGuard.assertPublicEgressHost`, () => {
     [`::ffff:a9fe:a9fe`, `v4-mapped metadata in HEX (169.254.169.254)`],
     [`0:0:0:0:0:ffff:a9fe:a9fe`, `fully-expanded v4-mapped metadata`],
     [`64:ff9b::a9fe:a9fe`, `NAT64-embedded metadata`],
+    [`2002:a9fe:a9fe::1`, `6to4-embedded metadata`],
+    [`2002:0a00:0001::1`, `6to4-embedded private 10.0.0.1`],
     [`0::1`, `loopback via alternate zero-compression`],
     [`::ffff:169.254.169.254`, `v4-mapped metadata dotted`],
     [`FE80::1`, `link-local uppercase`],

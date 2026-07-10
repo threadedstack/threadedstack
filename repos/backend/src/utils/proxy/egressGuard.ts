@@ -152,6 +152,8 @@ const isBlockedV6 = (raw: string): boolean => {
     g[5] === 0
   )
     return isBlockedV4Int(embeddedV4)
+  // 2002::/16  (6to4) → judge by the embedded v4 (groups 1-2)
+  if (g[0] === 0x2002) return isBlockedV4Int(((g[1] << 16) | g[2]) >>> 0)
   // ::/96  (loopback ::1, unspecified ::, deprecated v4-compatible) — nothing
   // routable-public lives here, so block the whole block.
   if (g[0] === 0 && g[1] === 0 && g[2] === 0 && g[3] === 0 && g[4] === 0 && g[5] === 0)
