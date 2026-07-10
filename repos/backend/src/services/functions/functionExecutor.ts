@@ -125,6 +125,7 @@ const RecordsBridge = {
   count: `records.count`,
   delete: `records.delete`,
   upsert: `records.upsert`,
+  cas: `records.cas`,
 } as const
 
 /**
@@ -172,6 +173,22 @@ const createRecordsCapability = (
     if (error) throw new Error(`records.count failed: ${error.message}`)
     return data ?? 0
   },
+  // Atomic compare-and-set — the claim/lease primitive. A guard conflict is a
+  // NORMAL outcome (the caller lost the race), returned as { conflict: true }
+  // rather than thrown, so isolate code can branch on it directly.
+  cas: async (collection, id, match, patch) => {
+    const { data, error, conflict } = await db.services.record.casUpdate(
+      projectId,
+      collection,
+      id,
+      match,
+      patch
+    )
+    if (error) throw new Error(`records.cas failed: ${error.message}`)
+    return conflict || !data
+      ? { conflict: true as const }
+      : { id: data.id, data: data.data as Record<string, unknown> }
+  },
 })
 
 /**
@@ -208,6 +225,15 @@ const buildRecordsBridges = (
     [RecordsBridge.count]: async (argsJson) => {
       const [collection, query] = JSON.parse(argsJson) as [string, TRecordQuery?]
       return JSON.stringify(await records.count(collection, query))
+    },
+    [RecordsBridge.cas]: async (argsJson) => {
+      const [collection, id, match, patch] = JSON.parse(argsJson) as [
+        string,
+        string,
+        Record<string, string | number | boolean | null>,
+        Record<string, unknown>,
+      ]
+      return JSON.stringify(await records.cas(collection, id, match, patch))
     },
   }
 }
@@ -268,6 +294,7 @@ const recordsContextCode = `context.records = (() => {
     upsert: (collection, record) => call('${RecordsBridge.upsert}', [collection, record]),
     delete: (collection, id) => call('${RecordsBridge.delete}', [collection, id]),
     count: (collection, query) => call('${RecordsBridge.count}', [collection, query]),
+    cas: (collection, id, match, patch) => call('${RecordsBridge.cas}', [collection, id, match, patch]),
   };
 })();`
 

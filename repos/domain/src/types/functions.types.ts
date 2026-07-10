@@ -42,6 +42,19 @@ export interface IRecordsCapability {
   ): Promise<{ id: string }>
   delete(collection: string, id: string): Promise<{ deleted: boolean }>
   count(collection: string, query?: TRecordQuery): Promise<number>
+  /**
+   * Atomic compare-and-set: merge `patch` into the record's data ONLY when
+   * every `match` field currently equals its expected value (`null` matches
+   * absent). Exactly one concurrent caller can win a given transition — the
+   * loser (or a missing id) gets `{ conflict: true }`. The claim/lease
+   * primitive for concurrent multi-agent coordination.
+   */
+  cas(
+    collection: string,
+    id: string,
+    match: Record<string, string | number | boolean | null>,
+    patch: Record<string, unknown>
+  ): Promise<TRecordDocument | { conflict: true }>
 }
 
 /**

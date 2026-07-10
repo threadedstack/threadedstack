@@ -179,6 +179,139 @@ export class Record {
     }
   }
 
+  /**
+   * Atomic compare-and-set on a record's data — the concurrency primitive
+   * behind claim/lease coordination (exactly one concurrent caller can win a
+   * given transition).
+   *
+   * Applies `patch` (a jsonb MERGE into data, not a replace) ONLY when every
+   * `match` field currently equals its expected value; `null` matches an
+   * absent/SQL-NULL field. All comparisons run inside a single UPDATE, so two
+   * racing callers can never both succeed: the loser gets `{ conflict: true }`
+   * (also returned when the id does not exist — either way the caller did not
+   * win the record).
+   *
+   * `match` must be non-empty — an unconditional merge is an upsert, not a CAS,
+   * and an accidentally-empty guard would silently drop the race protection.
+   * Match values must be SCALARS or null (jsonb `->>` text-compares; an
+   * object/array expected value can never compare meaningfully). Patch fields
+   * present in the collection schema are type-checked; required fields absent
+   * from the patch are fine (they already exist on the record).
+   *
+   * MERGE IS SHALLOW (`data || patch`): an object or array value in `patch`
+   * REPLACES the stored value wholesale. To append (e.g. a history log), read
+   * the record, build the full new array, and CAS it guarded on a field that
+   * changes with the transition.
+   */
+  async casUpdate(
+    projectId: string,
+    collectionName: string,
+    id: string,
+    // Inline index signature (not the `Record` utility) — this class is itself
+    // named `Record`, which shadows the TS built-in inside the class body.
+    match: { [key: string]: string | number | boolean | null },
+    patch: TAnyObj
+  ): Promise<TDBApiResType<RecordModel> & { conflict?: boolean }> {
+    try {
+      // Shape-guard both inputs at the trust boundary: callers are isolate
+      // (LLM-authored) Function bodies, so a wrong shape must surface as a
+      // clear 400 — not an opaque Postgres error (non-object patch) and never
+      // nonsense guards that masquerade as a permanent conflict (array/string
+      // match → Object.keys index keys).
+      const isPlainObject = (value: unknown): boolean =>
+        typeof value === `object` && value !== null && !Array.isArray(value)
+
+      if (!isPlainObject(match))
+        return { error: new DBError(`casUpdate requires a match object`), status: 400 }
+      if (!isPlainObject(patch))
+        return { error: new DBError(`casUpdate requires a patch object`), status: 400 }
+
+      const matchKeys = Object.keys(match)
+      if (!matchKeys.length)
+        return {
+          error: new DBError(`casUpdate requires at least one match condition`),
+          status: 400,
+        }
+
+      for (const key of matchKeys) {
+        const expected = match[key]
+        if (expected !== null && typeof expected === `object`)
+          return {
+            error: new DBError(
+              `casUpdate match values must be scalars or null (field "${key}")`
+            ),
+            status: 400,
+          }
+      }
+
+      const collection = await this.#resolveCollection(projectId, collectionName)
+      if (!collection) return { error: new DBError(`Collection not found`), status: 404 }
+
+      if (collection.schema && Array.isArray(collection.schema)) {
+        const invalid = this.#validatePatch(patch, collection.schema)
+        if (invalid) return { error: new DBError(invalid), status: 400 }
+      }
+
+      // jsonb `->>` yields text, so every expected value compares as its
+      // String() form ('5', 'true') — keys and values are bound parameters.
+      const guards = matchKeys.map((key) =>
+        match[key] === null
+          ? sql`(${records.data} ->> ${key}) IS NULL`
+          : sql`(${records.data} ->> ${key}) = ${String(match[key])}`
+      )
+
+      const [row] = await this.db
+        .update(records)
+        .set({
+          data: sql`${records.data} || ${JSON.stringify(patch)}::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(records.id, id),
+            eq(records.collectionId, collection.id),
+            eq(records.projectId, projectId),
+            ...guards
+          )
+        )
+        .returning()
+
+      return row ? { data: this.model(row as TDBRecordSelect) } : { conflict: true }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Validate only the fields PRESENT in a partial patch against the schema —
+   * type checks apply, but required fields absent from the patch are not
+   * errors (they already exist on the stored record the patch merges into).
+   */
+  #validatePatch(patch: TAnyObj, schema: TCollectionSchema): string | null {
+    const present = schema.filter((field) => patch?.[field.name] !== undefined)
+    for (const field of present) {
+      const value = patch[field.name]
+      if (value === null) continue
+
+      const ok =
+        field.type === EFieldType.string
+          ? typeof value === `string`
+          : field.type === EFieldType.number
+            ? typeof value === `number`
+            : field.type === EFieldType.boolean
+              ? typeof value === `boolean`
+              : field.type === EFieldType.array
+                ? Array.isArray(value)
+                : field.type === EFieldType.object
+                  ? typeof value === `object` && !Array.isArray(value)
+                  : true
+
+      if (!ok) return `Field "${field.name}" must be of type ${field.type}`
+    }
+
+    return null
+  }
+
   /** A single record by id within a project's collection, or {} when absent. */
   async get(
     projectId: string,
