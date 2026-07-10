@@ -14,6 +14,7 @@
     "clean:nm": "rm -rf node_modules",
     "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --watch ../domain/src --watch ../logger/src --watch ../database/src --watch ../sandbox/src --onSuccess 'pnpm serve'",
     "serve": "node --enable-source-maps dist/index.cjs",
+    "serve:egress": "node --enable-source-maps dist/egress.cjs",
     "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",

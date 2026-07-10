@@ -14,6 +14,7 @@ describe(`mapChangedFiles`, () => {
       firebase: [],
       db: false,
       deployConfig: false,
+      egress: false,
     })
   })
 
@@ -107,7 +108,41 @@ describe(`mapChangedFiles`, () => {
       firebase: [],
       db: false,
       deployConfig: false,
+      egress: false,
     })
+  })
+
+  it(`flags the egress roll ONLY for the egress code cone`, () => {
+    // In the cone: the entrypoint, MITM proxy + guards, secret resolution,
+    // kube route client, DB secret read path.
+    expect(mapChangedFiles([`repos/backend/src/egress.ts`]).egress).toBe(true)
+    expect(mapChangedFiles([`repos/backend/src/services/proxy/egress.ts`]).egress).toBe(
+      true
+    )
+    expect(mapChangedFiles([`repos/backend/src/utils/proxy/egressGuard.ts`]).egress).toBe(
+      true
+    )
+    expect(
+      mapChangedFiles([`repos/backend/src/services/secrets/secretResolver.ts`]).egress
+    ).toBe(true)
+    expect(mapChangedFiles([`repos/sandbox/src/kube/kubeClient.ts`]).egress).toBe(true)
+    expect(mapChangedFiles([`repos/database/src/services/secret.ts`]).egress).toBe(true)
+    expect(mapChangedFiles([`repos/database/src/database.ts`]).egress).toBe(true)
+    // Root shared files rebuild the image the egress service runs on
+    expect(mapChangedFiles([`pnpm-lock.yaml`]).egress).toBe(true)
+
+    // NOT in the cone: routine backend/scheduler/api work must NOT roll egress
+    expect(
+      mapChangedFiles([`repos/backend/src/services/scheduler/executor.ts`]).egress
+    ).toBe(false)
+    expect(mapChangedFiles([`repos/backend/src/endpoints/orgs/orgs.ts`]).egress).toBe(
+      false
+    )
+    expect(mapChangedFiles([`repos/database/src/services/record.ts`]).egress).toBe(false)
+    expect(mapChangedFiles([`repos/sandbox/src/local/localSandbox.ts`]).egress).toBe(
+      false
+    )
+    expect(mapChangedFiles([`repos/domain/src/models/user.ts`]).egress).toBe(false)
   })
 
   it(`flags deploy config changes without rebuilding images`, () => {
@@ -122,7 +157,14 @@ describe(`mapChangedFiles`, () => {
 describe(`isNoop`, () => {
   it(`is true only when nothing is selected`, () => {
     expect(
-      isNoop({ docker: [], firebase: [], db: false, deployConfig: false, reason: `` })
+      isNoop({
+        docker: [],
+        firebase: [],
+        db: false,
+        deployConfig: false,
+        egress: false,
+        reason: ``,
+      })
     ).toBe(true)
     expect(
       isNoop({
@@ -130,11 +172,29 @@ describe(`isNoop`, () => {
         firebase: [],
         db: false,
         deployConfig: false,
+        egress: false,
         reason: ``,
       })
     ).toBe(false)
     expect(
-      isNoop({ docker: [], firebase: [], db: false, deployConfig: true, reason: `` })
+      isNoop({
+        docker: [],
+        firebase: [],
+        db: false,
+        deployConfig: true,
+        egress: false,
+        reason: ``,
+      })
+    ).toBe(false)
+    expect(
+      isNoop({
+        docker: [],
+        firebase: [],
+        db: false,
+        deployConfig: false,
+        egress: true,
+        reason: ``,
+      })
     ).toBe(false)
   })
 })
@@ -145,6 +205,7 @@ describe(`everything`, () => {
     expect(res.docker).toEqual(ALL_DOCKER)
     expect(res.firebase).toEqual(ALL_FIREBASE)
     expect(res.db).toBe(true)
+    expect(res.egress).toBe(true)
     expect(res.reason).toBe(`fallback`)
   })
 })

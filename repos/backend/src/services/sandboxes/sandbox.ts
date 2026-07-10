@@ -19,7 +19,6 @@ import type {
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
-import { networkInterfaces } from 'node:os'
 
 import { DefSBConfig, PodReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
@@ -106,15 +105,6 @@ export class SandboxService {
 
   // Caches existing pod proxies
   static proxyMap = new Map<string, RequestHandler>()
-
-  static getPodIp(): string | undefined {
-    const nets = networkInterfaces()
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name] || []) {
-        if (net.family === `IPv4` && !net.internal) return net.address
-      }
-    }
-  }
 
   static removePodProxy(target: string): void {
     SandboxService.proxyMap.delete(target)
@@ -227,6 +217,32 @@ export class SandboxService {
       if (podProjectId && podProjectId !== sanitizeLabel(projectId))
         throw new Exception(403, `Pod does not belong to this project`)
     }
+  }
+
+  /**
+   * Resolve the DNAT target for a sandbox's egress: the pod IP of a READY pod
+   * of the standalone egress deployment (`egressOpts.serviceName`). Resolved
+   * fresh per launch (the egress pod IP only changes on an egress rollout) and
+   * returned as a NEW object — the shared config.egress must never be mutated.
+   *
+   * FAIL-CLOSED: with no ready egress pod, a launched sandbox would get a dead
+   * DNAT (broken egress, no secret injection) — refuse to launch instead. Kata
+   * pods cannot fall back to cluster DNS (`dnsPolicy: Default`), so a missing
+   * serviceIp is never recoverable at runtime.
+   */
+  private async resolveEgressOpts(egressOpts: TPodEgressOpts): Promise<TPodEgressOpts> {
+    const selector = `app.kubernetes.io/component=${egressOpts.serviceName}`
+    const pods = await this.kube.listPodsBySelector(selector)
+    const target = pods.find((pod) => pod.phase === `Running` && pod.ready && pod.podIp)
+
+    if (!target?.podIp)
+      throw new Exception(
+        503,
+        `Egress service unavailable — no ready "${egressOpts.serviceName}" pod to route sandbox egress through`,
+        `EGRESS_UNAVAILABLE`
+      )
+
+    return { ...egressOpts, serviceIp: target.podIp }
   }
 
   /**
@@ -410,7 +426,7 @@ export class SandboxService {
       sandbox,
       extraEnv,
       projectId,
-      egressOpts,
+      egressOpts: await this.resolveEgressOpts(egressOpts),
       placeholders,
       skillsVolume,
       runtimeClassName: this.config.runtimeClassName,

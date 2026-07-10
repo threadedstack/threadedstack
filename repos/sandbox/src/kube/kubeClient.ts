@@ -406,14 +406,21 @@ export class KubeClient {
 
   // --- Hydration ---
 
-  async hydrate(): Promise<TRouteMap> {
+  /**
+   * Populate the route map from the current pod list. `gc: false` skips the
+   * terminal-pod cleanup (deletePod) — for read-only consumers (the standalone
+   * egress service) that maintain routes but must never manage pod lifecycle
+   * (their RBAC has no delete verb, and ownership stays with the backend).
+   */
+  async hydrate(opts?: { gc?: boolean }): Promise<TRouteMap> {
+    const gc = opts?.gc !== false
     const pods = await this.listPods()
     for (const key of Object.keys(this._routes)) delete this._routes[key]
 
     for (const pod of pods) {
       if (this.shouldHydrate(pod)) {
         this.hydrateSingle(pod)
-      } else if (this.shouldRemove(pod)) {
+      } else if (gc && this.shouldRemove(pod)) {
         const name = pod.metadata?.name
         if (name) {
           try {
@@ -601,6 +608,8 @@ export class KubeClient {
       restartCount: number
       image: string | undefined
       node: string | undefined
+      podIp: string | undefined
+      ready: boolean
     }>
   > {
     const resp = await withKubeRetry(`listPodsBySelector(${labelSelector})`, () =>
@@ -616,6 +625,10 @@ export class KubeClient {
       restartCount: pod.status?.containerStatuses?.[0]?.restartCount ?? 0,
       image: pod.spec?.containers?.[0]?.image,
       node: pod.spec?.nodeName,
+      podIp: pod.status?.podIP,
+      ready:
+        (pod.status?.containerStatuses?.length ?? 0) > 0 &&
+        (pod.status?.containerStatuses ?? []).every((status) => status.ready),
     }))
   }
 

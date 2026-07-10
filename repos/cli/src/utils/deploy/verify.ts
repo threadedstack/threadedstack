@@ -8,7 +8,7 @@ import { taskError } from '@TSCL/utils/tasks/error'
 import { getKubeMeta } from '@TSCL/utils/kube/getKubeMeta'
 
 /** In-cluster services that are health-checked and rolled back as a unit */
-const SERVICE_CONTEXTS = [`caddy`, `proxy`, `backend`]
+const SERVICE_CONTEXTS = [`caddy`, `proxy`, `backend`, `egress`]
 
 /** Rollback attempts before declaring the deploy unrecoverable */
 const ROLLBACK_ATTEMPTS = 2

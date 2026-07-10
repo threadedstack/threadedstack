@@ -40,6 +40,10 @@ const {
   TDSK_BE_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_BE_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  // Standalone egress service — shares the backend image, pins its own tag
+  TDSK_EGRESS_DEPLOYMENT = `tdsk-egress`,
+  TDSK_EGRESS_IMAGE_TAG = TDSK_BE_IMAGE_TAG,
+
   TDSK_AD_PORT,
   TDSK_AD_IMAGE,
   TDSK_AD_DEPLOYMENT,
@@ -129,6 +133,21 @@ export const config = {
       ports: {
         [TDSK_BE_PORT]: TDSK_BE_PORT,
       },
+    },
+    // Standalone MITM egress service — no docker build of its own (shares the
+    // backend image, runs dist/egress.cjs); listed so release verify/rollback
+    // and tag pinning can resolve its deployment.
+    egress: {
+      tags: [],
+      image: TDSK_BE_IMAGE,
+      tag: TDSK_EGRESS_IMAGE_TAG,
+      from: TDSK_BE_IMAGE_FROM,
+      dtag: TDSK_BE_DEV_IMAGE_TAG,
+      deployment: TDSK_EGRESS_DEPLOYMENT,
+      dockerfile: `Dockerfile.backend`,
+      location: path.join(paths.repos, `backend`),
+      mounts: {},
+      ports: {},
     },
     admin: {
       tags: [],

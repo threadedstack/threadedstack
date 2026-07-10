@@ -38,6 +38,8 @@ env:
   TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
   TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
   TDSK_KUBE_SCRT_EGRESS_CA: tdsk-egress-ca
+  # Read-only, secrets-scoped DB credentials for the standalone egress service
+  TDSK_KUBE_SCRT_DB_EGRESS: tdsk-database-egress
   # S3 object store configuration secret (multi-value)
   TDSK_KUBE_SCRT_S3_CFG: tdsk-s3-secret
 
@@ -244,6 +246,13 @@ env:
 
   # Post used by the egress proxy called by sandbox pods with outbound traffic
   TDSK_BE_EGRESS_PORT: 8889
+
+  # ---- Egress Service ENVs --- #
+  # Standalone MITM egress proxy deployment (separate from the backend so a
+  # backend deploy never restarts the egress path)
+  TDSK_EGRESS_DEPLOYMENT: tdsk-egress
+  # Health/readiness endpoint port for the egress service
+  TDSK_EGRESS_HEALTH_PORT: 8890
 
   # ---- Admin ENVs --- #
   TDSK_AD_APP_URL: http://localhost:5887

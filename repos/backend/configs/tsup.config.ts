@@ -8,6 +8,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.join(dirname, `..`)
 const outdir = path.join(rootDir, `dist`)
 const entry = path.join(rootDir, `src/index.ts`)
+// Standalone MITM egress service — same image, separate process (dist/egress.cjs)
+const egressEntry = path.join(rootDir, `src/egress.ts`)
 
 const getExternal = () => {
   return [
@@ -41,7 +43,7 @@ export default defineConfig(async () => {
     splitting: false,
     outDir: outdir,
     format: [`cjs`],
-    entry: [entry],
+    entry: [entry, egressEntry],
     noExternal: [/(.*)/],
     esbuildOptions: (options, context) => {
       options && (options.external = getExternal())

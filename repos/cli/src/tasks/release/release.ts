@@ -44,6 +44,15 @@ const deployTagEnvs = (
     TDSK_CADDY_IMAGE_TAG: resolve(`caddy`),
     TDSK_SB_IMAGE_TAG: resolve(`sandbox`),
     TDSK_SB_INIT_IMAGE_TAG: resolve(`init`),
+    // The egress service shares the backend image but pins its OWN tag: it
+    // advances only when egress-relevant code changed (changes.egress), so a
+    // routine backend release never rolls the egress pod (rolling it breaks
+    // every running sandbox's egress DNAT until the sandbox is recreated).
+    // Bootstrap fallback: with no prior egress deployment, point at the
+    // backend's current image so the first deploy always has a real image.
+    TDSK_EGRESS_IMAGE_TAG: changes.egress
+      ? newTag
+      : parseTag(previous[`egress`]) || parseTag(previous[`backend`]) || `latest`,
   }
 }
 
@@ -58,6 +67,7 @@ const logScope = (changes: TChangedContexts) => {
   Logger.pair(`  Frontends`, changes.firebase.join(`, `) || `(none)`)
   Logger.pair(`  DB push`, changes.db ? `yes` : `no`)
   Logger.pair(`  Config deploy`, changes.deployConfig ? `yes` : `no`)
+  Logger.pair(`  Egress roll`, changes.egress ? `yes` : `no (tag pinned)`)
 }
 
 const releaseAct: TTaskAction = async (args) => {

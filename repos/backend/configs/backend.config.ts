@@ -31,6 +31,8 @@ const {
   TDSK_BE_API_ADMIN_PATH,
   TDSK_LOG_LEVEL = `info`,
   TDSK_BE_EGRESS_PORT = 8889,
+  TDSK_EGRESS_DEPLOYMENT = `tdsk-egress`,
+  TDSK_EGRESS_HEALTH_PORT = 8890,
   TDSK_KUBE_SCRT_EGRESS_CA = `tdsk-egress-ca`,
 
   TDSK_PAY_TYPE,
@@ -98,8 +100,11 @@ export const config = {
   },
   egress: {
     initImage: TDSK_SB_INIT_IMAGE,
-    serviceName: TDSK_BE_DEPLOYMENT,
+    // The standalone MITM egress deployment (NOT the backend) — sandbox pods
+    // DNAT their egress to a ready pod of this deployment, resolved per launch.
+    serviceName: TDSK_EGRESS_DEPLOYMENT,
     servicePort: toNum(TDSK_BE_EGRESS_PORT),
+    healthPort: toNum(TDSK_EGRESS_HEALTH_PORT),
     certSecretName: TDSK_KUBE_SCRT_EGRESS_CA,
     serviceIp: undefined as string | undefined,
   },
