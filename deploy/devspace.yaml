@@ -14,7 +14,7 @@ pipelines:
   dev:
     run: |-
       ensure_pull_secrets --all
-      run_pipelines start-caddy start-px start-backend deploy-embeddings
+      run_pipelines start-caddy start-px start-backend deploy-embeddings deploy-egress
 
   deploy:
     run: |-
@@ -28,7 +28,7 @@ pipelines:
       # `fork/exec ~/.devspace/bin/helm: text file busy` (run 28717891612).
       # Zero maintenance: DevSpace chooses the version, we pin nothing.
       run_pipelines deploy-caddy
-      run_pipelines deploy-px deploy-backend deploy-embeddings
+      run_pipelines deploy-px deploy-backend deploy-embeddings deploy-egress
 
   deploy-caddy:
     run: |-
@@ -45,6 +45,12 @@ pipelines:
   deploy-embeddings:
     run: |-
       create_deployments tdsk-embeddings
+
+  # Standalone MITM egress proxy — deploy-only (no start_dev): its whole point
+  # is to stay running across backend restarts, in local dev too.
+  deploy-egress:
+    run: |-
+      create_deployments tdsk-egress
 
   start-caddy:
     run: |-
@@ -158,6 +164,23 @@ vars:
   TDSK_KUBE_SCRT_EGRESS_CA:
     source: env
     default: tdsk-egress-ca
+
+# ----- Egress Service Values ----- #
+# Standalone MITM egress proxy (separated from the backend so a backend deploy
+# never restarts the egress path). Shares the backend image; its tag is pinned
+# by `tdsk release` and only moves when egress-relevant code changes.
+  TDSK_EGRESS_DEPLOYMENT:
+    source: env
+    default: tdsk-egress
+  TDSK_EGRESS_IMAGE_TAG:
+    source: env
+    default: latest
+  TDSK_EGRESS_HEALTH_PORT:
+    source: env
+    default: 8890
+  TDSK_KUBE_SCRT_DB_EGRESS:
+    source: env
+    default: tdsk-database-egress
 
 # ----- Embeddings Values ----- #
 # Self-hosted HF Text Embeddings Inference (TEI). Serves an OpenAI-compatible
@@ -446,7 +469,7 @@ deployments:
           podSelector:
             tdsk.app/managed: "true"
           egressSelector:
-            app.kubernetes.io/component: tdsk-backend
+            app.kubernetes.io/component: ${TDSK_EGRESS_DEPLOYMENT}
           egressPorts:
             - port: ${TDSK_BE_EGRESS_PORT}
         serviceAccountName: tdsk-backend-sa
@@ -686,23 +709,11 @@ deployments:
                     key: region
                     name: ${TDSK_KUBE_SCRT_S3_CFG}
                     optional: true
-            volumeMounts:
-              - containerPath: /etc/tdsk/ca
-                volume:
-                  name: egress-ca-cert
-                  readOnly: true
-        volumes:
-          - name: egress-ca-cert
-            secret:
-              secretName: ${TDSK_KUBE_SCRT_EGRESS_CA}
-              optional: true
         service:
           name: ${TDSK_BE_DEPLOYMENT}
           ports:
             - port: ${TDSK_BE_PORT}
               name: tdsk-backend-api
-            - port: ${TDSK_BE_EGRESS_PORT}
-              name: tdsk-backend-egress
         #ingress:
         #  tls: false
         #  labels: null
@@ -715,6 +726,121 @@ deployments:
         #      serviceName: ${TDSK_BE_DEPLOYMENT}
         #      servicePort: ${TDSK_BE_PORT}
 
+
+  # Standalone MITM egress proxy. Sandbox pods DNAT all outbound 80/443 to a
+  # READY pod of this deployment (IP resolved per sandbox launch by the
+  # backend), so this process staying alive is what keeps running sandboxes'
+  # egress working across backend rollouts. Shares the backend image but runs
+  # `dist/egress.cjs` — and its tag is pinned by `tdsk release`, so it only
+  # rolls when egress-relevant code actually changed, never on routine backend
+  # releases. Rolling update is surge-only with strict readiness (routes
+  # hydrated + DB reachable + proxy listening) so a bad egress image can never
+  # replace a working egress pod.
+  tdsk-egress:
+    helm:
+      upgradeArgs:
+        - "--force"
+      chart:
+        name: ./
+      valuesFiles:
+        - ./values.empty.yaml
+        - ./values.yaml
+        - ./values.${NODE_ENV}.yaml
+      values:
+        # Same stable pool as the backend (see the tdsk-backend nodeSelector note)
+        nodeSelector:
+          kubernetes.civo.com/civo-node-pool: tdskembed
+        rollingUpdate:
+          enabled: true
+          maxSurge: 1
+          maxUnavailable: 0
+        serviceAccountName: tdsk-egress-sa
+        customServiceAccount:
+          name: tdsk-egress-sa
+          role:
+            # Read-only: route hydration + watch ONLY. No delete/create — pod
+            # lifecycle stays with the backend; this process must never manage it.
+            name: tdsk-egress-routes
+            rules:
+              - apiGroups:
+                  - ""
+                resources:
+                  - pods
+                verbs:
+                  - get
+                  - list
+                  - watch
+          binding:
+            name: tdsk-egress-routes-binding
+        containers:
+          - name: ${TDSK_EGRESS_DEPLOYMENT}
+            image: ${TDSK_BE_IMAGE}:${TDSK_EGRESS_IMAGE_TAG}
+            imagePullPolicy: IfNotPresent
+            command:
+              - pnpm
+              - serve:egress
+            startupProbe:
+              httpGet:
+                path: /health
+                port: ${TDSK_EGRESS_HEALTH_PORT}
+              periodSeconds: 5
+              failureThreshold: 60
+              timeoutSeconds: 8
+            readinessProbe:
+              httpGet:
+                path: /health
+                port: ${TDSK_EGRESS_HEALTH_PORT}
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 8
+            livenessProbe:
+              httpGet:
+                path: /live
+                port: ${TDSK_EGRESS_HEALTH_PORT}
+              periodSeconds: 15
+              failureThreshold: 4
+              timeoutSeconds: 3
+            env:
+              - name: NODE_ENV
+                value: ${NODE_ENV}
+              - name: TDSK_IN_KUBE
+                value: true
+              - name: TDSK_SUB_REPO
+                value: backend
+              - name: TDSK_EGRESS_HEALTH_PORT
+                value: ${TDSK_EGRESS_HEALTH_PORT}
+              - name: TDSK_BE_EGRESS_PORT
+                value: ${TDSK_BE_EGRESS_PORT}
+              - name: TDSK_MASTER_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: token
+                    name: ${TDSK_KUBE_SCRT_MASTER_KEY}
+                    optional: false
+              # Least-privilege: a read-only, secrets-scoped DB role — NOT the
+              # backend's full-access credentials. This process terminates TLS
+              # for untrusted sandbox traffic; compromise must not grant DB write.
+              - name: TDSK_DB_URL
+                valueFrom:
+                  secretKeyRef:
+                    key: url
+                    name: ${TDSK_KUBE_SCRT_DB_EGRESS}
+                    optional: false
+            volumeMounts:
+              - containerPath: /etc/tdsk/ca
+                volume:
+                  name: egress-ca-cert
+                  readOnly: true
+        volumes:
+          - name: egress-ca-cert
+            secret:
+              secretName: ${TDSK_KUBE_SCRT_EGRESS_CA}
+              optional: false
+        service:
+          name: ${TDSK_EGRESS_DEPLOYMENT}
+          ports:
+            - port: ${TDSK_BE_EGRESS_PORT}
+              name: tdsk-egress-mitm
 
   # Self-hosted embedding service (HF Text Embeddings Inference). Third-party
   # public image — NOT built by `tdsk release`; deployed via the deploy pipeline.
@@ -900,6 +1026,20 @@ profiles:
         - ${TDSK_KUBE_SCRT_DOC_PULL}
     - op: add
       path: deployments.tdsk-backend.helm.values.pullSecrets
+      value:
+        - ${TDSK_KUBE_SCRT_DOC_PULL}
+
+    # Egress service: production image ref + pull secret. Tag stays pinned by
+    # the release pipeline (TDSK_EGRESS_IMAGE_TAG) so routine backend releases
+    # never roll the egress pod.
+    - op: replace
+      path: deployments.tdsk-egress.helm.values.containers[0].image
+      value: ghcr.io/threadedstack/tdsk-backend:${TDSK_EGRESS_IMAGE_TAG}
+    - op: replace
+      path: deployments.tdsk-egress.helm.values.containers[0].imagePullPolicy
+      value: Always
+    - op: add
+      path: deployments.tdsk-egress.helm.values.pullSecrets
       value:
         - ${TDSK_KUBE_SCRT_DOC_PULL}
 

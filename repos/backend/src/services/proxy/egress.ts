@@ -102,6 +102,11 @@ export class EgressProxy {
     }
   }
 
+  /** True once the front TCP server accepts connections — consumed by the standalone service's health endpoint. */
+  get listening(): boolean {
+    return Boolean(this.frontServer?.listening)
+  }
+
   constructor(opts: TEgressProxyOpts) {
     this.routes = opts.routes
     this.caKeyPath = opts.caKeyPath

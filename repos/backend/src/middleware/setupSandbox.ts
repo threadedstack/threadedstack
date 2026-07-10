@@ -1,27 +1,22 @@
 import type { TApp } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
-import { EgressProxy } from '@TBE/services/proxy/egress'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
 
+/**
+ * Sandbox lifecycle bootstrap. The MITM egress proxy is NOT started here — it
+ * runs as the standalone `tdsk-egress` deployment (see src/egress.ts) so a
+ * backend deploy never restarts the egress path. Sandbox pods DNAT to a ready
+ * egress pod's IP, resolved per launch in SandboxService.startPod.
+ */
 export const setupSandbox = async (app: TApp) => {
-  const podIp = SandboxService.getPodIp()
-  if (podIp) app.locals.config.egress.serviceIp = podIp
-
   const kube = await SandboxService.initKube(app)
-  const egressProxy = await EgressProxy.init(app)
 
   const cleanup = () => {
     try {
       kube?.cleanup?.()
     } catch (err) {
       logger.error(`[Sandbox] KubeClient cleanup failed:`, (err as Error).message)
-    }
-
-    try {
-      egressProxy?.stop?.()
-    } catch (err) {
-      logger.error(`[Sandbox] EgressProxy cleanup failed:`, (err as Error).message)
     }
   }
 

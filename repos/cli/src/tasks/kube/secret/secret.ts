@@ -9,6 +9,7 @@ import { docker } from './docker'
 import { egress } from './egress'
 import { payments } from './payments'
 import { database } from './database'
+import { databaseEgress } from './databaseEgress'
 import { Logger } from '@tdsk/logger'
 import { writeFileSync, rmSync } from 'fs'
 import { uuid } from '@keg-hub/jsutils/uuid'
@@ -185,6 +186,7 @@ export const secret: TTask = {
     egress,
     payments,
     database,
+    databaseEgress,
   },
   options: {
     name: {

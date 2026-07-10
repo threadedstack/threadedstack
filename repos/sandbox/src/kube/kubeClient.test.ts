@@ -322,6 +322,19 @@ describe(`KubeClient`, () => {
       })
     })
 
+    it(`gc: false hydrates routes but never deletes terminal pods (read-only consumers)`, async () => {
+      const failedPod = makePod({
+        metadata: { name: `tdsk-sb-fail-aaaa` },
+        status: { phase: EContainerState.Failed, podIP: `10.0.0.8` },
+      })
+      mockCoreApi.listNamespacedPod.mockResolvedValue({ items: [failedPod] })
+
+      await client.hydrate({ gc: false })
+
+      expect(mockCoreApi.deleteNamespacedPod).not.toHaveBeenCalled()
+      expect(Object.keys(client.routes)).toHaveLength(0)
+    })
+
     it(`should log warning when cleanup deletion fails but continue`, async () => {
       const failedPod = makePod({
         metadata: { name: `tdsk-sb-fail-aaaa` },
@@ -1284,6 +1297,9 @@ describe(`KubeClient`, () => {
         restartCount: 2,
         image: `backend:v2`,
         node: `node-1`,
+        podIp: undefined,
+        // containerStatuses present but no ready flag → not ready
+        ready: false,
       })
     })
 
@@ -1324,7 +1340,45 @@ describe(`KubeClient`, () => {
         restartCount: 0,
         image: undefined,
         node: undefined,
+        podIp: undefined,
+        // No containerStatuses at all → not ready
+        ready: false,
       })
+    })
+
+    it(`returns podIp and ready=true only when every container is ready`, async () => {
+      mockCoreApi.listNamespacedPod.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: `egress-ready` },
+            status: {
+              phase: `Running`,
+              podIP: `10.0.4.99`,
+              containerStatuses: [{ restartCount: 0, ready: true }],
+            },
+            spec: { containers: [{ image: `backend:v3` }] },
+          },
+          {
+            metadata: { name: `egress-not-ready` },
+            status: {
+              phase: `Running`,
+              podIP: `10.0.4.100`,
+              containerStatuses: [
+                { restartCount: 0, ready: true },
+                { restartCount: 1, ready: false },
+              ],
+            },
+            spec: { containers: [{ image: `backend:v3` }] },
+          },
+        ],
+      })
+
+      const result = await client.listPodsBySelector(`app=egress`)
+
+      expect(result[0].podIp).toBe(`10.0.4.99`)
+      expect(result[0].ready).toBe(true)
+      expect(result[1].podIp).toBe(`10.0.4.100`)
+      expect(result[1].ready).toBe(false)
     })
   })
 

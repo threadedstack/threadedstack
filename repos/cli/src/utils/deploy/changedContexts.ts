@@ -12,6 +12,14 @@ export type TChangedContexts = {
   db: boolean
   /** True when deploy config (helm templates/values/devspace) changed — deploy without rebuilding */
   deployConfig: boolean
+  /**
+   * True when egress-relevant code changed. The tdsk-egress deployment shares
+   * the backend image but pins its OWN tag: rolling the egress pod breaks
+   * every running sandbox's egress DNAT until the sandbox is recreated, so it
+   * must only roll when its code cone actually changed — never on routine
+   * backend releases.
+   */
+  egress: boolean
   /** The deployed SHA the diff was taken against (undefined when unknown) */
   baseline?: string
   /** Human readable explanation of how targets were selected */
@@ -30,12 +38,21 @@ export const ALL_FIREBASE = [`admin`, `threads`, `website`]
  */
 export const mapChangedFiles = (
   files: string[]
-): Pick<TChangedContexts, `docker` | `firebase` | `db` | `deployConfig`> => {
+): Pick<TChangedContexts, `docker` | `firebase` | `db` | `deployConfig` | `egress`> => {
   const docker = new Set<string>()
   const firebase = new Set<string>()
   let db = false
 
   const has = (re: RegExp) => files.some((file) => re.test(file))
+
+  // The egress service's code cone: its entrypoint, the MITM proxy + its
+  // guards, secret resolution, the kube route client, and the DB secret read
+  // path. Every path here also triggers a backend image build (the cone is a
+  // subset of the backend triggers), so a changed cone always has a freshly
+  // built image to point at.
+  const egress = has(
+    /^repos\/backend\/src\/(egress\.ts|services\/proxy\/|services\/secrets\/|utils\/proxy\/)|^repos\/sandbox\/src\/kube\/|^repos\/database\/src\/(database\.ts|services\/secret\.ts)/
+  )
 
   // Shared backend deps (domain, database, logger) rebuild both proxy + backend
   if (has(/^repos\/(domain|database|logger)\//)) {
@@ -89,6 +106,9 @@ export const mapChangedFiles = (
     firebase: ALL_FIREBASE.filter((app) => firebase.has(app)),
     db,
     deployConfig,
+    // Root-level shared files rebuild the backend image the egress service
+    // runs on, so its pinned tag must advance with them too.
+    egress: egress || has(/^(pnpm-lock\.yaml|package\.json|tsconfig\.json|\.npmrc)$/),
   }
 }
 
@@ -98,6 +118,7 @@ export const everything = (reason: string): TChangedContexts => ({
   firebase: [...ALL_FIREBASE],
   db: true,
   deployConfig: true,
+  egress: true,
   reason,
 })
 
@@ -106,7 +127,8 @@ export const isNoop = (changes: TChangedContexts): boolean =>
   !changes.docker.length &&
   !changes.firebase.length &&
   !changes.db &&
-  !changes.deployConfig
+  !changes.deployConfig &&
+  !changes.egress
 
 /**
  * Reads the git SHA currently deployed to the cluster from the backend

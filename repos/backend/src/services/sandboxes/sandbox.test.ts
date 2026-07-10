@@ -111,6 +111,19 @@ const makeKube = () => ({
   updateRoutePort: vi.fn(),
   removeRoutePort: vi.fn(),
   patchPodAnnotation: vi.fn(),
+  // startPod resolves the egress DNAT target from a ready pod of the egress
+  // deployment — default: one ready pod so launches succeed.
+  listPodsBySelector: vi.fn().mockResolvedValue([
+    {
+      name: `tdsk-egress-abc`,
+      phase: `Running`,
+      restartCount: 0,
+      image: `backend:test`,
+      node: `node-1`,
+      podIp: `10.0.9.9`,
+      ready: true,
+    },
+  ]),
   routes: {} as Record<string, any>,
 })
 
@@ -315,10 +328,60 @@ describe(`SandboxService`, () => {
           orgId: `org-1`,
           userId: `user-1`,
           projectId: `proj-1`,
-          egressOpts: baseOpts.egressOpts,
+          // egressOpts arrive as a CLONE with the resolved egress pod IP
+          egressOpts: { ...baseOpts.egressOpts, serviceIp: `10.0.9.9` },
         })
       )
       expect(kube.createPod).toHaveBeenCalledWith({ metadata: { name: `tdsk-sb-test` } })
+    })
+
+    it(`resolves the egress DNAT target from a READY egress pod and never mutates the shared egressOpts`, async () => {
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+      // Not-ready and IP-less pods must be skipped in favor of the ready one
+      kube.listPodsBySelector.mockResolvedValue([
+        { name: `egress-a`, phase: `Running`, ready: false, podIp: `10.0.9.1` },
+        { name: `egress-b`, phase: `Pending`, ready: true, podIp: `10.0.9.2` },
+        { name: `egress-c`, phase: `Running`, ready: true, podIp: undefined },
+        { name: `egress-d`, phase: `Running`, ready: true, podIp: `10.0.9.4` },
+      ])
+
+      await svc.startPod(baseOpts as any)
+
+      // Selector targets the egress deployment from egressOpts.serviceName
+      expect(kube.listPodsBySelector).toHaveBeenCalledWith(
+        `app.kubernetes.io/component=egress`
+      )
+      expect(mockBuildPodManifest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          egressOpts: { ...baseOpts.egressOpts, serviceIp: `10.0.9.4` },
+        })
+      )
+      // The shared config object must never be mutated (a per-call clone)
+      expect(baseOpts.egressOpts).toEqual({
+        serviceName: `egress`,
+        servicePort: 8080,
+        certSecretName: `cert`,
+      })
+    })
+
+    it(`FAILS CLOSED with 503 when no ready egress pod exists (never launches with dead egress)`, async () => {
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+        error: null,
+      })
+      kube.listPodsBySelector.mockResolvedValue([
+        { name: `egress-a`, phase: `Running`, ready: false, podIp: `10.0.9.1` },
+      ])
+
+      await expect(svc.startPod(baseOpts as any)).rejects.toMatchObject({
+        status: 503,
+      })
+      expect(kube.createPod).not.toHaveBeenCalled()
     })
 
     it(`should generate placeholder tokens for each secretId in config`, async () => {
@@ -521,7 +584,9 @@ describe(`SandboxService`, () => {
       await svc.startPod({ ...baseOpts, egressOpts: customEgress } as any)
 
       expect(mockBuildPodManifest).toHaveBeenCalledWith(
-        expect.objectContaining({ egressOpts: customEgress })
+        expect.objectContaining({
+          egressOpts: { ...customEgress, serviceIp: `10.0.9.9` },
+        })
       )
     })
 
