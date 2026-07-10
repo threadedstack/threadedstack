@@ -6,6 +6,7 @@ import type { TOAuthConfig, TEndpointOpts, TBodyTransformConfig } from '@tdsk/do
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isDomainAllowed } from '@TBE/utils/proxy/domainMatch'
+import { guardedFetch } from '@TBE/utils/proxy/egressGuard'
 import { Exception, EEPCredential, EEPAuthType } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
@@ -90,7 +91,11 @@ export class ProxyService {
     try {
       logger.debug(`Fetching OAuth token from ${tokenUrl}`)
 
-      const response = await fetch(tokenUrl, {
+      // SSRF guard: the token exchange ships the client-credentials secret, so a
+      // tokenUrl pointing at an internal host (metadata / K8s API / backend) must
+      // be refused before the credentialed request goes out. guardedFetch also
+      // guards each redirect hop.
+      const response = await guardedFetch(tokenUrl, {
         headers,
         method: `POST`,
         body: params.toString(),

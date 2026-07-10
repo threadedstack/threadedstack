@@ -1,4 +1,5 @@
 export * from './buildProxy'
+export * from './egressGuard'
 export * from './proxyError'
 export * from './extractSNI'
 export * from './proxyHeaders'

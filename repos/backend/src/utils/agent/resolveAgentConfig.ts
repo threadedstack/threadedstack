@@ -158,12 +158,19 @@ export const createInvokeProvider = (
   db: TDatabase,
   projectId: string,
   allowlist: string[],
-  agentId: string
+  agentId: string,
+  connectEndpoints: string[] = []
 ): IInvokeProvider => ({
   invoke: (functionName, args) =>
-    invokeAction(app, db, projectId, { function: functionName, args }, allowlist, {
-      agentId,
-    }),
+    invokeAction(
+      app,
+      db,
+      projectId,
+      { function: functionName, args },
+      allowlist,
+      { agentId },
+      connectEndpoints
+    ),
 })
 
 /**
@@ -249,7 +256,15 @@ export const resolveAgentConfig = async (
   app: TApp,
   opts?: TResolveAgentOpts
 ): Promise<TResolvedAgentConfig> => {
-  const { userId, projectId, providerId, overrides, onPodStart, actions } = opts || {}
+  const {
+    userId,
+    projectId,
+    providerId,
+    overrides,
+    onPodStart,
+    actions,
+    connectEndpoints,
+  } = opts || {}
 
   // 1. Load agent with provider and secrets (unsanitized to access secret values)
   const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
@@ -430,6 +445,7 @@ export const resolveAgentConfig = async (
     return FunctionExecutor.execute(func, {
       db,
       context: { args: input as Record<string, any> },
+      connectEndpoints: connectEndpoints ?? [],
     })
   }
 
@@ -467,7 +483,14 @@ export const resolveAgentConfig = async (
     // invokeAction. Config-gated, not behind a feature flag.
     invokeProvider:
       projectId && actions
-        ? createInvokeProvider(app, db, projectId, actions, agentId)
+        ? createInvokeProvider(
+            app,
+            db,
+            projectId,
+            actions,
+            agentId,
+            connectEndpoints ?? []
+          )
         : undefined,
     // Only wire the skill self-improvement tools when the feature is enabled
     skillProvider: isFeatureEnabled(`skills`)
