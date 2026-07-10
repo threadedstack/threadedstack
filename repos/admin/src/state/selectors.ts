@@ -13,6 +13,7 @@ import type {
   Schedule,
   Endpoint,
   Organization,
+  TCollectionWithCount,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
@@ -79,6 +80,7 @@ import {
   activeFunctionIdState,
   projectFunctionsState,
 } from '@TAF/state/functions'
+import { projectCollectionsState } from '@TAF/state/collections'
 import {
   agentsState,
   activeAgentIdState,
@@ -249,6 +251,10 @@ export const useScheduleRuns = () => useRecState(scheduleRunsState)
 // Project-scoped schedules
 export const useProjectSchedules = () =>
   useDerivedState<Record<string, Schedule>>(projectSchedulesState)
+
+// Project-scoped collections
+export const useProjectCollections = () =>
+  useDerivedState<Record<string, TCollectionWithCount>>(projectCollectionsState)
 
 // Project-scoped members
 export const useProjectMembers = () => useRecState(projectMembersState)

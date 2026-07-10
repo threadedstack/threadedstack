@@ -38,6 +38,7 @@ const buildApp = () =>
             query: vi.fn(),
             get: vi.fn(),
             delete: vi.fn(),
+            countsByProject: vi.fn().mockResolvedValue({ data: {} }),
           },
           role: {
             getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -201,6 +202,82 @@ describe(`Collections endpoints`, () => {
           buildCtx().res
         )
       ).rejects.toMatchObject({ status: 400 })
+    })
+  })
+
+  describe(`listCollections action`, () => {
+    it(`annotates each collection with its record count from the aggregate map`, async () => {
+      const app = buildApp()
+      const svc = app.locals.db.services
+
+      const tasks = new CollectionModel({
+        id: `col_tasks01`,
+        name: `tasks`,
+        projectId: `project-1`,
+      })
+      const notes = new CollectionModel({
+        id: `col_notes01`,
+        name: `notes`,
+        projectId: `project-1`,
+      })
+
+      ;(svc.collection.listByProject as any).mockResolvedValue({ data: [tasks, notes] })
+      ;(svc.record.countsByProject as any).mockResolvedValue({
+        data: { col_tasks01: 4 },
+      })
+
+      const ctx = buildCtx()
+      await listCollections.action!(
+        buildReq(app, { orgId: `org-1`, projectId: `project-1` }),
+        ctx.res
+      )
+
+      expect(ctx.status).toHaveBeenCalledWith(200)
+      const { data } = ctx.json.mock.calls[0][0] as { data: any[] }
+      expect(data).toEqual([
+        expect.objectContaining({ id: `col_tasks01`, recordCount: 4 }),
+        expect.objectContaining({ id: `col_notes01`, recordCount: 0 }),
+      ])
+    })
+
+    it(`defaults recordCount to 0 for a collection absent from the counts map`, async () => {
+      const app = buildApp()
+      const svc = app.locals.db.services
+
+      const empty = new CollectionModel({
+        id: `col_empty01`,
+        name: `empty`,
+        projectId: `project-1`,
+      })
+
+      ;(svc.collection.listByProject as any).mockResolvedValue({ data: [empty] })
+      ;(svc.record.countsByProject as any).mockResolvedValue({ data: {} })
+
+      const ctx = buildCtx()
+      await listCollections.action!(
+        buildReq(app, { orgId: `org-1`, projectId: `project-1` }),
+        ctx.res
+      )
+
+      const { data } = ctx.json.mock.calls[0][0] as { data: any[] }
+      expect(data[0].recordCount).toBe(0)
+    })
+
+    it(`throws a 500 when the counts aggregate fails`, async () => {
+      const app = buildApp()
+      const svc = app.locals.db.services
+
+      ;(svc.collection.listByProject as any).mockResolvedValue({ data: [] })
+      ;(svc.record.countsByProject as any).mockResolvedValue({
+        error: new Error(`db unavailable`),
+      })
+
+      await expect(
+        listCollections.action!(
+          buildReq(app, { orgId: `org-1`, projectId: `project-1` }),
+          buildCtx().res
+        )
+      ).rejects.toMatchObject({ status: 500 })
     })
   })
 

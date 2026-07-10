@@ -33,6 +33,7 @@ const createMockDb = () => {
     `onConflictDoUpdate`,
     `returning`,
     `set`,
+    `groupBy`,
   ]
   for (const method of methods) chain[method] = vi.fn(() => chain)
   chain.then = (resolve: any, reject: any) => {
@@ -225,6 +226,34 @@ describe(`Record service`, () => {
       mocks.enqueue([fakeCollectionRow()], [{ value: 4 }])
       const res = await service.count(`pj_projA0`, `items`)
       expect(res.data).toBe(4)
+    })
+  })
+
+  describe(`countsByProject`, () => {
+    it(`returns a single grouped map of collectionId -> record count`, async () => {
+      mocks.enqueue([
+        { collectionId: `col_items01`, value: 4 },
+        { collectionId: `col_notes01`, value: 1 },
+      ])
+      const res = await service.countsByProject(`pj_projA0`)
+
+      expect(mocks.selectFn).toHaveBeenCalledTimes(1)
+      expect(mocks.chain.groupBy).toHaveBeenCalledTimes(1)
+      const where = render(mocks.chain.where.mock.calls[0][0])
+      expect(where.params).toContain(`pj_projA0`)
+      expect(res.data).toEqual({ col_items01: 4, col_notes01: 1 })
+    })
+
+    it(`omits collections with zero records — an empty groupBy result yields an empty map`, async () => {
+      mocks.enqueue([])
+      const res = await service.countsByProject(`pj_projA0`)
+      expect(res.data).toEqual({})
+    })
+
+    it(`returns an error when the query throws`, async () => {
+      mocks.enqueue(new Error(`db down`))
+      const res = await service.countsByProject(`pj_projA0`)
+      expect(res.error).toBeInstanceOf(Error)
     })
   })
 

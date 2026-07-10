@@ -67,3 +67,19 @@ export type TRecordQuery = {
   limit?: number
   offset?: number
 }
+
+/**
+ * A collection row as returned by the list endpoint — the Collection fields
+ * plus its record count. `recordCount` is computed via an aggregate query
+ * (not a stored column), and is list-only — `getCollection` does not include it.
+ */
+export type TCollectionWithCount = {
+  id: string
+  name: string
+  description: string | null
+  schema: TCollectionSchema | null
+  projectId: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
+  recordCount: number
+}

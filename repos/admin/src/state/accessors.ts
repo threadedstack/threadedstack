@@ -34,6 +34,7 @@ import type {
   TEscalation,
   TVerification,
   TOpsActionRow,
+  TCollectionWithCount,
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
@@ -66,6 +67,7 @@ import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import { collectionsState } from '@TAF/state/collections'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
 import {
@@ -376,6 +378,22 @@ export const setContextSchedules = (
 export const getActiveScheduleId = () => store.get(activeScheduleIdState)
 export const resetActiveScheduleId = () => store.set(activeScheduleIdState, undefined)
 export const setActiveScheduleId = (id: string) => store.set(activeScheduleIdState, id)
+
+// Collections (project-scoped, context-keyed)
+export const getCollections = () => store.get(collectionsState)
+export const resetCollections = () => store.set(collectionsState, undefined)
+export const setCollections = (
+  collections: Record<string, Record<string, TCollectionWithCount>>
+) => store.set(collectionsState, collections)
+
+export const getContextCollections = (projectId: string) => getCollections()?.[projectId]
+export const setContextCollections = (
+  projectId: string,
+  collections: Record<string, TCollectionWithCount>
+) => {
+  const all = getCollections() || {}
+  setCollections({ ...all, [projectId]: collections })
+}
 
 export const getScheduleRuns = () => store.get(scheduleRunsState)
 export const resetScheduleRuns = () => store.set(scheduleRunsState, undefined)

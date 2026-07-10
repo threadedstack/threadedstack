@@ -26,6 +26,7 @@ import { fetchSandboxes } from '@TAF/actions/sandboxes/api/fetchSandboxes'
 import { fetchSchedules } from '@TAF/actions/schedules/api/fetchSchedules'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
+import { fetchCollections } from '@TAF/actions/collections/api/fetchCollections'
 import { fetchOverrides } from '@TAF/actions/permissionOverrides/api/fetchOverrides'
 import { fetchPaymentPlans } from '@TAF/actions/subscriptions/api/fetchPaymentPlans'
 import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectMembers'
@@ -64,6 +65,7 @@ import {
   getProjectEndpoints,
   getContextSchedules,
   getProjectFunctions,
+  getContextCollections,
   setActiveEndpointId,
   getContextSandboxes,
   getPermissionOverrides,
@@ -403,6 +405,16 @@ export const projectFunctionsLoader = async ({ params }: LoaderFunctionArgs) => 
 
   if (!getProjectFunctions(projectId))
     safeFetch(() => fetchFunctions({ orgId, projectId }))
+  return null
+}
+
+export const projectCollectionsLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, projectId } = params
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
+
+  if (!getContextCollections(projectId))
+    safeFetch(() => fetchCollections({ orgId, projectId }))
   return null
 }
 
