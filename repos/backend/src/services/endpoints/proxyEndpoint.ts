@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'http'
 import type { Response } from 'express'
 import type { TRequest } from '@TBE/types'
 import type { Endpoint, TProxyEndpointConfig } from '@tdsk/domain'
@@ -10,6 +11,15 @@ import { addEndpointHeaders, assertSafeEgressUrl, guardedFetch } from '@TBE/util
 import { BaseEndpoint } from '@TBE/services/endpoints/base'
 import { ProxyService, RetryService } from '@TBE/services/proxy'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
+
+/**
+ * The proxyRes/error handlers below receive the SAME underlying request
+ * object as `execute`'s `req` (Express decorates Node's IncomingMessage
+ * in place), so they stash the upstream status code on it for the retry
+ * loop and error handler to read back. This type documents that shared
+ * mutable field instead of reaching for `as any` at every read/write site.
+ */
+type TProxyStatusCarrier = { __proxyStatusCode?: number }
 
 /**
  * ProxyEndpoint
@@ -142,7 +152,9 @@ export class ProxyEndpoint extends BaseEndpoint {
                     }
 
                     if (statusCode >= 400) {
-                      ;(request as any).__proxyStatusCode = statusCode
+                      ;(
+                        request as IncomingMessage & TProxyStatusCarrier
+                      ).__proxyStatusCode = statusCode
                     }
 
                     if (opts.transform && opts.transform.injectSecrets) {
@@ -164,14 +176,15 @@ export class ProxyEndpoint extends BaseEndpoint {
                     return responseBuffer
                   } catch (error) {
                     logger.error(`Error in proxyRes handler:`, error)
-                    ;(response as any).setHeader('x-tdsk-transform-error', '1')
+                    response.setHeader('x-tdsk-transform-error', '1')
                     return responseBuffer
                   }
                 }
               ),
 
               error: async (err, request, response) => {
-                const statusCode = (request as any).__proxyStatusCode
+                const statusCode = (request as IncomingMessage & TProxyStatusCarrier)
+                  .__proxyStatusCode
 
                 retryService.meta.update(err)
 
@@ -215,7 +228,7 @@ export class ProxyEndpoint extends BaseEndpoint {
           // Don't retry if headers already sent — response is committed
           if (res.headersSent) break
 
-          const statusCode = (req as any).__proxyStatusCode
+          const statusCode = (req as TRequest & TProxyStatusCarrier).__proxyStatusCode
 
           if (!retryService.shouldRetry(error, statusCode)) break
 
@@ -229,7 +242,8 @@ export class ProxyEndpoint extends BaseEndpoint {
         metadata && metadata.attempt > 0 && retryService.logStatus(false)
 
         if (!res.headersSent) {
-          const statusCode = (req as any).__proxyStatusCode || 502
+          const statusCode =
+            (req as TRequest & TProxyStatusCarrier).__proxyStatusCode || 502
           const errorMessage =
             lastError instanceof Error ? lastError.message : 'Unknown error'
           throw new Exception(statusCode, `Proxy failed after retries: ${errorMessage}`)
