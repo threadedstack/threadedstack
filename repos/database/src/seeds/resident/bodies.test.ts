@@ -12,8 +12,10 @@ import {
 import { ResidentActivations } from '@TDB/seeds/resident/activations'
 import {
   ResidentBodyConfig,
+  ResidentProviderChain,
   reconcileResidentBodies,
   ResidentBootCriticalFields,
+  reconcileResidentProviderChains,
 } from '@TDB/seeds/resident/bodies'
 
 /**
@@ -308,5 +310,284 @@ describe(`reconcileResidentBodies`, () => {
       errors: ResidentActivations.length,
     })
     expect(summary.results.every((r) => r.binding === `error`)).toBe(true)
+  })
+})
+
+/** The three REAL providers the chain resolves to, keyed by their durable
+ * handle — the NAME (ids are prod-random, these stand in for them). */
+const ChainProviderIds: Record<string, string> = {
+  'Claude Subscription OAuth': `pv_oauth001`,
+  'ZAI GLM (fallback)': `pv_zai00001`,
+  'OpenRouter (fallback)': `pv_openrtr1`,
+}
+
+/** The desired link set every seat's sandbox must carry. */
+const desiredChain = ResidentProviderChain.map(({ name, priority }) => ({
+  providerId: ChainProviderIds[name],
+  priority,
+}))
+
+/**
+ * In-memory fake of the agent + provider + links service slice: agents resolve
+ * to a body sandbox via `environment.sandboxId`, providers resolve BY NAME
+ * (the chain's only durable handle), and each sandbox holds a mutable link
+ * set. `replaceCalls` records every replace so tests can prove links were (or
+ * were NOT) touched. Enough to prove the chain reconcile asserts by name,
+ * no-ops on an order-insensitive match, fail-softs on a missing name, and
+ * captures every failure without a live DB.
+ */
+const makeFakeChainService = () => {
+  const agents = new Map<string, { environment?: Record<string, any> | null }>()
+  const providersByName = new Map<string, { id: string }>()
+  const linksBySandbox = new Map<
+    string,
+    { providerId: string; priority: number }[]
+  >()
+  const replaceCalls: {
+    sandboxId: string
+    links: { providerId: string; priority: number }[]
+  }[] = []
+  return {
+    agents,
+    providersByName,
+    linksBySandbox,
+    replaceCalls,
+    service: {
+      agent: {
+        get: async (id: string) => ({ data: agents.get(id) ?? null }),
+      },
+      provider: {
+        findByName: async (name: string) => ({
+          data: providersByName.get(name) ?? null,
+        }),
+      },
+      links: {
+        list: async (sandboxId: string) => ({
+          data: linksBySandbox.get(sandboxId) ?? [],
+        }),
+        replace: async (
+          sandboxId: string,
+          links: { providerId: string; priority: number }[]
+        ) => {
+          replaceCalls.push({ sandboxId, links })
+          linksBySandbox.set(sandboxId, links)
+          return { error: null }
+        },
+      },
+    },
+  }
+}
+
+/** Wire the activated agents to body sandboxes with the given starting link
+ * sets (per-agent overrides; every listed seat gets the desired chain
+ * otherwise) and register the three real providers by name. */
+const seedChains = (
+  fake: ReturnType<typeof makeFakeChainService>,
+  links: Record<string, { providerId: string; priority: number }[]> = {}
+) => {
+  for (const [name, id] of Object.entries(ChainProviderIds))
+    fake.providersByName.set(name, { id })
+  for (const agentId of ResidentActivations) {
+    const sandboxId = BodyByAgent[agentId]
+    fake.agents.set(agentId, { environment: { sandboxId } })
+    fake.linksBySandbox.set(sandboxId, links[agentId] ?? [...desiredChain])
+  }
+}
+
+describe(`ResidentProviderChain`, () => {
+  it(`carries the three real providers by NAME with priorities 0/1/2 and no ids`, () => {
+    // The NAME is the only durable handle — ids are prod-random, so the chain
+    // must never carry one. A rename here breaks resolution in prod.
+    expect(ResidentProviderChain).toEqual([
+      { name: `Claude Subscription OAuth`, priority: 0 },
+      { name: `ZAI GLM (fallback)`, priority: 1 },
+      { name: `OpenRouter (fallback)`, priority: 2 },
+    ])
+  })
+})
+
+describe(`reconcileResidentProviderChains`, () => {
+  it(`asserts the chain by name, replacing drifted seed-provider links`, async () => {
+    const fake = makeFakeChainService()
+    // The proven drift: a fresh seat linked to the SEED providers
+    // (placeholder secrets → continuous LLM 502s).
+    seedChains(fake, {
+      [CtoAgentId]: [
+        { providerId: `pv_seed0001`, priority: 0 },
+        { providerId: `pv_seed0002`, priority: 1 },
+      ],
+    })
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 1,
+      unchanged: ResidentActivations.length - 1,
+      skipped: 0,
+      errors: 0,
+    })
+    // Only the drifted seat was written, and now carries the real chain.
+    expect(fake.replaceCalls).toHaveLength(1)
+    expect(fake.replaceCalls[0].sandboxId).toBe(`sb_cto0001`)
+    expect(fake.linksBySandbox.get(`sb_cto0001`)).toEqual(desiredChain)
+    const cto = summary.results.find((r) => r.agentId === CtoAgentId)!
+    expect(cto).toMatchObject({ action: `asserted`, sandboxId: `sb_cto0001` })
+  })
+
+  it(`is order-insensitive — a matching chain in scrambled row order is unchanged`, async () => {
+    const fake = makeFakeChainService()
+    seedChains(fake, {
+      [CmoAgentId]: [desiredChain[2], desiredChain[0], desiredChain[1]],
+    })
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 0,
+      unchanged: ResidentActivations.length,
+      skipped: 0,
+      errors: 0,
+    })
+    expect(fake.replaceCalls).toHaveLength(0)
+  })
+
+  it(`priority drift on the same providers is NOT a match — the chain is re-asserted`, async () => {
+    const fake = makeFakeChainService()
+    // Same three providers, wrong fallback order (priorities swapped).
+    seedChains(fake, {
+      [CeoAgentId]: [
+        { providerId: ChainProviderIds[`Claude Subscription OAuth`], priority: 2 },
+        { providerId: ChainProviderIds[`ZAI GLM (fallback)`], priority: 1 },
+        { providerId: ChainProviderIds[`OpenRouter (fallback)`], priority: 0 },
+      ],
+    })
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({ asserted: 1, errors: 0 })
+    expect(fake.linksBySandbox.get(`sb_ceo0001`)).toEqual(desiredChain)
+  })
+
+  it(`fail-softs when a chain name is missing — seats are skipped and links untouched`, async () => {
+    const fake = makeFakeChainService()
+    // A drifted seat that WOULD be replaced if the chain were resolvable.
+    const drifted = [{ providerId: `pv_seed0001`, priority: 0 }]
+    seedChains(fake, { [CtoAgentId]: drifted })
+    // A fresh org: one real provider is absent (only seed providers exist).
+    fake.providersByName.delete(`ZAI GLM (fallback)`)
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 0,
+      unchanged: 0,
+      skipped: ResidentActivations.length,
+      errors: 0,
+    })
+    // Fail-soft: NOTHING was written — the drifted seat keeps its links (the
+    // seat still boots; degraded LLM auth is the sensor's silent-turns signal).
+    expect(fake.replaceCalls).toHaveLength(0)
+    expect(fake.linksBySandbox.get(`sb_cto0001`)).toEqual(drifted)
+    for (const result of summary.results) {
+      expect(result.action).toBe(`skipped`)
+      expect(result.message).toContain(`ZAI GLM (fallback)`)
+    }
+  })
+
+  it(`captures failures without throwing — missing agent, missing sandboxId, lookup refused`, async () => {
+    const fake = makeFakeChainService()
+    for (const [name, id] of Object.entries(ChainProviderIds))
+      fake.providersByName.set(name, { id })
+    // CMO agent has no environment.sandboxId; every other seat is absent.
+    fake.agents.set(CmoAgentId, { environment: {} })
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 0,
+      unchanged: 0,
+      skipped: 0,
+      errors: ResidentActivations.length,
+    })
+    const cmo = summary.results.find((r) => r.agentId === CmoAgentId)!
+    expect(cmo.action).toBe(`error`)
+    expect(cmo.message).toContain(`no environment.sandboxId`)
+
+    // A provider lookup ERROR (db refused) is an error, never a silent skip.
+    const lookupFailing = makeFakeChainService()
+    seedChains(lookupFailing)
+    const summary2 = await reconcileResidentProviderChains({
+      ...lookupFailing.service,
+      provider: {
+        findByName: async () => ({ data: null, error: new Error(`db refused`) }),
+      },
+    })
+    expect(summary2.errors).toBe(ResidentActivations.length)
+    expect(summary2.results[0].message).toContain(`db refused`)
+  })
+
+  it(`surfaces list and replace failures as errors, not throws`, async () => {
+    const listFailing = makeFakeChainService()
+    seedChains(listFailing)
+    const listSummary = await reconcileResidentProviderChains({
+      ...listFailing.service,
+      links: {
+        ...listFailing.service.links,
+        list: async () => ({ error: new Error(`list refused`) }),
+      },
+    })
+    expect(listSummary.errors).toBe(ResidentActivations.length)
+    expect(listSummary.results[0].message).toContain(`list refused`)
+
+    const replaceFailing = makeFakeChainService()
+    // Every seat drifted so every seat attempts a replace.
+    seedChains(
+      replaceFailing,
+      Object.fromEntries(
+        ResidentActivations.map((agentId) => [
+          agentId,
+          [{ providerId: `pv_seed0001`, priority: 0 }],
+        ])
+      )
+    )
+    const replaceSummary = await reconcileResidentProviderChains({
+      ...replaceFailing.service,
+      links: {
+        ...replaceFailing.service.links,
+        replace: async () => ({ error: new Error(`replace refused`) }),
+      },
+    })
+    expect(replaceSummary.errors).toBe(ResidentActivations.length)
+    expect(replaceSummary.results.every((r) => r.action === `error`)).toBe(true)
+    expect(replaceSummary.results[0].message).toContain(`replace refused`)
+  })
+
+  it(`summary totals always reconcile with the per-seat results`, async () => {
+    const fake = makeFakeChainService()
+    // Mixed run: one drifted (asserted), one seat's agent missing (error),
+    // the rest already carrying the chain (unchanged).
+    seedChains(fake, {
+      [CtoAgentId]: [{ providerId: `pv_seed0001`, priority: 0 }],
+    })
+    fake.agents.delete(EngTwoAgentId)
+
+    const summary = await reconcileResidentProviderChains(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 1,
+      unchanged: ResidentActivations.length - 2,
+      skipped: 0,
+      errors: 1,
+    })
+    expect(summary.results).toHaveLength(ResidentActivations.length)
+    const counted = { asserted: 0, unchanged: 0, skipped: 0, errors: 0 }
+    for (const r of summary.results)
+      counted[r.action === `error` ? `errors` : r.action]++
+    expect(counted).toEqual({
+      asserted: summary.asserted,
+      unchanged: summary.unchanged,
+      skipped: summary.skipped,
+      errors: summary.errors,
+    })
   })
 })
