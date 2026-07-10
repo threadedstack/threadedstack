@@ -16,8 +16,16 @@ import { Exception } from '@tdsk/domain'
  * or a cluster-internal name, closing the credentialed-SSRF hole for both the
  * existing `/proxy` path and the new connector path.
  *
- * DNS is resolved and EVERY returned address is checked, so a public name that
- * resolves to a private IP (DNS-rebinding) is refused too.
+ * DNS is resolved at CHECK time and EVERY returned address is validated, so a
+ * name that currently resolves to a private/internal IP is refused. This is
+ * resolve-time validation, NOT socket-level IP pinning: a name that answers a
+ * public IP to this lookup but a private IP to the subsequent connect (a fast
+ * DNS-rebinding race) is a residual the check cannot close on its own. That
+ * window is bounded in practice because the target host is not attacker-chosen —
+ * on `/proxy` it is the admin-configured endpoint URL, and on the connector path
+ * it must additionally be on the git-seeded per-endpoint connect-allowlist. True
+ * socket pinning (dial the validated IP, keep the hostname for SNI/Host) is the
+ * follow-up hardening; it needs a custom HTTP agent and is tracked separately.
  */
 
 /** Injectable resolver so tests need no real DNS. Returns resolved addresses. */
@@ -65,27 +73,93 @@ const inCidr = (ipInt: number, network: string, bits: number): boolean => {
   return (ipInt & mask) === (netInt & mask)
 }
 
+const isBlockedV4Int = (ipInt: number): boolean =>
+  BlockedV4Cidrs.some(([net, bits]) => inCidr(ipInt, net, bits))
+
 const isBlockedV4 = (ip: string): boolean => {
   const ipInt = ipv4ToInt(ip)
   if (ipInt === null) return true // unparseable → fail closed
-  return BlockedV4Cidrs.some(([net, bits]) => inCidr(ipInt, net, bits))
+  return isBlockedV4Int(ipInt)
+}
+
+/**
+ * Expand an IPv6 literal to its canonical eight 16-bit groups (handling `::`
+ * zero-compression and a trailing embedded IPv4). Returns null on anything
+ * malformed so callers fail closed. This is what makes classification robust to
+ * hex vs dotted vs alternate-compression encodings of the SAME address —
+ * `::ffff:169.254.169.254`, `::ffff:a9fe:a9fe`, and `0:0:0:0:0:ffff:a9fe:a9fe`
+ * all expand to the same groups.
+ */
+const expandIPv6 = (raw: string): number[] | null => {
+  let ip = raw.toLowerCase().replace(/^\[|\]$/g, ``)
+  const zone = ip.indexOf(`%`)
+  if (zone >= 0) ip = ip.slice(0, zone) // strip scope id
+  // A trailing dotted-quad (embedded IPv4) → fold into two hex groups.
+  const v4 = ip.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (v4) {
+    const v4int = ipv4ToInt(v4[1])
+    if (v4int === null) return null
+    ip = `${ip.slice(0, v4.index)}${((v4int >>> 16) & 0xffff).toString(16)}:${(
+      v4int & 0xffff
+    ).toString(16)}`
+  }
+  const halves = ip.split(`::`)
+  if (halves.length > 2) return null
+  const toGroups = (s: string): number[] | null => {
+    if (!s) return []
+    const out: number[] = []
+    for (const p of s.split(`:`)) {
+      if (!/^[0-9a-f]{1,4}$/.test(p)) return null
+      out.push(Number.parseInt(p, 16))
+    }
+    return out
+  }
+  const head = toGroups(halves[0])
+  const tail = halves.length === 2 ? toGroups(halves[1]) : []
+  if (head === null || tail === null) return null
+  let groups: number[]
+  if (halves.length === 2) {
+    const missing = 8 - head.length - tail.length
+    if (missing < 0) return null
+    groups = [...head, ...Array(missing).fill(0), ...tail]
+  } else {
+    groups = head
+  }
+  return groups.length === 8 ? groups : null
 }
 
 const isBlockedV6 = (raw: string): boolean => {
-  const ip = raw.toLowerCase().replace(/^\[|\]$/g, ``)
-  // IPv4-mapped / -embedded (::ffff:a.b.c.d, ::a.b.c.d) → judge by the v4 part
-  const v4 = ip.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
-  if (v4) return isBlockedV4(v4[1])
-  if (ip === `::1` || ip === `::`) return true // loopback / unspecified
+  const g = expandIPv6(raw)
+  if (!g) return true // unparseable → fail closed
+  const embeddedV4 = ((g[6] << 16) | g[7]) >>> 0
+  // ::ffff:a.b.c.d  (IPv4-mapped) → judge by the embedded v4
   if (
-    ip.startsWith(`fe8`) ||
-    ip.startsWith(`fe9`) ||
-    ip.startsWith(`fea`) ||
-    ip.startsWith(`feb`)
+    g[0] === 0 &&
+    g[1] === 0 &&
+    g[2] === 0 &&
+    g[3] === 0 &&
+    g[4] === 0 &&
+    g[5] === 0xffff
   )
-    return true // fe80::/10 link-local
-  if (ip.startsWith(`fc`) || ip.startsWith(`fd`)) return true // fc00::/7 ULA
-  if (ip.startsWith(`ff`)) return true // multicast
+    return isBlockedV4Int(embeddedV4)
+  // 64:ff9b::/96  (NAT64) → judge by the embedded v4
+  if (
+    g[0] === 0x0064 &&
+    g[1] === 0xff9b &&
+    g[2] === 0 &&
+    g[3] === 0 &&
+    g[4] === 0 &&
+    g[5] === 0
+  )
+    return isBlockedV4Int(embeddedV4)
+  // ::/96  (loopback ::1, unspecified ::, deprecated v4-compatible) — nothing
+  // routable-public lives here, so block the whole block.
+  if (g[0] === 0 && g[1] === 0 && g[2] === 0 && g[3] === 0 && g[4] === 0 && g[5] === 0)
+    return true
+  const hb = g[0] >> 8
+  if (hb === 0xfc || hb === 0xfd) return true // fc00::/7 unique-local
+  if (g[0] >= 0xfe80 && g[0] <= 0xfebf) return true // fe80::/10 link-local
+  if (hb === 0xff) return true // ff00::/8 multicast
   return false
 }
 

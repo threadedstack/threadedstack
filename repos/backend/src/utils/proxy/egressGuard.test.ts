@@ -48,8 +48,20 @@ describe(`egressGuard.assertPublicEgressHost`, () => {
     [`fd12:3456::1`, `ULA`],
     [`::ffff:127.0.0.1`, `v4-mapped loopback`],
     [`::ffff:10.0.0.1`, `v4-mapped private`],
+    // BLOCKER-1 regression: hex / alternate encodings of the SAME address must
+    // be canonicalized and blocked (previously bypassed a string-match guard).
+    [`::ffff:a9fe:a9fe`, `v4-mapped metadata in HEX (169.254.169.254)`],
+    [`0:0:0:0:0:ffff:a9fe:a9fe`, `fully-expanded v4-mapped metadata`],
+    [`64:ff9b::a9fe:a9fe`, `NAT64-embedded metadata`],
+    [`0::1`, `loopback via alternate zero-compression`],
+    [`::ffff:169.254.169.254`, `v4-mapped metadata dotted`],
+    [`FE80::1`, `link-local uppercase`],
   ])(`blocks private IPv6 %s (%s)`, async (ip) => {
     await expect(assertPublicEgressHost(ip)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it(`allows a genuine public IPv6`, async () => {
+    await expect(assertPublicEgressHost(`2606:4700:4700::1111`)).resolves.toBeUndefined()
   })
 
   it.each([
