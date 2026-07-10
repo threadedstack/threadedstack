@@ -168,6 +168,38 @@ export const DevOpenProposalsSource: TContextSource = {
 }
 
 /**
+ * Dev-team OUTPUT-liveness signals for the sensor: the resident seats' status
+ * rows (turn counters — a seat whose turns climb while the board never moves
+ * is failing silently, the exact activation-day failure mode) and the newest
+ * dev_tasks rows (stuck states, stale leases, an empty board while the team
+ * idles). The sensor interprets these read-only digests as signal 7 — the
+ * fix, as always, flows through a filed proposal, never a manual hand.
+ */
+export const DevTeamStatusSource: TContextSource = {
+  collection: `resident_status`,
+  query: {
+    where: [
+      {
+        field: `agentId`,
+        op: EQueryOp.in,
+        value: [CtoAgentId, EngOneAgentId, EngTwoAgentId],
+      },
+    ],
+    limit: 10,
+  },
+  as: `Dev-team resident status`,
+}
+
+export const DevTeamTasksSource: TContextSource = {
+  collection: `dev_tasks`,
+  query: {
+    orderBy: { field: `state`, direction: `asc` },
+    limit: 30,
+  },
+  as: `Dev-team board (newest 30)`,
+}
+
+/**
  * Replaces `buildEscalationContext` (executor.ts:769 — every runtime cycle's
  * open-escalations view): routed + open escalations with routed listed FIRST
  * (text desc: 'routed' > 'open' — the same routed-first order the legacy
@@ -382,6 +414,11 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     cronExpression: `40 */2 * * *`,
     timeoutMs: 5_400_000,
     maxConsecutiveErrors: 6,
+    // Dev-team output-liveness digests for signal 7 (see sensor.md): the
+    // resident seats' turn counters + the board's newest rows, injected
+    // read-only so the sensor can flag silent-turn failures, stuck states,
+    // and a starved board without any new access surface.
+    contextSources: [DevTeamStatusSource, DevTeamTasksSource],
     // ⑤b-4b DUAL-EMIT cutover: `proposeTask` allowlisted — see the planning
     // def's comment; the legacy tdsk-tasks fence stays verbatim and the table
     // stays authoritative.
