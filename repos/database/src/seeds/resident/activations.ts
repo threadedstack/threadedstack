@@ -1,4 +1,10 @@
-import { CeoAgentId, CmoAgentId } from '@TDB/seeds/agentSchedules'
+import {
+  CeoAgentId,
+  CmoAgentId,
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+} from '@TDB/seeds/agentSchedules'
 
 /**
  * Declarative resident ACTIVATION list — the agentIds whose body sandbox must be
@@ -17,14 +23,23 @@ import { CeoAgentId, CmoAgentId } from '@TDB/seeds/agentSchedules'
  * most one deploy cycle. Every activated agent MUST also have a resident config
  * seed (records.ts) + a body sandbox (`agent.environment.sandboxId`).
  */
-export const ResidentActivations: string[] = [CmoAgentId, CeoAgentId]
+export const ResidentActivations: string[] = [
+  CmoAgentId,
+  CeoAgentId,
+  // The realtime dev team (Phase 2 go-live): the lead + two engineer seats.
+  // Prerequisites verified in prod before this flip: resident_configs seeded,
+  // the 10 dev* Functions reconciled, dev_tasks collection live, and the three
+  // agents + body sandboxes + provider links created (brain=runtime,
+  // environment.sandboxId set — the watchdog's resolution anchor).
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+]
 
 /** The agent + sandbox service slice the activation reconcile needs. */
 export type TResidentActivationService = {
   agent: {
-    get: (
-      id: string
-    ) => Promise<{
+    get: (id: string) => Promise<{
       data?: { environment?: Record<string, any> | null } | null
       error?: any
     }>

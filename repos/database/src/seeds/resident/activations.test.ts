@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 
-import { CeoAgentId, CmoAgentId } from '@TDB/seeds/agentSchedules'
+import {
+  CeoAgentId,
+  CmoAgentId,
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+} from '@TDB/seeds/agentSchedules'
 import {
   ResidentActivations,
   reconcileResidentActivations,
@@ -36,76 +42,110 @@ const makeFakeService = () => {
   }
 }
 
-/** Wire the two activated agents to body sandboxes with the given starting config. */
+/** Every activated seat's body sandbox id, keyed by agent id. */
+const BodyByAgent: Record<string, string> = {
+  [CmoAgentId]: `sb_cmo0001`,
+  [CeoAgentId]: `sb_ceo0001`,
+  [CtoAgentId]: `sb_cto0001`,
+  [EngOneAgentId]: `sb_eng0001`,
+  [EngTwoAgentId]: `sb_eng0002`,
+}
+
+/** Wire the activated agents to body sandboxes with the given starting configs
+ * (per-agent overrides; every listed seat gets a default config otherwise). */
 const seedBodies = (
   fake: ReturnType<typeof makeFakeService>,
-  cmoConfig: Record<string, any>,
-  ceoConfig: Record<string, any>
+  configs: Record<string, Record<string, any>> = {}
 ) => {
-  fake.agents.set(CmoAgentId, { environment: { sandboxId: `sb_cmo0001` } })
-  fake.agents.set(CeoAgentId, { environment: { sandboxId: `sb_ceo0001` } })
-  fake.sandboxes.set(`sb_cmo0001`, { config: cmoConfig })
-  fake.sandboxes.set(`sb_ceo0001`, { config: ceoConfig })
+  for (const agentId of ResidentActivations) {
+    const sandboxId = BodyByAgent[agentId]
+    fake.agents.set(agentId, { environment: { sandboxId } })
+    fake.sandboxes.set(sandboxId, {
+      config: configs[agentId] ?? { image: `img-${agentId}` },
+    })
+  }
 }
 
 describe(`ResidentActivations`, () => {
-  it(`declares the CMO + CEO as the activated residents`, () => {
-    expect(ResidentActivations).toEqual([CmoAgentId, CeoAgentId])
+  it(`declares the exec seats AND the realtime dev team as the activated residents`, () => {
+    expect(ResidentActivations).toEqual([
+      CmoAgentId,
+      CeoAgentId,
+      CtoAgentId,
+      EngOneAgentId,
+      EngTwoAgentId,
+    ])
   })
 })
 
 describe(`reconcileResidentActivations`, () => {
   it(`sets config.resident on a not-yet-active sandbox, preserving every other key`, async () => {
     const fake = makeFakeService()
-    seedBodies(
-      fake,
-      { image: `img-cmo`, runtime: `claude-code`, envVars: { A: `1` } },
-      { image: `img-ceo`, runtime: `claude-code` }
-    )
+    seedBodies(fake, {
+      [CmoAgentId]: { image: `img-cmo`, runtime: `claude-code`, envVars: { A: `1` } },
+    })
 
     const summary = await reconcileResidentActivations(fake.service)
 
-    expect(summary).toMatchObject({ activated: 2, unchanged: 0, errors: 0 })
+    expect(summary).toMatchObject({
+      activated: ResidentActivations.length,
+      unchanged: 0,
+      errors: 0,
+    })
     const cmo = fake.sandboxes.get(`sb_cmo0001`)!.config!
     expect(cmo.resident).toEqual({ agentId: CmoAgentId })
     // Every other key preserved (read-merge-write, never a bare replace).
     expect(cmo.image).toBe(`img-cmo`)
     expect(cmo.runtime).toBe(`claude-code`)
     expect(cmo.envVars).toEqual({ A: `1` })
-    expect(fake.sandboxes.get(`sb_ceo0001`)!.config!.resident).toEqual({
-      agentId: CeoAgentId,
-    })
-    expect(fake.sandboxes.get(`sb_ceo0001`)!.config!.image).toBe(`img-ceo`)
+    // Every listed seat is bound to its own agent — incl. the dev-team seats.
+    for (const agentId of ResidentActivations)
+      expect(fake.sandboxes.get(BodyByAgent[agentId])!.config!.resident).toEqual({
+        agentId,
+      })
   })
 
   it(`is idempotent — a sandbox already bound to the right agent reports unchanged and writes nothing`, async () => {
     const fake = makeFakeService()
-    seedBodies(
-      fake,
-      { image: `img-cmo`, resident: { agentId: CmoAgentId } },
-      { image: `img-ceo`, resident: { agentId: CeoAgentId } }
+    const configs = Object.fromEntries(
+      ResidentActivations.map((agentId) => [
+        agentId,
+        { image: `img-${agentId}`, resident: { agentId } },
+      ])
     )
+    seedBodies(fake, configs)
     const before = JSON.parse(JSON.stringify([...fake.sandboxes]))
 
     const summary = await reconcileResidentActivations(fake.service)
 
-    expect(summary).toMatchObject({ activated: 0, unchanged: 2, errors: 0 })
+    expect(summary).toMatchObject({
+      activated: 0,
+      unchanged: ResidentActivations.length,
+      errors: 0,
+    })
     expect(JSON.parse(JSON.stringify([...fake.sandboxes]))).toEqual(before)
   })
 
   it(`RE-BINDS a sandbox whose resident flag points at the WRONG agent`, async () => {
     const fake = makeFakeService()
-    // CMO body mis-bound to some other agent; CEO already correct.
-    seedBodies(
-      fake,
-      { image: `img-cmo`, resident: { agentId: `ag_wrong01` } },
-      { image: `img-ceo`, resident: { agentId: CeoAgentId } }
+    // Every seat already correct EXCEPT the CMO body, mis-bound to another agent.
+    const configs = Object.fromEntries(
+      ResidentActivations.map((agentId) => [
+        agentId,
+        { image: `img-${agentId}`, resident: { agentId } },
+      ])
     )
+    configs[CmoAgentId] = { image: `img-cmo`, resident: { agentId: `ag_wrong01` } }
+    seedBodies(fake, configs)
 
     const summary = await reconcileResidentActivations(fake.service)
 
-    // CMO re-bound (activated), CEO untouched (unchanged).
-    expect(summary).toMatchObject({ activated: 1, unchanged: 1, errors: 0 })
+    // CMO re-bound (activated), everyone else untouched (unchanged).
+    expect(summary).toMatchObject({
+      activated: 1,
+      unchanged: ResidentActivations.length - 1,
+      errors: 0,
+    })
     expect(fake.sandboxes.get(`sb_cmo0001`)!.config!.resident).toEqual({
       agentId: CmoAgentId,
     })
@@ -116,14 +156,18 @@ describe(`reconcileResidentActivations`, () => {
 
   it(`captures failures without throwing — missing agent, missing sandboxId, missing sandbox`, async () => {
     const fake = makeFakeService()
-    // CMO agent exists + points at a sandbox that does NOT exist.
+    // CMO agent exists + points at a sandbox that does NOT exist; CEO agent has
+    // no environment.sandboxId; every other listed seat is absent entirely.
     fake.agents.set(CmoAgentId, { environment: { sandboxId: `sb_cmo0001` } })
-    // CEO agent has no environment.sandboxId at all.
     fake.agents.set(CeoAgentId, { environment: {} })
 
     const summary = await reconcileResidentActivations(fake.service)
 
-    expect(summary).toMatchObject({ activated: 0, unchanged: 0, errors: 2 })
+    expect(summary).toMatchObject({
+      activated: 0,
+      unchanged: 0,
+      errors: ResidentActivations.length,
+    })
     const cmo = summary.results.find((r) => r.agentId === CmoAgentId)!
     expect(cmo.action).toBe(`error`)
     expect(cmo.message).toContain(`body sandbox sb_cmo0001 not found`)
@@ -134,7 +178,7 @@ describe(`reconcileResidentActivations`, () => {
 
   it(`surfaces an update failure as an error, not a throw`, async () => {
     const fake = makeFakeService()
-    seedBodies(fake, { image: `img-cmo` }, { image: `img-ceo` })
+    seedBodies(fake)
     const failing = {
       agent: fake.service.agent,
       sandbox: {
@@ -145,7 +189,7 @@ describe(`reconcileResidentActivations`, () => {
 
     const summary = await reconcileResidentActivations(failing)
 
-    expect(summary.errors).toBe(2)
+    expect(summary.errors).toBe(ResidentActivations.length)
     expect(summary.results.every((r) => r.action === `error`)).toBe(true)
     expect(summary.results[0].message).toContain(`write refused`)
   })
