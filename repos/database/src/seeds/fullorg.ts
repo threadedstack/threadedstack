@@ -1,5 +1,7 @@
 import { Ids } from '@TDB/seeds/ids.seed'
 import { encryptSecret } from '@TDB/utils/crypto'
+import { ResidentBodyConfig } from '@TDB/seeds/resident/bodies'
+import { OpsProjectId, OpsProjectName } from '@TDB/seeds/agentSchedules'
 
 import {
   User,
@@ -127,6 +129,18 @@ const projects = {
       language: `typescript`,
       description: `Admin web dashboard`,
     },
+  }),
+  // The self-development ops project — the platform repo the autonomous agents
+  // (steward, exec board, dev team) observe and work on. Every resident agent
+  // MUST carry an agent_projects binding to it (their `projects` field below),
+  // or every resident API call 403s with "Agent is not bound to this project".
+  // Id/name are the stable wiring exported by seeds/agentSchedules.ts.
+  ops: new Project({
+    orgId: org.id,
+    id: OpsProjectId,
+    name: OpsProjectName,
+    description: `The platform repo the ThreadedStack Steward observes and (in later phases) works on`,
+    meta: {},
   }),
 }
 
@@ -621,7 +635,7 @@ const agents = {
     id: Ids.agent.codingAgent,
     name: `Coding Agent`,
     description: `A coding AI Agent`,
-    projects: Object.values(projects),
+    projects: [projects.api, projects.mobile, projects.web],
     providerLinks: [
       { priority: 0, provider: providers.zai },
       { priority: 1, provider: providers.openai },
@@ -745,6 +759,7 @@ const agents = {
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
+    projects: [projects.ops],
     providerLinks: [
       { priority: 0, provider: providers.anthropic },
       { priority: 1, provider: providers.zai },
@@ -753,6 +768,10 @@ const agents = {
     secrets: [secrets.anthropic],
     environment: {
       streaming: true,
+      // Binds the agent to its body sandbox — the SAME resolution the watchdog
+      // and the activation/body reconciles use. Without it a fresh seed leaves
+      // the resident unresolvable and the activation reconcile errors.
+      sandboxId: Ids.sandbox.ceoBody,
     },
   }),
   // Executive board — the founding CMO. A runtime-brain, autonomous agent
@@ -770,6 +789,7 @@ const agents = {
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
+    projects: [projects.ops],
     providerLinks: [
       { priority: 0, provider: providers.anthropic },
       { priority: 1, provider: providers.zai },
@@ -778,6 +798,7 @@ const agents = {
     secrets: [secrets.anthropic],
     environment: {
       streaming: true,
+      sandboxId: Ids.sandbox.cmoBody,
     },
   }),
   // Realtime engineering team — the dev-team LEAD. A runtime-brain, autonomous
@@ -797,6 +818,7 @@ const agents = {
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
+    projects: [projects.ops],
     providerLinks: [
       { priority: 0, provider: providers.anthropic },
       { priority: 1, provider: providers.zai },
@@ -825,6 +847,7 @@ const agents = {
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
+    projects: [projects.ops],
     providerLinks: [
       { priority: 0, provider: providers.anthropic },
       { priority: 1, provider: providers.zai },
@@ -848,6 +871,7 @@ const agents = {
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
+    projects: [projects.ops],
     providerLinks: [
       { priority: 0, provider: providers.anthropic },
       { priority: 1, provider: providers.zai },
@@ -1465,11 +1489,6 @@ const agentSchedules = {
 
 // --- Sandboxes (built-in presets matching createOrg.ts behavior) ---
 const defaultSandboxImage = `ghcr.io/threadedstack/tdsk-sandbox`
-// Prewarm image for scheduled jobs — extends the default sandbox with the
-// monorepo cloned + pnpm install baked in. Not attached to any preset; sandbox
-// configs opt in via the standard admin API (config.image).
-const jobsPrewarmImage = `ghcr.io/threadedstack/tdsk-jobs`
-void jobsPrewarmImage
 
 const buildPresetSandbox = (
   id: string,
@@ -1494,49 +1513,53 @@ const sandboxes = {
     SandboxPresets[`pi-coding-agent`]
   ),
   custom: buildPresetSandbox(Ids.sandbox.custom, SandboxPresets[`custom`]),
-  // Executive board — the CEO agent's body sandbox (its runtime pod). Mirrors the
-  // steward's claude-code runtime shape. Inert until the CEO cadence is activated.
+  // Executive board — the CEO agent's body sandbox (its runtime pod). Carries
+  // the full resident boot recipe (seeds/resident/bodies.ts): the jobs prewarm
+  // image with the monorepo baked at /workspace, the clone-refresh setupScript,
+  // the claude-code trust initScript, the egress CA envVars, and the
+  // soul-injecting promptCommand. Inert until the activations list flips it
+  // (config.resident is the activation reconcile's job, never seeded here).
   ceoBody: new Sandbox({
     id: Ids.sandbox.ceoBody,
     builtIn: true,
     orgId: org.id,
     name: `CEO Body`,
-    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+    config: { ...ResidentBodyConfig },
   }),
-  // Executive board — the CMO agent's body sandbox (its runtime pod). Mirrors
-  // the CEO body's claude-code runtime shape.
+  // Executive board — the CMO agent's body sandbox (its runtime pod). Same
+  // resident boot recipe as the CEO body.
   cmoBody: new Sandbox({
     id: Ids.sandbox.cmoBody,
     builtIn: true,
     orgId: org.id,
     name: `CMO Body`,
-    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+    config: { ...ResidentBodyConfig },
   }),
   // Realtime engineering team — the dev-team lead + engineer agents' body
-  // sandboxes (their runtime pods). Mirror the exec bodies' claude-code
-  // runtime shape. SHADOW: deliberately NOT in resident mode (no
-  // config.resident) — the watchdog skips them until the team is activated
-  // with an explicit flip.
+  // sandboxes (their runtime pods). Same resident boot recipe as the exec
+  // bodies. Deliberately NOT in resident mode (no config.resident) — the
+  // watchdog skips them until the git-declared ResidentActivations list
+  // (seeds/resident/activations.ts) flips them.
   ctoBody: new Sandbox({
     id: Ids.sandbox.ctoBody,
     builtIn: true,
     orgId: org.id,
     name: `CTO Body`,
-    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+    config: { ...ResidentBodyConfig },
   }),
   engOneBody: new Sandbox({
     id: Ids.sandbox.engOneBody,
     builtIn: true,
     orgId: org.id,
     name: `Engineer One Body`,
-    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+    config: { ...ResidentBodyConfig },
   }),
   engTwoBody: new Sandbox({
     id: Ids.sandbox.engTwoBody,
     builtIn: true,
     orgId: org.id,
     name: `Engineer Two Body`,
-    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+    config: { ...ResidentBodyConfig },
   }),
 }
 

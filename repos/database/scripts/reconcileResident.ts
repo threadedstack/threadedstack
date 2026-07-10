@@ -3,6 +3,7 @@ import { loadEnvs } from '@tdsk/domain'
 import { ife } from '@keg-hub/jsutils/ife'
 import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { reconcileResident } from '@TDB/seeds/resident/collections'
+import { reconcileResidentBodies } from '@TDB/seeds/resident/bodies'
 import { reconcileResidentFunctions } from '@TDB/seeds/resident/functions'
 import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
 import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
@@ -21,14 +22,21 @@ import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
  * never overwrites it again (the update is an atomic guarded replace, so a
  * self-evolution racing the reconcile is never clobbered). The whole resident
  * surface lives in git-versioned config and lands through the normal PR ->
- * deploy pipeline. Finally it reconciles the resident ACTIVATIONS: for each
- * agentId in the git-declared ResidentActivations list, it sets the agent's body
- * sandbox to resident mode (`config.resident = { agentId }`) so activation is
- * durable and re-asserted every deploy, not a one-off manual flip. A seeded
+ * deploy pipeline. Then it reconciles each activated resident's BODY: the boot
+ * recipe (image/imagePullPolicy/initScript/setupScript/promptCommand + the
+ * recipe envVars keys) is re-asserted onto the body sandbox config and the
+ * agent's ops-project binding is created if absent, so a config wipe or
+ * hand-edit drift can strand a seat for at most one deploy cycle. Finally it
+ * reconciles the resident ACTIVATIONS: for each agentId in the git-declared
+ * ResidentActivations list, it sets the agent's body sandbox to resident mode
+ * (`config.resident = { agentId }`) so activation is durable and re-asserted
+ * every deploy, not a one-off manual flip (bodies run BEFORE activations so a
+ * brand-new seat carries the recipe by the time its flag flips). A seeded
  * config whose agent is NOT in that list stays inert (the watchdog skips a
  * non-resident sandbox) — the inert-first pattern. Idempotent: collections are
- * create-if-absent, Functions/configs update only on drift, and activations set
- * only when the flag is missing, so a re-run makes no changes.
+ * create-if-absent, Functions/configs update only on drift, body recipes write
+ * only on drift, bindings are create-if-absent, and activations set only when
+ * the flag is missing, so a re-run makes no changes.
  */
 
 const nodeEnv = process.env.NODE_ENV
@@ -58,24 +66,34 @@ ife(async () => {
     (msg) => console.log(msg)
   )
 
-  console.log(`🔌 Reconciling resident sandbox activations from repo config...`)
-  const actSummary = await reconcileResidentActivations(
-    {
-      agent: db.services.agent,
-      sandbox: {
-        get: (id) => db.services.sandbox.get(id),
-        // The reconcile passes the full read-merged config; bridge its loose
-        // Record type to the sandbox service's strict update-input type.
-        update: (data) =>
-          db.services.sandbox.update(
-            data as Parameters<typeof db.services.sandbox.update>[0]
-          ),
-      },
-    },
+  // The reconciles pass the full read-merged config; bridge its loose Record
+  // type to the sandbox service's strict update-input type.
+  const sandboxSlice = {
+    get: (id: string) => db.services.sandbox.get(id),
+    update: (data: { id: string; config: Record<string, any> }) =>
+      db.services.sandbox.update(
+        data as Parameters<typeof db.services.sandbox.update>[0]
+      ),
+  }
+
+  console.log(`🧬 Reconciling resident body boot recipes from repo config...`)
+  const bodySummary = await reconcileResidentBodies(
+    { agent: db.services.agent, sandbox: sandboxSlice },
     (msg) => console.log(msg)
   )
 
-  const errors = summary.errors + fnSummary.errors + cfgSummary.errors + actSummary.errors
+  console.log(`🔌 Reconciling resident sandbox activations from repo config...`)
+  const actSummary = await reconcileResidentActivations(
+    { agent: db.services.agent, sandbox: sandboxSlice },
+    (msg) => console.log(msg)
+  )
+
+  const errors =
+    summary.errors +
+    fnSummary.errors +
+    cfgSummary.errors +
+    bodySummary.errors +
+    actSummary.errors
 
   console.log(`═══════════════════════════════════════`)
   console.log(`📊 Resident reconcile summary:`)
@@ -87,6 +105,9 @@ ife(async () => {
   console.log(`   ✅ Configs created:       ${cfgSummary.created}`)
   console.log(`   🔄 Configs updated:       ${cfgSummary.updated}`)
   console.log(`   ➖ Configs unchanged:     ${cfgSummary.unchanged}`)
+  console.log(`   🧬 Body recipes asserted: ${bodySummary.asserted}`)
+  console.log(`   ➖ Body recipes unchanged:${bodySummary.unchanged}`)
+  console.log(`   🔗 Ops projects bound:    ${bodySummary.bound}`)
   console.log(`   🔌 Activations set:       ${actSummary.activated}`)
   console.log(`   ➖ Activations unchanged: ${actSummary.unchanged}`)
   console.log(`   ❌ Errors:                ${errors}`)
