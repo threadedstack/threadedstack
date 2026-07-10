@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TApp, TRequest } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-import { ERoleType } from '@tdsk/domain'
+import { ERoleType, ESubscriptionTier } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { addProjectMember } from './addProjectMember'
 import { PaymentsService } from '@TBE/services/payments'
@@ -35,6 +35,10 @@ describe(`Project Members endpoints`, () => {
       locals: {
         config,
         payments: new PaymentsService(config.payments),
+        email: {
+          invitation: vi.fn().mockResolvedValue(true),
+          sendMemberNotification: vi.fn().mockResolvedValue(true),
+        },
         db: {
           services: {
             project: {
@@ -46,6 +50,7 @@ describe(`Project Members endpoints`, () => {
                 .fn()
                 .mockResolvedValue({ data: { type: ERoleType.admin } }),
               getProjectMembers: vi.fn(),
+              getOrgMembers: vi.fn().mockResolvedValue({ data: [] }),
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
               isProjectMember: vi.fn().mockResolvedValue({ data: false }),
               create: vi.fn(),
@@ -54,6 +59,20 @@ describe(`Project Members endpoints`, () => {
             },
             permissionOverride: {
               deleteForUser: vi.fn().mockResolvedValue({ data: 0 }),
+              getForUser: vi.fn().mockResolvedValue({ data: [] }),
+            },
+            user: {
+              byEmail: vi.fn().mockResolvedValue({ data: null }),
+            },
+            org: {
+              get: vi.fn(),
+            },
+            subscription: {
+              findByUser: vi.fn().mockResolvedValue({ data: null }),
+            },
+            invitation: {
+              getByEmailAndOrg: vi.fn().mockResolvedValue({ data: null }),
+              create: vi.fn(),
             },
           },
         },
@@ -382,6 +401,205 @@ describe(`Project Members endpoints`, () => {
       await expect(
         addProjectMember.action(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`User is already a project member`)
+    })
+
+    // ---- email invite path: seat capacity enforcement (billing-critical) ----
+
+    it(`should throw 403 when plan does not allow additional seats`, async () => {
+      mockReq.body = { email: `new@example.com`, roleType: ERoleType.member }
+
+      const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+
+      mockGetProject.mockResolvedValue({ data: { id: `project-1` } })
+      mockGetOrg.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      // No subscription on record — resolves to the free tier default,
+      // which does not allow additional seats.
+      mockFindByUser.mockResolvedValue({ data: null })
+
+      await expect(
+        addProjectMember.action(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(
+        `Your plan does not allow inviting additional members. Upgrade to a Pro or Team plan.`
+      )
+    })
+
+    it(`should throw 403 when the org's seat limit is already reached`, async () => {
+      mockReq.body = { email: `new@example.com`, roleType: ERoleType.member }
+
+      const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+
+      mockGetProject.mockResolvedValue({ data: { id: `project-1` } })
+      mockGetOrg.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      mockFindByUser.mockResolvedValue({ data: { tier: ESubscriptionTier.pro } })
+      mockGetOrgMembers.mockResolvedValue({
+        data: [{ id: `r1` }, { id: `r2` }, { id: `r3` }],
+      })
+
+      await expect(
+        addProjectMember.action(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(
+        `Seat limit reached (3/3). Upgrade your plan to add more members.`
+      )
+    })
+
+    it(`should throw 500 when subscription lookup fails during seat check`, async () => {
+      mockReq.body = { email: `new@example.com`, roleType: ERoleType.member }
+
+      const mockGetProject = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+
+      mockGetProject.mockResolvedValue({ data: { id: `project-1` } })
+      mockGetOrg.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      mockFindByUser.mockResolvedValue({ error: new Error(`Connection lost`) })
+
+      await expect(
+        addProjectMember.action(mockReq as TRequest, mockRes as Response)
+      ).rejects.toThrow(`Failed to verify subscription status: Connection lost`)
+    })
+
+    // ---- email invite path: reactivation / invite branches ----
+
+    it(`should reactivate an existing org member added by email`, async () => {
+      mockReq.body = { email: `member@example.com`, roleType: ERoleType.member }
+
+      const mockRole = {
+        id: `role-new`,
+        userId: `user-existing`,
+        projectId: `project-1`,
+        type: ERoleType.member,
+      }
+
+      const svc = mockReq.app?.locals.db.services as any
+      svc.project.get.mockResolvedValue({ data: { id: `project-1` } })
+      svc.user.byEmail.mockResolvedValue({
+        data: { id: `user-existing`, email: `member@example.com` },
+      })
+      svc.org.get.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      svc.subscription.findByUser.mockResolvedValue({
+        data: { tier: ESubscriptionTier.pro },
+      })
+      svc.role.getOrgMembers.mockResolvedValue({ data: [{ id: `r1` }] })
+      svc.role.isOrgMember.mockResolvedValue({ data: true })
+      svc.role.isProjectMember.mockResolvedValue({ data: false })
+      svc.role.create.mockResolvedValue({ data: mockRole })
+
+      await addProjectMember.action(mockReq as TRequest, mockRes as Response)
+
+      expect(svc.role.create).toHaveBeenCalledWith({
+        projectId: `project-1`,
+        userId: `user-existing`,
+        type: ERoleType.member,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      expect(mockJson).toHaveBeenCalledWith({ data: mockRole })
+    })
+
+    it(`should invite an existing user who is not yet an org member`, async () => {
+      mockReq.body = { email: `outsider@example.com`, roleType: ERoleType.member }
+
+      const newOrgRole = {
+        id: `role-org`,
+        userId: `user-outsider`,
+        type: ERoleType.member,
+      }
+
+      const svc = mockReq.app?.locals.db.services as any
+      svc.project.get.mockResolvedValue({ data: { id: `project-1` } })
+      svc.user.byEmail.mockResolvedValue({
+        data: { id: `user-outsider`, email: `outsider@example.com` },
+      })
+      svc.org.get.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      svc.subscription.findByUser.mockResolvedValue({
+        data: { tier: ESubscriptionTier.pro },
+      })
+      svc.role.getOrgMembers.mockResolvedValue({ data: [{ id: `r1` }] })
+      svc.role.isOrgMember.mockResolvedValue({ data: false })
+      // getOrgRole is used both for the current user's permission checks and
+      // for InviteService.isMember's target-user lookup — key off userId so
+      // both callers get the right answer regardless of call order.
+      svc.role.getOrgRole.mockImplementation((userId: string) =>
+        Promise.resolve(
+          userId === `test-user-id` ? { data: { type: ERoleType.admin } } : { data: null }
+        )
+      )
+      svc.invitation.getByEmailAndOrg.mockResolvedValue({ data: null })
+      svc.role.create.mockResolvedValue({ data: newOrgRole })
+
+      await addProjectMember.action(mockReq as TRequest, mockRes as Response)
+
+      expect(svc.role.create).toHaveBeenCalledWith({
+        orgId: `org-1`,
+        type: ERoleType.member,
+        userId: `user-outsider`,
+      })
+      expect(svc.role.create).toHaveBeenCalledWith({
+        projectId: `project-1`,
+        userId: `user-outsider`,
+        type: ERoleType.member,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      const response = mockJson.mock.calls[0][0]
+      expect(response.data).toEqual(newOrgRole)
+      expect(response.message).toBe(`User added to organization and project`)
+    })
+
+    it(`should create a new-user invitation when no account exists for the email`, async () => {
+      mockReq.body = { email: `brandnew@example.com`, roleType: ERoleType.member }
+
+      const mockInvite = { id: `inv-1`, email: `brandnew@example.com` }
+
+      const svc = mockReq.app?.locals.db.services as any
+      svc.project.get.mockResolvedValue({ data: { id: `project-1` } })
+      svc.user.byEmail.mockResolvedValue({ data: null })
+      svc.org.get.mockResolvedValue({
+        data: { id: `org-1`, ownerId: `owner-1`, name: `Test Org` },
+      })
+      svc.subscription.findByUser.mockResolvedValue({
+        data: { tier: ESubscriptionTier.pro },
+      })
+      svc.role.getOrgMembers.mockResolvedValue({ data: [{ id: `r1` }] })
+      svc.invitation.getByEmailAndOrg.mockResolvedValue({ data: null })
+      svc.invitation.create.mockResolvedValue({ data: mockInvite })
+
+      await addProjectMember.action(mockReq as TRequest, mockRes as Response)
+
+      expect(svc.invitation.create).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      const response = mockJson.mock.calls[0][0]
+      expect(response.data).toEqual(mockInvite)
+      expect(response.message).toBe(`Invitation sent to brandnew@example.com`)
     })
   })
 
