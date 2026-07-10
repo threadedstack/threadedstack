@@ -150,9 +150,15 @@ async function inspectAndDispatch(app: TApp, run: ScheduleRun): Promise<void> {
   try {
     state = await sandbox.getPodState(instanceId)
   } catch (err: any) {
+    // A read failure here must not strand the run un-reconciled. Hand it to the
+    // deadline-enforced watch loop rather than returning: the watcher reaps it
+    // once the schedule's timeout elapses even if every pod read keeps failing.
+    // Returning left the row wedged "running" forever, blocking the schedule
+    // from ever firing again.
     logger.error(
-      `[Scheduler] Rehydration for run ${run.id} failed to read pod state: ${err?.message || err}`
+      `[Scheduler] Rehydration for run ${run.id} failed to read pod state — handing to deadline-enforced watch: ${err?.message || err}`
     )
+    await watchToCompletion(app, run)
     return
   }
 
@@ -210,6 +216,21 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
     `[Scheduler] Watching run ${run.id} for completion (pod=${instanceId}, deadline=${new Date(deadlineMs).toISOString()}, runtimeBin=${runtimeBin ?? `<unknown>`})`
   )
 
+  // Reap the run as timeout once its deadline passes. Called on EVERY path that
+  // would otherwise `continue` (a pod read that throws, or a Failed reading that
+  // never confirms) as well as at the end of the loop. Terminal pod states
+  // (Succeeded / confirmed-Failed) are still read and honored first; this only
+  // guarantees that a run whose pod has vanished and whose reads keep failing
+  // can never loop here forever, wedged "running" and blocking its schedule
+  // from ever firing again (the real cause of a stalled review/dev loop).
+  const reapIfExpired = async (): Promise<boolean> => {
+    if (Date.now() < deadlineMs) return false
+    await captureEntrypointLog(app, run, instanceId).catch(() => undefined)
+    await completeRun(app, run, `timeout`, RehydrationTimeoutNote)
+    await bestEffortStopPod(app, instanceId)
+    return true
+  }
+
   for (;;) {
     await sleep(RehydratePollMs)
 
@@ -220,6 +241,7 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
       logger.error(
         `[Scheduler] Run ${run.id} pod state read failed, retrying: ${err?.message || err}`
       )
+      if (await reapIfExpired()) return
       continue
     }
 
@@ -239,6 +261,7 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
         logger.warn(
           `[Scheduler] Run ${run.id} pod ${instanceId} read Failed once (likely a transient 404) but recovered on re-check — continuing to watch`
         )
+        if (await reapIfExpired()) return
         continue
       }
       await completeRun(
@@ -275,12 +298,7 @@ async function watchToCompletion(app: TApp, run: ScheduleRun): Promise<void> {
       }
     }
 
-    if (Date.now() >= deadlineMs) {
-      await captureEntrypointLog(app, run, instanceId).catch(() => undefined)
-      await completeRun(app, run, `timeout`, RehydrationTimeoutNote)
-      await bestEffortStopPod(app, instanceId)
-      return
-    }
+    if (await reapIfExpired()) return
   }
 }
 
