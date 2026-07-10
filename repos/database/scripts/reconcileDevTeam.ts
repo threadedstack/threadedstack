@@ -8,13 +8,13 @@ import { reconcileDevTeamFunctions } from '@TDB/seeds/dev-team/functions'
 /**
  * Deploy-time reconcile of the realtime dev-team's shared work Collections
  * (`dev_tasks` — the concurrent task/review state machine coordinated via the
- * atomic records.cas primitive) and its nine effect Functions (devClaimTask /
+ * atomic records.cas primitive) and its ten effect Functions (devClaimTask /
  * devSubmitPr / devClaimReview / devCompleteReview / devMarkMerged /
- * devUpdatePr / devRenewLease / devAddTask / devReapExpired — the state
- * machine's ONLY write path). Idempotent: existing collections are skipped and
- * Functions update only on drift, so a re-run makes no changes. Additive and
- * inert — nothing invokes these until the Phase 2 shadow team's sandboxes are
- * flipped to resident mode.
+ * devUpdatePr / devRenewLease / devAddTask / devReapExpired / devAbandon —
+ * the state machine's ONLY write path). Idempotent: existing collections are
+ * skipped and Functions update only on drift, so a re-run makes no changes.
+ * Additive and inert — nothing invokes these until the Phase 2 shadow team's
+ * sandboxes are flipped to resident mode.
  */
 
 const nodeEnv = process.env.NODE_ENV

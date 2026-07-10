@@ -10,17 +10,18 @@ import { DevUpdatePrFunctionDef } from '@TDB/seeds/dev-team/functions/devUpdateP
 import { DevRenewLeaseFunctionDef } from '@TDB/seeds/dev-team/functions/devRenewLease'
 import { DevAddTaskFunctionDef } from '@TDB/seeds/dev-team/functions/devAddTask'
 import { DevReapExpiredFunctionDef } from '@TDB/seeds/dev-team/functions/devReapExpired'
+import { DevAbandonFunctionDef } from '@TDB/seeds/dev-team/functions/devAbandon'
 
 /**
  * Dev-team effect Function seeding — realtime engineering team (Phase 2).
  *
- * The 9 team Functions (devClaimTask / devSubmitPr / devClaimReview /
+ * The 10 team Functions (devClaimTask / devSubmitPr / devClaimReview /
  * devCompleteReview / devMarkMerged / devUpdatePr / devRenewLease / devAddTask
- * / devReapExpired) are the `dev_tasks` state machine's ONLY write path: every
- * transition is won via the atomic `records.cas` primitive and every identity
- * gate (assignee-only submits, reviewer !== assignee, verdict binds to
- * headSha) is enforced IN the Function — platform-mediated, never prompt
- * discipline. Bodies live as git-versioned source strings in
+ * / devReapExpired / devAbandon) are the `dev_tasks` state machine's ONLY
+ * write path: every transition is won via the atomic `records.cas` primitive
+ * and every identity gate (assignee-only submits, reviewer !== assignee,
+ * verdict binds to headSha) is enforced IN the Function — platform-mediated,
+ * never prompt discipline. Bodies live as git-versioned source strings in
  * `seeds/dev-team/functions/*` and reconcile into the ops project's
  * `functions` table here, the same declarative pattern as
  * `reconcileDevLoopFunctions`: missing → create, drifted (name/description/
@@ -28,6 +29,15 @@ import { DevReapExpiredFunctionDef } from '@TDB/seeds/dev-team/functions/devReap
  * DB-agnostic (injected service slice), so it is unit-testable without a live
  * connection; the deploy runner in `scripts/reconcileDevTeam.ts` wires it to
  * the real function service.
+ *
+ * HONESTY BOUNDARY — what the platform does and does NOT enforce: the
+ * Functions enforce the RECORDED gates (atomic claims, reviewer !== assignee,
+ * headSha-bound verdicts, leases). The GitHub-side steps — `gh pr merge
+ * --admin` and the CI-green check before it — are PROMPT DISCIPLINE on a
+ * shared GitHub account: both engineers act as one GitHub identity, so GitHub
+ * itself cannot arbitrate reviewer independence or block an undisciplined
+ * merge. The platform-enforced gate is the recorded dev_tasks verdict; never
+ * claim GitHub-side enforcement.
  *
  * Additive and inert: nothing invokes these until an agent's resident config
  * carries them on its `actions` allowlist AND its sandbox is flipped to
@@ -43,7 +53,7 @@ export type TDevTeamFunctionDef = {
   content: string
 }
 
-/** The nine dev-team effect Functions, in state-machine order. */
+/** The ten dev-team effect Functions, in state-machine order. */
 export const DevTeamFunctionDefs: TDevTeamFunctionDef[] = [
   DevAddTaskFunctionDef,
   DevClaimTaskFunctionDef,
@@ -54,6 +64,7 @@ export const DevTeamFunctionDefs: TDevTeamFunctionDef[] = [
   DevMarkMergedFunctionDef,
   DevRenewLeaseFunctionDef,
   DevReapExpiredFunctionDef,
+  DevAbandonFunctionDef,
 ]
 
 /** The function-service slice the reconcile needs (Base get/create/update). */
@@ -104,7 +115,7 @@ export const devTeamFunctionNeedsUpdate = (
   existing.projectId !== projectId
 
 /**
- * Idempotently seed the nine dev-team Function records into the ops project:
+ * Idempotently seed the ten dev-team Function records into the ops project:
  * missing row → create, drifted declarative field → update (git is the source
  * of truth for the bodies), else unchanged. Never throws — every outcome is
  * captured in the summary.

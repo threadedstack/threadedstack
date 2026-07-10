@@ -36,10 +36,10 @@ export const OpsProjectId = `pj_tIly2F1`
 // zero churn on the live ones.
 export const OpsUserId = `00000000-0000-0000-0000-000000000000`
 // The steward agent is ALSO the CTO board seat (the cto-board def below runs on
-// it; exec-board BoardCtoAgentId matches). Exported: the CTO's resident config
-// seed (seeds/resident/records.ts) keys its record by this id — ONE identity
-// carrying the scheduled dev-loop, the board seat, and the (shadow, inert until
-// its sandbox is flipped to resident mode) dev-team lead duties.
+// it; exec-board BoardCtoAgentId matches). The steward carries the scheduled
+// dev-loop and the board seat ONLY — the dev-team lead is a separate agent
+// (CtoAgentId below), so flipping the lead's sandbox to resident mode never
+// touches the live dev-loop driver.
 export const StewardAgentId = `ag_lvUbjp_`
 const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
@@ -60,13 +60,17 @@ const CeoSandboxId = `sb_ceo0001`
 // resident config seed (seeds/resident/records.ts) keys its record by this id.
 export const CmoAgentId = `ag_cmo0001`
 const CmoSandboxId = `sb_cmo0001`
-// Realtime engineering team (Phase 2) — the two resident engineer seats; ids
-// match the fullorg seed (Ids.agent.engineerOne/Two + their body sandboxes).
-// Exported: the engineer resident config seeds (seeds/resident/records.ts) key
-// their records AND their per-agent dev_tasks watch/source queries by these
-// ids. No schedule def runs on them — engineers are resident-only (watch/
-// inbox/self-directed), and their seeds stay inert until their body sandboxes
-// are flipped to resident mode.
+// Realtime engineering team (Phase 2) — the dedicated dev-team LEAD seat plus
+// the two resident engineer seats; ids match the fullorg seed (Ids.agent.cto /
+// engineerOne/Two + their body sandboxes). Exported: the resident config seeds
+// (seeds/resident/records.ts) key their records AND their per-agent dev_tasks
+// watch/source queries by these ids. No schedule def runs on ANY of them — the
+// team is resident-only (agenda/watch/inbox/self-directed), and the seeds stay
+// inert until the body sandboxes are flipped to resident mode. The lead is
+// deliberately NOT the steward (StewardAgentId above): the steward keeps the
+// scheduled dev-loop + the board CTO seat, and the lead coordinates the team
+// via inbox/records without either identity.
+export const CtoAgentId = `ag_cto0001`
 export const EngOneAgentId = `ag_eng0001`
 export const EngTwoAgentId = `ag_eng0002`
 

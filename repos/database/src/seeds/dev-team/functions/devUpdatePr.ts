@@ -7,7 +7,9 @@ import { EFunLanguage } from '@tdsk/domain'
  * `{state:'changes_requested', assignee: caller}` → `{state:'pr_open',
  * headSha, reviewer: null, notes: ''}`. Clearing the reviewer voids the stale
  * review claim and re-opens the review race; the new headSha means any verdict
- * must bind to the fixed commit (devCompleteReview refuses a stale sha).
+ * must bind to the fixed commit (devCompleteReview refuses a stale sha). The
+ * author's fix lease (set by the changes_requested verdict) is nulled —
+ * `pr_open` is not a leased state.
  */
 export const DevUpdatePrFunctionSource = `export default async (request, context) => {
   const args = context.args || {}
@@ -43,6 +45,7 @@ export const DevUpdatePrFunctionSource = `export default async (request, context
       headSha: headSha,
       reviewer: null,
       notes: '',
+      leaseExpiresAt: null,
       history: history,
     }
   )

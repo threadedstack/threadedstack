@@ -22,14 +22,20 @@ export const Ids = {
     generalAgent: `ag_0000005`,
     ollamaAgent: `ag_0000006`,
     // Executive board — founder CEO seat (product-stable id; matches the backend
-    // board constant CeoAgentId). The CTO seat reuses the prod steward agent.
+    // board constant CeoAgentId). The BOARD CTO seat reuses the prod steward agent.
     ceo: `ag_ceo0001`,
     // Executive board — founder CMO seat (product-stable id; matches the
     // agentSchedules CmoAgentId and the exec-board BoardCmoAgentId).
     cmo: `ag_cmo0001`,
+    // Realtime engineering team — the dedicated dev-team LEAD seat
+    // (product-stable id; matches the agentSchedules CtoAgentId and the CTO
+    // resident config seed). A separate identity from the steward, which keeps
+    // the scheduled dev loop AND the board CTO seat — the lead's sandbox can be
+    // flipped to resident mode without touching the live dev-loop driver.
+    cto: `ag_cto0001`,
     // Realtime engineering team — the two resident engineer seats
     // (product-stable ids; match the agentSchedules EngOneAgentId/EngTwoAgentId
-    // and the resident config seeds). The CTO lead reuses the prod steward agent.
+    // and the resident config seeds).
     engineerOne: `ag_eng0001`,
     engineerTwo: `ag_eng0002`,
   },
@@ -178,8 +184,10 @@ export const Ids = {
     // Executive board — CMO agent's body sandbox (product-stable id; matches the
     // agentSchedules CmoSandboxId).
     cmoBody: `sb_cmo0001`,
-    // Realtime engineering team — the engineer agents' body sandboxes (their
-    // runtime pods). Inert until flipped to resident mode at team activation.
+    // Realtime engineering team — the dev-team lead + engineer agents' body
+    // sandboxes (their runtime pods). Inert until flipped to resident mode at
+    // team activation.
+    ctoBody: `sb_cto0001`,
     engOneBody: `sb_eng0001`,
     engTwoBody: `sb_eng0002`,
   },

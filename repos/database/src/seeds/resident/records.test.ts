@@ -30,7 +30,7 @@ import {
   ResidentConfigSeedRecords,
   reconcileResidentConfigs,
 } from '@TDB/seeds/resident/records'
-import { EngOneAgentId, EngTwoAgentId, StewardAgentId } from '@TDB/seeds/agentSchedules'
+import { CtoAgentId, EngOneAgentId, EngTwoAgentId } from '@TDB/seeds/agentSchedules'
 
 const cmoBoardDef = AgentScheduleDefs.find((def) => def.key === `cmo-board`)!
 const cmoMarketingDef = AgentScheduleDefs.find((def) => def.key === `cmo-marketing`)!
@@ -431,16 +431,23 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
         limit: 20,
       })
 
-      // The watch prompts drive the three flows through the dev* Functions.
-      expect(backlog.prompt).toContain(`devClaimTask`)
+      // The watch prompts drive the three flows through the dev* Functions —
+      // result-dependent claims are issued SYNCHRONOUSLY (dispatch curl, read
+      // the result), never fire-and-forget.
+      expect(backlog.prompt).toContain(`SYNCHRONOUS devClaimTask`)
+      expect(backlog.prompt).toContain(`READ the result`)
       expect(backlog.prompt).toContain(`devSubmitPr`)
       expect(backlog.prompt).toContain(`pnpm types + pnpm test`)
-      expect(reviews.prompt).toContain(`devClaimReview`)
+      expect(reviews.prompt).toContain(`SYNCHRONOUS devClaimReview`)
       expect(reviews.prompt).toContain(`devCompleteReview`)
       expect(reviews.prompt).toContain(`reviewer can never equal assignee`)
       expect(reviews.prompt).toContain(`gh pr merge --admin`)
+      // The recoverable verdict windows (fixed 60-minute obligation leases).
+      expect(reviews.prompt).toContain(`60-minute merge lease`)
+      expect(myChanges.prompt).toContain(`60-minute fix lease`)
       expect(myChanges.prompt).toContain(`devUpdatePr`)
       expect(myChanges.prompt).toContain(`stand down`)
+      expect(myChanges.prompt).toContain(`reaped back to backlog`)
 
       expect(data.inbox).toEqual({ pollMs: 15_000 })
       expect(data.compaction).toEqual({ maxTurns: 40, maxBytes: 400_000 })
@@ -462,13 +469,28 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
         `dev_tasks STATE MACHINE IS THE ONLY COORDINATION PATH`
       )
       expect(session.seedPrompt).toContain(`NEVER WORK WITHOUT HOLDING THE CLAIM`)
-      expect(session.seedPrompt).toContain(`RENEW YOUR LEASE`)
+      // Result-dependent transitions are synchronous mid-turn dispatch calls
+      // (read the result before acting); tdsk-actions stays fire-and-forget.
+      expect(session.seedPrompt).toContain(
+        `RESULT-DEPENDENT TRANSITIONS ARE SYNCHRONOUS`
+      )
+      expect(session.seedPrompt).toContain(
+        `$TDSK_BACKEND_URL/_/orgs/$TDSK_RESIDENT_ORG_ID/projects/$TDSK_RESIDENT_PROJECT_ID/agents/$TDSK_RESIDENT_AGENT_ID/dispatch`
+      )
+      expect(session.seedPrompt).toContain(`Bearer $TDSK_RESIDENT_TOKEN`)
+      expect(session.seedPrompt).toContain(`FIRE-AND-FORGET`)
+      // Multi-turn liveness: every turn holding a claim opens with a renewal.
+      expect(session.seedPrompt).toContain(`THE FIRST ACTION OF EVERY TURN`)
+      expect(session.seedPrompt).toContain(`SYNCHRONOUS devRenewLease`)
       expect(session.seedPrompt).toContain(`YOU HAVE A FULL COMPUTER`)
       expect(session.seedPrompt).toContain(`THE REVIEWER MERGES`)
       expect(session.seedPrompt).toContain(`gh pr merge --admin`)
-      // The shared-GitHub-identity reality + the platform independence gate.
+      // The shared-GitHub-identity reality + the platform independence gate,
+      // stated honestly: the merge + CI checks are prompt discipline only.
       expect(session.seedPrompt).toContain(`ONE GitHub account identity`)
       expect(session.seedPrompt).toContain(`reviewer !== assignee`)
+      expect(session.seedPrompt).toContain(`prompt discipline`)
+      expect(session.seedPrompt).toContain(`never claim otherwise`)
       expect(session.seedPrompt).toContain(`THE SHADOW BOUNDARY IS ABSOLUTE`)
       expect(session.seedPrompt).toContain(`task_proposals`)
 
@@ -514,9 +536,11 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
         `markMessageRead`,
         `writeMemory`,
       ])
-      // Grooming + reaping are the CTO lead's duties — one owner per duty.
+      // Grooming, reaping, and the explicit close-out are the CTO lead's
+      // duties — one owner per duty.
       expect(seed.data.actions).not.toContain(`devAddTask`)
       expect(seed.data.actions).not.toContain(`devReapExpired`)
+      expect(seed.data.actions).not.toContain(`devAbandon`)
       expect(seed.data.functions).toEqual({
         heartbeat: `heartbeat`,
         appendTranscript: `appendTranscript`,
@@ -547,36 +571,42 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
 })
 
 describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
-  it(`rides the EXISTING CTO board-seat agent — never a second CTO identity`, () => {
+  it(`rides its OWN dedicated lead agent — NEVER the steward (the R6 double-driver guard)`, () => {
     expect(CtoResidentConfigSeed.id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
-    // The exact agent the live cto-board schedule runs on (the steward seat).
-    expect(CtoResidentConfigSeed.data.agentId).toBe(StewardAgentId)
-    expect(CtoResidentConfigSeed.data.agentId).toBe(ctoBoardDef.agentId)
+    // The dedicated dev-team lead seat (Ids.agent.cto + its body sandbox).
+    expect(CtoResidentConfigSeed.data.agentId).toBe(CtoAgentId)
+    // LOAD-BEARING DECOUPLING (adversarial-review guard): the lead must NOT be
+    // the agent the live cto-board schedule (and the whole scheduled dev loop)
+    // runs on — flipping the lead's sandbox to resident mode must never touch
+    // the live dev-loop driver. The scheduled board def stays ENABLED on the
+    // steward, untouched.
+    expect(CtoResidentConfigSeed.data.agentId).not.toBe(ctoBoardDef.agentId)
+    expect(ctoBoardDef.agentId).toBe(`ag_lvUbjp_`)
+    expect(ctoBoardDef.enabled).toBe(true)
   })
 
-  it(`agenda: board (the live cron def's prompt + cadence) + hourly groom + 15-minute reap`, () => {
+  it(`agenda: hourly groom + 15-minute reap — no board cycle (the board seat stays scheduled)`, () => {
     const { agenda } = CtoResidentConfigSeed.data
-    expect(agenda.map((item) => item.key)).toEqual([`board`, `groom`, `reap`])
+    expect(agenda.map((item) => item.key)).toEqual([`groom`, `reap`])
 
-    // The board agenda reuses the SAME prompt file + cadence as the scheduled
-    // def — which stays ENABLED through the shadow phase (the resident config
-    // is inert until the sandbox flip, so there is never a double-fire; the
-    // cron is disabled at THAT flip, the CEO/CMO precedent).
-    expect(agenda[0].prompt).toBe(ctoBoardDef.prompt)
-    expect(agenda[0].cron).toBe(ctoBoardDef.cronExpression)
-    expect(ctoBoardDef.enabled).toBe(true)
+    expect(agenda[0].cron).toBe(`0 * * * *`)
+    expect(agenda[0].prompt).toContain(`devAddTask`)
+    expect(agenda[0].prompt).toContain(`SMALL, sharply-scoped tasks`)
+    expect(agenda[0].prompt).toContain(`ENFORCE THE SHADOW BOUNDARY`)
+    expect(agenda[0].prompt).toContain(`task_proposals`)
 
-    expect(agenda[1].cron).toBe(`0 * * * *`)
-    expect(agenda[1].prompt).toContain(`devAddTask`)
-    expect(agenda[1].prompt).toContain(`SMALL, sharply-scoped tasks`)
-    expect(agenda[1].prompt).toContain(`ENFORCE THE SHADOW BOUNDARY`)
-    expect(agenda[1].prompt).toContain(`task_proposals`)
-
-    expect(agenda[2].cron).toBe(`*/15 * * * *`)
-    expect(agenda[2].prompt).toContain(`devReapExpired`)
+    expect(agenda[1].cron).toBe(`*/15 * * * *`)
+    // The reap is RESULT-DEPENDENT — run synchronously and read the lists.
+    expect(agenda[1].prompt).toContain(`devReapExpired SYNCHRONOUSLY`)
+    expect(agenda[1].prompt).toContain(`READ the returned lists`)
+    // Every wedge state's recovery path is spelled out for the reconciler.
+    expect(agenda[1].prompt).toContain(`approved → pr_open (re-review)`)
+    expect(agenda[1].prompt).toContain(`changes_requested → backlog (rework)`)
+    // The dead-task close-out is the lead's explicit act.
+    expect(agenda[1].prompt).toContain(`devAbandon`)
     // The isolate never touches GitHub — the CTO reconciles with gh in its VM.
-    expect(agenda[2].prompt).toContain(`gh pr view`)
-    expect(agenda[2].prompt).toContain(`sendAgentMessage`)
+    expect(agenda[1].prompt).toContain(`gh pr view`)
+    expect(agenda[1].prompt).toContain(`sendAgentMessage`)
   })
 
   it(`watches the approved lane for merge throughput (60s debounce)`, () => {
@@ -591,23 +621,38 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(watches[0].prompt).toContain(`RECORDED REVIEWER owns the merge`)
     expect(watches[0].prompt).toContain(`gh pr merge --admin`)
     expect(watches[0].prompt).toContain(`devMarkMerged`)
+    // The recoverable merge window + the honest enforcement boundary.
+    expect(watches[0].prompt).toContain(`60-minute merge lease`)
+    expect(watches[0].prompt).toContain(`prompt discipline`)
+    expect(watches[0].prompt).toContain(`reaped back to pr_open`)
   })
 
-  it(`session carries the lead prompt + board and dev-board context sources`, () => {
+  it(`session carries the lead prompt + strategy/plans and dev-board context sources`, () => {
     const { session, selfDirected } = CtoResidentConfigSeed.data
     expect(session.seedPrompt).toBe(loadPrompt(`cto-resident-session`))
     expect(session.seedPrompt).toContain(`CTO of ThreadedStack`)
     expect(session.seedPrompt).toContain(`RESIDENT agent`)
+    // The lead is decoupled from the board seat — it never posts positions.
+    expect(session.seedPrompt).toContain(`YOU ARE THE TEAM LEAD, NOT THE BOARD SEAT`)
+    expect(session.seedPrompt).toContain(`you never post positions yourself`)
     expect(session.seedPrompt).toContain(`GROOM SMALL AND BOUNDED`)
     expect(session.seedPrompt).toContain(`REAP, THEN RECONCILE AGAINST GITHUB`)
+    expect(session.seedPrompt).toContain(`ABANDON IS YOURS, AND IT IS DELIBERATE`)
     expect(session.seedPrompt).toContain(`YOU LEAD, YOU DO NOT CODE THE BOARD`)
     expect(session.seedPrompt).toContain(`YOU HAVE A FULL COMPUTER`)
     expect(session.seedPrompt).toContain(`reviewer !== assignee`)
+    // Result-dependent transitions run synchronously via the dispatch curl.
+    expect(session.seedPrompt).toContain(`RESULT-DEPENDENT TRANSITIONS ARE SYNCHRONOUS`)
+    expect(session.seedPrompt).toContain(
+      `$TDSK_BACKEND_URL/_/orgs/$TDSK_RESIDENT_ORG_ID/projects/$TDSK_RESIDENT_PROJECT_ID/agents/$TDSK_RESIDENT_AGENT_ID/dispatch`
+    )
+    expect(session.seedPrompt).toContain(`Bearer $TDSK_RESIDENT_TOKEN`)
+    // The honesty boundary: gh merge + CI checks are prompt discipline only.
+    expect(session.seedPrompt).toContain(`prompt discipline`)
+    expect(session.seedPrompt).toContain(`never claim otherwise`)
 
     expect(session.contextSources).toEqual([
       BoardStrategySource,
-      BoardOpenDecisionsSource,
-      BoardPositionsSource,
       BoardPlansSource,
       DevTasksInFlightSource,
       CtoMemoriesSource,
@@ -618,13 +663,11 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(selfDirected.prompt).toContain(`NEVER claim, review, or merge a dev task`)
   })
 
-  it(`allowlists board three + lead duties — never the engineers' claim/review Functions`, () => {
+  it(`allowlists ONLY the lead duties — never the engineers' or the board seat's Functions`, () => {
     const { actions } = CtoResidentConfigSeed.data
-    // The board seat's scheduled allowlist rides along unchanged.
-    for (const fn of ctoBoardDef.actions?.functions ?? [])
-      expect(actions).toContain(fn)
     expect(actions).toContain(`devAddTask`)
     expect(actions).toContain(`devReapExpired`)
+    expect(actions).toContain(`devAbandon`)
     expect(actions).toContain(`sendAgentMessage`)
     expect(actions).toContain(`writeMemory`)
     // The lead never works its own board.
@@ -632,24 +675,28 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(actions).not.toContain(`devClaimReview`)
     expect(actions).not.toContain(`devCompleteReview`)
     expect(actions).not.toContain(`devMarkMerged`)
+    // The board seat's Functions gate on board membership, which stays with
+    // the steward's scheduled seat — the decoupled lead never carries them.
+    for (const fn of ctoBoardDef.actions?.functions ?? [])
+      expect(actions).not.toContain(fn)
   })
 
   it(`satisfies the R2 runtime's config parser exactly, through a jsonb round trip`, () => {
     const roundTripped = JSON.parse(JSON.stringify(CtoResidentConfigSeed.data))
-    const normalized = normalizeResidentConfig(roundTripped, StewardAgentId)
+    const normalized = normalizeResidentConfig(roundTripped, CtoAgentId)
 
-    // Nothing dropped: all three agenda items (incl. the */15 reap cron) and
-    // the single watch survive validation.
+    // Nothing dropped: both agenda items (incl. the */15 reap cron) and the
+    // single watch survive validation.
     expect(normalized.agenda).toEqual(
       JSON.parse(JSON.stringify(CtoResidentConfigSeed.data.agenda))
     )
-    expect(normalized.agenda).toHaveLength(3)
+    expect(normalized.agenda).toHaveLength(2)
     expect(normalized.watches).toEqual(
       JSON.parse(JSON.stringify(CtoResidentConfigSeed.data.watches))
     )
     expect(normalized.watches).toHaveLength(1)
 
-    expect(normalized.agentId).toBe(StewardAgentId)
+    expect(normalized.agentId).toBe(CtoAgentId)
     expect(normalized.inbox).toEqual({ pollMs: 15_000, collection: `agent_messages` })
     expect(normalized.compaction).toEqual({ maxTurns: 40, maxBytes: 400_000 })
     expect(normalized.subAgents).toEqual({ maxConcurrent: 2 })

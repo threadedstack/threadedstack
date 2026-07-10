@@ -5,10 +5,10 @@ import {
   loadPrompt,
   CeoAgentId,
   CmoAgentId,
+  CtoAgentId,
   OpsProjectId,
   EngOneAgentId,
   EngTwoAgentId,
-  StewardAgentId,
   BoardPlansSource,
   BoardStrategySource,
   BoardPositionsSource,
@@ -48,12 +48,12 @@ export const CeoMemoriesSource: TContextSource = {
   } as TRecordQuery,
 }
 
-/** The CTO resident's durable-recall source (its own memories, newest first). */
+/** The CTO team-lead resident's durable-recall source (its own memories, newest first). */
 export const CtoMemoriesSource: TContextSource = {
   as: `Recent memories`,
   collection: ResidentMemoriesCollectionName,
   query: {
-    where: [{ field: `agentId`, op: EQueryOp.eq, value: StewardAgentId }],
+    where: [{ field: `agentId`, op: EQueryOp.eq, value: CtoAgentId }],
     orderBy: { field: `at`, direction: `desc` },
     limit: 20,
   } as TRecordQuery,
@@ -427,10 +427,10 @@ const ResidentHousekeepingFunctions = {
  * apart from the agentId (a single factory guarantees it): both watch the same
  * backlog and review sets, and each watches its OWN changes_requested set via
  * its hardcoded id. Engineers hold the state machine's seven WORK-PATH
- * Functions — grooming (devAddTask) and reaping (devReapExpired) are the CTO
- * lead's duties, deliberately NOT on the engineer allowlist (one owner per
- * duty; the machine's identity gates are enforced in the Functions either
- * way).
+ * Functions — grooming (devAddTask), reaping (devReapExpired), and the
+ * explicit close-out (devAbandon) are the CTO lead's duties, deliberately NOT
+ * on the engineer allowlist (one owner per duty; the machine's identity gates
+ * are enforced in the Functions either way).
  */
 const buildEngineerResidentConfig = (
   agentId: string
@@ -449,7 +449,7 @@ const buildEngineerResidentConfig = (
       debounceMs: 30_000,
       prompt: [
         `New work is available on the dev_tasks backlog.`,
-        `Pick ONE task from the matched records (highest priority first), win it with devClaimTask, and execute it end to end: branch, implement, run pnpm types + pnpm test until green, open the PR with gh, then record it with devSubmitPr (prNumber, prUrl, branch, headSha). Renew your lease with devRenewLease about every 10 minutes while you work. If devClaimTask returns conflict, your teammate won it — move to the next task or stand down.`,
+        `Pick ONE task from the matched records (highest priority first), win it with a SYNCHRONOUS devClaimTask (curl the dispatch endpoint per your standing directives and READ the result — write no code until it returns claimed: true), then execute it end to end: branch, implement, run pnpm types + pnpm test until green, open the PR with gh, then record it with devSubmitPr (prNumber, prUrl, branch, headSha). Renew your lease with a synchronous devRenewLease about every 10 minutes while you work. If devClaimTask returns conflict, your teammate won it — move to the next task or stand down.`,
       ].join(`\n`),
     },
     // A PR opened — claim-and-review. The Function refuses your own PR, so the
@@ -461,7 +461,7 @@ const buildEngineerResidentConfig = (
       debounceMs: 30_000,
       prompt: [
         `A PR is awaiting review on the dev_tasks board.`,
-        `Pick ONE pr_open task from the matched records and win the review with devClaimReview — the platform refuses your own PRs (reviewer can never equal assignee), so a refusal or conflict means stand down. Review for real: fetch the branch, read the FULL diff, run pnpm types + pnpm test locally, then record your verdict with devCompleteReview bound to the exact headSha you reviewed (approved, or changes_requested with actionable notes). After your approved verdict is recorded and CI is green, merge with gh pr merge --admin and close the loop with devMarkMerged.`,
+        `Pick ONE pr_open task from the matched records and win the review with a SYNCHRONOUS devClaimReview (curl the dispatch endpoint and READ the result before reviewing) — the platform refuses your own PRs (reviewer can never equal assignee), so a refusal or conflict means stand down. Review for real: fetch the branch, read the FULL diff, run pnpm types + pnpm test locally, then record your verdict with devCompleteReview bound to the exact headSha you reviewed (approved, or changes_requested with actionable notes). An approved verdict starts YOUR 60-minute merge lease: verify CI is green, merge with gh pr merge --admin, and close the loop with devMarkMerged before it expires — or the reaper returns the task to pr_open for a fresh review.`,
       ].join(`\n`),
     },
     // A reviewer requested changes on THIS seat's PR (assignee hardcoded in
@@ -473,7 +473,7 @@ const buildEngineerResidentConfig = (
       debounceMs: 30_000,
       prompt: [
         `A review requested changes on YOUR PR (this watch matches only tasks assigned to you — if a matched record's assignee is not you, stand down).`,
-        `Read the reviewer's notes on the record, fix the code on your branch, run pnpm types + pnpm test until green, push, then record the new head with devUpdatePr (headSha) — it clears the reviewer and voids the stale review, so the task re-enters pr_open for a fresh review.`,
+        `The verdict started your 60-minute fix lease. Read the reviewer's notes on the record, fix the code on your branch, run pnpm types + pnpm test until green, push, then record the new head with devUpdatePr (headSha) — it clears the reviewer and voids the stale review, so the task re-enters pr_open for a fresh review. An expired fix lease is reaped back to backlog for rework (your branch and PR anchors survive on the record), so land the fix inside the window.`,
       ].join(`\n`),
     },
   ],
@@ -527,31 +527,25 @@ export const EngTwoResidentConfigSeed: TResidentConfigSeedRecord = {
 }
 
 /**
- * The CTO resident config — the dev-team LEAD, on the EXISTING CTO board-seat
- * agent (the steward, `StewardAgentId` — the seat the cto-board schedule runs
- * on; NEVER a second CTO identity). Its `board` agenda reuses the live
- * `cto-board` prompt file at the same six-hourly :30 cadence; the scheduled
- * sd_ctobrd1 def stays ENABLED through the shadow phase (this config is inert
- * until the steward sandbox is flipped to resident mode — at THAT flip the
- * cron is disabled, the CEO/CMO precedent), so there is never a double-fire.
- * On top of the board seat: hourly backlog grooming (devAddTask, SMALL bounded
- * shadow tasks), a 15-minute lease reap (devReapExpired + gh reconciliation
- * from its VM), and an approved-watch that sanity-checks merge throughput. The
- * CTO deliberately does NOT hold the engineers' claim/review Functions — it
- * leads the team, it never works the board itself.
+ * The CTO resident config — the dev-team LEAD, on its OWN dedicated agent
+ * (`CtoAgentId`, Ids.agent.cto + its body sandbox Ids.sandbox.ctoBody).
+ * Deliberately NOT the steward: the steward keeps the scheduled dev-loop's 9
+ * defs AND the board CTO seat (the still-enabled sd_ctobrd1 cron), so flipping
+ * this lead's sandbox to resident mode never touches the live dev-loop driver.
+ * The lead coordinates via inbox/records without the board seat's identity —
+ * board membership (and postPosition/reportInitiativeComplete/updateMilestone,
+ * which gate on it) stays with the steward. The lead's duties: hourly backlog
+ * grooming (devAddTask, SMALL bounded shadow tasks), a 15-minute lease reap
+ * (devReapExpired run SYNCHRONOUSLY + gh reconciliation from its VM), the
+ * explicit close-out (devAbandon), and an approved-watch that sanity-checks
+ * merge throughput. The CTO deliberately does NOT hold the engineers'
+ * claim/review Functions — it leads the team, it never works the board itself.
  */
 export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
   id: `rec_ctores`,
   data: {
-    agentId: StewardAgentId,
+    agentId: CtoAgentId,
     agenda: [
-      // The board seat's deliberation cycle — same prompt file + cadence as
-      // the (still-enabled) sd_ctobrd1 cron def.
-      {
-        key: `board`,
-        cron: `30 */6 * * *`,
-        prompt: loadPrompt(`cto-board`),
-      },
       // Hourly backlog grooming: SMALL, bounded, shadow-safe tasks only.
       {
         key: `groom`,
@@ -567,8 +561,8 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
         key: `reap`,
         cron: `*/15 * * * *`,
         prompt: [
-          `Run the lease reaper: invoke devReapExpired.`,
-          `Then reconcile the returned reaped + candidates lists against REAL GitHub state with gh from your VM (gh pr view <prNumber>, gh pr list): a reaped task whose PR is actually merged should be driven to merged through the state machine (message the engineers); a reaped backlog task whose branch or PR already exists must not be rebuilt from scratch (message the next claimer with the existing branch); a wedged engineer gets a sendAgentMessage with what you found. When devReapExpired returns nothing expired, say so in one line and stop.`,
+          `Run the lease reaper: invoke devReapExpired SYNCHRONOUSLY (curl the dispatch endpoint per your standing directives and READ the returned lists — they are this turn's work).`,
+          `Reclaims land as claimed → backlog, in_review → pr_open, approved → pr_open (re-review), changes_requested → backlog (rework). Then reconcile the returned reaped + candidates lists against REAL GitHub state with gh from your VM (gh pr view <prNumber>, gh pr list): a reaped task whose PR is actually merged should be driven to merged through the state machine (message the engineers); a reaped backlog task whose branch or PR already exists must not be rebuilt from scratch (the PR anchors survive on the record — message the next claimer with the existing branch); a wedged engineer gets a sendAgentMessage with what you found; a task that is genuinely dead (superseded, invalid, unrecoverable) gets an explicit devAbandon with the reason. When devReapExpired returns nothing expired, say so in one line and stop.`,
         ].join(`\n`),
       },
     ],
@@ -582,7 +576,7 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
         debounceMs: 60_000,
         prompt: [
           `A task reached approved — sanity-check merge throughput.`,
-          `Approved means the RECORDED REVIEWER owns the merge (gh pr merge --admin, then devMarkMerged) — GitHub's same-account approval UI cannot arbitrate, the platform-recorded verdict is the gate. If approved tasks are sitting unmerged, verify CI state with gh from your VM and nudge the recorded reviewer via sendAgentMessage; if the lane is flowing, say so in one line and stop.`,
+          `Approved means the RECORDED REVIEWER owns the merge (gh pr merge --admin, then devMarkMerged) inside a 60-minute merge lease — the platform-recorded verdict is the gate, while the CI check and the merge itself are prompt discipline on the shared GitHub account (GitHub's same-account approval UI cannot arbitrate). If approved tasks are sitting unmerged, verify CI state with gh from your VM and nudge the recorded reviewer via sendAgentMessage — an expired merge lease is reaped back to pr_open for a fresh review; if the lane is flowing, say so in one line and stop.`,
         ].join(`\n`),
       },
     ],
@@ -592,8 +586,6 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
       seedPrompt: loadPrompt(`cto-resident-session`),
       contextSources: [
         BoardStrategySource,
-        BoardOpenDecisionsSource,
-        BoardPositionsSource,
         BoardPlansSource,
         DevTasksInFlightSource,
         CtoMemoriesSource,
@@ -602,17 +594,17 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
     subAgents: { maxConcurrent: 2 },
     selfDirected: {
       minIdleMs: 600_000,
-      prompt: `Review team health: lease liveness, backlog depth, review latency, and merge throughput on the dev_tasks board; verify your board-lane duties are current; message the engineers about anything wedged (sendAgentMessage). NEVER claim, review, or merge a dev task yourself — you lead, groom, and reap.`,
+      prompt: `Review team health: lease liveness, backlog depth, review latency, and merge throughput on the dev_tasks board; message the engineers about anything wedged (sendAgentMessage). NEVER claim, review, or merge a dev task yourself — you lead, groom, reap, and close out.`,
     },
-    // The board seat's three Functions (the cto-board def's allowlist) + the
-    // two lead duties + messaging + the housekeeping five. Deliberately NO
-    // engineer claim/review Functions — the lead never works its own board.
+    // The three lead duties + messaging + the housekeeping five. Deliberately
+    // NO engineer claim/review Functions (the lead never works its own board)
+    // and NO board-seat Functions (postPosition/reportInitiativeComplete/
+    // updateMilestone gate on board membership, which stays with the steward's
+    // scheduled seat).
     actions: [
-      `postPosition`,
-      `reportInitiativeComplete`,
-      `updateMilestone`,
       `devAddTask`,
       `devReapExpired`,
+      `devAbandon`,
       `sendAgentMessage`,
       `updateResidentConfig`,
       `heartbeat`,

@@ -51,13 +51,14 @@ import { DevMarkMergedFunctionDef } from '@tdsk/database/seeds/dev-team/function
 import { DevUpdatePrFunctionDef } from '@tdsk/database/seeds/dev-team/functions/devUpdatePr'
 import { DevRenewLeaseFunctionDef } from '@tdsk/database/seeds/dev-team/functions/devRenewLease'
 import { DevReapExpiredFunctionDef } from '@tdsk/database/seeds/dev-team/functions/devReapExpired'
+import { DevAbandonFunctionDef } from '@tdsk/database/seeds/dev-team/functions/devAbandon'
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
 const ProjectId = `proj-devteam`
 const EngOne = { agentId: `ag_eng0001` }
 const EngTwo = { agentId: `ag_eng0002` }
-const Cto = { agentId: `ag_lvUbjp_` }
+const Cto = { agentId: `ag_cto0001` }
 
 const MinuteMs = 60 * 1000
 
@@ -543,9 +544,10 @@ describe(`devCompleteReview Function`, () => {
     expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`in_review`)
   })
 
-  it(`records approved: state + notes + lease nulled + history`, async () => {
+  it(`records approved: state + notes + the reviewer's 60-minute merge lease + history`, async () => {
     const h = makeFakeDb()
     inReview(h)
+    const before = Date.now()
 
     const result = await runFn(
       DevCompleteReviewFunctionDef,
@@ -556,7 +558,11 @@ describe(`devCompleteReview Function`, () => {
 
     expect(result.output).toMatchObject({ ok: true, completed: true, state: `approved` })
     const { data } = h.row(`dev_tasks`, `dt_1`)!
-    expect(data).toMatchObject({ state: `approved`, notes: `ship it`, leaseExpiresAt: null })
+    expect(data).toMatchObject({ state: `approved`, notes: `ship it` })
+    // The verdict is an OBLIGATION: the recorded reviewer owes the merge
+    // inside a fresh 60-minute lease (never null — a wedge state otherwise).
+    expect(data.leaseExpiresAt).toBeGreaterThanOrEqual(before + 60 * MinuteMs)
+    expect(data.leaseExpiresAt).toBeLessThanOrEqual(Date.now() + 60 * MinuteMs)
     expect(data.history[0]).toMatchObject({
       from: `in_review`,
       to: `approved`,
@@ -564,9 +570,10 @@ describe(`devCompleteReview Function`, () => {
     })
   })
 
-  it(`changes_requested REQUIRES actionable notes, then records them`, async () => {
+  it(`changes_requested REQUIRES actionable notes, then records them with the author's fix lease`, async () => {
     const h = makeFakeDb()
     inReview(h)
+    const before = Date.now()
 
     const noNotes = await runFn(
       DevCompleteReviewFunctionDef,
@@ -591,9 +598,11 @@ describe(`devCompleteReview Function`, () => {
       EngTwo
     )
     expect(withNotes.output).toMatchObject({ ok: true, state: `changes_requested` })
-    expect(h.row(`dev_tasks`, `dt_1`)!.data.notes).toBe(
-      `missing test for the conflict path`
-    )
+    const { data } = h.row(`dev_tasks`, `dt_1`)!
+    expect(data.notes).toBe(`missing test for the conflict path`)
+    // The author owes the fix inside a fresh 60-minute lease.
+    expect(data.leaseExpiresAt).toBeGreaterThanOrEqual(before + 60 * MinuteMs)
+    expect(data.leaseExpiresAt).toBeLessThanOrEqual(Date.now() + 60 * MinuteMs)
   })
 
   it(`rejects an invalid verdict`, async () => {
@@ -624,10 +633,11 @@ describe(`devUpdatePr Function`, () => {
       prNumber: 42,
       headSha: `abc123`,
       notes: `missing test`,
+      leaseExpiresAt: Date.now() + 30 * MinuteMs,
       history: [],
     })
 
-  it(`re-enters pr_open with the new head, clearing reviewer + notes (the stale review is void)`, async () => {
+  it(`re-enters pr_open with the new head, clearing reviewer + notes + the fix lease (the stale review is void)`, async () => {
     const h = makeFakeDb()
     changesRequested(h)
 
@@ -645,6 +655,8 @@ describe(`devUpdatePr Function`, () => {
       headSha: `def456`,
       reviewer: null,
       notes: ``,
+      // pr_open is not a leased state — the verdict's fix lease is cleared.
+      leaseExpiresAt: null,
     })
     expect(data.history[0]).toMatchObject({
       from: `changes_requested`,
@@ -945,6 +957,88 @@ describe(`devReapExpired Function`, () => {
     expect(h.row(`dev_tasks`, `dt_alive`)!.data.state).toBe(`claimed`)
   })
 
+  it(`recovers the verdict wedges: expired approved → pr_open (re-review), expired changes_requested → backlog (rework)`, async () => {
+    const h = makeFakeDb()
+    const now = Date.now()
+    // The reviewer never merged inside its 60-minute merge lease.
+    seedTask(h, `dt_dead_approved`, {
+      state: `approved`,
+      assignee: EngOne.agentId,
+      reviewer: EngTwo.agentId,
+      prNumber: 42,
+      prUrl: `https://github.com/x/pull/42`,
+      branch: `eng/fix`,
+      headSha: `abc123`,
+      leaseExpiresAt: now - MinuteMs,
+      history: [],
+    })
+    // The author never pushed the fix inside its 60-minute fix lease.
+    seedTask(h, `dt_dead_changes`, {
+      state: `changes_requested`,
+      assignee: EngOne.agentId,
+      reviewer: EngTwo.agentId,
+      claimedAt: now - 90 * MinuteMs,
+      prNumber: 43,
+      prUrl: `https://github.com/x/pull/43`,
+      branch: `eng/fix-2`,
+      headSha: `def456`,
+      notes: `missing test`,
+      leaseExpiresAt: now - 5 * MinuteMs,
+      history: [],
+    })
+
+    const result = await runFn(DevReapExpiredFunctionDef, h, {}, Cto)
+
+    const output = result.output as any
+    expect(output.ok).toBe(true)
+    expect(output.conflicts).toEqual([])
+    expect(output.reaped).toHaveLength(2)
+
+    // Expired approved re-enters the review race: reviewer cleared, the
+    // author's claim and every PR anchor intact.
+    const approved = h.row(`dev_tasks`, `dt_dead_approved`)!.data
+    expect(approved).toMatchObject({
+      state: `pr_open`,
+      assignee: EngOne.agentId,
+      reviewer: null,
+      leaseExpiresAt: null,
+      prNumber: 42,
+      headSha: `abc123`,
+    })
+    expect(approved.history[0]).toMatchObject({
+      from: `approved`,
+      to: `pr_open`,
+      by: Cto.agentId,
+    })
+    // The reviewer owed the merge — it is the reaped entry's holder.
+    expect(output.reaped.find((rec: any) => rec.id === `dt_dead_approved`)).toMatchObject(
+      { from: `approved`, to: `pr_open`, holder: EngTwo.agentId }
+    )
+
+    // Expired changes_requested goes back to rework: assignee AND reviewer
+    // cleared, PR anchors intact for the next claimer.
+    const changes = h.row(`dev_tasks`, `dt_dead_changes`)!.data
+    expect(changes).toMatchObject({
+      state: `backlog`,
+      assignee: null,
+      reviewer: null,
+      claimedAt: null,
+      leaseExpiresAt: null,
+      prNumber: 43,
+      branch: `eng/fix-2`,
+      headSha: `def456`,
+    })
+    expect(changes.history[0]).toMatchObject({
+      from: `changes_requested`,
+      to: `backlog`,
+      by: Cto.agentId,
+    })
+    // The author owed the fix — it is the reaped entry's holder.
+    expect(output.reaped.find((rec: any) => rec.id === `dt_dead_changes`)).toMatchObject(
+      { from: `changes_requested`, to: `backlog`, holder: EngOne.agentId }
+    )
+  })
+
   it(`a renewal landing between the reap's read and its CAS wins — the holder is never clobbered`, async () => {
     const h = makeFakeDb()
     const now = Date.now()
@@ -984,5 +1078,140 @@ describe(`devReapExpired Function`, () => {
     const h = makeFakeDb()
     const result = await runFn(DevReapExpiredFunctionDef, h, {})
     expect(result.output).toEqual({ ok: false, reason: `no caller identity` })
+  })
+})
+
+// ── devAbandon — the CTO lead's explicit close-out ────────────────────────────
+
+describe(`devAbandon Function`, () => {
+  it(`closes out a non-terminal task: abandoned + reason in notes + holders cleared + history`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`, {
+      state: `changes_requested`,
+      assignee: EngOne.agentId,
+      reviewer: EngTwo.agentId,
+      claimedAt: Date.now() - 30 * MinuteMs,
+      prNumber: 42,
+      prUrl: `https://github.com/x/pull/42`,
+      branch: `eng/fix`,
+      headSha: `abc123`,
+      notes: `missing test`,
+      leaseExpiresAt: Date.now() + 10 * MinuteMs,
+      history: [],
+    })
+
+    const result = await runFn(
+      DevAbandonFunctionDef,
+      h,
+      { taskId: `dt_1`, reason: `superseded by the shared-pool refactor in PR #57` },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      abandoned: true,
+      id: `dt_1`,
+      state: `abandoned`,
+    })
+    const { data } = h.row(`dev_tasks`, `dt_1`)!
+    expect(data).toMatchObject({
+      state: `abandoned`,
+      notes: `superseded by the shared-pool refactor in PR #57`,
+      assignee: null,
+      reviewer: null,
+      claimedAt: null,
+      leaseExpiresAt: null,
+      // The PR anchors stay on the terminal record — the audit trail survives.
+      prNumber: 42,
+      branch: `eng/fix`,
+    })
+    expect(data.history[0]).toMatchObject({
+      from: `changes_requested`,
+      to: `abandoned`,
+      by: Cto.agentId,
+    })
+  })
+
+  it(`REQUIRES a reason — a close-out without the record's last word is refused`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`)
+
+    const result = await runFn(DevAbandonFunctionDef, h, { taskId: `dt_1` }, Cto)
+
+    expect(result.output).toEqual({
+      ok: false,
+      reason: `reason is required (the close-out is the record's last word)`,
+    })
+    expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`backlog`)
+  })
+
+  it(`refuses a terminal task as a normal conflict outcome`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`, { state: `merged`, history: [] })
+
+    const result = await runFn(
+      DevAbandonFunctionDef,
+      h,
+      { taskId: `dt_1`, reason: `cleanup` },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      abandoned: false,
+      conflict: true,
+      reason: `task is already terminal (state: merged)`,
+    })
+    expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`merged`)
+  })
+
+  it(`a concurrent transition wins — the CAS guards on the exact state read`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`)
+
+    // Simulate the race: an engineer's devClaimTask lands AFTER the abandon's
+    // read but BEFORE its CAS — freeze the read snapshot, then flip the store.
+    const impl = h.record.get.getMockImplementation()!
+    h.record.get.mockImplementationOnce(async (...args: any[]) => {
+      const res = await (impl as any)(...args)
+      const snapshot = JSON.parse(JSON.stringify(res))
+      h.row(`dev_tasks`, `dt_1`)!.data.state = `claimed`
+      h.row(`dev_tasks`, `dt_1`)!.data.assignee = EngOne.agentId
+      return snapshot
+    })
+
+    const result = await runFn(
+      DevAbandonFunctionDef,
+      h,
+      { taskId: `dt_1`, reason: `stale` },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({ ok: true, abandoned: false, conflict: true })
+    // The engineer's live claim survives untouched.
+    expect(h.row(`dev_tasks`, `dt_1`)!.data).toMatchObject({
+      state: `claimed`,
+      assignee: EngOne.agentId,
+    })
+  })
+
+  it(`refuses a spoofed agentId arg and a missing caller`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`)
+
+    const spoof = await runFn(
+      DevAbandonFunctionDef,
+      h,
+      { taskId: `dt_1`, reason: `r`, agentId: EngOne.agentId },
+      Cto
+    )
+    expect(spoof.output).toEqual({
+      ok: false,
+      reason: `agentId mismatch: the platform-injected caller identity is authoritative`,
+    })
+
+    const noCaller = await runFn(DevAbandonFunctionDef, h, { taskId: `dt_1`, reason: `r` })
+    expect(noCaller.output).toEqual({ ok: false, reason: `no caller identity` })
+    expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`backlog`)
   })
 })

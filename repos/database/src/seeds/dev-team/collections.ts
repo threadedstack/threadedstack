@@ -18,15 +18,25 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
  *   backlog → claimed            (engineer wins the work claim + lease)
  *   claimed → pr_open            (author opened the PR; prNumber/headSha set)
  *   pr_open → in_review          (a DIFFERENT engineer wins the review claim)
- *   in_review → approved         (review passed on the recorded headSha)
- *   in_review → changes_requested(review found problems; wakes the author)
+ *   in_review → approved         (review passed on the recorded headSha;
+ *                                 the reviewer now owes the merge on a lease)
+ *   in_review → changes_requested(review found problems; wakes the author,
+ *                                 who now owes the fix on a lease)
  *   changes_requested → pr_open  (author pushed a fix; headSha updated →
  *                                 prior review is void, re-review required)
  *   approved → merged            (reviewer merges on green CI)
- *   any → abandoned | failed     (explicitly closed out, with notes)
+ *   approved → pr_open           (reaped: the merge lease expired — reviewer
+ *                                 cleared, the task re-enters the review race)
+ *   changes_requested → backlog  (reaped: the fix lease expired — assignee
+ *                                 AND reviewer cleared, back to rework)
+ *   any non-terminal → abandoned (devAbandon, the CTO lead's explicit
+ *                                 close-out — reason recorded in notes)
  *
  * Leases: `assignee`/`reviewer` claims carry `leaseExpiresAt` (epoch ms) that
- * the holder renews while working. The reaper (a CTO duty, not platform code)
+ * the holder renews while working, and BOTH review verdicts set a fresh
+ * obligation lease (approved → the reviewer owes the merge, changes_requested
+ * → the author owes the fix) — so all four non-backlog/non-pr_open states are
+ * leased and none can wedge. The reaper (a CTO duty, not platform code)
  * queries expired leases and CAS-reclaims them — guarded on the exact
  * leaseExpiresAt it read, so a concurrent renewal always wins — after
  * reconciling against real GitHub state (never duplicating an in-flight PR).
