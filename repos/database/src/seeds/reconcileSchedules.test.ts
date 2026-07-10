@@ -324,11 +324,20 @@ describe(`AgentScheduleDefs`, () => {
     const live = AgentScheduleDefs.filter((d) => !execKeys.includes(d.key))
     expect(live).toHaveLength(11)
     for (const d of live) {
-      // NO contextSources on any live def: the legacy context builders stay
-      // authoritative through the dual-emit transition (the sensor faculties
+      // NO contextSources on any live def — with ONE exception: the sensor
+      // carries the dev-team output-liveness digests (resident status + board)
+      // for its signal 7. The legacy context builders stay authoritative for
+      // everything else through the dual-emit transition (the sensor faculties
       // and the work cycle's backlog keep flowing via the tdsk-tasks /
       // tdsk-task-picked prompt-fence gates).
-      expect(d.contextSources).toBeUndefined()
+      if (d.key === `sensor`) {
+        expect(d.contextSources?.map((s) => s.as)).toEqual([
+          `Dev-team resident status`,
+          `Dev-team board (newest 30)`,
+        ])
+      } else {
+        expect(d.contextSources).toBeUndefined()
+      }
       if (d.key in dualEmitAllowlists) continue
       expect(d.actions).toBeUndefined()
       // A live DB row reads both columns back as null; null == undefined must
@@ -341,7 +350,9 @@ describe(`AgentScheduleDefs`, () => {
     for (const [key, functions] of Object.entries(dualEmitAllowlists)) {
       const d = live.find((entry) => entry.key === key)
       expect(d?.actions).toEqual({ functions })
-      expect(d?.contextSources).toBeUndefined()
+      // The sensor additionally carries the dev-team output-liveness digests
+      // (asserted by name above); every other dual-emitter stays source-free.
+      if (key !== `sensor`) expect(d?.contextSources).toBeUndefined()
       // The live row (null actions) reconciles ONCE to gain the allowlist...
       expect(
         needsUpdate({ ...declarativeFields(d!), contextSources: null, actions: null }, d!)
