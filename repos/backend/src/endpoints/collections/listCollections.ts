@@ -6,8 +6,9 @@ import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
- * GET /:orgId/projects/:projectId/collections - List a project's collections.
- * Requires member+ role in the project (collection:read).
+ * GET /:orgId/projects/:projectId/collections - List a project's collections,
+ * each annotated with its live record count. Requires member+ role in the
+ * project (collection:read).
  */
 export const listCollections: TEndpointConfig = {
   path: `/`,
@@ -19,9 +20,18 @@ export const listCollections: TEndpointConfig = {
 
     if (!projectId) throw new Exception(400, `projectId parameter required`)
 
-    const { data, error } = await db.services.collection.listByProject(projectId)
+    const [{ data, error }, { data: counts, error: countsError }] = await Promise.all([
+      db.services.collection.listByProject(projectId),
+      db.services.record.countsByProject(projectId),
+    ])
     if (error) throw new Exception(500, error.message)
+    if (countsError) throw new Exception(500, countsError.message)
 
-    res.status(200).json({ data: data || [] })
+    const withCounts = (data || []).map((collection) => ({
+      ...collection,
+      recordCount: counts?.[collection.id] ?? 0,
+    }))
+
+    res.status(200).json({ data: withCounts })
   },
 }

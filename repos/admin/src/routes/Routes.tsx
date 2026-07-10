@@ -41,6 +41,7 @@ import {
   projectSandboxesLoader,
   projectEndpointsLoader,
   projectFunctionsLoader,
+  projectCollectionsLoader,
 } from '@TAF/routes/loaders'
 
 // Global pages
@@ -83,6 +84,7 @@ const ProjectMembers = lazy(() => import('@TAF/pages/Projects/ProjectMembers'))
 const ProjectApiKeys = lazy(() => import('@TAF/pages/Projects/ProjectApiKeys'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
+const ProjectCollections = lazy(() => import('@TAF/pages/Projects/ProjectCollections'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSandboxes = lazy(() => import('@TAF/pages/Projects/ProjectSandboxes'))
 const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
@@ -333,6 +335,15 @@ export const createRoutes = () =>
                         path: ERoutePath.Schedules,
                         loader: projectSchedulesLoader,
                         Component: () => <SuspensePage Component={ProjectSchedules} />,
+                      },
+                    ]
+                  : []),
+                ...(isFeatureEnabled(`collections`)
+                  ? [
+                      {
+                        path: ERoutePath.Collections,
+                        loader: projectCollectionsLoader,
+                        Component: () => <SuspensePage Component={ProjectCollections} />,
                       },
                     ]
                   : []),

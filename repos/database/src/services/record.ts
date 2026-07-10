@@ -288,4 +288,29 @@ export class Record {
       return { error }
     }
   }
+
+  /**
+   * Record counts for every collection in a project, keyed by collectionId.
+   * A single grouped aggregate (not N per-collection queries) — used by the
+   * collections list endpoint. Collections with zero records are simply
+   * absent from the returned map.
+   */
+  async countsByProject(
+    projectId: string
+  ): Promise<TDBApiResType<{ [collectionId: string]: number }>> {
+    try {
+      const rows = await this.db
+        .select({ collectionId: records.collectionId, value: count() })
+        .from(records)
+        .where(eq(records.projectId, projectId))
+        .groupBy(records.collectionId)
+
+      const counts: { [collectionId: string]: number } = {}
+      for (const row of rows) counts[row.collectionId] = Number(row.value)
+
+      return { data: counts }
+    } catch (error: any) {
+      return { error }
+    }
+  }
 }

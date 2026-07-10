@@ -22,6 +22,7 @@ import {
   Api as EndpointIcon,
   Person as PersonIcon,
   Code as FunctionIcon,
+  Storage as CollectionIcon,
   Logout as LogoutIcon,
   BarChart as UsageIcon,
   Cloud as ProviderIcon,
@@ -206,6 +207,12 @@ const ProjectSubNav: Record<string, TNavItem> = {
     Icon: <TimerIcon />,
     visible: (ctx) => hasOrgAndProject(ctx) && isFeatureEnabled(`schedules`),
   },
+  Collections: {
+    text: `Collections`,
+    to: buildRoute(ERoutePath.ProjectCollections),
+    Icon: <CollectionIcon />,
+    visible: (ctx) => hasOrgAndProject(ctx) && isFeatureEnabled(`collections`),
+  },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.ProjectSettings),
@@ -299,6 +306,7 @@ export const ProjectSubNavGroups: TSubNavGroup[] = [
       ProjectSubNav.Schedules,
       ProjectSubNav.Endpoints,
       ProjectSubNav.Functions,
+      ProjectSubNav.Collections,
       ProjectSubNav.Agents,
     ],
   },
