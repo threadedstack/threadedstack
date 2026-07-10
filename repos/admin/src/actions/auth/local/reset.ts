@@ -4,6 +4,7 @@ import {
   resetAssets,
   resetAgents,
   resetSkills,
+  resetCollections,
   resetApiKeys,
   resetSkillProposals,
   resetActiveSkillProposalId,
@@ -72,6 +73,7 @@ export const reset = () => {
   resetThemeType?.()
   resetSandboxes?.()
   resetSchedules?.()
+  resetCollections?.()
   resetSidebarOpen?.()
   resetActiveOrgId?.()
   resetSubscription?.()
