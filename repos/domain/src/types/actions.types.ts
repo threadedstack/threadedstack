@@ -21,4 +21,11 @@ export type TAgentAction = {
 export type TActionsConfig = {
   /** Names of project-scoped Functions the effect surface may invoke. */
   functions: string[]
+  /**
+   * Endpoint refs (id or name) that Functions invoked by this surface may reach
+   * via `context.connect`. Fail-closed: absent/empty means NO external reach.
+   * Authoring a Function does NOT confer access to any project endpoint — the
+   * grant is explicit and lives here, alongside the Function allowlist.
+   */
+  connectEndpoints?: string[]
 }

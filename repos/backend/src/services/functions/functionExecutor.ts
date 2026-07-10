@@ -12,6 +12,7 @@ import type {
 
 import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
+import { buildConnectorBridges, connectContextCode } from './connectorCapability'
 import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { EFunLanguage, ESandboxType } from '@tdsk/domain'
@@ -103,6 +104,13 @@ type TExecuteOpts = {
    * dependency-free `context.scan` capability rides along with it.
    */
   db?: TDatabase
+  /**
+   * Endpoint refs (id or name) this execution may reach via `context.connect`.
+   * Fail-closed: absent/empty means NO connector access. The caller (the agent
+   * invoke path) supplies the grant — authorship of a Function does not by itself
+   * confer access to any project endpoint.
+   */
+  connectEndpoints?: string[]
 }
 
 /** Bridge-callback names exposed to the isolate for the records capability. */
@@ -266,7 +274,8 @@ const buildWrapperCode = (
   request: TFunctionRequest,
   context: TFunctionContext,
   withRecords = false,
-  withScan = false
+  withScan = false,
+  withConnect = false
 ): string => {
   const requestJson = JSON.stringify(request)
   const contextJson = JSON.stringify(context)
@@ -274,7 +283,7 @@ const buildWrapperCode = (
   return `import handler from 'function';
 const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
-${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}let output;
+${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}${withConnect ? `${connectContextCode}\n` : ``}let output;
 try {
   const raw = await handler(request, context);
   output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
@@ -326,11 +335,20 @@ export class FunctionExecutor {
       // handle host-side; the scan bridge is dependency-free and rides along
       // whenever the surface is built — only callback refs + JSON payloads cross
       // into the isolate. The bridgeless path stays byte-identical.
+      // `connect` rides the same db-gated bridge surface, but ONLY when the
+      // caller granted endpoints (fail-closed) — so it is inert for every
+      // existing Function/caller that passes no connectEndpoints.
+      const withConnect = Boolean(
+        opts?.db && func.projectId && opts?.connectEndpoints?.length
+      )
       const bridges =
         opts?.db && func.projectId
           ? {
               ...buildRecordsBridges(opts.db, func.projectId),
               ...buildScanBridges(),
+              ...(withConnect
+                ? buildConnectorBridges(opts.db, func.projectId, opts.connectEndpoints!)
+                : {}),
             }
           : undefined
 
@@ -339,7 +357,8 @@ export class FunctionExecutor {
         opts?.request || {},
         opts?.context || {},
         Boolean(bridges),
-        Boolean(bridges)
+        Boolean(bridges),
+        withConnect
       )
 
       // 4. Evaluate via V8 isolate with function code registered as module

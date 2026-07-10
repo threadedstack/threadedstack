@@ -68,6 +68,7 @@ describe(`invokeAction`, () => {
     expect(mockExecute).toHaveBeenCalledWith(authored, {
       db,
       context: { args: { title: `x` }, caller: { agentId: `ag_builder` } },
+      connectEndpoints: [],
     })
     expect(res).toEqual({ ok: true, data: { built: true } })
   })
@@ -76,9 +77,16 @@ describe(`invokeAction`, () => {
     const authored = { ...mockFunc, meta: { authoredBy: `ag_other`, version: 1 } }
     const db = buildDb({ data: [authored] })
 
-    const res = await invokeAction({} as any, db, `proj-1`, action, [`allowed-elsewhere`], {
-      agentId: `ag_builder`,
-    })
+    const res = await invokeAction(
+      {} as any,
+      db,
+      `proj-1`,
+      action,
+      [`allowed-elsewhere`],
+      {
+        agentId: `ag_builder`,
+      }
+    )
 
     expect(res.ok).toBe(false)
     expect(res.error).toContain(`function not allowed`)
@@ -114,6 +122,7 @@ describe(`invokeAction`, () => {
     expect(mockExecute).toHaveBeenCalledWith(mockFunc, {
       db,
       context: { args: { title: `x` } },
+      connectEndpoints: [],
     })
     expect(res).toEqual({ ok: true, data: { ok: true } })
   })
@@ -158,6 +167,7 @@ describe(`invokeAction`, () => {
     expect(mockExecute).toHaveBeenCalledWith(mockFunc, {
       db,
       context: { args: { title: `x` }, caller },
+      connectEndpoints: [],
     })
     expect(res).toEqual({ ok: true, data: { ok: true } })
   })

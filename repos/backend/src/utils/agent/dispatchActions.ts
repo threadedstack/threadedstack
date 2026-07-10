@@ -26,6 +26,7 @@ export const dispatchActions = async (
   // happens in invokeAction; here we only skip agents that never opted in.
   if (!schedule.actions) return
   const allowlist = schedule.actions.functions ?? []
+  const connectEndpoints = schedule.actions.connectEndpoints ?? []
 
   const actions = parseActionsBlock(stdoutText)
   if (!actions.length) return
@@ -38,7 +39,8 @@ export const dispatchActions = async (
         schedule.projectId,
         action,
         allowlist,
-        { agentId, scheduleId: schedule.id }
+        { agentId, scheduleId: schedule.id },
+        connectEndpoints
       )
       if (res.ok)
         logger.info(
