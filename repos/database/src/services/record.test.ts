@@ -308,4 +308,179 @@ describe(`Record service`, () => {
       expect(mocks.updateFn).not.toHaveBeenCalled()
     })
   })
+
+  describe(`casUpdate`, () => {
+    it(`applies the patch under atomic field guards — keys and values bound as params, patch MERGED via jsonb ||`, async () => {
+      mocks.enqueue(
+        [fakeCollectionRow()],
+        [fakeRecordRow({ data: { state: `claimed`, assignee: `ag_eng0001` } })]
+      )
+      const res = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `backlog`, assignee: null },
+        { state: `claimed`, assignee: `ag_eng0001`, leaseExpiresAt: 1234 }
+      )
+
+      expect(mocks.updateFn).toHaveBeenCalledTimes(1)
+      const where = render(mocks.chain.where.mock.calls[1][0])
+      // Scoped to id + collection + project AND every guard bound as params
+      expect(where.params).toContain(`rec_r000001`)
+      expect(where.params).toContain(`col_items01`)
+      expect(where.params).toContain(`pj_projA0`)
+      expect(where.params).toContain(`state`)
+      expect(where.params).toContain(`backlog`)
+      expect(where.params).toContain(`assignee`)
+      // null match compiles to IS NULL (absent field)
+      expect(where.sql).toMatch(/IS NULL/i)
+      // The SET is a jsonb MERGE (data || patch), not a replace
+      const set = render(mocks.chain.set.mock.calls[0][0].data)
+      expect(set.sql).toMatch(/\|\|/)
+      expect(set.params).toContain(
+        JSON.stringify({
+          state: `claimed`,
+          assignee: `ag_eng0001`,
+          leaseExpiresAt: 1234,
+        })
+      )
+      expect(res.data).toBeInstanceOf(RecordModel)
+      expect(res.conflict).toBeUndefined()
+    })
+
+    it(`stringifies non-string expected values for the ->> text comparison`, async () => {
+      mocks.enqueue([fakeCollectionRow()], [fakeRecordRow()])
+      await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { leaseExpiresAt: 1234, active: true },
+        { state: `reclaimed` }
+      )
+      const where = render(mocks.chain.where.mock.calls[1][0])
+      expect(where.params).toContain(`1234`)
+      expect(where.params).toContain(`true`)
+    })
+
+    it(`returns conflict:true when the guard loses the race (no row updated)`, async () => {
+      mocks.enqueue([fakeCollectionRow()], [])
+      const res = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `backlog` },
+        { state: `claimed` }
+      )
+      expect(res.conflict).toBe(true)
+      expect(res.data).toBeUndefined()
+      expect(res.error).toBeUndefined()
+    })
+
+    it(`rejects an EMPTY match — an unguarded merge is not a CAS`, async () => {
+      const res = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        {},
+        { state: `claimed` }
+      )
+      expect(res.status).toBe(400)
+      expect(res.error?.message).toMatch(/at least one match/i)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+
+    it(`rejects non-object match/patch shapes at the trust boundary with a clear 400`, async () => {
+      // Array match: Object.keys would yield index keys → nonsense guards that
+      // read as a permanent conflict. Must be rejected instead.
+      const badMatch = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        [`backlog`] as any,
+        { state: `claimed` }
+      )
+      expect(badMatch.status).toBe(400)
+      expect(badMatch.error?.message).toMatch(/match object/i)
+
+      // Non-object patch: jsonb `object || scalar` throws inside Postgres —
+      // must be a clear 400 before any SQL runs.
+      const badPatch = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `backlog` },
+        `oops` as any
+      )
+      expect(badPatch.status).toBe(400)
+      expect(badPatch.error?.message).toMatch(/patch object/i)
+
+      const arrayPatch = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `backlog` },
+        [1, 2] as any
+      )
+      expect(arrayPatch.status).toBe(400)
+
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+
+    it(`rejects object/array MATCH VALUES — jsonb ->> text-compare can never match them meaningfully`, async () => {
+      const res = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { meta: { nested: true } as any },
+        { state: `claimed` }
+      )
+      expect(res.status).toBe(400)
+      expect(res.error?.message).toMatch(/scalars or null.*"meta"/i)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+
+    it(`type-checks patch fields present in the schema but ignores required fields absent from the patch`, async () => {
+      const schema = [
+        { name: `title`, type: EFieldType.string, required: true },
+        { name: `leaseExpiresAt`, type: EFieldType.number },
+      ]
+      // Patch omits required `title` (fine — merge) but sends a bad type for leaseExpiresAt
+      mocks.enqueue([fakeCollectionRow({ schema })])
+      const bad = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `claimed` },
+        { leaseExpiresAt: `not-a-number` }
+      )
+      expect(bad.status).toBe(400)
+      expect(bad.error?.message).toMatch(/leaseExpiresAt/)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+
+      // A valid partial patch passes without the required field present
+      mocks.enqueue([fakeCollectionRow({ schema })], [fakeRecordRow()])
+      const ok = await service.casUpdate(
+        `pj_projA0`,
+        `items`,
+        `rec_r000001`,
+        { state: `claimed` },
+        { leaseExpiresAt: 99 }
+      )
+      expect(ok.error).toBeUndefined()
+      expect(ok.data).toBeInstanceOf(RecordModel)
+    })
+
+    it(`returns 404 when the collection does not exist (no update runs)`, async () => {
+      mocks.enqueue([])
+      const res = await service.casUpdate(
+        `pj_projA0`,
+        `missing`,
+        `rec_x`,
+        { state: `backlog` },
+        {}
+      )
+      expect(res.status).toBe(404)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+  })
 })

@@ -333,6 +333,32 @@ describe(`FunctionExecutor`, () => {
         count: vi.fn(async (projectId: string, collection: string) => ({
           data: store.get(key(projectId, collection))?.size ?? 0,
         })),
+        // Scalar-fidelity CAS semantics: patch merges ONLY when every match
+        // field equals its expected value (null matches absent) — else
+        // { conflict: true }. Faithful to the real SQL for scalar match values
+        // only (String() here vs jsonb ->> text) — the real service REJECTS
+        // object/array match values with a 400, so the divergent case is
+        // unrepresentable in production.
+        casUpdate: vi.fn(
+          async (
+            projectId: string,
+            collection: string,
+            id: string,
+            match: Record<string, string | number | boolean | null>,
+            patch: Record<string, unknown>
+          ) => {
+            const rec = store.get(key(projectId, collection))?.get(id)
+            if (!rec) return { conflict: true }
+            const holds = Object.entries(match).every(([k, v]) =>
+              v === null
+                ? rec.data?.[k] === undefined || rec.data?.[k] === null
+                : String(rec.data?.[k]) === String(v)
+            )
+            if (!holds) return { conflict: true }
+            rec.data = { ...rec.data, ...patch }
+            return { data: rec }
+          }
+        ),
       }
 
       return { db: { services: { record } } as any, record }
@@ -374,12 +400,60 @@ describe(`FunctionExecutor`, () => {
           `records.count`,
           `records.delete`,
           `records.upsert`,
+          `records.cas`,
         ])
       )
 
       // The bridge called the db service — proving the round trip went host-side
       expect(record.upsert).toHaveBeenCalledTimes(1)
       expect(record.query).toHaveBeenCalledTimes(1)
+    })
+
+    it(`gives a Function an atomic cas — exactly one of two racing claims wins, the loser gets conflict`, async () => {
+      const { db, record } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-claims` })
+
+      // Simulate two engineers racing to claim the same backlog task:
+      //   context.records.cas('dev_tasks', 't1', {state:'backlog'}, {state:'claimed', assignee:<me>})
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        await b[`records.upsert`](
+          JSON.stringify([`dev_tasks`, { id: `t1`, data: { state: `backlog` } }])
+        )
+        const first = JSON.parse(
+          await b[`records.cas`](
+            JSON.stringify([
+              `dev_tasks`,
+              `t1`,
+              { state: `backlog` },
+              { state: `claimed`, assignee: `ag_eng0001` },
+            ])
+          )
+        )
+        const second = JSON.parse(
+          await b[`records.cas`](
+            JSON.stringify([
+              `dev_tasks`,
+              `t1`,
+              { state: `backlog` },
+              { state: `claimed`, assignee: `ag_eng0002` },
+            ])
+          )
+        )
+        return { output: ``, result: { success: true, output: { first, second } } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      const { first, second } = result.output as any
+      // Winner gets the updated doc with ITS assignee; loser gets conflict
+      expect(first.data).toEqual({ state: `claimed`, assignee: `ag_eng0001` })
+      expect(second).toEqual({ conflict: true })
+      expect(record.casUpdate).toHaveBeenCalledTimes(2)
+      // The isolate shim exposes cas alongside the other records methods
+      const [wrapperCode] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).toContain(`records.cas`)
     })
 
     it(`scopes every records bridge call to the Function's own projectId`, async () => {
