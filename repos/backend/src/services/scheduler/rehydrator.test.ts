@@ -385,4 +385,53 @@ describe(`hydrateOrphanedRuns`, () => {
     expect(payload.status).toBe(`timeout`)
     expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
   })
+
+  it(`reaps a run whose pod read persistently THROWS once the deadline elapses (never wedges "running")`, async () => {
+    // The exact production wedge: a run's pod vanishes and every subsequent
+    // getPodState read throws. Before the top-of-loop deadline check the watcher
+    // `continue`d forever and the row stayed "running", blocking the schedule
+    // from ever firing again (a stalled review/dev loop).
+    const started = new Date(Date.now() - 61_000).toISOString()
+    const app = buildApp({
+      runs: [baseRun({ startedAt: started })],
+      schedule: baseSchedule, // timeoutMs = 60_000, already elapsed
+      sandboxRecord: baseSandbox,
+    })
+    // inspectAndDispatch's first read succeeds (Running → dispatch the watcher);
+    // every subsequent read throws (pod gone).
+    let n = 0
+    app.__.getPodState.mockImplementation(async () => {
+      n += 1
+      if (n === 1) return EContainerState.Running
+      throw new Error(`pod not found`)
+    })
+
+    await hydrateOrphanedRuns(app)
+    await vi.advanceTimersByTimeAsync(61_000)
+
+    expect(app.__.complete).toHaveBeenCalled()
+    const [, payload] = app.__.complete.mock.calls.at(-1)!
+    expect(payload.status).toBe(`timeout`)
+    expect(app.__.stopPod).toHaveBeenCalledWith(`pod-1`)
+  })
+
+  it(`hands a run to the deadline-enforced watch when the INITIAL pod read throws (not left un-reconciled)`, async () => {
+    // inspectAndDispatch's very first getPodState throws (pod already gone at
+    // boot). It previously returned here, stranding the run "running" forever;
+    // now it hands off to the watch loop, which reaps it at the deadline.
+    const started = new Date(Date.now() - 61_000).toISOString()
+    const app = buildApp({
+      runs: [baseRun({ startedAt: started })],
+      schedule: baseSchedule,
+      sandboxRecord: baseSandbox,
+    })
+    app.__.getPodState.mockRejectedValue(new Error(`pod not found`))
+
+    await hydrateOrphanedRuns(app)
+    await vi.advanceTimersByTimeAsync(61_000)
+
+    expect(app.__.complete).toHaveBeenCalled()
+    const [, payload] = app.__.complete.mock.calls.at(-1)!
+    expect(payload.status).toBe(`timeout`)
+  })
 })
