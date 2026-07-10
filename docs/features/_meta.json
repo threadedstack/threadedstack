@@ -12,6 +12,7 @@
     "billing",
     "proxy-endpoints",
     "faas-endpoints",
-    "collections"
+    "collections",
+    "agent-connectors"
   ]
 }
