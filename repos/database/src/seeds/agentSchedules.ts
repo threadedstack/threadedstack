@@ -29,6 +29,9 @@ import { RecordQueryMaxLimit } from '@TDB/utils/database/recordQuery'
 // config Ã¢ÂÂ the agnostic behavior lives entirely in the prompt files below.
 export const OpsOrgId = `og_0000001`
 export const OpsProjectId = `pj_tIly2F1`
+// The ops project's display name — doubles as the agent_projects alias the
+// seed/reconcile paths write when binding an agent to the ops project.
+export const OpsProjectName = `ThreadedStack Platform`
 // The system/ops user every agent-backed schedule runs as. The executor
 // requires a userId on agent-backed schedules (executor.ts throws without one),
 // and all 11 live rows carry this value — declaring it here means the
