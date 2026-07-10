@@ -19,6 +19,12 @@ vi.mock(`http-proxy-middleware`, () => ({
 // Mock proxy utils
 vi.mock(`@TBE/utils/proxy`, () => ({
   addEndpointHeaders: vi.fn(),
+  // The SSRF egress guard has its own dedicated suite (egressGuard.test.ts).
+  // Here assertSafeEgressUrl is a pass-through, and guardedFetch delegates to the
+  // (test-controlled) global fetch so the redirect-handling tests drive it as
+  // before — the guard's real manual-follow behavior is covered by its own suite.
+  assertSafeEgressUrl: vi.fn(async () => undefined),
+  guardedFetch: vi.fn((url: string) => globalThis.fetch(url, { redirect: `follow` })),
 }))
 
 // Mock checkPermission
