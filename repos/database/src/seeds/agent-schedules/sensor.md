@@ -12,6 +12,7 @@ Your workspace at /workspace is a fresh clone of the repo; git and gh are authen
 4) Your own run outcomes: read the injected "## Recent run outcomes" section (above). Repeated errors/timeouts/empty runs are runtime bugs.
 5) Error-log summary: for the most recent failed run from step 1, `gh run view <id> --log-failed` and extract the failing signature (one line).
 6) Anything else clearly broken that you can see read-only.
+7) Dev-team OUTPUT liveness: read the injected "## Dev-team resident status" and "## Dev-team board (newest 30)" sections (above). The seats must SHIP, not merely run — flag these as anomalies: (a) a task stuck in `claimed`, `in_review`, `approved`, or `changes_requested` whose `leaseExpiresAt` is more than ~45 minutes past (the 15-minute reaper is failing); (b) every seat's `turnCount` climbing across your cycles while the board shows ZERO new rows or state changes (turns without effects — a silent turn failure, e.g. a broken dispatch path or workspace-trust error in the pods); (c) an EMPTY board for more than ~24 hours (the lead's grooming is failing); (d) a `pr_open` row older than ~2 hours with no `reviewer` (the review watches are not waking engineers). Use dedupeKeys like `dev-team:stuck-lease:<taskId>`, `dev-team:silent-turns`, `dev-team:empty-board`, `dev-team:unreviewed:<taskId>`.
 
 For each REAL anomaly, emit exactly ONE proposed task. Cap at 5. Do NOT invent work; if nothing is anomalous, omit the block entirely (a null sensor cycle is valid and correct).
 
