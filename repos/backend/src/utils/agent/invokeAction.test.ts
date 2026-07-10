@@ -69,6 +69,7 @@ describe(`invokeAction`, () => {
       db,
       context: { args: { title: `x` }, caller: { agentId: `ag_builder` } },
       connectEndpoints: [],
+      caller: { agentId: `ag_builder` },
     })
     expect(res).toEqual({ ok: true, data: { built: true } })
   })
@@ -168,6 +169,7 @@ describe(`invokeAction`, () => {
       db,
       context: { args: { title: `x` }, caller },
       connectEndpoints: [],
+      caller,
     })
     expect(res).toEqual({ ok: true, data: { ok: true } })
   })

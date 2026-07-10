@@ -19,12 +19,10 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
 vi.mock(`@TBE/services/proxy`, () => ({
-  ProxyService: vi
-    .fn()
-    .mockImplementation(() => ({
-      applyAuth: mocks.applyAuth,
-      applyOAuth: mocks.applyOAuth,
-    })),
+  ProxyService: vi.fn().mockImplementation(() => ({
+    applyAuth: mocks.applyAuth,
+    applyOAuth: mocks.applyOAuth,
+  })),
 }))
 vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
   SecretResolver: vi.fn().mockImplementation(() => ({
@@ -69,6 +67,31 @@ const makeDb = (endpoint: any, secrets: any[] = [{ id: `sec_1`, orgId: `o1` }]) 
       })),
     },
     secret: { list: vi.fn(async () => ({ data: secrets })) },
+  },
+})
+
+// A db where the endpoint's referenced secret is scoped to the AGENT (not the
+// project) — the shape produced when an agent authors its own secret.
+const makeDbWithAgentSecret = (endpoint: any, agentId: string, agentSecret: any) => ({
+  services: {
+    endpoint: {
+      get: vi.fn(async (id: string) => ({
+        data: endpoint && endpoint.id === id ? endpoint : null,
+      })),
+      list: vi.fn(async ({ where }: any) => ({
+        data:
+          endpoint &&
+          endpoint.projectId === where.projectId &&
+          endpoint.name === where.name
+            ? [endpoint]
+            : [],
+      })),
+    },
+    secret: {
+      list: vi.fn(async ({ where }: any) => ({
+        data: where.agentId === agentId ? [agentSecret] : [],
+      })),
+    },
   },
 })
 
@@ -185,11 +208,74 @@ describe(`connectorCapability`, () => {
     expect(res.error).not.toContain(`10.0.0.5`)
   })
 
-  it(`buildConnectorBridges is fail-closed: no grant → no bridge`, () => {
+  it(`buildConnectorBridges is fail-closed: no grant AND no caller → no bridge`, () => {
     const db = makeDb(proxyEndpoint()) as any
     expect(buildConnectorBridges(db, `p1`, [])).toEqual({})
     expect(Object.keys(buildConnectorBridges(db, `p1`, [`ep_send1`]))).toContain(
       `connect.invoke`
     )
+    // an identified agent gets the bridge even with NO allowlist (it can reach
+    // endpoints it authored via authorship=authorization)
+    expect(
+      Object.keys(buildConnectorBridges(db, `p1`, [], { agentId: `ag_ceo` }))
+    ).toContain(`connect.invoke`)
+  })
+
+  it(`AUTHORSHIP is authorization: an agent reaches an endpoint IT authored with no allowlist`, async () => {
+    const ep = proxyEndpoint({ meta: { authoredBy: `ag_ceo` } })
+    const db = makeDb(ep) as any
+    // empty allowlist, but the caller authored the endpoint
+    const cap = createConnectorCapability(db, `p1`, [], { agentId: `ag_ceo` })
+    const res = await cap.invoke(`ep_send1`, { body: { to: `x@y.com` } })
+    expect(res).toEqual({ ok: true, status: 200, body: { sent: true } })
+  })
+
+  it(`an AUTHORED endpoint fetches secrets by AGENT scope only — never the project set (no cross-owner exfil)`, async () => {
+    const ep = proxyEndpoint({ meta: { authoredBy: `ag_ceo` } })
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [], { agentId: `ag_ceo` })
+    await cap.invoke(`ep_send1`, {})
+    const wheres = db.services.secret.list.mock.calls.map((c: any) => c[0]?.where)
+    expect(wheres).toContainEqual({ agentId: `ag_ceo` })
+    expect(wheres).not.toContainEqual({ projectId: `p1` })
+  })
+
+  it(`an ALLOWLISTED endpoint fetches PROJECT secrets (human-configured path)`, async () => {
+    const ep = proxyEndpoint() // no meta.authoredBy
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`], { agentId: `ag_ceo` })
+    await cap.invoke(`ep_send1`, {})
+    const wheres = db.services.secret.list.mock.calls.map((c: any) => c[0]?.where)
+    expect(wheres).toContainEqual({ projectId: `p1` })
+    expect(wheres).not.toContainEqual({ agentId: `ag_ceo` })
+  })
+
+  it(`refuses an endpoint authored by a DIFFERENT agent when not allowlisted`, async () => {
+    const ep = proxyEndpoint({ meta: { authoredBy: `ag_someone_else` } })
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [], { agentId: `ag_ceo` })
+    const res = await cap.invoke(`ep_send1`, {})
+    expect(res).toMatchObject({ ok: false })
+    expect(res.error).toMatch(/not permitted/)
+    expect(mocks.guardedFetch).not.toHaveBeenCalled()
+  })
+
+  it(`resolves the CALLER's own agent-scoped secrets (secret it authored) for its endpoint`, async () => {
+    const ep = proxyEndpoint({
+      meta: { authoredBy: `ag_ceo` },
+      options: {
+        url: `https://api.mail.example.com/send`,
+        auth: { type: `bearer`, secretId: `sec_agent` },
+      },
+    })
+    // no project secrets; the agent's own secret is scoped by agentId
+    const db = makeDbWithAgentSecret(ep, `ag_ceo`, {
+      id: `sec_agent`,
+      agentId: `ag_ceo`,
+    }) as any
+    const cap = createConnectorCapability(db, `p1`, [], { agentId: `ag_ceo` })
+    const res = await cap.invoke(`ep_send1`, { body: {} })
+    expect(res.ok).toBe(true)
+    expect(mocks.applyAuth).toHaveBeenCalledTimes(1) // agent's secret was available to inject
   })
 })

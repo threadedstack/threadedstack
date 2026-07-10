@@ -77,6 +77,14 @@ import {
   parseAuthorFunctionBlock,
   authorAgentFunctionCore,
 } from '@TBE/utils/agent/authorFunction'
+import {
+  parseAuthorEndpointBlock,
+  authorAgentEndpointCore,
+} from '@TBE/utils/agent/authorEndpoint'
+import {
+  parseAuthorSecretBlock,
+  authorAgentSecretCore,
+} from '@TBE/utils/agent/authorSecret'
 import { authorSkillProposal, applySkillReview } from '@TBE/utils/agent/skillPromotion'
 import { buildEnvPrefix, parseMemoryBlock } from '@TBE/utils/agent/memory'
 
@@ -482,6 +490,102 @@ async function persistAuthoredFunctions(
       `[Executor] Schedule ${schedule.id} — author-function capture skipped: ${
         (err as Error).message
       }`
+    )
+  }
+}
+
+/**
+ * Capture ```tdsk-author-endpoint``` — a scheduled agent builds its OWN proxy
+ * Endpoint (a connector to an external API it found/signed-up-for). Routes
+ * through the shared `authorAgentEndpointCore` (SSRF egress guard at author time,
+ * injectSecrets refusal, cross-owner secret check, authored-by stamp). The
+ * authored endpoint is reachable by its author via context.connect
+ * (authorship=authorization) with no allowlist. Never throws.
+ */
+async function persistAuthoredEndpoints(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const submissions = parseAuthorEndpointBlock(stdoutText)
+    if (!submissions.length) return
+    const { db } = app.locals
+    for (const sub of submissions) {
+      try {
+        const result = await authorAgentEndpointCore(db, {
+          orgId: schedule.orgId,
+          projectId: schedule.projectId,
+          agentId,
+          ...sub,
+        })
+        if (result.ok)
+          logger.info(
+            `[Executor] Schedule ${schedule.id} — agent ${agentId} authored endpoint ${sub.name}`
+          )
+        else
+          logger.warn(
+            `[Executor] Schedule ${schedule.id} — authorEndpoint "${sub.name}" rejected (${result.status}): ${result.error}`
+          )
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to author endpoint "${sub.name}":`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — author-endpoint capture skipped: ${(err as Error).message}`
+    )
+  }
+}
+
+/**
+ * Capture ```tdsk-author-secret``` — a scheduled agent stores a credential IT
+ * obtained (e.g. an API key from signing up for a service) as its own encrypted,
+ * agent-scoped Secret. Routes through the shared `authorAgentSecretCore` (the
+ * value is never scanned/logged/returned). Never throws.
+ */
+async function persistAuthoredSecrets(
+  app: TApp,
+  schedule: Schedule,
+  agentId: string,
+  stdoutText: string
+): Promise<void> {
+  try {
+    const submissions = parseAuthorSecretBlock(stdoutText)
+    if (!submissions.length) return
+    const { db } = app.locals
+    for (const sub of submissions) {
+      try {
+        const result = await authorAgentSecretCore(db, {
+          orgId: schedule.orgId,
+          projectId: schedule.projectId,
+          agentId,
+          name: sub.name,
+          value: sub.value,
+          description: sub.description,
+        })
+        if (result.ok)
+          logger.info(
+            `[Executor] Schedule ${schedule.id} — agent ${agentId} stored secret ${sub.name}`
+          )
+        else
+          logger.warn(
+            `[Executor] Schedule ${schedule.id} — authorSecret "${sub.name}" rejected (${result.status}): ${result.error}`
+          )
+      } catch (err) {
+        logger.error(
+          `[Executor] Schedule ${schedule.id} — failed to store secret "${sub.name}":`,
+          (err as Error).message
+        )
+      }
+    }
+  } catch (err) {
+    logger.debug(
+      `[Executor] Schedule ${schedule.id} — author-secret capture skipped: ${(err as Error).message}`
     )
   }
 }
@@ -1671,6 +1775,11 @@ async function runCliAgentSchedule(
     // needs, scanned server-side. BEFORE dispatchActions so a Function authored
     // this run is already present + invokable (by its author) when this run's
     // own ```tdsk-actions``` block dispatches.
+    // Self-provisioning: store obtained credentials, then build connectors that
+    // reference them, then author Functions — all BEFORE actions dispatch so a
+    // same-turn author-secret → author-endpoint → connect chain works.
+    await persistAuthoredSecrets(app, schedule, agent.id, stdoutText)
+    await persistAuthoredEndpoints(app, schedule, agent.id, stdoutText)
     await persistAuthoredFunctions(app, schedule, agent.id, stdoutText)
 
     // Generic effect surface (generalization ②): dispatch a ```tdsk-actions```

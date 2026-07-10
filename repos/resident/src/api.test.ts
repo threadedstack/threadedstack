@@ -112,4 +112,83 @@ describe(`resident api`, () => {
     expect(calls).toBe(1) // a timeout is NOT retried
     expect(res.error).toMatch(/timed out/)
   })
+
+  it(`authorFunction POSTs the request to the agent-scoped author-function URL`, async () => {
+    let seenUrl: string | undefined
+    let seenBody: unknown
+    const fetchFn = (async (url: string, init: any) => {
+      seenUrl = url
+      seenBody = JSON.parse(init.body)
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ data: { id: `fn_1`, name: `f` } }),
+      }
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn })
+
+    const request = { name: `f`, language: `javascript`, content: `x` }
+    const res = await api.authorFunction(request)
+
+    expect(seenUrl).toBe(
+      `https://px.test/_/orgs/og_1/projects/pj_1/agents/ag_1/author-function`
+    )
+    expect(seenBody).toEqual(request)
+    expect(res).toEqual({ ok: true, status: 201, data: { id: `fn_1`, name: `f` } })
+  })
+
+  it(`authorEndpoint POSTs the request to the agent-scoped author-endpoint URL`, async () => {
+    let seenUrl: string | undefined
+    let seenBody: unknown
+    const fetchFn = (async (url: string, init: any) => {
+      seenUrl = url
+      seenBody = JSON.parse(init.body)
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ data: { id: `ep_1`, name: `ep` } }),
+      }
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn })
+
+    const request = { name: `ep`, path: `/x`, options: { url: `https://api.test` } }
+    const res = await api.authorEndpoint(request)
+
+    expect(seenUrl).toBe(
+      `https://px.test/_/orgs/og_1/projects/pj_1/agents/ag_1/author-endpoint`
+    )
+    expect(seenBody).toEqual(request)
+    expect(res).toEqual({ ok: true, status: 201, data: { id: `ep_1`, name: `ep` } })
+  })
+
+  it(`authorSecret POSTs the request to the agent-scoped author-secret URL and returns the id-only echo`, async () => {
+    let seenUrl: string | undefined
+    let seenBody: any
+    const fetchFn = (async (url: string, init: any) => {
+      seenUrl = url
+      seenBody = JSON.parse(init.body)
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ data: { secretId: `sc_1`, name: `K`, rotated: false } }),
+      }
+    }) as unknown as typeof fetch
+    const api = createResidentApi({ ...baseOpts, fetchFn })
+
+    const request = { name: `K`, value: `sk_live_secret` }
+    const res = await api.authorSecret(request)
+
+    expect(seenUrl).toBe(
+      `https://px.test/_/orgs/og_1/projects/pj_1/agents/ag_1/author-secret`
+    )
+    // The value is sent over the wire (encrypted at rest server-side)…
+    expect(seenBody.value).toBe(`sk_live_secret`)
+    // …but the response never echoes the value back.
+    expect(res).toEqual({
+      ok: true,
+      status: 201,
+      data: { secretId: `sc_1`, name: `K`, rotated: false },
+    })
+    expect(res.data).not.toHaveProperty(`value`)
+  })
 })

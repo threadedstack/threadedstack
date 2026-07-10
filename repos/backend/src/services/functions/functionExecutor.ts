@@ -111,6 +111,11 @@ type TExecuteOpts = {
    * confer access to any project endpoint.
    */
   connectEndpoints?: string[]
+  /**
+   * The trusted invoker identity. Threaded to `context.connect` so an agent can
+   * reach endpoints IT authored via authorship=authorization (no allowlist).
+   */
+  caller?: { agentId?: string; scheduleId?: string }
 }
 
 /** Bridge-callback names exposed to the isolate for the records capability. */
@@ -335,11 +340,15 @@ export class FunctionExecutor {
       // handle host-side; the scan bridge is dependency-free and rides along
       // whenever the surface is built — only callback refs + JSON payloads cross
       // into the isolate. The bridgeless path stays byte-identical.
-      // `connect` rides the same db-gated bridge surface, but ONLY when the
-      // caller granted endpoints (fail-closed) — so it is inert for every
-      // existing Function/caller that passes no connectEndpoints.
+      // `connect` rides the same db-gated bridge surface, wired when there is an
+      // explicit endpoint grant OR a calling agent (which can reach endpoints it
+      // authored via authorship=authorization). Still fail-closed: an
+      // un-identified caller with no grant gets no connect, and every invoke is
+      // gated (authorship OR allowlist) inside the capability.
       const withConnect = Boolean(
-        opts?.db && func.projectId && opts?.connectEndpoints?.length
+        opts?.db &&
+          func.projectId &&
+          (opts?.connectEndpoints?.length || opts?.caller?.agentId)
       )
       const bridges =
         opts?.db && func.projectId
@@ -347,7 +356,12 @@ export class FunctionExecutor {
               ...buildRecordsBridges(opts.db, func.projectId),
               ...buildScanBridges(),
               ...(withConnect
-                ? buildConnectorBridges(opts.db, func.projectId, opts.connectEndpoints!)
+                ? buildConnectorBridges(
+                    opts.db,
+                    func.projectId,
+                    opts.connectEndpoints ?? [],
+                    opts.caller
+                  )
                 : {}),
             }
           : undefined

@@ -15,6 +15,8 @@ export class Endpoint<T extends TEndpointType = TEndpointType> extends Base {
   public?: boolean = false
   options?: TEndpointOpts<T>
   headers?: Record<string, string>
+  /** Provenance/annotation metadata — e.g. `{ authoredBy, version }` stamped by the authorEndpoint self-extension surface. */
+  meta?: Record<string, any>
 
   constructor(endpoint: TEPOpts<T>) {
     super()
