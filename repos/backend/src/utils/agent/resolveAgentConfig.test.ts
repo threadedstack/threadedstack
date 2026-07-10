@@ -365,6 +365,7 @@ describe(`resolveAgentConfig`, () => {
       db,
       context: { args: { arg: `value` } },
       connectEndpoints: [],
+      caller: { agentId: `agent-1` },
     })
     expect(execResult).toEqual({ duration: 100, output: `result`, success: true })
   })
@@ -844,6 +845,7 @@ describe(`createInvokeProvider`, () => {
       db,
       context: { args: { title: `Ship it` }, caller: { agentId: `ag_self` } },
       connectEndpoints: [],
+      caller: { agentId: `ag_self` },
     })
     expect(result).toEqual({ ok: true, data: `result` })
   })

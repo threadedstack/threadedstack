@@ -14,6 +14,10 @@ export const endpoints = pgTable(
     name: text(`name`),
     headers: jsonb(`headers`),
     options: jsonb(`options`),
+    // Provenance/annotation metadata — e.g. { authoredBy, version } stamped by
+    // the authorEndpoint self-extension surface (resident agents author their
+    // own proxy Endpoints; mirrors functions.meta).
+    meta: jsonb(`meta`).$type<Record<string, any>>(),
     path: text(`path`).notNull(),
     public: boolean(`public`).default(false),
     method: varchar(`method`, { length: 10 }).default(`GET`),

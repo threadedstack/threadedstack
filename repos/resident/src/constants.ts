@@ -105,6 +105,20 @@ export const AuthorFunctionBlockFence = `tdsk-author-function`
 export const DefaultAuthorLanguage = `javascript`
 
 /**
+ * Resident-local fence: the session authors a proxy Endpoint with
+ * ```tdsk-author-endpoint``` — `{ name, path, type?, options, headers?, description? }`
+ * (single object or array), POSTed to the R3 author-endpoint endpoint.
+ */
+export const AuthorEndpointBlockFence = `tdsk-author-endpoint`
+
+/**
+ * Resident-local fence: the session stores a credential IT OBTAINED with
+ * ```tdsk-author-secret``` — `{ name, value, description? }` (single object or
+ * array), POSTed to the R3 author-secret endpoint. The value is NEVER logged.
+ */
+export const AuthorSecretBlockFence = `tdsk-author-secret`
+
+/**
  * The compaction checkpoint turn — this session's /compact, verbatim in spirit:
  * durable memories out, then a summary that seeds the next session.
  */

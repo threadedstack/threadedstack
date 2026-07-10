@@ -256,6 +256,7 @@ describe(`dispatchAgentActions`, () => {
       db: app.locals.db,
       context: { args: { title: `x` }, caller: { agentId: AgentId } },
       connectEndpoints: [],
+      caller: { agentId: AgentId },
     })
     expect(ctx.status).toHaveBeenCalledWith(200)
     expect(ctx.json).toHaveBeenCalledWith({

@@ -141,7 +141,7 @@ describe(`CmoResidentConfigSeed`, () => {
     expect(data.session.seedPrompt).toContain(`RESIDENT agent`)
     expect(data.session.seedPrompt).toContain(`PRE-LAUNCH`)
     expect(data.session.seedPrompt).toContain(`RESEARCH MANDATE`)
-    expect(data.session.seedPrompt).toContain(`primitives faculty`)
+    expect(data.session.seedPrompt).toContain(`YOU HAVE A FULL COMPUTER`)
 
     // The five board context sources the two scheduled defs used, plus the
     // resident's own durable-memory recall source — exact shapes.

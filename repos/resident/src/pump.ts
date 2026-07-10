@@ -3,6 +3,8 @@ import type {
   TPumpReport,
   TResidentApi,
   TResidentConfig,
+  TAuthorSecretRequest,
+  TAuthorEndpointRequest,
   TAuthorFunctionRequest,
 } from './types/resident.types'
 
@@ -16,7 +18,9 @@ import {
   DispatchMaxAttempts,
   DispatchRetryDelaysMs,
   DefaultAuthorLanguage,
+  AuthorSecretBlockFence,
   AuthorFunctionBlockFence,
+  AuthorEndpointBlockFence,
   DispatchMaxActionsPerCall,
 } from './constants'
 
@@ -132,6 +136,94 @@ export const parseAuthorFunctionBlock = (text: string): TAuthorFunctionRequest[]
 }
 
 /**
+ * Parse the resident-local ```tdsk-author-endpoint``` fence — a JSON object or
+ * array of `{ name, path, type?, options, headers?, description? }`
+ * submissions, POSTed to the R3 author-endpoint endpoint. Entries missing a
+ * non-empty name or an `options.url` are dropped (the platform manufactures a
+ * proxy Endpoint, which requires a target URL). Mirrors the exact structure of
+ * `parseAuthorFunctionBlock`.
+ */
+export const parseAuthorEndpointBlock = (text: string): TAuthorEndpointRequest[] => {
+  const block = extractLastFencedBlock(text, AuthorEndpointBlockFence)
+  if (block === undefined) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(block)
+  } catch {
+    return []
+  }
+  const items = Array.isArray(parsed) ? parsed : [parsed]
+
+  const requests: TAuthorEndpointRequest[] = []
+  for (const raw of items) {
+    if (!raw || typeof raw !== `object` || Array.isArray(raw)) continue
+    const item = raw as Record<string, unknown>
+    if (typeof item.name !== `string` || !item.name.trim().length) continue
+    if (!item.options || typeof item.options !== `object` || Array.isArray(item.options))
+      continue
+    const options = item.options as Record<string, unknown>
+    if (typeof options.url !== `string` || !options.url.trim().length) continue
+    requests.push({
+      name: item.name.trim(),
+      path:
+        typeof item.path === `string` && item.path.trim().length ? item.path.trim() : ``,
+      options,
+      type: typeof item.type === `string` && item.type.length ? item.type : undefined,
+      headers:
+        item.headers && typeof item.headers === `object` && !Array.isArray(item.headers)
+          ? (item.headers as Record<string, string>)
+          : undefined,
+      description:
+        typeof item.description === `string` && item.description.length
+          ? item.description
+          : undefined,
+    })
+  }
+  return requests
+}
+
+/**
+ * Parse the resident-local ```tdsk-author-secret``` fence — a JSON object or
+ * array of `{ name, value, description? }` submissions, POSTed to the R3
+ * author-secret endpoint. Entries missing a non-empty name or value are
+ * dropped. Mirrors the exact structure of `parseAuthorFunctionBlock`.
+ *
+ * SECURITY: the `value` is a real credential — it is preserved byte-for-byte
+ * (never trimmed) and MUST never be logged. Only the name is ever logged.
+ */
+export const parseAuthorSecretBlock = (text: string): TAuthorSecretRequest[] => {
+  const block = extractLastFencedBlock(text, AuthorSecretBlockFence)
+  if (block === undefined) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(block)
+  } catch {
+    return []
+  }
+  const items = Array.isArray(parsed) ? parsed : [parsed]
+
+  const requests: TAuthorSecretRequest[] = []
+  for (const raw of items) {
+    if (!raw || typeof raw !== `object` || Array.isArray(raw)) continue
+    const item = raw as Record<string, unknown>
+    if (typeof item.name !== `string` || !item.name.trim().length) continue
+    if (typeof item.value !== `string` || !item.value.length) continue
+    requests.push({
+      name: item.name.trim(),
+      // Preserve the credential exactly — never trim/mutate the value.
+      value: item.value,
+      description:
+        typeof item.description === `string` && item.description.length
+          ? item.description
+          : undefined,
+    })
+  }
+  return requests
+}
+
+/**
  * The action pump: parse ```tdsk-actions``` (the shared ② parser) +
  * ```tdsk-memories``` + ```tdsk-author-function``` out of EVERY turn's output
  * and POST them to the R1 dispatch / R3 author-function endpoints immediately
@@ -186,6 +278,10 @@ export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
         memoriesSkipped: memories.skipped,
         functionsAuthored: 0,
         functionsRejected: 0,
+        secretsStored: 0,
+        secretsRejected: 0,
+        endpointsAuthored: 0,
+        endpointsRejected: 0,
       }
 
       // Self-extension fast path: POST each authored Function to the R3
@@ -202,6 +298,46 @@ export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
           report.functionsRejected += 1
           log.warn(
             `authorFunction ${request.name} rejected: ${res.error ?? `status ${res.status}`}`
+          )
+        }
+      }
+
+      // Self-credential fast path: store each obtained credential as the
+      // agent's OWN encrypted Secret. Secrets are authored BEFORE endpoints so
+      // an endpoint authored the same turn can reference a secret by id. The
+      // secret VALUE is never logged — only its name.
+      for (const request of parseAuthorSecretBlock(outputText)) {
+        const res = await api.authorSecret(request)
+        if (res.ok) {
+          report.secretsStored += 1
+          log.info(
+            `Stored secret ${request.name}${
+              res.data?.secretId ? ` (${res.data.secretId})` : ``
+            }`
+          )
+        } else {
+          report.secretsRejected += 1
+          log.warn(
+            `authorSecret ${request.name} rejected: ${res.error ?? `status ${res.status}`}`
+          )
+        }
+      }
+
+      // Self-extension fast path for proxy Endpoints: POST each authored
+      // Endpoint to the R3 author-endpoint endpoint. Single-shot on purpose —
+      // a rejection (scan, validation, SSRF guard, collision) is terminal for
+      // this turn.
+      for (const request of parseAuthorEndpointBlock(outputText)) {
+        const res = await api.authorEndpoint(request)
+        if (res.ok) {
+          report.endpointsAuthored += 1
+          log.info(
+            `Authored endpoint ${request.name}${res.data?.id ? ` (${res.data.id})` : ``}`
+          )
+        } else {
+          report.endpointsRejected += 1
+          log.warn(
+            `authorEndpoint ${request.name} rejected: ${res.error ?? `status ${res.status}`}`
           )
         }
       }

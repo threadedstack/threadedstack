@@ -1,11 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createActionPump, parseAuthorFunctionBlock } from './pump'
+import {
+  createActionPump,
+  parseAuthorFunctionBlock,
+  parseAuthorSecretBlock,
+  parseAuthorEndpointBlock,
+} from './pump'
 import { makeFakeApi, makeConfig } from './testUtils'
 
 const actionsFence = (json: string) => `\`\`\`tdsk-actions\n${json}\n\`\`\``
 const memoriesFence = (json: string) => `\`\`\`tdsk-memories\n${json}\n\`\`\``
 const authorFence = (json: string) => `\`\`\`tdsk-author-function\n${json}\n\`\`\``
+const endpointFence = (json: string) => `\`\`\`tdsk-author-endpoint\n${json}\n\`\`\``
+const secretFence = (json: string) => `\`\`\`tdsk-author-secret\n${json}\n\`\`\``
 
 const manyActions = (count: number) =>
   JSON.stringify(
@@ -39,6 +46,10 @@ describe(`action pump`, () => {
       memoriesSkipped: 0,
       functionsAuthored: 0,
       functionsRejected: 0,
+      secretsStored: 0,
+      secretsRejected: 0,
+      endpointsAuthored: 0,
+      endpointsRejected: 0,
     })
     expect(api.dispatched).toHaveLength(1)
     expect(api.dispatched[0][0]).toEqual({
@@ -265,5 +276,263 @@ describe(`author-function pump integration`, () => {
     expect(report.dispatched).toBe(1)
     expect(api.authored).toHaveLength(1)
     expect(api.dispatched[0][0].function).toBe(`updateResidentConfig`)
+  })
+})
+
+describe(`parseAuthorEndpointBlock`, () => {
+  const submission = {
+    name: `stripeCharge`,
+    path: `/charge`,
+    type: `http`,
+    options: { url: `https://api.stripe.com/v1/charges`, method: `POST` },
+    headers: { 'x-source': `resident` },
+    description: `Create a charge`,
+  }
+
+  it(`parses an array of submissions`, () => {
+    const parsed = parseAuthorEndpointBlock(endpointFence(JSON.stringify([submission])))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`parses a single-object fence`, () => {
+    const parsed = parseAuthorEndpointBlock(endpointFence(JSON.stringify(submission)))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`defaults path to empty and drops empty type/headers/description`, () => {
+    const parsed = parseAuthorEndpointBlock(
+      endpointFence(
+        JSON.stringify({
+          name: `f`,
+          options: { url: `https://x.test` },
+          type: ``,
+          description: ``,
+        })
+      )
+    )
+    expect(parsed).toEqual([
+      {
+        name: `f`,
+        path: ``,
+        options: { url: `https://x.test` },
+        type: undefined,
+        headers: undefined,
+        description: undefined,
+      },
+    ])
+  })
+
+  it(`drops entries missing a non-empty name or options.url`, () => {
+    const parsed = parseAuthorEndpointBlock(
+      endpointFence(
+        JSON.stringify([
+          { name: ``, options: { url: `https://x.test` } },
+          { name: `noOptions` },
+          { name: `noUrl`, options: {} },
+          { name: `emptyUrl`, options: { url: `` } },
+          `not-an-object`,
+          { name: `ok`, options: { url: `https://ok.test` } },
+        ])
+      )
+    )
+    expect(parsed.map((r) => r.name)).toEqual([`ok`])
+  })
+
+  it(`returns [] for no fence or malformed JSON`, () => {
+    expect(parseAuthorEndpointBlock(`no fences here`)).toEqual([])
+    expect(parseAuthorEndpointBlock(endpointFence(`{not json`))).toEqual([])
+  })
+})
+
+describe(`parseAuthorSecretBlock`, () => {
+  const submission = {
+    name: `STRIPE_KEY`,
+    value: `sk_live_realcredential`,
+    description: `Stripe secret key`,
+  }
+
+  it(`parses an array of submissions`, () => {
+    const parsed = parseAuthorSecretBlock(secretFence(JSON.stringify([submission])))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`parses a single-object fence`, () => {
+    const parsed = parseAuthorSecretBlock(secretFence(JSON.stringify(submission)))
+    expect(parsed).toEqual([submission])
+  })
+
+  it(`drops empty description and preserves the value byte-for-byte`, () => {
+    const parsed = parseAuthorSecretBlock(
+      secretFence(
+        JSON.stringify({ name: `K`, value: `  spaced-value  `, description: `` })
+      )
+    )
+    expect(parsed).toEqual([
+      { name: `K`, value: `  spaced-value  `, description: undefined },
+    ])
+  })
+
+  it(`drops entries missing a non-empty name or value`, () => {
+    const parsed = parseAuthorSecretBlock(
+      secretFence(
+        JSON.stringify([
+          { name: ``, value: `x` },
+          { name: `f` },
+          { value: `x` },
+          { name: `emptyValue`, value: `` },
+          `not-an-object`,
+          { name: `ok`, value: `y` },
+        ])
+      )
+    )
+    expect(parsed.map((r) => r.name)).toEqual([`ok`])
+  })
+
+  it(`returns [] for no fence or malformed JSON`, () => {
+    expect(parseAuthorSecretBlock(`no fences here`)).toEqual([])
+    expect(parseAuthorSecretBlock(secretFence(`{not json`))).toEqual([])
+  })
+})
+
+describe(`author-secret pump integration`, () => {
+  const submission = {
+    name: `STRIPE_KEY`,
+    value: `sk_live_realcredential`,
+    description: `Stripe secret key`,
+  }
+
+  it(`POSTs parsed submissions to the author-secret endpoint and counts storage`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(secretFence(JSON.stringify([submission])))
+
+    expect(api.authoredSecrets).toEqual([submission])
+    expect(report.secretsStored).toBe(1)
+    expect(report.secretsRejected).toBe(0)
+    // Storing a secret is not a dispatch action
+    expect(report.total).toBe(0)
+    expect(api.dispatched).toHaveLength(0)
+  })
+
+  it(`counts a platform rejection (scan/validation) without failing the pump`, async () => {
+    const api = makeFakeApi()
+    api.onAuthorSecret(() => ({
+      ok: false,
+      status: 422,
+      error: `authorSecret rejected by name scan`,
+    }))
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(secretFence(JSON.stringify([submission])))
+
+    expect(report.secretsStored).toBe(0)
+    expect(report.secretsRejected).toBe(1)
+  })
+
+  it(`never logs the secret value — only its name reaches the api`, async () => {
+    const api = makeFakeApi()
+    let seenValue: string | undefined
+    api.onAuthorSecret((request) => {
+      seenValue = request.value
+      return {
+        ok: true,
+        status: 201,
+        data: { secretId: `sc_1`, name: request.name, rotated: false },
+      }
+    })
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    await pump.pump(secretFence(JSON.stringify([submission])))
+
+    // The value flows to the api (encrypted at rest server-side) but is never logged.
+    expect(seenValue).toBe(submission.value)
+  })
+})
+
+describe(`author-endpoint pump integration`, () => {
+  const secretSubmission = { name: `API_KEY`, value: `sk_live_x` }
+  const endpointSubmission = {
+    name: `stripeCharge`,
+    path: `/charge`,
+    options: {
+      url: `https://api.stripe.com/v1/charges`,
+      auth: { secretId: `sc_test001` },
+    },
+  }
+
+  it(`POSTs parsed submissions to the author-endpoint endpoint and counts acceptance`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(endpointFence(JSON.stringify([endpointSubmission])))
+
+    expect(api.authoredEndpoints).toEqual([
+      {
+        ...endpointSubmission,
+        type: undefined,
+        headers: undefined,
+        description: undefined,
+      },
+    ])
+    expect(report.endpointsAuthored).toBe(1)
+    expect(report.endpointsRejected).toBe(0)
+    expect(report.total).toBe(0)
+    expect(api.dispatched).toHaveLength(0)
+  })
+
+  it(`counts a platform rejection (scan/SSRF/collision) without failing the pump`, async () => {
+    const api = makeFakeApi()
+    api.onAuthorEndpoint(() => ({
+      ok: false,
+      status: 422,
+      error: `authorEndpoint rejected by egress guard`,
+    }))
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(endpointFence(JSON.stringify([endpointSubmission])))
+
+    expect(report.endpointsAuthored).toBe(0)
+    expect(report.endpointsRejected).toBe(1)
+  })
+
+  it(`authors the secret BEFORE the endpoint so the endpoint can reference it`, async () => {
+    const api = makeFakeApi()
+    const order: string[] = []
+    api.onAuthorSecret((request) => {
+      order.push(`secret:${request.name}`)
+      return {
+        ok: true,
+        status: 201,
+        data: { secretId: `sc_test001`, name: request.name, rotated: false },
+      }
+    })
+    api.onAuthorEndpoint((request) => {
+      order.push(`endpoint:${request.name}`)
+      return { ok: true, status: 201, data: { id: `ep_1`, name: request.name } }
+    })
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(
+      `${secretFence(JSON.stringify([secretSubmission]))}\n${endpointFence(JSON.stringify([endpointSubmission]))}`
+    )
+
+    expect(order).toEqual([`secret:API_KEY`, `endpoint:stripeCharge`])
+    expect(report.secretsStored).toBe(1)
+    expect(report.endpointsAuthored).toBe(1)
+  })
+
+  it(`authors an endpoint and dispatches from the same turn output`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(
+      `${endpointFence(JSON.stringify([endpointSubmission]))}\n${actionsFence(`[{"function":"noteEndpoint","args":{"name":"stripeCharge"}}]`)}`
+    )
+
+    expect(report.endpointsAuthored).toBe(1)
+    expect(report.dispatched).toBe(1)
+    expect(api.authoredEndpoints).toHaveLength(1)
+    expect(api.dispatched[0][0].function).toBe(`noteEndpoint`)
   })
 })

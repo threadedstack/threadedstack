@@ -230,8 +230,8 @@ describe(`AgentScheduleDefs`, () => {
     }
     // The strategy prompt reorients its lanes toward go-to-market.
     expect(byKey[`ceo-strategy`]).toContain(`go-to-market`)
-    // The marketing cycle discloses draft-only: no external sends exist.
-    expect(byKey[`cmo-marketing`]).toContain(`DRAFT-ONLY`)
+    // The marketing cycle ACTS in the real world (sends/publishes) — not draft-only.
+    expect(byKey[`cmo-marketing`]).toContain(`ACT IN THE REAL WORLD`)
     // Both CMO prompts opt into the executive Business-metrics faculty.
     expect(byKey[`cmo-board`]).toContain(`<!-- company-strategy -->`)
     expect(byKey[`cmo-marketing`]).toContain(`<!-- company-strategy -->`)
@@ -279,7 +279,7 @@ describe(`AgentScheduleDefs`, () => {
     }
   })
 
-  it(`carries the primitives-faculty section + capability-build path in every exec prompt`, () => {
+  it(`carries the full-computer + shared-library self-provisioning framing in every exec prompt`, () => {
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d.prompt]))
     const execKeys = [
       `ceo-strategy`,
@@ -289,23 +289,16 @@ describe(`AgentScheduleDefs`, () => {
       `cmo-marketing`,
     ]
     for (const key of execKeys) {
-      // The platform the execs run is ALSO their toolbox — the full inventory.
-      expect(byKey[key]).toContain(`ALSO your own toolbox`)
-      expect(byKey[key]).toContain(`Collections:`)
-      expect(byKey[key]).toContain(`Functions:`)
-      expect(byKey[key]).toContain(`Providers:`)
-      expect(byKey[key]).toContain(`Endpoints:`)
-      expect(byKey[key]).toContain(`Schedules:`)
-      expect(byKey[key]).toContain(`Skills + Memories`)
-      // Secrets are injected server-side; execs never see or handle keys.
-      expect(byKey[key]).toContain(`server-side secret injection`)
-      // The four-step capability-build path, ending at the owner escalation
-      // for JUST the secret/budget — never fabricated credentials.
-      expect(byKey[key]).toContain(`CAPABILITY-BUILD PATH`)
-      expect(byKey[key]).toContain(`CTO/steward dev loop`)
-      expect(byKey[key]).toContain(`config/seeds`)
-      expect(byKey[key]).toContain(`JUST the secret or budget`)
-      expect(byKey[key]).toContain(`NEVER fabricate`)
+      // Every exec seat is told it has a full root computer with open internet —
+      // the primary way it self-provisions anything it needs.
+      expect(byKey[key]).toContain(`FULL COMPUTER`)
+      expect(byKey[key]).toContain(`open internet`)
+      // The platform primitives are a shared library, not a limit; authored
+      // capability is immediately the author's to use.
+      expect(byKey[key]).toContain(`SHARED LIBRARY`)
+      expect(byKey[key].toLowerCase()).toContain(`authorship is authorization`)
+      // The agent can build its own credential-injected connector.
+      expect(byKey[key]).toContain(`tdsk-author-endpoint`)
     }
   })
 

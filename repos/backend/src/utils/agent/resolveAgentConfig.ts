@@ -446,6 +446,7 @@ export const resolveAgentConfig = async (
       db,
       context: { args: input as Record<string, any> },
       connectEndpoints: connectEndpoints ?? [],
+      caller: { agentId },
     })
   }
 

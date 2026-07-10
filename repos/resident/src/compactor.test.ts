@@ -45,6 +45,10 @@ const makePump = () => {
         memoriesSkipped: 0,
         functionsAuthored: 0,
         functionsRejected: 0,
+        secretsStored: 0,
+        secretsRejected: 0,
+        endpointsAuthored: 0,
+        endpointsRejected: 0,
       }
     },
   }

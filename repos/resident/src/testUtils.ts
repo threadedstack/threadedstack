@@ -6,7 +6,11 @@ import type {
   TDispatchResult,
   TResidentConfig,
   TResidentRecord,
+  TAuthoredSecret,
+  TAuthoredEndpoint,
   TAuthoredFunction,
+  TAuthorSecretRequest,
+  TAuthorEndpointRequest,
   TAuthorFunctionRequest,
 } from './types/resident.types'
 
@@ -89,6 +93,8 @@ export type TFakeApi = TResidentApi & {
   }>
   queries: Array<{ collection: string; query: unknown }>
   authored: TAuthorFunctionRequest[]
+  authoredEndpoints: TAuthorEndpointRequest[]
+  authoredSecrets: TAuthorSecretRequest[]
   /** Override per-collection query responses. */
   onQuery: (
     fn: (collection: string, query: unknown) => TApiResult<TResidentRecord[]> | undefined
@@ -102,6 +108,14 @@ export type TFakeApi = TResidentApi & {
   /** Override authorFunction behavior (default: accepted). */
   onAuthor: (
     fn: (request: TAuthorFunctionRequest) => TApiResult<TAuthoredFunction>
+  ) => void
+  /** Override authorEndpoint behavior (default: accepted). */
+  onAuthorEndpoint: (
+    fn: (request: TAuthorEndpointRequest) => TApiResult<TAuthoredEndpoint>
+  ) => void
+  /** Override authorSecret behavior (default: accepted). */
+  onAuthorSecret: (
+    fn: (request: TAuthorSecretRequest) => TApiResult<TAuthoredSecret>
   ) => void
 }
 
@@ -118,12 +132,20 @@ export const makeFakeApi = (): TFakeApi => {
   let authorHandler:
     | ((request: TAuthorFunctionRequest) => TApiResult<TAuthoredFunction>)
     | undefined
+  let authorEndpointHandler:
+    | ((request: TAuthorEndpointRequest) => TApiResult<TAuthoredEndpoint>)
+    | undefined
+  let authorSecretHandler:
+    | ((request: TAuthorSecretRequest) => TApiResult<TAuthoredSecret>)
+    | undefined
 
   const api: TFakeApi = {
     dispatched: [],
     upserts: [],
     queries: [],
     authored: [],
+    authoredEndpoints: [],
+    authoredSecrets: [],
     onQuery: (fn) => {
       queryHandler = fn
     },
@@ -132,6 +154,12 @@ export const makeFakeApi = (): TFakeApi => {
     },
     onAuthor: (fn) => {
       authorHandler = fn
+    },
+    onAuthorEndpoint: (fn) => {
+      authorEndpointHandler = fn
+    },
+    onAuthorSecret: (fn) => {
+      authorSecretHandler = fn
     },
     queryRecords: async (collection, query) => {
       api.queries.push({ collection, query })
@@ -153,6 +181,24 @@ export const makeFakeApi = (): TFakeApi => {
       return (
         authorHandler?.(request) ??
         okResult<TAuthoredFunction>({ id: `fn_test001`, name: request.name })
+      )
+    },
+    authorEndpoint: async (request) => {
+      api.authoredEndpoints.push(request)
+      return (
+        authorEndpointHandler?.(request) ??
+        okResult<TAuthoredEndpoint>({ id: `ep_test001`, name: request.name })
+      )
+    },
+    authorSecret: async (request) => {
+      api.authoredSecrets.push(request)
+      return (
+        authorSecretHandler?.(request) ??
+        okResult<TAuthoredSecret>({
+          secretId: `sc_test001`,
+          name: request.name,
+          rotated: false,
+        })
       )
     },
   }

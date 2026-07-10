@@ -34,22 +34,37 @@ const headerSink = (target: Record<string, string>): THeaderSink => ({
   },
 })
 
-/** Fetch + decrypt every secret scoped to the project (mirrors BaseEndpoint). */
+const decryptAll = async (db: TDatabase, rows: Secret[]): Promise<Secret[]> => {
+  if (!rows.length) return []
+  const resolver = new SecretResolver(db)
+  const out: Secret[] = []
+  for (const secret of rows) {
+    const value = await resolver.decrypt(secret, secret.orgId || ``)
+    out.push(value ? ({ ...secret, value } as Secret) : (secret as Secret))
+  }
+  return out
+}
+
+/** Secrets scoped to the project — for human/platform-configured endpoints. */
 const fetchProjectSecrets = async (
   db: TDatabase,
   projectId: string
 ): Promise<Secret[]> => {
-  const { data: secrets = [], error } = await db.services.secret.list({
-    where: { projectId },
-  })
-  if (error || !secrets.length) return []
-  const resolver = new SecretResolver(db)
-  const decrypted: Secret[] = []
-  for (const secret of secrets) {
-    const value = await resolver.decrypt(secret, secret.orgId || ``)
-    decrypted.push(value ? ({ ...secret, value } as Secret) : (secret as Secret))
-  }
-  return decrypted
+  const { data = [] } = await db.services.secret.list({ where: { projectId } })
+  return decryptAll(db, data as Secret[])
+}
+
+/**
+ * Secrets scoped to a single agent — for that agent's OWN authored endpoints.
+ * An agent-authored endpoint is handed ONLY the authoring agent's secrets, never
+ * the project set, so it cannot template a project/human secret into a header or
+ * oauth field and exfiltrate it to an agent-chosen host (the resolver templates
+ * far more fields than any author-time check enumerates — scoping the input set
+ * closes that whole class of bug regardless of which field is missed).
+ */
+const fetchAgentSecrets = async (db: TDatabase, agentId: string): Promise<Secret[]> => {
+  const { data = [] } = await db.services.secret.list({ where: { agentId } })
+  return decryptAll(db, data as Secret[])
 }
 
 /** Resolve an endpoint by id or name, scoped to the project (never cross-project). */
@@ -98,7 +113,8 @@ const parseResponseBody = async (res: Response): Promise<unknown> => {
 export const createConnectorCapability = (
   db: TDatabase,
   projectId: string,
-  allowedRefs: string[]
+  allowedRefs: string[],
+  caller?: { agentId?: string }
 ): IConnectorCapability => {
   let callsRemaining = MaxConnectorCallsPerRun
   const proxyService = new ProxyService()
@@ -117,8 +133,14 @@ export const createConnectorCapability = (
         const endpoint = await resolveProjectEndpoint(db, projectId, ref)
         if (!endpoint) return { ok: false, error: `endpoint not found: ${ref}` }
 
-        // Allowlist gate — the endpoint id AND its name are both acceptable keys.
-        if (!allow.has(endpoint.id) && !allow.has(endpoint.name))
+        // AUTHORSHIP IS AUTHORIZATION (mirrors invokeAction): an agent may reach
+        // an endpoint IT authored with no allowlist entry — this is what lets an
+        // agent build and use its OWN connector with zero human config. The
+        // git-seeded `connectEndpoints` allowlist remains only as an optional
+        // extra grant (e.g. to share a connector across seats).
+        const authored =
+          Boolean(caller?.agentId) && endpoint.meta?.authoredBy === caller?.agentId
+        if (!authored && !allow.has(endpoint.id) && !allow.has(endpoint.name))
           return { ok: false, error: `endpoint not permitted for this function: ${ref}` }
 
         if (endpoint.type !== EEndpointType.proxy)
@@ -141,7 +163,15 @@ export const createConnectorCapability = (
         if (!AllowedMethods.has(method))
           return { ok: false, error: `method not allowed: ${method}` }
 
-        const secrets = await fetchProjectSecrets(db, projectId)
+        // Scope the decrypted secret set to WHY this call is authorized: an
+        // agent-AUTHORED endpoint sees ONLY the authoring agent's own secrets
+        // (never the project set — closes cross-owner secret exfiltration via
+        // templated header/oauth fields); an ALLOWLISTED (human-configured)
+        // endpoint sees the project secrets it was set up with.
+        const secrets =
+          authored && caller?.agentId
+            ? await fetchAgentSecrets(db, caller.agentId)
+            : await fetchProjectSecrets(db, projectId)
 
         // Build headers: endpoint static headers + caller headers, then auth
         // injection wins (secret-bearing headers overwrite anything the caller set).
@@ -182,16 +212,19 @@ export const createConnectorCapability = (
 /**
  * Wrap the connector capability as a JSON-marshalling host bridge. Only the JSON
  * request and JSON result cross the isolate boundary — never the db, secrets, or
- * the live capability object. Returns an empty bridge map (connect unavailable)
- * when the caller granted no endpoints, so connect is fail-closed by default.
+ * the live capability object. Built whenever there is an explicit endpoint grant
+ * OR a calling agent (so the agent can reach endpoints IT authored via
+ * authorship=authorization); returns an empty map (connect unavailable) only when
+ * there is neither — connect stays fail-closed for un-identified callers.
  */
 export const buildConnectorBridges = (
   db: TDatabase,
   projectId: string,
-  allowedRefs: string[]
+  allowedRefs: string[],
+  caller?: { agentId?: string }
 ): Record<string, (argsJson: string) => Promise<string>> => {
-  if (!allowedRefs.length) return {}
-  const connector = createConnectorCapability(db, projectId, allowedRefs)
+  if (!allowedRefs.length && !caller?.agentId) return {}
+  const connector = createConnectorCapability(db, projectId, allowedRefs, caller)
   return {
     [ConnectorBridge.invoke]: async (argsJson) => {
       const [ref, req] = JSON.parse(argsJson) as [string, TConnectorRequest?]

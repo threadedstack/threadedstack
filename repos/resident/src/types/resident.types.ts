@@ -198,6 +198,39 @@ export type TAuthoredFunction = {
   name: string
 }
 
+/** A self-authored proxy Endpoint submission (parsed from a ```tdsk-author-endpoint``` block). */
+export type TAuthorEndpointRequest = {
+  name: string
+  path: string
+  type?: string
+  options: Record<string, unknown>
+  headers?: Record<string, string>
+  description?: string
+}
+
+/** The authored Endpoint row returned by the author-endpoint endpoint. */
+export type TAuthoredEndpoint = {
+  id: string
+  name: string
+}
+
+/** A self-stored credential submission (parsed from a ```tdsk-author-secret``` block). */
+export type TAuthorSecretRequest = {
+  name: string
+  value: string
+  description?: string
+}
+
+/**
+ * The author-secret endpoint's response — echoes the secret id, name, and
+ * whether an existing secret was rotated. The VALUE is never returned.
+ */
+export type TAuthoredSecret = {
+  secretId: string
+  name: string
+  rotated: boolean
+}
+
 /** The resident API client — the ONLY HTTP boundary in the runtime. */
 export type TResidentApi = {
   queryRecords: (
@@ -213,6 +246,12 @@ export type TResidentApi = {
   authorFunction: (
     request: TAuthorFunctionRequest
   ) => Promise<TApiResult<TAuthoredFunction>>
+  /** POST a self-authored proxy Endpoint to the R3 author-endpoint endpoint. */
+  authorEndpoint: (
+    request: TAuthorEndpointRequest
+  ) => Promise<TApiResult<TAuthoredEndpoint>>
+  /** POST a self-stored credential to the R3 author-secret endpoint. */
+  authorSecret: (request: TAuthorSecretRequest) => Promise<TApiResult<TAuthoredSecret>>
 }
 
 /** Heartbeat status payload. */
@@ -252,4 +291,12 @@ export type TPumpReport = {
   functionsAuthored: number
   /** ```tdsk-author-function``` submissions rejected (scan/validation/collision). */
   functionsRejected: number
+  /** ```tdsk-author-secret``` submissions accepted by the platform. */
+  secretsStored: number
+  /** ```tdsk-author-secret``` submissions rejected (scan/validation). */
+  secretsRejected: number
+  /** ```tdsk-author-endpoint``` submissions accepted by the platform. */
+  endpointsAuthored: number
+  /** ```tdsk-author-endpoint``` submissions rejected (scan/validation/SSRF). */
+  endpointsRejected: number
 }

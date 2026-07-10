@@ -44,6 +44,7 @@ export const invokeAction = async (
       db,
       context: { args: action.args, caller },
       connectEndpoints,
+      caller,
     })
     return res.success
       ? { ok: true, data: res.output }

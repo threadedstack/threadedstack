@@ -4,7 +4,11 @@ import type {
   TResidentApi,
   TDispatchResult,
   TResidentRecord,
+  TAuthoredSecret,
+  TAuthoredEndpoint,
   TAuthoredFunction,
+  TAuthorSecretRequest,
+  TAuthorEndpointRequest,
   TAuthorFunctionRequest,
 } from './types/resident.types'
 
@@ -142,5 +146,11 @@ export const createResidentApi = (opts: TResidentApiOpts): TResidentApi => {
 
     authorFunction: (request: TAuthorFunctionRequest) =>
       post<TAuthoredFunction>(`${base}/agents/${agentId}/author-function`, request),
+
+    authorEndpoint: (request: TAuthorEndpointRequest) =>
+      post<TAuthoredEndpoint>(`${base}/agents/${agentId}/author-endpoint`, request),
+
+    authorSecret: (request: TAuthorSecretRequest) =>
+      post<TAuthoredSecret>(`${base}/agents/${agentId}/author-secret`, request),
   }
 }
