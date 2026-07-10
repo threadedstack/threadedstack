@@ -202,9 +202,12 @@ type TAuthorSecretSubmission = {
 **The value is never scanned, never logged, and never returned.** Only `name` and
 `description` pass through the deterministic content scanner — the raw credential is excluded
 specifically so a valid API key can never be rejected (or leaked into a findings string) by
-the scanner. Log lines on both the scheduled and resident paths interpolate only the secret's
-`name` and resulting `secretId`. The HTTP response from the resident's author-secret endpoint
-echoes only `{ secretId, name, rotated }`.
+the scanner. Log lines never interpolate the value, but the two paths differ in what else they
+log: the **scheduled** path's success log
+(`repos/backend/src/services/scheduler/executor.ts`) interpolates only the secret's `name`; the
+**resident** path (`repos/resident/src/pump.ts`) logs both `name` and the resulting `secretId`.
+The HTTP response from the resident's author-secret endpoint echoes only
+`{ secretId, name, rotated }`.
 
 The value is encrypted through the same pipeline `createSecret` uses (`deriveKey` →
 `encryptValue` → `encodeEncrypted`) before it touches the database. The created Secret is
@@ -374,10 +377,15 @@ No human touched the Endpoints or Secrets admin UI at any point in this flow.
 **Checks:**
 1. The fence's JSON must be a valid object or array — malformed JSON yields a no-op, not an
    error.
-2. Each entry needs a non-empty `name`, non-empty `path`, and an `options` object — entries
-   missing any of these are dropped before validation even runs.
-3. Check for a 403 (secret ownership), 400 (SSRF/URL/injectSecrets), 409 (name collision), or
-   422 (content scan) in the scheduler/resident logs for that submission.
+2. Each entry needs a non-empty `name` and an `options` object. On the **scheduled** path
+   (`repos/backend/src/utils/agent/authorEndpoint.ts`), `path` must also be non-empty — an
+   entry missing any of `name`/`path`/`options` is dropped before validation ever runs. On the
+   **resident** path (`repos/resident/src/pump.ts`), only `name` and `options.url` are
+   required; a missing `path` is forwarded as `''` instead of being dropped, and the core API
+   rejects it with an explicit `400 path is required` — check for that response rather than
+   assuming a silent no-op.
+3. Check for a 403 (secret ownership), 400 (SSRF/URL/injectSecrets/missing path), 409 (name
+   collision), or 422 (content scan) in the scheduler/resident logs for that submission.
 
 ### 400 on author: URL rejected by the egress guard
 
