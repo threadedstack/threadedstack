@@ -74,6 +74,53 @@ export interface IScanCapability {
   content(input: TScanContentInput): Promise<TScanResult>
 }
 
+/**
+ * Request a Function passes to an external connection (a proxy Endpoint).
+ *
+ * NOTE (security): there is deliberately NO caller-supplied `path`. Concatenating
+ * agent-authored path onto the endpoint's base URL is the classic SSRF/traversal
+ * trigger, so the target host is fixed by the endpoint config and bounded by the
+ * platform egress guard — a Function can only vary the query, headers, and body.
+ */
+export type TConnectorRequest = {
+  /** Query params merged onto the outbound request (cannot change the host). */
+  query?: Record<string, string>
+  /** Headers merged onto the outbound request (endpoint-injected secrets win). */
+  headers?: Record<string, string>
+  /** JSON body sent upstream (for POST/PUT/PATCH). */
+  body?: unknown
+  /** Override the endpoint's HTTP method for this call. */
+  method?: string
+}
+
+/** Result of an external connection call surfaced back to the Function. */
+export type TConnectorResult = {
+  ok: boolean
+  status?: number
+  body?: unknown
+  error?: string
+}
+
+/**
+ * Project-scoped external-connection capability injected into a Function's
+ * execution context.
+ *
+ * A platform-mediated bridge over the Proxy Engine: the isolate names a project
+ * `proxy` Endpoint (by id or name) and the host resolves it, injects its
+ * server-side secrets/auth (OAuth, bearer, basic, api-key), enforces its domain
+ * whitelist, executes the outbound HTTPS call, and returns the response as JSON.
+ * The secrets NEVER cross into the isolate — the Function only ever sees the
+ * response body. This is what lets an agent-authored Function actually reach the
+ * outside world (send an email, post to a channel, call a third-party API)
+ * instead of dead-ending in a records Collection.
+ *
+ * Only `proxy`-type Endpoints are reachable — `agent`/`faas` Endpoints are
+ * refused so a Function cannot invoke agents or other Functions through it.
+ */
+export interface IConnectorCapability {
+  invoke(ref: string, request?: TConnectorRequest): Promise<TConnectorResult>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
@@ -91,6 +138,13 @@ export type TFunctionContext = {
    * the scanner never crosses into the isolate.
    */
   scan?: IScanCapability
+  /**
+   * Project-scoped external-connection capability over the Proxy Engine. Present
+   * when the executor builds its host-bridge surface with endpoint access.
+   * Reached through a platform-mediated bridge — endpoint secrets are injected
+   * host-side and never cross into the isolate.
+   */
+  connect?: IConnectorCapability
   /**
    * Platform-injected, trusted identity of the invoker (never from model output).
    * Effect Functions authorize by this (e.g. board role gates).

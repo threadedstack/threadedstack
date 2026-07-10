@@ -364,6 +364,7 @@ describe(`resolveAgentConfig`, () => {
     expect(FunctionExecutor.execute).toHaveBeenCalledWith(mockFn, {
       db,
       context: { args: { arg: `value` } },
+      connectEndpoints: [],
     })
     expect(execResult).toEqual({ duration: 100, output: `result`, success: true })
   })
@@ -842,6 +843,7 @@ describe(`createInvokeProvider`, () => {
     expect(FunctionExecutor.execute).toHaveBeenCalledWith(func, {
       db,
       context: { args: { title: `Ship it` }, caller: { agentId: `ag_self` } },
+      connectEndpoints: [],
     })
     expect(result).toEqual({ ok: true, data: `result` })
   })

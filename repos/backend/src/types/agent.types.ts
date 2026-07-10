@@ -141,6 +141,12 @@ export type TResolveAgentOpts = {
    * project ⇒ the `invoke` tool is exposed; empty/absent ⇒ no tool (inert).
    */
   actions?: string[]
+  /**
+   * Endpoint refs (id or name) that Functions invoked by the live `invoke` tool
+   * may reach via `context.connect`. Fail-closed: absent/empty ⇒ no external
+   * reach. The grant is explicit, independent of the Function allowlist.
+   */
+  connectEndpoints?: string[]
 }
 
 export type TAgentExecOpts = {

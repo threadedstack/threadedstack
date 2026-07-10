@@ -57,7 +57,8 @@ describe(`dispatchActions`, () => {
       `proj-1`,
       expect.objectContaining({ function: `f` }),
       [],
-      expect.objectContaining({ agentId: `ag_1` })
+      expect.objectContaining({ agentId: `ag_1` }),
+      []
     )
   })
 
@@ -89,7 +90,8 @@ describe(`dispatchActions`, () => {
       `proj-1`,
       { function: `f`, args: { x: 1 } },
       [`f`],
-      { agentId: `ag_1`, scheduleId: `sch-1` }
+      { agentId: `ag_1`, scheduleId: `sch-1` },
+      []
     )
   })
 
@@ -119,7 +121,8 @@ describe(`dispatchActions`, () => {
         args: {},
       },
       [`f`, `g`],
-      { agentId: `ag_1`, scheduleId: `sch-1` }
+      { agentId: `ag_1`, scheduleId: `sch-1` },
+      []
     )
   })
 
@@ -141,7 +144,8 @@ describe(`dispatchActions`, () => {
         args: {},
       },
       [`f`],
-      { agentId: `ag_1`, scheduleId: `sch-1` }
+      { agentId: `ag_1`, scheduleId: `sch-1` },
+      []
     )
   })
 })

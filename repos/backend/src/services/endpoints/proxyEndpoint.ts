@@ -6,7 +6,7 @@ import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { EEndpointType } from '@tdsk/domain'
 import { HttpMethods } from '@TBE/constants/values'
-import { addEndpointHeaders } from '@TBE/utils/proxy'
+import { addEndpointHeaders, assertSafeEgressUrl, guardedFetch } from '@TBE/utils/proxy'
 import { BaseEndpoint } from '@TBE/services/endpoints/base'
 import { ProxyService, RetryService } from '@TBE/services/proxy'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
@@ -41,6 +41,12 @@ export class ProxyEndpoint extends BaseEndpoint {
   async execute(req: TRequest, res: Response, endpoint: Endpoint): Promise<void> {
     const opts = endpoint.options as TProxyEndpointConfig
     if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)
+
+    // SSRF egress guard: refuse a proxy target that is (or DNS-resolves to) a
+    // private/loopback/link-local/cluster-internal address before any secret is
+    // attached. Closes the credentialed-SSRF hole for the /proxy path and the
+    // agent connector that reuses this executor.
+    await assertSafeEgressUrl(opts.url)
 
     // Extract the remaining path after /:projectId/:endpointId/
     const proxyPath = req.params[0] || ''
@@ -116,9 +122,9 @@ export class ProxyEndpoint extends BaseEndpoint {
                       ).toString()
                       logger.debug(`Following server-side redirect to ${redirectUrl}`)
 
-                      const finalRes = await fetch(redirectUrl, {
-                        redirect: 'follow',
-                      })
+                      // Guard every redirect hop — a public upstream 302'ing to
+                      // an internal host (metadata/K8s/backend) is an SSRF vector.
+                      const finalRes = await guardedFetch(redirectUrl)
                       const body = Buffer.from(await finalRes.arrayBuffer())
 
                       // Override status and headers set by copyHeaders
