@@ -747,6 +747,15 @@ deployments:
         - ./values.yaml
         - ./values.${NODE_ENV}.yaml
       values:
+        # CRITICAL: drop the chart's global env dump for THIS deployment. The
+        # global `env:` map interpolates per-release values (TDSK_IMAGE carries
+        # the release SHA), so inheriting it changes the pod template on EVERY
+        # release and rolls the egress pod even when its pinned image tag is
+        # unchanged — exactly the churn this service exists to eliminate
+        # (proven: revision 1→2 diffed ONLY on TDSK_IMAGE). Everything the
+        # egress process needs is set explicitly on the container below; the
+        # kube namespace resolves from the serviceaccount mount.
+        env: null
         # Same stable pool as the backend (see the tdsk-backend nodeSelector note)
         nodeSelector:
           kubernetes.civo.com/civo-node-pool: tdskembed
