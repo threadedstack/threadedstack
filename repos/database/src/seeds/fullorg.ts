@@ -780,6 +780,85 @@ const agents = {
       streaming: true,
     },
   }),
+  // Realtime engineering team — the dev-team LEAD. A runtime-brain, autonomous
+  // agent (mirrors the CEO/CMO shape) that grooms the dev_tasks backlog, reaps
+  // expired leases, and keeps team throughput honest. A DEDICATED identity —
+  // deliberately NOT the steward, which keeps the scheduled dev-loop and the
+  // board CTO seat — so flipping this seat's sandbox to resident mode never
+  // double-drives the live dev loop. SHADOW (Phase 2): its resident config
+  // seed (seeds/resident/records.ts) stays inert until its body sandbox is
+  // flipped to resident mode.
+  cto: new Agent({
+    orgId: org.id,
+    id: Ids.agent.cto,
+    name: `CTO`,
+    description: `Dev-team lead — grooms the dev_tasks backlog, reaps expired leases, and keeps the resident engineering team's throughput honest`,
+    soul: `You are the CTO of ThreadedStack. You turn strategy into concrete, buildable engineering work and you lead a realtime engineering team: two resident engineers working the shared dev_tasks board concurrently. You groom their backlog with small, sharply-scoped tasks, you keep their claims live, and you keep their throughput honest. You lead; you do not do their work for them — your engineering judgment lands as well-groomed tasks, sharp review-throughput questions, and clear messages.`,
+    active: true,
+    autonomous: true,
+    brain: EAgentBrain.runtime,
+    providerLinks: [
+      { priority: 0, provider: providers.anthropic },
+      { priority: 1, provider: providers.zai },
+      { priority: 2, provider: providers.openrouter },
+    ],
+    secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+      sandboxId: Ids.sandbox.ctoBody,
+    },
+  }),
+  // Realtime engineering team — resident engineer one. A runtime-brain,
+  // autonomous agent (mirrors the CEO/CMO shape) that works the dev_tasks
+  // state machine: claims tasks, ships PRs, reviews its teammate's work.
+  // SHADOW (Phase 2): its resident config seed (seeds/resident/records.ts)
+  // stays inert until its body sandbox is flipped to resident mode.
+  // `environment.sandboxId` binds the agent to its body sandbox — the SAME
+  // resolution the watchdog and the activation reconcile use — so a future
+  // flip needs no out-of-band wiring.
+  engineerOne: new Agent({
+    orgId: org.id,
+    id: Ids.agent.engineerOne,
+    name: `Engineer One`,
+    description: `Resident engineer — works the dev_tasks state machine: claims tasks, ships verified PRs, reviews its teammate's work`,
+    soul: `You are a resident engineer at ThreadedStack. You build ThreadedStack itself: you take a task from the shared board, write the code, prove it with green types and green tests, open the PR, and see it through review to merge. You are rigorous and honest — a claim you cannot verify is a claim you do not make — and you review your teammate's work with the same care you write your own: you read the whole diff, you run it, and your verdict means something.`,
+    active: true,
+    autonomous: true,
+    brain: EAgentBrain.runtime,
+    providerLinks: [
+      { priority: 0, provider: providers.anthropic },
+      { priority: 1, provider: providers.zai },
+      { priority: 2, provider: providers.openrouter },
+    ],
+    secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+      sandboxId: Ids.sandbox.engOneBody,
+    },
+  }),
+  // Realtime engineering team — resident engineer two (identical seat shape to
+  // engineer one; the two work the same board concurrently and the atomic
+  // records.cas claims keep them from colliding).
+  engineerTwo: new Agent({
+    orgId: org.id,
+    id: Ids.agent.engineerTwo,
+    name: `Engineer Two`,
+    description: `Resident engineer — works the dev_tasks state machine: claims tasks, ships verified PRs, reviews its teammate's work`,
+    soul: `You are a resident engineer at ThreadedStack. You build ThreadedStack itself: you take a task from the shared board, write the code, prove it with green types and green tests, open the PR, and see it through review to merge. You are rigorous and honest — a claim you cannot verify is a claim you do not make — and you review your teammate's work with the same care you write your own: you read the whole diff, you run it, and your verdict means something.`,
+    active: true,
+    autonomous: true,
+    brain: EAgentBrain.runtime,
+    providerLinks: [
+      { priority: 0, provider: providers.anthropic },
+      { priority: 1, provider: providers.zai },
+      { priority: 2, provider: providers.openrouter },
+    ],
+    secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+      sandboxId: Ids.sandbox.engTwoBody,
+    },
+  }),
 }
 
 // --- Endpoints ---
@@ -1433,6 +1512,32 @@ const sandboxes = {
     name: `CMO Body`,
     config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
   }),
+  // Realtime engineering team — the dev-team lead + engineer agents' body
+  // sandboxes (their runtime pods). Mirror the exec bodies' claude-code
+  // runtime shape. SHADOW: deliberately NOT in resident mode (no
+  // config.resident) — the watchdog skips them until the team is activated
+  // with an explicit flip.
+  ctoBody: new Sandbox({
+    id: Ids.sandbox.ctoBody,
+    builtIn: true,
+    orgId: org.id,
+    name: `CTO Body`,
+    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+  }),
+  engOneBody: new Sandbox({
+    id: Ids.sandbox.engOneBody,
+    builtIn: true,
+    orgId: org.id,
+    name: `Engineer One Body`,
+    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+  }),
+  engTwoBody: new Sandbox({
+    id: Ids.sandbox.engTwoBody,
+    builtIn: true,
+    orgId: org.id,
+    name: `Engineer Two Body`,
+    config: { image: defaultSandboxImage, ...SandboxPresets[`claude-code`].config },
+  }),
 }
 
 // --- Sandbox → Provider links (seeded via sandbox.addProvider in seed runner) ---
@@ -1497,6 +1602,27 @@ const sandboxProviderLinks = [
   { sandboxId: Ids.sandbox.cmoBody, providerId: providers.zai.id, priority: 1 },
   { sandboxId: Ids.sandbox.cmoBody, providerId: providers.openrouter.id, priority: 2 },
   { sandboxId: Ids.sandbox.cmoBody, providerId: providers.ollama.id, priority: 3 },
+  // Dev-team lead + engineer bodies: anthropic (primary), zai, openrouter, ollama cloud (fallbacks) — mirror the exec bodies
+  { sandboxId: Ids.sandbox.ctoBody, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.ctoBody, providerId: providers.zai.id, priority: 1 },
+  { sandboxId: Ids.sandbox.ctoBody, providerId: providers.openrouter.id, priority: 2 },
+  { sandboxId: Ids.sandbox.ctoBody, providerId: providers.ollama.id, priority: 3 },
+  { sandboxId: Ids.sandbox.engOneBody, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.engOneBody, providerId: providers.zai.id, priority: 1 },
+  {
+    sandboxId: Ids.sandbox.engOneBody,
+    providerId: providers.openrouter.id,
+    priority: 2,
+  },
+  { sandboxId: Ids.sandbox.engOneBody, providerId: providers.ollama.id, priority: 3 },
+  { sandboxId: Ids.sandbox.engTwoBody, providerId: providers.anthropic.id, priority: 0 },
+  { sandboxId: Ids.sandbox.engTwoBody, providerId: providers.zai.id, priority: 1 },
+  {
+    sandboxId: Ids.sandbox.engTwoBody,
+    providerId: providers.openrouter.id,
+    priority: 2,
+  },
+  { sandboxId: Ids.sandbox.engTwoBody, providerId: providers.ollama.id, priority: 3 },
   // Custom: no providers linked -- bring your own
 ]
 

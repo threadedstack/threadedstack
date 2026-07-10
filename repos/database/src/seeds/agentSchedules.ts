@@ -35,7 +35,12 @@ export const OpsProjectId = `pj_tIly2F1`
 // reconciler creates new schedules runnable and repairs any null rows, with
 // zero churn on the live ones.
 export const OpsUserId = `00000000-0000-0000-0000-000000000000`
-const StewardAgentId = `ag_lvUbjp_`
+// The steward agent is ALSO the CTO board seat (the cto-board def below runs on
+// it; exec-board BoardCtoAgentId matches). The steward carries the scheduled
+// dev-loop and the board seat ONLY — the dev-team lead is a separate agent
+// (CtoAgentId below), so flipping the lead's sandbox to resident mode never
+// touches the live dev-loop driver.
+export const StewardAgentId = `ag_lvUbjp_`
 const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
 const AdversarySandboxId = `sb_xg7h1wl`
@@ -55,6 +60,19 @@ const CeoSandboxId = `sb_ceo0001`
 // resident config seed (seeds/resident/records.ts) keys its record by this id.
 export const CmoAgentId = `ag_cmo0001`
 const CmoSandboxId = `sb_cmo0001`
+// Realtime engineering team (Phase 2) — the dedicated dev-team LEAD seat plus
+// the two resident engineer seats; ids match the fullorg seed (Ids.agent.cto /
+// engineerOne/Two + their body sandboxes). Exported: the resident config seeds
+// (seeds/resident/records.ts) key their records AND their per-agent dev_tasks
+// watch/source queries by these ids. No schedule def runs on ANY of them — the
+// team is resident-only (agenda/watch/inbox/self-directed), and the seeds stay
+// inert until the body sandboxes are flipped to resident mode. The lead is
+// deliberately NOT the steward (StewardAgentId above): the steward keeps the
+// scheduled dev-loop + the board CTO seat, and the lead coordinates the team
+// via inbox/records without either identity.
+export const CtoAgentId = `ag_cto0001`
+export const EngOneAgentId = `ag_eng0001`
+export const EngTwoAgentId = `ag_eng0002`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
