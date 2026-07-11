@@ -215,8 +215,9 @@ describe(`IsolateRunner`, () => {
     it(`should set up globalThis.fetch via context eval`, async () => {
       await runner.init()
 
-      // context.eval called 4 times: console, fetch, timers, process
-      expect(mockContextEval).toHaveBeenCalledTimes(4)
+      // context.eval called 6 times: console, fetch, timers, process, plus
+      // scrubGlobals' pristine-builtins stash + globalThis baseline capture
+      expect(mockContextEval).toHaveBeenCalledTimes(6)
       const fetchEvalCall = mockContextEval.mock.calls[1][0]
       expect(fetchEvalCall).toContain(`globalThis.fetch`)
     })
@@ -521,6 +522,66 @@ describe(`IsolateRunner`, () => {
       })
 
       expect(() => runner.releaseUserModules()).not.toThrow()
+    })
+  })
+
+  describe(`scrubGlobals`, () => {
+    it(`is a no-op when called before init()`, async () => {
+      await expect((runner as any).scrubGlobals()).resolves.toBeUndefined()
+      expect(mockEvalClosure).not.toHaveBeenCalled()
+    })
+
+    it(`captures the globalThis baseline and pristine builtins during init()`, async () => {
+      await runner.init()
+
+      const pristineCall = mockContextEval.mock.calls.find((c: any[]) =>
+        String(c[0]).includes(`__pristineBuiltins`)
+      )
+      expect(pristineCall).toBeDefined()
+
+      const baselineCall = mockContextEval.mock.calls.find(
+        (c: any[]) => c[0] === `Object.getOwnPropertyNames(globalThis)`
+      )
+      expect(baselineCall).toBeDefined()
+      expect(baselineCall![1]).toEqual({ copy: true })
+
+      // Baseline capture is the LAST eval during init() — after every shim
+      // and timer global has already been installed.
+      const lastEvalCall = mockContextEval.mock.calls.at(-1)
+      expect(lastEvalCall![0]).toBe(`Object.getOwnPropertyNames(globalThis)`)
+    })
+
+    it(`sweeps globalThis and restores builtins via evalClosure using the captured baseline`, async () => {
+      mockContextEval.mockImplementation((code: string) => {
+        if (code === `Object.getOwnPropertyNames(globalThis)`)
+          return Promise.resolve([`console`, `process`, `Buffer`])
+        return Promise.resolve(undefined)
+      })
+      mockEvalClosure.mockResolvedValue([])
+
+      await runner.init()
+      await (runner as any).scrubGlobals()
+
+      expect(mockEvalClosure).toHaveBeenCalledWith(
+        expect.stringContaining(`__pristineBuiltins`),
+        [[`console`, `process`, `Buffer`]],
+        { arguments: { copy: true }, result: { copy: true } }
+      )
+    })
+
+    it(`throws when a restoration fails to stick, so the caller disposes instead of pools the isolate`, async () => {
+      mockContextEval.mockImplementation((code: string) => {
+        if (code === `Object.getOwnPropertyNames(globalThis)`)
+          return Promise.resolve([`console`, `process`, `Buffer`])
+        return Promise.resolve(undefined)
+      })
+      mockEvalClosure.mockResolvedValue([`Array.prototype.push`])
+
+      await runner.init()
+
+      await expect((runner as any).scrubGlobals()).rejects.toThrow(
+        `Array.prototype.push`
+      )
     })
   })
 

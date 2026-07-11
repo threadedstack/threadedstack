@@ -30,7 +30,7 @@ export const updateAsset: TEndpointConfig = {
       ...(content !== undefined && { content }),
     }
 
-    const { data, error } = await db.services.asset.update(updateData as any)
+    const { data, error } = await db.services.asset.update(updateData)
     if (error)
       throw new Exception(500, error instanceof Error ? error.message : String(error))
 
