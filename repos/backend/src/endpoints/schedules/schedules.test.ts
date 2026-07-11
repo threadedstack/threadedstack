@@ -82,6 +82,7 @@ const buildMockReqRes = () => {
   const scheduleRunService = {
     listBySchedule: vi.fn(),
     get: vi.fn(),
+    hasRunning: vi.fn(),
   }
 
   const agentService = {
@@ -1071,6 +1072,8 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
   let mockJson: ReturnType<typeof vi.fn>
   let scheduleService: ReturnType<typeof buildMockReqRes>['scheduleService']
 
+  let scheduleRunService: ReturnType<typeof buildMockReqRes>['scheduleRunService']
+
   beforeEach(() => {
     vi.clearAllMocks()
     const ctx = buildMockReqRes()
@@ -1078,6 +1081,8 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     mockRes = ctx.mockRes
     mockJson = ctx.mockJson
     scheduleService = ctx.scheduleService
+    scheduleRunService = ctx.scheduleRunService
+    scheduleRunService.hasRunning.mockResolvedValue({ data: false })
     mockReq.params = { orgId: `org-1`, projectId: `proj-1`, scheduleId: `sched-1` } as any
   })
 
@@ -1086,6 +1091,8 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     scheduleService.markRun.mockResolvedValue({})
 
     await triggerSchedule.action(mockReq, mockRes)
+
+    expect(scheduleRunService.hasRunning).toHaveBeenCalledWith(`sched-1`)
 
     expect(scheduleService.get).toHaveBeenCalledWith(`sched-1`)
     expect(scheduleService.markRun).toHaveBeenCalledWith(`sched-1`, expect.any(Date))
@@ -1191,6 +1198,28 @@ describe(`POST /:scheduleId/trigger - triggerSchedule`, () => {
     await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
       `Failed to trigger schedule: Mark run error`
     )
+  })
+
+  it(`should throw 409 when a run is already in flight`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.hasRunning.mockResolvedValue({ data: true })
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `A run for this schedule is already in progress`
+    )
+    expect(scheduleService.markRun).not.toHaveBeenCalled()
+  })
+
+  it(`should throw 500 when hasRunning check fails`, async () => {
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    scheduleRunService.hasRunning.mockResolvedValue({
+      error: { message: `hasRunning DB error` },
+    })
+
+    await expect(triggerSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `hasRunning DB error`
+    )
+    expect(scheduleService.markRun).not.toHaveBeenCalled()
   })
 })
 
