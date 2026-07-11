@@ -82,9 +82,37 @@ describe(`AgentScheduleDefs`, () => {
     // resolution; the marketing cycle runs daily an hour after ceo-strategy.
     expect(byKey[`cmo-board`].cronExpression).toBe(`45 */6 * * *`)
     expect(byKey[`cmo-marketing`].cronExpression).toBe(`0 5 * * *`)
-    // Every self-development schedule stays enabled.
+    // CUTOVER (Deploy E): the scheduled dev-loop is DECOMMISSIONED — the realtime
+    // resident team (CTO + engineers) owns authoring + review. These seven
+    // steward/adversary cycles ship DISABLED.
+    const decommissionedKeys = [
+      `planning`,
+      `work-cycle`,
+      `coordinator`,
+      `observer`,
+      `pr-response`,
+      `ops-review`,
+      `adversary-review`,
+    ]
+    for (const key of decommissionedKeys) {
+      expect(byKey[key]).toBeDefined()
+      expect(byKey[key].enabled).toBe(false)
+    }
+    // RETAINED-and-enabled safety/strategy/monitoring cycles: verify (post-merge
+    // revert net covering the residents' merges), sensor (task_proposals source
+    // + dev-team signal 7), cto-board (strategy → engineering bridge), and the
+    // self-development cycles reflection + curation.
+    const retainedKeys = [`sensor`, `verify`, `reflection`, `curation`, `cto-board`]
+    for (const key of retainedKeys) {
+      expect(byKey[key]).toBeDefined()
+      expect(byKey[key].enabled).toBe(true)
+    }
+    // Nothing else in the def list is silently left enabled: every def is either
+    // a resident-exec cron (disabled), a decommissioned cycle (disabled), or an
+    // explicitly retained cycle (enabled).
+    const accountedFor = new Set([...execKeys, ...decommissionedKeys, ...retainedKeys])
     for (const d of AgentScheduleDefs) {
-      if (!execKeys.includes(d.key)) expect(d.enabled).toBe(true)
+      expect(accountedFor.has(d.key)).toBe(true)
     }
   })
 
