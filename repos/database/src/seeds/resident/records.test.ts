@@ -10,6 +10,7 @@ import {
   BoardPlansSource,
   BoardStrategySource,
   BoardPositionsSource,
+  DevTaskBacklogSource,
   MarketingArtifactsSource,
   BoardOpenDecisionsSource,
 } from '@TDB/seeds/agentSchedules'
@@ -591,10 +592,21 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(agenda.map((item) => item.key)).toEqual([`groom`, `reap`])
 
     expect(agenda[0].cron).toBe(`0 * * * *`)
+    // Grooms the REAL sensor-detected backlog: read the injected scanned
+    // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId,
+    // then CLAIM each proposal with pickupTask (scanned → promoted) so the
+    // still-live steward never double-works it. The old shadow-boundary
+    // ("check the steward's PRs / never groom task_proposals") is gone.
+    expect(agenda[0].prompt).toContain(`Proposed backlog (sensor-detected)`)
+    expect(agenda[0].prompt).toContain(`DECOMPOSE`)
     expect(agenda[0].prompt).toContain(`devAddTask`)
-    expect(agenda[0].prompt).toContain(`SMALL, sharply-scoped tasks`)
-    expect(agenda[0].prompt).toContain(`ENFORCE THE SHADOW BOUNDARY`)
-    expect(agenda[0].prompt).toContain(`task_proposals`)
+    expect(agenda[0].prompt).toContain(`sourceTaskProposalId`)
+    expect(agenda[0].prompt).toContain(`pickupTask`)
+    expect(agenda[0].prompt).toContain(`scanned → promoted`)
+    expect(agenda[0].prompt).toContain(`SMALL, sharply-scoped`)
+    // No more shadow-boundary make-work grooming.
+    expect(agenda[0].prompt).not.toContain(`ENFORCE THE SHADOW BOUNDARY`)
+    expect(agenda[0].prompt).not.toContain(`shadow dev-task backlog`)
 
     expect(agenda[1].cron).toBe(`*/15 * * * *`)
     // The reap is RESULT-DEPENDENT — run synchronously and read the lists.
@@ -636,7 +648,20 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     // The lead is decoupled from the board seat — it never posts positions.
     expect(session.seedPrompt).toContain(`YOU ARE THE TEAM LEAD, NOT THE BOARD SEAT`)
     expect(session.seedPrompt).toContain(`you never post positions yourself`)
-    expect(session.seedPrompt).toContain(`GROOM SMALL AND BOUNDED`)
+    // Grooms the REAL sensor-detected backlog: decompose scanned proposals into
+    // dev_tasks, then claim each with pickupTask (scanned → promoted) so the
+    // still-live steward never double-works it. The old shadow-boundary
+    // (this team's lane must never collide / check the steward's task_proposals)
+    // is replaced by the promoted-status coordination.
+    expect(session.seedPrompt).toContain(`GROOM THE REAL BACKLOG, SMALL AND BOUNDED`)
+    expect(session.seedPrompt).toContain(`Proposed backlog (sensor-detected)`)
+    expect(session.seedPrompt).toContain(`sourceTaskProposalId`)
+    expect(session.seedPrompt).toContain(`pickupTask`)
+    expect(session.seedPrompt).toContain(`scanned → promoted`)
+    expect(session.seedPrompt).not.toContain(`THE SHADOW BOUNDARY IS YOURS TO ENFORCE`)
+    expect(session.seedPrompt).not.toContain(
+      `your shadow team works ONLY its own dev_tasks board`
+    )
     expect(session.seedPrompt).toContain(`REAP, THEN RECONCILE AGAINST GITHUB`)
     expect(session.seedPrompt).toContain(`ABANDON IS YOURS, AND IT IS DELIBERATE`)
     expect(session.seedPrompt).toContain(`YOU LEAD, YOU DO NOT CODE THE BOARD`)
@@ -652,9 +677,13 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(session.seedPrompt).toContain(`prompt discipline`)
     expect(session.seedPrompt).toContain(`never claim otherwise`)
 
+    // The scanned task_proposals backlog is injected so the groom turn can
+    // decompose real sensor-detected work (DevTaskBacklogSource renders the
+    // "## Proposed backlog (sensor-detected)" section).
     expect(session.contextSources).toEqual([
       BoardStrategySource,
       BoardPlansSource,
+      DevTaskBacklogSource,
       DevTasksInFlightSource,
       CtoMemoriesSource,
     ])
@@ -664,9 +693,12 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(selfDirected.prompt).toContain(`NEVER claim, review, or merge a dev task`)
   })
 
-  it(`allowlists ONLY the lead duties — never the engineers' or the board seat's Functions`, () => {
+  it(`allowlists ONLY the lead duties + the proposal-claim — never the engineers' or the board seat's Functions`, () => {
     const { actions } = CtoResidentConfigSeed.data
     expect(actions).toContain(`devAddTask`)
+    // pickupTask (PickupTaskFunctionDef.name) — flips a groomed proposal
+    // scanned → promoted so the still-live steward never double-works it.
+    expect(actions).toContain(`pickupTask`)
     expect(actions).toContain(`devReapExpired`)
     expect(actions).toContain(`devAbandon`)
     expect(actions).toContain(`sendAgentMessage`)

@@ -5,9 +5,11 @@ import { EFunLanguage } from '@tdsk/domain'
  *
  * CTO grooming: upserts a new backlog `dev_tasks` record. `createdBy` is
  * ALWAYS the platform-injected caller (a disagreeing createdBy arg is
- * refused). Dedupes on exact title against still-open tasks (any non-terminal
- * state) so an hourly grooming agenda can never stack duplicates. Priority is
- * coerced into P0-P3 (default P3, the dev-loop convention).
+ * refused). Dedupes against still-open tasks (any non-terminal state) on TWO
+ * keys so an hourly grooming agenda can never stack duplicates: an identical
+ * title, AND the same `sourceTaskProposalId` — so re-grooming a not-yet-
+ * promoted proposal (even decomposed into a fresh title) never re-creates a
+ * dev_task. Priority is coerced into P0-P3 (default P3, the dev-loop convention).
  */
 export const DevAddTaskFunctionSource = `export default async (request, context) => {
   const args = context.args || {}
@@ -31,16 +33,33 @@ export const DevAddTaskFunctionSource = `export default async (request, context)
       ? args.sourceTaskProposalId.trim()
       : null
 
+  const openStates = ['backlog', 'claimed', 'pr_open', 'in_review', 'approved', 'changes_requested']
+
   // Dedupe: an identical title on any still-open task means this is already
   // on the board — return it instead of stacking a duplicate.
   const open = await records.query('dev_tasks', {
     where: [
       { field: 'title', op: 'eq', value: title },
-      { field: 'state', op: 'in', value: ['backlog', 'claimed', 'pr_open', 'in_review', 'approved', 'changes_requested'] },
+      { field: 'state', op: 'in', value: openStates },
     ],
     limit: 1,
   })
   if (open.length) return { ok: true, added: false, deduped: true, id: open[0].id }
+
+  // Dedupe: a still-open task already carrying THIS sourceTaskProposalId means
+  // the proposal was already groomed (decomposition gives new titles, so the
+  // title dedupe above cannot catch it) — return the existing task instead of
+  // re-grooming an unpromoted proposal every cycle.
+  if (sourceTaskProposalId) {
+    const sourced = await records.query('dev_tasks', {
+      where: [
+        { field: 'sourceTaskProposalId', op: 'eq', value: sourceTaskProposalId },
+        { field: 'state', op: 'in', value: openStates },
+      ],
+      limit: 1,
+    })
+    if (sourced.length) return { ok: true, added: false, deduped: true, id: sourced[0].id }
+  }
 
   const created = await records.upsert('dev_tasks', {
     data: {
@@ -71,7 +90,7 @@ export const DevAddTaskFunctionSource = `export default async (request, context)
 export const DevAddTaskFunctionDef = {
   id: `fn_dvaddtk`,
   name: `devAddTask`,
-  description: `Groom the dev-team backlog: upsert a new backlog dev_tasks record ({title, description, priority P0-P3, evidence}) with createdBy stamped from the platform-injected caller. Dedupes on exact title against still-open tasks so repeated grooming never stacks duplicates.`,
+  description: `Groom the dev-team backlog: upsert a new backlog dev_tasks record ({title, description, priority P0-P3, evidence, sourceTaskProposalId}) with createdBy stamped from the platform-injected caller. Dedupes against still-open tasks on exact title AND on sourceTaskProposalId so repeated grooming of an unpromoted proposal never stacks duplicates.`,
   language: EFunLanguage.javascript,
   content: DevAddTaskFunctionSource,
 }

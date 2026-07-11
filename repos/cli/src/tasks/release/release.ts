@@ -9,6 +9,7 @@ import { pushSafe } from '@TSCL/utils/db/pushSafe'
 import { reconcileSchedules } from '@TSCL/utils/db/reconcileSchedules'
 import { reconcileResident } from '@TSCL/utils/db/reconcileResident'
 import { reconcileDevLoop } from '@TSCL/utils/db/reconcileDevLoop'
+import { reconcileDevTeam } from '@TSCL/utils/db/reconcileDevTeam'
 import { syncTaskProposals } from '@TSCL/utils/db/syncTaskProposals'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
@@ -232,6 +233,13 @@ const releaseAct: TTaskAction = async (args) => {
     // populated. All non-fatal — a sync hiccup never rolls back a healthy deploy.
     Logger.pair(`[sync]`, `Reconciling dev-loop collections + functions from repo...`)
     await reconcileDevLoop({ config, log: params?.log })
+    // Dev-team alongside dev-loop: reconcile:dev-team creates the dev_tasks
+    // Collection + the ten state-machine Functions (devAddTask/devClaimTask/…),
+    // so a Function-source change (e.g. the devAddTask sourceTaskProposalId
+    // dedupe) reaches prod through the normal deploy — both before the resident
+    // reconcile, whose configs reference these Functions.
+    Logger.pair(`[sync]`, `Reconciling dev-team collection + functions from repo...`)
+    await reconcileDevTeam({ config, log: params?.log })
     Logger.pair(`[sync]`, `Backfilling task_proposals table into the ops collection...`)
     await syncTaskProposals({ config, log: params?.log })
     Logger.pair(`[sync]`, `Reconciling resident data plane from repo...`)
@@ -239,7 +247,7 @@ const releaseAct: TTaskAction = async (args) => {
   } else {
     Logger.pair(
       `[sync]`,
-      `Schedule + dev-loop + resident reconcile skipped (--no-database).`
+      `Schedule + dev-loop + dev-team + resident reconcile skipped (--no-database).`
     )
   }
 

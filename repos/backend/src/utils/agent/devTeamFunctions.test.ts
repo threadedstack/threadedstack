@@ -858,6 +858,58 @@ describe(`devAddTask Function`, () => {
     expect(h.rows(`dev_tasks`)).toHaveLength(1)
   })
 
+  it(`stamps sourceTaskProposalId and dedupes a re-groomed proposal even under a new title`, async () => {
+    const h = makeFakeDb()
+
+    const first = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Add SSRF unit coverage`,
+        description: `Cover the egress guard's redirect path`,
+        sourceTaskProposalId: `tp_abc123`,
+      },
+      Cto
+    )
+    expect((first.output as any).added).toBe(true)
+    expect(h.rows(`dev_tasks`)[0].data.sourceTaskProposalId).toBe(`tp_abc123`)
+
+    // A decomposition of the SAME proposal gives a DIFFERENT title, so only the
+    // sourceTaskProposalId dedupe can catch it — it must, or an unpromoted
+    // proposal re-grooms unboundedly every cycle.
+    const dup = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Cover the egress guard redirect branch`,
+        description: `same proposal, decomposed differently`,
+        sourceTaskProposalId: `tp_abc123`,
+      },
+      Cto
+    )
+    expect(dup.output).toMatchObject({
+      ok: true,
+      added: false,
+      deduped: true,
+      id: h.rows(`dev_tasks`)[0].id,
+    })
+    expect(h.rows(`dev_tasks`)).toHaveLength(1)
+
+    // A DIFFERENT proposal with a fresh title is a real, distinct task.
+    const other = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Add pool reuse test`,
+        description: `unrelated proposal`,
+        sourceTaskProposalId: `tp_def456`,
+      },
+      Cto
+    )
+    expect((other.output as any).added).toBe(true)
+    expect(h.rows(`dev_tasks`)).toHaveLength(2)
+  })
+
   it(`refuses a spoofed createdBy and a missing caller`, async () => {
     const h = makeFakeDb()
 
@@ -872,7 +924,10 @@ describe(`devAddTask Function`, () => {
       reason: `createdBy mismatch: the platform-injected caller identity is authoritative`,
     })
 
-    const noCaller = await runFn(DevAddTaskFunctionDef, h, { title: `t`, description: `d` })
+    const noCaller = await runFn(DevAddTaskFunctionDef, h, {
+      title: `t`,
+      description: `d`,
+    })
     expect(noCaller.output).toEqual({ ok: false, reason: `no caller identity` })
     expect(h.rows(`dev_tasks`)).toHaveLength(0)
   })
@@ -1034,9 +1089,11 @@ describe(`devReapExpired Function`, () => {
       by: Cto.agentId,
     })
     // The author owed the fix — it is the reaped entry's holder.
-    expect(output.reaped.find((rec: any) => rec.id === `dt_dead_changes`)).toMatchObject(
-      { from: `changes_requested`, to: `backlog`, holder: EngOne.agentId }
-    )
+    expect(output.reaped.find((rec: any) => rec.id === `dt_dead_changes`)).toMatchObject({
+      from: `changes_requested`,
+      to: `backlog`,
+      holder: EngOne.agentId,
+    })
   })
 
   it(`a renewal landing between the reap's read and its CAS wins — the holder is never clobbered`, async () => {
@@ -1210,7 +1267,10 @@ describe(`devAbandon Function`, () => {
       reason: `agentId mismatch: the platform-injected caller identity is authoritative`,
     })
 
-    const noCaller = await runFn(DevAbandonFunctionDef, h, { taskId: `dt_1`, reason: `r` })
+    const noCaller = await runFn(DevAbandonFunctionDef, h, {
+      taskId: `dt_1`,
+      reason: `r`,
+    })
     expect(noCaller.output).toEqual({ ok: false, reason: `no caller identity` })
     expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`backlog`)
   })
