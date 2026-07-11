@@ -76,6 +76,7 @@ const CmoSandboxId = `sb_cmo0001`
 export const CtoAgentId = `ag_cto0001`
 export const EngOneAgentId = `ag_eng0001`
 export const EngTwoAgentId = `ag_eng0002`
+export const EngThreeAgentId = `ag_eng0003`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
@@ -192,7 +193,7 @@ export const DevTeamStatusSource: TContextSource = {
       {
         field: `agentId`,
         op: EQueryOp.in,
-        value: [CtoAgentId, EngOneAgentId, EngTwoAgentId],
+        value: [CtoAgentId, EngOneAgentId, EngTwoAgentId, EngThreeAgentId],
       },
     ],
     limit: 10,

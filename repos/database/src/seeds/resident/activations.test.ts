@@ -6,6 +6,7 @@ import {
   CtoAgentId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
 } from '@TDB/seeds/agentSchedules'
 import {
   ResidentActivations,
@@ -49,6 +50,7 @@ const BodyByAgent: Record<string, string> = {
   [CtoAgentId]: `sb_cto0001`,
   [EngOneAgentId]: `sb_eng0001`,
   [EngTwoAgentId]: `sb_eng0002`,
+  [EngThreeAgentId]: `sb_eng0003`,
 }
 
 /** Wire the activated agents to body sandboxes with the given starting configs
@@ -74,6 +76,7 @@ describe(`ResidentActivations`, () => {
       CtoAgentId,
       EngOneAgentId,
       EngTwoAgentId,
+      EngThreeAgentId,
     ])
   })
 })

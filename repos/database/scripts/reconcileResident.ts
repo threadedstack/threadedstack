@@ -12,6 +12,7 @@ import { reconcileResidentFunctions } from '@TDB/seeds/resident/functions'
 import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
 import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
 import {
+  reconcileResidentSeats,
   reconcileResidentBodies,
   reconcileResidentProviderChains,
   reconcileResidentRepoLinks,
@@ -31,7 +32,14 @@ import {
  * never overwrites it again (the update is an atomic guarded replace, so a
  * self-evolution racing the reconcile is never clobbered). The whole resident
  * surface lives in git-versioned config and lands through the normal PR ->
- * deploy pipeline. Then it reconciles each activated resident's BODY: the boot
+ * deploy pipeline. Then it create-if-absent PROVISIONS each git-declared seat
+ * (ResidentSeatSpecs): a seat's agent (brain=runtime, autonomous, active,
+ * environment.sandboxId) and its body sandbox (the boot recipe, builtIn) are
+ * created from the spec when they do not yet exist, so adding a resident seat is
+ * a pure git config change instead of a hand-created prod row. This step runs
+ * BEFORE the body/chain/repo-link/activation steps so a freshly-created seat is
+ * fully wired in the SAME run. Then it reconciles each activated resident's
+ * BODY: the boot
  * recipe (image/imagePullPolicy/initScript/setupScript/promptCommand + the
  * recipe envVars keys) is re-asserted onto the body sandbox config and the
  * agent's ops-project binding is created if absent, so a config wipe or
@@ -78,6 +86,33 @@ ife(async () => {
   const cfgSummary = await reconcileResidentConfigs(
     db.services.record,
     OpsProjectId,
+    (msg) => console.log(msg)
+  )
+
+  // Create-if-absent provisioning of each git-declared seat's agent + body
+  // sandbox — runs FIRST so the bodies/chains/repo-links/activation steps below
+  // (which iterate the git lists, not a DB query) see a freshly-created seat and
+  // apply their config to it in the same run. The agent + sandbox services take
+  // plain fixed-id insert objects (no projects/providers → no relations path),
+  // so they can be passed straight through.
+  console.log(`🌱 Reconciling resident seats (create-if-absent) from repo config...`)
+  const seatSummary = await reconcileResidentSeats(
+    {
+      agent: {
+        get: (id: string) => db.services.agent.get(id),
+        create: (data) =>
+          db.services.agent.create(
+            data as Parameters<typeof db.services.agent.create>[0]
+          ),
+      },
+      sandbox: {
+        get: (id: string) => db.services.sandbox.get(id),
+        create: (data) =>
+          db.services.sandbox.create(
+            data as Parameters<typeof db.services.sandbox.create>[0]
+          ),
+      },
+    },
     (msg) => console.log(msg)
   )
 
@@ -245,6 +280,7 @@ ife(async () => {
     summary.errors +
     fnSummary.errors +
     cfgSummary.errors +
+    seatSummary.errors +
     bodySummary.errors +
     chainSummary.errors +
     repoLinkSummary.errors +
@@ -260,6 +296,10 @@ ife(async () => {
   console.log(`   ✅ Configs created:       ${cfgSummary.created}`)
   console.log(`   🔄 Configs updated:       ${cfgSummary.updated}`)
   console.log(`   ➖ Configs unchanged:     ${cfgSummary.unchanged}`)
+  console.log(`   🌱 Seat agents created:   ${seatSummary.agentsCreated}`)
+  console.log(`   ➖ Seat agents present:   ${seatSummary.agentsUnchanged}`)
+  console.log(`   🌱 Seat sandboxes created:${seatSummary.sandboxesCreated}`)
+  console.log(`   ➖ Seat sandboxes present:${seatSummary.sandboxesUnchanged}`)
   console.log(`   🧬 Body recipes asserted: ${bodySummary.asserted}`)
   console.log(`   ➖ Body recipes unchanged:${bodySummary.unchanged}`)
   console.log(`   🔗 Ops projects bound:    ${bodySummary.bound}`)

@@ -4,6 +4,7 @@ import {
   CtoAgentId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
 } from '@TDB/seeds/agentSchedules'
 
 /**
@@ -34,6 +35,7 @@ export const ResidentActivations: string[] = [
   CtoAgentId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
 ]
 
 /** The agent + sandbox service slice the activation reconcile needs. */

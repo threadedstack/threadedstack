@@ -9,6 +9,7 @@ import {
   OpsProjectId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
   BoardPlansSource,
   BoardStrategySource,
   BoardPositionsSource,
@@ -536,6 +537,12 @@ export const EngTwoResidentConfigSeed: TResidentConfigSeedRecord = {
   data: buildEngineerResidentConfig(EngTwoAgentId),
 }
 
+/** Engineer Three — resident engineer seat (identical to One/Two apart from agentId). */
+export const EngThreeResidentConfigSeed: TResidentConfigSeedRecord = {
+  id: `rec_en3res`,
+  data: buildEngineerResidentConfig(EngThreeAgentId),
+}
+
 /**
  * The CTO resident config — the dev-team LEAD, on its OWN dedicated agent
  * (`CtoAgentId`, Ids.agent.cto + its body sandbox Ids.sandbox.ctoBody).
@@ -650,6 +657,7 @@ export const ResidentConfigSeedRecords: TResidentConfigSeedRecord[] = [
   CeoResidentConfigSeed,
   EngOneResidentConfigSeed,
   EngTwoResidentConfigSeed,
+  EngThreeResidentConfigSeed,
   CtoResidentConfigSeed,
 ]
 

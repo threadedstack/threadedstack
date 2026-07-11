@@ -28,10 +28,16 @@ import {
   CtoResidentConfigSeed,
   EngOneResidentConfigSeed,
   EngTwoResidentConfigSeed,
+  EngThreeResidentConfigSeed,
   ResidentConfigSeedRecords,
   reconcileResidentConfigs,
 } from '@TDB/seeds/resident/records'
-import { CtoAgentId, EngOneAgentId, EngTwoAgentId } from '@TDB/seeds/agentSchedules'
+import {
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+  EngThreeAgentId,
+} from '@TDB/seeds/agentSchedules'
 
 const cmoBoardDef = AgentScheduleDefs.find((def) => def.key === `cmo-board`)!
 const cmoMarketingDef = AgentScheduleDefs.find((def) => def.key === `cmo-marketing`)!
@@ -114,6 +120,7 @@ describe(`CmoResidentConfigSeed`, () => {
       CeoResidentConfigSeed,
       EngOneResidentConfigSeed,
       EngTwoResidentConfigSeed,
+      EngThreeResidentConfigSeed,
       CtoResidentConfigSeed,
     ])
     // Stable record id (rec_ prefix + 6 chars = the 10-char records.id shape).
@@ -385,20 +392,28 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
   const seats = [
     { seed: EngOneResidentConfigSeed, agentId: EngOneAgentId },
     { seed: EngTwoResidentConfigSeed, agentId: EngTwoAgentId },
+    { seed: EngThreeResidentConfigSeed, agentId: EngThreeAgentId },
   ]
 
-  it(`the two engineer seats are IDENTICAL apart from the agentId`, () => {
-    // Swap Two's id for One's across the whole document — the result must be
-    // byte-identical to One's config (a single factory builds both).
-    const twoAsOne = JSON.parse(
-      JSON.stringify(EngTwoResidentConfigSeed.data)
-        .split(EngTwoAgentId)
-        .join(EngOneAgentId)
-    )
-    expect(twoAsOne).toEqual(JSON.parse(JSON.stringify(EngOneResidentConfigSeed.data)))
-    expect(EngOneResidentConfigSeed.id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
-    expect(EngTwoResidentConfigSeed.id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
-    expect(EngOneResidentConfigSeed.id).not.toBe(EngTwoResidentConfigSeed.id)
+  it(`the engineer seats are IDENTICAL apart from the agentId`, () => {
+    // Swap each other seat's id for One's across the whole document — the result
+    // must be byte-identical to One's config (a single factory builds them all).
+    const oneJson = JSON.stringify(EngOneResidentConfigSeed.data)
+    for (const { seed, agentId } of [
+      { seed: EngTwoResidentConfigSeed, agentId: EngTwoAgentId },
+      { seed: EngThreeResidentConfigSeed, agentId: EngThreeAgentId },
+    ]) {
+      const asOne = JSON.stringify(seed.data).split(agentId).join(EngOneAgentId)
+      expect(JSON.parse(asOne)).toEqual(JSON.parse(oneJson))
+    }
+    // Every seat carries a distinct, well-shaped record id.
+    const ids = [
+      EngOneResidentConfigSeed.id,
+      EngTwoResidentConfigSeed.id,
+      EngThreeResidentConfigSeed.id,
+    ]
+    for (const id of ids) expect(id).toMatch(/^rec_[A-Za-z0-9_-]{6}$/)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   it(`carries the realtime watch trio, with per-seat ids hardcoded where needed`, () => {
@@ -783,7 +798,7 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 1, unchanged: 4, errors: 0 })
+    expect(summary).toMatchObject({ created: 1, unchanged: 5, errors: 0 })
     // results carries both seeds; assert the CMO created entry is present.
     expect(summary.results).toContainEqual({ agentId: CmoAgentId, action: `created` })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
@@ -802,7 +817,7 @@ describe(`reconcileResidentConfigs`, () => {
 
     const second = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(second).toMatchObject({ created: 0, unchanged: 5, errors: 0 })
+    expect(second).toMatchObject({ created: 0, unchanged: 6, errors: 0 })
     expect(JSON.parse(JSON.stringify([...rows]))).toEqual(snapshot)
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
@@ -829,7 +844,7 @@ describe(`reconcileResidentConfigs`, () => {
 
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
-    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 5, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 6, errors: 0 })
     expect(
       rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId)).data
     ).toEqual(evolved)
@@ -854,7 +869,7 @@ describe(`reconcileResidentConfigs`, () => {
     const summary = await reconcileResidentConfigs(service, `pj_ops00001`)
 
     // Drift → re-applied from the current seed so the capability propagates.
-    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 4, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 5, errors: 0 })
     expect(summary.results).toContainEqual({ agentId: CmoAgentId, action: `updated` })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
     expect(stored.data).toEqual(CmoResidentConfigSeed.data)
@@ -904,9 +919,9 @@ describe(`reconcileResidentConfigs`, () => {
     const summary = await reconcileResidentConfigs(raced as any, `pj_ops00001`)
 
     // The guard blocked the write: reported unchanged (CMO raced + the other
-    // four up-to-date), and the agent's evolved CMO record survives
+    // five up-to-date), and the agent's evolved CMO record survives
     // byte-for-byte (NOT overwritten with the seed).
-    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 5, errors: 0 })
+    expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 6, errors: 0 })
     const stored = rows.get(key(`pj_ops00001`, ResidentConfigsCollectionName, CmoAgentId))
     expect(stored.data).toEqual(evolved)
     expect(stored.data.evolvedByAgent).toBe(true)
