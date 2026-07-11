@@ -1,5 +1,6 @@
 import type { TDatabase } from '@tdsk/database'
 import type { TApp } from '@TBE/types'
+import type { TOpsAllowedDeployment } from '@tdsk/domain'
 
 import { EOpsAction, OpsAllowedDeployments } from '@tdsk/domain'
 import { scanOpsAction } from '@TBE/utils/agent/opsScan'
@@ -84,7 +85,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
   // ── podStatus ────────────────────────────────────────────────────────────────
 
   const podStatus = async (
-    params: { component?: string; podName?: string },
+    params: { component?: TOpsAllowedDeployment; podName?: string },
     ctx: TOpsServiceCtx
   ): Promise<{ ok: boolean; pods: any[]; error?: string }> => {
     const { component, podName } = params
@@ -96,10 +97,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
     }
 
     // 1. Scan
-    const scanResult = await scanOpsAction(
-      { action, params: params as any },
-      { db, orgId: ctx.orgId }
-    )
+    const scanResult = await scanOpsAction({ action, params }, { db, orgId: ctx.orgId })
     if (!scanResult.passed) {
       await audit(action, params, `rejected`, ctx, {
         scanResult,
@@ -144,7 +142,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
 
   const podLogs = async (
     params: {
-      component?: string
+      component?: TOpsAllowedDeployment
       podName?: string
       tailLines?: number
       previous?: boolean
@@ -156,10 +154,7 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
     const action = EOpsAction.podLogs
 
     // 1. Scan
-    const scanResult = await scanOpsAction(
-      { action, params: params as any },
-      { db, orgId: ctx.orgId }
-    )
+    const scanResult = await scanOpsAction({ action, params }, { db, orgId: ctx.orgId })
     if (!scanResult.passed) {
       await audit(action, params, `rejected`, ctx, {
         scanResult,
@@ -224,16 +219,13 @@ export const createOpsService = (app: TApp, db: TDatabase): TOpsService => {
   // ── deployState ──────────────────────────────────────────────────────────────
 
   const deployState = async (
-    params: { deployment?: string },
+    params: { deployment?: TOpsAllowedDeployment },
     ctx: TOpsServiceCtx
   ): Promise<{ ok: boolean; deployments: any[]; error?: string }> => {
     const action = EOpsAction.deployState
 
     // 1. Scan
-    const scanResult = await scanOpsAction(
-      { action, params: params as any },
-      { db, orgId: ctx.orgId }
-    )
+    const scanResult = await scanOpsAction({ action, params }, { db, orgId: ctx.orgId })
     if (!scanResult.passed) {
       await audit(action, params, `rejected`, ctx, {
         scanResult,
