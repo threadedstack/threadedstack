@@ -210,6 +210,31 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).toContain(`field: 'title'`)
     expect(content).toContain(`field: 'sourceTaskProposalId'`)
   })
+
+  it(`devAddTask ATOMICALLY promotes the source task_proposal — folded pickupTask logic, best-effort`, () => {
+    const { content } = byName(`devAddTask`)
+    // Folds pickupTask's promotion into devAddTask: the source proposal is
+    // read, guarded on terminal status, and promoted with prUrl null (the
+    // dev_task, not a PR, is the anchor) + the groom audit verdict.
+    expect(content).toContain(`records.get('task_proposals', sourceTaskProposalId)`)
+    expect(content).toContain(`records.upsert('task_proposals'`)
+    expect(content).toContain(`status: 'promoted'`)
+    expect(content).toContain(`prUrl: null`)
+    expect(content).toContain(`groomed into dev_tasks`)
+    // Idempotent — already-terminal proposals (promoted/rejected) are skipped,
+    // matching pickupTask's guard.
+    expect(content).toContain(
+      `proposal.data.status === 'promoted' || proposal.data.status === 'rejected'`
+    )
+    // Best-effort: the promotion is wrapped so a records error there never
+    // fails the primary dev_task creation.
+    expect(content).toContain(`try {`)
+    expect(content).toContain(`} catch (err) {`)
+    // The claim runs on BOTH paths — a fresh create AND a dedupe hit — so a
+    // re-groomed already-shipped proposal still gets claimed.
+    const promoteCalls = content.match(/await promoteSourceProposal\(\)/g) ?? []
+    expect(promoteCalls.length).toBe(3)
+  })
 })
 
 describe(`reconcileDevTeamFunctions`, () => {

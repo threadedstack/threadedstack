@@ -931,6 +931,215 @@ describe(`devAddTask Function`, () => {
     expect(noCaller.output).toEqual({ ok: false, reason: `no caller identity` })
     expect(h.rows(`dev_tasks`)).toHaveLength(0)
   })
+
+  // ── Atomic groom-and-claim: devAddTask promotes the source proposal ──────────
+  //
+  // Folds pickupTask's promotion into devAddTask so a groomed proposal can
+  // NEVER stay scanned. A scanned task_proposals record referenced by
+  // sourceTaskProposalId is flipped to promoted in the SAME call — on a fresh
+  // create AND on a dedupe hit — while a devAddTask with no sourceTaskProposalId
+  // leaves proposals untouched, a terminal proposal is not re-written, and a
+  // missing proposal never fails the dev_task creation.
+
+  const seedProposal = (
+    h: THarness,
+    id: string,
+    overrides: Record<string, unknown> = {}
+  ) =>
+    h.seed(`task_proposals`, id, {
+      title: `Harden the egress guard`,
+      body: `Cover the SSRF redirect path`,
+      status: `scanned`,
+      priority: `P2`,
+      prUrl: null,
+      reason: null,
+      auditVerdict: null,
+      ...overrides,
+    })
+
+  it(`promotes the source proposal to promoted when a fresh dev_task is created`, async () => {
+    const h = makeFakeDb()
+    seedProposal(h, `tp_groom1`)
+
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Add SSRF redirect coverage`,
+        description: `Cover the egress guard's redirect branch`,
+        sourceTaskProposalId: `tp_groom1`,
+      },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({ ok: true, added: true, state: `backlog` })
+    // The proposal is claimed in the SAME call — status promoted, prUrl null
+    // (the dev_task, not a PR, is the anchor), audit verdict by the CTO.
+    const proposal = h.row(`task_proposals`, `tp_groom1`)!.data
+    expect(proposal).toMatchObject({
+      status: `promoted`,
+      prUrl: null,
+      reason: `groomed into dev_tasks`,
+      auditVerdict: { approved: true, reason: `groomed into dev_tasks`, by: Cto.agentId },
+    })
+    // The original title/body are preserved (a merge, not a replace).
+    expect(proposal.title).toBe(`Harden the egress guard`)
+    expect(proposal.body).toBe(`Cover the SSRF redirect path`)
+  })
+
+  it(`leaves every proposal untouched when the task carries no sourceTaskProposalId`, async () => {
+    const h = makeFakeDb()
+    seedProposal(h, `tp_ignore`)
+
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      { title: `Unrelated cleanup task`, description: `no source proposal` },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({ ok: true, added: true })
+    // No sourceTaskProposalId → the promotion step is a no-op; the proposal
+    // stays exactly as seeded.
+    expect(h.row(`task_proposals`, `tp_ignore`)!.data.status).toBe(`scanned`)
+    expect(h.row(`task_proposals`, `tp_ignore`)!.data.auditVerdict).toBeNull()
+  })
+
+  it(`does NOT re-write an already-terminal proposal (promoted or rejected)`, async () => {
+    const h = makeFakeDb()
+    // A proposal already promoted by an earlier pass — its recorded verdict and
+    // prUrl anchor must survive untouched (idempotent, matching pickupTask).
+    seedProposal(h, `tp_done`, {
+      status: `promoted`,
+      prUrl: `https://github.com/x/pull/9`,
+      reason: `Picked by work cycle`,
+      auditVerdict: { approved: true, reason: `picked`, by: `ag_steward1` },
+    })
+    seedProposal(h, `tp_rejected`, {
+      status: `rejected`,
+      reason: `out of scope`,
+      auditVerdict: { approved: false, reason: `out of scope`, by: `ag_adversary` },
+    })
+
+    const promoted = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Re-groom the promoted proposal`,
+        description: `should not touch the terminal proposal`,
+        sourceTaskProposalId: `tp_done`,
+      },
+      Cto
+    )
+    expect(promoted.output).toMatchObject({ ok: true, added: true })
+    // Untouched: the earlier work-cycle verdict + PR anchor survive.
+    expect(h.row(`task_proposals`, `tp_done`)!.data).toMatchObject({
+      status: `promoted`,
+      prUrl: `https://github.com/x/pull/9`,
+      reason: `Picked by work cycle`,
+      auditVerdict: { approved: true, reason: `picked`, by: `ag_steward1` },
+    })
+
+    const rejected = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Re-groom the rejected proposal`,
+        description: `should not touch the terminal proposal`,
+        sourceTaskProposalId: `tp_rejected`,
+      },
+      Cto
+    )
+    expect(rejected.output).toMatchObject({ ok: true, added: true })
+    expect(h.row(`task_proposals`, `tp_rejected`)!.data.status).toBe(`rejected`)
+  })
+
+  it(`does NOT fail the dev_task creation when the source proposal is missing`, async () => {
+    const h = makeFakeDb()
+    // No task_proposals record for this id — the promotion is best-effort, so
+    // the dev_task creation (the primary outcome) still succeeds.
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Groom a proposal that vanished`,
+        description: `the proposal record is gone`,
+        sourceTaskProposalId: `tp_missing`,
+      },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({ ok: true, added: true, state: `backlog` })
+    expect(h.rows(`dev_tasks`)).toHaveLength(1)
+    expect(h.rows(`task_proposals`)).toHaveLength(0)
+  })
+
+  it(`a dedupe-HIT devAddTask STILL promotes the source proposal (closes the merged-but-scanned hole)`, async () => {
+    const h = makeFakeDb()
+    // The dev_task for this proposal already exists (a prior groom), but the
+    // proposal is still scanned — the belt: a re-groom that dedupes must still
+    // claim the proposal so it never lingers scanned after its dev_task ships.
+    seedProposal(h, `tp_belt`)
+    seedTask(h, `dt_belt`, {
+      title: `Existing groomed task`,
+      sourceTaskProposalId: `tp_belt`,
+      state: `pr_open`,
+    })
+
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `A differently decomposed title for the same proposal`,
+        description: `re-groomed — dedupes on sourceTaskProposalId`,
+        sourceTaskProposalId: `tp_belt`,
+      },
+      Cto
+    )
+
+    // Deduped against the open task carrying this sourceTaskProposalId…
+    expect(result.output).toMatchObject({
+      ok: true,
+      added: false,
+      deduped: true,
+      id: `dt_belt`,
+    })
+    expect(h.rows(`dev_tasks`)).toHaveLength(1)
+    // …AND the proposal was claimed anyway.
+    expect(h.row(`task_proposals`, `tp_belt`)!.data).toMatchObject({
+      status: `promoted`,
+      prUrl: null,
+      reason: `groomed into dev_tasks`,
+      auditVerdict: { approved: true, reason: `groomed into dev_tasks`, by: Cto.agentId },
+    })
+  })
+
+  it(`a title-dedupe HIT also promotes the source proposal`, async () => {
+    const h = makeFakeDb()
+    seedProposal(h, `tp_title`)
+    // An open task with the SAME title (title dedupe path) but no source stamp.
+    seedTask(h, `dt_title`, { title: `Same title task`, state: `backlog` })
+
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Same title task`,
+        description: `re-groom hitting the title dedupe`,
+        sourceTaskProposalId: `tp_title`,
+      },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      added: false,
+      deduped: true,
+      id: `dt_title`,
+    })
+    // The title-dedupe path still claims the proposal — no scanned leak.
+    expect(h.row(`task_proposals`, `tp_title`)!.data.status).toBe(`promoted`)
+  })
 })
 
 // ── devReapExpired — lease reaping, renewal-safe ──────────────────────────────

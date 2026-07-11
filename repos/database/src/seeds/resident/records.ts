@@ -547,8 +547,9 @@ export const EngTwoResidentConfigSeed: TResidentConfigSeedRecord = {
  * which gate on it) stays with the steward. The lead's duties: hourly backlog
  * grooming — decompose the sensor-detected task_proposals backlog (injected via
  * DevTaskBacklogSource) into SMALL engineer-sized dev_tasks with devAddTask,
- * then claim each groomed proposal with pickupTask (scanned → promoted) so the
- * still-live scheduled steward never double-works it — a 15-minute lease reap
+ * which (stamped with sourceTaskProposalId) atomically claims each groomed
+ * proposal in the same call (scanned → promoted) so the still-live scheduled
+ * steward never double-works it — a 15-minute lease reap
  * (devReapExpired run SYNCHRONOUSLY + gh reconciliation from its VM), the
  * explicit close-out (devAbandon), and an approved-watch that sanity-checks
  * merge throughput. The CTO deliberately does NOT hold the engineers'
@@ -566,8 +567,8 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
         cron: `0 * * * *`,
         prompt: [
           `Groom the sensor-detected backlog into the team's dev_tasks board.`,
-          `Read the "Proposed backlog (sensor-detected)" context — these are scanned task_proposals, priority-ordered (equal priority is unordered; pick any). For each proposal worth building, DECOMPOSE it into one or more SMALL, sharply-scoped, engineer-sized dev_tasks with devAddTask — a large proposal becomes several tasks, each an engineer completes in a single sitting, each with a description precise enough to build from and an explicit definition of done. Stamp EVERY task you add with sourceTaskProposalId = the proposal's id (devAddTask dedupes on it, so re-grooming a not-yet-promoted proposal never stacks duplicates).`,
-          `IMMEDIATELY after grooming a proposal's task(s), CLAIM that proposal so the still-live scheduled steward never double-works it: dispatch pickupTask SYNCHRONOUSLY (curl the dispatch endpoint per your standing directives with args { proposalId, prUrl?, note } and READ the result) — it flips the proposal scanned → promoted, and the steward's work cycle only ever picks scanned proposals, so whoever writes first claims it (first-writer-wins, idempotent). Grooming a proposal WITHOUT its pickupTask is incomplete — never leave a groomed proposal scanned.`,
+          `Read the "Proposed backlog (sensor-detected)" context — these are scanned task_proposals, priority-ordered (equal priority is unordered; pick any). For each proposal worth building, DECOMPOSE it into one or more SMALL, sharply-scoped, engineer-sized dev_tasks with devAddTask — a large proposal becomes several tasks, each an engineer completes in a single sitting, each with a description precise enough to build from and an explicit definition of done. Stamp EVERY task you add with sourceTaskProposalId = the proposal's id.`,
+          `Stamping sourceTaskProposalId makes devAddTask ATOMICALLY claim the proposal: the SAME call that creates (or dedupes) the dev_task also flips that proposal scanned → promoted, so the still-live scheduled steward (whose work cycle only ever picks scanned proposals) never double-works it — and a proposal can never be left scanned. Grooming is therefore a single fire-and-forget devAddTask per proposal; there is NO separate claim step (devAddTask dedupes on sourceTaskProposalId too, so re-grooming a not-yet-shipped proposal never stacks duplicates and still re-affirms the claim).`,
           `Keep the open dev_tasks backlog small (under ~10 open tasks) — groom the highest-priority proposals first and stop when the board is full; do not over-groom. When no scanned proposal is worth building right now, say so in one line and stop.`,
         ].join(`\n`),
       },
@@ -616,11 +617,13 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
       minIdleMs: 600_000,
       prompt: `Review team health: lease liveness, backlog depth, review latency, and merge throughput on the dev_tasks board; message the engineers about anything wedged (sendAgentMessage). NEVER claim, review, or merge a dev task yourself — you lead, groom, reap, and close out.`,
     },
-    // The lead duties + the proposal-claim + messaging + the housekeeping five.
-    // Entries are Function NAMES (resolveResidentAllowlist returns them as-is,
-    // and the dispatch endpoint matches action.function against them): pickupTask
-    // is PickupTaskFunctionDef.name — it flips a groomed task_proposal
-    // scanned → promoted so the still-live steward never double-works it.
+    // The lead duties + messaging + the housekeeping five. Entries are Function
+    // NAMES (resolveResidentAllowlist returns them as-is, and the dispatch
+    // endpoint matches action.function against them). devAddTask now ATOMICALLY
+    // claims a groomed proposal (it flips the sourceTaskProposalId task_proposal
+    // scanned → promoted in the same call), so the lead no longer needs a
+    // separate pickupTask dispatch — pickupTask stays allowlisted (harmless;
+    // PickupTaskFunctionDef.name) because the scheduled work-cycle still uses it.
     // Deliberately NO engineer claim/review Functions (the lead never works its
     // own board) and NO board-seat Functions (postPosition/
     // reportInitiativeComplete/updateMilestone gate on board membership, which
