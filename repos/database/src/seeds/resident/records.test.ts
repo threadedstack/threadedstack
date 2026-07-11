@@ -661,7 +661,12 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     // pickupTask dispatch step. The old shadow-boundary (this team's lane must
     // never collide / check the steward's task_proposals) is replaced by the
     // promoted-status coordination.
-    expect(session.seedPrompt).toContain(`GROOM THE REAL BACKLOG, SMALL AND BOUNDED`)
+    // CUTOVER (Deploy E): the CTO is now the SOLE groomer — the scheduled
+    // dev-loop is decommissioned, so it must keep the team fed.
+    expect(session.seedPrompt).toContain(
+      `GROOM THE REAL BACKLOG — YOU ARE THE SOLE GROOMER`
+    )
+    expect(session.seedPrompt).toContain(`KEEP THE ENGINEERS FED`)
     expect(session.seedPrompt).toContain(`Proposed backlog (sensor-detected)`)
     expect(session.seedPrompt).toContain(`sourceTaskProposalId`)
     expect(session.seedPrompt).toContain(`ATOMICALLY CLAIM`)
