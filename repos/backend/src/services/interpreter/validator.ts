@@ -17,7 +17,7 @@ function isNode(val: unknown): val is TJsonComponentNode {
     typeof val === 'object' &&
     val !== null &&
     'type' in val &&
-    typeof (val as any).type === 'string'
+    typeof (val as Record<string, unknown>).type === 'string'
   )
 }
 
