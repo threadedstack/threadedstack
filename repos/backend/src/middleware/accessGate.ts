@@ -32,7 +32,7 @@ export const accessGate = async (req: TRequest, res: TResponse, next: NextFuncti
       const { data: updated } = await db.services.user.update({
         id: user.id,
         role: WaitlistRole,
-      } as any)
+      })
 
       if (updated)
         email

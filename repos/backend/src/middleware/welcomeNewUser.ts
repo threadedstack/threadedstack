@@ -25,7 +25,7 @@ export const welcomeNewUser = async (
       await db.services.user.update({
         id: user.id,
         role: ApprovedRole,
-      } as any)
+      })
     } catch (err: unknown) {
       logger.error(
         `[welcomeNewUser] Failed to set approved role for user ${user.id}:`,
