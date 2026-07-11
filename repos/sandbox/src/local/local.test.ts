@@ -32,6 +32,7 @@ describe(`LocalSandbox`, () => {
     mockIsolateRunner = {
       dispose: vi.fn(),
       releaseUserModules: vi.fn(),
+      scrubGlobals: vi.fn(),
     }
 
     sandbox = new LocalSandbox(mockBash, mockFs, mockIsolateRunner)
@@ -346,6 +347,14 @@ describe(`LocalSandbox`, () => {
       await sandbox.reset()
 
       expect(mockIsolateRunner.releaseUserModules).toHaveBeenCalledOnce()
+    })
+
+    it(`should call scrubGlobals on isolateRunner during reset`, async () => {
+      mockFs.readdir.mockResolvedValue([])
+
+      await sandbox.reset()
+
+      expect(mockIsolateRunner.scrubGlobals).toHaveBeenCalledOnce()
     })
 
     it(`should handle null isolateRunner during reset gracefully`, async () => {

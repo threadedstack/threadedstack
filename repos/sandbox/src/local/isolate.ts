@@ -50,6 +50,7 @@ export class IsolateRunner {
   #env: Record<string, string>
   #isolate: Isolate | null = null
   #context: Context | null = null
+  #globalBaseline: Set<string> | null = null
   #shims = new Map<string, Module>()
   #pendingTimers = new Map<
     number,
@@ -212,7 +213,74 @@ export class IsolateRunner {
 
     await this.#compile(deps)
     await this.#setupTimers(jail, ivm)
+
+    // Stash fresh references to the built-ins scrubGlobals() restores, then
+    // snapshot the post-setup globalThis key set as the baseline for the same
+    // pass's deletion sweep. Both must happen here, after every shim/timer
+    // global is installed — capturing the baseline any earlier would flag
+    // legitimate shim globals (console, process, fetch, __timerFire, ...) as
+    // user-added leaks and delete them on the very first reset().
+    await this.#context.eval(`
+      globalThis.__pristineBuiltins = {
+        arrayPush: Array.prototype.push,
+        arrayPop: Array.prototype.pop,
+        arraySlice: Array.prototype.slice,
+        arrayMap: Array.prototype.map,
+        arrayForEach: Array.prototype.forEach,
+        objectHasOwnProperty: Object.prototype.hasOwnProperty,
+        functionCall: Function.prototype.call,
+        functionApply: Function.prototype.apply,
+        functionBind: Function.prototype.bind,
+      }
+    `)
+    const baselineNames: string[] = await this.#context.eval(
+      `Object.getOwnPropertyNames(globalThis)`,
+      { copy: true }
+    )
+    this.#globalBaseline = new Set(baselineNames)
+
     this.#initialized = true
+  }
+
+  /**
+   * Bounded defense-in-depth for pooled reuse WITHIN the same tenant: deletes
+   * any own-enumerable globalThis key a prior run added that wasn't present
+   * at init() (e.g. a leaked `globalThis.secret = ...`), and restores a fixed
+   * list of the most commonly-targeted built-in prototype methods from the
+   * pristine references captured at init() — NOT a general prototype-integrity
+   * guarantee, just the handful of methods a hijack is most likely to target.
+   * The actual security boundary for cross-tenant isolation is the pool
+   * partitioning in functionExecutor.ts; this only limits blast radius between
+   * two functions that already share a tenant's trust boundary.
+   */
+  async scrubGlobals(): Promise<void> {
+    if (!this.#context || !this.#globalBaseline) return
+
+    const baseline = Array.from(this.#globalBaseline)
+    await this.#context.evalClosure(
+      `
+        var baseline = new Set($0);
+        var names = Object.getOwnPropertyNames(globalThis);
+        for (var i = 0; i < names.length; i++) {
+          if (baseline.has(names[i])) continue;
+          try { delete globalThis[names[i]]; } catch (e) {}
+        }
+        var p = globalThis.__pristineBuiltins;
+        if (p) {
+          Array.prototype.push = p.arrayPush;
+          Array.prototype.pop = p.arrayPop;
+          Array.prototype.slice = p.arraySlice;
+          Array.prototype.map = p.arrayMap;
+          Array.prototype.forEach = p.arrayForEach;
+          Object.prototype.hasOwnProperty = p.objectHasOwnProperty;
+          Function.prototype.call = p.functionCall;
+          Function.prototype.apply = p.functionApply;
+          Function.prototype.bind = p.functionBind;
+        }
+      `,
+      [baseline],
+      { arguments: { copy: true } }
+    )
   }
 
   async #compile(deps: TShimDeps): Promise<void> {
