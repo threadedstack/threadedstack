@@ -805,11 +805,8 @@ export class SandboxService {
                   timeoutMinutes = effective.config.idleTimeoutMinutes
               }
             }
-          } catch (err) {
-            const status =
-              (err as any)?.statusCode ??
-              (err as any)?.response?.statusCode ??
-              (err as any)?.code
+          } catch (err: any) {
+            const status = err?.statusCode ?? err?.response?.statusCode ?? err?.code
             if (status === 404) {
               logger.info(
                 `[Sandbox] Pod ${instanceId} no longer exists, cleaning up tracking`
