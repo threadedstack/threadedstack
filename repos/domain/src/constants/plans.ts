@@ -52,6 +52,6 @@ export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
     retention: 365,
     seats: 10,
     additionalSeats: true,
-    sandboxSessions: -1,
+    sandboxSessions: 25,
   },
 } as const

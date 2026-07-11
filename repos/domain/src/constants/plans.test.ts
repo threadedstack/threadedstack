@@ -52,6 +52,11 @@ describe(`PlanLimits`, () => {
     expect(team.retention).toBe(365)
   })
 
+  it(`should cap sandboxSessions on the team tier instead of leaving it unlimited`, () => {
+    const team = PlanLimits[ESubscriptionTier.team]
+    expect(team.sandboxSessions).toBe(25)
+  })
+
   it(`should not contain negative values other than -1 for unlimited`, () => {
     for (const tier of Object.values(ESubscriptionTier)) {
       const limits = PlanLimits[tier]
