@@ -442,7 +442,8 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
       expect(reviews.prompt).toContain(`SYNCHRONOUS devClaimReview`)
       expect(reviews.prompt).toContain(`devCompleteReview`)
       expect(reviews.prompt).toContain(`reviewer can never equal assignee`)
-      expect(reviews.prompt).toContain(`gh pr merge --admin`)
+      // Engineers squash-merge: a single-parent commit the VERIFY revert net can revert.
+      expect(reviews.prompt).toContain(`gh pr merge --admin --squash`)
       // The recoverable verdict windows (fixed 60-minute obligation leases).
       expect(reviews.prompt).toContain(`60-minute merge lease`)
       expect(myChanges.prompt).toContain(`60-minute fix lease`)
@@ -486,7 +487,8 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
       expect(session.seedPrompt).toContain(`SYNCHRONOUS devRenewLease`)
       expect(session.seedPrompt).toContain(`YOU HAVE A FULL COMPUTER`)
       expect(session.seedPrompt).toContain(`THE REVIEWER MERGES`)
-      expect(session.seedPrompt).toContain(`gh pr merge --admin`)
+      // Squash-merge keeps each merge single-parent so VERIFY can cleanly revert it.
+      expect(session.seedPrompt).toContain(`gh pr merge --admin --squash`)
       // The shared-GitHub-identity reality + the platform independence gate,
       // stated honestly: the merge + CI checks are prompt discipline only.
       expect(session.seedPrompt).toContain(`ONE GitHub account identity`)
