@@ -1,6 +1,6 @@
 import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { PoolTtlMS } from '@TBE/constants/values'
+import { PoolTtlMS, PoolMaxTotalSize } from '@TBE/constants/values'
 
 // ── Hoisted mocks (accessible inside vi.mock factories) ──────────────
 
@@ -897,6 +897,86 @@ describe(`FunctionExecutor`, () => {
         await FunctionExecutor.execute(freshFunc)
         expect(mockCreate.mock.calls.length).toBe(createCallsBeforeFreshReuse)
         expect(freshSandbox.evaluate).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  // ── Global Pool Ceiling Tests ───────────────────────────────────────
+  //
+  // Per-tenant partitioning (above) caps each tenant's OWN bucket at
+  // PoolMaxSize, but says nothing about the aggregate across tenants — N
+  // concurrently active tenants could otherwise each fill their own
+  // PoolMaxSize bucket, growing the pool unboundedly. These tests prove a
+  // separate aggregate ceiling (PoolMaxTotalSize) is enforced by evicting
+  // the globally least-recently-used entry ACROSS TENANTS, not just within
+  // the releasing tenant's own bucket.
+  //
+  // The pool is module-level state shared with every other test in this
+  // file, so — same discipline as the "sandbox pool" tests above — this
+  // block first "flushes" the pool with more distinct-tenant releases than
+  // it could possibly already hold, pinned to a timestamp far in the future
+  // (fake timers). Because eviction always targets the globally OLDEST
+  // entry, any real-clock leftovers from earlier tests are always evicted
+  // before anything created here, so after the flush the pool is
+  // deterministically composed only of this test's own entries.
+
+  describe(`global pool ceiling (cross-tenant)`, () => {
+    const makeTrackedSandbox = () => ({
+      evaluate: vi
+        .fn()
+        .mockResolvedValue({ output: ``, result: { success: true, output: {} } }),
+      close: vi.fn().mockResolvedValue(undefined),
+      reset: vi.fn().mockResolvedValue(undefined),
+    })
+
+    it(`evicts the globally least-recently-used sandbox across tenants once the aggregate cap is exceeded`, async () => {
+      vi.useFakeTimers()
+      try {
+        let t = Date.now() + 60 * 60 * 1000
+
+        // Flush: guarantees every pre-existing (real-timestamped) entry from
+        // earlier tests is evicted before this test's own assertions begin.
+        for (let i = 0; i < PoolMaxTotalSize + 5; i++) {
+          vi.setSystemTime(t)
+          t += 1_000
+          const flush = makeTrackedSandbox()
+          mockCreate.mockResolvedValueOnce(flush)
+          await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-flush-${i}` }))
+        }
+
+        // Fill the pool to exactly the aggregate cap with tracked,
+        // distinct-tenant sandboxes — release order is the LRU order.
+        const sandboxes: ReturnType<typeof makeTrackedSandbox>[] = []
+        for (let i = 0; i < PoolMaxTotalSize; i++) {
+          vi.setSystemTime(t)
+          t += 1_000
+          const sandbox = makeTrackedSandbox()
+          mockCreate.mockResolvedValueOnce(sandbox)
+          await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-cap-${i}` }))
+          sandboxes.push(sandbox)
+        }
+
+        // One more distinct-tenant release pushes the aggregate past the cap.
+        vi.setSystemTime(t)
+        const overflow = makeTrackedSandbox()
+        mockCreate.mockResolvedValueOnce(overflow)
+        await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-cap-overflow` }))
+
+        // The globally-oldest entry (tenant 0) was evicted and closed, even
+        // though its OWN bucket never held more than 1 entry (well under
+        // PoolMaxSize) — proving eviction is a cross-tenant, aggregate-cap
+        // eviction, not the pre-existing per-tenant cap.
+        expect(sandboxes[0].close).toHaveBeenCalled()
+
+        // The most-recently-pooled tenant survives and is still reused.
+        const createCallsBeforeReuse = mockCreate.mock.calls.length
+        await FunctionExecutor.execute(
+          makeFunc({ projectId: `proj-global-cap-${PoolMaxTotalSize - 1}` })
+        )
+        expect(mockCreate.mock.calls.length).toBe(createCallsBeforeReuse)
+        expect(sandboxes[PoolMaxTotalSize - 1].evaluate).toHaveBeenCalledTimes(2)
       } finally {
         vi.useRealTimers()
       }

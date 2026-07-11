@@ -19,6 +19,7 @@ import { EFunLanguage, ESandboxType } from '@tdsk/domain'
 import {
   PoolTtlMS,
   PoolMaxSize,
+  PoolMaxTotalSize,
   MaxOutputBytes,
   DefaultTimeoutMS,
 } from '@TBE/constants/values'
@@ -60,6 +61,46 @@ const acquireSandbox = async (timeout: number, tenantKey: string): Promise<ISand
   return provider.create({ provider: ESandboxType.local, timeout })
 }
 
+const totalPooled = (): number => {
+  let total = 0
+  for (const bucket of pool.values()) total += bucket.length
+  return total
+}
+
+// Evict the globally least-recently-used pooled sandbox ACROSS ALL TENANT
+// BUCKETS (not just the releasing tenant's own bucket) — this is what
+// re-establishes the original fixed aggregate pool size under
+// PoolMaxTotalSize while leaving the per-tenant partitioning (and the
+// cross-tenant isolation it guarantees) untouched: the victim is always
+// closed, never handed to another tenant.
+const evictGlobalLRU = async (): Promise<void> => {
+  let oldestKey: string | undefined
+  let oldestIdx = -1
+  let oldestTime = Number.POSITIVE_INFINITY
+
+  for (const [tenantKey, bucket] of pool) {
+    for (let i = 0; i < bucket.length; i++) {
+      if (bucket[i].lastUsed < oldestTime) {
+        oldestTime = bucket[i].lastUsed
+        oldestKey = tenantKey
+        oldestIdx = i
+      }
+    }
+  }
+  if (oldestKey === undefined || oldestIdx === -1) return
+
+  const bucket = pool.get(oldestKey)
+  if (!bucket) return
+  const [victim] = bucket.splice(oldestIdx, 1)
+  if (!bucket.length) pool.delete(oldestKey)
+
+  await victim.sandbox.close().catch((err: unknown) => {
+    logger.warn(
+      `Failed to close globally-evicted sandbox: ${err instanceof Error ? err.message : String(err)}`
+    )
+  })
+}
+
 const releaseSandbox = async (sandbox: ISandbox, tenantKey: string): Promise<void> => {
   const bucket = pool.get(tenantKey) ?? []
   if (bucket.length >= PoolMaxSize) {
@@ -72,6 +113,13 @@ const releaseSandbox = async (sandbox: ISandbox, tenantKey: string): Promise<voi
   }
   try {
     await sandbox.reset()
+    // Enforce the aggregate ceiling across every tenant bucket before
+    // accepting this entry — evicts the globally-oldest pooled sandbox
+    // (which may belong to any tenant) rather than letting N concurrently
+    // active tenants each fill their own PoolMaxSize bucket unbounded.
+    if (totalPooled() >= PoolMaxTotalSize) {
+      await evictGlobalLRU()
+    }
     bucket.push({ sandbox, lastUsed: Date.now() })
     pool.set(tenantKey, bucket)
     if (!poolTimer) {
