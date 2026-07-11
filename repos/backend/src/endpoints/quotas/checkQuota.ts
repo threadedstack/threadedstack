@@ -36,6 +36,7 @@ export const checkQuota: TEndpointConfig = {
 
     // Get current usage
     const usageResult = await db.services.quota.findByOrgAndPeriod(orgId, period)
+    if (usageResult.error) throw new Exception(500, usageResult.error.message)
 
     const currentUsage = usageResult.data?.[resource] || 0
 

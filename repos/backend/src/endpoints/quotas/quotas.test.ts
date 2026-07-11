@@ -467,6 +467,27 @@ describe(`Quota Endpoints`, () => {
       )
     })
 
+    it(`should return 500 on quota usage lookup error instead of treating it as zero usage`, async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = { resource: `projects`, amount: 1 }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+
+      mockFindByOrgAndPeriod.mockResolvedValue({
+        error: new Error(`Quota usage lookup failed`),
+      })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: `owner_123` } })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Quota usage lookup failed`
+      )
+      expect(mockStatus).not.toHaveBeenCalledWith(200)
+    })
+
     it(`should return 500 on subscription lookup error`, async () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.body = { resource: `projects`, amount: 1 }

@@ -18,6 +18,7 @@
     "script": "STL_FORCE_DISABLE_SAFE=1 tsx -r ./configs/aliases.ts scripts/script.ts",
     "sql": "tsx -r ./configs/aliases.ts scripts/sql.ts",
     "generate": "drizzle-kit generate --config=configs/drizzle.config.ts",
+    "check:destructive": "tsx -r ./configs/aliases.ts scripts/checkDestructiveMigration.ts",
     "migrate": "drizzle-kit migrate --config=configs/drizzle.config.ts",
     "introspect": "drizzle-kit introspect --config=configs/drizzle.config.ts",
     "push": "drizzle-kit push --config=configs/drizzle.config.ts",
