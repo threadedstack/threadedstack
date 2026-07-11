@@ -24,6 +24,16 @@ export const triggerSchedule: TEndpointConfig = {
     if (data.orgId !== orgId || data.projectId !== projectId)
       throw new Exception(404, `Schedule not found`)
 
+    // Same guard as the cron path (scheduler.ts#processSchedule): refuse a
+    // manual trigger while a run is already in flight. Without this, a manual
+    // trigger during a slow executor could race the natural cron slot (or a
+    // second manual trigger) into a concurrent run of the same schedule.
+    const { data: hasRunning, error: hasRunningErr } =
+      await db.services.scheduleRun.hasRunning(scheduleId)
+    if (hasRunningErr) throw new Exception(500, hasRunningErr.message)
+    if (hasRunning)
+      throw new Exception(409, `A run for this schedule is already in progress`)
+
     // Execute the agent if an executor is configured
     const executeAgent = req.app.locals.scheduleExecutor
     if (executeAgent) {
