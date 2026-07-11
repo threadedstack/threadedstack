@@ -117,7 +117,7 @@ export const onWSConnect = async (
             provider: msg.provider,
             tools: msg.tools,
             systemPrompt: msg.systemPrompt,
-            thinkingLevel: msg.thinkingLevel as any,
+            thinkingLevel: msg.thinkingLevel,
           })
           break
 
