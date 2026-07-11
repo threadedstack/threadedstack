@@ -15,7 +15,7 @@ Above this instruction you will find a "## Post-merge verification" section that
       - assertion       → `sh -c "<params.command>"`; expect exit 0.
    c. Classify the outcome:
       - probe passed → status:'verified', detail is a one-line pass summary.
-      - probe failed → status:'regressed'. You MUST open the revert PR NOW, using the exact recipe injected above (git checkout -b steward/revert-pr<N>-<short> origin/main; git show <mergeSha> | git apply -R --index --3way; git commit; git push; gh pr create --base main). Never `git revert`. Never rewrite history. Include the returned revert PR URL as `revertPrUrl` in your result entry. The backend will file a target:'app' escalation citing that revert URL; do not duplicate.
+      - probe failed → status:'regressed'. You MUST open the revert PR NOW, wait for its CI to pass, then MERGE it yourself, using the exact recipe injected above (git checkout -b steward/revert-pr<N>-<short> origin/main; git show --first-parent <mergeSha> | git apply -R --index --3way; git commit; git push; gh pr create --base main; wait for CI green; gh pr merge <revertPr> --admin --squash). `--first-parent` makes a merge commit emit its net squashed diff, so the revert cleanly applies whether the bad merge was single-parent (squash) or a 2-parent merge commit; `git show` alone reverts NOTHING on a 2-parent merge. Reverting a PROVEN regression is an emergency action, so the VERIFY cycle self-merges it: post-cutover there is no adversary review or steward pr-response cycle to service a `steward/revert-*` PR, and leaving a proven regression live is worse than a self-merged revert. Never `git revert`. Never rewrite history. Include the returned revert PR URL as `revertPrUrl` in your result entry. The backend will file a target:'app' escalation citing that revert URL; do not duplicate.
 
 3) End your report with EXACTLY ONE fenced block containing an entry PER PR YOU PROBED THIS CYCLE (0 to VerifyLookbackPrs entries):
 
@@ -27,8 +27,8 @@ Rules:
 - Valid JSON array. Omit the block entirely when there were 0 PRs to probe this cycle (all in done-set).
 - `prNumber` MUST match the merged PR number exactly.
 - `status` MUST be exactly `verified` or `regressed`.
-- `revertPrUrl` is REQUIRED when status is `regressed` — the backend uses it to auto-file the escalation. If you cannot open a revert PR (conflict, missing perms), still emit the entry with status `regressed`, omit `revertPrUrl`, and put the reason in `detail`; the backend will file the escalation without a revert URL and rely on manual follow-up.
+- `revertPrUrl` is REQUIRED when status is `regressed` — record the URL of the revert PR you opened (and self-merged, once its CI passed); the backend uses it to auto-file the escalation. If you cannot open or merge a revert PR (conflict, missing perms, revert CI red), still emit the entry with status `regressed`, omit `revertPrUrl`, and put the reason in `detail`; the backend will file the escalation without a revert URL and rely on manual follow-up.
 - Server-side, each terminal result upserts the `verifications` row and writes a durable memory ("PR #N verify verified/regressed → revert <url>") so this loop is idempotent across cycles.
 
-If a probe kind is one you cannot execute (e.g. a bespoke assertion command that requires tools you don't have), classify the entry as regressed with a detail explaining the shortfall — better a false regression that flips a revert PR into review than silently letting a bad deploy stand.
+If a probe kind is one you cannot execute (e.g. a bespoke assertion command that requires tools you don't have), classify the entry as regressed with a detail explaining the shortfall — better a false regression that opens (and self-merges) a revert PR than silently letting a bad deploy stand.
 
