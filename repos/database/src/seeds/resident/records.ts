@@ -206,7 +206,11 @@ export type TResidentConfigSeedRecord = {
     }[]
     inbox: { pollMs: number }
     compaction: { maxTurns: number; maxBytes: number }
-    session: { seedPrompt: string; contextSources: TContextSource[] }
+    session: {
+      seedPrompt: string
+      contextSources: TContextSource[]
+      turnTimeoutMs?: number
+    }
     subAgents: { maxConcurrent: number }
     selfDirected: { prompt: string; minIdleMs: number }
     actions: string[]
@@ -487,6 +491,11 @@ const buildEngineerResidentConfig = (
       DevTasksBacklogSource,
       memoriesSourceFor(agentId),
     ],
+    // Engineering turns do REAL implementation (branch, code, full pnpm
+    // types + test) — the 15-minute default sliced work into timed-out
+    // restarts on the first live run. 40 minutes fits a code-and-verify
+    // turn; multi-turn tasks still renew their lease first each turn.
+    turnTimeoutMs: 40 * 60_000,
   },
   subAgents: { maxConcurrent: 2 },
   selfDirected: {
@@ -590,6 +599,9 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
         DevTasksInFlightSource,
         CtoMemoriesSource,
       ],
+      // Groom/reap turns run real gh reconciliation + research; the 15-minute
+      // default timed out live. 30 minutes clears every observed turn.
+      turnTimeoutMs: 30 * 60_000,
     },
     subAgents: { maxConcurrent: 2 },
     selfDirected: {

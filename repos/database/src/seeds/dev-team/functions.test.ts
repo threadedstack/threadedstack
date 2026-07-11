@@ -192,9 +192,7 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).toContain(`candidates`)
     // ALL FOUR leased states are recoverable — including the verdict
     // obligations (approved merge window, changes_requested fix window).
-    expect(content).toContain(
-      `['claimed', 'in_review', 'approved', 'changes_requested']`
-    )
+    expect(content).toContain(`['claimed', 'in_review', 'approved', 'changes_requested']`)
     // The CTO reconciles the returned lists against GitHub from its own VM.
     expect(content).not.toContain(`github.com/api`)
     expect(content).not.toContain(`fetch(`)
@@ -396,6 +394,14 @@ describe(`devClaimTask against the REAL record service casUpdate (fake-vs-real p
       if (error) throw new Error(`records.get failed: ${error.message}`)
       return data ? { id: data.id, data: data.data as Record<string, unknown> } : null
     },
+    query: async (collection: string, query: any) => {
+      const { data, error } = await service.query(ProjectId, collection, query ?? {})
+      if (error) throw new Error(`records.query failed: ${error.message}`)
+      return (data ?? []).map((rec) => ({
+        id: rec.id,
+        data: rec.data as Record<string, unknown>,
+      }))
+    },
     cas: async (collection: string, id: string, match: any, patch: any) => {
       const { data, error, conflict } = await service.casUpdate(
         ProjectId,
@@ -418,9 +424,11 @@ describe(`devClaimTask against the REAL record service casUpdate (fake-vs-real p
   it(`WIN: the body claims a backlog task through the real casUpdate SQL guard path`, async () => {
     const { db, enqueue, chain } = createMockDb()
     const service = new RecordService({ db, config: {} } as any)
-    // records.get → collection resolve + the backlog row; records.cas →
+    // records.get → collection resolve + the backlog row; records.query (the
+    // single-claim gate) → collection resolve + NO held claims; records.cas →
     // collection resolve + the updated row (the guard matched).
     enqueue([collectionRow], [taskRow(backlogData)])
+    enqueue([collectionRow], [])
     enqueue(
       [collectionRow],
       [taskRow({ ...backlogData, state: `claimed`, assignee: EngOne })]
@@ -436,9 +444,10 @@ describe(`devClaimTask against the REAL record service casUpdate (fake-vs-real p
     // The real casUpdate compiled the body's guard into the UPDATE's WHERE:
     // state must still be 'backlog', bound as params (the atomic claim).
     // where calls: [0] get's collection resolve, [1] get's record select,
-    // [2] cas's collection resolve, [3] the guarded UPDATE itself.
+    // [2] the gate query's collection resolve, [3] the gate query itself,
+    // [4] cas's collection resolve, [5] the guarded UPDATE itself.
     expect(db.update).toHaveBeenCalledTimes(1)
-    const where = render(chain.where.mock.calls[3][0])
+    const where = render(chain.where.mock.calls[5][0])
     expect(where.params).toContain(`state`)
     expect(where.params).toContain(`backlog`)
     // And the patch merged via jsonb || with the claim fields the fake asserts.
@@ -451,9 +460,11 @@ describe(`devClaimTask against the REAL record service casUpdate (fake-vs-real p
   it(`CONFLICT: a lost race through the real casUpdate surfaces as the body's normal conflict outcome`, async () => {
     const { db, enqueue } = createMockDb()
     const service = new RecordService({ db, config: {} } as any)
-    // The read still sees backlog, but the guarded UPDATE matches no row (a
-    // concurrent claim landed between the read and the CAS) → conflict.
+    // The read still sees backlog, the single-claim gate finds no held work,
+    // but the guarded UPDATE matches no row (a concurrent claim landed
+    // between the read and the CAS) → conflict.
     enqueue([collectionRow], [taskRow(backlogData)])
+    enqueue([collectionRow], [])
     enqueue([collectionRow], [])
 
     const result = await runBody(claimTaskSource, {
@@ -468,5 +479,32 @@ describe(`devClaimTask against the REAL record service casUpdate (fake-vs-real p
       conflict: true,
       reason: `another engineer won the claim`,
     })
+  })
+
+  it(`SINGLE-CLAIM GATE: refuses a second work claim while one is held (no UPDATE runs)`, async () => {
+    const { db, enqueue } = createMockDb()
+    const service = new RecordService({ db, config: {} } as any)
+    // The read sees backlog, but the gate query finds a task this engineer
+    // already holds → refused before any CAS.
+    enqueue([collectionRow], [taskRow(backlogData)])
+    enqueue(
+      [collectionRow],
+      [
+        {
+          ...taskRow({ ...backlogData, state: `claimed`, assignee: EngOne }),
+          id: `rec_dvtheld`,
+        },
+      ]
+    )
+
+    const result = await runBody(claimTaskSource, {
+      args: { taskId: `rec_dvt0001` },
+      caller: { agentId: EngOne },
+      records: recordsFromService(service),
+    })
+
+    expect(result).toMatchObject({ ok: true, claimed: false, conflict: true })
+    expect(result.reason).toContain(`already hold a work claim (rec_dvtheld)`)
+    expect(db.update).not.toHaveBeenCalled()
   })
 })
