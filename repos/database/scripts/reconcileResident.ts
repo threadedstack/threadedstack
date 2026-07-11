@@ -2,9 +2,11 @@ import { eq } from 'drizzle-orm'
 import { database } from '@TDB/database'
 import { loadEnvs } from '@tdsk/domain'
 import { ife } from '@keg-hub/jsutils/ife'
+import { and } from 'drizzle-orm'
 import { providers } from '@TDB/schemas/providers'
 import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
+import { sandboxProjectProviders } from '@TDB/schemas/sandboxProjectProviders'
 import { reconcileResident } from '@TDB/seeds/resident/collections'
 import { reconcileResidentFunctions } from '@TDB/seeds/resident/functions'
 import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
@@ -12,6 +14,7 @@ import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
 import {
   reconcileResidentBodies,
   reconcileResidentProviderChains,
+  reconcileResidentRepoLinks,
 } from '@TDB/seeds/resident/bodies'
 
 /**
@@ -167,6 +170,71 @@ ife(async () => {
     console.log(msg)
   )
 
+  // Runner adapter for the git repo-link reconcile: findByName resolves the
+  // repo provider by NAME (ids are prod-local), list/add operate on the
+  // sandbox_project_providers table. add is create-only; the unique index on
+  // (sandbox, project, provider) backstops the reconcile's own existence check.
+  const repoLinkSlice = {
+    agent: db.services.agent,
+    provider: {
+      findByName: async (name: string) => {
+        try {
+          const [row] = await db
+            .select({ id: providers.id })
+            .from(providers)
+            .where(eq(providers.name, name))
+            .limit(1)
+          return { data: row ?? null }
+        } catch (error: any) {
+          return { data: null, error }
+        }
+      },
+    },
+    repoLinks: {
+      list: async (sandboxId: string, projectId: string) => {
+        try {
+          const rows = await db
+            .select({ providerId: sandboxProjectProviders.providerId })
+            .from(sandboxProjectProviders)
+            .where(
+              and(
+                eq(sandboxProjectProviders.sandboxId, sandboxId),
+                eq(sandboxProjectProviders.projectId, projectId)
+              )
+            )
+          return { data: rows.map((r) => ({ providerId: r.providerId })) }
+        } catch (error: any) {
+          return { error }
+        }
+      },
+      add: async (link: {
+        sandboxId: string
+        projectId: string
+        providerId: string
+        priority: number
+        branch: string
+      }) => {
+        try {
+          await db.insert(sandboxProjectProviders).values({
+            sandboxId: link.sandboxId,
+            projectId: link.projectId,
+            providerId: link.providerId,
+            priority: link.priority,
+            branch: link.branch,
+          })
+          return { error: null }
+        } catch (error: any) {
+          return { error }
+        }
+      },
+    },
+  }
+
+  console.log(`🔗 Reconciling resident git repo links from repo config...`)
+  const repoLinkSummary = await reconcileResidentRepoLinks(repoLinkSlice, (msg) =>
+    console.log(msg)
+  )
+
   console.log(`🔌 Reconciling resident sandbox activations from repo config...`)
   const actSummary = await reconcileResidentActivations(
     { agent: db.services.agent, sandbox: sandboxSlice },
@@ -179,6 +247,7 @@ ife(async () => {
     cfgSummary.errors +
     bodySummary.errors +
     chainSummary.errors +
+    repoLinkSummary.errors +
     actSummary.errors
 
   console.log(`═══════════════════════════════════════`)
@@ -197,6 +266,9 @@ ife(async () => {
   console.log(`   🔗 Provider chains asserted: ${chainSummary.asserted}`)
   console.log(`   ➖ Provider chains unchanged:${chainSummary.unchanged}`)
   console.log(`   ⏭️  Provider chains skipped:  ${chainSummary.skipped}`)
+  console.log(`   🔗 Repo links added:      ${repoLinkSummary.added}`)
+  console.log(`   ➖ Repo links unchanged:   ${repoLinkSummary.unchanged}`)
+  console.log(`   ⏭️  Repo links skipped:     ${repoLinkSummary.skipped}`)
   console.log(`   🔌 Activations set:       ${actSummary.activated}`)
   console.log(`   ➖ Activations unchanged: ${actSummary.unchanged}`)
   console.log(`   ❌ Errors:                ${errors}`)
