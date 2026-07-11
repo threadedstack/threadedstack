@@ -456,3 +456,115 @@ describe(`enforceQuota — real nested Express routing`, () => {
     expect(db.services.org.get).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * Project-scoped secrets create resources via the exact same createSecret
+ * handler as org-scoped secrets, but through a SEPARATE sibling mount
+ * (orgProjects.ts's `projectSecrets`, nested one level deeper than
+ * orgSecrets.ts). A prior version of this fix covered orgSecrets but missed
+ * this sibling entirely — caught in review, not by any test — so this is a
+ * real 3-level nested mount (app -> /orgs -> /:orgId/projects ->
+ * /:projectId/secrets) proving the gap is closed and guarding against it
+ * reopening.
+ */
+describe(`enforceQuota — project-scoped secrets (real 3-level nested routing)`, () => {
+  const buildDb = (overrides: Record<string, any> = {}) => ({
+    services: {
+      org: {
+        get: vi.fn().mockResolvedValue({ data: { id: `org-1`, ownerId: `owner-1` } }),
+      },
+      subscription: {
+        findByUser: vi.fn().mockResolvedValue({ data: { tier: `free` } }),
+      },
+      quota: {
+        findByOrgAndPeriod: vi.fn().mockResolvedValue({ data: { secrets: 0 } }),
+        increment: vi.fn().mockResolvedValue({ data: { secrets: 1 } }),
+        incrementIfUnderLimit: vi.fn().mockResolvedValue({ data: { secrets: 1 } }),
+      },
+      ...overrides,
+    },
+  })
+
+  // Mirrors the real mount chain: app -> /orgs -> /:orgId/projects (orgProjects.ts)
+  // -> /:projectId/secrets (projectSecrets, enforceQuota('secrets') in its
+  // own middleware array).
+  const buildApp = (db: any) => {
+    const app = express()
+    app.use(express.json())
+    app.use((req, _res, next) => {
+      ;(req as any).user = { id: `user-1` }
+      next()
+    })
+    app.locals = { db } as any
+
+    const projectSecretsChild = createAsyncRouter()
+    projectSecretsChild.post(`/`, (_req, res) => {
+      res.status(201).json({ data: { id: `secret-1` } })
+    })
+
+    const projectsRouter = createAsyncRouter()
+    projectsRouter.use(
+      `/:projectId/secrets`,
+      enforceQuota(`secrets`) as any,
+      projectSecretsChild as unknown as Router
+    )
+
+    const orgsRouter = createAsyncRouter()
+    orgsRouter.use(`/:orgId/projects`, projectsRouter as unknown as Router)
+
+    app.use(`/orgs`, orgsRouter as unknown as Router)
+
+    app.use(
+      (
+        err: Error,
+        _req: express.Request,
+        res: express.Response,
+        _next: express.NextFunction
+      ) => {
+        res.status(500).json({ error: err.message })
+      }
+    )
+
+    return app
+  }
+
+  it(`resolves orgId through the doubly-nested route and enforces quota on project-scoped secrets`, async () => {
+    const db = buildDb()
+    const app = buildApp(db)
+
+    const response = await request(app)
+      .post(`/orgs/org-1/projects/proj-1/secrets`)
+      .send({})
+
+    expect(response.status).toBe(201)
+    expect(db.services.org.get).toHaveBeenCalledWith(`org-1`)
+    expect(db.services.quota.incrementIfUnderLimit).toHaveBeenCalledWith(
+      `org-1`,
+      expect.any(String),
+      `secrets`,
+      expect.any(Number)
+    )
+  })
+
+  it(`blocks with 403 when the project-scoped route is over quota`, async () => {
+    const db = buildDb({
+      quota: {
+        findByOrgAndPeriod: vi.fn().mockResolvedValue({ data: { secrets: 5 } }),
+        increment: vi.fn(),
+        incrementIfUnderLimit: vi
+          .fn()
+          .mockResolvedValue({ data: null, quotaExceeded: true }),
+      },
+    })
+    const app = buildApp(db)
+
+    const response = await request(app)
+      .post(`/orgs/org-1/projects/proj-1/secrets`)
+      .send({})
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual(
+      expect.objectContaining({ error: `quota_exceeded`, resource: `secrets` })
+    )
+  })
+})

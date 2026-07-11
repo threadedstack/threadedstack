@@ -117,7 +117,7 @@ const projectFunctions: TEndpointConfig = {
 const projectSecrets: TEndpointConfig = {
   path: `/:projectId/secrets`,
   method: EPMethod.Use,
-  middleware: [projectAccessGuard(), projectMemberGuard()],
+  middleware: [projectAccessGuard(), projectMemberGuard(), enforceQuota(`secrets`)],
   endpoints: {
     listSecrets,
     getSecret,
