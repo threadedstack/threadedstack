@@ -12,6 +12,21 @@ import { hydrateOrphanedRuns } from '@TBE/services/scheduler/rehydrator'
  */
 export type TScheduleExecutor = (schedule: Schedule) => Promise<void>
 
+/**
+ * Thrown by the executor when it loses the atomic cross-replica claim on a
+ * due schedule's "running" slot (see ScheduleRun.claimRunning) — another
+ * backend replica already started this schedule's run. This is an EXPECTED,
+ * benign outcome of two replicas racing the same due schedule, never a real
+ * failure, so `#processSchedule` must not increment the schedule's
+ * consecutive-error count for it.
+ */
+export class ScheduleClaimConflictError extends Error {
+  constructor(scheduleId: string) {
+    super(`Schedule ${scheduleId} — running slot already claimed by another replica`)
+    this.name = `ScheduleClaimConflictError`
+  }
+}
+
 export class Scheduler {
   private db: TDatabase
   private app: TApp | null
@@ -130,6 +145,12 @@ export class Scheduler {
         )
       }
     } catch (err: any) {
+      if (err instanceof ScheduleClaimConflictError) {
+        logger.info(
+          `[Scheduler] Schedule ${schedule.id} — lost the atomic claim race to another replica; skipping cleanly`
+        )
+        return
+      }
       logger.error(
         `[Scheduler] Error processing schedule ${schedule.id}: ${err?.message || err}`
       )

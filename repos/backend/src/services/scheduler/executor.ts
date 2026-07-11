@@ -13,6 +13,7 @@ import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { RehydrationInterruptMarker } from '@TBE/services/scheduler/rehydrator'
+import { ScheduleClaimConflictError } from '@TBE/services/scheduler/scheduler'
 import {
   EProvider,
   EMsgType,
@@ -1472,12 +1473,22 @@ type TCliRunHooks = {
  * the tool's output into the durable continuity thread. Deliberately avoids
  * resolveAgentConfig — runtime-brain agents may have zero agent providers; their
  * credentials ride on the body sandbox's provider links.
+ *
+ * `runId` (the schedule_runs row claimed for this execution) is a stable,
+ * run-scoped idempotency token exposed to the pod as `TDSK_IDEMPOTENCY_KEY` —
+ * every same-provider retry AND every provider-failover attempt within THIS
+ * run carries the same token, so a command that performs a caller-visible
+ * side effect (an external POST/webhook) has something durable to dedupe on.
+ * A NEW run (a fresh schedule_runs row) always gets a fresh token. This does
+ * not make arbitrary shell commands idempotent by itself — it only threads
+ * the key through so a command that already supports one can use it.
  */
 async function runCliAgentSchedule(
   app: TApp,
   schedule: Schedule,
   agent: Agent,
-  hooks: TCliRunHooks
+  hooks: TCliRunHooks,
+  runId: string
 ): Promise<TSandboxResult> {
   const { db, sandbox } = app.locals
 
@@ -1678,22 +1689,26 @@ async function runCliAgentSchedule(
     return res
   }
 
-  // Ordered provider attempts: the primary runs the bare command (pod-default
-  // env); each fallback prefixes its OWN env inline so ANTHROPIC_AUTH_TOKEN +
-  // ANTHROPIC_BASE_URL override the pod defaults for that single invocation.
-  // ANTHROPIC_AUTH_TOKEN takes precedence over CLAUDE_CODE_OAUTH_TOKEN, so a
-  // ZAI/OpenRouter fallback cleanly overrides an Anthropic-OAuth primary with
-  // no unset needed. Each fallback token stays domain-scoped, so egress can
-  // only ever swap it into a request to that provider's own domains.
+  // Ordered provider attempts: the primary runs with just the idempotency env
+  // (pod-default provider env); each fallback ALSO prefixes its OWN env inline
+  // so ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL override the pod defaults for
+  // that single invocation. ANTHROPIC_AUTH_TOKEN takes precedence over
+  // CLAUDE_CODE_OAUTH_TOKEN, so a ZAI/OpenRouter fallback cleanly overrides an
+  // Anthropic-OAuth primary with no unset needed. Each fallback token stays
+  // domain-scoped, so egress can only ever swap it into a request to that
+  // provider's own domains. TDSK_IDEMPOTENCY_KEY rides on every attempt (see
+  // this function's doc comment) — same token across every same-provider
+  // retry and every provider failover within this run.
+  const idempotencyEnv = { TDSK_IDEMPOTENCY_KEY: runId }
   const cappedFallbacks = chain.fallbacks.slice(0, CliMaxProviderFailovers)
   const providerAttempts: Array<{ brand: string; command: string }> = [
     {
       brand: chain.primaryBrand || sandboxConfig.runtime || `primary`,
-      command: baseCommand,
+      command: `${buildEnvPrefix(idempotencyEnv)} ${baseCommand}`,
     },
     ...cappedFallbacks.map((fb) => ({
       brand: fb.brand,
-      command: `${buildEnvPrefix(fb.env)} ${baseCommand}`,
+      command: `${buildEnvPrefix({ ...idempotencyEnv, ...fb.env })} ${baseCommand}`,
     })),
   ]
 
@@ -1813,13 +1828,29 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
         `Schedule ${schedule.id} has no userId — cannot start pod without ownership`
       )
 
-    const { data: run, error: runErr } = await db.services.scheduleRun.create({
-      status: `running`,
+    // Atomic cross-replica claim (see ScheduleRun.claimRunning) — two backend
+    // replicas can both reach here for the same due schedule after both pass
+    // the best-effort hasRunning() check in scheduler.ts; the partial unique
+    // index on schedule_runs(schedule_id) WHERE status='running' means only
+    // one INSERT wins. The loser gets conflict:true, throws, and is skipped
+    // cleanly by #processSchedule's catch — before any pod is started.
+    const {
+      data: run,
+      error: runErr,
+      conflict,
+    } = await db.services.scheduleRun.claimRunning({
       orgId: schedule.orgId,
       startedAt: new Date(),
       scheduleId: schedule.id,
       projectId: schedule.projectId,
     })
+
+    if (conflict) {
+      logger.info(
+        `[Executor] Schedule ${schedule.id} — another replica already claimed the running slot; skipping cleanly`
+      )
+      throw new ScheduleClaimConflictError(schedule.id)
+    }
 
     if (runErr || !run) {
       logger.error(`[Executor] Failed to create schedule run record:`, runErr?.message)
@@ -1879,11 +1910,17 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
           // could pin the pod for hours past the schedule's budget. Same wrap
           // now applies to both brains.
           const result = await withTimeout(
-            runCliAgentSchedule(app, schedule, scheduleAgent, {
-              onPodStart: captureInstanceId,
-              onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
-              onStderr: (chunk) => stderrUpload?.stream.write(chunk),
-            }),
+            runCliAgentSchedule(
+              app,
+              schedule,
+              scheduleAgent,
+              {
+                onPodStart: captureInstanceId,
+                onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
+                onStderr: (chunk) => stderrUpload?.stream.write(chunk),
+              },
+              run.id
+            ),
             timeoutMs
           )
 

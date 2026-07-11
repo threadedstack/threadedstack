@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "schedule_runs_running_schedule_idx" ON "schedule_runs" USING btree ("schedule_id") WHERE "schedule_runs"."status" = 'running';
