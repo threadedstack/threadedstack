@@ -1096,20 +1096,29 @@ recently-merged steward PR NOT in the done-set below: read its \`\`\`tdsk-verify
 from the PR body (default {kind:'ci-green'} when absent), run the probe read-only, and
 emit ONE \`\`\`tdsk-verify-results\`\`\` block per PR with {prNumber, mergeSha, status:
 'verified'|'regressed', detail, revertPrUrl?}. On a regressed result you MUST open a
-revert-as-new-commit PR IN-POD (never \`git revert\`, never rewrite history):
+revert-as-new-commit PR IN-POD, wait for its CI to pass, then SELF-MERGE it (never
+\`git revert\`, never rewrite history). \`git show --first-parent\` emits a merge commit's
+NET squashed diff, so \`git apply -R\` cleanly reverts a 2-parent merge commit as well as a
+squash commit (\`git show\` alone reverts NOTHING on a 2-parent merge). A revert of a PROVEN
+regression is an emergency: post-cutover no adversary/pr-response cycle services a
+\`steward/revert-*\` PR, so the VERIFY cycle merges it itself — a self-merged revert beats a
+live regression:
 
   BAD=<mergeCommitSha>; N=<prNumber>; SHORT=$(git rev-parse --short "$BAD")
   git fetch origin main
   git checkout -b "steward/revert-pr\${N}-\${SHORT}" origin/main
-  git show "$BAD" | git apply -R --index --3way
+  git show --first-parent "$BAD" | git apply -R --index --3way
   git commit -m "revert: undo PR #\${N} — P4c post-deploy regression"
   git push -u origin HEAD
-  gh pr create --base main --head "steward/revert-pr\${N}-\${SHORT}" \\
+  REVERT_URL=$(gh pr create --base main --head "steward/revert-pr\${N}-\${SHORT}" \\
     --title "Revert PR #\${N}: post-deploy regression" \\
-    --body "Automated P4c revert. Probe failed after deploy of \${BAD}. <evidence>"
+    --body "Automated P4c revert. Probe failed after deploy of \${BAD}. <evidence>")
+  # wait for the revert PR's CI to go green, then self-merge (squash = single-parent):
+  gh pr checks "$REVERT_URL" --watch
+  gh pr merge "$REVERT_URL" --admin --squash
 
-Then include the revert PR URL as revertPrUrl in the result entry. The backend will
-also file a target:'app' escalation citing that revert PR URL so it is tracked.
+Then include REVERT_URL as revertPrUrl in the result entry. The backend will also file a
+target:'app' escalation citing that revert PR URL so it is tracked.
 
 Probe execution semantics (all read-only, all in-pod):
   health          — curl -fsS <base><params.url or /_/health>; assert body.status=='ok'.
