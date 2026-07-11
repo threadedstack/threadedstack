@@ -364,6 +364,46 @@ describe(`watches`, () => {
     expect(session.turns[0]).toContain(`Ship it!`)
     expect(session.turns[0]).toContain(`r9`)
   })
+
+  it(`re-checks live state at dispatch time — a record that left the watch's target condition between poll and dispatch is not framed as stale`, async () => {
+    const now = { value: 1_000_000 }
+    const config = watchConfig(0)
+    const { loop, api, session } = makeLoop({}, { config, now })
+
+    // The fake api ignores query CONTENT, so this handler stands in for the
+    // real backend evaluating watch.query server-side: `queryLive` is the
+    // ground truth both scanWatches' poll AND the dispatch-time refresh read.
+    let queryLive: () => Array<{ id: string; data: Record<string, unknown> }> = () => [
+      { id: `r1`, data: { state: `backlog` } },
+    ]
+    api.onQuery((collection) =>
+      collection === `decision_proposals`
+        ? { ok: true, status: 200, data: queryLive() as any }
+        : undefined
+    )
+
+    queryLive = () => []
+    await loop.scan() // prime — baseline hash on an empty board
+
+    queryLive = () => [{ id: `r1`, data: { state: `backlog` } }]
+    now.value += 10
+    await loop.scan() // the task enters backlog — hash changed, fires
+
+    expect(loop.getQueueDepth()).toBe(1)
+
+    // Simulate the record leaving the watch's target condition (e.g. an
+    // abandon) WHILE the event still sits queued, before it is dispatched.
+    queryLive = () => []
+
+    await loop.runNext()
+
+    expect(api.queries.filter((q) => q.collection === `decision_proposals`)).toHaveLength(
+      3
+    )
+    expect(session.turns[0]).toContain(`# Watch fired: open-decisions`)
+    expect(session.turns[0]).not.toContain(`r1`)
+    expect(session.turns[0]).toContain(`## Matched records\n[]`)
+  })
 })
 
 describe(`inbox`, () => {

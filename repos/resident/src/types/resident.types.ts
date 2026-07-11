@@ -134,8 +134,12 @@ export type TResidentEvent = {
   prompt?: string
   /** Inbox events carry the unread messages they represent. */
   messages?: TInboxMessage[]
-  /** Watch events carry the matched records for the turn framing. */
+  /** Watch events carry the matched records for the turn framing (poll-time snapshot — see collection/query). */
   records?: Array<Record<string, unknown>>
+  /** Watch events carry their source collection so dispatch time can re-check liveness. */
+  collection?: string
+  /** Watch events carry their source query so dispatch time can re-run it fresh. */
+  query?: TRecordQuery
   /** Internal events carry the completed sub-agent result summary. */
   detail?: string
   enqueuedAt: number
