@@ -453,7 +453,10 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
       expect(data.compaction).toEqual({ maxTurns: 40, maxBytes: 400_000 })
       expect(data.subAgents).toEqual({ maxConcurrent: 2 })
       expect(data.selfDirected.minIdleMs).toBe(600_000)
-      expect(data.selfDirected.prompt).toContain(`dev_tasks backlog`)
+      // Review-first: an idle engineer clears a waiting peer PR before pulling
+      // new backlog work (the pr_open pile is the team's worst failure mode).
+      expect(data.selfDirected.prompt).toContain(`REVIEW FIRST`)
+      expect(data.selfDirected.prompt).toContain(`pick up backlog work`)
       expect(data.selfDirected.prompt).toContain(`never invent work`)
     }
   })
@@ -471,9 +474,7 @@ describe(`EngineerResidentConfigSeeds (realtime engineering team — Phase 2 sha
       expect(session.seedPrompt).toContain(`NEVER WORK WITHOUT HOLDING THE CLAIM`)
       // Result-dependent transitions are synchronous mid-turn dispatch calls
       // (read the result before acting); tdsk-actions stays fire-and-forget.
-      expect(session.seedPrompt).toContain(
-        `RESULT-DEPENDENT TRANSITIONS ARE SYNCHRONOUS`
-      )
+      expect(session.seedPrompt).toContain(`RESULT-DEPENDENT TRANSITIONS ARE SYNCHRONOUS`)
       expect(session.seedPrompt).toContain(
         `$TDSK_BACKEND_URL/_/orgs/$TDSK_RESIDENT_ORG_ID/projects/$TDSK_RESIDENT_PROJECT_ID/agents/$TDSK_RESIDENT_AGENT_ID/dispatch`
       )
