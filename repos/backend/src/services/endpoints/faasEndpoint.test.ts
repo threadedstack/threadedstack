@@ -37,6 +37,14 @@ describe(`FaaSEndpoint`, () => {
     services: {
       function: { get: ReturnType<typeof vi.fn> }
       secret: { list: ReturnType<typeof vi.fn> }
+      project?: { get: ReturnType<typeof vi.fn> }
+      org?: { get: ReturnType<typeof vi.fn> }
+      subscription?: { findByUser: ReturnType<typeof vi.fn> }
+      quota?: {
+        incrementIfUnderLimit: ReturnType<typeof vi.fn>
+        increment: ReturnType<typeof vi.fn>
+        decrement: ReturnType<typeof vi.fn>
+      }
     }
   }
   let mockJson: ReturnType<typeof vi.fn>
@@ -289,6 +297,164 @@ describe(`FaaSEndpoint`, () => {
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith(`raw string output`)
+    })
+
+    describe(`compute quota enforcement`, () => {
+      const wireQuotaServices = () => {
+        mockDb.services.project = {
+          get: vi.fn().mockResolvedValue({ data: { orgId: `org-1` } }),
+        }
+        mockDb.services.org = {
+          get: vi.fn().mockResolvedValue({ data: { ownerId: `user-1` } }),
+        }
+        mockDb.services.subscription = {
+          findByUser: vi.fn().mockResolvedValue({ data: { tier: `free` } }),
+        }
+        mockDb.services.quota = {
+          incrementIfUnderLimit: vi.fn(),
+          increment: vi.fn().mockResolvedValue({ data: {} }),
+          decrement: vi.fn().mockResolvedValue({ data: {} }),
+        }
+      }
+
+      const faasEndpoint = () =>
+        ({
+          id: `ep-1`,
+          type: EEndpointType.faas,
+          projectId: `project-1`,
+          options: { type: EEndpointType.faas, functionId: `func-123` },
+        }) as any
+
+      it(`rejects the request before executing when compute usage is already at the limit`, async () => {
+        wireQuotaServices()
+        mockDb.services.quota!.incrementIfUnderLimit.mockResolvedValue({
+          data: null,
+          quotaExceeded: true,
+        })
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        await expect(
+          service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+        ).rejects.toThrow(`Compute quota exceeded`)
+
+        expect(mockDb.services.quota!.incrementIfUnderLimit).toHaveBeenCalledWith(
+          `org-1`,
+          expect.any(String),
+          `compute`,
+          1_000,
+          1
+        )
+        expect(FunctionExecutor.execute).not.toHaveBeenCalled()
+      })
+
+      it(`proceeds and trues up the reservation to the actual cost when under the limit`, async () => {
+        wireQuotaServices()
+        mockDb.services.quota!.incrementIfUnderLimit.mockResolvedValue({
+          data: { compute: 1 },
+        })
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+        mockExecute.mockResolvedValue({
+          success: true,
+          output: { statusCode: 200, body: { ok: true } },
+        })
+
+        const dateSpy = vi.spyOn(Date, `now`)
+        dateSpy.mockReturnValueOnce(1_000).mockReturnValueOnce(16_000) // runtimeMs = 15_000
+
+        try {
+          await service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+        } finally {
+          dateSpy.mockRestore()
+        }
+
+        // Reserved 1 unit pre-execution; computeUnits(1, 15_000) = 1 + ceil(15_000/10_000) = 3.
+        // True-up amount is the remainder: 3 - 1 = 2.
+        expect(mockDb.services.quota!.increment).toHaveBeenCalledWith(
+          `org-1`,
+          expect.any(String),
+          `compute`,
+          2
+        )
+        expect(mockDb.services.quota!.decrement).not.toHaveBeenCalled()
+      })
+
+      it(`rolls back the reservation when the function execution fails`, async () => {
+        wireQuotaServices()
+        mockDb.services.quota!.incrementIfUnderLimit.mockResolvedValue({
+          data: { compute: 1 },
+        })
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+        mockExecute.mockResolvedValue({
+          success: false,
+          output: null,
+          error: `boom`,
+        })
+
+        await expect(
+          service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+        ).rejects.toThrow(`Function execution failed: boom`)
+
+        expect(mockDb.services.quota!.decrement).toHaveBeenCalledWith(
+          `org-1`,
+          expect.any(String),
+          `compute`,
+          1
+        )
+        expect(mockDb.services.quota!.increment).not.toHaveBeenCalled()
+      })
+
+      it(`tracks but does not enforce compute usage for an unlimited-tier org`, async () => {
+        wireQuotaServices()
+        mockDb.services.subscription!.findByUser.mockResolvedValue({
+          data: { tier: `team` },
+        })
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+        mockExecute.mockResolvedValue({
+          success: true,
+          output: { statusCode: 200, body: { ok: true } },
+        })
+
+        await service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+
+        expect(mockDb.services.quota!.incrementIfUnderLimit).not.toHaveBeenCalled()
+        expect(mockDb.services.quota!.increment).toHaveBeenCalled()
+      })
+
+      it(`fails closed (503) when the compute-quota check itself errors`, async () => {
+        wireQuotaServices()
+        mockDb.services.org!.get.mockResolvedValue({
+          data: null,
+          error: new Error(`db down`),
+        })
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        await expect(
+          service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+        ).rejects.toThrow(`quota_check_unavailable`)
+
+        expect(FunctionExecutor.execute).not.toHaveBeenCalled()
+      })
+
+      it(`skips enforcement entirely when the required db services aren't wired (existing behavior)`, async () => {
+        // mockDb by default has no project/org/subscription/quota services.
+        mockDb.services.function.get.mockResolvedValue({ data: mockFunction })
+
+        const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+        mockExecute.mockResolvedValue({
+          success: true,
+          output: { statusCode: 200, body: { ok: true } },
+        })
+
+        await service.execute(mockReq as TRequest, mockRes as Response, faasEndpoint())
+
+        expect(mockStatus).toHaveBeenCalledWith(200)
+      })
     })
   })
 })
