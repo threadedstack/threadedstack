@@ -2,6 +2,7 @@ import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { featureGate } from '@TBE/middleware/featureGate'
+import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { projectMemberGuard } from '@TBE/middleware/projectMemberGuard'
 
@@ -90,7 +91,7 @@ import { getScheduleRunOutput } from '@TBE/endpoints/schedules/getScheduleRunOut
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
   method: EPMethod.Use,
-  middleware: [projectAccessGuard(), projectMemberGuard()],
+  middleware: [projectAccessGuard(), projectMemberGuard(), enforceQuota(`endpoints`)],
   endpoints: {
     getEndpoint,
     listEndpoints,
@@ -116,7 +117,7 @@ const projectFunctions: TEndpointConfig = {
 const projectSecrets: TEndpointConfig = {
   path: `/:projectId/secrets`,
   method: EPMethod.Use,
-  middleware: [projectAccessGuard(), projectMemberGuard()],
+  middleware: [projectAccessGuard(), projectMemberGuard(), enforceQuota(`secrets`)],
   endpoints: {
     listSecrets,
     getSecret,
