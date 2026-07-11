@@ -50,6 +50,7 @@ export class IsolateRunner {
   #env: Record<string, string>
   #isolate: Isolate | null = null
   #context: Context | null = null
+  #globalBaseline: Set<string> | null = null
   #shims = new Map<string, Module>()
   #pendingTimers = new Map<
     number,
@@ -212,7 +213,122 @@ export class IsolateRunner {
 
     await this.#compile(deps)
     await this.#setupTimers(jail, ivm)
+
+    // Stash fresh references to the built-ins scrubGlobals() restores, then
+    // snapshot the post-setup globalThis key set as the baseline for the same
+    // pass's deletion sweep. Both must happen here, after every shim/timer
+    // global is installed — capturing the baseline any earlier would flag
+    // legitimate shim globals (console, process, fetch, __timerFire, ...) as
+    // user-added leaks and delete them on the very first reset().
+    // Frozen and defined non-writable/non-configurable so sandboxed code can
+    // neither delete nor reassign __pristineBuiltins (or its member refs) to
+    // silently defeat scrubGlobals()'s restore step.
+    await this.#context.eval(`
+      Object.defineProperty(globalThis, '__pristineBuiltins', {
+        value: Object.freeze({
+          arrayPush: Array.prototype.push,
+          arrayPop: Array.prototype.pop,
+          arraySlice: Array.prototype.slice,
+          arrayMap: Array.prototype.map,
+          arrayForEach: Array.prototype.forEach,
+          objectHasOwnProperty: Object.prototype.hasOwnProperty,
+          functionCall: Function.prototype.call,
+          functionApply: Function.prototype.apply,
+          functionBind: Function.prototype.bind,
+        }),
+        writable: false,
+        configurable: false,
+      })
+    `)
+    const baselineNames: string[] = await this.#context.eval(
+      `Object.getOwnPropertyNames(globalThis)`,
+      { copy: true }
+    )
+    this.#globalBaseline = new Set(baselineNames)
+
     this.#initialized = true
+  }
+
+  /**
+   * Bounded defense-in-depth for pooled reuse WITHIN the same tenant: deletes
+   * any own-enumerable globalThis key a prior run added that wasn't present
+   * at init() (e.g. a leaked `globalThis.secret = ...`), and restores a fixed
+   * list of the most commonly-targeted built-in prototype methods from the
+   * pristine references captured at init() — NOT a general prototype-integrity
+   * guarantee, just the handful of methods a hijack is most likely to target.
+   * The actual security boundary for cross-tenant isolation is the pool
+   * partitioning in functionExecutor.ts; this only limits blast radius between
+   * two functions that already share a tenant's trust boundary.
+   *
+   * KNOWN RESIDUAL RISK, mitigated below: a prior run can call
+   * `Object.freeze(Array.prototype)` (etc.) after hijacking a method. Because
+   * freeze is irreversible, a plain reassignment here would silently no-op
+   * forever for that isolate. Every restoration is therefore attempted in
+   * strict mode (so a write to a non-writable property throws instead of
+   * silently failing) AND verified by reading the property back — if a
+   * restoration doesn't stick either way, this method throws so the caller
+   * (LocalSandbox.reset()) treats reset as failed and disposes the isolate
+   * instead of returning a still-hijacked isolate to the pool.
+   *
+   * The failure list is built with index assignment (`failures[n] = x`), not
+   * `.push()` — `.push()` is itself one of the nine methods this function
+   * restores, so collecting failures with `.push()` would silently no-op in
+   * exactly the scenario it's meant to detect (a frozen, hijacked
+   * Array.prototype.push masks its own failure report).
+   */
+  async scrubGlobals(): Promise<void> {
+    if (!this.#context || !this.#globalBaseline) return
+
+    const baseline = Array.from(this.#globalBaseline)
+    const failures: string[] = await this.#context.evalClosure(
+      `
+        'use strict';
+        var baseline = new Set($0);
+        var names = Object.getOwnPropertyNames(globalThis);
+        for (var i = 0; i < names.length; i++) {
+          if (baseline.has(names[i])) continue;
+          try { delete globalThis[names[i]]; } catch (e) {}
+        }
+        var p = globalThis.__pristineBuiltins;
+        var failures = [];
+        var failCount = 0;
+        if (p) {
+          var restorations = [
+            [Array.prototype, 'push', p.arrayPush, 'Array.prototype.push'],
+            [Array.prototype, 'pop', p.arrayPop, 'Array.prototype.pop'],
+            [Array.prototype, 'slice', p.arraySlice, 'Array.prototype.slice'],
+            [Array.prototype, 'map', p.arrayMap, 'Array.prototype.map'],
+            [Array.prototype, 'forEach', p.arrayForEach, 'Array.prototype.forEach'],
+            [Object.prototype, 'hasOwnProperty', p.objectHasOwnProperty, 'Object.prototype.hasOwnProperty'],
+            [Function.prototype, 'call', p.functionCall, 'Function.prototype.call'],
+            [Function.prototype, 'apply', p.functionApply, 'Function.prototype.apply'],
+            [Function.prototype, 'bind', p.functionBind, 'Function.prototype.bind'],
+          ];
+          for (var j = 0; j < restorations.length; j++) {
+            var target = restorations[j][0];
+            var key = restorations[j][1];
+            var fresh = restorations[j][2];
+            var label = restorations[j][3];
+            try {
+              target[key] = fresh;
+              if (target[key] !== fresh) { failures[failCount] = label; failCount++; }
+            } catch (e) {
+              failures[failCount] = label;
+              failCount++;
+            }
+          }
+        }
+        return failures;
+      `,
+      [baseline],
+      { arguments: { copy: true }, result: { copy: true } }
+    )
+
+    if (failures.length > 0)
+      throw new Error(
+        `scrubGlobals() could not restore ${failures.length} built-in(s), likely frozen by ` +
+          `sandboxed code: ${failures.join(`, `)}. Isolate is unsafe to reuse.`
+      )
   }
 
   async #compile(deps: TShimDeps): Promise<void> {
