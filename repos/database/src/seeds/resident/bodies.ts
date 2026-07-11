@@ -1,7 +1,13 @@
 import type { TKubeSandboxConfig } from '@tdsk/domain'
 
 import { EImagePullPolicy, ESandboxRuntime, DefaultResources } from '@tdsk/domain'
-import { OpsProjectId, OpsProjectName } from '@TDB/seeds/agentSchedules'
+import {
+  OpsProjectId,
+  OpsProjectName,
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+} from '@TDB/seeds/agentSchedules'
 import { ResidentActivations } from '@TDB/seeds/resident/activations'
 
 /**
@@ -285,9 +291,7 @@ export type TResidentChainService = {
     }>
   }
   provider: {
-    findByName: (
-      name: string
-    ) => Promise<{ data?: { id: string } | null; error?: any }>
+    findByName: (name: string) => Promise<{ data?: { id: string } | null; error?: any }>
   }
   links: {
     list: (sandboxId: string) => Promise<{
@@ -438,6 +442,181 @@ export const reconcileResidentProviderChains = async (
       summary.asserted++
       summary.results.push({ agentId, sandboxId, action: `asserted` })
       log(`  ✅ resident chain ${agentId} — provider chain asserted on ${sandboxId}`)
+    } catch (err: any) {
+      fail(agentId, err?.message)
+    }
+  }
+
+  return summary
+}
+
+/**
+ * The GIT provider a code-pushing resident authenticates its `gh`/`git`
+ * operations through, resolved BY NAME (ids are prod-local, same as the LLM
+ * chain). The link is a `sandbox_project_providers` row scoped to the ops
+ * project: the pod entrypoint injects the provider's token as
+ * `TDSK_GIT_0_TOKEN`, which the body recipe's setupScript turns into the git
+ * `http.extraHeader` auth. Without it a seat clones read-only and every `gh pr
+ * create` / `git push` fails unauthenticated — the last seed-vs-prod drift class
+ * (the existing seats were linked by hand; this reconcile makes it reproducible).
+ */
+export const ResidentRepoProviderName = `ThreadedStack Repo`
+
+/** The branch a code-pushing seat's repo link tracks (matches the live seats). */
+export const ResidentRepoBranch = `main`
+
+/**
+ * The resident seats that push code and therefore need the git repo link. The
+ * strategy seats (CEO/CMO) operate on records + external connectors, never the
+ * monorepo, so they deliberately carry NO repo link. Adding an engineer seat is
+ * a one-line append here (plus ResidentActivations + a config seed).
+ */
+export const ResidentRepoSeats: string[] = [CtoAgentId, EngOneAgentId, EngTwoAgentId]
+
+/** The agent + provider + sandbox-project-provider-links slice the repo-link
+ * reconcile needs. `list`/`add` operate on the `sandbox_project_providers`
+ * table (create-if-absent — a single fixed link, never a chain replace). */
+export type TResidentRepoLinkService = {
+  agent: {
+    get: (id: string) => Promise<{
+      data?: { environment?: Record<string, any> | null } | null
+      error?: any
+    }>
+  }
+  provider: {
+    findByName: (name: string) => Promise<{ data?: { id: string } | null; error?: any }>
+  }
+  repoLinks: {
+    list: (
+      sandboxId: string,
+      projectId: string
+    ) => Promise<{ data?: { providerId: string }[]; error?: any }>
+    add: (link: {
+      sandboxId: string
+      projectId: string
+      providerId: string
+      priority: number
+      branch: string
+    }) => Promise<{ error?: any }>
+  }
+}
+
+export type TResidentRepoLinkAction = `added` | `unchanged` | `skipped` | `error`
+
+export type TResidentRepoLinkSummary = {
+  added: number
+  unchanged: number
+  skipped: number
+  errors: number
+  results: {
+    agentId: string
+    sandboxId?: string
+    action: TResidentRepoLinkAction
+    message?: string
+  }[]
+}
+
+/**
+ * Ensure each code-pushing resident seat carries the git repo link
+ * (`sandbox_project_providers` → the ThreadedStack Repo provider, scoped to the
+ * ops project). This closes drift-5: the git seeds do not link the repo
+ * provider onto a body sandbox, so a fresh code-pushing seat clones read-only
+ * and cannot push or open PRs until the link is hand-added from a working seat —
+ * this reconcile adds it on every deploy, by NAME (ids are prod-local).
+ *
+ * Per agentId in ResidentRepoSeats:
+ * 1. Resolve the body sandbox via `agent.environment.sandboxId` (the SAME
+ *    resolution the other body reconciles use).
+ * 2. Resolve the repo provider by NAME. Absent → `skipped` (fail-soft, on a
+ *    fresh org the provider may not exist yet; a seat with no push auth is a
+ *    known degraded state the sensor catches, never a reason to fail a deploy).
+ * 3. If a link to that provider already exists for (sandbox, ops project) →
+ *    `unchanged`. Else ADD it (create-if-absent, priority 0, branch main). The
+ *    unique index on (sandbox, project, provider) makes the add idempotent.
+ *
+ * The link applies at POD CREATION (the entrypoint injects the git token when
+ * the pod is built), so an added link reaches a live seat on its next pod
+ * recreation — the watchdog's natural churn or a deliberate delete.
+ *
+ * Never throws — every outcome lands in the summary.
+ */
+export const reconcileResidentRepoLinks = async (
+  service: TResidentRepoLinkService,
+  log: (msg: string) => void = () => {}
+): Promise<TResidentRepoLinkSummary> => {
+  const summary: TResidentRepoLinkSummary = {
+    added: 0,
+    unchanged: 0,
+    skipped: 0,
+    errors: 0,
+    results: [],
+  }
+
+  const fail = (agentId: string, message?: string, sandboxId?: string) => {
+    summary.errors++
+    summary.results.push({ agentId, sandboxId, action: `error`, message })
+    log(`  ❌ resident repo link ${agentId} — ${message ?? `unknown error`}`)
+  }
+
+  for (const agentId of ResidentRepoSeats) {
+    try {
+      const agentRes = await service.agent.get(agentId)
+      if (agentRes.error) {
+        fail(agentId, `agent lookup failed: ${agentRes.error.message}`)
+        continue
+      }
+      const sandboxId = agentRes.data?.environment?.sandboxId as string | undefined
+      if (!sandboxId) {
+        fail(agentId, `agent has no environment.sandboxId (no body sandbox)`)
+        continue
+      }
+
+      const found = await service.provider.findByName(ResidentRepoProviderName)
+      if (found.error) {
+        fail(agentId, `provider lookup failed: ${found.error.message}`, sandboxId)
+        continue
+      }
+      if (!found.data?.id) {
+        summary.skipped++
+        summary.results.push({
+          agentId,
+          sandboxId,
+          action: `skipped`,
+          message: `repo provider "${ResidentRepoProviderName}" not found`,
+        })
+        log(
+          `  ⏭️  resident repo link ${agentId} — skipped, provider "${ResidentRepoProviderName}" not found`
+        )
+        continue
+      }
+      const providerId = found.data.id
+
+      const current = await service.repoLinks.list(sandboxId, OpsProjectId)
+      if (current.error) {
+        fail(agentId, `repo links list failed: ${current.error.message}`, sandboxId)
+        continue
+      }
+      if ((current.data ?? []).some((l) => l.providerId === providerId)) {
+        summary.unchanged++
+        summary.results.push({ agentId, sandboxId, action: `unchanged` })
+        log(`  ➖ resident repo link ${agentId} — already on ${sandboxId}`)
+        continue
+      }
+
+      const added = await service.repoLinks.add({
+        sandboxId,
+        projectId: OpsProjectId,
+        providerId,
+        priority: 0,
+        branch: ResidentRepoBranch,
+      })
+      if (added.error) {
+        fail(agentId, `repo link add failed: ${added.error.message}`, sandboxId)
+        continue
+      }
+      summary.added++
+      summary.results.push({ agentId, sandboxId, action: `added` })
+      log(`  ✅ resident repo link ${agentId} — added on ${sandboxId}`)
     } catch (err: any) {
       fail(agentId, err?.message)
     }
