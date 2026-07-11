@@ -1003,6 +1003,103 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     }
   })
 
+  // ── K8s apiserver connection-level rejection retry (rec_-ngLCF) ──────
+
+  it(`retries a K8s apiserver connection-level rejection (e.g. 504) as a transient same-provider failure`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      services.sandbox.get.mockResolvedValue({
+        data: chainSandboxRecord([
+          {
+            priority: 0,
+            provider: {
+              id: `pv0`,
+              type: `ai`,
+              brand: `anthropic`,
+              secretId: `sc_anth`,
+              options: { authMethod: `oauth` },
+            },
+          },
+        ]),
+      })
+      // Mirrors kubeClient.ts's runInPod: kubeExec.exec() rejects before any
+      // stdout/stderr is captured (the apiserver's own --request-timeout firing
+      // as a 504) — a rejected promise, not a resolved TSandboxResult.
+      const apiserverTimeout = Object.assign(
+        new Error(
+          `{"status":"Failure","message":"Timeout: request did not complete within the allotted timeout","reason":"Timeout","code":504}`
+        ),
+        { code: 504 }
+      )
+      sbInstance.execStreaming
+        .mockImplementationOnce(async () => {
+          throw apiserverTimeout
+        })
+        .mockImplementationOnce(async (_cmd: string, _args: string[], opts: any) => {
+          opts.onStdout(Buffer.from(`RECOVERED REPORT`, `utf8`))
+          return { output: ``, success: true, exitCode: 0 }
+        })
+      const executor = createScheduleExecutor(app)
+
+      const p = executor(agentSchedule() as any)
+      await vi.advanceTimersByTimeAsync(60_000)
+      await p
+
+      // Attempt 1 rejects (classified as retryable, converted to a failed
+      // result); attempt 2 (same provider, same command) succeeds.
+      expect(sbInstance.execStreaming).toHaveBeenCalledTimes(2)
+      expect(services.message.create).toHaveBeenNthCalledWith(2, {
+        threadId: `th_new`,
+        type: `assistant`,
+        orgId: `org-1`,
+        content: [{ type: `text`, text: `RECOVERED REPORT` }],
+      })
+      expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+        `run-1`,
+        expect.objectContaining({ status: `success` })
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`does NOT retry a connection-level rejection with a non-retryable status (e.g. 400)`, async () => {
+    const { app, services, sbInstance } = buildApp()
+    services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+    services.sandbox.get.mockResolvedValue({
+      data: chainSandboxRecord([
+        {
+          priority: 0,
+          provider: {
+            id: `pv0`,
+            type: `ai`,
+            brand: `anthropic`,
+            secretId: `sc_anth`,
+            options: { authMethod: `oauth` },
+          },
+        },
+      ]),
+    })
+    const badRequest = Object.assign(new Error(`Bad Request`), { code: 400 })
+    sbInstance.execStreaming.mockImplementationOnce(async () => {
+      throw badRequest
+    })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toThrow(/Bad Request/)
+
+    // No retry, no failover: exactly one exec call.
+    expect(sbInstance.execStreaming).toHaveBeenCalledTimes(1)
+    expect(services.message.create).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `error`, error: `Bad Request` })
+    )
+    expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+  })
+
   it(`throws a provider-config error when a linked provider has no domain scope`, async () => {
     const { app, services } = buildApp()
     services.agent.get.mockResolvedValue({ data: runtimeAgent() })
