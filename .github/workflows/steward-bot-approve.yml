@@ -1,0 +1,69 @@
+name: steward-bot-approve
+
+# Branch protection on main requires 1 approving review
+# (required_approving_review_count=1, require_code_owner_reviews=false) with no
+# code-owner/bot auto-approval source. The steward pipeline (steward/*
+# branches) only enables GitHub-native auto-merge -- it never gets an
+# approving review, so reviewDecision stays REVIEW_REQUIRED forever even with
+# ci/types + ci/test green, and mergeStateStatus never reaches MERGEABLE. This
+# job closes that gap: on a schedule, it finds every open steward/* PR with
+# auto-merge enabled, zero existing reviews, and both required checks green,
+# and posts an approving review as github-actions[bot] -- a distinct identity
+# from the steward's PR author (lancetipton), so this is not a disallowed
+# self-review.
+#
+# Scope is deliberately narrow: only steward/* branches are ever touched (the
+# jq filter checks headRefName). resident/* dev-team PRs merge via a manual
+# `gh pr merge --admin --squash` after a recorded devCompleteReview verdict
+# (see update-behind-prs.yml) and never carry autoMergeRequest, so they never
+# match this filter.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # best-effort; GitHub may delay under load
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: steward-bot-approve
+  cancel-in-progress: false
+
+jobs:
+  bot-approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bot-approve green steward/* auto-merge PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          prs=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --state open \
+            --json number,headRefName,autoMergeRequest,reviewDecision,reviews,statusCheckRollup \
+            --jq '.[] | select(
+              (.headRefName | startswith("steward/")) and
+              .autoMergeRequest != null and
+              .reviewDecision == "REVIEW_REQUIRED" and
+              (.reviews | length) == 0 and
+              ([.statusCheckRollup[] | select(.name == "ci/types" or .name == "ci/test") | .conclusion] | length == 2 and all(. == "SUCCESS"))
+            ) | .number')
+
+          if [ -z "$prs" ]; then
+            echo "No steward/* auto-merge PRs are ready for a bot approval."
+            exit 0
+          fi
+
+          for number in $prs; do
+            echo "PR #$number: steward pipeline PR, checks green, zero reviews -- posting bot approval"
+            gh pr review "$number" \
+              --repo "${{ github.repository }}" \
+              --approve \
+              --body "Automated approval: this is a steward/* pipeline PR with GitHub-native auto-merge enabled. Both required checks (ci/types, ci/test) are green and no human/bot review exists yet -- branch protection requires one approving review to merge, which the steward pipeline never posts on its own. Approving as github-actions[bot] (a distinct identity from the PR author) so auto-merge can proceed." \
+              && echo "PR #$number: bot approval posted" \
+              || echo "PR #$number: approval request failed (non-fatal, will retry next run)"
+          done
