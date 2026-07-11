@@ -15,7 +15,7 @@ export const getOrgQuota: TEndpointConfig = {
   middleware: [authorize(EPermAction.read, EPermResource.quota)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
-    const { db } = req.app.locals
+    const { db, sandbox } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
@@ -26,8 +26,14 @@ export const getOrgQuota: TEndpointConfig = {
     const { data, error } = await db.services.quota.findByOrgAndPeriod(orgId, period)
     if (error) throw new Exception(500, error.message)
 
+    // sandboxSessions is a live concurrent count (not period-accumulated like the
+    // other resources), sourced directly from SandboxService rather than the
+    // quotas table, then merged into the same current/limit shape the admin UI
+    // already pairs with getOrgLimits' static PlanLimits.sandboxSessions.
+    const sandboxSessions = sandbox.getOrgShellSessionCount(orgId)
+
     data
-      ? res.status(200).json({ data })
+      ? res.status(200).json({ data: { ...data, sandboxSessions } })
       : res.status(200).json({
           data: {
             orgId,
@@ -38,6 +44,7 @@ export const getOrgQuota: TEndpointConfig = {
             messages: 0,
             endpoints: 0,
             secrets: 0,
+            sandboxSessions,
           },
         })
   },
