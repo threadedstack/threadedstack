@@ -113,6 +113,43 @@ export class ScheduleRun extends Base<
   }
 
   /**
+   * Atomically claim the "running" slot for a schedule. Two backend replicas
+   * can both pass the (best-effort, check-then-act) `hasRunning` guard for the
+   * same due schedule before either has inserted its running row — this is
+   * the actual cross-replica guarantee: the partial unique index on
+   * `(schedule_id) WHERE status = 'running'` (see schema) means only ONE of
+   * two concurrent inserts for the same schedule can succeed. The loser's
+   * `ON CONFLICT DO NOTHING` affects zero rows, surfaced here as
+   * `{ conflict: true }` for the caller to treat as "already claimed
+   * elsewhere" — a clean skip, never an error.
+   */
+  async claimRunning(data: {
+    orgId: string
+    scheduleId: string
+    projectId: string
+    startedAt: Date
+  }) {
+    try {
+      const resp = await this.db
+        .insert(scheduleRuns)
+        .values({
+          status: `running`,
+          orgId: data.orgId,
+          scheduleId: data.scheduleId,
+          projectId: data.projectId,
+          startedAt: data.startedAt,
+        })
+        .onConflictDoNothing()
+        .returning()
+
+      if (!resp[0]) return { data: null, conflict: true as const }
+      return { data: this.model(resp[0]) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
    * Return true if the given schedule already has a run in `running` status.
    * Used by the scheduler tick to refuse starting a NEW run for a schedule
    * that has one in flight — the previous incident was two concurrent coding

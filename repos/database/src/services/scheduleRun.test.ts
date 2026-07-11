@@ -10,8 +10,9 @@ vi.mock(`@TDB/utils/logger`, () => ({
 }))
 
 /**
- * Mock Drizzle DB covering the two chains scheduleRun.ts drives directly:
- * update().set().where().returning() and select().from().where()(.limit()).
+ * Mock Drizzle DB covering the three chains scheduleRun.ts drives directly:
+ * update().set().where().returning(), select().from().where()(.limit()), and
+ * insert().values().onConflictDoNothing().returning().
  */
 const createMockDb = () => {
   const updateReturningFn = vi.fn((..._args: any[]) => Promise.resolve([] as any[]))
@@ -28,8 +29,17 @@ const createMockDb = () => {
   const selectFromFn = vi.fn((..._args: any[]) => ({ where: selectWhereFn }))
   const selectFn = vi.fn((..._args: any[]) => ({ from: selectFromFn }))
 
+  const insertReturningFn = vi.fn((..._args: any[]) => Promise.resolve([] as any[]))
+  const insertOnConflictDoNothingFn = vi.fn((..._args: any[]) => ({
+    returning: insertReturningFn,
+  }))
+  const insertValuesFn = vi.fn((..._args: any[]) => ({
+    onConflictDoNothing: insertOnConflictDoNothingFn,
+  }))
+  const insertFn = vi.fn((..._args: any[]) => ({ values: insertValuesFn }))
+
   return {
-    db: { update: updateFn, select: selectFn } as any,
+    db: { update: updateFn, select: selectFn, insert: insertFn } as any,
     updateFn,
     updateSetFn,
     updateWhereFn,
@@ -38,6 +48,10 @@ const createMockDb = () => {
     selectFromFn,
     selectWhereFn,
     selectLimitFn,
+    insertFn,
+    insertValuesFn,
+    insertOnConflictDoNothingFn,
+    insertReturningFn,
   }
 }
 
@@ -139,6 +153,59 @@ describe(`ScheduleRun service`, () => {
 
       expect(data).toBeUndefined()
       expect(error?.message).toBe(`connection lost`)
+    })
+  })
+
+  describe(`claimRunning`, () => {
+    const claimArgs = {
+      orgId: `og_org00001`,
+      scheduleId: `sc_sched001`,
+      projectId: `pj_proj0001`,
+      startedAt: new Date(`2026-07-11T16:00:00Z`),
+    }
+
+    it(`inserts and returns the modeled row when the claim succeeds`, async () => {
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow()])
+
+      const { data, error, conflict } = await service.claimRunning(claimArgs)
+
+      expect(error).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(data).toBeInstanceOf(ScheduleRunModel)
+      expect(mocks.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({ status: `running`, scheduleId: `sc_sched001` })
+      )
+      expect(mocks.insertOnConflictDoNothingFn).toHaveBeenCalled()
+    })
+
+    it(`simulates two concurrent replicas racing the same due schedule — exactly one wins`, async () => {
+      // Replica A's insert succeeds outright.
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow({ id: `sr_runA0001` })])
+      const winner = await service.claimRunning(claimArgs)
+
+      expect(winner.conflict).toBeUndefined()
+      expect(winner.data).toBeInstanceOf(ScheduleRunModel)
+      expect(winner.data?.id).toBe(`sr_runA0001`)
+
+      // Replica B's insert hits the partial unique index on
+      // schedule_runs(schedule_id) WHERE status='running' — ON CONFLICT DO
+      // NOTHING means zero rows come back, never a thrown error.
+      mocks.insertReturningFn.mockResolvedValueOnce([])
+      const loser = await service.claimRunning(claimArgs)
+
+      expect(loser.error).toBeUndefined()
+      expect(loser.data).toBeNull()
+      expect(loser.conflict).toBe(true)
+    })
+
+    it(`returns { error } instead of throwing when the insert query fails`, async () => {
+      mocks.insertReturningFn.mockRejectedValueOnce(new Error(`db down`))
+
+      const { data, error, conflict } = await service.claimRunning(claimArgs)
+
+      expect(data).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(error?.message).toBe(`db down`)
     })
   })
 

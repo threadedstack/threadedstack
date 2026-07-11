@@ -15,6 +15,7 @@ vi.mock(`@TBE/utils/agent/resolveAgentConfig`, () => ({
 }))
 
 import { createScheduleExecutor } from './executor'
+import { ScheduleClaimConflictError } from './scheduler'
 import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 
 const buildApp = () => {
@@ -41,7 +42,7 @@ const buildApp = () => {
   }
   const services = {
     scheduleRun: {
-      create: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
+      claimRunning: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
       complete: vi.fn().mockResolvedValue({}),
       setInstance: vi.fn().mockResolvedValue({ data: { id: `run-1` } }),
     },
@@ -359,6 +360,40 @@ describe(`createScheduleExecutor — agent-backed schedule`, () => {
   })
 })
 
+describe(`createScheduleExecutor — atomic cross-replica claim`, () => {
+  it(`throws ScheduleClaimConflictError and never starts a pod when another replica already claimed the running slot`, async () => {
+    // Simulates the losing side of two replicas racing the same due schedule:
+    // ScheduleRun.claimRunning's partial-unique-index INSERT ... ON CONFLICT
+    // DO NOTHING affected zero rows elsewhere, surfaced here as conflict:true.
+    const { app, services } = buildApp()
+    services.scheduleRun.claimRunning.mockResolvedValue({ data: null, conflict: true })
+    const executor = createScheduleExecutor(app)
+
+    await expect(executor(agentSchedule() as any)).rejects.toBeInstanceOf(
+      ScheduleClaimConflictError
+    )
+
+    // No duplicate run: neither brain path executes, no pod is ever started.
+    expect(runMock).not.toHaveBeenCalled()
+    expect(app.locals.sandbox.startPod).not.toHaveBeenCalled()
+    expect(services.scheduleRun.complete).not.toHaveBeenCalled()
+  })
+
+  it(`proceeds normally when the claim succeeds (no conflict)`, async () => {
+    const { app, services } = buildApp()
+    services.scheduleRun.claimRunning.mockResolvedValue({ data: { id: `run-1` } })
+    const executor = createScheduleExecutor(app)
+
+    await executor(agentSchedule() as any)
+
+    expect(runMock).toHaveBeenCalledTimes(1)
+    expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+      `run-1`,
+      expect.objectContaining({ status: `success` })
+    )
+  })
+})
+
 describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => {
   const runtimeAgent = (overrides: Record<string, unknown> = {}) => ({
     id: `ag_1`,
@@ -403,10 +438,11 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       app.locals.sandbox.getSandbox.mock.invocationCallOrder[0]
     )
 
-    // Prompt command template applied with the soul prepended to the payload
+    // Prompt command template applied with the soul prepended to the payload,
+    // and the run-scoped idempotency token prefixed as an env var on every attempt.
     const command = sbInstance.execStreaming.mock.calls[0][0]
     expect(command).toBe(
-      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+      `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
     )
 
     // User message carries the raw configured prompt; assistant carries stdout
@@ -445,7 +481,9 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     await executor(agentSchedule() as any)
 
     const command = sbInstance.execStreaming.mock.calls[0][0]
-    expect(command).toBe(`mytool --soul 'CLI SOUL' -p 'Review platform state'`)
+    expect(command).toBe(
+      `env TDSK_IDEMPOTENCY_KEY='run-1' mytool --soul 'CLI SOUL' -p 'Review platform state'`
+    )
   })
 
   it(`includes the previous assistant report in the composed command`, async () => {
@@ -464,7 +502,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     expect(services.message.listByThread).toHaveBeenCalledWith(`th_existing`)
     const command = sbInstance.execStreaming.mock.calls[0][0]
     expect(command).toBe(
-      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\n## Your previous report\nOLD REPORT\n\nReview platform state'`
+      `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\n## Your previous report\nOLD REPORT\n\nReview platform state'`
     )
   })
 
@@ -535,7 +573,7 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
     const command = sbInstance.execStreaming.mock.calls[0][0]
     expect(command).toBe(
-      `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nBudget is $& and prefix is $\` today'`
+      `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nBudget is $& and prefix is $\` today'`
     )
   })
 
@@ -633,7 +671,9 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
     await executor(agentSchedule() as any)
 
     const command = sbInstance.execStreaming.mock.calls[0][0]
-    expect(command).toBe(`mytool --soul 'Use {prompt} wisely' -p 'Review platform state'`)
+    expect(command).toBe(
+      `env TDSK_IDEMPOTENCY_KEY='run-1' mytool --soul 'Use {prompt} wisely' -p 'Review platform state'`
+    )
   })
 
   it(`reassembles multibyte characters split across stdout chunks`, async () => {
@@ -857,15 +897,18 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       expect(Object.keys(startArgs.providerChain.placeholders)).toHaveLength(3)
 
       // calls: 0 = primary base, 1 = primary same-provider retry, 2 = zai fallback
+      // Every attempt carries the same run-scoped TDSK_IDEMPOTENCY_KEY.
       const calls = sbInstance.execStreaming.mock.calls
       expect(calls[0][0]).toBe(
-        `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+        `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
       )
       expect(calls[1][0]).toBe(
-        `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+        `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
       )
       expect(calls[2][0]).toContain(`ANTHROPIC_BASE_URL='https://api.z.ai/api/anthropic'`)
-      expect(calls[2][0]).toMatch(/^env ANTHROPIC_AUTH_TOKEN='tdsk_ph_/)
+      expect(calls[2][0]).toMatch(
+        /^env TDSK_IDEMPOTENCY_KEY='run-1' ANTHROPIC_AUTH_TOKEN='tdsk_ph_/
+      )
       expect(calls[2][0]).toContain(`claude -p 'CLI SOUL\n\nReview platform state'`)
 
       // The zai fallback's report is the persisted assistant message
@@ -904,10 +947,13 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       await p
 
       const calls = sbInstance.execStreaming.mock.calls
-      // Final attempt targets openrouter with its own base URL prefixed inline
+      // Final attempt targets openrouter with its own base URL prefixed inline,
+      // still carrying the same run-scoped idempotency token as every attempt.
       const last = calls[calls.length - 1][0]
       expect(last).toContain(`ANTHROPIC_BASE_URL='https://openrouter.ai/api'`)
-      expect(last).toMatch(/^env ANTHROPIC_AUTH_TOKEN='tdsk_ph_/)
+      expect(last).toMatch(
+        /^env TDSK_IDEMPOTENCY_KEY='run-1' ANTHROPIC_AUTH_TOKEN='tdsk_ph_/
+      )
 
       expect(services.message.create).toHaveBeenNthCalledWith(2, {
         threadId: `th_new`,
@@ -981,11 +1027,12 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
 
       const calls = sbInstance.execStreaming.mock.calls
       // Both attempts use the same base command — never an ai-provider failover
-      // prefix (the foreground guard is part of the base command, not a failover)
+      // prefix (the foreground guard is part of the base command, not a failover) —
+      // plus the same run-scoped idempotency token on both attempts.
       expect(calls).toHaveLength(2)
       for (const call of calls)
         expect(call[0]).toBe(
-          `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
+          `env TDSK_IDEMPOTENCY_KEY='run-1' CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p 'CLI SOUL\n\nReview platform state'`
         )
 
       expect(services.message.create).toHaveBeenNthCalledWith(2, {

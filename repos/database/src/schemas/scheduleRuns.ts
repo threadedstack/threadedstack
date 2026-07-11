@@ -1,11 +1,19 @@
-import { relations } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { ScheduleRunIdPrefix } from '@tdsk/domain'
 import { schedules } from '@TDB/schemas/schedules'
 import { entityId } from '@TDB/utils/schema/entityId'
-import { text, varchar, integer, timestamp, index, pgTable } from 'drizzle-orm/pg-core'
+import {
+  text,
+  index,
+  varchar,
+  integer,
+  pgTable,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core'
 
 export const scheduleRuns = pgTable(
   `schedule_runs`,
@@ -35,6 +43,13 @@ export const scheduleRuns = pgTable(
     index(`schedule_runs_project_id_idx`).on(table.projectId),
     index(`schedule_runs_schedule_id_idx`).on(table.scheduleId),
     index(`schedule_runs_schedule_started_idx`).on(table.scheduleId, table.startedAt),
+    // Enforces "one active run per schedule" at the DB level so two backend
+    // replicas racing the same due schedule can't both insert a running row —
+    // the loser's INSERT ... ON CONFLICT DO NOTHING (see ScheduleRun.claimRunning)
+    // affects zero rows and is treated as "already claimed elsewhere", not an error.
+    uniqueIndex(`schedule_runs_running_schedule_idx`)
+      .on(table.scheduleId)
+      .where(sql`${table.status} = 'running'`),
   ]
 )
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { Scheduler, createScheduler } from './scheduler'
+import { Scheduler, createScheduler, ScheduleClaimConflictError } from './scheduler'
 import { logger } from '@TBE/utils/logger'
 
 // parseNextRun now lives in @tdsk/domain (shared with the resident runtime)
@@ -319,6 +319,33 @@ describe(`Scheduler`, () => {
 
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Agent crashed`))
+    })
+
+    it(`skips cleanly (no error recorded) when the executor loses the atomic cross-replica claim`, async () => {
+      // Simulates two backend replicas racing the same due schedule: both pass
+      // the best-effort hasRunning() check, both reach the executor, but the
+      // atomic partial-unique-index claim (ScheduleRun.claimRunning) means only
+      // one replica's executor actually runs — the other's executor throws
+      // ScheduleClaimConflictError. This must be treated as a benign skip, NOT
+      // an error — incrementErrors must never fire for a lost claim race.
+      const mockExecutor = vi
+        .fn()
+        .mockRejectedValue(new ScheduleClaimConflictError(`sched-1`))
+      scheduler = new Scheduler(mockDb, mockExecutor)
+
+      mockDb.services.schedule.listDue.mockResolvedValue({
+        data: [mockSchedule],
+      })
+      mockDb.services.schedule.markRun.mockResolvedValue({})
+
+      await scheduler.tick()
+      await flushPending()
+
+      expect(mockDb.services.schedule.incrementErrors).not.toHaveBeenCalled()
+      expect(logger.error).not.toHaveBeenCalled()
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining(`lost the atomic claim race`)
+      )
     })
 
     it(`skips a schedule that already has a run in flight (serialize per schedule)`, async () => {

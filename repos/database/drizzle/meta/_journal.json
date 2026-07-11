@@ -8,6 +8,13 @@
       "when": 1783776397677,
       "tag": "0000_thin_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783789549606,
+      "tag": "0001_previous_blazing_skull",
+      "breakpoints": true
     }
   ]
 }
