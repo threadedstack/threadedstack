@@ -220,18 +220,25 @@ export class IsolateRunner {
     // global is installed — capturing the baseline any earlier would flag
     // legitimate shim globals (console, process, fetch, __timerFire, ...) as
     // user-added leaks and delete them on the very first reset().
+    // Frozen and defined non-writable/non-configurable so sandboxed code can
+    // neither delete nor reassign __pristineBuiltins (or its member refs) to
+    // silently defeat scrubGlobals()'s restore step.
     await this.#context.eval(`
-      globalThis.__pristineBuiltins = {
-        arrayPush: Array.prototype.push,
-        arrayPop: Array.prototype.pop,
-        arraySlice: Array.prototype.slice,
-        arrayMap: Array.prototype.map,
-        arrayForEach: Array.prototype.forEach,
-        objectHasOwnProperty: Object.prototype.hasOwnProperty,
-        functionCall: Function.prototype.call,
-        functionApply: Function.prototype.apply,
-        functionBind: Function.prototype.bind,
-      }
+      Object.defineProperty(globalThis, '__pristineBuiltins', {
+        value: Object.freeze({
+          arrayPush: Array.prototype.push,
+          arrayPop: Array.prototype.pop,
+          arraySlice: Array.prototype.slice,
+          arrayMap: Array.prototype.map,
+          arrayForEach: Array.prototype.forEach,
+          objectHasOwnProperty: Object.prototype.hasOwnProperty,
+          functionCall: Function.prototype.call,
+          functionApply: Function.prototype.apply,
+          functionBind: Function.prototype.bind,
+        }),
+        writable: false,
+        configurable: false,
+      })
     `)
     const baselineNames: string[] = await this.#context.eval(
       `Object.getOwnPropertyNames(globalThis)`,

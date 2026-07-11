@@ -112,6 +112,46 @@ describe(`IsolateRunner.scrubGlobals (real isolated-vm)`, () => {
     })
   })
 
+  it(`still restores a hijacked Array.prototype.push even when the sandbox deletes __pristineBuiltins first`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    await evaluate(
+      runner,
+      `try { delete globalThis.__pristineBuiltins; } catch (e) {}
+       Array.prototype.push = function () { return 'HIJACKED'; };
+       export default null;`
+    )
+
+    await (runner as any).scrubGlobals()
+
+    const { result } = await evaluate(
+      runner,
+      `const arr = []; const ret = arr.push(1); export default { arr, ret };`
+    )
+    expect(result).toEqual({ arr: [1], ret: 1 })
+  })
+
+  it(`still restores a hijacked Array.prototype.push even when the sandbox mutates __pristineBuiltins' own members`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    await evaluate(
+      runner,
+      `try { globalThis.__pristineBuiltins.arrayPush = function () { return 'TAMPERED'; }; } catch (e) {}
+       Array.prototype.push = function () { return 'HIJACKED'; };
+       export default null;`
+    )
+
+    await (runner as any).scrubGlobals()
+
+    const { result } = await evaluate(
+      runner,
+      `const arr = []; const ret = arr.push(1); export default { arr, ret };`
+    )
+    expect(result).toEqual({ arr: [1], ret: 1 })
+  })
+
   it(`is a no-op before init() (nothing to scrub, no throw)`, async () => {
     const runner = buildRunner()
     await expect((runner as any).scrubGlobals()).resolves.toBeUndefined()
