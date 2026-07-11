@@ -557,6 +557,7 @@ describe(`IsolateRunner`, () => {
           return Promise.resolve([`console`, `process`, `Buffer`])
         return Promise.resolve(undefined)
       })
+      mockEvalClosure.mockResolvedValue([])
 
       await runner.init()
       await (runner as any).scrubGlobals()
@@ -564,7 +565,22 @@ describe(`IsolateRunner`, () => {
       expect(mockEvalClosure).toHaveBeenCalledWith(
         expect.stringContaining(`__pristineBuiltins`),
         [[`console`, `process`, `Buffer`]],
-        { arguments: { copy: true } }
+        { arguments: { copy: true }, result: { copy: true } }
+      )
+    })
+
+    it(`throws when a restoration fails to stick, so the caller disposes instead of pools the isolate`, async () => {
+      mockContextEval.mockImplementation((code: string) => {
+        if (code === `Object.getOwnPropertyNames(globalThis)`)
+          return Promise.resolve([`console`, `process`, `Buffer`])
+        return Promise.resolve(undefined)
+      })
+      mockEvalClosure.mockResolvedValue([`Array.prototype.push`])
+
+      await runner.init()
+
+      await expect((runner as any).scrubGlobals()).rejects.toThrow(
+        `Array.prototype.push`
       )
     })
   })

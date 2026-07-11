@@ -152,6 +152,37 @@ describe(`IsolateRunner.scrubGlobals (real isolated-vm)`, () => {
     expect(result).toEqual({ arr: [1], ret: 1 })
   })
 
+  it(`throws instead of silently succeeding when a hijacked builtin is frozen and cannot be restored`, async () => {
+    const runner = buildRunner()
+    await runner.init()
+
+    await evaluate(
+      runner,
+      `Object.defineProperty(Array.prototype, 'push', {
+         value: function () { return 'HIJACKED'; },
+         configurable: true,
+         writable: true,
+       });
+       Object.freeze(Array.prototype);
+       export default null;`
+    )
+
+    await expect((runner as any).scrubGlobals()).rejects.toThrow(
+      /Array\.prototype\.push/
+    )
+
+    // Restoration onto the frozen prototype is still permanently defeated —
+    // this proves scrubGlobals() surfaces the failure (via the throw above)
+    // rather than returning as if the isolate were safely reset. The caller
+    // (LocalSandbox.reset() -> functionExecutor.releaseSandbox) is
+    // responsible for treating this throw as "dispose, don't pool".
+    const { result } = await evaluate(
+      runner,
+      `const arr = []; const ret = arr.push(1); export default { arr, ret };`
+    )
+    expect(result).toEqual({ arr: [], ret: `HIJACKED` })
+  })
+
   it(`is a no-op before init() (nothing to scrub, no throw)`, async () => {
     const runner = buildRunner()
     await expect((runner as any).scrubGlobals()).resolves.toBeUndefined()

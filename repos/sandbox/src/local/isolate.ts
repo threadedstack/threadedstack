@@ -259,13 +259,30 @@ export class IsolateRunner {
    * The actual security boundary for cross-tenant isolation is the pool
    * partitioning in functionExecutor.ts; this only limits blast radius between
    * two functions that already share a tenant's trust boundary.
+   *
+   * KNOWN RESIDUAL RISK, mitigated below: a prior run can call
+   * `Object.freeze(Array.prototype)` (etc.) after hijacking a method. Because
+   * freeze is irreversible, a plain reassignment here would silently no-op
+   * forever for that isolate. Every restoration is therefore attempted in
+   * strict mode (so a write to a non-writable property throws instead of
+   * silently failing) AND verified by reading the property back — if a
+   * restoration doesn't stick either way, this method throws so the caller
+   * (LocalSandbox.reset()) treats reset as failed and disposes the isolate
+   * instead of returning a still-hijacked isolate to the pool.
+   *
+   * The failure list is built with index assignment (`failures[n] = x`), not
+   * `.push()` — `.push()` is itself one of the nine methods this function
+   * restores, so collecting failures with `.push()` would silently no-op in
+   * exactly the scenario it's meant to detect (a frozen, hijacked
+   * Array.prototype.push masks its own failure report).
    */
   async scrubGlobals(): Promise<void> {
     if (!this.#context || !this.#globalBaseline) return
 
     const baseline = Array.from(this.#globalBaseline)
-    await this.#context.evalClosure(
+    const failures: string[] = await this.#context.evalClosure(
       `
+        'use strict';
         var baseline = new Set($0);
         var names = Object.getOwnPropertyNames(globalThis);
         for (var i = 0; i < names.length; i++) {
@@ -273,21 +290,45 @@ export class IsolateRunner {
           try { delete globalThis[names[i]]; } catch (e) {}
         }
         var p = globalThis.__pristineBuiltins;
+        var failures = [];
+        var failCount = 0;
         if (p) {
-          Array.prototype.push = p.arrayPush;
-          Array.prototype.pop = p.arrayPop;
-          Array.prototype.slice = p.arraySlice;
-          Array.prototype.map = p.arrayMap;
-          Array.prototype.forEach = p.arrayForEach;
-          Object.prototype.hasOwnProperty = p.objectHasOwnProperty;
-          Function.prototype.call = p.functionCall;
-          Function.prototype.apply = p.functionApply;
-          Function.prototype.bind = p.functionBind;
+          var restorations = [
+            [Array.prototype, 'push', p.arrayPush, 'Array.prototype.push'],
+            [Array.prototype, 'pop', p.arrayPop, 'Array.prototype.pop'],
+            [Array.prototype, 'slice', p.arraySlice, 'Array.prototype.slice'],
+            [Array.prototype, 'map', p.arrayMap, 'Array.prototype.map'],
+            [Array.prototype, 'forEach', p.arrayForEach, 'Array.prototype.forEach'],
+            [Object.prototype, 'hasOwnProperty', p.objectHasOwnProperty, 'Object.prototype.hasOwnProperty'],
+            [Function.prototype, 'call', p.functionCall, 'Function.prototype.call'],
+            [Function.prototype, 'apply', p.functionApply, 'Function.prototype.apply'],
+            [Function.prototype, 'bind', p.functionBind, 'Function.prototype.bind'],
+          ];
+          for (var j = 0; j < restorations.length; j++) {
+            var target = restorations[j][0];
+            var key = restorations[j][1];
+            var fresh = restorations[j][2];
+            var label = restorations[j][3];
+            try {
+              target[key] = fresh;
+              if (target[key] !== fresh) { failures[failCount] = label; failCount++; }
+            } catch (e) {
+              failures[failCount] = label;
+              failCount++;
+            }
+          }
         }
+        return failures;
       `,
       [baseline],
-      { arguments: { copy: true } }
+      { arguments: { copy: true }, result: { copy: true } }
     )
+
+    if (failures.length > 0)
+      throw new Error(
+        `scrubGlobals() could not restore ${failures.length} built-in(s), likely frozen by ` +
+          `sandboxed code: ${failures.join(`, `)}. Isolate is unsafe to reuse.`
+      )
   }
 
   async #compile(deps: TShimDeps): Promise<void> {
