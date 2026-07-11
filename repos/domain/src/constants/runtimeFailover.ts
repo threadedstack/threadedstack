@@ -33,7 +33,7 @@ export const CliMaxProviderFailovers = 8
  * `.match` (no shared lastIndex).
  */
 const TransientUpstreamRegex =
-  /\b529\b|overloaded|API Error:\s*5\d\d|rate.?limit|\b503\b|\b502\b|500 Internal/i
+  /\b529\b|overloaded|API Error:\s*5\d\d|rate.?limit|\b504\b|\b503\b|\b502\b|500 Internal/i
 
 /** Return the first matched transient-upstream signal in `text`, if any. */
 export const matchTransientSignal = (text: string): string | undefined => {
