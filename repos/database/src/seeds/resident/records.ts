@@ -12,6 +12,7 @@ import {
   BoardPlansSource,
   BoardStrategySource,
   BoardPositionsSource,
+  DevTaskBacklogSource,
   MarketingArtifactsSource,
   BoardOpenDecisionsSource,
 } from '@TDB/seeds/agentSchedules'
@@ -544,7 +545,10 @@ export const EngTwoResidentConfigSeed: TResidentConfigSeedRecord = {
  * The lead coordinates via inbox/records without the board seat's identity —
  * board membership (and postPosition/reportInitiativeComplete/updateMilestone,
  * which gate on it) stays with the steward. The lead's duties: hourly backlog
- * grooming (devAddTask, SMALL bounded shadow tasks), a 15-minute lease reap
+ * grooming — decompose the sensor-detected task_proposals backlog (injected via
+ * DevTaskBacklogSource) into SMALL engineer-sized dev_tasks with devAddTask,
+ * then claim each groomed proposal with pickupTask (scanned → promoted) so the
+ * still-live scheduled steward never double-works it — a 15-minute lease reap
  * (devReapExpired run SYNCHRONOUSLY + gh reconciliation from its VM), the
  * explicit close-out (devAbandon), and an approved-watch that sanity-checks
  * merge throughput. The CTO deliberately does NOT hold the engineers'
@@ -555,13 +559,16 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
   data: {
     agentId: CtoAgentId,
     agenda: [
-      // Hourly backlog grooming: SMALL, bounded, shadow-safe tasks only.
+      // Hourly backlog grooming: decompose the sensor-detected task_proposals
+      // backlog into engineer-sized dev_tasks, then claim each groomed proposal.
       {
         key: `groom`,
         cron: `0 * * * *`,
         prompt: [
-          `Groom the shadow dev-task backlog.`,
-          `Review the "Dev tasks in flight" context and the team's recent throughput, then add SMALL, sharply-scoped tasks with devAddTask — docs fixes, unit-test coverage gaps, small refactors, lint/type hygiene: work an engineer completes in a single sitting, each with a description precise enough to build from and a definition of done. ENFORCE THE SHADOW BOUNDARY: before adding anything, check the live steward's open PRs and its task_proposals backlog with gh from your VM and never groom a task that overlaps an in-flight change. Keep the open backlog small (under ~10 tasks); devAddTask dedupes exact titles, so refine by messaging the engineers (sendAgentMessage), not by re-adding. When the backlog is healthy and nothing needs adding, say so in one line and stop.`,
+          `Groom the sensor-detected backlog into the team's dev_tasks board.`,
+          `Read the "Proposed backlog (sensor-detected)" context — these are scanned task_proposals, priority-ordered (equal priority is unordered; pick any). For each proposal worth building, DECOMPOSE it into one or more SMALL, sharply-scoped, engineer-sized dev_tasks with devAddTask — a large proposal becomes several tasks, each an engineer completes in a single sitting, each with a description precise enough to build from and an explicit definition of done. Stamp EVERY task you add with sourceTaskProposalId = the proposal's id (devAddTask dedupes on it, so re-grooming a not-yet-promoted proposal never stacks duplicates).`,
+          `IMMEDIATELY after grooming a proposal's task(s), CLAIM that proposal so the still-live scheduled steward never double-works it: dispatch pickupTask SYNCHRONOUSLY (curl the dispatch endpoint per your standing directives with args { proposalId, prUrl?, note } and READ the result) — it flips the proposal scanned → promoted, and the steward's work cycle only ever picks scanned proposals, so whoever writes first claims it (first-writer-wins, idempotent). Grooming a proposal WITHOUT its pickupTask is incomplete — never leave a groomed proposal scanned.`,
+          `Keep the open dev_tasks backlog small (under ~10 open tasks) — groom the highest-priority proposals first and stop when the board is full; do not over-groom. When no scanned proposal is worth building right now, say so in one line and stop.`,
         ].join(`\n`),
       },
       // 15-minute lease reap + GitHub reconciliation (gh runs in the CTO's VM,
@@ -596,6 +603,7 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
       contextSources: [
         BoardStrategySource,
         BoardPlansSource,
+        DevTaskBacklogSource,
         DevTasksInFlightSource,
         CtoMemoriesSource,
       ],
@@ -608,13 +616,18 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
       minIdleMs: 600_000,
       prompt: `Review team health: lease liveness, backlog depth, review latency, and merge throughput on the dev_tasks board; message the engineers about anything wedged (sendAgentMessage). NEVER claim, review, or merge a dev task yourself — you lead, groom, reap, and close out.`,
     },
-    // The three lead duties + messaging + the housekeeping five. Deliberately
-    // NO engineer claim/review Functions (the lead never works its own board)
-    // and NO board-seat Functions (postPosition/reportInitiativeComplete/
-    // updateMilestone gate on board membership, which stays with the steward's
-    // scheduled seat).
+    // The lead duties + the proposal-claim + messaging + the housekeeping five.
+    // Entries are Function NAMES (resolveResidentAllowlist returns them as-is,
+    // and the dispatch endpoint matches action.function against them): pickupTask
+    // is PickupTaskFunctionDef.name — it flips a groomed task_proposal
+    // scanned → promoted so the still-live steward never double-works it.
+    // Deliberately NO engineer claim/review Functions (the lead never works its
+    // own board) and NO board-seat Functions (postPosition/
+    // reportInitiativeComplete/updateMilestone gate on board membership, which
+    // stays with the steward's scheduled seat).
     actions: [
       `devAddTask`,
+      `pickupTask`,
       `devReapExpired`,
       `devAbandon`,
       `sendAgentMessage`,
