@@ -615,6 +615,10 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     // groom the live backlog up toward ~6-9 open tasks for three engineers.
     expect(agenda[0].prompt).toContain(`SOLE GROOMER for THREE engineers`)
     expect(agenda[0].prompt).toContain(`PRUNE THE DEAD`)
+    // When the reactive sensor backlog runs dry, generate proactive work from
+    // the active plans + evidenced improvements — with a no-busywork guard.
+    expect(agenda[0].prompt).toContain(`GENERATE PROACTIVE WORK`)
+    expect(agenda[0].prompt).toContain(`never manufacture busywork`)
     // Grooms the REAL sensor-detected backlog: read the injected scanned
     // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId —
     // and stamping it makes devAddTask ATOMICALLY claim the proposal in the same
