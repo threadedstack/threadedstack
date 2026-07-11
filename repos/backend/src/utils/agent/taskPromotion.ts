@@ -9,6 +9,7 @@ import type {
 import { logger } from '@TBE/utils/logger'
 import { ETaskProposalStatus } from '@tdsk/domain'
 import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
+import { mirrorTaskProposalToCollection } from '@TBE/utils/agent/taskProposalMirror'
 
 /**
  * Promotion pipeline for self-sensed task proposals (P4a). Shared by:
@@ -82,6 +83,11 @@ export const authorTaskProposal = async (
       `[task] Proposal ${data.id} rejected by scan: ${scan.findings.join(`; `)}`
     )
 
+  // Best-effort mirror of the just-created row into the ops Collection so the
+  // resident-facing surface tracks the table between deploys. Never throws —
+  // the table (already written above) stays authoritative.
+  await mirrorTaskProposalToCollection(db, data as any)
+
   return { id: data.id, status, findings: scan.findings, deduped: false }
 }
 
@@ -105,13 +111,18 @@ export const markTaskPromoted = async (
   )
     return null
 
-  await db.services.taskProposal.update({
+  const { data: updated } = await db.services.taskProposal.update({
     id: proposal.id,
     status: ETaskProposalStatus.promoted,
     prUrl: pickup.prUrl ?? null,
     reason: pickup.note ?? `Picked by work cycle`,
     auditVerdict: { approved: true, reason: pickup.note ?? `picked`, by },
   } as any)
+
+  // Best-effort mirror of the promoted row into the ops Collection so the
+  // resident-facing surface reflects the status change between deploys. Never
+  // throws — the table update above stays authoritative.
+  if (updated) await mirrorTaskProposalToCollection(db, updated as any)
 
   logger.info(`[task] Promoted proposal ${proposal.id}`)
   return ETaskProposalStatus.promoted
