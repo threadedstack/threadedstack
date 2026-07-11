@@ -1,4 +1,5 @@
 import { getModel, streamSimple } from '@earendil-works/pi-ai'
+import type { KnownProvider } from '@earendil-works/pi-ai'
 import type { TGuiConfig, TParsedEvent, TGenerativeUIResult } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { validateTree } from './validator'
@@ -15,7 +16,9 @@ export class InterpreterService {
     if (!userMessage.trim()) return null
 
     // Validate model exists before retry loop — won't change between retries
-    const model = getModel(providerBrand as any, config.model as any)
+    // modelId cast to `never`: TModelId is keyed off pi-ai's un-exported MODELS map,
+    // so a runtime string can't satisfy it without erasure at this boundary.
+    const model = getModel(providerBrand as KnownProvider, config.model as never)
     if (!model) {
       logger.error('[InterpreterService] Model not found', {
         providerBrand,
