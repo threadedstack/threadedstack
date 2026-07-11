@@ -593,17 +593,21 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
 
     expect(agenda[0].cron).toBe(`0 * * * *`)
     // Grooms the REAL sensor-detected backlog: read the injected scanned
-    // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId,
-    // then CLAIM each proposal with pickupTask (scanned → promoted) so the
-    // still-live steward never double-works it. The old shadow-boundary
+    // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId —
+    // and stamping it makes devAddTask ATOMICALLY claim the proposal in the same
+    // call (scanned → promoted) so the still-live steward never double-works it.
+    // There is NO separate pickupTask dispatch step; the old shadow-boundary
     // ("check the steward's PRs / never groom task_proposals") is gone.
     expect(agenda[0].prompt).toContain(`Proposed backlog (sensor-detected)`)
     expect(agenda[0].prompt).toContain(`DECOMPOSE`)
     expect(agenda[0].prompt).toContain(`devAddTask`)
     expect(agenda[0].prompt).toContain(`sourceTaskProposalId`)
-    expect(agenda[0].prompt).toContain(`pickupTask`)
+    expect(agenda[0].prompt).toContain(`ATOMICALLY claim`)
     expect(agenda[0].prompt).toContain(`scanned → promoted`)
     expect(agenda[0].prompt).toContain(`SMALL, sharply-scoped`)
+    // The atomic claim replaces the separate pickupTask dispatch — the groom
+    // prompt no longer tells the CTO to dispatch pickupTask synchronously.
+    expect(agenda[0].prompt).not.toContain(`pickupTask`)
     // No more shadow-boundary make-work grooming.
     expect(agenda[0].prompt).not.toContain(`ENFORCE THE SHADOW BOUNDARY`)
     expect(agenda[0].prompt).not.toContain(`shadow dev-task backlog`)
@@ -649,15 +653,20 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(session.seedPrompt).toContain(`YOU ARE THE TEAM LEAD, NOT THE BOARD SEAT`)
     expect(session.seedPrompt).toContain(`you never post positions yourself`)
     // Grooms the REAL sensor-detected backlog: decompose scanned proposals into
-    // dev_tasks, then claim each with pickupTask (scanned → promoted) so the
-    // still-live steward never double-works it. The old shadow-boundary
-    // (this team's lane must never collide / check the steward's task_proposals)
-    // is replaced by the promoted-status coordination.
+    // dev_tasks with devAddTask, which (stamped with sourceTaskProposalId)
+    // ATOMICALLY claims each proposal in the same call (scanned → promoted) so
+    // the still-live steward never double-works it. There is NO separate
+    // pickupTask dispatch step. The old shadow-boundary (this team's lane must
+    // never collide / check the steward's task_proposals) is replaced by the
+    // promoted-status coordination.
     expect(session.seedPrompt).toContain(`GROOM THE REAL BACKLOG, SMALL AND BOUNDED`)
     expect(session.seedPrompt).toContain(`Proposed backlog (sensor-detected)`)
     expect(session.seedPrompt).toContain(`sourceTaskProposalId`)
-    expect(session.seedPrompt).toContain(`pickupTask`)
+    expect(session.seedPrompt).toContain(`ATOMICALLY CLAIM`)
     expect(session.seedPrompt).toContain(`scanned → promoted`)
+    // The atomic claim replaces the separate pickupTask dispatch — the session
+    // prompt no longer references pickupTask at all.
+    expect(session.seedPrompt).not.toContain(`pickupTask`)
     expect(session.seedPrompt).not.toContain(`THE SHADOW BOUNDARY IS YOURS TO ENFORCE`)
     expect(session.seedPrompt).not.toContain(
       `your shadow team works ONLY its own dev_tasks board`
@@ -693,11 +702,13 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(selfDirected.prompt).toContain(`NEVER claim, review, or merge a dev task`)
   })
 
-  it(`allowlists ONLY the lead duties + the proposal-claim — never the engineers' or the board seat's Functions`, () => {
+  it(`allowlists ONLY the lead duties — never the engineers' or the board seat's Functions`, () => {
     const { actions } = CtoResidentConfigSeed.data
+    // devAddTask now ATOMICALLY claims a groomed proposal (scanned → promoted)
+    // in the same call, so the lead needs no separate claim dispatch.
     expect(actions).toContain(`devAddTask`)
-    // pickupTask (PickupTaskFunctionDef.name) — flips a groomed proposal
-    // scanned → promoted so the still-live steward never double-works it.
+    // pickupTask (PickupTaskFunctionDef.name) stays allowlisted — harmless; the
+    // scheduled work-cycle still uses it to promote its own picked proposals.
     expect(actions).toContain(`pickupTask`)
     expect(actions).toContain(`devReapExpired`)
     expect(actions).toContain(`devAbandon`)
