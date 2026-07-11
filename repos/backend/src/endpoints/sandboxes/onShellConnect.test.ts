@@ -395,13 +395,11 @@ describe(`onShellConnect`, () => {
       const drain = vi.fn().mockReturnValue(Buffer.from(``))
       const app = buildMockApp({
         sandbox: {
-          getShellSession: vi
-            .fn()
-            .mockReturnValue({
-              sandboxId: SANDBOX_ID,
-              userId: USER_ID,
-              visibility: ESandboxSessionVisibility.private,
-            }),
+          getShellSession: vi.fn().mockReturnValue({
+            sandboxId: SANDBOX_ID,
+            userId: USER_ID,
+            visibility: ESandboxSessionVisibility.private,
+          }),
           attachToShellSession: vi.fn().mockReturnValue({
             visibility: ESandboxSessionVisibility.private,
             buffer: { drain },
@@ -422,13 +420,11 @@ describe(`onShellConnect`, () => {
       const ws = buildMockWs()
       const app = buildMockApp({
         sandbox: {
-          getShellSession: vi
-            .fn()
-            .mockReturnValue({
-              sandboxId: SANDBOX_ID,
-              userId: USER_ID,
-              visibility: ESandboxSessionVisibility.private,
-            }),
+          getShellSession: vi.fn().mockReturnValue({
+            sandboxId: SANDBOX_ID,
+            userId: USER_ID,
+            visibility: ESandboxSessionVisibility.private,
+          }),
           attachToShellSession: vi.fn().mockReturnValue(null),
         },
       })
@@ -683,13 +679,29 @@ describe(`onShellConnect`, () => {
       expect(ws.close).toHaveBeenCalledWith(4029, `Session limit reached for your plan`)
     })
 
-    it(`bypasses the session cap entirely for an unlimited (-1) plan`, async () => {
+    it(`closes with 4029 when the team-tier session cap (25) is reached`, async () => {
       const ws = buildMockWs()
       const app = buildMockApp({
         subscription: {
           findByUser: vi.fn().mockResolvedValue({ data: { tier: `team` } }),
         },
-        sandbox: { getOrgShellSessionCount: vi.fn().mockReturnValue(999) },
+        sandbox: { getOrgShellSessionCount: vi.fn().mockReturnValue(25) },
+      })
+      await onShellConnect(
+        ws,
+        buildMockReq(`/_/sandboxes/${SANDBOX_ID}/shell?token=valid`),
+        app
+      )
+      expect(ws.close).toHaveBeenCalledWith(4029, `Session limit reached for your plan`)
+    })
+
+    it(`allows the team-tier session below its cap (25)`, async () => {
+      const ws = buildMockWs()
+      const app = buildMockApp({
+        subscription: {
+          findByUser: vi.fn().mockResolvedValue({ data: { tier: `team` } }),
+        },
+        sandbox: { getOrgShellSessionCount: vi.fn().mockReturnValue(24) },
       })
       await onShellConnect(
         ws,
