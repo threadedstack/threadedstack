@@ -1,5 +1,6 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { TDBUpdate, TDBMemoryInsert } from '@tdsk/database'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
@@ -33,7 +34,7 @@ export const updateMemory: TEndpointConfig = {
     if (kind !== undefined && !ValidKinds.has(kind))
       throw new Exception(400, `Invalid memory kind: ${kind}`)
 
-    const update: Record<string, any> = { id: memoryId }
+    const update: TDBUpdate<TDBMemoryInsert> = { id: memoryId }
 
     if (text !== undefined) {
       if (typeof text !== `string` || text.trim().length === 0)
@@ -46,7 +47,7 @@ export const updateMemory: TEndpointConfig = {
     if (importance !== undefined) update.importance = clampImportance(Number(importance))
     if (meta !== undefined) update.meta = meta
 
-    const { data, error } = await db.services.memory.update(update as any)
+    const { data, error } = await db.services.memory.update(update)
     if (error) throw new Exception(500, error.message)
 
     res.json({ data })
