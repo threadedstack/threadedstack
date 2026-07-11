@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -14,7 +15,10 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const createMessage: TEndpointConfig = {
   path: `/:threadId/messages`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.create, EPermResource.message)],
+  middleware: [
+    authorize(EPermAction.create, EPermResource.message),
+    enforceQuota(`messages`),
+  ],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
