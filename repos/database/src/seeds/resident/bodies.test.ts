@@ -13,9 +13,13 @@ import { ResidentActivations } from '@TDB/seeds/resident/activations'
 import {
   ResidentBodyConfig,
   ResidentProviderChain,
+  ResidentRepoSeats,
+  ResidentRepoBranch,
+  ResidentRepoProviderName,
   reconcileResidentBodies,
   ResidentBootCriticalFields,
   reconcileResidentProviderChains,
+  reconcileResidentRepoLinks,
 } from '@TDB/seeds/resident/bodies'
 
 /**
@@ -339,10 +343,7 @@ const desiredChain = ResidentProviderChain.map(({ name, priority }) => ({
 const makeFakeChainService = () => {
   const agents = new Map<string, { environment?: Record<string, any> | null }>()
   const providersByName = new Map<string, { id: string }>()
-  const linksBySandbox = new Map<
-    string,
-    { providerId: string; priority: number }[]
-  >()
+  const linksBySandbox = new Map<string, { providerId: string; priority: number }[]>()
   const replaceCalls: {
     sandboxId: string
     links: { providerId: string; priority: number }[]
@@ -581,13 +582,198 @@ describe(`reconcileResidentProviderChains`, () => {
     })
     expect(summary.results).toHaveLength(ResidentActivations.length)
     const counted = { asserted: 0, unchanged: 0, skipped: 0, errors: 0 }
-    for (const r of summary.results)
-      counted[r.action === `error` ? `errors` : r.action]++
+    for (const r of summary.results) counted[r.action === `error` ? `errors` : r.action]++
     expect(counted).toEqual({
       asserted: summary.asserted,
       unchanged: summary.unchanged,
       skipped: summary.skipped,
       errors: summary.errors,
     })
+  })
+})
+
+const RepoProviderId = `pv_repo01`
+
+/**
+ * In-memory fake of the agent + provider + repo-links slice: agents resolve to
+ * a body sandbox via `environment.sandboxId`, the repo provider resolves BY
+ * NAME, and each (sandbox, project) holds a mutable link set. `addCalls`
+ * records every add so tests can prove links were (or were NOT) written.
+ */
+const makeFakeRepoLinkService = () => {
+  const agents = new Map<string, { environment?: Record<string, any> | null }>()
+  const providersByName = new Map<string, { id: string }>()
+  const linksByKey = new Map<string, { providerId: string }[]>()
+  const addCalls: {
+    sandboxId: string
+    projectId: string
+    providerId: string
+    priority: number
+    branch: string
+  }[] = []
+  const key = (sandboxId: string, projectId: string) => `${sandboxId}:${projectId}`
+  return {
+    agents,
+    providersByName,
+    linksByKey,
+    addCalls,
+    key,
+    service: {
+      agent: {
+        get: async (id: string) => ({ data: agents.get(id) ?? null }),
+      },
+      provider: {
+        findByName: async (name: string) => ({
+          data: providersByName.get(name) ?? null,
+        }),
+      },
+      repoLinks: {
+        list: async (sandboxId: string, projectId: string) => ({
+          data: linksByKey.get(key(sandboxId, projectId)) ?? [],
+        }),
+        add: async (link: {
+          sandboxId: string
+          projectId: string
+          providerId: string
+          priority: number
+          branch: string
+        }) => {
+          addCalls.push(link)
+          const k = key(link.sandboxId, link.projectId)
+          linksByKey.set(k, [
+            ...(linksByKey.get(k) ?? []),
+            { providerId: link.providerId },
+          ])
+          return { error: null }
+        },
+      },
+    },
+  }
+}
+
+/** Wire the repo seats to body sandboxes (with the given starting link sets)
+ * and register the repo provider by name. */
+const seedRepoLinks = (
+  fake: ReturnType<typeof makeFakeRepoLinkService>,
+  links: Record<string, { providerId: string }[]> = {}
+) => {
+  fake.providersByName.set(ResidentRepoProviderName, { id: RepoProviderId })
+  for (const agentId of ResidentRepoSeats) {
+    const sandboxId = BodyByAgent[agentId]
+    fake.agents.set(agentId, { environment: { sandboxId } })
+    if (links[agentId])
+      fake.linksByKey.set(fake.key(sandboxId, OpsProjectId), links[agentId])
+  }
+}
+
+describe(`ResidentRepoSeats`, () => {
+  it(`covers exactly the code-pushing seats (CTO + engineers), never CEO/CMO`, () => {
+    expect(ResidentRepoSeats).toEqual([CtoAgentId, EngOneAgentId, EngTwoAgentId])
+    expect(ResidentRepoSeats).not.toContain(CeoAgentId)
+    expect(ResidentRepoSeats).not.toContain(CmoAgentId)
+    // Every repo seat is also an activated resident (a link on an inert seat is
+    // dead config).
+    for (const agentId of ResidentRepoSeats)
+      expect(ResidentActivations).toContain(agentId)
+    expect(ResidentRepoBranch).toBe(`main`)
+    expect(ResidentRepoProviderName).toBe(`ThreadedStack Repo`)
+  })
+})
+
+describe(`reconcileResidentRepoLinks`, () => {
+  it(`adds the repo link to every seat that lacks it (fresh org)`, async () => {
+    const fake = makeFakeRepoLinkService()
+    seedRepoLinks(fake) // no starting links anywhere
+
+    const summary = await reconcileResidentRepoLinks(fake.service)
+
+    expect(summary).toMatchObject({
+      added: ResidentRepoSeats.length,
+      unchanged: 0,
+      skipped: 0,
+      errors: 0,
+    })
+    // Each add is scoped to the ops project, the repo provider, priority 0, main.
+    expect(fake.addCalls).toHaveLength(ResidentRepoSeats.length)
+    for (const call of fake.addCalls) {
+      expect(call.projectId).toBe(OpsProjectId)
+      expect(call.providerId).toBe(RepoProviderId)
+      expect(call.priority).toBe(0)
+      expect(call.branch).toBe(`main`)
+    }
+  })
+
+  it(`no-ops when every seat already carries the link (idempotent re-run)`, async () => {
+    const fake = makeFakeRepoLinkService()
+    seedRepoLinks(
+      fake,
+      Object.fromEntries(
+        ResidentRepoSeats.map((agentId) => [agentId, [{ providerId: RepoProviderId }]])
+      )
+    )
+
+    const summary = await reconcileResidentRepoLinks(fake.service)
+
+    expect(summary).toMatchObject({
+      added: 0,
+      unchanged: ResidentRepoSeats.length,
+      skipped: 0,
+      errors: 0,
+    })
+    expect(fake.addCalls).toHaveLength(0)
+  })
+
+  it(`preserves a seat's OTHER project-provider links when adding the repo link`, async () => {
+    const fake = makeFakeRepoLinkService()
+    // Seat already has an unrelated provider link; the repo link is missing.
+    seedRepoLinks(fake, {
+      [EngOneAgentId]: [{ providerId: `pv_other0` }],
+    })
+
+    const summary = await reconcileResidentRepoLinks(fake.service)
+
+    expect(summary.errors).toBe(0)
+    // EngOne got the repo link ADDED (its other link untouched), everyone else added.
+    const engOneLinks = fake.linksByKey.get(
+      fake.key(BodyByAgent[EngOneAgentId], OpsProjectId)
+    )
+    expect(engOneLinks).toEqual([
+      { providerId: `pv_other0` },
+      { providerId: RepoProviderId },
+    ])
+  })
+
+  it(`fail-softs to skipped when the repo provider name is absent`, async () => {
+    const fake = makeFakeRepoLinkService()
+    seedRepoLinks(fake)
+    fake.providersByName.delete(ResidentRepoProviderName)
+
+    const summary = await reconcileResidentRepoLinks(fake.service)
+
+    expect(summary).toMatchObject({
+      added: 0,
+      unchanged: 0,
+      skipped: ResidentRepoSeats.length,
+      errors: 0,
+    })
+    // Fail-soft never touches links.
+    expect(fake.addCalls).toHaveLength(0)
+  })
+
+  it(`records an error (never throws) when the add fails, and continues`, async () => {
+    const fake = makeFakeRepoLinkService()
+    seedRepoLinks(fake)
+
+    const summary = await reconcileResidentRepoLinks({
+      ...fake.service,
+      repoLinks: {
+        ...fake.service.repoLinks,
+        add: async () => ({ error: new Error(`boom`) }),
+      },
+    })
+
+    expect(summary.errors).toBe(ResidentRepoSeats.length)
+    expect(summary.added).toBe(0)
+    expect(summary.results.every((r) => r.action === `error`)).toBe(true)
   })
 })

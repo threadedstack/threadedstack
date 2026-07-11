@@ -500,7 +500,7 @@ const buildEngineerResidentConfig = (
   subAgents: { maxConcurrent: 2 },
   selfDirected: {
     minIdleMs: 600_000,
-    prompt: `Check the dev_tasks backlog first: if pickup-ready work exists, claim and execute it (devClaimTask, branch, code, green pnpm types + pnpm test, PR via gh, devSubmitPr). If the backlog is empty, deepen your understanding of the ThreadedStack codebase (read code, trace flows, run tests) and write what you learn as durable memories. ONLY dev_tasks work — never invent work on the live scheduled loop's backlog.`,
+    prompt: `REVIEW FIRST: check the dev_tasks board for a pr_open record whose assignee is NOT you — if one exists, claim and complete that review (devClaimReview, fetch, read the full diff, run pnpm types + pnpm test, devCompleteReview) before anything else; an unreviewed PR blocks a merge and a growing pr_open pile is the team's worst failure mode. Only when no peer PR needs review do you pick up backlog work: if pickup-ready work exists, claim and execute it (devClaimTask, branch, code, green pnpm types + pnpm test, PR via gh, devSubmitPr). If the backlog is empty too, deepen your understanding of the ThreadedStack codebase (read code, trace flows, run tests) and write what you learn as durable memories. ONLY dev_tasks work — never invent work on the live scheduled loop's backlog.`,
   },
   // The seven work-path dev* Functions + messaging + the housekeeping five —
   // the CMO actions-list shape. Identity gates (assignee-only submits,
