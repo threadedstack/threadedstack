@@ -444,6 +444,23 @@ describe(`Users endpoints`, () => {
       )
     })
 
+    it(`should return 403 when deleting another user (not own profile)`, async () => {
+      const otherUser = { id: `other-user-id`, email: `other@example.com` }
+      mockReq.params = { id: `other-user-id` }
+
+      const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
+      const mockDelete = mockReq.app?.locals.db.services.user.delete as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: otherUser })
+      mockDelete.mockClear()
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Cannot delete another user directly`
+      )
+      expect(mockDelete).not.toHaveBeenCalled()
+    })
+
     it(`should have correct endpoint configuration`, () => {
       expect(ep.path).toBe(`/:id`)
       expect(ep.method).toBe(`delete`)

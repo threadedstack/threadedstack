@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
+import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,7 +13,10 @@ import { Exception, EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 export const createProject: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.create, EPermResource.project)],
+  middleware: [
+    authorize(EPermAction.create, EPermResource.project),
+    enforceQuota(`projects`),
+  ],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { name, providerInputs, ...projectData } = req.body
