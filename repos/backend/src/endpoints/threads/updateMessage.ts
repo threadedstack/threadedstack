@@ -43,7 +43,7 @@ export const updateMessage: TEndpointConfig = {
       ...(meta !== undefined && { meta }),
     }
 
-    const { data, error } = await db.services.message.update(updateData as any)
+    const { data, error } = await db.services.message.update(updateData)
 
     if (error) throw new Exception(500, error.message)
 

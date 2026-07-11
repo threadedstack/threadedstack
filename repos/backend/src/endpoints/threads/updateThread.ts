@@ -37,7 +37,7 @@ export const updateThread: TEndpointConfig = {
       ...(isPublic !== undefined && { public: isPublic }),
     }
 
-    const { data, error } = await db.services.thread.update(updateData as any)
+    const { data, error } = await db.services.thread.update(updateData)
 
     if (error)
       throw new Exception(500, error instanceof Error ? error.message : String(error))
