@@ -369,6 +369,12 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `planning`,
     id: `sd_6TnydNv`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. The resident CTO grooms the real
+    // task_proposals backlog into dev_tasks (Deploy B/B.1), so the scheduled
+    // planning cycle's grooming is replaced. Retained-and-enabled: sensor
+    // (proposal source), verify (revert net), cto-board (strategy bridge),
+    // reflection, curation. Reversible: set enabled true to bring it back.
+    enabled: false,
     cronExpression: `0 6 * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
@@ -387,6 +393,9 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `work-cycle`,
     id: `sd_CUOT7Vu`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. The resident engineers author PRs
+    // from the dev_tasks board; the scheduled coding work-cycle is replaced.
+    enabled: false,
     cronExpression: `30 * * * *`,
     timeoutMs: 14_400_000,
     maxConsecutiveErrors: 6,
@@ -403,6 +412,9 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `coordinator`,
     id: `sd_0HqZFQ_`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. Coordination now flows through the
+    // resident CTO + the retained cto-board seat (strategy → engineering).
+    enabled: false,
     cronExpression: `0 5 * * *`,
     timeoutMs: 14_400_000,
     maxConsecutiveErrors: 6,
@@ -430,6 +442,9 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `observer`,
     id: `sd_e3bURkR`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. The always-on residents + sensor
+    // signal-7 cover observation; the hourly steward wake is redundant.
+    enabled: false,
     cronExpression: `10 * * * *`,
     timeoutMs: null,
     maxConsecutiveErrors: 5,
@@ -437,6 +452,9 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   steward({
     key: `pr-response`,
     id: `sd_EAz_2r5`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. The resident engineers service their
+    // own reviews and fixes on the dev_tasks board (claim → review → merge).
+    enabled: false,
     // Every 15 min. On a multi-round adversary review, the steward's fix waits
     // for the next pr-response cycle before it lands, so a 30-min cadence made
     // each change-request round cost ~50 min and pushed multi-round PRs past the
@@ -472,6 +490,9 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   adversary({
     key: `ops-review`,
     id: `sd_MaQz9xT`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. The resident team does its own peer
+    // review; the adversary ops-review cycle is retired with the scheduled loop.
+    enabled: false,
     cronExpression: `12,42 * * * *`,
     timeoutMs: 3_600_000,
     maxConsecutiveErrors: 6,
@@ -479,6 +500,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   adversary({
     key: `adversary-review`,
     id: `sd_nPDxUUG`,
+    // CUTOVER (Deploy E): DECOMMISSIONED. Independent review is now the resident
+    // engineers' platform-enforced peer review (reviewer !== assignee, verdict
+    // bound to headSha); the scheduled adversary gate is retired.
+    enabled: false,
     // Every 15 min. A steward PR that falls BEHIND (concurrent merge to main)
     // costs one adversary cycle to rebase (rule 2a: update-branch then defer)
     // plus one to review, so at the old 30-min cadence a rebased PR could sit
