@@ -1,5 +1,5 @@
 import type { TProviderModel } from '@tdsk/domain'
-import type { Model, Api } from '@earendil-works/pi-ai'
+import type { Model, Api, KnownProvider } from '@earendil-works/pi-ai'
 
 import { logger } from '@TBE/utils/logger'
 import { DefProviderModelUrls } from '@tdsk/domain'
@@ -20,7 +20,7 @@ export class ModelRegistry {
    */
   static getModels(provider: string): TProviderModel[] {
     try {
-      const models = getModels(provider as any)
+      const models = getModels(provider as KnownProvider)
       return models.map(ModelRegistry.#mapModel)
     } catch (err) {
       logger.error(`[ModelRegistry] getModels failed for "${provider}":`, err)
@@ -33,7 +33,9 @@ export class ModelRegistry {
    */
   static getModel(provider: string, modelId: string): TProviderModel | undefined {
     try {
-      const model = getModel(provider as any, modelId as any)
+      // modelId cast to `never`: TModelId is keyed off pi-ai's un-exported MODELS map,
+      // so a runtime string can't satisfy it without erasure at this boundary.
+      const model = getModel(provider as KnownProvider, modelId as never)
       return model ? ModelRegistry.#mapModel(model) : undefined
     } catch (err) {
       logger.error(`[ModelRegistry] getModel failed for "${provider}/${modelId}":`, err)
