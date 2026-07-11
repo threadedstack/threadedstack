@@ -1,5 +1,6 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { TDBUpdate, TDBTaskProposalInsert } from '@tdsk/database'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
@@ -39,7 +40,7 @@ export const updateTaskProposal: TEndpointConfig = {
     const { title, description, priority, evidence, repos, initiative, reason, status } =
       req.body
 
-    const update: Record<string, any> = { id: proposalId }
+    const update: TDBUpdate<TDBTaskProposalInsert> = { id: proposalId }
 
     if (title !== undefined) {
       if (typeof title !== `string` || title.trim().length === 0)
@@ -82,7 +83,7 @@ export const updateTaskProposal: TEndpointConfig = {
       update.reason = reason
     }
 
-    const { data, error } = await db.services.taskProposal.update(update as any)
+    const { data, error } = await db.services.taskProposal.update(update)
     if (error) throw new Exception(500, error.message)
 
     res.json({ data })
