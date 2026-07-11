@@ -18,6 +18,8 @@ describe(`isTransientUpstreamFailure`, () => {
       `HTTP 503 Service Unavailable`,
       `got a 502 Bad Gateway`,
       `500 Internal Server Error`,
+      `HTTP 504 Gateway Timeout`,
+      `{"status":"Failure","message":"Timeout: request did not complete within the allotted timeout","reason":"Timeout","code":504}`,
     ])
       expect(isTransientUpstreamFailure(text)).toBe(true)
   })
@@ -37,6 +39,8 @@ describe(`matchTransientSignal`, () => {
     expect(matchTransientSignal(`the model is Overloaded`)).toBe(`Overloaded`)
     expect(matchTransientSignal(`429 rate limit exceeded`)).toBe(`rate limit`)
     expect(matchTransientSignal(`HTTP 503 Service Unavailable`)).toBe(`503`)
+    expect(matchTransientSignal(`HTTP 504 Gateway Timeout`)).toBe(`504`)
+    expect(matchTransientSignal(`code":504`)).toBe(`504`)
   })
 
   it(`returns undefined for no match / empty`, () => {
