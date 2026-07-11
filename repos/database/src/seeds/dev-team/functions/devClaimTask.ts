@@ -31,6 +31,23 @@ export const DevClaimTaskFunctionSource = `export default async (request, contex
   if (task.data.state !== 'backlog')
     return { ok: true, claimed: false, conflict: true, reason: 'task is not in backlog (state: ' + task.data.state + ')' }
 
+  // SINGLE-CLAIM DISCIPLINE (platform-enforced): an engineer holds at most one
+  // work claim at a time — take it to pr_open (or let the lease lapse) before
+  // claiming another. The first live run showed watch-driven over-claiming
+  // (one seat hoarding three tasks and switching between them); serial focus
+  // ships PRs, hoarding starves the board. Review claims are separate and
+  // unaffected. Best-effort read-then-refuse: a racing double-claim slips this
+  // gate at worst rarely, and the reaper returns hoarded work regardless.
+  const held = await records.query('dev_tasks', {
+    where: [
+      { field: 'assignee', op: 'eq', value: agentId },
+      { field: 'state', op: 'eq', value: 'claimed' },
+    ],
+    limit: 1,
+  })
+  if (Array.isArray(held) && held.length > 0)
+    return { ok: true, claimed: false, conflict: true, reason: 'you already hold a work claim (' + held[0].id + ') — take it to pr_open before claiming another task' }
+
   const now = Date.now()
   const leaseExpiresAt = now + 20 * 60 * 1000
   const history = Array.isArray(task.data.history) ? task.data.history.slice(-99) : []
