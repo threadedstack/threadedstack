@@ -19,44 +19,91 @@ import { EFunLanguage, ESandboxType } from '@tdsk/domain'
 import {
   PoolTtlMS,
   PoolMaxSize,
+  PoolMaxTotalSize,
   MaxOutputBytes,
   DefaultTimeoutMS,
 } from '@TBE/constants/values'
 
 type TPoolEntry = { sandbox: ISandbox; lastUsed: number }
-const pool: TPoolEntry[] = []
+// Partitioned per tenant (projectId) — a sandbox acquired/reset under one
+// tenant must never be handed to a different tenant's execution.
+const pool = new Map<string, TPoolEntry[]>()
 let poolTimer: ReturnType<typeof setInterval> | null = null
 
 const cleanExpired = (): void => {
   const now = Date.now()
-  let i = pool.length
-  while (i--) {
-    if (now - pool[i].lastUsed > PoolTtlMS) {
-      const [entry] = pool.splice(i, 1)
-      entry.sandbox.close().catch((err: unknown) => {
-        logger.warn(
-          `Failed to close expired sandbox: ${err instanceof Error ? err.message : String(err)}`
-        )
-      })
+  for (const [tenantKey, bucket] of pool) {
+    let i = bucket.length
+    while (i--) {
+      if (now - bucket[i].lastUsed > PoolTtlMS) {
+        const [entry] = bucket.splice(i, 1)
+        entry.sandbox.close().catch((err: unknown) => {
+          logger.warn(
+            `Failed to close expired sandbox: ${err instanceof Error ? err.message : String(err)}`
+          )
+        })
+      }
     }
+    if (!bucket.length) pool.delete(tenantKey)
   }
-  if (!pool.length && poolTimer) {
+  if (!pool.size && poolTimer) {
     clearInterval(poolTimer)
     poolTimer = null
   }
 }
 
-const acquireSandbox = async (timeout: number): Promise<ISandbox> => {
+const acquireSandbox = async (timeout: number, tenantKey: string): Promise<ISandbox> => {
   cleanExpired()
-  const entry = pool.pop()
+  const entry = pool.get(tenantKey)?.pop()
   if (entry) return entry.sandbox
 
   const provider = createSandboxProvider(ESandboxType.local)
   return provider.create({ provider: ESandboxType.local, timeout })
 }
 
-const releaseSandbox = async (sandbox: ISandbox): Promise<void> => {
-  if (pool.length >= PoolMaxSize) {
+const totalPooled = (): number => {
+  let total = 0
+  for (const bucket of pool.values()) total += bucket.length
+  return total
+}
+
+// Evict the globally least-recently-used pooled sandbox ACROSS ALL TENANT
+// BUCKETS (not just the releasing tenant's own bucket) — this is what
+// re-establishes the original fixed aggregate pool size under
+// PoolMaxTotalSize while leaving the per-tenant partitioning (and the
+// cross-tenant isolation it guarantees) untouched: the victim is always
+// closed, never handed to another tenant.
+const evictGlobalLRU = async (): Promise<void> => {
+  let oldestKey: string | undefined
+  let oldestIdx = -1
+  let oldestTime = Number.POSITIVE_INFINITY
+
+  for (const [tenantKey, bucket] of pool) {
+    for (let i = 0; i < bucket.length; i++) {
+      if (bucket[i].lastUsed < oldestTime) {
+        oldestTime = bucket[i].lastUsed
+        oldestKey = tenantKey
+        oldestIdx = i
+      }
+    }
+  }
+  if (oldestKey === undefined || oldestIdx === -1) return
+
+  const bucket = pool.get(oldestKey)
+  if (!bucket) return
+  const [victim] = bucket.splice(oldestIdx, 1)
+  if (!bucket.length) pool.delete(oldestKey)
+
+  await victim.sandbox.close().catch((err: unknown) => {
+    logger.warn(
+      `Failed to close globally-evicted sandbox: ${err instanceof Error ? err.message : String(err)}`
+    )
+  })
+}
+
+const releaseSandbox = async (sandbox: ISandbox, tenantKey: string): Promise<void> => {
+  const bucket = pool.get(tenantKey) ?? []
+  if (bucket.length >= PoolMaxSize) {
     await sandbox.close().catch((err: unknown) => {
       logger.warn(
         `Failed to close sandbox (pool full): ${err instanceof Error ? err.message : String(err)}`
@@ -66,7 +113,15 @@ const releaseSandbox = async (sandbox: ISandbox): Promise<void> => {
   }
   try {
     await sandbox.reset()
-    pool.push({ sandbox, lastUsed: Date.now() })
+    // Enforce the aggregate ceiling across every tenant bucket before
+    // accepting this entry — evicts the globally-oldest pooled sandbox
+    // (which may belong to any tenant) rather than letting N concurrently
+    // active tenants each fill their own PoolMaxSize bucket unbounded.
+    if (totalPooled() >= PoolMaxTotalSize) {
+      await evictGlobalLRU()
+    }
+    bucket.push({ sandbox, lastUsed: Date.now() })
+    pool.set(tenantKey, bucket)
     if (!poolTimer) {
       poolTimer = setInterval(cleanExpired, 60_000)
       poolTimer.unref?.()
@@ -359,8 +414,9 @@ export class FunctionExecutor {
         code = result.code
       }
 
-      // 2. Acquire sandbox from pool (or create new)
-      sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS)
+      // 2. Acquire sandbox from pool (or create new), scoped to this
+      // function's tenant so no sandbox is ever shared across projects.
+      sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS, func.projectId)
 
       // Build the host-bridge surface (only when a db handle is supplied and the
       // function is project-scoped). The records bridge closures keep the db
@@ -411,7 +467,7 @@ export class FunctionExecutor {
 
       // Sandbox executed successfully — return to pool
       pooled = true
-      await releaseSandbox(sandbox)
+      await releaseSandbox(sandbox, func.projectId)
 
       // 5. Parse the result
       const parsed = evalResult.result as

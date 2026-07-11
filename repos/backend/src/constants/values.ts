@@ -86,6 +86,11 @@ export const DefaultTimeoutMS = 30_000
 
 /** Sandbox pool — max idle sandboxes and TTL before eviction */
 export const PoolMaxSize = 5
+// Aggregate ceiling across ALL tenant buckets combined — restores the
+// original system-wide pool size limit that per-tenant partitioning (see
+// PoolMaxSize above) would otherwise let grow unboundedly as
+// N*PoolMaxSize under concurrent multi-tenant load.
+export const PoolMaxTotalSize = 5
 export const PoolTtlMS = 5 * 60 * 1000
 
 // How long a session token lasts, used in websocket connections
