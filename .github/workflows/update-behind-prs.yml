@@ -1,0 +1,58 @@
+name: update-behind-prs
+
+# GitHub's native auto-merge only merges a PR once its branch is up to date
+# with base — it does NOT update a BEHIND branch itself. A PR with auto-merge
+# enabled left open while main advances silently stalls forever (see PR #19,
+# stuck BEHIND for 83+ minutes with all checks green). This job closes that
+# gap: on a schedule, it finds every open PR with auto-merge enabled AND
+# mergeStateStatus=BEHIND, and calls the "update pull request branch" API for
+# each so GitHub's own auto-merge can take over once CI reruns.
+#
+# Scope is deliberately narrow: only PRs with BOTH autoMergeRequest set AND
+# mergeStateStatus=BEHIND are touched. resident/* dev-team PRs never use
+# GitHub's native auto-merge (their merge gate is a manual `gh pr merge
+# --admin` after a recorded devCompleteReview verdict), so they never match
+# this filter and are never updated by this job.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # best-effort; GitHub may delay under load
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: update-behind-prs
+  cancel-in-progress: false
+
+jobs:
+  update-behind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update BEHIND auto-merge PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          prs=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --state open \
+            --json number,mergeStateStatus,autoMergeRequest \
+            --jq '.[] | select(.autoMergeRequest != null and .mergeStateStatus == "BEHIND") | .number')
+
+          if [ -z "$prs" ]; then
+            echo "No BEHIND auto-merge-enabled PRs found."
+            exit 0
+          fi
+
+          for number in $prs; do
+            echo "Updating branch for PR #$number (BEHIND, auto-merge enabled)"
+            gh api \
+              --method PUT \
+              "repos/${{ github.repository }}/pulls/$number/update-branch" \
+              && echo "PR #$number: branch update requested" \
+              || echo "PR #$number: update-branch request failed (non-fatal, will retry next run)"
+          done
