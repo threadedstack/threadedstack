@@ -4,9 +4,13 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { applyOpsReview, revertOpsAction } from '@TBE/utils/agent/opsPromotion'
+import type { TOpsActionStatus } from '@tdsk/domain'
 import { Exception, EPermAction, EPermResource, EOpsActionStatus } from '@tdsk/domain'
 
-const TerminalStatuses = new Set([EOpsActionStatus.rejected, EOpsActionStatus.failed])
+const TerminalStatuses = new Set<TOpsActionStatus>([
+  EOpsActionStatus.rejected,
+  EOpsActionStatus.failed,
+])
 
 /**
  * POST /:orgId/ops-actions/:opsActionId/override - Async admin override.
@@ -45,7 +49,7 @@ export const overrideOpsAction: TEndpointConfig = {
     if (!row || row.orgId !== orgId) throw new Exception(404, `Ops action not found`)
 
     // Terminal: no override applicable
-    if (TerminalStatuses.has(row.status as any))
+    if (TerminalStatuses.has(row.status))
       throw new Exception(
         409,
         `Ops action is terminal (status=${row.status}); no override applicable`
