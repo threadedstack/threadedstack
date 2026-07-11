@@ -255,3 +255,193 @@ export const reconcileResidentBodies = async (
 
   return summary
 }
+
+/**
+ * The LLM provider fallback chain a resident body authenticates through.
+ * Resident LLM auth flows through SANDBOX provider links ONLY (working
+ * residents have ZERO agent_providers rows): the pod injects each linked
+ * provider's secret via RuntimeProviderEnvMap (the anthropic-brand OAuth link
+ * becomes CLAUDE_CODE_OAUTH_TOKEN), with the GLM and OpenRouter links as
+ * priority-ordered fallbacks. Provider ids are PROD-RANDOM (minted at provider
+ * creation), so the chain is asserted BY NAME — the only durable handle a git
+ * seed has on an out-of-band prod provider. When a name is absent the reconcile
+ * is FAIL-SOFT: on a fresh org the seed providers remain linked and the seat
+ * still boots — degraded LLM auth is a known state the sensor's silent-turns
+ * signal catches.
+ */
+export const ResidentProviderChain: { name: string; priority: number }[] = [
+  { name: `Claude Subscription OAuth`, priority: 0 },
+  { name: `ZAI GLM (fallback)`, priority: 1 },
+  { name: `OpenRouter (fallback)`, priority: 2 },
+]
+
+/** The agent + provider + sandbox-provider-links service slice the chain
+ * reconcile needs. */
+export type TResidentChainService = {
+  agent: {
+    get: (id: string) => Promise<{
+      data?: { environment?: Record<string, any> | null } | null
+      error?: any
+    }>
+  }
+  provider: {
+    findByName: (
+      name: string
+    ) => Promise<{ data?: { id: string } | null; error?: any }>
+  }
+  links: {
+    list: (sandboxId: string) => Promise<{
+      data?: { providerId: string; priority: number }[]
+      error?: any
+    }>
+    replace: (
+      sandboxId: string,
+      links: { providerId: string; priority: number }[]
+    ) => Promise<{ error?: any }>
+  }
+}
+
+export type TResidentChainAction = `asserted` | `unchanged` | `skipped` | `error`
+
+export type TResidentChainSummary = {
+  asserted: number
+  unchanged: number
+  skipped: number
+  errors: number
+  results: {
+    agentId: string
+    sandboxId?: string
+    action: TResidentChainAction
+    message?: string
+  }[]
+}
+
+/** True when both link sets carry the same providerId+priority pairs,
+ * order-insensitive. */
+const sameChain = (
+  a: { providerId: string; priority: number }[],
+  b: { providerId: string; priority: number }[]
+): boolean => {
+  if (a.length !== b.length) return false
+  const key = (links: { providerId: string; priority: number }[]) =>
+    links
+      .map((l) => `${l.providerId}:${l.priority ?? 0}`)
+      .sort()
+      .join(`|`)
+  return key(a) === key(b)
+}
+
+/**
+ * Ensure each activated resident's body sandbox carries the REAL provider chain
+ * (ResidentProviderChain) as its sandbox provider links. This closes the last
+ * seed-vs-prod drift class: the git seeds link the SEED providers (placeholder
+ * secrets), so a fresh seat gets continuous LLM 502s until its links are
+ * hand-mirrored from a working seat — this reconcile does that mirroring on
+ * every deploy, by NAME (ids are prod-local).
+ *
+ * Per agentId in the git-declared ResidentActivations list:
+ * 1. Resolve the body sandbox via `agent.environment.sandboxId` (the SAME
+ *    resolution reconcileResidentBodies and the watchdog use).
+ * 2. Resolve EVERY chain name via `provider.findByName`. If ANY name resolves
+ *    to nothing, the seat is `skipped` (fail-soft — the links are NOT touched,
+ *    a partial chain would strip a seat's working fallbacks).
+ * 3. Compare the current links to the desired providerId+priority set,
+ *    ORDER-INSENSITIVE. Equal → `unchanged`. Else REPLACE the full link set in
+ *    one slice call (the runner does delete+insert) → `asserted`.
+ *
+ * Links apply at POD CREATION (the pod manifest injects provider secrets when
+ * the pod is built), so an asserted chain reaches a drifted LIVE pod only on
+ * recreation — the watchdog's natural churn or a deliberate delete picks it up.
+ *
+ * Never throws — every outcome lands in the summary.
+ */
+export const reconcileResidentProviderChains = async (
+  service: TResidentChainService,
+  log: (msg: string) => void = () => {}
+): Promise<TResidentChainSummary> => {
+  const summary: TResidentChainSummary = {
+    asserted: 0,
+    unchanged: 0,
+    skipped: 0,
+    errors: 0,
+    results: [],
+  }
+
+  const fail = (agentId: string, message?: string, sandboxId?: string) => {
+    summary.errors++
+    summary.results.push({ agentId, sandboxId, action: `error`, message })
+    log(`  ❌ resident chain ${agentId} — ${message ?? `unknown error`}`)
+  }
+
+  for (const agentId of ResidentActivations) {
+    try {
+      const agentRes = await service.agent.get(agentId)
+      if (agentRes.error) {
+        fail(agentId, `agent lookup failed: ${agentRes.error.message}`)
+        continue
+      }
+      const sandboxId = agentRes.data?.environment?.sandboxId as string | undefined
+      if (!sandboxId) {
+        fail(agentId, `agent has no environment.sandboxId (no body sandbox)`)
+        continue
+      }
+
+      // Resolve EVERY chain name BEFORE touching links: one unresolvable name
+      // makes the whole chain unprovable, so the seat's links stay untouched.
+      const desired: { providerId: string; priority: number }[] = []
+      const missing: string[] = []
+      let lookupError: string | undefined
+      for (const { name, priority } of ResidentProviderChain) {
+        const found = await service.provider.findByName(name)
+        if (found.error) {
+          lookupError = `provider lookup "${name}" failed: ${found.error.message}`
+          break
+        }
+        if (!found.data?.id) missing.push(name)
+        else desired.push({ providerId: found.data.id, priority })
+      }
+      if (lookupError) {
+        fail(agentId, lookupError, sandboxId)
+        continue
+      }
+      if (missing.length) {
+        summary.skipped++
+        summary.results.push({
+          agentId,
+          sandboxId,
+          action: `skipped`,
+          message: `provider name(s) not found: ${missing.join(`, `)}`,
+        })
+        log(
+          `  ⏭️  resident chain ${agentId} — skipped, missing provider(s): ${missing.join(`, `)}`
+        )
+        continue
+      }
+
+      const current = await service.links.list(sandboxId)
+      if (current.error) {
+        fail(agentId, `links list failed: ${current.error.message}`, sandboxId)
+        continue
+      }
+      if (sameChain(current.data ?? [], desired)) {
+        summary.unchanged++
+        summary.results.push({ agentId, sandboxId, action: `unchanged` })
+        log(`  ➖ resident chain ${agentId} — chain already on ${sandboxId}`)
+        continue
+      }
+
+      const replaced = await service.links.replace(sandboxId, desired)
+      if (replaced.error) {
+        fail(agentId, `links replace failed: ${replaced.error.message}`, sandboxId)
+        continue
+      }
+      summary.asserted++
+      summary.results.push({ agentId, sandboxId, action: `asserted` })
+      log(`  ✅ resident chain ${agentId} — provider chain asserted on ${sandboxId}`)
+    } catch (err: any) {
+      fail(agentId, err?.message)
+    }
+  }
+
+  return summary
+}

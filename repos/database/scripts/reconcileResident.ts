@@ -1,12 +1,18 @@
+import { eq } from 'drizzle-orm'
 import { database } from '@TDB/database'
 import { loadEnvs } from '@tdsk/domain'
 import { ife } from '@keg-hub/jsutils/ife'
+import { providers } from '@TDB/schemas/providers'
 import { OpsProjectId } from '@TDB/seeds/agentSchedules'
+import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { reconcileResident } from '@TDB/seeds/resident/collections'
-import { reconcileResidentBodies } from '@TDB/seeds/resident/bodies'
 import { reconcileResidentFunctions } from '@TDB/seeds/resident/functions'
 import { reconcileResidentConfigs } from '@TDB/seeds/resident/records'
 import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
+import {
+  reconcileResidentBodies,
+  reconcileResidentProviderChains,
+} from '@TDB/seeds/resident/bodies'
 
 /**
  * Deploy-time reconcile of the resident data plane (Resident Agents R3+R4):
@@ -26,7 +32,12 @@ import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
  * recipe (image/imagePullPolicy/initScript/setupScript/promptCommand + the
  * recipe envVars keys) is re-asserted onto the body sandbox config and the
  * agent's ops-project binding is created if absent, so a config wipe or
- * hand-edit drift can strand a seat for at most one deploy cycle. Finally it
+ * hand-edit drift can strand a seat for at most one deploy cycle. Next it
+ * reconciles each seat's PROVIDER CHAIN: the sandbox provider links (the ONLY
+ * path resident LLM auth flows through) are asserted to the three real
+ * providers by NAME (ids are prod-local), replacing seed-provider links so a
+ * fresh seat never runs on placeholder secrets; fail-soft — when a chain name
+ * is absent the seat is skipped and its links are left untouched. Finally it
  * reconciles the resident ACTIVATIONS: for each agentId in the git-declared
  * ResidentActivations list, it sets the agent's body sandbox to resident mode
  * (`config.resident = { agentId }`) so activation is durable and re-asserted
@@ -35,8 +46,9 @@ import { reconcileResidentActivations } from '@TDB/seeds/resident/activations'
  * config whose agent is NOT in that list stays inert (the watchdog skips a
  * non-resident sandbox) — the inert-first pattern. Idempotent: collections are
  * create-if-absent, Functions/configs update only on drift, body recipes write
- * only on drift, bindings are create-if-absent, and activations set only when
- * the flag is missing, so a re-run makes no changes.
+ * only on drift, provider chains replace only on drift (order-insensitive
+ * compare), bindings are create-if-absent, and activations set only when the
+ * flag is missing, so a re-run makes no changes.
  */
 
 const nodeEnv = process.env.NODE_ENV
@@ -82,6 +94,79 @@ ife(async () => {
     (msg) => console.log(msg)
   )
 
+  // Runner adapters for the chain reconcile: findByName resolves a provider by
+  // its NAME (the only durable handle on out-of-band prod providers), and
+  // replace swaps a sandbox's full provider-link set in one transaction. Ids
+  // are never passed on insert — the sandbox_providers schema's entityId
+  // default mints them (exactly how sandbox.addProvider inserts).
+  const chainSlice = {
+    agent: db.services.agent,
+    provider: {
+      findByName: async (name: string) => {
+        try {
+          const [row] = await db
+            .select({ id: providers.id })
+            .from(providers)
+            .where(eq(providers.name, name))
+            .limit(1)
+          return { data: row ?? null }
+        } catch (error: any) {
+          return { data: null, error }
+        }
+      },
+    },
+    links: {
+      list: async (sandboxId: string) => {
+        try {
+          const rows = await db
+            .select({
+              providerId: sandboxProviders.providerId,
+              priority: sandboxProviders.priority,
+            })
+            .from(sandboxProviders)
+            .where(eq(sandboxProviders.sandboxId, sandboxId))
+          return {
+            data: rows.map((r) => ({
+              providerId: r.providerId,
+              priority: r.priority ?? 0,
+            })),
+          }
+        } catch (error: any) {
+          return { error }
+        }
+      },
+      replace: async (
+        sandboxId: string,
+        links: { providerId: string; priority: number }[]
+      ) => {
+        try {
+          await db.transaction(async (tx) => {
+            await tx
+              .delete(sandboxProviders)
+              .where(eq(sandboxProviders.sandboxId, sandboxId))
+            if (links.length)
+              await tx.insert(sandboxProviders).values(
+                links.map((l) => ({
+                  sandboxId,
+                  providerId: l.providerId,
+                  priority: l.priority,
+                  model: null,
+                }))
+              )
+          })
+          return { error: null }
+        } catch (error: any) {
+          return { error }
+        }
+      },
+    },
+  }
+
+  console.log(`🔗 Reconciling resident provider chains from repo config...`)
+  const chainSummary = await reconcileResidentProviderChains(chainSlice, (msg) =>
+    console.log(msg)
+  )
+
   console.log(`🔌 Reconciling resident sandbox activations from repo config...`)
   const actSummary = await reconcileResidentActivations(
     { agent: db.services.agent, sandbox: sandboxSlice },
@@ -93,6 +178,7 @@ ife(async () => {
     fnSummary.errors +
     cfgSummary.errors +
     bodySummary.errors +
+    chainSummary.errors +
     actSummary.errors
 
   console.log(`═══════════════════════════════════════`)
@@ -108,6 +194,9 @@ ife(async () => {
   console.log(`   🧬 Body recipes asserted: ${bodySummary.asserted}`)
   console.log(`   ➖ Body recipes unchanged:${bodySummary.unchanged}`)
   console.log(`   🔗 Ops projects bound:    ${bodySummary.bound}`)
+  console.log(`   🔗 Provider chains asserted: ${chainSummary.asserted}`)
+  console.log(`   ➖ Provider chains unchanged:${chainSummary.unchanged}`)
+  console.log(`   ⏭️  Provider chains skipped:  ${chainSummary.skipped}`)
   console.log(`   🔌 Activations set:       ${actSummary.activated}`)
   console.log(`   ➖ Activations unchanged: ${actSummary.unchanged}`)
   console.log(`   ❌ Errors:                ${errors}`)
