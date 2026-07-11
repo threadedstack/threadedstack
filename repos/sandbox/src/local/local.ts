@@ -118,6 +118,11 @@ export class LocalSandbox implements ISandbox {
     // Release user-registered modules to avoid V8 heap leaks on pool reuse
     this.isolateRunner?.releaseUserModules()
 
+    // Scrub any leaked globalThis writes and hijacked built-in prototype
+    // methods from a prior run before this isolate is handed to the next
+    // same-tenant function — see IsolateRunner.scrubGlobals() for scope.
+    await this.isolateRunner?.scrubGlobals()
+
     // Clear filesystem contents in /workspace and /tmp
     for (const dir of [DefaultWorkdir, DefaultTempdir]) {
       try {
