@@ -1,5 +1,6 @@
 import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { PoolTtlMS, PoolMaxTotalSize } from '@TBE/constants/values'
 
 // ── Hoisted mocks (accessible inside vi.mock factories) ──────────────
 
@@ -802,6 +803,183 @@ describe(`FunctionExecutor`, () => {
       expect(fragileReset).toHaveBeenCalled()
       // When reset fails, sandbox should be closed instead of pooled
       expect(fragileSandbox.close).toHaveBeenCalled()
+    })
+  })
+
+  // ── Tenant-partitioned Pool Tests ──────────────────────────────────
+  //
+  // The pool is keyed by func.projectId so a sandbox acquired/reset under
+  // one tenant is never handed to a different tenant. Each test below uses
+  // projectId values unique to this describe block to avoid interference
+  // from pool state left behind by other tests in this file.
+
+  describe(`tenant-partitioned pool`, () => {
+    const makeTrackedSandbox = () => ({
+      evaluate: vi
+        .fn()
+        .mockResolvedValue({ output: ``, result: { success: true, output: {} } }),
+      close: vi.fn().mockResolvedValue(undefined),
+      reset: vi.fn().mockResolvedValue(undefined),
+    })
+
+    it(`never returns a sandbox pooled under one tenant to a different tenant`, async () => {
+      const tenantASandbox = makeTrackedSandbox()
+      const tenantBSandbox = makeTrackedSandbox()
+
+      mockCreate.mockResolvedValueOnce(tenantASandbox)
+      const funcA = makeFunc({ projectId: `proj-tenant-iso-a` })
+      await FunctionExecutor.execute(funcA)
+      const createCallsAfterA = mockCreate.mock.calls.length
+
+      mockCreate.mockResolvedValueOnce(tenantBSandbox)
+      const funcB = makeFunc({ projectId: `proj-tenant-iso-b` })
+      await FunctionExecutor.execute(funcB)
+
+      // Tenant B's pool bucket was empty, so a NEW sandbox must be created —
+      // tenant A's pooled sandbox must never be popped for tenant B.
+      expect(mockCreate.mock.calls.length).toBe(createCallsAfterA + 1)
+      expect(tenantBSandbox.evaluate).toHaveBeenCalledTimes(1)
+      expect(tenantASandbox.evaluate).toHaveBeenCalledTimes(1)
+    })
+
+    it(`reuses a pooled sandbox for the same tenant instead of creating a new one`, async () => {
+      const tenantSandbox = makeTrackedSandbox()
+      mockCreate.mockResolvedValueOnce(tenantSandbox)
+      const func = makeFunc({ projectId: `proj-tenant-reuse` })
+
+      await FunctionExecutor.execute(func)
+      const createCallsAfterFirst = mockCreate.mock.calls.length
+
+      await FunctionExecutor.execute(func)
+
+      // Same tenant, same bucket — no new sandbox should be created.
+      expect(mockCreate.mock.calls.length).toBe(createCallsAfterFirst)
+      expect(tenantSandbox.evaluate).toHaveBeenCalledTimes(2)
+    })
+
+    it(`purges only the expired tenant's bucket (and its Map key) on TTL expiry, leaving a fresher tenant's entries intact`, async () => {
+      vi.useFakeTimers()
+      try {
+        const startTime = Date.now()
+
+        const staleSandbox = makeTrackedSandbox()
+        mockCreate.mockResolvedValueOnce(staleSandbox)
+        const staleFunc = makeFunc({ projectId: `proj-tenant-ttl-stale` })
+        await FunctionExecutor.execute(staleFunc)
+
+        // Advance to just before TTL — the stale tenant's entry is not yet
+        // expired when the fresh tenant's sandbox gets pooled.
+        vi.setSystemTime(startTime + PoolTtlMS - 1_000)
+
+        const freshSandbox = makeTrackedSandbox()
+        mockCreate.mockResolvedValueOnce(freshSandbox)
+        const freshFunc = makeFunc({ projectId: `proj-tenant-ttl-fresh` })
+        await FunctionExecutor.execute(freshFunc)
+
+        // Advance past the stale tenant's TTL, but the fresh tenant's entry
+        // (pooled 1s before this jump) is still well within its own TTL.
+        vi.setSystemTime(startTime + PoolTtlMS + 1_000)
+
+        // Trigger cleanExpired via a third tenant's acquire — this is the
+        // real acquireSandbox/cleanExpired path, not a hand-mocked pool.
+        const thirdSandbox = makeTrackedSandbox()
+        mockCreate.mockResolvedValueOnce(thirdSandbox)
+        const thirdFunc = makeFunc({ projectId: `proj-tenant-ttl-trigger` })
+        await FunctionExecutor.execute(thirdFunc)
+
+        // The stale tenant's pooled sandbox was expired out and closed —
+        // proof its bucket (and Map key) were purged.
+        expect(staleSandbox.close).toHaveBeenCalled()
+
+        // The fresh tenant's entry must have survived the same cleanExpired
+        // pass — re-executing under its projectId reuses it (no new create).
+        const createCallsBeforeFreshReuse = mockCreate.mock.calls.length
+        await FunctionExecutor.execute(freshFunc)
+        expect(mockCreate.mock.calls.length).toBe(createCallsBeforeFreshReuse)
+        expect(freshSandbox.evaluate).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  // ── Global Pool Ceiling Tests ───────────────────────────────────────
+  //
+  // Per-tenant partitioning (above) caps each tenant's OWN bucket at
+  // PoolMaxSize, but says nothing about the aggregate across tenants — N
+  // concurrently active tenants could otherwise each fill their own
+  // PoolMaxSize bucket, growing the pool unboundedly. These tests prove a
+  // separate aggregate ceiling (PoolMaxTotalSize) is enforced by evicting
+  // the globally least-recently-used entry ACROSS TENANTS, not just within
+  // the releasing tenant's own bucket.
+  //
+  // The pool is module-level state shared with every other test in this
+  // file, so — same discipline as the "sandbox pool" tests above — this
+  // block first "flushes" the pool with more distinct-tenant releases than
+  // it could possibly already hold, pinned to a timestamp far in the future
+  // (fake timers). Because eviction always targets the globally OLDEST
+  // entry, any real-clock leftovers from earlier tests are always evicted
+  // before anything created here, so after the flush the pool is
+  // deterministically composed only of this test's own entries.
+
+  describe(`global pool ceiling (cross-tenant)`, () => {
+    const makeTrackedSandbox = () => ({
+      evaluate: vi
+        .fn()
+        .mockResolvedValue({ output: ``, result: { success: true, output: {} } }),
+      close: vi.fn().mockResolvedValue(undefined),
+      reset: vi.fn().mockResolvedValue(undefined),
+    })
+
+    it(`evicts the globally least-recently-used sandbox across tenants once the aggregate cap is exceeded`, async () => {
+      vi.useFakeTimers()
+      try {
+        let t = Date.now() + 60 * 60 * 1000
+
+        // Flush: guarantees every pre-existing (real-timestamped) entry from
+        // earlier tests is evicted before this test's own assertions begin.
+        for (let i = 0; i < PoolMaxTotalSize + 5; i++) {
+          vi.setSystemTime(t)
+          t += 1_000
+          const flush = makeTrackedSandbox()
+          mockCreate.mockResolvedValueOnce(flush)
+          await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-flush-${i}` }))
+        }
+
+        // Fill the pool to exactly the aggregate cap with tracked,
+        // distinct-tenant sandboxes — release order is the LRU order.
+        const sandboxes: ReturnType<typeof makeTrackedSandbox>[] = []
+        for (let i = 0; i < PoolMaxTotalSize; i++) {
+          vi.setSystemTime(t)
+          t += 1_000
+          const sandbox = makeTrackedSandbox()
+          mockCreate.mockResolvedValueOnce(sandbox)
+          await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-cap-${i}` }))
+          sandboxes.push(sandbox)
+        }
+
+        // One more distinct-tenant release pushes the aggregate past the cap.
+        vi.setSystemTime(t)
+        const overflow = makeTrackedSandbox()
+        mockCreate.mockResolvedValueOnce(overflow)
+        await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-cap-overflow` }))
+
+        // The globally-oldest entry (tenant 0) was evicted and closed, even
+        // though its OWN bucket never held more than 1 entry (well under
+        // PoolMaxSize) — proving eviction is a cross-tenant, aggregate-cap
+        // eviction, not the pre-existing per-tenant cap.
+        expect(sandboxes[0].close).toHaveBeenCalled()
+
+        // The most-recently-pooled tenant survives and is still reused.
+        const createCallsBeforeReuse = mockCreate.mock.calls.length
+        await FunctionExecutor.execute(
+          makeFunc({ projectId: `proj-global-cap-${PoolMaxTotalSize - 1}` })
+        )
+        expect(mockCreate.mock.calls.length).toBe(createCallsBeforeReuse)
+        expect(sandboxes[PoolMaxTotalSize - 1].evaluate).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 })
