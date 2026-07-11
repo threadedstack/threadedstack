@@ -24,39 +24,45 @@ import {
 } from '@TBE/constants/values'
 
 type TPoolEntry = { sandbox: ISandbox; lastUsed: number }
-const pool: TPoolEntry[] = []
+// Partitioned per tenant (projectId) — a sandbox acquired/reset under one
+// tenant must never be handed to a different tenant's execution.
+const pool = new Map<string, TPoolEntry[]>()
 let poolTimer: ReturnType<typeof setInterval> | null = null
 
 const cleanExpired = (): void => {
   const now = Date.now()
-  let i = pool.length
-  while (i--) {
-    if (now - pool[i].lastUsed > PoolTtlMS) {
-      const [entry] = pool.splice(i, 1)
-      entry.sandbox.close().catch((err: unknown) => {
-        logger.warn(
-          `Failed to close expired sandbox: ${err instanceof Error ? err.message : String(err)}`
-        )
-      })
+  for (const [tenantKey, bucket] of pool) {
+    let i = bucket.length
+    while (i--) {
+      if (now - bucket[i].lastUsed > PoolTtlMS) {
+        const [entry] = bucket.splice(i, 1)
+        entry.sandbox.close().catch((err: unknown) => {
+          logger.warn(
+            `Failed to close expired sandbox: ${err instanceof Error ? err.message : String(err)}`
+          )
+        })
+      }
     }
+    if (!bucket.length) pool.delete(tenantKey)
   }
-  if (!pool.length && poolTimer) {
+  if (!pool.size && poolTimer) {
     clearInterval(poolTimer)
     poolTimer = null
   }
 }
 
-const acquireSandbox = async (timeout: number): Promise<ISandbox> => {
+const acquireSandbox = async (timeout: number, tenantKey: string): Promise<ISandbox> => {
   cleanExpired()
-  const entry = pool.pop()
+  const entry = pool.get(tenantKey)?.pop()
   if (entry) return entry.sandbox
 
   const provider = createSandboxProvider(ESandboxType.local)
   return provider.create({ provider: ESandboxType.local, timeout })
 }
 
-const releaseSandbox = async (sandbox: ISandbox): Promise<void> => {
-  if (pool.length >= PoolMaxSize) {
+const releaseSandbox = async (sandbox: ISandbox, tenantKey: string): Promise<void> => {
+  const bucket = pool.get(tenantKey) ?? []
+  if (bucket.length >= PoolMaxSize) {
     await sandbox.close().catch((err: unknown) => {
       logger.warn(
         `Failed to close sandbox (pool full): ${err instanceof Error ? err.message : String(err)}`
@@ -66,7 +72,8 @@ const releaseSandbox = async (sandbox: ISandbox): Promise<void> => {
   }
   try {
     await sandbox.reset()
-    pool.push({ sandbox, lastUsed: Date.now() })
+    bucket.push({ sandbox, lastUsed: Date.now() })
+    pool.set(tenantKey, bucket)
     if (!poolTimer) {
       poolTimer = setInterval(cleanExpired, 60_000)
       poolTimer.unref?.()
@@ -359,8 +366,9 @@ export class FunctionExecutor {
         code = result.code
       }
 
-      // 2. Acquire sandbox from pool (or create new)
-      sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS)
+      // 2. Acquire sandbox from pool (or create new), scoped to this
+      // function's tenant so no sandbox is ever shared across projects.
+      sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS, func.projectId)
 
       // Build the host-bridge surface (only when a db handle is supplied and the
       // function is project-scoped). The records bridge closures keep the db
@@ -411,7 +419,7 @@ export class FunctionExecutor {
 
       // Sandbox executed successfully — return to pool
       pooled = true
-      await releaseSandbox(sandbox)
+      await releaseSandbox(sandbox, func.projectId)
 
       // 5. Parse the result
       const parsed = evalResult.result as
