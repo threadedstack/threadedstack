@@ -9,6 +9,7 @@ import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import CloudIcon from '@mui/icons-material/Cloud'
 import SyncIcon from '@mui/icons-material/Sync'
+import DatasetIcon from '@mui/icons-material/Dataset'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import PageMeta from '@TAF/components/Shared/PageMeta'
 import PageHero from '@TAF/components/Shared/PageHero'
@@ -252,6 +253,39 @@ tsa sessions list
     codeLang: 'bash',
     docsLink: '/docs/features/session-sharing',
   },
+  {
+    icon: DatasetIcon,
+    title: 'Collections & Records',
+    benefit:
+      'Give every agent run, Function, and schedule durable, queryable memory — without provisioning an external database.',
+    expansion:
+      'A Collection is a named, project-scoped set of JSON-document Records, with an optional schema for validated writes. The Admin API, agent tools, FaaS Functions, and schedule contextSources all read and write through the same scoped query engine.',
+    paragraphs: [
+      'A Collection is a named, project-scoped set of Records, each a JSON document with an id and timestamps. Attach an optional schema — typed fields, each markable required — and every write is validated against it; skip the schema and the collection accepts any document. This gives agents, Functions, and schedules a lightweight place to persist structured data without provisioning and wiring up an external database.',
+      'Four access paths compile through the same host-side query engine: the Admin API, four dedicated agent tools (collectionQuery, collectionGet, collectionUpsert, collectionDelete), a FaaS Function’s injected context.records capability, and a schedule’s contextSources config. Every filter field is validated against a strict identifier charset and bound as a parameter, never string-interpolated, so the same small, injection-safe filter/sort/limit API is safe no matter which surface is querying it.',
+      'This turns durable memory into a config change instead of a coding project: point a schedule’s contextSources at your own collection and its next cycle prompt gets a live, filtered view injected automatically; have an agent run upsert its findings and a later run, Function, or schedule can query them back. Every record is scoped to its own project, so one team’s collections are never visible to another’s.',
+    ],
+    code: `# Create a project-scoped collection (schema optional)
+curl -X POST .../projects/<id>/collections \\
+  -d '{
+    "name": "leads",
+    "schema": [{ "name": "email", "type": "string", "required": true }]
+  }'
+
+# Agents get 4 tools automatically: collectionQuery / Get / Upsert / Delete
+# → an agent run persists a finding...
+collectionUpsert("leads", { data: { email: "alice@example.com", status: "new" } })
+
+# ...and a later run, Function, or schedule reads it back
+curl -X POST .../collections/leads/records/query \\
+  -d '{
+    "where": [{ "field": "status", "op": "eq", "value": "new" }],
+    "limit": 25
+  }'
+# → { "data": [{ "id": "rec_f6g7h8i9j0", "data": { "email": "alice@example.com", "status": "new" } }] }`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/collections',
+  },
 ]
 
 const altBgSx = (t: any) =>
@@ -273,7 +307,7 @@ const Features = () => (
   <>
     <PageMeta
       title='Features'
-      description="Explore Threaded Stack's platform capabilities: managed sandboxes, zero-trust egress proxy, secret management, provider integrations, file sync, team management, and real-time session sharing."
+      description="Explore Threaded Stack's platform capabilities: managed sandboxes, zero-trust egress proxy, secret management, provider integrations, file sync, team management, real-time session sharing, and queryable Collections & Records."
     />
     <Box>
       <PageHero
