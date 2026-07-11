@@ -212,6 +212,29 @@ describe(`agenda scheduling`, () => {
     await loop.scan()
     expect(loop.getQueueDepth()).toBe(0)
   })
+
+  it(`reschedules an agenda item when its cron changes under a live config refresh`, async () => {
+    const now = { value: Date.parse(`2026-07-08T10:00:30Z`) }
+    const config = makeConfig({
+      agenda: [{ key: `groom`, cron: `0 * * * *`, prompt: `groom` }],
+    })
+    const { loop } = makeLoop({}, { config, now })
+
+    await loop.scan() // hourly cron → nextRunAt is 11:00; nothing due yet
+    expect(loop.getQueueDepth()).toBe(0)
+
+    // A live config refresh tightens the cadence to every minute. Without the
+    // cron-change detection the stale 11:00 nextRunAt would persist and nothing
+    // would fire for ~an hour; with it, the item reschedules onto the new cron.
+    config.agenda[0].cron = `* * * * *`
+    now.value += 61_000 // 10:01:31 — reschedules forward to 10:02:00 (not due yet)
+    await loop.scan()
+    expect(loop.getQueueDepth()).toBe(0)
+
+    now.value += 60_000 // 10:02:31 — past the NEW cron's boundary
+    await loop.scan()
+    expect(loop.getQueueDepth()).toBe(1)
+  })
 })
 
 describe(`self-directed turns`, () => {

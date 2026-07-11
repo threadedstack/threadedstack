@@ -114,7 +114,12 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
   let lastActivityAt = nowFn()
   let lastInboxPollAt = 0
 
-  const agendaNextRun = new Map<string, number>()
+  // Per-agenda-key schedule state: the cron it was scheduled from + the next
+  // fire time. Tracking the cron lets a live config refresh that CHANGES an
+  // agenda item's cron take effect immediately (reschedule forward from now),
+  // instead of silently waiting for the next OLD-cron fire — which previously
+  // made an agenda cadence change require a pod restart to apply.
+  const agendaNextRun = new Map<string, { cron: string; nextRunAt: number }>()
   const watchStates = new Map<string, TWatchState>()
   const seenMessages: string[] = []
   const seenMessageSet = new Set<string>()
@@ -178,20 +183,25 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
 
     for (const item of config.agenda) {
       liveKeys.add(item.key)
-      let nextRunAt = agendaNextRun.get(item.key)
-      if (nextRunAt === undefined) {
-        // First sighting: schedule forward from now (no boot-storm of "missed" runs)
-        nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
-        agendaNextRun.set(item.key, nextRunAt)
+      let entry = agendaNextRun.get(item.key)
+      // First sighting OR the cron changed under a live config refresh: schedule
+      // forward from now (no boot-storm of "missed" runs, and a cadence change
+      // takes effect on the next scan rather than after the next old-cron fire).
+      if (entry === undefined || entry.cron !== item.cron) {
+        entry = {
+          cron: item.cron,
+          nextRunAt: parseNextRun(item.cron, new Date(now)).getTime(),
+        }
+        agendaNextRun.set(item.key, entry)
       }
 
-      if (now >= nextRunAt) {
+      if (now >= entry.nextRunAt) {
         enqueue({
           kind: EResidentEventKind.agenda,
           key: item.key,
           prompt: item.prompt,
         })
-        agendaNextRun.set(item.key, parseNextRun(item.cron, new Date(now)).getTime())
+        entry.nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
       }
     }
 
