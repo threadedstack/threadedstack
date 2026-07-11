@@ -2,12 +2,15 @@ import type { TKubeSandboxConfig } from '@tdsk/domain'
 
 import { EImagePullPolicy, ESandboxRuntime, DefaultResources } from '@tdsk/domain'
 import {
+  OpsOrgId,
   OpsProjectId,
   OpsProjectName,
   CtoAgentId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
 } from '@TDB/seeds/agentSchedules'
+import { Ids } from '@TDB/seeds/ids.seed'
 import { ResidentActivations } from '@TDB/seeds/resident/activations'
 
 /**
@@ -54,6 +57,281 @@ export const ResidentBodyConfig: TKubeSandboxConfig = {
   initScript: `mkdir -p /root && printf '{"projects":{"/workspace":{"hasTrustDialogAccepted":true}}}' > /root/.claude.json && echo ready`,
   setupScript: `if [ -n "\${TDSK_GIT_0_TOKEN:-}" ]; then AUTH=$(printf "x-access-token:%s" "$TDSK_GIT_0_TOKEN" | base64 | tr -d "\\n"); git config http.extraHeader "Authorization: Basic $AUTH"; git config user.name "\${TDSK_GIT_USER_NAME:-ThreadedStack Steward}"; git config user.email "\${TDSK_GIT_USER_EMAIL:-steward@threadedstack.app}"; fi; git fetch origin main && git reset --hard origin/main && pnpm install --frozen-lockfile --prefer-offline`,
   promptCommand: `claude -p --dangerously-skip-permissions --append-system-prompt '{soul}' '{prompt}'`,
+}
+
+/**
+ * The engineer-seat SOUL — the resident persona injected as the system prompt on
+ * every turn (the promptCommand's `{soul}`). Byte-identical to the founder
+ * engineer seats in fullorg.ts (`agents.engineerOne/engineerTwo.soul`): the
+ * single-source-of-truth guard (bodies.test.ts) asserts a ResidentSeatSpecs
+ * engineer entry matches its fullorg seat field-for-field, so a fresh seat's
+ * `pnpm seed` body and this reconcile's create-if-absent body come up identical.
+ */
+export const EngineerSeatSoul = `You are a resident engineer at ThreadedStack. You build ThreadedStack itself: you take a task from the shared board, write the code, prove it with green types and green tests, open the PR, and see it through review to merge. You are rigorous and honest — a claim you cannot verify is a claim you do not make — and you review your teammate's work with the same care you write your own: you read the whole diff, you run it, and your verdict means something.`
+
+/** The engineer-seat public name/description, byte-identical to the fullorg
+ * founder engineer seats (the two are identical apart from the ordinal name). */
+export const EngineerSeatDescription = `Resident engineer — works the dev_tasks state machine: claims tasks, ships verified PRs, reviews its teammate's work`
+
+/** The CTO (dev-team lead) seat soul + name + description, byte-identical to the
+ * fullorg founder CTO seat (`agents.cto`). */
+export const CtoSeatSoul = `You are the CTO of ThreadedStack. You turn strategy into concrete, buildable engineering work and you lead a realtime engineering team: two resident engineers working the shared dev_tasks board concurrently. You groom their backlog with small, sharply-scoped tasks, you keep their claims live, and you keep their throughput honest. You lead; you do not do their work for them — your engineering judgment lands as well-groomed tasks, sharp review-throughput questions, and clear messages.`
+export const CtoSeatDescription = `Dev-team lead — grooms the dev_tasks backlog, reaps expired leases, and keeps the resident engineering team's throughput honest`
+
+/**
+ * A resident SEAT spec — the complete, git-declared recipe for one resident's
+ * agent + body sandbox, enough for `reconcileResidentSeats` to CREATE both from
+ * scratch when they are absent in prod (the create-if-absent step). Fixed
+ * product-stable ids (ids.seed.ts) make creation idempotent: a second deploy
+ * finds both present and no-ops.
+ *
+ * Every field an agent/sandbox create needs is here so a new seat is a pure git
+ * config change (add a spec + wire it into the activations/config-seed/repo-seat
+ * lists), never a hand-created prod row.
+ */
+export type TResidentSeatSpec = {
+  /** Fixed `agents.id` (create inserts it verbatim — Base.create). */
+  agentId: string
+  /** Fixed `sandboxes.id` bound via `agent.environment.sandboxId`. */
+  sandboxId: string
+  /** The agent's public name. */
+  name: string
+  /** The agent's public description. */
+  description: string
+  /** The founder persona injected as the system prompt on every turn. */
+  soul: string
+  /** The body sandbox's display name (e.g. `Engineer Three Body`). */
+  sandboxName: string
+}
+
+/**
+ * The COMPLETE resident-seat roster — the SINGLE SOURCE OF TRUTH for every
+ * resident's agent + body-sandbox identity. `reconcileResidentSeats` iterates
+ * this list on every deploy and create-if-absent provisions each seat, so
+ * "add a resident engineer seat" is a pure git change: add a spec here, then
+ * wire the agentId into ResidentActivations (activations.ts), a config seed
+ * (records.ts), and — for code-pushing seats — ResidentRepoSeats below.
+ *
+ * The CTO + the existing engineers already exist in prod, so their specs are
+ * create-if-absent NO-OPS there; including them makes this list the definitive
+ * roster and lets the single-source-of-truth guard (bodies.test.ts) assert each
+ * entry matches its fullorg founder seat field-for-field. The strategy seats
+ * (CEO/CMO) are deliberately NOT here: they are seeded founder agents whose
+ * identity/soul is owned by the exec-layer seeds, and they never need
+ * roster-driven scale-out (there is exactly one CEO and one CMO).
+ *
+ * ROLLBACK NOTE: removing a spec here does NOT deactivate a running seat.
+ * `reconcileResidentSeats` only ever CREATES (never deletes), and
+ * `reconcileResidentActivations` is additive-only (it only ever SETS
+ * `config.resident`, never unsets — activations.ts), so pulling a bad seat is a
+ * manual `sandbox.config.resident` unset / sandbox delete, never a git-declared
+ * teardown.
+ */
+export const ResidentSeatSpecs: TResidentSeatSpec[] = [
+  {
+    agentId: CtoAgentId,
+    sandboxId: Ids.sandbox.ctoBody,
+    name: `CTO`,
+    description: CtoSeatDescription,
+    soul: CtoSeatSoul,
+    sandboxName: `CTO Body`,
+  },
+  {
+    agentId: EngOneAgentId,
+    sandboxId: Ids.sandbox.engOneBody,
+    name: `Engineer One`,
+    description: EngineerSeatDescription,
+    soul: EngineerSeatSoul,
+    sandboxName: `Engineer One Body`,
+  },
+  {
+    agentId: EngTwoAgentId,
+    sandboxId: Ids.sandbox.engTwoBody,
+    name: `Engineer Two`,
+    description: EngineerSeatDescription,
+    soul: EngineerSeatSoul,
+    sandboxName: `Engineer Two Body`,
+  },
+  {
+    agentId: EngThreeAgentId,
+    sandboxId: Ids.sandbox.engThreeBody,
+    name: `Engineer Three`,
+    description: EngineerSeatDescription,
+    soul: EngineerSeatSoul,
+    sandboxName: `Engineer Three Body`,
+  },
+]
+
+/** The agent + sandbox create-if-absent service slice the seat reconcile needs. */
+export type TResidentSeatService = {
+  agent: {
+    get: (id: string) => Promise<{ data?: { id: string } | null; error?: any }>
+    create: (data: {
+      id: string
+      orgId: string
+      name: string
+      description: string
+      soul: string
+      brain: string
+      autonomous: boolean
+      active: boolean
+      environment: { sandboxId: string }
+    }) => Promise<{ data?: any; error?: any }>
+  }
+  sandbox: {
+    get: (id: string) => Promise<{ data?: { id: string } | null; error?: any }>
+    create: (data: {
+      id: string
+      orgId: string
+      name: string
+      config: TKubeSandboxConfig
+      builtIn: boolean
+    }) => Promise<{ data?: any; error?: any }>
+  }
+}
+
+export type TResidentSeatAction = `created` | `unchanged` | `error`
+
+export type TResidentSeatsSummary = {
+  agentsCreated: number
+  agentsUnchanged: number
+  sandboxesCreated: number
+  sandboxesUnchanged: number
+  errors: number
+  results: {
+    agentId: string
+    sandboxId: string
+    agentAction: TResidentSeatAction
+    sandboxAction: TResidentSeatAction
+    message?: string
+  }[]
+}
+
+/**
+ * Create-if-absent provisioning of every resident seat's agent + body sandbox
+ * from the git-declared ResidentSeatSpecs. This is the missing half of the
+ * deploy reconcile: reconcileResidentBodies/Chains/RepoLinks/Activations only
+ * ASSERT config onto EXISTING agent + sandbox rows, so a brand-new seat's
+ * records had to be hand-created in prod. This step creates them, so adding a
+ * seat is a pure git change.
+ *
+ * Per spec:
+ * 1. AGENT — if `agent.get(spec.agentId)` returns no row (get returns `{}`/no
+ *    data on not-found, `{ error }` on failure), create it with a fixed id
+ *    (Base.create inserts the id verbatim), brain=runtime, autonomous+active
+ *    true, and `environment.sandboxId` = the spec's sandbox (the watchdog's
+ *    resolution anchor). No projects/providers/secrets on create — the ops
+ *    project binding (reconcileResidentBodies), the provider chain
+ *    (reconcileResidentProviderChains), and the repo link
+ *    (reconcileResidentRepoLinks) are applied by the later reconcile steps.
+ * 2. SANDBOX — if `sandbox.get(spec.sandboxId)` returns no row, create it with a
+ *    fixed id, the full ResidentBodyConfig boot recipe, and `builtIn: true`
+ *    (matches the fullorg CEO/CMO/engineer bodies). NO projects link: the
+ *    watchdog resolves the body by agent.environment.sandboxId + orgId +
+ *    config.resident, and the ops-project + repo links are applied by the
+ *    existing body/repo-link reconciles.
+ *
+ * Runs FIRST in the deploy reconcile (before reconcileResidentBodies), so the
+ * later steps — which iterate the git lists (ResidentActivations /
+ * ResidentRepoSeats), never a DB query — see the freshly-created seat and apply
+ * bodies/chains/repo-links/activation to it in the SAME run.
+ *
+ * Idempotent via fixed ids: a second deploy finds both present → no-op. Never
+ * throws — every outcome lands in the summary (mirrors reconcileResidentBodies).
+ */
+export const reconcileResidentSeats = async (
+  service: TResidentSeatService,
+  log: (msg: string) => void = () => {}
+): Promise<TResidentSeatsSummary> => {
+  const summary: TResidentSeatsSummary = {
+    agentsCreated: 0,
+    agentsUnchanged: 0,
+    sandboxesCreated: 0,
+    sandboxesUnchanged: 0,
+    errors: 0,
+    results: [],
+  }
+
+  for (const spec of ResidentSeatSpecs) {
+    const { agentId, sandboxId } = spec
+    let agentAction: TResidentSeatAction = `unchanged`
+    let sandboxAction: TResidentSeatAction = `unchanged`
+    let message: string | undefined
+    let failed = false
+
+    const fail = (msg: string) => {
+      failed = true
+      message = msg
+      summary.errors++
+      log(`  ❌ resident seat ${agentId} — ${msg}`)
+    }
+
+    try {
+      // SANDBOX first: the agent's environment.sandboxId points at it, so a
+      // partial run that created the agent but not the sandbox would leave a
+      // seat whose body cannot be resolved. Each step is independently
+      // create-if-absent, so a resumed deploy heals whichever half is missing.
+      const sbRes = await service.sandbox.get(sandboxId)
+      if (sbRes.error) fail(`sandbox lookup failed: ${sbRes.error.message}`)
+      else if (sbRes.data) {
+        summary.sandboxesUnchanged++
+        log(`  ➖ resident seat ${agentId} — body sandbox ${sandboxId} present`)
+      } else {
+        const created = await service.sandbox.create({
+          id: sandboxId,
+          orgId: OpsOrgId,
+          name: spec.sandboxName,
+          config: ResidentBodyConfig,
+          builtIn: true,
+        })
+        if (created.error) fail(`sandbox create failed: ${created.error.message}`)
+        else {
+          sandboxAction = `created`
+          summary.sandboxesCreated++
+          log(`  ✅ resident seat ${agentId} — body sandbox ${sandboxId} created`)
+        }
+      }
+
+      if (!failed) {
+        const agentRes = await service.agent.get(agentId)
+        if (agentRes.error) fail(`agent lookup failed: ${agentRes.error.message}`)
+        else if (agentRes.data) {
+          summary.agentsUnchanged++
+          log(`  ➖ resident seat ${agentId} — agent present`)
+        } else {
+          const created = await service.agent.create({
+            id: agentId,
+            orgId: OpsOrgId,
+            name: spec.name,
+            description: spec.description,
+            soul: spec.soul,
+            brain: `runtime`,
+            autonomous: true,
+            active: true,
+            environment: { sandboxId },
+          })
+          if (created.error) fail(`agent create failed: ${created.error.message}`)
+          else {
+            agentAction = `created`
+            summary.agentsCreated++
+            log(`  ✅ resident seat ${agentId} — agent created`)
+          }
+        }
+      }
+    } catch (err: any) {
+      fail(err?.message ?? `unknown error`)
+    }
+
+    summary.results.push({
+      agentId,
+      sandboxId,
+      agentAction: failed ? `error` : agentAction,
+      sandboxAction: failed ? `error` : sandboxAction,
+      ...(message ? { message } : {}),
+    })
+  }
+
+  return summary
 }
 
 /**
@@ -471,7 +749,12 @@ export const ResidentRepoBranch = `main`
  * monorepo, so they deliberately carry NO repo link. Adding an engineer seat is
  * a one-line append here (plus ResidentActivations + a config seed).
  */
-export const ResidentRepoSeats: string[] = [CtoAgentId, EngOneAgentId, EngTwoAgentId]
+export const ResidentRepoSeats: string[] = [
+  CtoAgentId,
+  EngOneAgentId,
+  EngTwoAgentId,
+  EngThreeAgentId,
+]
 
 /** The agent + provider + sandbox-project-provider-links slice the repo-link
  * reconcile needs. `list`/`add` operate on the `sandbox_project_providers`

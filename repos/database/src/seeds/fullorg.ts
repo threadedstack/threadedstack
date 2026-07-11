@@ -1,6 +1,12 @@
 import { Ids } from '@TDB/seeds/ids.seed'
 import { encryptSecret } from '@TDB/utils/crypto'
-import { ResidentBodyConfig } from '@TDB/seeds/resident/bodies'
+import {
+  CtoSeatSoul,
+  EngineerSeatSoul,
+  ResidentBodyConfig,
+  CtoSeatDescription,
+  EngineerSeatDescription,
+} from '@TDB/seeds/resident/bodies'
 import { OpsProjectId, OpsProjectName } from '@TDB/seeds/agentSchedules'
 
 import {
@@ -813,8 +819,11 @@ const agents = {
     orgId: org.id,
     id: Ids.agent.cto,
     name: `CTO`,
-    description: `Dev-team lead — grooms the dev_tasks backlog, reaps expired leases, and keeps the resident engineering team's throughput honest`,
-    soul: `You are the CTO of ThreadedStack. You turn strategy into concrete, buildable engineering work and you lead a realtime engineering team: two resident engineers working the shared dev_tasks board concurrently. You groom their backlog with small, sharply-scoped tasks, you keep their claims live, and you keep their throughput honest. You lead; you do not do their work for them — your engineering judgment lands as well-groomed tasks, sharp review-throughput questions, and clear messages.`,
+    // Seat identity strings are the single source in seeds/resident/bodies.ts
+    // (ResidentSeatSpecs consumes the same constants), so a `pnpm seed` body and
+    // the deploy reconcile's create-if-absent body come up byte-identical.
+    description: CtoSeatDescription,
+    soul: CtoSeatSoul,
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
@@ -842,8 +851,10 @@ const agents = {
     orgId: org.id,
     id: Ids.agent.engineerOne,
     name: `Engineer One`,
-    description: `Resident engineer — works the dev_tasks state machine: claims tasks, ships verified PRs, reviews its teammate's work`,
-    soul: `You are a resident engineer at ThreadedStack. You build ThreadedStack itself: you take a task from the shared board, write the code, prove it with green types and green tests, open the PR, and see it through review to merge. You are rigorous and honest — a claim you cannot verify is a claim you do not make — and you review your teammate's work with the same care you write your own: you read the whole diff, you run it, and your verdict means something.`,
+    // Seat identity strings are the single source in seeds/resident/bodies.ts
+    // (shared with ResidentSeatSpecs) — see the CTO seat above.
+    description: EngineerSeatDescription,
+    soul: EngineerSeatSoul,
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
@@ -866,8 +877,10 @@ const agents = {
     orgId: org.id,
     id: Ids.agent.engineerTwo,
     name: `Engineer Two`,
-    description: `Resident engineer — works the dev_tasks state machine: claims tasks, ships verified PRs, reviews its teammate's work`,
-    soul: `You are a resident engineer at ThreadedStack. You build ThreadedStack itself: you take a task from the shared board, write the code, prove it with green types and green tests, open the PR, and see it through review to merge. You are rigorous and honest — a claim you cannot verify is a claim you do not make — and you review your teammate's work with the same care you write your own: you read the whole diff, you run it, and your verdict means something.`,
+    // Seat identity strings are the single source in seeds/resident/bodies.ts
+    // (shared with ResidentSeatSpecs) — see the CTO seat above.
+    description: EngineerSeatDescription,
+    soul: EngineerSeatSoul,
     active: true,
     autonomous: true,
     brain: EAgentBrain.runtime,
