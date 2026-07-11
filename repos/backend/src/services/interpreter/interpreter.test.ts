@@ -172,6 +172,28 @@ describe('InterpreterService', () => {
     expect(result!.tree.type).toBe('div')
   })
 
+  it('should return null when provider/model is not found', async () => {
+    const { getModel } = await import('@earendil-works/pi-ai')
+    vi.mocked(streamSimple).mockClear()
+    vi.mocked(getModel).mockReturnValueOnce(undefined as any)
+
+    const service = new InterpreterService()
+    const result = await service.interpret(
+      {
+        chunkId: 'chunk-unknown',
+        events: [
+          { type: EParserEvtType.Text, content: '1. A\n2. B', timestamp: Date.now() },
+        ],
+      },
+      testConfig,
+      'not-a-real-provider',
+      'sk-test-key'
+    )
+
+    expect(result).toBeNull()
+    expect(streamSimple).not.toHaveBeenCalled()
+  })
+
   it('should return null for empty user message', async () => {
     vi.mocked(streamSimple).mockClear()
 
