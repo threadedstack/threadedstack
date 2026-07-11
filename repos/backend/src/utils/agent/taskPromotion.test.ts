@@ -26,10 +26,18 @@ const malicious = {
 }
 
 const makeDb = () => {
-  const proposalCreate = vi.fn().mockResolvedValue({ data: { id: `tp_1` } })
+  const proposalCreate = vi
+    .fn()
+    .mockResolvedValue({ data: { id: `tp_1`, status: `scanned` } })
   const proposalGet = vi.fn()
-  const proposalUpdate = vi.fn().mockResolvedValue({ data: {} })
+  const proposalUpdate = vi
+    .fn()
+    .mockResolvedValue({ data: { id: `tp_1`, status: `promoted` } })
   const findOpenByDedupeKey = vi.fn().mockResolvedValue({ data: null })
+  // The record service the best-effort Collection mirror writes through. Default
+  // to a clean success path (get miss -> upsert ok) so tests opt in to failure.
+  const recordGet = vi.fn().mockResolvedValue({})
+  const recordUpsert = vi.fn().mockResolvedValue({ data: { id: `tp_1`, data: {} } })
   return {
     db: {
       services: {
@@ -39,12 +47,18 @@ const makeDb = () => {
           update: proposalUpdate,
           findOpenByDedupeKey,
         },
+        record: {
+          get: recordGet,
+          upsert: recordUpsert,
+        },
       },
     } as any,
     proposalCreate,
     proposalGet,
     proposalUpdate,
     findOpenByDedupeKey,
+    recordGet,
+    recordUpsert,
   }
 }
 
@@ -92,6 +106,34 @@ describe(`authorTaskProposal`, () => {
     await expect(authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)).rejects.toThrow(
       `boom`
     )
+  })
+
+  it(`mirrors the created row into the ops task_proposals Collection (best-effort)`, async () => {
+    m.proposalCreate.mockResolvedValue({
+      data: { id: `tp_1`, status: ETaskProposalStatus.scanned, agentId: `ag_1` },
+    })
+    await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
+    // Upsert into the ops project's task_proposals Collection keyed by the row id.
+    expect(m.recordUpsert).toHaveBeenCalledWith(
+      `pj_tIly2F1`,
+      `task_proposals`,
+      expect.objectContaining({ id: `tp_1` })
+    )
+  })
+
+  it(`does NOT throw or fail the table write when the Collection mirror fails`, async () => {
+    m.recordUpsert.mockResolvedValue({ error: new Error(`collection down`) })
+    // The authoritative create already succeeded; a mirror failure is swallowed.
+    const res = await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
+    expect(res.status).toBe(ETaskProposalStatus.scanned)
+    expect(m.proposalCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it(`does NOT throw when the Collection mirror itself throws`, async () => {
+    m.recordGet.mockRejectedValue(new Error(`record service exploded`))
+    const res = await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
+    expect(res.status).toBe(ETaskProposalStatus.scanned)
+    expect(res.deduped).toBe(false)
   })
 })
 
@@ -154,6 +196,30 @@ describe(`markTaskPromoted`, () => {
     const status = await markTaskPromoted(m.db, `og_1`, { proposalId: `tp_x` })
     expect(status).toBeNull()
     expect(m.proposalUpdate).not.toHaveBeenCalled()
+  })
+
+  it(`mirrors the promoted row into the ops Collection (best-effort)`, async () => {
+    m.proposalGet.mockResolvedValue({ data: scannedProposal() })
+    m.proposalUpdate.mockResolvedValue({
+      data: { id: `tp_1`, status: ETaskProposalStatus.promoted, agentId: `ag_1` },
+    })
+    await markTaskPromoted(m.db, `og_1`, {
+      proposalId: `tp_1`,
+      prUrl: `https://x/pull/1`,
+    })
+    expect(m.recordUpsert).toHaveBeenCalledWith(
+      `pj_tIly2F1`,
+      `task_proposals`,
+      expect.objectContaining({ id: `tp_1` })
+    )
+  })
+
+  it(`does NOT throw or roll back the promote when the Collection mirror fails`, async () => {
+    m.proposalGet.mockResolvedValue({ data: scannedProposal() })
+    m.recordUpsert.mockResolvedValue({ error: new Error(`collection down`) })
+    const status = await markTaskPromoted(m.db, `og_1`, { proposalId: `tp_1` })
+    expect(status).toBe(ETaskProposalStatus.promoted)
+    expect(m.proposalUpdate).toHaveBeenCalledTimes(1)
   })
 })
 
