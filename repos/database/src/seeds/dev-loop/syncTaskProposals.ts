@@ -1,7 +1,6 @@
 import type { TAnyObj } from '@tdsk/domain'
 import type { TDBTaskProposalSelect } from '@TDB/types'
 
-import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import { stableStringify } from '@TDB/seeds/reconcileSchedules'
 
 /**
@@ -35,6 +34,12 @@ import { stableStringify } from '@TDB/seeds/reconcileSchedules'
  * as `reconcileDevLoop`; the runner in `scripts/syncTaskProposals.ts` wires it
  * to the real table + record service. Never throws — every outcome lands in
  * the summary.
+ *
+ * `projectId` is a REQUIRED argument (no `OpsProjectId` default): keeping this
+ * module free of a value import from `seeds/agentSchedules` (which reads the
+ * prompt `.md` files from disk at module-evaluation time) lets the backend
+ * import the pure single-row mapper for its best-effort table->collection
+ * mirror without dragging that file-system side effect into its tsup bundle.
  */
 
 /** The record-service slice the sync needs (project+collection-scoped get/upsert). */
@@ -103,14 +108,62 @@ export const taskProposalRecordData = (row: TDBTaskProposalSelect): TAnyObj => {
 }
 
 /**
+ * Idempotently sync ONE table row into the collection: missing record -> create,
+ * drifted document (stableStringify compare) -> replace, else unchanged. The
+ * single-row unit both the batch `syncTaskProposalRecords` loop (deploy backfill)
+ * and the backend's best-effort per-write mirror (`taskProposalMirror.ts`) share,
+ * so the mapping + drift compare + create/update/unchanged decision live in ONE
+ * place. Resolves every outcome to a `{ id, action, message? }` result and never
+ * throws — a thrown error from the injected service is caught and returned as an
+ * `error` action.
+ */
+export const syncTaskProposalRecord = async (
+  service: TSyncRecordService,
+  row: TDBTaskProposalSelect,
+  projectId: string
+): Promise<{ id: string; action: TSyncAction; message?: string }> => {
+  const recordId = taskProposalRecordId(row)
+  try {
+    const data = taskProposalRecordData(row)
+
+    const existing = await service.get(projectId, TaskProposalsCollectionName, recordId)
+    if (existing.error)
+      return {
+        id: recordId,
+        action: `error`,
+        message: `get failed: ${existing.error.message}`,
+      }
+
+    if (existing.data && stableStringify(existing.data.data) === stableStringify(data))
+      return { id: recordId, action: `unchanged` }
+
+    const res = await service.upsert(projectId, TaskProposalsCollectionName, {
+      id: recordId,
+      data,
+    })
+    if (res.error)
+      return {
+        id: recordId,
+        action: `error`,
+        message: `upsert failed: ${res.error.message}`,
+      }
+
+    return { id: recordId, action: existing.data ? `updated` : `created` }
+  } catch (err: any) {
+    return { id: recordId, action: `error`, message: err?.message }
+  }
+}
+
+/**
  * Idempotently sync table rows into the collection: missing record -> create,
  * drifted document (stableStringify compare) -> replace, else unchanged. A
- * re-run over unchanged rows writes nothing.
+ * re-run over unchanged rows writes nothing. `projectId` is required — see the
+ * module doc.
  */
 export const syncTaskProposalRecords = async (
   service: TSyncRecordService,
   rows: TDBTaskProposalSelect[],
-  projectId: string = OpsProjectId,
+  projectId: string,
   log: (msg: string) => void = () => {}
 ): Promise<TSyncSummary> => {
   const summary: TSyncSummary = {
@@ -121,54 +174,25 @@ export const syncTaskProposalRecords = async (
     results: [],
   }
 
-  const fail = (id: string, message?: string) => {
-    summary.errors++
-    summary.results.push({ id, action: `error`, message })
-    log(`  ❌ ${id} — ${message ?? `unknown error`}`)
+  const glyph: { [K in TSyncAction]: string } = {
+    created: `✅`,
+    updated: `🔄`,
+    unchanged: `➖`,
+    error: `❌`,
   }
 
   for (const row of rows) {
-    const recordId = taskProposalRecordId(row)
-    try {
-      const data = taskProposalRecordData(row)
-
-      const existing = await service.get(projectId, TaskProposalsCollectionName, recordId)
-      if (existing.error) {
-        fail(recordId, `get failed: ${existing.error.message}`)
-        continue
-      }
-
-      if (
-        existing.data &&
-        stableStringify(existing.data.data) === stableStringify(data)
-      ) {
-        summary.unchanged++
-        summary.results.push({ id: recordId, action: `unchanged` })
-        log(`  ➖ ${recordId} — unchanged`)
-        continue
-      }
-
-      const res = await service.upsert(projectId, TaskProposalsCollectionName, {
-        id: recordId,
-        data,
-      })
-      if (res.error) {
-        fail(recordId, `upsert failed: ${res.error.message}`)
-        continue
-      }
-
-      if (existing.data) {
-        summary.updated++
-        summary.results.push({ id: recordId, action: `updated` })
-        log(`  🔄 ${recordId} — updated`)
-      } else {
-        summary.created++
-        summary.results.push({ id: recordId, action: `created` })
-        log(`  ✅ ${recordId} — created`)
-      }
-    } catch (err: any) {
-      fail(recordId, err?.message)
+    const result = await syncTaskProposalRecord(service, row, projectId)
+    if (result.action === `error`) {
+      summary.errors++
+      summary.results.push({ id: result.id, action: `error`, message: result.message })
+      log(`  ${glyph.error} ${result.id} — ${result.message ?? `unknown error`}`)
+      continue
     }
+
+    summary[result.action]++
+    summary.results.push({ id: result.id, action: result.action })
+    log(`  ${glyph[result.action]} ${result.id} — ${result.action}`)
   }
 
   return summary
