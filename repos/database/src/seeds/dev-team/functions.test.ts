@@ -199,11 +199,16 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).not.toContain(`context.connect`)
   })
 
-  it(`stamps devAddTask's createdBy from the caller and dedupes open titles`, () => {
+  it(`stamps devAddTask's createdBy from the caller and dedupes open titles + sourceTaskProposalId`, () => {
     const { content } = byName(`devAddTask`)
     expect(content).toContain(`createdBy: caller.agentId`)
     expect(content).toContain(`deduped: true`)
     expect(content).toContain(`state: 'backlog'`)
+    // Dual dedupe: exact title AND sourceTaskProposalId, both against open
+    // tasks — so re-grooming a not-yet-promoted proposal (new decomposed
+    // title) never re-creates a dev_task.
+    expect(content).toContain(`field: 'title'`)
+    expect(content).toContain(`field: 'sourceTaskProposalId'`)
   })
 })
 

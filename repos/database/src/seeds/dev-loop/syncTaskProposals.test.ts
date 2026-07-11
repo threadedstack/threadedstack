@@ -8,6 +8,7 @@ import { OpsProjectId } from '@TDB/seeds/agentSchedules'
 import {
   taskProposalRecordId,
   taskProposalRecordData,
+  syncTaskProposalRecord,
   syncTaskProposalRecords,
   TaskProposalsCollectionName,
 } from '@TDB/seeds/dev-loop/syncTaskProposals'
@@ -113,7 +114,7 @@ describe(`syncTaskProposalRecords`, () => {
     const { service, get, upsert } = memoryService()
     const rows = [row(), row({ id: `tp_2222222`, dedupeKey: `ci:other` })]
 
-    const summary = await syncTaskProposalRecords(service, rows)
+    const summary = await syncTaskProposalRecords(service, rows, OpsProjectId)
 
     expect(summary).toMatchObject({ created: 2, updated: 0, unchanged: 0, errors: 0 })
     expect(get).toHaveBeenCalledWith(
@@ -131,11 +132,11 @@ describe(`syncTaskProposalRecords`, () => {
     const { service, upsert } = memoryService()
     const rows = [row(), row({ id: `tp_2222222`, dedupeKey: `ci:other` })]
 
-    const first = await syncTaskProposalRecords(service, rows)
+    const first = await syncTaskProposalRecords(service, rows, OpsProjectId)
     expect(first).toMatchObject({ created: 2, updated: 0, unchanged: 0, errors: 0 })
     expect(upsert).toHaveBeenCalledTimes(2)
 
-    const second = await syncTaskProposalRecords(service, rows)
+    const second = await syncTaskProposalRecords(service, rows, OpsProjectId)
     expect(second).toMatchObject({ created: 0, updated: 0, unchanged: 2, errors: 0 })
     // No new writes on the re-run — the drift compare short-circuits.
     expect(upsert).toHaveBeenCalledTimes(2)
@@ -145,14 +146,18 @@ describe(`syncTaskProposalRecords`, () => {
     const { service, upsert } = memoryService()
     const unchanged = row({ id: `tp_2222222`, dedupeKey: `ci:other` })
 
-    await syncTaskProposalRecords(service, [row(), unchanged])
+    await syncTaskProposalRecords(service, [row(), unchanged], OpsProjectId)
     const promoted = row({
       status: `promoted`,
       prUrl: `https://github.com/x/y/pull/9`,
       reason: `Picked by work cycle`,
     })
 
-    const summary = await syncTaskProposalRecords(service, [promoted, unchanged])
+    const summary = await syncTaskProposalRecords(
+      service,
+      [promoted, unchanged],
+      OpsProjectId
+    )
     expect(summary).toMatchObject({ created: 0, updated: 1, unchanged: 1, errors: 0 })
     expect(upsert).toHaveBeenLastCalledWith(OpsProjectId, TaskProposalsCollectionName, {
       id: `tp_AbCdEfG`,
@@ -165,13 +170,13 @@ describe(`syncTaskProposalRecords`, () => {
 
   it(`ignores jsonb key-order differences in the stored document (no false updates)`, async () => {
     const { service, store, upsert } = memoryService()
-    await syncTaskProposalRecords(service, [row()])
+    await syncTaskProposalRecords(service, [row()], OpsProjectId)
     // Simulate a jsonb round trip reordering the stored document's keys.
     const stored = store.get(`${OpsProjectId}:${TaskProposalsCollectionName}:tp_AbCdEfG`)!
     const reordered = Object.fromEntries(Object.entries(stored).reverse())
     store.set(`${OpsProjectId}:${TaskProposalsCollectionName}:tp_AbCdEfG`, reordered)
 
-    const summary = await syncTaskProposalRecords(service, [row()])
+    const summary = await syncTaskProposalRecords(service, [row()], OpsProjectId)
     expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 1, errors: 0 })
     expect(upsert).toHaveBeenCalledTimes(1)
   })
@@ -183,10 +188,11 @@ describe(`syncTaskProposalRecords`, () => {
       .mockResolvedValueOnce({ error: new Error(`db down`) })
       .mockResolvedValue({})
 
-    const summary = await syncTaskProposalRecords(service, [
-      row(),
-      row({ id: `tp_2222222` }),
-    ])
+    const summary = await syncTaskProposalRecords(
+      service,
+      [row(), row({ id: `tp_2222222` })],
+      OpsProjectId
+    )
     expect(summary).toMatchObject({ created: 1, errors: 1 })
     expect(summary.results[0]).toMatchObject({ id: `tp_AbCdEfG`, action: `error` })
   })
@@ -195,7 +201,66 @@ describe(`syncTaskProposalRecords`, () => {
     const { service } = memoryService()
     service.upsert = vi.fn().mockResolvedValue({ error: new Error(`nope`) })
 
-    const summary = await syncTaskProposalRecords(service, [row()])
+    const summary = await syncTaskProposalRecords(service, [row()], OpsProjectId)
     expect(summary).toMatchObject({ created: 0, updated: 0, unchanged: 0, errors: 1 })
+  })
+})
+
+describe(`syncTaskProposalRecord (single row)`, () => {
+  it(`creates a missing record, scoped to the given project + collection`, async () => {
+    const { service, get, upsert } = memoryService()
+
+    const result = await syncTaskProposalRecord(service, row(), OpsProjectId)
+
+    expect(result).toEqual({ id: `tp_AbCdEfG`, action: `created` })
+    expect(get).toHaveBeenCalledWith(
+      OpsProjectId,
+      TaskProposalsCollectionName,
+      `tp_AbCdEfG`
+    )
+    expect(upsert).toHaveBeenCalledWith(OpsProjectId, TaskProposalsCollectionName, {
+      id: `tp_AbCdEfG`,
+      data: expect.objectContaining({ legacyId: `tp_AbCdEfG`, status: `scanned` }),
+    })
+  })
+
+  it(`reports 'unchanged' on a re-run and writes nothing`, async () => {
+    const { service, upsert } = memoryService()
+    await syncTaskProposalRecord(service, row(), OpsProjectId)
+    expect(upsert).toHaveBeenCalledTimes(1)
+
+    const result = await syncTaskProposalRecord(service, row(), OpsProjectId)
+    expect(result).toEqual({ id: `tp_AbCdEfG`, action: `unchanged` })
+    expect(upsert).toHaveBeenCalledTimes(1)
+  })
+
+  it(`reports 'updated' when the row's mapped document drifts (e.g. a promote)`, async () => {
+    const { service } = memoryService()
+    await syncTaskProposalRecord(service, row(), OpsProjectId)
+
+    const result = await syncTaskProposalRecord(
+      service,
+      row({ status: `promoted`, prUrl: `https://github.com/x/y/pull/9` }),
+      OpsProjectId
+    )
+    expect(result).toEqual({ id: `tp_AbCdEfG`, action: `updated` })
+  })
+
+  it(`resolves an upsert failure to an 'error' result without throwing`, async () => {
+    const { service } = memoryService()
+    service.upsert = vi.fn().mockResolvedValue({ error: new Error(`nope`) })
+
+    const result = await syncTaskProposalRecord(service, row(), OpsProjectId)
+    expect(result).toMatchObject({ id: `tp_AbCdEfG`, action: `error` })
+    expect(result.message).toContain(`nope`)
+  })
+
+  it(`resolves a thrown service error to an 'error' result without throwing`, async () => {
+    const { service } = memoryService()
+    service.get = vi.fn().mockRejectedValue(new Error(`db exploded`))
+
+    const result = await syncTaskProposalRecord(service, row(), OpsProjectId)
+    expect(result).toMatchObject({ id: `tp_AbCdEfG`, action: `error` })
+    expect(result.message).toContain(`db exploded`)
   })
 })

@@ -8,6 +8,9 @@ import { devspace } from '@TSCL/utils/devspace'
 import { pushSafe } from '@TSCL/utils/db/pushSafe'
 import { reconcileSchedules } from '@TSCL/utils/db/reconcileSchedules'
 import { reconcileResident } from '@TSCL/utils/db/reconcileResident'
+import { reconcileDevLoop } from '@TSCL/utils/db/reconcileDevLoop'
+import { reconcileDevTeam } from '@TSCL/utils/db/reconcileDevTeam'
+import { syncTaskProposals } from '@TSCL/utils/db/syncTaskProposals'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { docker } from '@TSCL/utils/docker/docker'
@@ -222,10 +225,30 @@ const releaseAct: TTaskAction = async (args) => {
   if (params?.database !== false) {
     Logger.pair(`[sync]`, `Reconciling agent schedules from repo...`)
     await reconcileSchedules({ config, log: params?.log })
+    // Dev-loop before the backfill: reconcile:dev-loop creates the resident-facing
+    // task_proposals Collection + the five dev-loop Functions, THEN
+    // sync:task-proposals backfills every authoritative table row into that
+    // Collection (a no-op for unchanged rows). Both run before the resident
+    // reconcile so the residents' data plane finds the Collection already
+    // populated. All non-fatal — a sync hiccup never rolls back a healthy deploy.
+    Logger.pair(`[sync]`, `Reconciling dev-loop collections + functions from repo...`)
+    await reconcileDevLoop({ config, log: params?.log })
+    // Dev-team alongside dev-loop: reconcile:dev-team creates the dev_tasks
+    // Collection + the ten state-machine Functions (devAddTask/devClaimTask/…),
+    // so a Function-source change (e.g. the devAddTask sourceTaskProposalId
+    // dedupe) reaches prod through the normal deploy — both before the resident
+    // reconcile, whose configs reference these Functions.
+    Logger.pair(`[sync]`, `Reconciling dev-team collection + functions from repo...`)
+    await reconcileDevTeam({ config, log: params?.log })
+    Logger.pair(`[sync]`, `Backfilling task_proposals table into the ops collection...`)
+    await syncTaskProposals({ config, log: params?.log })
     Logger.pair(`[sync]`, `Reconciling resident data plane from repo...`)
     await reconcileResident({ config, log: params?.log })
   } else {
-    Logger.pair(`[sync]`, `Schedule + resident reconcile skipped (--no-database).`)
+    Logger.pair(
+      `[sync]`,
+      `Schedule + dev-loop + dev-team + resident reconcile skipped (--no-database).`
+    )
   }
 
   // 8. [5/5] Build + deploy only the changed frontends via Firebase
