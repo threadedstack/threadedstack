@@ -14,7 +14,6 @@ import { agentOaiRoutes } from '@TBE/endpoints/agents/agents'
 import { accessGate } from '@TBE/middleware/accessGate'
 import { authenticate } from '@TBE/middleware/setupAuth'
 import { payments } from '@TBE/endpoints/payments/payments'
-import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { subscriptions } from '@TBE/endpoints/subscriptions'
 import { welcomeNewUser } from '@TBE/middleware/welcomeNewUser'
 import { invitations } from '@TBE/endpoints/invitations/invitations'
@@ -41,7 +40,6 @@ export const accounts: TEndpointBuilder = (app) => {
       welcomeNewUser,
       accessGate,
       setupSubscription,
-      enforceQuota,
     ],
     endpoints: {
       ai,
