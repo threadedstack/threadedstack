@@ -567,16 +567,21 @@ export const CtoResidentConfigSeed: TResidentConfigSeedRecord = {
   data: {
     agentId: CtoAgentId,
     agenda: [
-      // Hourly backlog grooming: decompose the sensor-detected task_proposals
-      // backlog into engineer-sized dev_tasks, then claim each groomed proposal.
+      // Backlog grooming every ~20 min (3x/hour, offset from the */15 reap):
+      // decompose the sensor-detected task_proposals backlog into engineer-sized
+      // dev_tasks, then claim each groomed proposal. Hourly was too slow to keep
+      // three engineers fed once the scheduled loop was decommissioned and the
+      // CTO became the SOLE groomer.
       {
         key: `groom`,
-        cron: `0 * * * *`,
+        cron: `8,28,48 * * * *`,
         prompt: [
           `Groom the sensor-detected backlog into the team's dev_tasks board.`,
           `Read the "Proposed backlog (sensor-detected)" context — these are scanned task_proposals, priority-ordered (equal priority is unordered; pick any). For each proposal worth building, DECOMPOSE it into one or more SMALL, sharply-scoped, engineer-sized dev_tasks with devAddTask — a large proposal becomes several tasks, each an engineer completes in a single sitting, each with a description precise enough to build from and an explicit definition of done. Stamp EVERY task you add with sourceTaskProposalId = the proposal's id.`,
           `Stamping sourceTaskProposalId makes devAddTask ATOMICALLY claim the proposal: the SAME call that creates (or dedupes) the dev_task also flips that proposal scanned → promoted, so a groomed proposal can never be left scanned and — once its dev_task ships — is never re-groomed. Grooming is therefore a single fire-and-forget devAddTask per proposal; there is NO separate claim step (devAddTask dedupes on sourceTaskProposalId too, so re-grooming a not-yet-shipped proposal never stacks duplicates and still re-affirms the claim).`,
-          `YOU ARE THE SOLE GROOMER — the scheduled dev-loop is decommissioned, so the team only ever works what YOU groom. KEEP THE ENGINEERS FED: never leave the board starved while tractable scanned proposals remain. Each groom cycle, if the open dev_tasks board is below ~10 and there is real, buildable work in the "Proposed backlog", groom the highest-priority tractable proposals up toward that ~10 — do not stop at one or two and idle the team. Skip only proposals that are genuinely un-buildable right now (blocked on an external decision, superseded, or a duplicate of open/shipped work) and devAbandon the truly dead ones with a reason. When the board is healthily full or nothing buildable remains, say so in one line and stop; otherwise groom until the engineers have a real queue.`,
+          `YOU ARE THE SOLE GROOMER for THREE engineers — the scheduled dev-loop is decommissioned, so the team only ever works what YOU groom. KEEP THE ENGINEERS FED: aim to keep ~6-9 open dev_tasks on the board so all three engineers always have real work to claim and review. Each groom cycle, if the open board is below that and there is buildable work in the "Proposed backlog", groom the highest-priority tractable proposals up toward it — do NOT stop at one or two and idle two engineers.`,
+          `FIRST, PRUNE THE DEAD. Do not trust a stale "backlog is empty / all resolved" memory — RE-READ the injected "Proposed backlog" every cycle; it now shows the WHOLE scanned set (a prior char-cap bug hid most of it). A proposal is OBSOLETE and gets an immediate devAbandon (with a one-line reason) when the cutover or a prior fix made it moot: a steward/scheduled-loop-pipeline issue (the scheduled steward + adversary are retired), a staging-environment issue (staging is removed), an auto-merge-vs-required-review issue (residents merge with --admin), or a symptom of a bug ALREADY fixed on main (e.g. "residents accumulate turns with zero board output" — the grooming-visibility bug behind it is fixed). Verify moot-ness against real code/state before abandoning. Pruning the dead is as important as grooming the live — a backlog cluttered with corpses reads as "nothing to do."`,
+          `THEN GROOM THE LIVE. For the remaining buildable proposals, decompose and add them (per above) until the board holds ~6-9 open tasks. A large or risky proposal (e.g. versioned SQL migrations) still gets groomed — as a SMALL first slice with a tight DoD, not skipped for being big. Only genuinely blocked work (waiting on an unanswered external decision) stays untouched, and you message the blocker's owner about it. When the board is healthily full AND every remaining scanned proposal is either groomed, abandoned, or genuinely blocked, say so in one line and stop.`,
         ].join(`\n`),
       },
       // 15-minute lease reap + GitHub reconciliation (gh runs in the CTO's VM,

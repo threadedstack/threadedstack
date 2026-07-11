@@ -604,11 +604,17 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     expect(ctoBoardDef.enabled).toBe(true)
   })
 
-  it(`agenda: hourly groom + 15-minute reap — no board cycle (the board seat stays scheduled)`, () => {
+  it(`agenda: 20-minute groom + 15-minute reap — no board cycle (the board seat stays scheduled)`, () => {
     const { agenda } = CtoResidentConfigSeed.data
     expect(agenda.map((item) => item.key)).toEqual([`groom`, `reap`])
 
-    expect(agenda[0].cron).toBe(`0 * * * *`)
+    // Groom 3x/hour (offset from the reap) to keep three engineers fed as the
+    // sole groomer; hourly was too slow post-decommission.
+    expect(agenda[0].cron).toBe(`8,28,48 * * * *`)
+    // The sole-groomer directive: prune the cutover-obsoleted proposals, then
+    // groom the live backlog up toward ~6-9 open tasks for three engineers.
+    expect(agenda[0].prompt).toContain(`SOLE GROOMER for THREE engineers`)
+    expect(agenda[0].prompt).toContain(`PRUNE THE DEAD`)
     // Grooms the REAL sensor-detected backlog: read the injected scanned
     // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId —
     // and stamping it makes devAddTask ATOMICALLY claim the proposal in the same
