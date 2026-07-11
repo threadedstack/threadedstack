@@ -10,6 +10,7 @@ import type {
 } from '@tdsk/domain'
 
 import { AgentRunner } from '@tdsk/agent'
+import { KubeRetryableStatusCodes } from '@tdsk/sandbox'
 import { logger } from '@TBE/utils/logger'
 import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 import { RehydrationInterruptMarker } from '@TBE/services/scheduler/rehydrator'
@@ -152,6 +153,10 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   })
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer!))
 }
+
+/** Mirrors withKubeRetry.ts's private getStatusCode — same fields, different package. */
+const getK8sStatusCode = (err: any): number | undefined =>
+  err?.code ?? err?.statusCode ?? err?.response?.statusCode
 
 /**
  * Resolve the durable continuity thread for an agent-backed schedule.
@@ -1662,6 +1667,23 @@ async function runCliAgentSchedule(
     return matchTransientSignal(stdoutSoFar) ?? matchTransientSignal(res.error ?? ``)
   }
 
+  // A connection-level rejection (e.g. the K8s apiserver's own
+  // --request-timeout firing as a 504 before any stdout/stderr is captured —
+  // see kubeClient.ts's runInPod) bypasses transientSignal() entirely, since
+  // that only ever inspects a RESOLVED result. Classify it here: a retryable
+  // apiserver status resolves as a failed TSandboxResult so it flows into the
+  // existing same-provider-retry loop unchanged; anything else rethrows,
+  // preserving current behavior for non-transient rejections.
+  const execAttempt = async (command: string): Promise<TSandboxResult> => {
+    try {
+      return await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+    } catch (err: any) {
+      const code = getK8sStatusCode(err)
+      if (!KubeRetryableStatusCodes.has(code as number)) throw err
+      return { success: false, exitCode: 1, output: ``, error: err.message }
+    }
+  }
+
   // Run one provider's command with same-provider transient retries. A
   // non-transient failure breaks immediately (never worth retrying); a
   // transient failure retries in the SAME pod after a short backoff up to
@@ -1671,7 +1693,7 @@ async function runCliAgentSchedule(
     maxRetries: number
   ): Promise<TSandboxResult> => {
     resetStdout()
-    let res = await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+    let res = await execAttempt(command)
     for (let attempt = 0; !res.success && attempt < maxRetries; attempt++) {
       if (!transientSignal(res)) break
       const delay =
@@ -1684,7 +1706,7 @@ async function runCliAgentSchedule(
       )
       await new Promise((resolve) => setTimeout(resolve, delay))
       resetStdout()
-      res = await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+      res = await execAttempt(command)
     }
     return res
   }
