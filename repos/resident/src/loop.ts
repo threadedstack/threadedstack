@@ -275,6 +275,8 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
         key: watch.key,
         prompt: watch.prompt,
         records: documents,
+        collection: watch.collection,
+        query: watch.query,
       })
     }
 
@@ -324,6 +326,36 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
     }
   }
 
+  /**
+   * A queued watch event carries a POLL-TIME snapshot (event.records) that can
+   * go stale while the event sits behind higher-priority work (a turn can run
+   * up to turnTimeoutMs, and agenda/inbox events preempt watches). Re-running
+   * the watch's own query fresh right before framing means the delivered
+   * records reflect the CURRENT store, so a record that transitioned away from
+   * the watch's target condition (e.g. abandoned out of backlog) between poll
+   * and dispatch is naturally excluded — the query itself is the filter. Only
+   * touches the rendered payload; the hash/debounce state that governs WHEN a
+   * watch fires is untouched.
+   */
+  const refreshWatchEvent = async (event: TResidentEvent): Promise<TResidentEvent> => {
+    if (event.kind !== EResidentEventKind.watch || !event.collection || !event.query)
+      return event
+
+    const res = await api.queryRecords(event.collection, event.query)
+    if (!res.ok) {
+      log.warn(
+        `Watch ${event.key} freshness re-query failed, framing the poll-time snapshot: ${res.error ?? res.status}`
+      )
+      return event
+    }
+
+    const documents = (res.data ?? []).map((record) => ({
+      id: record.id,
+      ...(record.data as Record<string, unknown>),
+    }))
+    return { ...event, records: documents }
+  }
+
   const buildTurnInput = async (event: TResidentEvent): Promise<string> => {
     const config = getConfig()
     const sections: string[] = []
@@ -340,7 +372,8 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
     const context = await renderContextSources(api, config.session.contextSources)
     if (context) sections.push(context.trimEnd())
 
-    sections.push(buildFraming(event))
+    const framedEvent = await refreshWatchEvent(event)
+    sections.push(buildFraming(framedEvent))
     return sections.join(`\n\n`)
   }
 
