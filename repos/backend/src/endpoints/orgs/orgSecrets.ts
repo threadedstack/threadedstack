@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { enforceQuota } from '@TBE/middleware/enforceQuota'
 import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 import { getSecret } from '@TBE/endpoints/secrets/getSecret'
 import { listSecrets } from '@TBE/endpoints/secrets/listSecrets'
@@ -11,7 +12,7 @@ import { deleteSecret } from '@TBE/endpoints/secrets/deleteSecret'
 export const orgSecrets: TEndpointConfig = {
   path: `/:orgId/secrets`,
   method: EPMethod.Use,
-  middleware: [projectAccessGuard()],
+  middleware: [projectAccessGuard(), enforceQuota(`secrets`)],
   endpoints: {
     listSecrets,
     getSecret,

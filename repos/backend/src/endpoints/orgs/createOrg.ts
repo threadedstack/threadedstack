@@ -5,6 +5,7 @@ import type { TKubeSandboxConfig } from '@tdsk/domain'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TDB/utils/logger'
 import { ERoleType, Exception, Sandbox, SandboxPresets } from '@tdsk/domain'
+import { enforceOrgCreationQuota } from '@TBE/middleware/enforceQuota'
 
 /**
  * POST /orgs - Create a new org
@@ -14,6 +15,7 @@ import { ERoleType, Exception, Sandbox, SandboxPresets } from '@tdsk/domain'
 export const createOrg: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [enforceOrgCreationQuota],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, config } = req.app.locals
     const orgData = req.body
