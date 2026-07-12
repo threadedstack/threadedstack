@@ -1,6 +1,7 @@
 import { logger } from '@TBE/utils/logger'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
+import { SandboxProxyTimeoutMs } from '@TBE/constants/sandbox'
 import {
   SandboxHomePath,
   Exception,
@@ -135,6 +136,10 @@ const makeDb = () => ({
     },
     provider: {
       get: vi.fn().mockResolvedValue({ data: null, error: null }),
+    },
+    sandboxStartingClaim: {
+      claimStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
+      releaseStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
     },
   },
 })
@@ -2223,9 +2228,23 @@ describe(`SandboxService`, () => {
           target: `http://10.0.0.1:3000`,
           ws: false,
           changeOrigin: true,
+          timeout: SandboxProxyTimeoutMs,
+          proxyTimeout: SandboxProxyTimeoutMs,
         })
       )
       expect(SandboxService.proxyMap.get(`http://10.0.0.1:3000`)).toBe(mockProxy)
+    })
+
+    it(`getPodProxy should set a timeout and proxyTimeout to prevent hung-connection exhaustion`, () => {
+      const mockProxy = vi.fn()
+      mockCreateProxyMiddleware.mockReturnValue(mockProxy)
+      SandboxService.proxyMap.clear()
+
+      SandboxService.getPodProxy(`http://10.0.0.1:5000`)
+
+      const callArgs = mockCreateProxyMiddleware.mock.calls[0][0]
+      expect(callArgs.timeout).toBe(SandboxProxyTimeoutMs)
+      expect(callArgs.proxyTimeout).toBe(SandboxProxyTimeoutMs)
     })
 
     it(`getPodProxy should return cached proxy on second call with same target`, () => {
@@ -3237,6 +3256,51 @@ describe(`SandboxService`, () => {
       } as any)
 
       expect(ws3.send).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`claimStarting / releaseStarting`, () => {
+    it(`delegates to db.services.sandboxStartingClaim.claimStarting and reports no conflict`, async () => {
+      const resp = await svc.claimStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.claimStarting).toHaveBeenCalledWith(`sb-1`)
+      expect(resp).toEqual({ conflict: false })
+    })
+
+    it(`reports a conflict when the DB claim is already held (two concurrent calls: exactly one wins)`, async () => {
+      db.services.sandboxStartingClaim.claimStarting
+        .mockResolvedValueOnce({ data: { id: `ssc_test01` } })
+        .mockResolvedValueOnce({ data: null, conflict: true })
+
+      const first = await svc.claimStarting(`sb-1`)
+      const second = await svc.claimStarting(`sb-1`)
+
+      expect(first).toEqual({ conflict: false })
+      expect(second).toEqual({ conflict: true })
+    })
+
+    it(`throws when the DB claim call errors`, async () => {
+      db.services.sandboxStartingClaim.claimStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.claimStarting(`sb-1`)).rejects.toThrow(`db down`)
+    })
+
+    it(`delegates to db.services.sandboxStartingClaim.releaseStarting`, async () => {
+      await svc.releaseStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.releaseStarting).toHaveBeenCalledWith(
+        `sb-1`
+      )
+    })
+
+    it(`throws when the DB release call errors`, async () => {
+      db.services.sandboxStartingClaim.releaseStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.releaseStarting(`sb-1`)).rejects.toThrow(`db down`)
     })
   })
 })

@@ -1,6 +1,7 @@
 import type { TShimDeps } from '@TSB/types'
 import type { Bash, IFileSystem } from 'just-bash'
 import type { Isolate, Context, Module } from 'isolated-vm'
+import { logger } from '@TSB/utils/logger'
 import { shimRegistry, builtinShimNames } from '@TSB/local/shims'
 
 /**
@@ -400,7 +401,7 @@ export class IsolateRunner {
     code: string,
     timeout = 5000,
     bridges?: Record<string, (argsJson: string) => Promise<string>>
-  ): Promise<{ output: string; result: any }> {
+  ): Promise<{ output: string; result: any; error?: string }> {
     if (!this.#initialized) await this.init()
 
     this.#clearAllTimers()
@@ -488,6 +489,7 @@ export class IsolateRunner {
     // passes. Bridge-free modules keep the old single-attempt semantics.
     let result: any
     let extractFailed = false
+    let extractError: string | undefined
     const ns = userModule.namespace
     for (;;) {
       try {
@@ -524,8 +526,11 @@ export class IsolateRunner {
         bridge.release()
       } catch (err: any) {
         // Both structured clone and JSON serialization failed — result stays undefined
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Failed to extract default export from user code:`, err)
+        const message = String(err?.message || ``)
+        if (!message.includes(`released`)) {
+          extractError = `Failed to extract default export from user code: ${message}`
+          logger.warn(extractError)
+        }
       }
     }
 
@@ -546,6 +551,7 @@ export class IsolateRunner {
     return {
       output: this.#output.join(`\n`),
       result,
+      ...(extractError && { error: extractError }),
     }
   }
 

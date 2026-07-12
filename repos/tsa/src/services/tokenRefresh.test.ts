@@ -10,6 +10,14 @@ vi.mock(`@TSA/services/config`, () => ({
   },
 }))
 
+// Shrinks TokenRefreshTimeoutMs so the hang/timeout test below completes in
+// milliseconds instead of the real 30s -- RefreshBufferMs and everything else
+// stays real so the rest of this file's expiry-window assertions are unaffected.
+vi.mock(`@TSA/constants/api`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@TSA/constants/api')>()
+  return { ...actual, TokenRefreshTimeoutMs: 50 }
+})
+
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
@@ -111,6 +119,7 @@ describe(`TokenRefreshService`, () => {
             Accept: `application/json`,
             Authorization: `Bearer jwt.token.here`,
           },
+          signal: expect.any(AbortSignal),
         }
       )
       expect(auth.loginWithToken).toHaveBeenCalledWith({
@@ -212,6 +221,33 @@ describe(`TokenRefreshService`, () => {
 
       // fetch should only be called once despite three concurrent calls
       expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should not hang and returns false when the refresh request times out`, async () => {
+      const thirtySecondsFromNow = new Date(Date.now() + 30 * 1000).toISOString()
+      const auth = buildAuthWithConfig({
+        token: `jwt.token.here`,
+        expiresAt: thirtySecondsFromNow,
+        proxyUrl: `https://proxy.test`,
+        neonAuthUrl: `https://auth.example.com`,
+      })
+
+      // Mimics real fetch's abort-signal behavior: never resolves on its own,
+      // only rejects once the passed AbortSignal actually fires -- this proves
+      // #doRefresh passes a working, bounded signal rather than an unbounded
+      // fetch that would hang forever on a black-holed auth host.
+      mockFetch.mockImplementation((_url: string, opts: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener(`abort`, () => {
+            reject(new DOMException(`The operation was aborted`, `AbortError`))
+          })
+        })
+      })
+
+      const service = new TokenRefreshService(auth)
+      const result = await service.maybeRefresh()
+
+      expect(result).toBe(false)
     })
 
     it(`should return false when fetch throws a network error`, async () => {

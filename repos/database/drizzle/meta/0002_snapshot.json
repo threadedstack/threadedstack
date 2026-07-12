@@ -1,5 +1,5 @@
 {
-  "id": "07da2dd6-e9be-46ca-b727-ad34cdd0f20f",
+  "id": "d2c26cd4-da06-45c9-9803-0c23431bae40",
   "prevId": "639f0056-b0fb-4924-8699-be6201652d2f",
   "version": "7",
   "dialect": "postgresql",
@@ -2413,23 +2413,7 @@
           "notNull": true
         }
       },
-      "indexes": {
-        "invoices_user_id_idx": {
-          "name": "invoices_user_id_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "invoices_user_id_user_id_fk": {
           "name": "invoices_user_id_user_id_fk",
@@ -4848,6 +4832,103 @@
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sandbox_starting_claims": {
+      "name": "sandbox_starting_claims",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(10)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sandbox_id": {
+          "name": "sandbox_id",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sandbox_starting_claims_sandbox_id_idx": {
+          "name": "sandbox_starting_claims_sandbox_id_idx",
+          "columns": [
+            {
+              "expression": "sandbox_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sandbox_starting_claims_active_idx": {
+          "name": "sandbox_starting_claims_active_idx",
+          "columns": [
+            {
+              "expression": "sandbox_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"sandbox_starting_claims\".\"released_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sandbox_starting_claims_sandbox_id_sandboxes_id_fk": {
+          "name": "sandbox_starting_claims_sandbox_id_sandboxes_id_fk",
+          "tableFrom": "sandbox_starting_claims",
+          "tableTo": "sandboxes",
+          "columnsFrom": [
+            "sandbox_id"
           ],
           "columnsTo": [
             "id"

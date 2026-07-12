@@ -14,6 +14,11 @@ export const UpstreamTimeoutMS = 30_000
 export const DefaultTheme = `dark` as const
 export const DefaultSandboxTimeout = 300000
 export const LoginTimeoutMs = 5 * 60 * 1000
+/** Idle timeout for an in-flight Executor.run() WS session — reset on every
+ * inbound message (including the server's WsPingIntervalMS=25s heartbeat), so
+ * a legitimately long-running turn never trips it as long as the connection
+ * is alive, but a silent stall (dropped message, hung proxy) is caught. */
+export const ExecutorIdleTimeoutMs = 90_000
 
 // Retry
 export const MaxRetries = 3

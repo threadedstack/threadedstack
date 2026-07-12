@@ -74,16 +74,23 @@ export const connectSandbox: TEndpointConfig = {
 
     if (!instanceId) {
       const activeInstances = await sb.findActiveInstances(sandboxId, sandbox.orgId)
-      const activeCount = activeInstances.length + sb.countStarting(sandboxId)
-      if (activeCount >= maxInstances)
+      if (activeInstances.length >= maxInstances)
         throw new Exception(
           409,
-          `Instance limit reached (${activeCount}/${maxInstances})`,
+          `Instance limit reached (${activeInstances.length}/${maxInstances})`,
           `INSTANCE_LIMIT_REACHED`,
           activeInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
         )
 
-      sb.markStarting(sandboxId)
+      const claim = await sb.claimStarting(sandboxId)
+      if (claim.conflict)
+        throw new Exception(
+          409,
+          `Instance limit reached (${activeInstances.length}/${maxInstances})`,
+          `INSTANCE_LIMIT_REACHED`,
+          activeInstances.map((p) => `${p} (sessions: ${sb.getSessions(p).length})`)
+        )
+
       try {
         instanceId = await sb.startPod({
           projectId,
@@ -93,7 +100,7 @@ export const connectSandbox: TEndpointConfig = {
           egressOpts: config.egress,
         })
       } catch (err) {
-        sb.clearStarting(sandboxId)
+        await sb.releaseStarting(sandboxId)
         throw err
       }
 
@@ -173,7 +180,7 @@ export const connectSandbox: TEndpointConfig = {
         }
         throw err
       } finally {
-        sb.clearStarting(sandboxId)
+        await sb.releaseStarting(sandboxId)
         sb.broadcastInstanceList(sandboxId, sandbox.orgId).catch(() => {})
       }
     }

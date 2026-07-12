@@ -37,3 +37,12 @@ export const PodReadyTimeoutMS = 3 * 60_000
  * workspace.
  */
 export const SetupReadyTimeoutMS = 10 * 60_000
+
+/**
+ * Guards the backend-internal Backend->Pod proxy hop against an indefinitely-held
+ * socket when a pod hangs or is CPU-starved. Matches proxy repo's
+ * ProxyRequestTimeoutMs (repos/proxy/src/constants/values.ts) so this hop isn't
+ * looser than the outer Caddy->Proxy->Backend hop it sits behind (PR #198) --
+ * without it, http-proxy leaves `timeout` unset and defaults `proxyTimeout` to 120s.
+ */
+export const SandboxProxyTimeoutMs = 30_000
