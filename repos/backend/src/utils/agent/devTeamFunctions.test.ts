@@ -163,7 +163,40 @@ const makeFakeDb = () => {
   const row = (collection: string, id: string) =>
     store.get(key(ProjectId, collection))?.get(id)
 
-  return { db: { services: { record } } as any, record, seed, rows, row }
+  // In-memory stand-in for the AUTHORITATIVE `task_proposals` SQL table —
+  // deliberately a SEPARATE store from the `task_proposals` Collection above,
+  // mirroring the real architecture where devAddTask's taskProposals bridge
+  // (markTaskPromoted) reads/writes the table, never the Collection directly.
+  const taskProposalTable = new Map<string, any>()
+  const taskProposal = {
+    get: vi.fn(async (id: string) => ({ data: taskProposalTable.get(id) })),
+    update: vi.fn(async (input: { id: string } & Record<string, unknown>) => {
+      const existing = taskProposalTable.get(input.id)
+      if (!existing) return { data: undefined }
+      const updated = { ...existing, ...input }
+      taskProposalTable.set(input.id, updated)
+      return { data: updated }
+    }),
+  }
+  // Fixed org for every fake project — markTaskPromoted's orgId cross-check
+  // against the proposal row just needs to agree with `seedProposal` below.
+  const project = {
+    get: vi.fn(async (id: string) => ({ data: { id, orgId: `org-devteam` } })),
+  }
+
+  const seedProposal = (id: string, data: Record<string, unknown>) =>
+    taskProposalTable.set(id, { id, orgId: `org-devteam`, ...data })
+  const proposal = (id: string) => taskProposalTable.get(id)
+
+  return {
+    db: { services: { record, taskProposal, project } } as any,
+    record,
+    seed,
+    rows,
+    row,
+    seedProposal,
+    proposal,
+  }
 }
 
 type THarness = ReturnType<typeof makeFakeDb>
@@ -204,6 +237,19 @@ const recordsFromBridges = (
 }
 
 /**
+ * Rebuild `context.taskProposals` from the executor's host bridges exactly as
+ * the wrapper's taskProposalsContextCode does inside the isolate.
+ */
+const taskProposalsFromBridges = (
+  bridges: Record<string, (json: string) => Promise<string>>
+) => ({
+  promote: (id: string, note?: string) =>
+    bridges[`taskProposals.promote`](JSON.stringify([id, note])).then((res) =>
+      JSON.parse(res)
+    ),
+})
+
+/**
  * Mocked isolate that imports the REAL Function body source as an ESM module
  * (`data:` import — the isolate's own `import handler from 'function'`), then
  * EXECUTES its default export and reproduces the wrapper's success/error
@@ -212,7 +258,10 @@ const recordsFromBridges = (
 const runRealFunctionBody = () =>
   mockEvaluate.mockImplementation(async (wrapperCode: string, opts: any) => {
     const context = contextFromWrapper(wrapperCode)
-    if (opts?.bridges) context.records = recordsFromBridges(opts.bridges)
+    if (opts?.bridges) {
+      context.records = recordsFromBridges(opts.bridges)
+      context.taskProposals = taskProposalsFromBridges(opts.bridges)
+    }
     const mod = await import(
       `data:text/javascript;base64,${Buffer.from(opts.modules.function, `utf8`).toString(`base64`)}`
     )
@@ -239,7 +288,11 @@ const runFn = (
 ) =>
   FunctionExecutor.execute(
     { ...def, projectId: ProjectId },
-    { db: h.db, context: { args, caller } }
+    // `caller` is threaded BOTH into the JSON context the isolate sees AND as
+    // the top-level, host-side trusted caller (exactly like the real
+    // invokeAction.ts) — the latter is what gates/stamps the host-bridge
+    // capabilities (taskProposals.promote's `by`, connect's authorship check).
+    { db: h.db, context: { args, caller }, caller }
   )
 
 /** Seed one dev_tasks record with sane backlog defaults. */
@@ -935,20 +988,21 @@ describe(`devAddTask Function`, () => {
   // ── Atomic groom-and-claim: devAddTask promotes the source proposal ──────────
   //
   // Folds pickupTask's promotion into devAddTask so a groomed proposal can
-  // NEVER stay scanned. A scanned task_proposals record referenced by
-  // sourceTaskProposalId is flipped to promoted in the SAME call — on a fresh
-  // create AND on a dedupe hit — while a devAddTask with no sourceTaskProposalId
-  // leaves proposals untouched, a terminal proposal is not re-written, and a
-  // missing proposal never fails the dev_task creation.
+  // NEVER stay scanned. A scanned task_proposals TABLE row referenced by
+  // sourceTaskProposalId is flipped to promoted in the SAME call — via the
+  // taskProposals bridge (markTaskPromoted), never a direct Collection write —
+  // on a fresh create AND on a dedupe hit — while a devAddTask with no
+  // sourceTaskProposalId leaves proposals untouched, a terminal proposal is not
+  // re-written, and a missing proposal never fails the dev_task creation.
 
   const seedProposal = (
     h: THarness,
     id: string,
     overrides: Record<string, unknown> = {}
   ) =>
-    h.seed(`task_proposals`, id, {
+    h.seedProposal(id, {
       title: `Harden the egress guard`,
-      body: `Cover the SSRF redirect path`,
+      description: `Cover the SSRF redirect path`,
       status: `scanned`,
       priority: `P2`,
       prUrl: null,
@@ -974,17 +1028,19 @@ describe(`devAddTask Function`, () => {
 
     expect(result.output).toMatchObject({ ok: true, added: true, state: `backlog` })
     // The proposal is claimed in the SAME call — status promoted, prUrl null
-    // (the dev_task, not a PR, is the anchor), audit verdict by the CTO.
-    const proposal = h.row(`task_proposals`, `tp_groom1`)!.data
+    // (the dev_task, not a PR, is the anchor), audit verdict by the CTO. This
+    // is the AUTHORITATIVE table row (via markTaskPromoted), not a Collection
+    // mirror — the exact gap rec_1TOmKI closes.
+    const proposal = h.proposal(`tp_groom1`)
     expect(proposal).toMatchObject({
       status: `promoted`,
       prUrl: null,
       reason: `groomed into dev_tasks`,
       auditVerdict: { approved: true, reason: `groomed into dev_tasks`, by: Cto.agentId },
     })
-    // The original title/body are preserved (a merge, not a replace).
+    // markTaskPromoted is a PARTIAL update — title/description are untouched.
     expect(proposal.title).toBe(`Harden the egress guard`)
-    expect(proposal.body).toBe(`Cover the SSRF redirect path`)
+    expect(proposal.description).toBe(`Cover the SSRF redirect path`)
   })
 
   it(`leaves every proposal untouched when the task carries no sourceTaskProposalId`, async () => {
@@ -1001,8 +1057,8 @@ describe(`devAddTask Function`, () => {
     expect(result.output).toMatchObject({ ok: true, added: true })
     // No sourceTaskProposalId → the promotion step is a no-op; the proposal
     // stays exactly as seeded.
-    expect(h.row(`task_proposals`, `tp_ignore`)!.data.status).toBe(`scanned`)
-    expect(h.row(`task_proposals`, `tp_ignore`)!.data.auditVerdict).toBeNull()
+    expect(h.proposal(`tp_ignore`).status).toBe(`scanned`)
+    expect(h.proposal(`tp_ignore`).auditVerdict).toBeNull()
   })
 
   it(`does NOT re-write an already-terminal proposal (promoted or rejected)`, async () => {
@@ -1033,7 +1089,7 @@ describe(`devAddTask Function`, () => {
     )
     expect(promoted.output).toMatchObject({ ok: true, added: true })
     // Untouched: the earlier work-cycle verdict + PR anchor survive.
-    expect(h.row(`task_proposals`, `tp_done`)!.data).toMatchObject({
+    expect(h.proposal(`tp_done`)).toMatchObject({
       status: `promoted`,
       prUrl: `https://github.com/x/pull/9`,
       reason: `Picked by work cycle`,
@@ -1051,13 +1107,13 @@ describe(`devAddTask Function`, () => {
       Cto
     )
     expect(rejected.output).toMatchObject({ ok: true, added: true })
-    expect(h.row(`task_proposals`, `tp_rejected`)!.data.status).toBe(`rejected`)
+    expect(h.proposal(`tp_rejected`).status).toBe(`rejected`)
   })
 
   it(`does NOT fail the dev_task creation when the source proposal is missing`, async () => {
     const h = makeFakeDb()
-    // No task_proposals record for this id — the promotion is best-effort, so
-    // the dev_task creation (the primary outcome) still succeeds.
+    // No task_proposals row for this id — the promotion is best-effort, so the
+    // dev_task creation (the primary outcome) still succeeds.
     const result = await runFn(
       DevAddTaskFunctionDef,
       h,
@@ -1071,7 +1127,7 @@ describe(`devAddTask Function`, () => {
 
     expect(result.output).toMatchObject({ ok: true, added: true, state: `backlog` })
     expect(h.rows(`dev_tasks`)).toHaveLength(1)
-    expect(h.rows(`task_proposals`)).toHaveLength(0)
+    expect(h.proposal(`tp_missing`)).toBeUndefined()
   })
 
   it(`a dedupe-HIT devAddTask STILL promotes the source proposal (closes the merged-but-scanned hole)`, async () => {
@@ -1106,7 +1162,7 @@ describe(`devAddTask Function`, () => {
     })
     expect(h.rows(`dev_tasks`)).toHaveLength(1)
     // …AND the proposal was claimed anyway.
-    expect(h.row(`task_proposals`, `tp_belt`)!.data).toMatchObject({
+    expect(h.proposal(`tp_belt`)).toMatchObject({
       status: `promoted`,
       prUrl: null,
       reason: `groomed into dev_tasks`,
@@ -1138,7 +1194,40 @@ describe(`devAddTask Function`, () => {
       id: `dt_title`,
     })
     // The title-dedupe path still claims the proposal — no scanned leak.
-    expect(h.row(`task_proposals`, `tp_title`)!.data.status).toBe(`promoted`)
+    expect(h.proposal(`tp_title`).status).toBe(`promoted`)
+  })
+
+  it(`survives a missing taskProposals bridge (older/mismatched host) without failing the dev_task creation`, async () => {
+    const h = makeFakeDb()
+    seedProposal(h, `tp_nobridge`)
+    // Simulate the bridge surface being absent entirely (e.g. a bridgeless
+    // invocation) by stripping context.taskProposals before the handler runs.
+    mockEvaluate.mockImplementationOnce(async (wrapperCode: string, opts: any) => {
+      const context = contextFromWrapper(wrapperCode)
+      if (opts?.bridges) context.records = recordsFromBridges(opts.bridges)
+      const mod = await import(
+        `data:text/javascript;base64,${Buffer.from(opts.modules.function, `utf8`).toString(`base64`)}`
+      )
+      const raw = await mod.default({}, context)
+      return {
+        output: ``,
+        result: { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) },
+      }
+    })
+
+    const result = await runFn(
+      DevAddTaskFunctionDef,
+      h,
+      {
+        title: `Groom without a taskProposals bridge`,
+        description: `defensive guard path`,
+        sourceTaskProposalId: `tp_nobridge`,
+      },
+      Cto
+    )
+
+    expect(result.output).toMatchObject({ ok: true, added: true, state: `backlog` })
+    expect(h.proposal(`tp_nobridge`).status).toBe(`scanned`)
   })
 })
 
