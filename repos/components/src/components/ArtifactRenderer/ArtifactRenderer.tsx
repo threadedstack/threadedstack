@@ -1,5 +1,6 @@
 import type { TArtifactType } from '@tdsk/domain'
 
+import DOMPurify from 'dompurify'
 import { useState } from 'react'
 import { MermaidRenderer } from './MermaidRenderer'
 import { MarkdownRenderer } from './MarkdownRenderer'
@@ -51,7 +52,13 @@ export const ArtifactRenderer = (props: TArtifactRendererProps) => {
         return (
           <Box
             sx={{ '& svg': { maxWidth: `100%`, height: `auto` } }}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(content, {
+                USE_PROFILES: { html: true, svg: true, svgFilters: true },
+                FORBID_TAGS: [`script`, `style`, `iframe`, `foreignObject`],
+                FORBID_ATTR: [`onerror`, `onload`, `onclick`],
+              }),
+            }}
           />
         )
 
