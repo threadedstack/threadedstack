@@ -87,6 +87,11 @@ export const QuotaUsage = (props: TQuotaUsage) => {
       current: usage.secrets || 0,
       limit: limits.secrets || 0,
     },
+    {
+      label: 'Sandbox Sessions',
+      current: usage.sandboxSessions || 0,
+      limit: limits.sandboxSessions || 0,
+    },
   ]
 
   return (
