@@ -20,6 +20,30 @@ export type TSpawn = {
   error?: (err: Error | string) => void
   exit?: (code: number, pid: string) => void
   stdio?: `pipe` | `ignore` | `inherit` | Array<`pipe` | `ignore` | `inherit` | number>
+  /**
+   * Written to the child's stdin and closed once the process spawns — the
+   * safe way to hand a secret (e.g. a docker login password) to a child
+   * process without it ever touching argv (visible via `ps aux` /
+   * `/proc/<pid>/cmdline`) or a captured `[Running CMD]` log line. Forces
+   * stdin to `pipe` regardless of the `stdio` option.
+   */
+  stdin?: string
+}
+
+/** Flags whose immediately-following arg is a secret and must never be logged. */
+const SensitiveArgFlags = new Set([`-p`, `-P`, `--password`, `--token`, `--secret`])
+
+/**
+ * Defense-in-depth redaction for the `[Running CMD]` log line: mask the value
+ * immediately following a known secret-bearing flag. The docker login fix
+ * keeps the password out of argv entirely (piped via stdin instead), but this
+ * guards any other/future caller that passes a secret as a CLI arg.
+ */
+const redactArgs = (args: string[]): string[] => {
+  const redacted = [...args]
+  for (let i = 0; i < redacted.length - 1; i++)
+    if (SensitiveArgFlags.has(redacted[i])) redacted[i + 1] = `***REDACTED***`
+  return redacted
 }
 
 export type TSpawnProm = Promise<number> & {
@@ -50,6 +74,7 @@ export const spawn = async (props: TSpawn) => {
       const {
         cmd,
         log,
+        stdin,
         error,
         close,
         stdout,
@@ -63,13 +88,28 @@ export const spawn = async (props: TSpawn) => {
       } = props
 
       const cwd = props.cwd || hq.get(`webpack`)[`@ROOT`]
-      log && Logger.pair(`[Running CMD]`, [cmd, ...args].join(` `))
+      log && Logger.pair(`[Running CMD]`, [cmd, ...redactArgs(args)].join(` `))
+
+      // `stdin` always needs a pipe on fd 0 regardless of the caller's stdio
+      // choice for stdout/stderr — string stdio applies to all three fds, so
+      // expand it into an array with just stdin overridden to `pipe`.
+      const resolvedStdio: TSpawn[`stdio`] =
+        stdin === undefined
+          ? stdio
+          : Array.isArray(stdio)
+            ? [`pipe`, stdio[1] ?? `inherit`, stdio[2] ?? `inherit`]
+            : [`pipe`, stdio, stdio]
 
       child = cps(cmd, args, {
         cwd,
-        stdio,
+        stdio: resolvedStdio,
         env: { ...process.env, ...envs },
       })
+
+      if (stdin !== undefined) {
+        child.stdin?.write(stdin)
+        child.stdin?.end()
+      }
 
       detached && stdio !== `inherit` && child.unref()
 
