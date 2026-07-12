@@ -971,13 +971,19 @@ export class SandboxService {
         state === EContainerState.Failed ||
         state === EContainerState.Succeeded ||
         state === EContainerState.Terminating
-      )
-        throw new Error(`Pod ${instanceId} will never become ready (state: ${state})`)
-
-      if (Date.now() + pollMs > deadline)
+      ) {
+        const conditions = await this.getPodConditionSummary(instanceId)
         throw new Error(
-          `Timed out after ${timeoutMs / 1000}s waiting for pod ${instanceId} to be ready (state: ${state})`
+          `Pod ${instanceId} will never become ready (state: ${state})${conditions ? ` — conditions: ${conditions}` : ``}`
         )
+      }
+
+      if (Date.now() + pollMs > deadline) {
+        const conditions = await this.getPodConditionSummary(instanceId)
+        throw new Error(
+          `Timed out after ${timeoutMs / 1000}s waiting for pod ${instanceId} to be ready (state: ${state})${conditions ? ` — conditions: ${conditions}` : ``}`
+        )
+      }
 
       await sleep()
     }
