@@ -3,8 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
-import { parsePagination } from '@TBE/utils/pagination'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { parsePagination, fetchAuthorizedPage } from '@TBE/utils/pagination'
 import {
   Exception,
   ERoleType,
@@ -49,20 +49,8 @@ export const listAgents: TEndpointConfig = {
         throw new Exception(403, `Admin or higher role required to view secret values`)
     }
 
-    const { limit, offset } = parsePagination(req)
-
-    const { data, error } = await db.services.agent.list({
-      limit,
-      offset,
-      sanitize,
-      where: { orgId },
-    })
-
-    if (error) throw new Exception(500, error.message)
-
-    let filteredData = data || []
-
     // Non-admins only see agents in projects they are members of
+    let projectIdSet: Set<string> | undefined
     if (!hasMinRole(userRole, ERoleType.admin)) {
       const userId = req.user?.id
       if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
@@ -71,20 +59,38 @@ export const listAgents: TEndpointConfig = {
         await db.services.role.getUserProjects(userId)
       if (projErr) throw new Exception(500, `Failed to retrieve user projects`)
 
-      const projectIdSet = new Set(userProjectIds || [])
-      filteredData = filteredData.filter((agent) =>
-        agent.projects?.some((p) => projectIdSet.has(p.id))
-      )
+      projectIdSet = new Set(userProjectIds || [])
     }
 
-    // Further filter by specific projectId if requested
-    if (projectId) {
-      filteredData = filteredData.filter((agent) =>
-        agent.projects?.some((p) => p.id === projectId)
-      )
-      // Merge project overrides into each agent
+    const { limit, offset } = parsePagination(req)
+
+    const { data, error } = await fetchAuthorizedPage({
+      limit,
+      offset,
+      fetchPage: (page) =>
+        db.services.agent.list({
+          limit: page.limit,
+          offset: page.offset,
+          sanitize,
+          where: { orgId },
+        }),
+      isAuthorized: (agent) => {
+        if (projectIdSet && !agent.projects?.some((p) => projectIdSet!.has(p.id)))
+          return false
+
+        if (projectId && !agent.projects?.some((p) => p.id === projectId)) return false
+
+        return true
+      },
+    })
+
+    if (error) throw new Exception(500, error.message)
+
+    let filteredData = data || []
+
+    // Merge project overrides into each agent when scoped to a specific project
+    if (projectId)
       filteredData = filteredData.map((agent) => agent.getEffectiveConfig(projectId))
-    }
 
     res.status(200).json({ data: filteredData, limit, offset })
   },

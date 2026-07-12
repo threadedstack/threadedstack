@@ -788,6 +788,53 @@ describe(`Sandboxes endpoints`, () => {
       expect(responseData).toHaveLength(1)
       expect(responseData[0].id).toBe(`sb-1`)
     })
+
+    it(`does not skip accessible sandboxes across pages when access-filtering shrinks a DB-level page`, async () => {
+      // 8 sandboxes alternating between the user's project (proj-1, accessible)
+      // and another project (proj-2, inaccessible) -- only sb-1,3,5,7 are accessible
+      const allSandboxes = [1, 2, 3, 4, 5, 6, 7, 8].map(
+        (i) =>
+          new Sandbox({
+            id: `sb-${i}`,
+            name: `Sandbox ${i}`,
+            orgId: `org-1`,
+            config: { image: `test` } as any,
+            projects: [
+              { id: i % 2 === 1 ? `proj-1` : `proj-2`, name: `P`, orgId: `org-1` } as any,
+            ],
+          })
+      )
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [`proj-1`] })
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockImplementation(
+        async ({ limit, offset }: { limit: number; offset: number }) => ({
+          data: allSandboxes.slice(offset, offset + limit),
+        })
+      )
+
+      mockReq.query = { limit: `3`, offset: `0` }
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const page1 = mockJson.mock.calls[0][0].data
+      expect(page1.map((s: { id: string }) => s.id)).toEqual([`sb-1`, `sb-3`, `sb-5`])
+
+      mockJson.mockClear()
+      mockReq.query = { limit: `3`, offset: `3` }
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const page2 = mockJson.mock.calls[0][0].data
+      expect(page2.map((s: { id: string }) => s.id)).toEqual([`sb-7`])
+    })
   })
 
   describe(`POST /_/sandboxes/:id/copy - Copy sandbox`, () => {

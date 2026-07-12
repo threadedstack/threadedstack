@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { TRequest } from '@TBE/types'
-import { parsePagination } from './pagination'
+import { parsePagination, fetchAuthorizedPage } from './pagination'
 
 describe(`parsePagination`, () => {
   const buildReq = (query: Record<string, string> = {}) =>
@@ -55,5 +55,72 @@ describe(`parsePagination`, () => {
   it(`should handle zero offset as valid`, () => {
     const result = parsePagination(buildReq({ offset: `0` }))
     expect(result.offset).toBe(0)
+  })
+})
+
+describe(`fetchAuthorizedPage`, () => {
+  const buildFetchPage =
+    (all: number[]) =>
+    async ({ limit, offset }: { limit: number; offset: number }) => ({
+      data: all.slice(offset, offset + limit),
+    })
+
+  it(`returns exactly limit items when unfiltered`, async () => {
+    const all = [1, 2, 3, 4, 5, 6, 7, 8]
+    const result = await fetchAuthorizedPage({
+      limit: 3,
+      offset: 0,
+      fetchPage: buildFetchPage(all),
+      isAuthorized: () => true,
+    })
+    expect(result.data).toEqual([1, 2, 3])
+  })
+
+  it(`makes exactly one fetchPage call when the first raw page already has enough authorized items`, async () => {
+    const fetchPage = vi.fn(buildFetchPage([1, 2, 3, 4, 5]))
+    const result = await fetchAuthorizedPage({
+      limit: 3,
+      offset: 0,
+      fetchPage,
+      isAuthorized: () => true,
+    })
+    expect(result.data).toEqual([1, 2, 3])
+    expect(fetchPage).toHaveBeenCalledOnce()
+    expect(fetchPage).toHaveBeenCalledWith({ limit: 3, offset: 0 })
+  })
+
+  it(`over-fetches to fill a page when access filtering shrinks the DB-level page`, async () => {
+    // odd numbers are "authorized", evens are not -- only 1,3,5,7 pass
+    const all = [1, 2, 3, 4, 5, 6, 7, 8]
+    const result = await fetchAuthorizedPage({
+      limit: 3,
+      offset: 0,
+      fetchPage: buildFetchPage(all),
+      isAuthorized: (n) => n % 2 === 1,
+    })
+    expect(result.data).toEqual([1, 3, 5])
+  })
+
+  it(`returns a short page only when the underlying data is truly exhausted`, async () => {
+    const all = [1, 2, 3, 4, 5, 6, 7, 8]
+    const result = await fetchAuthorizedPage({
+      limit: 3,
+      offset: 3,
+      fetchPage: buildFetchPage(all),
+      isAuthorized: (n) => n % 2 === 1,
+    })
+    // only 4 authorized items total (1,3,5,7) -- offset 3 leaves just 1
+    expect(result.data).toEqual([7])
+  })
+
+  it(`propagates a fetchPage error without swallowing it`, async () => {
+    const error = new Error(`db down`)
+    const result = await fetchAuthorizedPage({
+      limit: 3,
+      offset: 0,
+      fetchPage: async () => ({ error }),
+      isAuthorized: () => true,
+    })
+    expect(result.error).toBe(error)
   })
 })

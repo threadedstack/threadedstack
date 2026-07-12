@@ -279,6 +279,68 @@ describe(`Agents endpoints`, () => {
       expect(responseData[1].id).toBe(`agent-3`)
     })
 
+    it(`does not skip accessible agents across pages when access-filtering shrinks a DB-level page`, async () => {
+      // 8 agents alternating between the user's project (project-1, accessible)
+      // and another project (project-2, inaccessible) -- only agent-1,3,5,7 are accessible
+      const allAgents = [1, 2, 3, 4, 5, 6, 7, 8].map(
+        (i) =>
+          new Agent({
+            id: `agent-${i}`,
+            name: `Agent ${i}`,
+            orgId: `org-1`,
+            providerLinks: [
+              {
+                provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+                priority: 0,
+                model: null,
+              },
+            ],
+            projects: [
+              {
+                id: i % 2 === 1 ? `project-1` : `project-2`,
+                name: `P`,
+                orgId: `org-1`,
+              },
+            ] as any,
+          })
+      )
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [`project-1`] })
+
+      const mockList = mockReq.app?.locals.db.services.agent.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockImplementation(
+        async ({ limit, offset }: { limit: number; offset: number }) => ({
+          data: allAgents.slice(offset, offset + limit),
+        })
+      )
+
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `3`, offset: `0` }
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const page1 = mockJson.mock.calls[0][0].data
+      expect(page1.map((a: { id: string }) => a.id)).toEqual([
+        `agent-1`,
+        `agent-3`,
+        `agent-5`,
+      ])
+
+      mockJson.mockClear()
+      mockReq.query = { limit: `3`, offset: `3` }
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const page2 = mockJson.mock.calls[0][0].data
+      expect(page2.map((a: { id: string }) => a.id)).toEqual([`agent-7`])
+    })
+
     it(`should reject 400 when query projectId differs from URL projectId`, async () => {
       const mockList = mockReq.app?.locals.db.services.agent.list as ReturnType<
         typeof vi.fn
