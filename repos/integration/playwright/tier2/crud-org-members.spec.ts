@@ -22,15 +22,7 @@ test.describe.serial('CRUD Org Members', () => {
   test.skip('INVITE — should invite a user to the org via the drawer', async () => {})
 
 
-  /**
-   * TODO: Investigate why this test is now failing?
-   * Gives the following error:
-      - expect.toBeVisible with timeout 3000ms
-      - waiting for locator('.MuiMenuItem-root:not(.Mui-disabled)').first()
-      -   locator resolved to <li tabindex="-1" role="menuitem" class="MuiButtonBa…>…</li>
-      -   unexpected value "hidden"
-   */
-  test.skip('UPDATE ROLE — should change a member role via the edit drawer', async ({
+  test('UPDATE ROLE — should change a member role via the edit drawer', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -89,12 +81,18 @@ test.describe.serial('CRUD Org Members', () => {
       await roleSelect.click()
     }
 
-    // Get all available (non-disabled) options
-    const options = page.locator('.MuiMenuItem-root:not(.Mui-disabled)')
+    // Get all available (non-disabled) options.
+    // Scoped to the open listbox — the header's account menu (Profile/Billing/Sign
+    // Out) stays mounted-but-hidden in the DOM at all times and also matches
+    // `.MuiMenuItem-root`, so an unscoped locator's `.first()` can resolve to that
+    // hidden menu instead of this select's open one. MUI renders the Select's
+    // dropdown with `role="listbox"` (vs. `role="menu"` for a plain Menu), which
+    // uniquely identifies it.
+    const options = page.locator('[role="listbox"] .MuiMenuItem-root:not(.Mui-disabled)')
     await expect(options.first()).toBeVisible({ timeout: 3_000 })
 
     // Pick "Member" if available, otherwise pick the first non-disabled option
-    const memberOption = page.locator('.MuiMenuItem-root:not(.Mui-disabled)', {
+    const memberOption = page.locator('[role="listbox"] .MuiMenuItem-root:not(.Mui-disabled)', {
       hasText: 'Member',
     })
     if ((await memberOption.count()) > 0) {
