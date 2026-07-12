@@ -18,6 +18,7 @@ import {
   MutagenBinPath,
   MutagenAgentsPath,
   MutagenNpmVersion,
+  MutagenDownloadTimeoutMs,
 } from '@TSA/constants/sync'
 import {
   mkdirSync,
@@ -51,13 +52,26 @@ const installFromSource = (sourceDir: string): void => {
  * Download the mutagen binary from the npm registry.
  * Fetches the platform-specific tarball and extracts bin/mutagen + bin/mutagen-agents.tar.gz.
  */
-const downloadFromNpm = async (): Promise<void> => {
+export const downloadFromNpm = async (): Promise<void> => {
   const pkg = `mutagen-${platform()}-${arch()}`
   const tarballUrl = `https://registry.npmjs.org/@nuanced-dev/${pkg}/-/${pkg}-${MutagenNpmVersion}.tgz`
 
   process.stderr.write(`Installing mutagen (${platform()}-${arch()})...\n`)
 
-  const response = await fetch(tarballUrl)
+  let response: Response
+  try {
+    response = await fetch(tarballUrl, {
+      signal: AbortSignal.timeout(MutagenDownloadTimeoutMs),
+    })
+  } catch (err: any) {
+    if (err?.name === `TimeoutError`) {
+      throw new Error(
+        `Download timed out after ${MutagenDownloadTimeoutMs / 1000}s from ${tarballUrl}. Check your network connectivity.`
+      )
+    }
+    throw err
+  }
+
   if (!response.ok) {
     throw new Error(
       `Failed to download mutagen: HTTP ${response.status} from ${tarballUrl}`
