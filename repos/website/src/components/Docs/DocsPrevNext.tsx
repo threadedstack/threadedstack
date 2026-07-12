@@ -9,7 +9,7 @@ const DocsPrevNext = () => {
   const { pathname } = useLocation()
   const idx = allPages.findIndex((p) => p.path === pathname)
   const prev = idx > 0 ? allPages[idx - 1] : null
-  const next = idx < allPages.length - 1 ? allPages[idx + 1] : null
+  const next = idx !== -1 && idx < allPages.length - 1 ? allPages[idx + 1] : null
 
   if (!prev && !next) return null
 
