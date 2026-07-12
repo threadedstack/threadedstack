@@ -10,10 +10,11 @@ import { taskError } from '@TSCL/utils/tasks/error'
  * @returns {Void}
  */
 const runImg: TTaskAction = async (args) => {
+  const { params } = args
   const ctx = getCtx(args)
   !ctx && taskError(`Build context name is missing or invalid`)
 
-  // TODO: Check pull param, and pull the image before running if set
+  params?.pull && (await docker.pull({ ...args, ctx }))
   await docker.run({ ...args, ctx })
 }
 
