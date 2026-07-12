@@ -1,5 +1,6 @@
 import { injectUnsafe } from './safeReplacer'
 import { isObj } from '@keg-hub/jsutils/isObj'
+import { isStr } from '@keg-hub/jsutils/isStr'
 
 /**
  * @description - Injects the secret keys and values into the logger
@@ -13,7 +14,11 @@ export const injectKeyValues = (resp: Record<string, any>) => {
 
   injectUnsafe(keys)
 
-  const values = Object.values(resp).filter(Boolean)
+  // injectUnsafe registers substrings for later string matching, so it can
+  // only accept strings -- non-string values (numbers, booleans, nested
+  // objects/arrays) reach escapeStrForRegEx's String.prototype.replace call
+  // and throw
+  const values = Object.values(resp).filter((value) => isStr(value) && value)
   values.length && injectUnsafe(values)
 
   return resp
