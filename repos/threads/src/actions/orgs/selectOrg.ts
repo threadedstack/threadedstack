@@ -7,6 +7,7 @@ import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import { ActiveOrgIdStorageKey, ActiveProjectIdStorageKey } from '@TTH/constants/storage'
 import {
+  getOrgId,
   getOrgs,
   setOrgId,
   setSandboxes,
@@ -37,8 +38,13 @@ export const selectOrg = async (orgId: string) => {
     listProjects({ orgId }),
   ])
 
-  if (sandboxResult.data) setSandboxes(sandboxResult.data)
-  if (projectResult.data) setProjects(projectResult.data)
+  // A newer selectOrg() call may have already switched the active org while
+  // these requests were in flight — only commit if this org is still active,
+  // mirroring fetchOrg.ts's existing getOrgId() guard.
+  if (getOrgId() === orgId) {
+    if (sandboxResult.data) setSandboxes(sandboxResult.data)
+    if (projectResult.data) setProjects(projectResult.data)
+  }
 
   fetchOrg(orgId).catch((err: unknown) => {
     console.warn(
