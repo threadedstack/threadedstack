@@ -27,4 +27,6 @@ export type TKubeClientConfig = {
 export type TRunInPodOpts = {
   onStdout?: (chunk: Buffer) => void
   onStderr?: (chunk: Buffer) => void
+  /** Ms before the exec is aborted and the returned promise rejects. Defaults to DefaultExecTimeoutMs. */
+  timeoutMs?: number
 }
