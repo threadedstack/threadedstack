@@ -27,7 +27,7 @@ jobs:
       threads: ${{ steps.filter.outputs.threads }}
       website: ${{ steps.filter.outputs.website }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -71,9 +71,9 @@ jobs:
           - target: website
             package: '@tdsk/website'
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
           cache: pnpm
