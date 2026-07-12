@@ -5,6 +5,7 @@ import {
   PodAnnotationKeys,
   PodManagedSelector,
   PodCycleInterval,
+  DefaultExecTimeoutMs,
 } from '@TSB/constants/kube'
 
 const mockCoreApi = {
@@ -879,6 +880,79 @@ describe(`KubeClient`, () => {
   })
 
   // --- execStream ---
+
+  describe(`runInPod`, () => {
+    it(`should resolve with the sandbox result when the status callback fires`, async () => {
+      const promise = client.runInPod(`my-pod`, [`echo`, `hi`])
+
+      expect(capturedStatusCallback).toBeDefined()
+      capturedStatusCallback!({ status: `Success` })
+
+      await expect(promise).resolves.toEqual({
+        exitCode: 0,
+        output: ``,
+        success: true,
+        error: undefined,
+      })
+    })
+
+    it(`should reject with a clear timeout error and close the exec WebSocket when the status callback never fires`, async () => {
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`])
+      const assertion = expect(promise).rejects.toThrow(
+        `runInPod timed out after ${DefaultExecTimeoutMs}ms for pod wedged-pod`
+      )
+
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+      await assertion
+
+      expect(mockExecWs.close).toHaveBeenCalled()
+    })
+
+    it(`should honor a custom opts.timeoutMs instead of the default`, async () => {
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`], undefined, {
+        timeoutMs: 5_000,
+      })
+      const assertion = expect(promise).rejects.toThrow(`timed out after 5000ms`)
+
+      await vi.advanceTimersByTimeAsync(5_000)
+      await assertion
+    })
+
+    it(`should not fire the timeout once the status callback has already resolved the call`, async () => {
+      const promise = client.runInPod(`my-pod`, [`echo`, `hi`])
+      capturedStatusCallback!({ status: `Success` })
+
+      const result = await promise
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+
+      expect(result.success).toBe(true)
+    })
+
+    it(`should log a warning instead of throwing when closing the exec WebSocket on timeout fails`, async () => {
+      mockExecWs.close.mockImplementation(() => {
+        throw new Error(`already closed`)
+      })
+
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`])
+      const assertion = expect(promise).rejects.toThrow(`timed out`)
+
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+      await assertion
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Failed to close exec WebSocket after timeout`),
+        `already closed`
+      )
+    })
+
+    it(`should propagate exec rejection when no stdout/stderr was captured`, async () => {
+      mockExec.exec.mockRejectedValueOnce(new Error(`pod not found`))
+
+      await expect(client.runInPod(`bad-pod`, [`echo`, `hi`])).rejects.toThrow(
+        `pod not found`
+      )
+    })
+  })
 
   describe(`execStream`, () => {
     beforeEach(() => {

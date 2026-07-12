@@ -37,3 +37,7 @@ export const KubeRetryableStatusCodes = new Set([429, 500, 502, 503, 504])
 export const KubeRetryMaxAttempts = 2
 export const KubeRetryInitialDelayMs = 250
 export const KubeRetryBackoffMultiplier = 2
+
+// Default bound on KubeClient#runInPod — protects against a wedged pod or a
+// silently dropped exec WebSocket stream that never invokes its status callback.
+export const DefaultExecTimeoutMs = 60_000

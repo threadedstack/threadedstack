@@ -27,6 +27,7 @@ import {
   PodCycleInterval,
   PodAnnotationKeys,
   PodManagedSelector,
+  DefaultExecTimeoutMs,
 } from '@TSB/constants/kube'
 
 class ResizablePassThrough extends PassThrough {
@@ -224,11 +225,37 @@ export class KubeClient {
     stdin?: Readable,
     opts?: TRunInPodOpts
   ): Promise<TSandboxResult> {
+    const timeoutMs = opts?.timeoutMs ?? DefaultExecTimeoutMs
+
     return new Promise((resolve, reject) => {
       const stdoutChunks: Buffer[] = []
       const stderrChunks: Buffer[] = []
       const stdoutStream = new PassThrough()
       const stderrStream = new PassThrough()
+
+      let settled = false
+      let execWs: any
+
+      const settle = (run: () => void) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        run()
+      }
+
+      const timer = setTimeout(() => {
+        settle(() => {
+          try {
+            execWs?.close()
+          } catch (err) {
+            logger.warn(
+              `[KubeClient] Failed to close exec WebSocket after timeout for pod ${podName}:`,
+              (err as Error).message
+            )
+          }
+          reject(new Error(`runInPod timed out after ${timeoutMs}ms for pod ${podName}`))
+        })
+      }, timeoutMs)
 
       stdoutStream.on(`data`, (chunk: Buffer) => {
         opts?.onStdout?.(chunk)
@@ -257,28 +284,35 @@ export class KubeClient {
                 ? 0
                 : Number(status.details?.causes?.[0]?.message || 1)
 
-            resolve({
-              exitCode,
-              output: stdout,
-              success: exitCode === 0,
-              error: stderr || undefined,
-            })
+            settle(() =>
+              resolve({
+                exitCode,
+                output: stdout,
+                success: exitCode === 0,
+                error: stderr || undefined,
+              })
+            )
           }
         )
+        .then((ws) => {
+          execWs = ws
+        })
         .catch((err) => {
           const stdout = Buffer.concat(stdoutChunks).toString(`utf-8`)
           const stderr = Buffer.concat(stderrChunks).toString(`utf-8`)
 
-          if (!stdout && !stderr) {
-            reject(err)
-          } else {
-            resolve({
-              exitCode: 1,
-              success: false,
-              output: stdout,
-              error: stderr || err.message,
-            })
-          }
+          settle(() => {
+            if (!stdout && !stderr) {
+              reject(err)
+            } else {
+              resolve({
+                exitCode: 1,
+                success: false,
+                output: stdout,
+                error: stderr || err.message,
+              })
+            }
+          })
         })
     })
   }
