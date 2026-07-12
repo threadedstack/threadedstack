@@ -30,7 +30,12 @@ export const getOrgQuota: TEndpointConfig = {
     // other resources), sourced directly from SandboxService rather than the
     // quotas table, then merged into the same current/limit shape the admin UI
     // already pairs with getOrgLimits' static PlanLimits.sandboxSessions.
-    const sandboxSessions = sandbox.getOrgShellSessionCount(orgId)
+    // req.app.locals.sandbox is only set when K8s init succeeds (see
+    // SandboxService.initKube) -- fall back to 0 when sandbox features are
+    // unavailable rather than throwing on the undefined sandbox instance.
+    const sandboxSessions = req.app.locals.sandboxAvailable
+      ? sandbox.getOrgShellSessionCount(orgId)
+      : 0
 
     data
       ? res.status(200).json({ data: { ...data, sandboxSessions } })

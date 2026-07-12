@@ -33,6 +33,7 @@ describe(`Quota Endpoints`, () => {
       sandbox: {
         getOrgShellSessionCount: vi.fn().mockReturnValue(0),
       },
+      sandboxAvailable: true,
       config: config,
     },
   } as unknown as TApp
@@ -59,6 +60,11 @@ describe(`Quota Endpoints`, () => {
         id: mockUserId,
       } as any,
     }
+
+    mockApp.locals.sandboxAvailable = true
+    mockApp.locals.sandbox = {
+      getOrgShellSessionCount: vi.fn().mockReturnValue(0),
+    } as any
 
     vi.clearAllMocks()
   })
@@ -173,6 +179,25 @@ describe(`Quota Endpoints`, () => {
 
       const jsonArg = mockJson.mock.calls[0][0]
       expect(jsonArg.data.sandboxSessions).toBe(0)
+    })
+
+    it(`should report zero sandbox sessions without touching SandboxService when sandbox is unavailable`, async () => {
+      const mockQuota = { orgId: mockOrgId, period: `2026-01`, projects: 3 }
+
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.app!.locals.sandboxAvailable = false
+      mockReq.app!.locals.sandbox = undefined
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: mockQuota })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 0 },
+      })
     })
 
     it(`should return 401 if not authenticated`, async () => {
