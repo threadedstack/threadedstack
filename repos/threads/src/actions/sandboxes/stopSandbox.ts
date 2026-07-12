@@ -29,6 +29,11 @@ export const stopSandbox = async (
       return { stopped: false, activeSessions: body?.data?.activeSessions ?? [] }
     }
     if (resp.error) throw resp.error
+
+    for (const session of getSessionsForSandbox(sandboxId)) {
+      closeSession(session.sessionId, { preserveStorage: true })
+    }
+
     return { stopped: true }
   }
 
