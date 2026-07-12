@@ -1328,6 +1328,90 @@ describe(`AgentRunner`, () => {
     })
   })
 
+  describe(`skill-granted tool revocation`, () => {
+    const baseInitOpts = (): TAgentInitOpts => ({
+      agentId: `agent-1`,
+      threadId: `thread-1`,
+      userId: `user-1`,
+      orgId: `org-1`,
+      db: mockDb,
+      llmConfig: {
+        provider: `anthropic`,
+        model: `claude-sonnet-4-20250514`,
+        systemPrompt: `You are a helper`,
+        apiKey: `sk-test-key`,
+      },
+      onEvent: vi.fn(),
+    })
+
+    const makeRecordsProvider = () => ({
+      query: vi.fn().mockResolvedValue([]),
+      get: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({ id: `rec_1` }),
+      delete: vi.fn().mockResolvedValue({ deleted: true }),
+    })
+
+    const dbSkill = {
+      id: `skill-1`,
+      orgId: `org-1`,
+      name: `Database Skill`,
+      instructions: `Use the database tool when asked.`,
+      tools: [`collectionQuery`],
+      alwaysActive: false,
+      triggerKeywords: [`database`],
+    } as any
+
+    const toolNames = () => {
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      return (agentInstance.state.tools as Array<{ name: string }>).map((t) => t.name)
+    }
+
+    it(`grants the skill's tool on a turn whose prompt matches, and revokes it on the next turn that doesn't`, async () => {
+      const runner = new AgentRunner()
+      await runner.init({
+        ...baseInitOpts(),
+        // A non-empty base allowlist that excludes collectionQuery -- createRecordTools
+        // treats an EMPTY allowlist as "unrestricted" (grants all 4 tools), so the base
+        // list must be non-empty here to make collectionQuery's presence meaningful.
+        tools: [`collectionGet`],
+        recordsProvider: makeRecordsProvider(),
+        skills: [dbSkill],
+      })
+
+      const handle1 = await runner.runTurn({ prompt: `query the database please` })
+      await handle1.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+      expect(toolNames()).toContain(`collectionGet`)
+
+      const handle2 = await runner.runTurn({ prompt: `just say hello` })
+      await handle2.waitForIdle()
+      expect(toolNames()).not.toContain(`collectionQuery`)
+      expect(toolNames()).toContain(`collectionGet`)
+
+      await runner.destroy()
+    })
+
+    it(`keeps granting the tool across consecutive turns that both match`, async () => {
+      const runner = new AgentRunner()
+      await runner.init({
+        ...baseInitOpts(),
+        tools: [`collectionGet`],
+        recordsProvider: makeRecordsProvider(),
+        skills: [dbSkill],
+      })
+
+      const handle1 = await runner.runTurn({ prompt: `query the database please` })
+      await handle1.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+
+      const handle2 = await runner.runTurn({ prompt: `query the database again` })
+      await handle2.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+
+      await runner.destroy()
+    })
+  })
+
   describe(`convertToLlm filter`, () => {
     it(`should pass convertToLlm to Agent constructor`, async () => {
       const opts = baseOpts()
