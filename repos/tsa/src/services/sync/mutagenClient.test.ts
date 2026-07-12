@@ -1,6 +1,6 @@
 import type { TSyncSessionOpts } from '@tdsk/domain'
 
-import { CliDriver } from '@TSA/services/sync/mutagenClient'
+import { CliDriver, downloadFromNpm } from '@TSA/services/sync/mutagenClient'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockExecFileAsync } = vi.hoisted(() => ({
@@ -343,5 +343,61 @@ describe(`CliDriver`, () => {
         `mutagen sync failed: spawn ENOENT`
       )
     })
+  })
+})
+
+describe(`downloadFromNpm`, () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal(`fetch`, mockFetch)
+    mockFetch.mockReset()
+  })
+
+  it(`includes a 30s AbortSignal.timeout on the fetch call`, async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: { get: () => null },
+    })
+
+    await expect(downloadFromNpm()).rejects.toThrow(`Failed to download mutagen`)
+
+    expect(mockFetch).toHaveBeenCalledOnce()
+    const [, opts] = mockFetch.mock.calls[0]
+    expect(opts.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it(`rejects with a clear timeout error when the request never resolves`, async () => {
+    vi.useFakeTimers()
+
+    // Replace AbortSignal.timeout with a fake-timer-driven equivalent so
+    // advancing vitest's fake clock actually fires the abort - the real
+    // implementation relies on platform timers that fake timers can't reach.
+    vi.spyOn(AbortSignal, `timeout`).mockImplementation((ms: number) => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort(new DOMException(`signal timed out`, `TimeoutError`))
+      }, ms)
+      return controller.signal
+    })
+
+    mockFetch.mockImplementationOnce(
+      (_url: string, opts: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener(`abort`, () => {
+            reject(new DOMException(`signal timed out`, `TimeoutError`))
+          })
+        })
+    )
+
+    const assertion = expect(downloadFromNpm()).rejects.toThrow(
+      `Download timed out after 30s`
+    )
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    await assertion
+
+    vi.useRealTimers()
   })
 })
