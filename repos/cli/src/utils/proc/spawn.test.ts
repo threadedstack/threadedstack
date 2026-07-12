@@ -107,4 +107,55 @@ describe(`spawn`, () => {
     await expect(prom).resolves.toBe(1)
     expect(close).toHaveBeenCalledWith(1)
   })
+
+  const ProcessExitEvents = [
+    `exit`,
+    `SIGINT`,
+    `SIGUSR1`,
+    `SIGUSR2`,
+    `uncaughtException`,
+    `SIGTERM`,
+  ] as const
+
+  it(`removes its process-level exit-signal listeners once the child closes (no leak)`, async () => {
+    const before = ProcessExitEvents.map((e) => process.listenerCount(e))
+
+    const prom = spawn({ cmd: `docker`, args: [`ps`], cwd: `/tmp` })
+
+    // Each of the 6 events gains exactly one listener while the child is alive.
+    ProcessExitEvents.forEach((e, i) =>
+      expect(process.listenerCount(e)).toBe(before[i] + 1)
+    )
+
+    child.emit(`close`, 0)
+    await prom
+
+    ProcessExitEvents.forEach((e, i) => expect(process.listenerCount(e)).toBe(before[i]))
+  })
+
+  it(`does not accumulate listeners across many sequential spawn calls`, async () => {
+    const before = ProcessExitEvents.map((e) => process.listenerCount(e))
+
+    for (let i = 0; i < 10; i++) {
+      const localChild = makeFakeChild()
+      mockSpawn.mockReturnValue(localChild)
+      const prom = spawn({ cmd: `docker`, args: [`ps`], cwd: `/tmp` })
+      localChild.emit(`close`, 0)
+      await prom
+    }
+
+    ProcessExitEvents.forEach((e, i) => expect(process.listenerCount(e)).toBe(before[i]))
+  })
+
+  it(`removes its process-level exit-signal listeners when the child errors`, async () => {
+    const before = ProcessExitEvents.map((e) => process.listenerCount(e))
+
+    const prom = spawn({ cmd: `docker`, args: [`ps`], cwd: `/tmp` })
+    prom.catch(() => {})
+
+    child.emit(`error`, new Error(`spawn failed`))
+    await expect(prom).rejects.toThrow(`spawn failed`)
+
+    ProcessExitEvents.forEach((e, i) => expect(process.listenerCount(e)).toBe(before[i]))
+  })
 })
