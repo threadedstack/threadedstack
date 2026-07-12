@@ -84,6 +84,16 @@ export const RequestBodyMaxSize = 1_048_576
 /** Default execution timeout in ms */
 export const DefaultTimeoutMS = 30_000
 
+/**
+ * Bounds embedding-provider fetch calls (OpenAI-compatible /embeddings,
+ * Google batchEmbedContents, Ollama /api/tags) -- without it, a custom
+ * endpoint that accepts the connection but never responds hangs the calling
+ * request handler forever (agent turns, cron jobs). Matches the 10s
+ * convention already used for external-call timeouts elsewhere (e.g.
+ * prewarmDomainCertificate.ts).
+ */
+export const ProviderFetchTimeoutMS = 10_000
+
 /** Sandbox pool — max idle sandboxes and TTL before eviction */
 export const PoolMaxSize = 5
 // Aggregate ceiling across ALL tenant buckets combined — restores the
