@@ -6,7 +6,7 @@ import { setupAuth } from '@TPX/middleware/setupAuth'
 import { setupProxy } from '@TPX/middleware/setupProxy'
 import { setupLogger } from '@TPX/middleware/setupLogger'
 import { setupServer } from '@TPX/middleware/setupServer'
-import { setupRateLimit } from '@TPX/middleware/rateLimit'
+import { setupRateLimit, setupProxyRateLimit } from '@TPX/middleware/rateLimit'
 import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
 import { setupDatabase } from '@TPX/middleware/setupDatabase'
 import { setupEndpoints } from '@TPX/middleware/setupEndpoints'
@@ -27,6 +27,7 @@ export const proxy = (config: TProxyConfig) => {
   setupDatabase(app)
   setupAuth(app)
   setupApiKeyAuth(app)
+  setupProxyRateLimit(app)
   setupSessionAuth(app)
   setupPrewarm(app)
   setupEndpoints(app, router)
