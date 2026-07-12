@@ -23,11 +23,17 @@ const CodeBlock = ({ code, language = 'typescript' }: Props) => {
     let cancelled = false
     const highlight = async () => {
       const { codeToHtml } = await import('shiki')
+      // shiki throws when `language` isn't a bundled grammar (e.g. an
+      // authored placeholder like "tdsk-author-secret" in a docs fence) —
+      // fall back to the always-bundled 'text' grammar so the block still
+      // renders instead of silently staying empty.
+      let html: string
+      try {
+        html = await codeToHtml(code, { lang: language, theme: 'github-dark' })
+      } catch {
+        html = await codeToHtml(code, { lang: 'text', theme: 'github-dark' })
+      }
       // shiki produces sanitized HTML from raw code strings — safe to inject
-      const html = await codeToHtml(code, {
-        lang: language,
-        theme: 'github-dark',
-      })
       if (!cancelled && containerRef.current) {
         containerRef.current.textContent = ''
         const range = document.createRange()
