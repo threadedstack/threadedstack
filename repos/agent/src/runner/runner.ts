@@ -52,6 +52,14 @@ import {
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
+/**
+ * Bound on how long destroy() waits for an in-flight turn to abort and
+ * settle before tearing down the persistence subscription and sandbox
+ * regardless — abort() should make a turn settle almost immediately, but
+ * destroy() must never hang forever if a turn never does.
+ */
+const DestroyTurnSettleTimeoutMs = 5000
+
 /** Shape of a thread message as returned by IAgentRunnerDB.listMessages */
 type TThreadMessage = {
   type: string
@@ -175,6 +183,7 @@ export class AgentRunner {
   #activeLlmConfig: TLLMAdapterConfig | null = null
   #unsubscribe: (() => void) | undefined
   #pendingPersistence: Promise<any>[] = []
+  #activeRunPromise: Promise<void> | undefined
 
   #composeSystemPrompt(base: string): string {
     return [this.#soul, base].filter(Boolean).join(`\n\n`)
@@ -613,12 +622,14 @@ export class AgentRunner {
         } finally {
           await this.#drainPersistence()
           cleanup()
+          if (this.#activeRunPromise === runPromise) this.#activeRunPromise = undefined
         }
       })()
       // Callers may drop the handle without awaiting waitForIdle — mark the
       // rejection handled so a surfaced LLM failure never crashes the process.
       // waitForIdle() still returns the original (rejecting) promise.
       runPromise.catch(() => {})
+      this.#activeRunPromise = runPromise
     } catch (err) {
       cleanup()
       throw err
@@ -760,6 +771,14 @@ export class AgentRunner {
    * After destroy, init() can be called again for a new session.
    */
   async destroy(): Promise<void> {
+    if (this.#activeRunPromise) {
+      this.#agent?.abort()
+      await Promise.race([
+        this.#activeRunPromise.catch(() => {}),
+        delay(DestroyTurnSettleTimeoutMs),
+      ])
+    }
+
     this.#unsubscribe?.()
     this.#unsubscribe = undefined
     await this.#drainPersistence()
