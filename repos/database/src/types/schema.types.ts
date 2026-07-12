@@ -34,6 +34,7 @@ import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { scheduleRuns } from '@TDB/schemas/scheduleRuns'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { sandboxSessions } from '@TDB/schemas/sandboxSessions'
+import type { sandboxStartingClaims } from '@TDB/schemas/sandboxStartingClaims'
 import type {
   TAnyObj,
   TKeyLike,
@@ -132,6 +133,14 @@ export type TDBSandboxSessionInsert = TInferDateProps<
   typeof sandboxSessions.$inferInsert,
   `createdAt` | `updatedAt` | `startedAt` | `completedAt`
 >
+export type TDBSandboxStartingClaimSelect = TInferDateProps<
+  typeof sandboxStartingClaims.$inferSelect,
+  `createdAt` | `updatedAt` | `claimedAt` | `releasedAt`
+>
+export type TDBSandboxStartingClaimInsert = TInferDateProps<
+  typeof sandboxStartingClaims.$inferInsert,
+  `createdAt` | `updatedAt` | `claimedAt` | `releasedAt`
+>
 export type TDBInvoiceSelect = TInferDates<typeof invoices.$inferSelect>
 export type TDBInvoiceInsert = TInferDates<typeof invoices.$inferInsert>
 export type TDBPermissionOverrideSelect = TInferDateProps<
@@ -224,6 +233,7 @@ export type TDBEntitySelect =
   | TDBPermissionOverrideSelect
   | TDBCollectionSelect
   | TDBRecordSelect
+  | TDBSandboxStartingClaimSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -261,6 +271,7 @@ export type TDBEntityInsert =
   | TDBPermissionOverrideInsert
   | TDBCollectionInsert
   | TDBRecordInsert
+  | TDBSandboxStartingClaimInsert
 
 export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
   Partial<T>,
