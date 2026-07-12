@@ -42,6 +42,7 @@ const makePump = () => {
         dispatched: 0,
         failed: 0,
         allowlistRejected: 0,
+        discardedActionBlocks: 0,
         memoriesSkipped: 0,
         functionsAuthored: 0,
         functionsRejected: 0,

@@ -43,6 +43,7 @@ describe(`action pump`, () => {
       dispatched: 1,
       failed: 0,
       allowlistRejected: 0,
+      discardedActionBlocks: 0,
       memoriesSkipped: 0,
       functionsAuthored: 0,
       functionsRejected: 0,
@@ -56,6 +57,47 @@ describe(`action pump`, () => {
       function: `sendAgentMessage`,
       args: { to: `ag_2` },
     })
+  })
+
+  it(`reports discardedActionBlocks when only one tdsk-actions block is present`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const report = await pump.pump(
+      actionsFence(`[{"function":"sendAgentMessage","args":{"to":"ag_2"}}]`)
+    )
+
+    expect(report.discardedActionBlocks).toBe(0)
+  })
+
+  it(`reports discardedActionBlocks when a turn emits multiple tdsk-actions blocks — only the last is dispatched`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const text = `${actionsFence(`[{"function":"first","args":{}}]`)}\nchatter\n${actionsFence(
+      `[{"function":"second","args":{}}]`
+    )}`
+    const report = await pump.pump(text)
+
+    expect(report.discardedActionBlocks).toBe(1)
+    expect(report.total).toBe(1)
+    expect(api.dispatched).toHaveLength(1)
+    expect(api.dispatched[0][0]).toEqual({ function: `second`, args: {} })
+  })
+
+  it(`reports discardedActionBlocks correctly for 3+ blocks in one turn`, async () => {
+    const api = makeFakeApi()
+    const pump = createActionPump({ api, getConfig: () => makeConfig() })
+
+    const text = [
+      actionsFence(`[{"function":"first","args":{}}]`),
+      actionsFence(`[{"function":"second","args":{}}]`),
+      actionsFence(`[{"function":"third","args":{}}]`),
+    ].join(`\nchatter\n`)
+    const report = await pump.pump(text)
+
+    expect(report.discardedActionBlocks).toBe(2)
+    expect(api.dispatched[0][0]).toEqual({ function: `third`, args: {} })
   })
 
   it(`chunks dispatches to the endpoint's 20-action cap`, async () => {

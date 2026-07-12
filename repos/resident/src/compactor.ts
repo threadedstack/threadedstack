@@ -45,7 +45,15 @@ export const createCompactor = (opts: TCompactorOpts): TCompactor => {
       const result = await session.runTurn(CheckpointPrompt)
 
       // Durable memories the checkpoint emitted ride the normal pump
-      await pump.pump(result.output)
+      const pumpReport = await pump.pump(result.output)
+      if (pumpReport.discardedActionBlocks > 0)
+        log.warn(
+          `Checkpoint turn emitted ${pumpReport.discardedActionBlocks} extra tdsk-actions block(s) beyond the first — only the last block's actions were dispatched, the rest were silently discarded`
+        )
+      if (pumpReport.failed > 0)
+        log.warn(
+          `Checkpoint turn had ${pumpReport.failed} action dispatch failure(s)${pumpReport.allowlistRejected > 0 ? ` (${pumpReport.allowlistRejected} allowlist-rejected)` : ``}`
+        )
 
       const summary = result.ok && result.output.trim().length ? result.output : undefined
       if (!summary)
