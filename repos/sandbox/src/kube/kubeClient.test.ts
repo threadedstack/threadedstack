@@ -952,6 +952,54 @@ describe(`KubeClient`, () => {
         `pod not found`
       )
     })
+
+    it(`should reject with a distinct abort error and close the exec WebSocket when the signal is aborted before the command completes`, async () => {
+      const controller = new AbortController()
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`], undefined, {
+        signal: controller.signal,
+      })
+
+      // Let the `.then((ws) => execWs = ws)` microtask resolve first so the
+      // abort handler has a live execWs reference to close.
+      await vi.advanceTimersByTimeAsync(0)
+
+      const assertion = expect(promise).rejects.toThrow(
+        `runInPod aborted for pod wedged-pod`
+      )
+      controller.abort()
+      await assertion
+
+      expect(mockExecWs.close).toHaveBeenCalled()
+    })
+
+    it(`should not fire the timeout after the signal has already aborted the call`, async () => {
+      const controller = new AbortController()
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`], undefined, {
+        signal: controller.signal,
+      })
+
+      const assertion = expect(promise).rejects.toThrow(`aborted`)
+      controller.abort()
+      await assertion
+
+      mockExecWs.close.mockClear()
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+
+      expect(mockExecWs.close).not.toHaveBeenCalled()
+    })
+
+    it(`should not abort once the status callback has already resolved the call`, async () => {
+      const controller = new AbortController()
+      const promise = client.runInPod(`my-pod`, [`echo`, `hi`], undefined, {
+        signal: controller.signal,
+      })
+      capturedStatusCallback!({ status: `Success` })
+
+      const result = await promise
+      controller.abort()
+
+      expect(result.success).toBe(true)
+    })
   })
 
   describe(`execStream`, () => {

@@ -65,6 +65,23 @@ describe(`KubeSandbox`, () => {
 
       expect(mockClient.runInPod).toHaveBeenCalledWith(`test-pod`, [`sh`, `-c`, `pwd`])
     })
+
+    it(`should forward the signal to runInPod's opts when provided`, async () => {
+      mockClient.runInPod.mockResolvedValue({
+        success: true,
+        output: ``,
+      })
+      const controller = new AbortController()
+
+      await sandbox.exec(`echo hello`, undefined, controller.signal)
+
+      expect(mockClient.runInPod).toHaveBeenCalledWith(
+        `test-pod`,
+        [`sh`, `-c`, `echo hello`],
+        undefined,
+        { signal: controller.signal }
+      )
+    })
   })
 
   describe(`readFile`, () => {

@@ -39,7 +39,16 @@ export class LocalSandbox implements ISandbox {
     this.isolateRunner = isolateRunner || null
   }
 
-  exec = async (command: string, args: string[] = []): Promise<TSandboxResult> => {
+  // `signal` is accepted for ISandbox interface parity but is advisory/no-op here:
+  // just-bash's ExecOptions has no cancellation mechanism, and racing a timeout
+  // promise against `bash.exec()` would leave the underlying isolate execution
+  // running in the background — a silently-orphaned isolate is worse than the
+  // current explicit lack of support.
+  exec = async (
+    command: string,
+    args: string[] = [],
+    signal?: AbortSignal
+  ): Promise<TSandboxResult> => {
     const fullCommand = args.length > 0 ? `${command} ${args.join(` `)}` : command
     const result = await this.bash.exec(fullCommand, { cwd: this.cwd })
 

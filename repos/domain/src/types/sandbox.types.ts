@@ -187,7 +187,7 @@ export interface ISandbox {
   /** Write a file */
   writeFile(path: string, content: string): Promise<void>
   /** Execute a shell command */
-  exec(command: string, args?: string[]): Promise<TSandboxResult>
+  exec(command: string, args?: string[], signal?: AbortSignal): Promise<TSandboxResult>
   /** Execute a shell command with streaming stdout/stderr callbacks */
   execStreaming?(
     command: string,
