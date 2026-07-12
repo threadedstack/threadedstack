@@ -20,5 +20,10 @@ export const login = (props: TTaskActionArgs) => {
   !password &&
     taskError(`A docker auth password or token is required but could not be found`)
 
-  return [`login`, url, `-u`, user, `-p`, password]
+  // The password is piped via stdin (docker.login wires it through
+  // spawn's `stdin` option) — never a CLI arg, which would otherwise sit
+  // in plaintext process argv for the child's whole lifetime (visible via
+  // `ps aux` / `/proc/<pid>/cmdline`) and get printed verbatim by the
+  // `[Running CMD]` log line when `--log` is set.
+  return [`login`, url, `-u`, user, `--password-stdin`]
 }
