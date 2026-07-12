@@ -713,6 +713,51 @@ describe(`Sandbox service`, () => {
       expect(setArg.gitProviderInputs).toBeUndefined()
       expect(setArg.name).toBe(`Updated`)
     })
+
+    it(`should run the sandboxProjects delete inside the same transaction as the relations reinsert (rec_4a1Kl7)`, async () => {
+      const record = { id: `sbx-1`, name: `Updated` }
+      const fullRecord = { id: `sbx-1`, name: `Updated`, providers: [] }
+
+      mocks.whereReturningFn.mockResolvedValue([record])
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      await service.update({
+        id: `sbx-1`,
+        name: `Updated`,
+        projects: [{ id: `proj-1`, alias: `p1` }],
+      } as any)
+
+      // The projects delete must go through tx.delete (inside the same
+      // transaction as #relations' reinsert), not the standalone db.delete
+      // -- otherwise a failure in #relations would leave the delete
+      // committed with nothing re-inserted.
+      expect(mocks.txDeleteFn).toHaveBeenCalledOnce()
+      expect(mocks.deleteFn).not.toHaveBeenCalled()
+      expect(mocks.transactionFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should not commit the sandboxProjects delete when the relations reinsert fails (rec_4a1Kl7)`, async () => {
+      const record = { id: `sbx-1`, name: `Updated` }
+      mocks.whereReturningFn.mockResolvedValue([record])
+
+      // Simulate #relations throwing partway through the transaction
+      // (e.g. an invalid alias, or exhausted alias suffixes) -- the whole
+      // transaction callback rejects, so the delete never commits.
+      mocks.transactionFn.mockRejectedValue(new Error(`relation write failed`))
+
+      const result = await service.update({
+        id: `sbx-1`,
+        name: `Updated`,
+        projects: [{ id: `proj-1`, alias: `p1` }],
+      } as any)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`relation write failed`)
+      expect(result.data).toBeNull()
+      // get() must never be called to re-fetch a result that no longer
+      // reflects reality once the transaction rejected.
+      expect(mocks.findFirst).not.toHaveBeenCalled()
+    })
   })
 
   // ---------- listByOrg() ----------
