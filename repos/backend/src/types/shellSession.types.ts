@@ -13,6 +13,7 @@ export type TShellSession = {
   readonly orgId: string
   readonly userId: string
   readonly sandboxId: string
+  readonly instanceId: string
   readonly sessionId: string
   readonly stdin: PassThrough
   readonly buffer: RingBuffer

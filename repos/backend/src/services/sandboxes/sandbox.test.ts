@@ -1257,6 +1257,44 @@ describe(`SandboxService`, () => {
       svc.cleanupInstance(`pod-no-secrets`)
       expect(kube.deleteSecret).not.toHaveBeenCalled()
     })
+
+    it(`should only remove shell sessions belonging to the instance being cleaned up, not sibling instances of the same sandbox`, () => {
+      const closeExecA = vi.fn()
+      const closeExecB = vi.fn()
+      const shellA = {
+        sessionId: `s-a`,
+        sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: closeExecA,
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      const shellB = {
+        ...shellA,
+        sessionId: `s-b`,
+        instanceId: `pod-b`,
+        sandboxSessionId: `sn_b`,
+        closeExec: closeExecB,
+      }
+
+      svc.addShellSession(shellA)
+      svc.addShellSession(shellB)
+
+      svc.cleanupInstance(`pod-a`)
+
+      expect(closeExecA).toHaveBeenCalledOnce()
+      expect(closeExecB).not.toHaveBeenCalled()
+      expect(svc.getShellSession(`s-a`)).toBeUndefined()
+      expect(svc.getShellSession(`s-b`)).toBeDefined()
+    })
   })
 
   describe(`getPassword`, () => {
@@ -1720,6 +1758,54 @@ describe(`SandboxService`, () => {
       kube.deletePod.mockRejectedValue(new Error(`pod not found`))
 
       await expect(svc.stopPod(`pod-a`)).rejects.toThrow(`pod not found`)
+    })
+  })
+
+  describe(`gracefulStopPod`, () => {
+    it(`only notifies shell clients attached to the instance being stopped, not sibling instances of the same sandbox`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+
+      const wsA = { readyState: 1, send: vi.fn() }
+      const wsB = { readyState: 1, send: vi.fn() }
+      const shellA = {
+        sessionId: `s-a`,
+        sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([wsA]) as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      const shellB = {
+        ...shellA,
+        sessionId: `s-b`,
+        instanceId: `pod-b`,
+        sandboxSessionId: `sn_b`,
+        closeExec: vi.fn(),
+        attachments: new Set([wsB]) as any,
+      }
+
+      svc.addShellSession(shellA)
+      svc.addShellSession(shellB)
+
+      await svc.gracefulStopPod(`pod-a`, `sb_aaa`)
+
+      const stoppingPayload = JSON.stringify({
+        type: `sandbox-stopping`,
+        sandboxId: `sb_aaa`,
+      })
+      expect(wsA.send).toHaveBeenCalledWith(stoppingPayload)
+      // wsB (sibling instance) may still receive an unrelated sessions-updated
+      // broadcast once A's shell session is torn down, but must never receive
+      // the sandbox-stopping notice meant only for A's viewers.
+      expect(wsB.send).not.toHaveBeenCalledWith(stoppingPayload)
     })
   })
 
@@ -2338,6 +2424,7 @@ describe(`SandboxService`, () => {
       const session1 = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2371,12 +2458,42 @@ describe(`SandboxService`, () => {
       expect(result.map((s) => s.sessionId).sort()).toEqual([`s1`, `s3`])
     })
 
+    it(`getShellSessionsForInstance returns only sessions matching instanceId`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const base = {
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession({ ...base, sessionId: `s1`, instanceId: `pod-a` })
+      svc.addShellSession({ ...base, sessionId: `s2`, instanceId: `pod-b` })
+      svc.addShellSession({ ...base, sessionId: `s3`, instanceId: `pod-a` })
+
+      const result = svc.getShellSessionsForInstance(`pod-a`)
+      expect(result).toHaveLength(2)
+      expect(result.map((s) => s.sessionId).sort()).toEqual([`s1`, `s3`])
+      expect(svc.getShellSessionsForInstance(`pod-b`)).toHaveLength(1)
+    })
+
     it(`getOrgShellSessionCount counts sessions for org`, () => {
       const kube = makeKube()
       const svc = new SandboxService(kube as any, makeDb() as any)
 
       const base = {
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
         stdout: {} as any,
@@ -2406,6 +2523,7 @@ describe(`SandboxService`, () => {
       const shell = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod1`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2456,6 +2574,7 @@ describe(`SandboxService`, () => {
       const session = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2491,6 +2610,7 @@ describe(`SandboxService`, () => {
       const session = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
