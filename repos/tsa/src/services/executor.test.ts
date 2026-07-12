@@ -114,7 +114,7 @@ describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
 
       // Verify WS URL includes session token
       expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       })
 
       // Simulate open → sends prompt
@@ -132,6 +132,47 @@ describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
       ws._emit(`message`, JSON.stringify({ type: EWSEventType.Done, reason: `complete` }))
       const result = await runPromise
       expect(result.threadId).toBe(``)
+    })
+
+    it(`defaults to verified TLS (rejectUnauthorized: true) when insecure is not set`, async () => {
+      const runPromise = executor.run({
+        onEvent: vi.fn(),
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+      })
+
+      await vi.waitFor(() => expect(mockInstances).toHaveLength(1))
+      expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
+        rejectUnauthorized: true,
+      })
+
+      const ws = mockInstances[0]
+      ws._emit(`open`)
+      ws._emit(`close`)
+      await runPromise
+    })
+
+    it(`skips TLS verification (rejectUnauthorized: false) only when insecure:true is explicitly passed`, async () => {
+      const runPromise = executor.run({
+        onEvent: vi.fn(),
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+        insecure: true,
+      })
+
+      await vi.waitFor(() => expect(mockInstances).toHaveLength(1))
+      expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
+        rejectUnauthorized: false,
+      })
+
+      const ws = mockInstances[0]
+      ws._emit(`open`)
+      ws._emit(`close`)
+      await runPromise
     })
 
     it(`should forward text delta events`, async () => {

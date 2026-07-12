@@ -23,4 +23,6 @@ export type TExecRunOpts = {
   onEvent: (event: TStreamEvent) => void
   /** Override for ExecutorIdleTimeoutMs — mainly for tests */
   idleTimeoutMs?: number
+  /** Skip TLS certificate verification on the LLM proxy WebSocket */
+  insecure?: boolean
 }
