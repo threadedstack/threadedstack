@@ -15,9 +15,9 @@ const dialect = new PgDialect()
 const render = (chunk: any) => dialect.sqlToQuery(chunk)
 
 /**
- * Mock Drizzle DB for the select→from→where→orderBy(→limit) chain used by the
- * service. `orderBy` is awaitable (for the un-limited list helpers) and also
- * exposes `.limit` (for openByDedupeKey).
+ * Mock Drizzle DB covering the two chains the service drives directly:
+ * select→from→where→orderBy(→limit) (list/dedupe lookups), and
+ * insert().values().onConflictDoNothing().returning() (claimOpen).
  */
 const createMockDb = () => {
   const limitFn = vi.fn((..._args: any[]) => Promise.resolve([]))
@@ -29,13 +29,27 @@ const createMockDb = () => {
   const whereFn = vi.fn((..._args: any[]) => ({ orderBy: orderByFn }))
   const fromFn = vi.fn((..._args: any[]) => ({ where: whereFn }))
   const selectFn = vi.fn((..._args: any[]) => ({ from: fromFn }))
+
+  const insertReturningFn = vi.fn((..._args: any[]) => Promise.resolve([] as any[]))
+  const insertOnConflictDoNothingFn = vi.fn((..._args: any[]) => ({
+    returning: insertReturningFn,
+  }))
+  const insertValuesFn = vi.fn((..._args: any[]) => ({
+    onConflictDoNothing: insertOnConflictDoNothingFn,
+  }))
+  const insertFn = vi.fn((..._args: any[]) => ({ values: insertValuesFn }))
+
   return {
-    db: { select: selectFn } as any,
+    db: { select: selectFn, insert: insertFn } as any,
     selectFn,
     fromFn,
     whereFn,
     orderByFn,
     limitFn,
+    insertFn,
+    insertValuesFn,
+    insertOnConflictDoNothingFn,
+    insertReturningFn,
   }
 }
 
@@ -152,6 +166,68 @@ describe(`Escalation service`, () => {
       ])
       const result = await service.listByStatus(`og_org0001`, EEscalationStatus.open)
       expect(result.data?.every((r) => r instanceof EscalationModel)).toBe(true)
+    })
+  })
+
+  describe(`claimOpen`, () => {
+    const claimArgs = {
+      orgId: `og_org0001`,
+      agentId: `ag_agent01`,
+      dedupeKey: `secrets:stripe-key-expiry`,
+      target: EEscalationTarget.secrets,
+      status: EEscalationStatus.open,
+      title: `secrets rotation needed`,
+      problem: `API key for Stripe is approaching expiry`,
+      evidence: [],
+      proposedPatch: null,
+      issueRef: null,
+      resolvedRef: null,
+      reason: null,
+      meta: null,
+    } as any
+
+    it(`inserts and returns the modeled row when the claim succeeds`, async () => {
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow()])
+
+      const { data, error, conflict } = await service.claimOpen(claimArgs)
+
+      expect(error).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(data).toBeInstanceOf(EscalationModel)
+      expect(mocks.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({ dedupeKey: `secrets:stripe-key-expiry` })
+      )
+      expect(mocks.insertOnConflictDoNothingFn).toHaveBeenCalled()
+    })
+
+    it(`simulates two concurrent callers racing the same dedupeKey — exactly one wins`, async () => {
+      // Caller A's insert succeeds outright.
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow({ id: `es_callerA1` })])
+      const winner = await service.claimOpen(claimArgs)
+
+      expect(winner.conflict).toBeUndefined()
+      expect(winner.data).toBeInstanceOf(EscalationModel)
+      expect(winner.data?.id).toBe(`es_callerA1`)
+
+      // Caller B's insert hits the partial unique index on
+      // escalations(org_id, dedupe_key) WHERE status IN ('open','routed') —
+      // ON CONFLICT DO NOTHING means zero rows come back, never a thrown error.
+      mocks.insertReturningFn.mockResolvedValueOnce([])
+      const loser = await service.claimOpen(claimArgs)
+
+      expect(loser.error).toBeUndefined()
+      expect(loser.data).toBeNull()
+      expect(loser.conflict).toBe(true)
+    })
+
+    it(`returns { error } instead of throwing when the insert query fails`, async () => {
+      mocks.insertReturningFn.mockRejectedValueOnce(new Error(`db down`))
+
+      const { data, error, conflict } = await service.claimOpen(claimArgs)
+
+      expect(data).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(error?.message).toBe(`db down`)
     })
   })
 })

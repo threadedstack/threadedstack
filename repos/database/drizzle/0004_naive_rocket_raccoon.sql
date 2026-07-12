@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "escalations_org_id_dedupe_key_open_idx" ON "escalations" USING btree ("org_id","dedupe_key") WHERE "escalations"."status" IN ('open', 'routed');--> statement-breakpoint
+CREATE UNIQUE INDEX "task_proposals_org_id_dedupe_key_open_idx" ON "task_proposals" USING btree ("org_id","dedupe_key") WHERE "task_proposals"."status" IN ('pending', 'scanned');

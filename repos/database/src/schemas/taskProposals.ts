@@ -8,12 +8,12 @@ import type {
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import { orgs } from '@TDB/schemas/orgs'
-import { relations } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
 import { base } from '@TDB/utils/schema/base'
 import { TaskProposalIdPrefix } from '@tdsk/domain'
 import { entityId } from '@TDB/utils/schema/entityId'
-import { text, jsonb, index, pgTable, varchar } from 'drizzle-orm/pg-core'
+import { text, jsonb, index, pgTable, varchar, uniqueIndex } from 'drizzle-orm/pg-core'
 
 /**
  * Task proposals table
@@ -93,6 +93,14 @@ export const taskProposals = pgTable(
       table.status
     ),
     index(`task_proposals_parent_id_idx`).on(table.parentId),
+    // Enforces "one open proposal per dedupe key" at the DB level so two
+    // concurrent authorTaskProposal() callers racing the same dedupeKey
+    // can't both insert — the loser's INSERT ... ON CONFLICT DO NOTHING (see
+    // TaskProposal.claimOpen) affects zero rows and is treated as "already
+    // open elsewhere", not an error. Mirrors scheduleRuns' running-slot index.
+    uniqueIndex(`task_proposals_org_id_dedupe_key_open_idx`)
+      .on(table.orgId, table.dedupeKey)
+      .where(sql`${table.status} IN ('pending', 'scanned')`),
   ]
 )
 

@@ -42,18 +42,13 @@ export const authorTaskProposal = async (
   input: TTaskProposalInput,
   meta?: Record<string, any>
 ): Promise<TAuthorResult> => {
-  const { data: existing } = await db.services.taskProposal.findOpenByDedupeKey(
-    orgId,
-    input.dedupeKey
-  )
-
-  if (existing)
-    return { id: existing.id, status: existing.status, findings: [], deduped: true }
-
   const scan = scanTaskProposal(input)
   const status = scan.passed ? ETaskProposalStatus.scanned : ETaskProposalStatus.rejected
 
-  const { data, error } = await db.services.taskProposal.create({
+  // Atomic claim on the (orgId, dedupeKey) open-slot partial unique index —
+  // no check-then-insert race window between two concurrent callers sensing
+  // the same task (see taskProposals schema for the index definition).
+  const { data, error, conflict } = await db.services.taskProposal.claimOpen({
     orgId,
     agentId,
     title: input.title,
@@ -70,6 +65,18 @@ export const authorTaskProposal = async (
     reason: scan.passed ? null : `Security scan failed: ${scan.findings.join(`; `)}`,
     meta: meta ?? input.meta ?? null,
   } as any)
+
+  if (conflict) {
+    const { data: existing } = await db.services.taskProposal.findOpenByDedupeKey(
+      orgId,
+      input.dedupeKey
+    )
+    if (existing)
+      return { id: existing.id, status: existing.status, findings: [], deduped: true }
+    throw new Error(
+      `Failed to create task proposal: lost the dedupeKey race but no open row was found`
+    )
+  }
 
   if (error || !data) {
     logger.warn(

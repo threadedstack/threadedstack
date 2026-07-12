@@ -84,4 +84,32 @@ export class Escalation extends Base<
       return { error }
     }
   }
+
+  /**
+   * Atomically claim the "open" dedupe-key slot for an org. Two backend
+   * replicas can both pass the (best-effort, check-then-act) `openByDedupeKey`
+   * guard for the same dedupeKey before either has inserted — the actual
+   * cross-replica guarantee is the partial unique index on
+   * `(org_id, dedupe_key) WHERE status IN ('open', 'routed')` (see schema):
+   * only ONE of two concurrent inserts for the same open dedupeKey can
+   * succeed. The loser's `ON CONFLICT DO NOTHING` affects zero rows, surfaced
+   * here as `{ conflict: true }` for the caller to treat as "already open
+   * elsewhere" — a clean skip, never an error.
+   */
+  async claimOpen(
+    data: TDBEscalationInsert
+  ): Promise<TDBApiResType<EscalationModel> & { conflict?: true }> {
+    try {
+      const resp = await this.db
+        .insert(escalations)
+        .values(data as any)
+        .onConflictDoNothing()
+        .returning()
+
+      if (!resp[0]) return { data: null as any, conflict: true }
+      return { data: this.model(resp[0] as TDBEscalationSelect) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
 }

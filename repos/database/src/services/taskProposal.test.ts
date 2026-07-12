@@ -15,9 +15,9 @@ const dialect = new PgDialect()
 const render = (chunk: any) => dialect.sqlToQuery(chunk)
 
 /**
- * Mock Drizzle DB for the select→from→where→orderBy(→limit) chain used by the
- * service. `orderBy` is awaitable (for the un-limited list helpers) and also
- * exposes `.limit` (for findOpenByDedupeKey / listBacklog).
+ * Mock Drizzle DB covering the two chains the service drives directly:
+ * select→from→where→orderBy(→limit) (list/dedupe lookups), and
+ * insert().values().onConflictDoNothing().returning() (claimOpen).
  */
 const createMockDb = () => {
   const limitFn = vi.fn((..._args: any[]) => Promise.resolve([]))
@@ -29,13 +29,27 @@ const createMockDb = () => {
   const whereFn = vi.fn((..._args: any[]) => ({ orderBy: orderByFn }))
   const fromFn = vi.fn((..._args: any[]) => ({ where: whereFn }))
   const selectFn = vi.fn((..._args: any[]) => ({ from: fromFn }))
+
+  const insertReturningFn = vi.fn((..._args: any[]) => Promise.resolve([] as any[]))
+  const insertOnConflictDoNothingFn = vi.fn((..._args: any[]) => ({
+    returning: insertReturningFn,
+  }))
+  const insertValuesFn = vi.fn((..._args: any[]) => ({
+    onConflictDoNothing: insertOnConflictDoNothingFn,
+  }))
+  const insertFn = vi.fn((..._args: any[]) => ({ values: insertValuesFn }))
+
   return {
-    db: { select: selectFn } as any,
+    db: { select: selectFn, insert: insertFn } as any,
     selectFn,
     fromFn,
     whereFn,
     orderByFn,
     limitFn,
+    insertFn,
+    insertValuesFn,
+    insertOnConflictDoNothingFn,
+    insertReturningFn,
   }
 }
 
@@ -283,6 +297,70 @@ describe(`TaskProposal service`, () => {
         `tp_smokec2`,
         `tp_smokec3`,
       ])
+    })
+  })
+
+  describe(`claimOpen`, () => {
+    const claimArgs = {
+      orgId: `og_org0001`,
+      agentId: `ag_agent01`,
+      title: `Fix red CI`,
+      description: `The main pipeline is failing`,
+      priority: ETaskPriority.P3,
+      evidence: `build step exited 1`,
+      sourceSignal: `ci`,
+      dedupeKey: `ci:build:main`,
+      repos: [],
+      parentId: null,
+      initiative: null,
+      status: ETaskProposalStatus.scanned,
+      scanResult: null,
+      reason: null,
+      meta: null,
+    } as any
+
+    it(`inserts and returns the modeled row when the claim succeeds`, async () => {
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow()])
+
+      const { data, error, conflict } = await service.claimOpen(claimArgs)
+
+      expect(error).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(data).toBeInstanceOf(TaskProposalModel)
+      expect(mocks.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({ dedupeKey: `ci:build:main` })
+      )
+      expect(mocks.insertOnConflictDoNothingFn).toHaveBeenCalled()
+    })
+
+    it(`simulates two concurrent callers racing the same dedupeKey — exactly one wins`, async () => {
+      // Caller A's insert succeeds outright.
+      mocks.insertReturningFn.mockResolvedValueOnce([fakeRow({ id: `tp_callerA1` })])
+      const winner = await service.claimOpen(claimArgs)
+
+      expect(winner.conflict).toBeUndefined()
+      expect(winner.data).toBeInstanceOf(TaskProposalModel)
+      expect(winner.data?.id).toBe(`tp_callerA1`)
+
+      // Caller B's insert hits the partial unique index on
+      // task_proposals(org_id, dedupe_key) WHERE status IN ('pending','scanned')
+      // — ON CONFLICT DO NOTHING means zero rows come back, never a thrown error.
+      mocks.insertReturningFn.mockResolvedValueOnce([])
+      const loser = await service.claimOpen(claimArgs)
+
+      expect(loser.error).toBeUndefined()
+      expect(loser.data).toBeNull()
+      expect(loser.conflict).toBe(true)
+    })
+
+    it(`returns { error } instead of throwing when the insert query fails`, async () => {
+      mocks.insertReturningFn.mockRejectedValueOnce(new Error(`db down`))
+
+      const { data, error, conflict } = await service.claimOpen(claimArgs)
+
+      expect(data).toBeUndefined()
+      expect(conflict).toBeUndefined()
+      expect(error?.message).toBe(`db down`)
     })
   })
 })

@@ -48,13 +48,6 @@ export const openEscalation = async (
 }> => {
   const dedupeKey = (input.dedupeKey ?? `${input.target}:${input.title}`).slice(0, 200)
 
-  const { data: existing } = await db.services.escalation.openByDedupeKey(
-    orgId,
-    dedupeKey
-  )
-  if (existing)
-    return { id: existing.id, status: existing.status, routable: false, deduped: true }
-
   const routable = EscalationRoutableTargets.includes(input.target)
   const status: TEscalationStatus =
     input.target === EEscalationTarget.secrets
@@ -63,7 +56,10 @@ export const openEscalation = async (
         ? EEscalationStatus.routed
         : EEscalationStatus.open
 
-  const { data, error } = await db.services.escalation.create({
+  // Atomic claim on the (orgId, dedupeKey) open-slot partial unique index —
+  // no check-then-insert race window between two concurrent callers sensing
+  // the same issue (see escalations schema for the index definition).
+  const { data, error, conflict } = await db.services.escalation.claimOpen({
     orgId,
     agentId,
     dedupeKey,
@@ -78,6 +74,18 @@ export const openEscalation = async (
     reason: null,
     meta: meta ?? input.meta ?? null,
   } as any)
+
+  if (conflict) {
+    const { data: existing } = await db.services.escalation.openByDedupeKey(
+      orgId,
+      dedupeKey
+    )
+    if (existing)
+      return { id: existing.id, status: existing.status, routable: false, deduped: true }
+    throw new Error(
+      `Failed to open escalation: lost the dedupeKey race but no open row was found`
+    )
+  }
 
   if (error || !data) {
     logger.warn(
