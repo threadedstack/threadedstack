@@ -26,6 +26,7 @@ import { nanoid } from 'nanoid'
 import { logger } from '@TSB/utils/logger'
 import { DefaultWorkdir } from '@tdsk/domain'
 import { DefaultTempdir, DefaultRuntime } from '@TSB/constants/values'
+import { EvalOuterTimeoutBufferMs } from '@TSB/constants/kube'
 
 export class KubeSandbox implements ISandbox {
   private podName: string
@@ -151,17 +152,43 @@ export class KubeSandbox implements ISandbox {
     const mainFile = `${tmpDir}/main${runtime.extension}`
     await this.writeFile(mainFile, code)
 
-    const timeoutFlag = opts?.timeout ? `timeout ${Math.ceil(opts.timeout / 1000)} ` : ``
-    const result = await this.exec(`${timeoutFlag}${runtime.command} ${mainFile}`)
+    // The inner `timeout <n>` cutoff always rounds up to whole seconds, so
+    // derive the outer network-level timeout from that same rounded value
+    // (plus headroom) rather than the raw opts.timeout — otherwise the outer
+    // timeout can fire before the inner one would have cleanly terminated.
+    const innerTimeoutMs = opts?.timeout
+      ? Math.ceil(opts.timeout / 1000) * 1000
+      : undefined
+    const timeoutFlag = innerTimeoutMs ? `timeout ${innerTimeoutMs / 1000} ` : ``
+    const cmd = `${timeoutFlag}${runtime.command} ${mainFile}`
 
-    const cleanup = await this.exec(`rm -rf ${tmpDir}`)
-    if (!cleanup.success)
-      logger.error(`[KubeSandbox] Temp cleanup failed for ${tmpDir}:`, cleanup.error)
+    try {
+      const result = await this.client.runInPod(
+        this.podName,
+        [`sh`, `-c`, cmd],
+        undefined,
+        {
+          timeoutMs: innerTimeoutMs
+            ? innerTimeoutMs + EvalOuterTimeoutBufferMs
+            : undefined,
+        }
+      )
 
-    return {
-      result: undefined,
-      error: result.error,
-      output: result.output || ``,
+      return {
+        result: undefined,
+        error: result.error,
+        output: result.output || ``,
+      }
+    } finally {
+      // Never let a cleanup-call failure mask whatever the try block just
+      // threw (e.g. a run-step timeout) — log and move on either way.
+      try {
+        const cleanup = await this.exec(`rm -rf ${tmpDir}`)
+        if (!cleanup.success)
+          logger.error(`[KubeSandbox] Temp cleanup failed for ${tmpDir}:`, cleanup.error)
+      } catch (err) {
+        logger.error(`[KubeSandbox] Temp cleanup threw for ${tmpDir}:`, err)
+      }
     }
   }
 
