@@ -28,10 +28,17 @@ export const saveFileContent = async (filePath: string) => {
 
     const updated = new Map(getFileContentCache())
     const current = updated.get(filePath)
-    if (current && (current.status === `dirty` || current.status === `loaded`)) {
+    // Only clear dirty if the cache still holds what we just wrote — an edit
+    // made while the write was in flight leaves current.content ahead of
+    // entry.content, and that newer content still needs to be saved.
+    if (
+      current &&
+      (current.status === `dirty` || current.status === `loaded`) &&
+      current.content === entry.content
+    ) {
       updated.set(filePath, { status: `loaded`, content: current.content })
+      setFileContentCache(updated)
     }
-    setFileContentCache(updated)
   } catch (err) {
     toast.error(`Failed to save file`, {
       description: err instanceof Error ? err.message : `An unexpected error occurred`,
