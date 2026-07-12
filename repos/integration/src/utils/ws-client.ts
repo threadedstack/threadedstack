@@ -139,6 +139,7 @@ export const createWSConnection = (
     const messages: WSMessage[] = []
     let closeResolve: ((val: { closeCode: number; closeReason: string }) => void) | null = null
     let timer: ReturnType<typeof setTimeout> | null = null
+    let settled = false
 
     const ws = new WebSocket(wsUrl, { rejectUnauthorized: false })
 
@@ -146,10 +147,15 @@ export const createWSConnection = (
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close()
       }
+      if (settled) return
+      settled = true
+      reject(new Error(`WebSocket connection timed out after ${timeout}ms`))
     }, timeout)
 
     ws.on('open', () => {
       if (timer) clearTimeout(timer)
+      if (settled) return
+      settled = true
       resolve({
         ws,
         messages,
@@ -182,6 +188,8 @@ export const createWSConnection = (
 
     ws.on('error', (err) => {
       if (timer) clearTimeout(timer)
+      if (settled) return
+      settled = true
       reject(err)
     })
   })
