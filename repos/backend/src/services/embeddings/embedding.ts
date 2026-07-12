@@ -3,6 +3,7 @@ import type { TDatabase } from '@tdsk/database'
 import type { TApp, TEmbedOpts } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
+import { ProviderFetchTimeoutMS } from '@TBE/constants/values'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import {
   EProvider,
@@ -156,18 +157,28 @@ export class EmbeddingService {
     inputs: string[],
     dimensions?: number
   ): Promise<(number[] | null)[]> => {
-    const res = await fetch(`${baseUrl}/embeddings`, {
-      method: `POST`,
-      headers: {
-        'content-type': `application/json`,
-        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        model,
-        input: inputs,
-        ...(dimensions !== undefined ? { dimensions } : {}),
-      }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`${baseUrl}/embeddings`, {
+        method: `POST`,
+        headers: {
+          'content-type': `application/json`,
+          ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          input: inputs,
+          ...(dimensions !== undefined ? { dimensions } : {}),
+        }),
+        signal: AbortSignal.timeout(ProviderFetchTimeoutMS),
+      })
+    } catch (err: any) {
+      if (err?.name === `TimeoutError`)
+        throw new Error(
+          `OpenAI embeddings request timed out after ${ProviderFetchTimeoutMS}ms`
+        )
+      throw err
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => ``)
@@ -199,20 +210,30 @@ export class EmbeddingService {
     const qualifiedModel = model.startsWith(`models/`) ? model : `models/${model}`
     const urlModel = qualifiedModel.replace(/^models\//, ``)
 
-    const res = await fetch(`${baseUrl}/models/${urlModel}:batchEmbedContents`, {
-      method: `POST`,
-      headers: {
-        'content-type': `application/json`,
-        ...(apiKey ? { 'x-goog-api-key': apiKey } : {}),
-      },
-      body: JSON.stringify({
-        requests: inputs.map((text) => ({
-          model: qualifiedModel,
-          content: { parts: [{ text }] },
-          outputDimensionality: MemoryEmbeddingDimensions,
-        })),
-      }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`${baseUrl}/models/${urlModel}:batchEmbedContents`, {
+        method: `POST`,
+        headers: {
+          'content-type': `application/json`,
+          ...(apiKey ? { 'x-goog-api-key': apiKey } : {}),
+        },
+        body: JSON.stringify({
+          requests: inputs.map((text) => ({
+            model: qualifiedModel,
+            content: { parts: [{ text }] },
+            outputDimensionality: MemoryEmbeddingDimensions,
+          })),
+        }),
+        signal: AbortSignal.timeout(ProviderFetchTimeoutMS),
+      })
+    } catch (err: any) {
+      if (err?.name === `TimeoutError`)
+        throw new Error(
+          `Google embeddings request timed out after ${ProviderFetchTimeoutMS}ms`
+        )
+      throw err
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => ``)
