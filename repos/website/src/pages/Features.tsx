@@ -7,6 +7,7 @@ import { RobotIcon } from '@tdsk/components'
 import Accordion from '@mui/material/Accordion'
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
+import CableIcon from '@mui/icons-material/Cable'
 import CloudIcon from '@mui/icons-material/Cloud'
 import SyncIcon from '@mui/icons-material/Sync'
 import DatasetIcon from '@mui/icons-material/Dataset'
@@ -285,6 +286,39 @@ curl -X POST .../collections/leads/records/query \\
 # → { "data": [{ "id": "rec_f6g7h8i9j0", "data": { "email": "alice@example.com", "status": "new" } }] }`,
     codeLang: 'bash',
     docsLink: '/docs/features/collections',
+  },
+  {
+    icon: CableIcon,
+    title: 'Agent Connectors',
+    benefit:
+      'An agent authors its own proxy Endpoint and stores its own credential — then calls that Endpoint immediately, with no human in the loop to allowlist it.',
+    expansion:
+      'Self-provisioning removes the ceiling of human-configured tools: a scheduled or resident agent can emit a tdsk-author-secret fence to store a credential it obtained as its own encrypted Secret, and a tdsk-author-endpoint fence to build its own proxy Endpoint — then reach it through the context.connect Function capability with zero allowlist, because authorship is authorization.',
+    paragraphs: [
+      'By default an agent’s tools are the ones a human configured for its project ahead of time. Agent Connectors remove that ceiling: an agent running in a scheduled cycle or a resident (live) session can author its own proxy Endpoint and store a credential it obtained as its own encrypted Secret — then call that Endpoint immediately, with no human round-trip to create it first.',
+      'Every submission passes an SSRF check at author time (the same egress guard used at call time), a same-agent secret-ownership check, and a deterministic content scan before a row is written — an internal target, a cross-owner secret reference, or a leaked credential is rejected before the Endpoint ever exists. Agent-authored Endpoints are proxy-only and can only resolve secrets that same agent owns, never the project’s full secret set.',
+      'A FaaS Function reaches an authored Endpoint through context.connect.invoke(ref, request) — there is deliberately no caller-supplied path, so the target host is fixed by the Endpoint’s stored configuration and a Function can only vary the query, headers, body, and method. Authorship is authorization: an agent-authored Endpoint needs no human allowlist entry to be reached by its own author.',
+    ],
+    code: `# 1. Agent obtains a credential during its run, then stores it as its own Secret
+\`\`\`tdsk-author-secret
+{ "name": "WEBHOOK_TOKEN", "value": "whsec_...", "description": "Obtained from webhook signup" }
+\`\`\`
+
+# 2. Same turn: agent builds its own proxy Endpoint referencing that secret
+\`\`\`tdsk-author-endpoint
+{
+  "name": "my-webhook",
+  "path": "/notify",
+  "options": { "url": "https://hooks.example.com/notify" },
+  "headers": { "Authorization": "Bearer {{ WEBHOOK_TOKEN:sec_xxxxxxxxxx }}" }
+}
+\`\`\`
+
+# 3. A later Function execution calls it — zero allowlist, same-agent secrets only
+context.connect.invoke('my-webhook', { method: 'POST', body: { event: 'run.completed' } })
+# → { ok: true, status: 200, body: { received: true } }`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/agent-connectors',
   },
 ]
 
