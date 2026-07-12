@@ -84,4 +84,29 @@ export class Escalation extends Base<
       return { error }
     }
   }
+
+  /**
+   * Atomically insert an escalation unless an open/routed row with the same
+   * dedupeKey already exists for the org. Mirrors ScheduleRun#claimRunning:
+   * two replicas racing openEscalation() for the same dedupeKey can no longer
+   * both pass a check-then-insert TOCTOU race — the partial unique index on
+   * (org_id, dedupe_key) WHERE status IN ('open','routed') means only one
+   * concurrent INSERT can win. The loser's ON CONFLICT DO NOTHING affects
+   * zero rows and is reported as `conflict: true`, not an error, so the
+   * caller can fetch the winner's row via openByDedupeKey instead.
+   */
+  async createIfAbsent(data: TDBEscalationInsert) {
+    try {
+      const resp = await this.db
+        .insert(escalations)
+        .values(data as any)
+        .onConflictDoNothing()
+        .returning()
+
+      if (!resp[0]) return { data: null, conflict: true as const }
+      return { data: this.model(resp[0] as TDBEscalationSelect) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
 }

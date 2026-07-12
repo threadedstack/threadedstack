@@ -86,6 +86,31 @@ export class TaskProposal extends Base<
   }
 
   /**
+   * Atomically insert a proposal unless an open (pending/scanned) row with the
+   * same dedupeKey already exists for the org. Mirrors ScheduleRun#claimRunning:
+   * two replicas racing authorTaskProposal() for the same dedupeKey can no
+   * longer both pass a check-then-insert TOCTOU race — the partial unique
+   * index on (org_id, dedupe_key) WHERE status IN ('pending','scanned') means
+   * only one concurrent INSERT can win. The loser's ON CONFLICT DO NOTHING
+   * affects zero rows and is reported as `conflict: true`, not an error, so
+   * the caller can fetch the winner's row via findOpenByDedupeKey instead.
+   */
+  async createIfAbsent(data: TDBTaskProposalInsert) {
+    try {
+      const resp = await this.db
+        .insert(taskProposals)
+        .values(data as any)
+        .onConflictDoNothing()
+        .returning()
+
+      if (!resp[0]) return { data: null, conflict: true as const }
+      return { data: this.model(resp[0] as TDBTaskProposalSelect) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
    * The pickup-ready backlog for an org: scanned proposals ordered by priority
    * (P0 first) then newest, capped at `limit`.
    */

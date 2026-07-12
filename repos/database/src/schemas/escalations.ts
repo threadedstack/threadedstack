@@ -1,12 +1,12 @@
 import type { TEscalationStatus, TEscalationTarget } from '@tdsk/domain'
 
 import { orgs } from '@TDB/schemas/orgs'
-import { relations } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
 import { base } from '@TDB/utils/schema/base'
 import { EscalationIdPrefix } from '@tdsk/domain'
 import { entityId } from '@TDB/utils/schema/entityId'
-import { text, jsonb, index, pgTable, varchar } from 'drizzle-orm/pg-core'
+import { text, jsonb, index, pgTable, varchar, uniqueIndex } from 'drizzle-orm/pg-core'
 
 /**
  * Escalations table
@@ -65,6 +65,14 @@ export const escalations = pgTable(
     index(`escalations_org_id_agent_id_idx`).on(table.orgId, table.agentId),
     index(`escalations_status_idx`).on(table.status),
     index(`escalations_org_id_dedupe_key_idx`).on(table.orgId, table.dedupeKey),
+    // Enforces "one open/routed escalation per dedupeKey" at the DB level so two
+    // concurrent openEscalation() callers can't both pass the check-then-insert
+    // TOCTOU race — the loser's INSERT ... ON CONFLICT DO NOTHING (see
+    // Escalation.createIfAbsent) affects zero rows and is treated as "an open row
+    // already exists", not an error. Mirrors scheduleRuns' running-slot index.
+    uniqueIndex(`escalations_org_id_dedupe_key_open_idx`)
+      .on(table.orgId, table.dedupeKey)
+      .where(sql`${table.status} IN ('open', 'routed')`),
   ]
 )
 

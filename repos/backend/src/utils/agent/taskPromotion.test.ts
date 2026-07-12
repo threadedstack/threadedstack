@@ -26,7 +26,7 @@ const malicious = {
 }
 
 const makeDb = () => {
-  const proposalCreate = vi
+  const proposalCreateIfAbsent = vi
     .fn()
     .mockResolvedValue({ data: { id: `tp_1`, status: `scanned` } })
   const proposalGet = vi.fn()
@@ -42,7 +42,7 @@ const makeDb = () => {
     db: {
       services: {
         taskProposal: {
-          create: proposalCreate,
+          createIfAbsent: proposalCreateIfAbsent,
           get: proposalGet,
           update: proposalUpdate,
           findOpenByDedupeKey,
@@ -53,7 +53,7 @@ const makeDb = () => {
         },
       },
     } as any,
-    proposalCreate,
+    proposalCreateIfAbsent,
     proposalGet,
     proposalUpdate,
     findOpenByDedupeKey,
@@ -74,7 +74,7 @@ describe(`authorTaskProposal`, () => {
     expect(res.deduped).toBe(false)
     expect(res.status).toBe(ETaskProposalStatus.scanned)
     expect(res.findings).toEqual([])
-    const insert = m.proposalCreate.mock.calls[0][0]
+    const insert = m.proposalCreateIfAbsent.mock.calls[0][0]
     expect(insert.status).toBe(ETaskProposalStatus.scanned)
     expect(insert.orgId).toBe(`og_1`)
     expect(insert.agentId).toBe(`ag_1`)
@@ -85,12 +85,13 @@ describe(`authorTaskProposal`, () => {
     expect(res.deduped).toBe(false)
     expect(res.status).toBe(ETaskProposalStatus.rejected)
     expect(res.findings.length).toBeGreaterThan(0)
-    const insert = m.proposalCreate.mock.calls[0][0]
+    const insert = m.proposalCreateIfAbsent.mock.calls[0][0]
     expect(insert.status).toBe(ETaskProposalStatus.rejected)
     expect(insert.reason).toContain(`Security scan failed`)
   })
 
-  it(`returns the existing proposal without creating a new one when the dedupe key is open`, async () => {
+  it(`returns the existing proposal without creating a new one when createIfAbsent reports a conflict`, async () => {
+    m.proposalCreateIfAbsent.mockResolvedValue({ data: null, conflict: true })
     m.findOpenByDedupeKey.mockResolvedValue({
       data: { id: `tp_x`, status: ETaskProposalStatus.scanned },
     })
@@ -98,18 +99,51 @@ describe(`authorTaskProposal`, () => {
     expect(res.deduped).toBe(true)
     expect(res.id).toBe(`tp_x`)
     expect(res.status).toBe(ETaskProposalStatus.scanned)
-    expect(m.proposalCreate).not.toHaveBeenCalled()
+    expect(m.findOpenByDedupeKey).toHaveBeenCalledWith(`og_1`, benign.dedupeKey)
+  })
+
+  it(`simulates two concurrent callers racing the same dedupeKey — exactly one creates`, async () => {
+    // Replica A's createIfAbsent wins the partial-unique-index race outright.
+    m.proposalCreateIfAbsent.mockResolvedValueOnce({
+      data: { id: `tp_winner1`, status: ETaskProposalStatus.scanned },
+    })
+    const winner = await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
+    expect(winner.deduped).toBe(false)
+    expect(winner.id).toBe(`tp_winner1`)
+
+    // Replica B's createIfAbsent hits the partial unique index on
+    // task_proposals(org_id, dedupe_key) WHERE status IN ('pending','scanned') —
+    // ON CONFLICT DO NOTHING means zero rows come back (conflict: true), never
+    // a thrown error, and the caller re-fetches the winner's row.
+    m.proposalCreateIfAbsent.mockResolvedValueOnce({ data: null, conflict: true })
+    m.findOpenByDedupeKey.mockResolvedValue({
+      data: { id: `tp_winner1`, status: ETaskProposalStatus.scanned },
+    })
+    const loser = await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
+    expect(loser.deduped).toBe(true)
+    expect(loser.id).toBe(`tp_winner1`)
+
+    // Only one proposal row was ever created for the dedupeKey.
+    expect(m.proposalCreateIfAbsent).toHaveBeenCalledTimes(2)
+  })
+
+  it(`throws when createIfAbsent reports a conflict but the row can't be re-fetched`, async () => {
+    m.proposalCreateIfAbsent.mockResolvedValue({ data: null, conflict: true })
+    m.findOpenByDedupeKey.mockResolvedValue({ data: null })
+    await expect(authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)).rejects.toThrow(
+      `conflicting row not found`
+    )
   })
 
   it(`throws when the DB create fails`, async () => {
-    m.proposalCreate.mockResolvedValue({ error: { message: `boom` } })
+    m.proposalCreateIfAbsent.mockResolvedValue({ error: { message: `boom` } })
     await expect(authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)).rejects.toThrow(
       `boom`
     )
   })
 
   it(`mirrors the created row into the ops task_proposals Collection (best-effort)`, async () => {
-    m.proposalCreate.mockResolvedValue({
+    m.proposalCreateIfAbsent.mockResolvedValue({
       data: { id: `tp_1`, status: ETaskProposalStatus.scanned, agentId: `ag_1` },
     })
     await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
@@ -126,7 +160,7 @@ describe(`authorTaskProposal`, () => {
     // The authoritative create already succeeded; a mirror failure is swallowed.
     const res = await authorTaskProposal(m.db, `og_1`, `ag_1`, benign as any)
     expect(res.status).toBe(ETaskProposalStatus.scanned)
-    expect(m.proposalCreate).toHaveBeenCalledTimes(1)
+    expect(m.proposalCreateIfAbsent).toHaveBeenCalledTimes(1)
   })
 
   it(`does NOT throw when the Collection mirror itself throws`, async () => {
