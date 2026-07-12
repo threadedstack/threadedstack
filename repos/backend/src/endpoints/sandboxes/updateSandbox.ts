@@ -35,6 +35,15 @@ export const updateSandbox: TEndpointConfig = {
     if (config?.maxInstances != null)
       config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
 
+    // nodePool is a platform-only scheduling control — a customer can neither set
+    // it nor erase a platform-set value. Force it back to the persisted value (or
+    // drop it when there is none) before the config is stored.
+    if (config !== undefined) {
+      const existingNodePool = (existing.config as { nodePool?: string })?.nodePool
+      if (existingNodePool != null) config.nodePool = existingNodePool
+      else delete config.nodePool
+    }
+
     if (skillInputs !== undefined) {
       if (!Array.isArray(skillInputs))
         throw new Exception(400, `skillInputs must be an array`)

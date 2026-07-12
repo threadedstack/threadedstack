@@ -335,6 +335,49 @@ describe(`SandboxService`, () => {
       expect(kube.createPod).toHaveBeenCalledWith({ metadata: { name: `tdsk-sb-test` } })
     })
 
+    it(`overrides the global node pool when the per-sandbox config sets nodePool`, async () => {
+      const scoped = new SandboxService(kube as any, db as any, {
+        nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` },
+      })
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20`, nodePool: `tdskembed` },
+          sandboxProviders: [],
+        }),
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await scoped.startPod(baseOpts as any)
+
+      expect(mockBuildPodManifest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdskembed` },
+        })
+      )
+    })
+
+    it(`uses the global nodeSelector unchanged when the per-sandbox config omits nodePool`, async () => {
+      const globalSelector = { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` }
+      const scoped = new SandboxService(kube as any, db as any, {
+        nodeSelector: globalSelector,
+      })
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await scoped.startPod(baseOpts as any)
+
+      expect(mockBuildPodManifest).toHaveBeenCalledWith(
+        expect.objectContaining({ nodeSelector: globalSelector })
+      )
+    })
+
     it(`resolves the egress DNAT target from a READY egress pod and never mutates the shared egressOpts`, async () => {
       db.services.sandbox.get.mockResolvedValue({
         data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
