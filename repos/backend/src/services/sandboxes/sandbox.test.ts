@@ -1,6 +1,7 @@
 import { logger } from '@TBE/utils/logger'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
+import { SandboxProxyTimeoutMs } from '@TBE/constants/sandbox'
 import {
   SandboxHomePath,
   Exception,
@@ -2223,9 +2224,23 @@ describe(`SandboxService`, () => {
           target: `http://10.0.0.1:3000`,
           ws: false,
           changeOrigin: true,
+          timeout: SandboxProxyTimeoutMs,
+          proxyTimeout: SandboxProxyTimeoutMs,
         })
       )
       expect(SandboxService.proxyMap.get(`http://10.0.0.1:3000`)).toBe(mockProxy)
+    })
+
+    it(`getPodProxy should set a timeout and proxyTimeout to prevent hung-connection exhaustion`, () => {
+      const mockProxy = vi.fn()
+      mockCreateProxyMiddleware.mockReturnValue(mockProxy)
+      SandboxService.proxyMap.clear()
+
+      SandboxService.getPodProxy(`http://10.0.0.1:5000`)
+
+      const callArgs = mockCreateProxyMiddleware.mock.calls[0][0]
+      expect(callArgs.timeout).toBe(SandboxProxyTimeoutMs)
+      expect(callArgs.proxyTimeout).toBe(SandboxProxyTimeoutMs)
     })
 
     it(`getPodProxy should return cached proxy on second call with same target`, () => {
