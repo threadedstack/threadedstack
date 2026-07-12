@@ -31,18 +31,32 @@ const addProxyHeaders = (
 }
 
 /**
- * Handle proxy errors
+ * Handle proxy errors.
+ *
+ * http-proxy invokes this with an http.ServerResponse for HTTP proxy errors,
+ * but with a raw net.Socket for WebSocket upgrade errors (see http-proxy's
+ * ws-incoming.js, which emits `error` as `(err, req, socket)`) -- a socket
+ * has no writeHead/headersSent, so it must be destroyed instead of written
+ * to, or this throws and crashes the whole process (no writeHead on socket).
  */
 const handleProxyError = (
   err: Error,
   _req: IncomingMessage,
-  res: ServerResponse | null
+  res: ServerResponse | Socket | null
 ): void => {
   logger.error(`Proxy error: ${err.message}`, { stack: err.stack })
 
-  if (res && !res.headersSent) {
-    res.writeHead(502, { [`Content-Type`]: `application/json` })
-    res.end(JSON.stringify({ error: `Backend service unavailable` }))
+  if (!res) return
+
+  if (typeof (res as ServerResponse).writeHead !== `function`) {
+    ;(res as Socket).destroy()
+    return
+  }
+
+  const serverRes = res as ServerResponse
+  if (!serverRes.headersSent) {
+    serverRes.writeHead(502, { [`Content-Type`]: `application/json` })
+    serverRes.end(JSON.stringify({ error: `Backend service unavailable` }))
   }
 }
 

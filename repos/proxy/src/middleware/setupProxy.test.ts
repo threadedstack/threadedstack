@@ -444,6 +444,29 @@ describe(`setupProxy`, () => {
       expect(() => standardOpts.on.error(mockErr, mockReq, null)).not.toThrow()
       expect(mockLogger.error).toHaveBeenCalled()
     })
+
+    it(`should destroy the socket instead of throwing when a WebSocket proxy error passes a raw net.Socket`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+        string,
+        any
+      >
+      const mockErr = new Error(`socket hang up`)
+      const mockReq = {}
+      const mockSocket = {
+        destroy: vi.fn(),
+      }
+
+      expect(() => standardOpts.on.error(mockErr, mockReq, mockSocket)).not.toThrow()
+      expect(mockLogger.error).toHaveBeenCalledWith(`Proxy error: socket hang up`, {
+        stack: mockErr.stack,
+      })
+      expect(mockSocket.destroy).toHaveBeenCalledOnce()
+    })
   })
 
   describe(`sandbox subdomain forwarder`, () => {
