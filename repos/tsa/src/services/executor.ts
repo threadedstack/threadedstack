@@ -97,7 +97,7 @@ export class Executor {
       let resolved = false
       let idleTimer: ReturnType<typeof setTimeout> | null = null
       const ws = new WebSocket(wsUrl, {
-        rejectUnauthorized: false,
+        rejectUnauthorized: !opts.insecure,
       })
       this.#ws = ws
 

@@ -541,6 +541,7 @@ export class ChatLogic {
         threadId: this.threadId || undefined,
         providerId: this.providerId || undefined,
         contextFiles: this.contextFiles,
+        insecure: this.#auth.creds()?.insecure,
         onEvent: (event: TStreamEvent) => {
           switch (event.type) {
             case EStreamEventType.text:
