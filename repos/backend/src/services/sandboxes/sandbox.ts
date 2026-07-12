@@ -1214,6 +1214,26 @@ export class SandboxService {
       logger.warn(`[ShellSession] Failed to close exec:`, (err as Error).message)
     }
 
+    for (const ws of session.attachments) {
+      try {
+        if (ws.readyState === 1)
+          ws.send(JSON.stringify({ type: `disconnected`, reason: `Session ended` }))
+      } catch (err) {
+        logger.debug(
+          `[ShellSession] Failed to notify attached client:`,
+          (err as Error).message
+        )
+      }
+      try {
+        if (ws.readyState === 1 || ws.readyState === 0) ws.close()
+      } catch (err) {
+        logger.debug(
+          `[ShellSession] Failed to close attached client:`,
+          (err as Error).message
+        )
+      }
+    }
+
     session.buffer.clear()
     session.attachments.clear()
     this.shellSessions.delete(sessionId)
