@@ -26,3 +26,8 @@ export type TDBServices = {
 export type TDatabase = NodePgDatabase<typeof schema> & {
   services: TDBServices
 }
+
+/** The `tx` argument passed into `db.transaction(async (tx) => ...)` callbacks */
+export type TDBTx = Parameters<TDatabase[`transaction`]>[0] extends (tx: infer T) => any
+  ? T
+  : never
