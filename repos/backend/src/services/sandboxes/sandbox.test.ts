@@ -2453,6 +2453,7 @@ describe(`SandboxService`, () => {
       const svc = new SandboxService(kube as any, makeDb() as any)
 
       const closeExec = vi.fn()
+      const attachment = { readyState: 1, send: vi.fn(), close: vi.fn() }
       const session = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
@@ -2464,7 +2465,7 @@ describe(`SandboxService`, () => {
         closeExec,
         resize: vi.fn(),
         buffer: { clear: vi.fn() } as any,
-        attachments: new Set([{ readyState: 1, send: vi.fn() }]) as any,
+        attachments: new Set([attachment]) as any,
         ttlTimer: setTimeout(() => {}, 99999),
         lastRunningToolCall: null,
         visibility: ESandboxSessionVisibility.private,
@@ -2479,6 +2480,74 @@ describe(`SandboxService`, () => {
       expect(session.buffer.clear).toHaveBeenCalled()
       expect(session.attachments.size).toBe(0)
       expect(svc.getShellSession(`s1`)).toBeUndefined()
+      expect(attachment.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: `disconnected`, reason: `Session ended` })
+      )
+      expect(attachment.close).toHaveBeenCalledOnce()
+    })
+
+    it(`removeShellSession notifies and closes every attached client, not just the owner`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const owner = { readyState: 1, send: vi.fn(), close: vi.fn() }
+      const joinedViewer = { readyState: 1, send: vi.fn(), close: vi.fn() }
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([owner, joinedViewer]) as any,
+        ttlTimer: null,
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.public,
+      }
+
+      svc.addShellSession(session)
+      svc.removeShellSession(`s1`)
+
+      for (const client of [owner, joinedViewer]) {
+        expect(client.send).toHaveBeenCalledWith(
+          JSON.stringify({ type: `disconnected`, reason: `Session ended` })
+        )
+        expect(client.close).toHaveBeenCalledOnce()
+      }
+    })
+
+    it(`removeShellSession skips notifying clients that are not open and still closes/clears state`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const closedClient = { readyState: 3, send: vi.fn(), close: vi.fn() }
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([closedClient]) as any,
+        ttlTimer: null,
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession(session)
+      svc.removeShellSession(`s1`)
+
+      expect(closedClient.send).not.toHaveBeenCalled()
+      expect(closedClient.close).not.toHaveBeenCalled()
+      expect(session.attachments.size).toBe(0)
     })
 
     it(`removeShellSession continues cleanup when closeExec throws`, () => {
