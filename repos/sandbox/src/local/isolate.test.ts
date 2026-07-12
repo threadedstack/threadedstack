@@ -723,4 +723,79 @@ describe(`IsolateRunner`, () => {
       expect(mockDelete).not.toHaveBeenCalledWith(`__hostCallStart`)
     })
   })
+
+  describe(`cleanup on throw`, () => {
+    it(`releases the user module when evaluate() times out`, async () => {
+      await runner.init()
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(runIsolate(runner, `while(true){}`, 50)).rejects.toThrow(
+        `Script execution timed out`
+      )
+
+      expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCountBefore)
+    })
+
+    it(`releases the user module when evaluate() throws an uncaught error in user code`, async () => {
+      await runner.init()
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`ReferenceError: undefinedVar is not defined`)
+      })
+
+      await expect(runIsolate(runner, `undefinedVar.doStuff()`)).rejects.toThrow(
+        `undefinedVar is not defined`
+      )
+
+      expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCountBefore)
+    })
+
+    it(`clears any timer registered during a run that then throws`, async () => {
+      await runner.init()
+
+      // Grab the real _timerSet callback registered during init and use it to
+      // simulate user code having scheduled a timer just before the throw.
+      const timerSetCall = mockSet.mock.calls.find((c: any[]) => c[0] === `_timerSet`)
+      const timerSet = timerSetCall![1] as (id: number, ms: number) => void
+      const clearTimeoutSpy = vi.spyOn(global, `clearTimeout`)
+
+      mockEvaluate.mockImplementationOnce(async () => {
+        timerSet(99, 10000)
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(
+        runIsolate(runner, `setTimeout(() => {}, 10000); while(true){}`, 50)
+      ).rejects.toThrow(`Script execution timed out`)
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    it(`tears down the host bridge globals even when evaluate() throws`, async () => {
+      await runner.init()
+      mockDelete.mockClear()
+      mockContextEval.mockClear()
+
+      const bridge = vi.fn(async () => `null`)
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(
+        runner[`eval`](`while(true){}`, 50, { 'demo.echo': bridge })
+      ).rejects.toThrow(`Script execution timed out`)
+
+      expect(mockDelete).toHaveBeenCalledWith(`__hostCallStart`)
+      const teardownCall = mockContextEval.mock.calls.find((c: any[]) =>
+        String(c[0]).includes(`delete globalThis.__hostCall`)
+      )
+      expect(teardownCall).toBeDefined()
+    })
+  })
 })
