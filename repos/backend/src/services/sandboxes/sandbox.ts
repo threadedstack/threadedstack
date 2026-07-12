@@ -420,6 +420,14 @@ export class SandboxService {
     // trusted internal surface (see TStartPodOpts.extraEnv).
     if (opts.extraEnv) Object.assign(extraEnv, opts.extraEnv)
 
+    // A per-sandbox nodePool pins this sandbox to a named Civo pool, overriding
+    // the global TDSK_SB_NODE_POOL — otherwise every sandbox lands on the global
+    // pool exactly as before.
+    const nodePool = sandbox.config.nodePool?.trim()
+    const nodeSelector = nodePool
+      ? { [`kubernetes.civo.com/civo-node-pool`]: nodePool }
+      : this.config.nodeSelector
+
     const manifest = buildPodManifest({
       orgId,
       userId,
@@ -429,8 +437,8 @@ export class SandboxService {
       egressOpts: await this.resolveEgressOpts(egressOpts),
       placeholders,
       skillsVolume,
+      nodeSelector,
       runtimeClassName: this.config.runtimeClassName,
-      nodeSelector: this.config.nodeSelector,
       imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
 

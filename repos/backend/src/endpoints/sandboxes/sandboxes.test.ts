@@ -3,6 +3,8 @@ import type { TApp, TRequest, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { sandboxes } from './sandboxes'
+import { copySandbox } from './copySandbox'
+import { upsertSBPConfig } from './upsertSBPConfig'
 import { Sandbox } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
@@ -30,6 +32,7 @@ describe(`Sandboxes endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
+              upsertProjectConfig: vi.fn().mockResolvedValue({}),
             },
             provider: {
               get: vi.fn(),
@@ -149,6 +152,40 @@ describe(`Sandboxes endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`strips a customer-supplied config.nodePool (platform-only scheduling control)`, async () => {
+      const createdSandbox = new Sandbox({
+        id: `sandbox-new`,
+        name: `New Sandbox`,
+        orgId: `org-1`,
+        config: { image: `tdsk-sandbox-claude`, runtime: `claude-code` } as any,
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        name: `New Sandbox`,
+        config: {
+          image: `tdsk-sandbox-claude`,
+          runtime: `claude-code`,
+          nodePool: `tdskembed`,
+        },
+      }
+
+      const mockValidate = mockReq.app?.locals.db.services.provider
+        .validate as ReturnType<typeof vi.fn>
+      mockValidate.mockResolvedValue(undefined)
+      const mockCreate = mockReq.app?.locals.db.services.sandbox.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSandbox })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const createArg = mockCreate.mock.calls[0][0] as {
+        config?: { nodePool?: string }
+      }
+      expect(createArg.config?.nodePool).toBeUndefined()
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
@@ -394,6 +431,66 @@ describe(`Sandboxes endpoints`, () => {
           providerInputs: [],
         })
       )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`ignores a customer-supplied config.nodePool when none is set (platform-only)`, async () => {
+      const existingSandbox = new Sandbox({
+        id: `sb_test01`,
+        name: `Sandbox`,
+        orgId: `org-1`,
+        config: { image: `tdsk-sandbox-claude` } as any,
+      })
+      mockReq.params = { id: `sb_test01` }
+      mockReq.body = {
+        config: { image: `tdsk-sandbox-claude`, nodePool: `tdskembed` },
+      }
+
+      const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.sandbox.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingSandbox })
+      mockUpdate.mockResolvedValue({ data: existingSandbox })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const updateArg = mockUpdate.mock.calls[0][0] as {
+        config?: { nodePool?: string }
+      }
+      expect(updateArg.config?.nodePool).toBeUndefined()
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`preserves a platform-set config.nodePool and ignores the customer's value`, async () => {
+      const existingSandbox = new Sandbox({
+        id: `sb_test01`,
+        name: `Sandbox`,
+        orgId: `org-1`,
+        config: { image: `tdsk-sandbox-claude`, nodePool: `tdskembed` } as any,
+      })
+      mockReq.params = { id: `sb_test01` }
+      mockReq.body = {
+        config: { image: `tdsk-sandbox-claude`, nodePool: `tdsksandbox` },
+      }
+
+      const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.sandbox.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingSandbox })
+      mockUpdate.mockResolvedValue({ data: existingSandbox })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const updateArg = mockUpdate.mock.calls[0][0] as {
+        config?: { nodePool?: string }
+      }
+      expect(updateArg.config?.nodePool).toBe(`tdskembed`)
       expect(mockStatus).toHaveBeenCalledWith(200)
     })
 
@@ -690,6 +787,71 @@ describe(`Sandboxes endpoints`, () => {
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
       expect(responseData[0].id).toBe(`sb-1`)
+    })
+  })
+
+  describe(`POST /_/sandboxes/:id/copy - Copy sandbox`, () => {
+    const ep = getEndpointCfg(copySandbox)
+
+    it(`does not carry the platform-only config.nodePool into the copy`, async () => {
+      const original = new Sandbox({
+        id: `sb_src01`,
+        name: `Steward Workstation`,
+        orgId: `org-1`,
+        config: { image: `tdsk-sandbox-claude`, nodePool: `tdskembed` } as any,
+      })
+      mockReq.params = { id: `sb_src01`, orgId: `org-1` }
+      mockReq.body = {}
+
+      const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockCreate = mockReq.app?.locals.db.services.sandbox.create as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: original })
+      mockCreate.mockResolvedValue({ data: original })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const createArg = mockCreate.mock.calls[0][0] as {
+        config?: { nodePool?: string }
+      }
+      expect(createArg.config?.nodePool).toBeUndefined()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+  })
+
+  describe(`PUT sandbox project config - Upsert override`, () => {
+    const ep = getEndpointCfg(upsertSBPConfig)
+
+    it(`strips a customer-supplied config.nodePool from the project override`, async () => {
+      const sandbox = new Sandbox({
+        id: `sb_test01`,
+        name: `Sandbox`,
+        orgId: `org-1`,
+        config: { image: `tdsk-sandbox-claude` } as any,
+      })
+      mockReq.params = { sandboxId: `sb_test01`, projectId: `pj_test01` }
+      mockReq.body = {
+        config: { image: `tdsk-sandbox-claude`, nodePool: `tdskembed` },
+      }
+
+      const mockGet = mockReq.app?.locals.db.services.sandbox.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpsert = mockReq.app?.locals.db.services.sandbox
+        .upsertProjectConfig as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: sandbox })
+      mockUpsert.mockResolvedValue({})
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const overridesArg = mockUpsert.mock.calls[0][2] as {
+        config?: { nodePool?: string }
+      }
+      expect(overridesArg.config?.nodePool).toBeUndefined()
+      expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })
 })

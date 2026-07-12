@@ -44,12 +44,16 @@ export const copySandbox: TEndpointConfig = {
       )
 
     const name = req.body.name || `${original.name} (copy)`
+    // A copy is customer-owned output; never inherit the platform-only nodePool
+    // scheduling control from the source sandbox.
+    const config = { ...original.config }
+    delete config.nodePool
     const copy = new Sandbox({
       name,
       builtIn: false,
       orgId: original.orgId,
       userId: req.user?.id,
-      config: { ...original.config },
+      config,
     })
 
     // Admins copy all project associations; non-admins only get projects they belong to

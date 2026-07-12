@@ -49,6 +49,12 @@ export const createSandbox: TEndpointConfig = {
     if (config?.maxInstances != null)
       config.maxInstances = Math.max(1, Math.floor(config.maxInstances))
 
+    // nodePool is a platform-only scheduling control (which physical node pool a
+    // sandbox lands on) — never customer-settable, or a tenant could schedule
+    // workloads onto an internal/other-tenant pool. The platform sets it
+    // out-of-band (seed/reconcile/DB), so strip it from request input.
+    if (config?.nodePool !== undefined) delete config.nodePool
+
     if (skillInputs !== undefined) {
       if (!Array.isArray(skillInputs))
         throw new Exception(400, `skillInputs must be an array`)

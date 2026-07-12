@@ -262,6 +262,9 @@ export type TKubeSandboxConfig = {
     limits?: { cpu?: string; memory?: string }
     requests?: { cpu?: string; memory?: string }
   }
+  /** Override the Civo node pool this sandbox schedules onto (defaults to the
+   * global TDSK_SB_NODE_POOL). */
+  nodePool?: string
   /** Override the default skill installation path for this runtime */
   skillPath?: string
   /** Sandbox-level generative UI config override (overrides org-level guiConfig when set) */
