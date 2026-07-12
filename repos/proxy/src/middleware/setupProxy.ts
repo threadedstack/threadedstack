@@ -7,7 +7,11 @@ import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 import { logger } from '@TPX/utils/logger'
 import { adminPath, setAuthHeaders } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
-import { SandboxHostRx, ProxyForwardRoutes } from '@TPX/constants/values'
+import {
+  SandboxHostRx,
+  ProxyForwardRoutes,
+  ProxyRequestTimeoutMs,
+} from '@TPX/constants/values'
 
 const isSandboxHost = (host: string) => SandboxHostRx.test(host.split(`.`)[0])
 
@@ -55,6 +59,14 @@ const buildProxyOptions = (app: TProxyApp, changeOrigin: boolean): Options => {
     xfwd: true,
     changeOrigin,
     target: backend.url,
+    // Guards against an indefinitely-held socket if the backend or a
+    // sandbox pod hangs (both createBackendProxy and createSandboxForwarder
+    // build their Options through this function, so both inherit it).
+    // `timeout` bounds the incoming request; `proxyTimeout` bounds waiting
+    // on a response from the target — http-proxy defaults `proxyTimeout` to
+    // 120s and leaves `timeout` unset (no bound) otherwise.
+    timeout: ProxyRequestTimeoutMs,
+    proxyTimeout: ProxyRequestTimeoutMs,
     pathRewrite: (_path, req: Request) => req.originalUrl,
     on: {
       error: handleProxyError,
