@@ -28,7 +28,17 @@ export type TSpawn = {
    * stdin to `pipe` regardless of the `stdio` option.
    */
   stdin?: string
+  /**
+   * Upper bound in ms on the child process's total lifetime. On firing:
+   * SIGTERM, then SIGKILL after a grace period if the process hasn't exited,
+   * and the returned promise rejects with a clear timeout error. Undefined
+   * (the default) preserves the existing unbounded behavior.
+   */
+  timeoutMs?: number
 }
+
+/** Grace period between SIGTERM and SIGKILL once a spawn's timeoutMs fires. */
+const TimeoutKillGraceMS = 5_000
 
 /** Flags whose immediately-following arg is a secret and must never be logged. */
 const SensitiveArgFlags = new Set([`-p`, `-P`, `--password`, `--token`, `--secret`])
@@ -100,6 +110,7 @@ export const spawn = async (props: TSpawn) => {
         args = emptyArr,
         detached = false,
         stdio = `inherit`,
+        timeoutMs,
       } = props
 
       const cwd = props.cwd || hq.get(`webpack`)[`@ROOT`]
@@ -133,7 +144,36 @@ export const spawn = async (props: TSpawn) => {
 
       const cleanupEvents = events(child)
 
+      // Tracks real process exit, distinct from `finished` (promise settled)
+      // — a timeout rejects the promise immediately on SIGTERM but the kill
+      // timer still needs to know whether the SIGKILL follow-up is required.
+      let exited = false
+      let timeoutTimer: NodeJS.Timeout | undefined
+      let killTimer: NodeJS.Timeout | undefined
+      const clearTimers = () => {
+        clearTimeout(timeoutTimer)
+        clearTimeout(killTimer)
+      }
+
+      if (timeoutMs !== undefined)
+        timeoutTimer = setTimeout(() => {
+          if (exited) return
+          child.kill(`SIGTERM`)
+          killTimer = setTimeout(() => {
+            if (!exited) child.kill(`SIGKILL`)
+          }, TimeoutKillGraceMS)
+          if (finished) return
+          finished = true
+          rej(
+            new Error(
+              `Command timed out after ${timeoutMs}ms: ${[cmd, ...args].join(` `)}`
+            )
+          )
+        }, timeoutMs)
+
       child?.on(`close`, async (code) => {
+        exited = true
+        clearTimers()
         cleanupEvents()
         prom.process = undefined
         await close?.(code)
@@ -143,6 +183,8 @@ export const spawn = async (props: TSpawn) => {
       })
 
       child?.on(`exit`, async (code, pid) => {
+        exited = true
+        clearTimers()
         cleanupEvents()
         prom.process = undefined
         await onexit?.(code, pid)
@@ -152,6 +194,8 @@ export const spawn = async (props: TSpawn) => {
       })
 
       child?.on(`error`, async (err) => {
+        exited = true
+        clearTimers()
         cleanupEvents()
         prom.process = undefined
         await error?.(err)
