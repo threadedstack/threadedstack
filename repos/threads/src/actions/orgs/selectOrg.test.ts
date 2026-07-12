@@ -84,6 +84,7 @@ describe(`selectOrg`, () => {
     expect(currentOrgId).toBe(`orgA`)
     expect(sandboxes).toEqual([{ id: `sb_1` }])
     expect(projects).toEqual([{ id: `pj_1` }])
+    expect(mockMonitorConnect).toHaveBeenCalledTimes(1)
     expect(mockMonitorConnect).toHaveBeenCalledWith(`orgA`)
   })
 
@@ -115,6 +116,11 @@ describe(`selectOrg`, () => {
     expect(currentOrgId).toBe(`orgB`)
     expect(sandboxes).toEqual([{ id: `sb_B` }])
     expect(projects).toEqual([{ id: `pj_B` }])
+
+    // The monitor WebSocket must only ever connect to the winning org — org
+    // A's late resolution must not reconnect it to the stale org.
+    expect(mockMonitorConnect).toHaveBeenCalledTimes(1)
+    expect(mockMonitorConnect).toHaveBeenCalledWith(`orgB`)
   })
 
   it(`still commits when the org selected is the only one ever selected, even if slow`, async () => {
