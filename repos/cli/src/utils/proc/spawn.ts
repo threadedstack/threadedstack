@@ -50,19 +50,34 @@ export type TSpawnProm = Promise<number> & {
   process?: ChildProcess
 }
 
+const ProcessExitEvents = [
+  `exit`,
+  `SIGINT`,
+  `SIGUSR1`,
+  `SIGUSR2`,
+  `uncaughtException`,
+  `SIGTERM`,
+] as const
+
 /**
- * Array to capture process exits and call handleExit method
+ * Registers process-level listeners so an in-flight child is killed if the
+ * CLI process itself is exiting. Returns a cleanup function that removes
+ * them — must be called once the child's own lifecycle concludes (close/
+ * exit/error), or every spawn() call leaks 6 listeners onto the shared
+ * global `process` object for the life of the CLI process.
  */
 const events = (child: ChildProcess) => {
-  ;[`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach(
-    (event) =>
-      process.on(event, () => {
-        if ((child as any).__spOnExitCalled) return
+  const handler = () => {
+    if ((child as any).__spOnExitCalled) return
 
-        ;(child as any).__spOnExitCalled = true
-        child.kill(`SIGKILL`)
-      })
-  )
+    ;(child as any).__spOnExitCalled = true
+    child.kill(`SIGKILL`)
+  }
+
+  ProcessExitEvents.forEach((event) => process.on(event, handler))
+
+  return () =>
+    ProcessExitEvents.forEach((event) => process.removeListener(event, handler))
 }
 
 export const spawn = async (props: TSpawn) => {
@@ -116,7 +131,10 @@ export const spawn = async (props: TSpawn) => {
       child?.stdout?.setEncoding?.(`utf-8`)
       child?.stderr?.setEncoding?.(`utf-8`)
 
+      const cleanupEvents = events(child)
+
       child?.on(`close`, async (code) => {
+        cleanupEvents()
         prom.process = undefined
         await close?.(code)
         if (finished) return
@@ -125,6 +143,7 @@ export const spawn = async (props: TSpawn) => {
       })
 
       child?.on(`exit`, async (code, pid) => {
+        cleanupEvents()
         prom.process = undefined
         await onexit?.(code, pid)
         if (finished) return
@@ -133,6 +152,7 @@ export const spawn = async (props: TSpawn) => {
       })
 
       child?.on(`error`, async (err) => {
+        cleanupEvents()
         prom.process = undefined
         await error?.(err)
         finished = true
@@ -148,8 +168,6 @@ export const spawn = async (props: TSpawn) => {
         output && Logger.stderr(data)
         await stderr?.(data)
       })
-
-      events(child)
     } catch (err) {
       prom.process = undefined
       await props?.error?.(err)
