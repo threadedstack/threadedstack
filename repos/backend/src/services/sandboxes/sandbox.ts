@@ -735,10 +735,8 @@ export class SandboxService {
     const sandboxOrgPairs = new Map<string, string>()
     for (const s of instanceSessions) sandboxOrgPairs.set(s.sandboxId, s.orgId)
 
-    for (const sandboxId of sandboxOrgPairs.keys()) {
-      for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
-        this.removeShellSession(shell.sessionId)
-      }
+    for (const shell of this.getShellSessionsForInstance(instanceId)) {
+      this.removeShellSession(shell.sessionId)
     }
 
     const dkrSecrets = this.dockerSecrets.get(instanceId)
@@ -876,7 +874,7 @@ export class SandboxService {
 
   async gracefulStopPod(instanceId: string, sandboxId: string): Promise<void> {
     try {
-      this.notifyShellClients(sandboxId, { type: `sandbox-stopping`, sandboxId })
+      this.notifyInstanceShellClients(instanceId, { type: `sandbox-stopping`, sandboxId })
     } catch (err) {
       logger.warn(
         `[Sandbox] Failed to notify shell clients before stop:`,
@@ -1053,6 +1051,14 @@ export class SandboxService {
     return result
   }
 
+  getShellSessionsForInstance(instanceId: string): TShellSession[] {
+    const result: TShellSession[] = []
+    for (const session of this.shellSessions.values()) {
+      if (session.instanceId === instanceId) result.push(session)
+    }
+    return result
+  }
+
   getOrgShellSessionCount(orgId: string): number {
     let count = 0
     for (const session of this.shellSessions.values()) {
@@ -1212,6 +1218,26 @@ export class SandboxService {
     session.attachments.clear()
     this.shellSessions.delete(sessionId)
     this.broadcastSessionList(sandboxId)
+  }
+
+  /**
+   * Like notifyShellClients, but scoped to the shell sessions attached to a
+   * single instance — used when only that instance is being stopped, so
+   * viewers of sibling instances of the same sandbox config aren't notified.
+   */
+  notifyInstanceShellClients(instanceId: string, message: Record<string, any>): void {
+    const payload = JSON.stringify(message)
+    for (const session of this.getShellSessionsForInstance(instanceId)) {
+      for (const ws of session.attachments) {
+        if (ws.readyState === 1) {
+          try {
+            ws.send(payload)
+          } catch (err) {
+            logger.warn(`[ShellSession] Failed to notify client:`, (err as Error).message)
+          }
+        }
+      }
+    }
   }
 
   notifyShellClients(sandboxId: string, message: Record<string, any>): void {

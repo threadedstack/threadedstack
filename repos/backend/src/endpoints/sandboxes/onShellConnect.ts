@@ -511,6 +511,7 @@ export const onShellConnect = async (
     orgId,
     userId,
     sandboxId,
+    instanceId,
     sessionId,
     projectId,
     stdoutUpload,
