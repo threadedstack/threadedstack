@@ -21,6 +21,8 @@ export type TEndpointTestRes = {
   data?: TEndpointTestResult
 }
 
+const TestRequestTimeoutMs = 30_000
+
 export class EndpointTestApi extends BaseApi {
   async execute(
     projectId: string,
@@ -48,6 +50,7 @@ export class EndpointTestApi extends BaseApi {
         method,
         body: body || undefined,
         headers: { ...authHeaders, ...headers },
+        signal: AbortSignal.timeout(TestRequestTimeoutMs),
       })
 
       const timing = Math.round(performance.now() - start)
@@ -64,6 +67,12 @@ export class EndpointTestApi extends BaseApi {
         },
       }
     } catch (err) {
+      if ((err as { name?: string })?.name === `TimeoutError`) {
+        return {
+          error: new Error(`Request timed out after ${TestRequestTimeoutMs / 1000}s`),
+        }
+      }
+
       return {
         error: err instanceof Error ? err : new Error(String(err)),
       }
