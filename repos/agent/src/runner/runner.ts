@@ -393,18 +393,16 @@ export class AgentRunner {
     const { prompt, images, files, signal } = opts
     const initOpts = this.#opts
 
-    // 0. Resolve active skills for this turn's prompt and update system prompt + tools
+    // 0. Resolve active skills for this turn's prompt and update system prompt + tools.
+    // Always recompute tools (not just when a skill matches) so a tool granted by a
+    // skill that was active on a prior turn is revoked once that skill stops matching.
     if (initOpts.skills?.length) {
       const resolved = resolveActiveSkills(initOpts.skills, prompt)
       const updatedPrompt = this.#baseSystemPrompt + resolved.instructions
       this.#agent!.state.systemPrompt = updatedPrompt
 
-      if (resolved.tools.length > 0) {
-        const mergedToolNames = [
-          ...new Set([...(initOpts.tools || []), ...resolved.tools]),
-        ]
-        this.#agent!.state.tools = this.#buildTools(mergedToolNames)
-      }
+      const mergedToolNames = [...new Set([...(initOpts.tools || []), ...resolved.tools])]
+      this.#agent!.state.tools = this.#buildTools(mergedToolNames)
     }
 
     // 1. Wire abort signal for this turn
