@@ -1569,6 +1569,103 @@ describe(`AgentRunner`, () => {
     })
   })
 
+  describe(`destroy() awaits an in-flight turn (rec_ae3fLu)`, () => {
+    it(`waits for a late tool-completion persistence write before tearing down, instead of dropping it`, async () => {
+      const subscribers: Array<(event: AgentEvent) => void> = []
+      mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+        subscribers.push(fn)
+        return vi.fn()
+      })
+
+      const events: string[] = []
+
+      let waitForIdleCalled = false
+      let resolveWaitForIdle: () => void = () => {}
+      mockWaitForIdle.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            waitForIdleCalled = true
+            resolveWaitForIdle = resolve
+          })
+      )
+
+      let resolveLatePersist: () => void = () => {}
+      const latePersistPromise = new Promise((resolve) => {
+        resolveLatePersist = () => {
+          events.push(`persist-resolved`)
+          resolve({})
+        }
+      })
+      mockDb.createMessage.mockImplementation((args: any) =>
+        args?.type === `assistant` ? latePersistPromise : Promise.resolve({})
+      )
+
+      const runner = new AgentRunner()
+      const opts = baseOpts()
+      const { prompt, images, signal, ...initOpts } = opts
+      await runner.init(initOpts)
+      await runner.runTurn({ prompt })
+
+      // Simulate a fast client disconnect: destroy() is called while the
+      // turn is still in flight (waitForIdle hasn't resolved yet).
+      const destroyPromise = runner.destroy().then(() => {
+        events.push(`destroy-resolved`)
+      })
+
+      // The tool call finishes and its (delayed) turn_end fires AFTER
+      // destroy() has already been invoked — this late event must still be
+      // captured, not dropped, because the subscription is still active.
+      const initSubscriber = subscribers[0]
+      initSubscriber?.({
+        type: `turn_end`,
+        message: { role: `assistant`, content: [{ type: `text`, text: `late result` }] },
+        toolResults: [],
+      } as any)
+
+      // The internal run needs a few microtask hops (past the user-message
+      // save, agent.prompt(), etc.) before it actually reaches
+      // agent.waitForIdle() — wait for that call to actually happen rather
+      // than guessing a fixed number of ticks.
+      while (!waitForIdleCalled) await Promise.resolve()
+
+      // Let the aborted run actually settle now.
+      resolveWaitForIdle()
+      await Promise.resolve()
+      await Promise.resolve()
+      resolveLatePersist()
+
+      await destroyPromise
+
+      expect(mockAbort).toHaveBeenCalled()
+      expect(events).toEqual([`persist-resolved`, `destroy-resolved`])
+    })
+
+    it(`still resolves in bounded time when the in-flight turn never settles`, async () => {
+      vi.useFakeTimers()
+
+      mockWaitForIdle.mockImplementation(() => new Promise<void>(() => {}))
+
+      const runner = new AgentRunner()
+      const opts = baseOpts()
+      const { prompt, images, signal, ...initOpts } = opts
+      await runner.init(initOpts)
+      await runner.runTurn({ prompt })
+
+      let destroyed = false
+      const destroyPromise = runner.destroy().then(() => {
+        destroyed = true
+      })
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await destroyPromise
+
+      expect(destroyed).toBe(true)
+      expect(mockAbort).toHaveBeenCalled()
+
+      vi.useRealTimers()
+    })
+  })
+
   describe(`context compaction passthrough`, () => {
     it(`should pass compaction opts to createContextManager when enabled`, async () => {
       const opts = {
