@@ -2052,7 +2052,8 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Failed)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      // getPodState + the condition-summary fetch on the throw path
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
     })
 
     it(`should throw immediately when the pod is Succeeded`, async () => {
@@ -2062,7 +2063,7 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Succeeded)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
     })
 
     it(`should throw immediately when the pod is Terminating`, async () => {
@@ -2074,7 +2075,52 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Terminating)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
+    })
+
+    it(`should append the pod condition summary to the terminal-state error when available`, async () => {
+      mockToContainerState.mockReturnValue(EContainerState.Failed)
+      kube.getPod.mockResolvedValue({
+        status: {
+          phase: `Failed`,
+          conditions: [
+            {
+              type: `PodScheduled`,
+              status: `False`,
+              reason: `Unschedulable`,
+              message: `0/3 nodes are available`,
+            },
+          ],
+        },
+      })
+
+      await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
+        `Pod pod-a will never become ready (state: Failed) — conditions: PodScheduled=False (Unschedulable): 0/3 nodes are available`
+      )
+    })
+
+    it(`should append the pod condition summary to the timeout error when available`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockReturnValue(EContainerState.Pending)
+        kube.getPod.mockResolvedValue({
+          status: {
+            phase: `Pending`,
+            conditions: [
+              { type: `PodScheduled`, status: `False`, reason: `Unschedulable` },
+            ],
+          },
+        })
+
+        const promise = svc.waitForPodReady(`pod-a`, { timeoutMs: 10_000 })
+        const rejection = expect(promise).rejects.toThrow(
+          `Timed out after 10s waiting for pod pod-a to be ready (state: Pending) — conditions: PodScheduled=False (Unschedulable)`
+        )
+        await vi.advanceTimersByTimeAsync(12_000)
+        await rejection
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it(`should poll the in-pod clone check until success when cloneCheck is set`, async () => {
