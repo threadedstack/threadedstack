@@ -107,8 +107,25 @@ export const AssetsTab = (props: TAssetsTab) => {
   }
 
   const onDownloadAsset = (asset: Asset) => {
-    // TODO: Implement asset download
-    console.log('Download asset:', asset)
+    if (asset.url) {
+      window.open(asset.url, `_blank`)
+      return
+    }
+
+    if (asset.content === undefined) return
+
+    const isObject = typeof asset.content === 'object' && asset.content !== null
+    const text = isObject ? JSON.stringify(asset.content, null, 2) : String(asset.content)
+    const blob = new Blob([text], { type: isObject ? `application/json` : `text/plain` })
+    const url = URL.createObjectURL(blob)
+
+    const anchor = document.createElement(`a`)
+    anchor.href = url
+    anchor.download = asset.name
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
   }
 
   return (
