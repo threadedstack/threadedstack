@@ -440,7 +440,15 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
           output: result.output,
         })
 
-        await pump.pump(result.output)
+        const pumpReport = await pump.pump(result.output)
+        if (pumpReport.discardedActionBlocks > 0)
+          log.warn(
+            `Turn ${currentActivity} emitted ${pumpReport.discardedActionBlocks} extra tdsk-actions block(s) beyond the first — only the last block's actions were dispatched, the rest were silently discarded`
+          )
+        if (pumpReport.failed > 0)
+          log.warn(
+            `Turn ${currentActivity} had ${pumpReport.failed} action dispatch failure(s)${pumpReport.allowlistRejected > 0 ? ` (${pumpReport.allowlistRejected} allowlist-rejected)` : ``}`
+          )
 
         if (subAgents)
           for (const request of parseSpawnBlock(result.output)) {

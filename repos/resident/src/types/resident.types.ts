@@ -290,6 +290,8 @@ export type TPumpReport = {
   dispatched: number
   failed: number
   allowlistRejected: number
+  /** Extra ```tdsk-actions``` fenced blocks beyond the first found in one turn's output — each one's actions were silently discarded (only the last block is ever parsed). */
+  discardedActionBlocks: number
   memoriesSkipped: number
   /** ```tdsk-author-function``` submissions accepted by the platform. */
   functionsAuthored: number
