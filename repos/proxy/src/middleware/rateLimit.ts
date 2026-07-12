@@ -1,8 +1,7 @@
 import type { TProxyApp } from '@TPX/types'
 import type { Request } from 'express'
-import type rateLimit from 'express-rate-limit'
 import type { Options } from 'express-rate-limit'
-import { ipKeyGenerator } from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 
 const authLimiter = rateLimit({
   limit: 20,
