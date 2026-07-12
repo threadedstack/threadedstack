@@ -107,6 +107,11 @@ export class PiTuiApp {
     this.#editor.onSubmit = (text: string) => {
       const trimmed = text.trim()
       if (!trimmed) return
+      // A turn is still streaming -- ignore the keystroke rather than firing
+      // a second handleSubmit() concurrently, which corrupts the shared
+      // stream buffer and orphans the first turn's WebSocket. The typed
+      // text is left in the editor so the user can resubmit once idle.
+      if (this.#logic.isStreaming) return
 
       this.#editor.addToHistory(trimmed)
       this.#editor.setText(``)
