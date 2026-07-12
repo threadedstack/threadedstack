@@ -86,3 +86,7 @@ export {
   sandboxProjectProviders,
   sandboxProjectProvidersRelations,
 } from '@TDB/schemas/sandboxProjectProviders'
+export {
+  sandboxStartingClaims,
+  sandboxStartingClaimsRelations,
+} from '@TDB/schemas/sandboxStartingClaims'

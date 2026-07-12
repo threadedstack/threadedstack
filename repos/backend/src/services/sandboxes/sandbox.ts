@@ -94,7 +94,6 @@ export class SandboxService {
   private passwords = new Map<string, string>()
   private dockerSecrets = new Map<string, string[]>()
   private instanceActivity = new Map<string, number>()
-  private startingInstances = new Map<string, number>()
   private orgMonitors = new Map<string, Set<WebSocket>>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
@@ -693,25 +692,23 @@ export class SandboxService {
       .map((p) => p.metadata!.name!)
   }
 
-  isStarting(sandboxId: string): boolean {
-    return (this.startingInstances.get(sandboxId) ?? 0) > 0
+  /**
+   * Atomically claim the "starting" slot for a sandbox across ALL backend
+   * replicas — backed by a DB partial-unique-index (see sandboxStartingClaims
+   * schema), not a process-local Map, so two replicas racing the same
+   * sandbox connect/start request can't both pass the maxInstances check and
+   * both call startPod(). Returns `conflict: true` when another start is
+   * already in flight for this sandbox.
+   */
+  async claimStarting(sandboxId: string): Promise<{ conflict: boolean }> {
+    const resp = await this.db.services.sandboxStartingClaim.claimStarting(sandboxId)
+    if (resp.error) throw resp.error
+    return { conflict: Boolean(resp.conflict) }
   }
 
-  countStarting(sandboxId: string): number {
-    return this.startingInstances.get(sandboxId) ?? 0
-  }
-
-  markStarting(sandboxId: string): void {
-    this.startingInstances.set(
-      sandboxId,
-      (this.startingInstances.get(sandboxId) ?? 0) + 1
-    )
-  }
-
-  clearStarting(sandboxId: string): void {
-    const count = this.startingInstances.get(sandboxId) ?? 0
-    if (count <= 1) this.startingInstances.delete(sandboxId)
-    else this.startingInstances.set(sandboxId, count - 1)
+  async releaseStarting(sandboxId: string): Promise<void> {
+    const resp = await this.db.services.sandboxStartingClaim.releaseStarting(sandboxId)
+    if (resp.error) throw resp.error
   }
 
   private rollbackDockerSecrets(names: string[]): void {

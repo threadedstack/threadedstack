@@ -136,6 +136,10 @@ const makeDb = () => ({
     provider: {
       get: vi.fn().mockResolvedValue({ data: null, error: null }),
     },
+    sandboxStartingClaim: {
+      claimStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
+      releaseStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
+    },
   },
 })
 
@@ -3237,6 +3241,51 @@ describe(`SandboxService`, () => {
       } as any)
 
       expect(ws3.send).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`claimStarting / releaseStarting`, () => {
+    it(`delegates to db.services.sandboxStartingClaim.claimStarting and reports no conflict`, async () => {
+      const resp = await svc.claimStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.claimStarting).toHaveBeenCalledWith(`sb-1`)
+      expect(resp).toEqual({ conflict: false })
+    })
+
+    it(`reports a conflict when the DB claim is already held (two concurrent calls: exactly one wins)`, async () => {
+      db.services.sandboxStartingClaim.claimStarting
+        .mockResolvedValueOnce({ data: { id: `ssc_test01` } })
+        .mockResolvedValueOnce({ data: null, conflict: true })
+
+      const first = await svc.claimStarting(`sb-1`)
+      const second = await svc.claimStarting(`sb-1`)
+
+      expect(first).toEqual({ conflict: false })
+      expect(second).toEqual({ conflict: true })
+    })
+
+    it(`throws when the DB claim call errors`, async () => {
+      db.services.sandboxStartingClaim.claimStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.claimStarting(`sb-1`)).rejects.toThrow(`db down`)
+    })
+
+    it(`delegates to db.services.sandboxStartingClaim.releaseStarting`, async () => {
+      await svc.releaseStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.releaseStarting).toHaveBeenCalledWith(
+        `sb-1`
+      )
+    })
+
+    it(`throws when the DB release call errors`, async () => {
+      db.services.sandboxStartingClaim.releaseStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.releaseStarting(`sb-1`)).rejects.toThrow(`db down`)
     })
   })
 })

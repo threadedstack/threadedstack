@@ -26,18 +26,23 @@ export const startSandbox: TEndpointConfig = {
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
     const activeInstances = await sb.findActiveInstances(sandbox.id, sandbox.orgId)
-    const startingCount = sb.countStarting(sandbox.id)
-    const activeCount = activeInstances.length + startingCount
     const maxInstances = sandbox.config.maxInstances ?? DefaultMaxInstances
 
-    if (activeCount >= maxInstances)
+    if (activeInstances.length >= maxInstances)
       throw new Exception(
         409,
         `Sandbox has reached maximum instances (${maxInstances})`,
         `max_instances`
       )
 
-    sb.markStarting(sandbox.id)
+    const claim = await sb.claimStarting(sandbox.id)
+    if (claim.conflict)
+      throw new Exception(
+        409,
+        `Sandbox has reached maximum instances (${maxInstances})`,
+        `max_instances`
+      )
+
     let instanceId: string
     try {
       instanceId = await sb.startPod({
@@ -48,7 +53,7 @@ export const startSandbox: TEndpointConfig = {
         egressOpts: config.egress,
       })
     } finally {
-      sb.clearStarting(sandbox.id)
+      await sb.releaseStarting(sandbox.id)
     }
 
     res.status(201).json({ data: { instanceId } })

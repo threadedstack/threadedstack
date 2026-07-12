@@ -15,6 +15,13 @@
       "when": 1783789549606,
       "tag": "0001_previous_blazing_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783834502410,
+      "tag": "0002_amazing_slyde",
+      "breakpoints": true
     }
   ]
 }

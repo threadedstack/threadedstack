@@ -40,3 +40,4 @@ export const OpsActionIdPrefix = `op_`
 export const SandboxProjectProviderIdPrefix = `xp_`
 export const CollectionIdPrefix = `col_`
 export const RecordIdPrefix = `rec_`
+export const SandboxStartingClaimIdPrefix = `ssc_`
