@@ -112,7 +112,7 @@ describe(`Invitations endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGetPending).toHaveBeenCalledWith(`org-1`)
+      expect(mockGetPending).toHaveBeenCalledWith(`org-1`, { limit: 50, offset: 0 })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
@@ -148,7 +148,7 @@ describe(`Invitations endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGetAll).toHaveBeenCalledWith(`org-1`)
+      expect(mockGetAll).toHaveBeenCalledWith(`org-1`, { limit: 50, offset: 0 })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
@@ -177,13 +177,27 @@ describe(`Invitations endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGetPending).toHaveBeenCalledWith(`org-1`, { limit: 10, offset: 20 })
       expect(mockStatus).toHaveBeenCalledWith(200)
       const response = mockJson.mock.calls[0][0]
       expect(response.limit).toBe(10)
       expect(response.offset).toBe(20)
     })
 
-    it(`should filter by specific status when provided`, async () => {
+    it(`should pass limit/offset through to getAllByOrg for the 'all' status`, async () => {
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { status: `all`, limit: `10`, offset: `20` }
+
+      const mockGetAll = mockReq.app?.locals.db.services.invitation
+        .getAllByOrg as ReturnType<typeof vi.fn>
+      mockGetAll.mockResolvedValue({ data: [] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGetAll).toHaveBeenCalledWith(`org-1`, { limit: 10, offset: 20 })
+    })
+
+    it(`should filter by specific status at the DB level when provided`, async () => {
       const mockInvitations = [
         new Invitation({
           id: `inv-1`,
@@ -191,13 +205,6 @@ describe(`Invitations endpoints`, () => {
           orgId: `org-1`,
           roleType: ERoleType.member,
           status: `accepted`,
-        }),
-        new Invitation({
-          id: `inv-2`,
-          email: `user2@example.com`,
-          orgId: `org-1`,
-          roleType: ERoleType.member,
-          status: `revoked`,
         }),
       ]
       mockReq.params = { orgId: `org-1` }
@@ -209,10 +216,32 @@ describe(`Invitations endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGetAll).toHaveBeenCalledWith(`org-1`, {
+        limit: 50,
+        offset: 0,
+        status: `accepted`,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
       expect(responseData[0].status).toBe(`accepted`)
+    })
+
+    it(`should pass limit/offset alongside status when filtering a specific status`, async () => {
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { status: `revoked`, limit: `5`, offset: `15` }
+
+      const mockGetAll = mockReq.app?.locals.db.services.invitation
+        .getAllByOrg as ReturnType<typeof vi.fn>
+      mockGetAll.mockResolvedValue({ data: [] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGetAll).toHaveBeenCalledWith(`org-1`, {
+        limit: 5,
+        offset: 15,
+        status: `revoked`,
+      })
     })
 
     it(`should return 500 on database error for pending`, async () => {
