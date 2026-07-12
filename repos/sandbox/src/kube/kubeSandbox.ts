@@ -50,9 +50,15 @@ export class KubeSandbox implements ISandbox {
    * Delegates to the K8s Exec API via KubeClient.runInPod().
    * Does NOT use child_process — no host-level shell access. Commands run inside the pod via sh -c.
    */
-  exec = async (command: string, args: string[] = []): Promise<TSandboxResult> => {
+  exec = async (
+    command: string,
+    args: string[] = [],
+    signal?: AbortSignal
+  ): Promise<TSandboxResult> => {
     const cmd = args.length ? `${command} ${args.join(` `)}` : command
-    return await this.client.runInPod(this.podName, [`sh`, `-c`, cmd])
+    return signal
+      ? await this.client.runInPod(this.podName, [`sh`, `-c`, cmd], undefined, { signal })
+      : await this.client.runInPod(this.podName, [`sh`, `-c`, cmd])
   }
 
   execStreaming = async (

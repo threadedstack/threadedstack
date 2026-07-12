@@ -97,6 +97,20 @@ describe(`LocalSandbox`, () => {
       const result = await sandbox.exec(`test`)
       expect(result.error).toBeUndefined()
     })
+
+    it(`should accept a signal param for ISandbox interface parity without forwarding it to bash.exec (advisory/no-op — just-bash has no cancellation mechanism)`, async () => {
+      mockBash.exec.mockResolvedValue({
+        exitCode: 0,
+        stdout: `hello`,
+        stderr: ``,
+      })
+      const controller = new AbortController()
+
+      const result = await sandbox.exec(`echo`, [`hello`], controller.signal)
+
+      expect(mockBash.exec).toHaveBeenCalledWith(`echo hello`, { cwd: `/workspace` })
+      expect(result.success).toBe(true)
+    })
   })
 
   describe(`readFile`, () => {

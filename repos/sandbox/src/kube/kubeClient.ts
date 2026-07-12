@@ -240,6 +240,7 @@ export class KubeClient {
         if (settled) return
         settled = true
         clearTimeout(timer)
+        opts?.signal?.removeEventListener(`abort`, onAbort)
         run()
       }
 
@@ -256,6 +257,21 @@ export class KubeClient {
           reject(new Error(`runInPod timed out after ${timeoutMs}ms for pod ${podName}`))
         })
       }, timeoutMs)
+
+      const onAbort = () => {
+        settle(() => {
+          try {
+            execWs?.close()
+          } catch (err) {
+            logger.warn(
+              `[KubeClient] Failed to close exec WebSocket after abort for pod ${podName}:`,
+              (err as Error).message
+            )
+          }
+          reject(new Error(`runInPod aborted for pod ${podName}`))
+        })
+      }
+      opts?.signal?.addEventListener(`abort`, onAbort)
 
       stdoutStream.on(`data`, (chunk: Buffer) => {
         opts?.onStdout?.(chunk)
