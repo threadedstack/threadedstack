@@ -14,8 +14,9 @@ import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
 import { buildConnectorBridges, connectContextCode } from './connectorCapability'
 import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
+import { markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import { createSandboxProvider } from '@tdsk/sandbox'
-import { EFunLanguage, ESandboxType } from '@tdsk/domain'
+import { EFunLanguage, ESandboxType, ETaskProposalStatus } from '@tdsk/domain'
 import {
   PoolTtlMS,
   PoolMaxSize,
@@ -335,6 +336,55 @@ const scanContextCode = `context.scan = (() => {
   };
 })();`
 
+/** Bridge-callback names exposed to the isolate for the task-proposal promotion capability. */
+const TaskProposalsBridge = {
+  promote: `taskProposals.promote`,
+} as const
+
+/**
+ * Wrap the task-proposal promotion pipeline as a JSON-marshalling host bridge.
+ * `task_proposals` is the platform's authoritative SQL table, not a project
+ * Collection, so a Function has no way to reach it through `context.records`
+ * (whose scope is deliberately the tenant's own Collections) — writing to the
+ * project's `task_proposals` Collection only ever updates a best-effort mirror
+ * that a later table->collection backfill can silently clobber. This bridge is
+ * the ONE sanctioned path: it resolves the Function's own project to its
+ * owning org, then runs the exact `markTaskPromoted` pipeline the work-cycle
+ * pickup uses (idempotent — an already-terminal proposal is a no-op, and the
+ * Collection mirror updates as a side effect). Only the id/note and the
+ * boolean outcome cross the isolate boundary — never the db handle.
+ */
+const buildTaskProposalsBridges = (
+  db: TDatabase,
+  projectId: string,
+  caller?: { agentId?: string; scheduleId?: string }
+): Record<string, (argsJson: string) => Promise<string>> => ({
+  [TaskProposalsBridge.promote]: async (argsJson) => {
+    const [id, note] = JSON.parse(argsJson) as [string, string?]
+    const { data: project, error } = await db.services.project.get(projectId)
+    if (error || !project) return JSON.stringify({ promoted: false })
+    const status = await markTaskPromoted(
+      db,
+      project.orgId,
+      { proposalId: id, note },
+      caller?.agentId
+    )
+    return JSON.stringify({ promoted: status === ETaskProposalStatus.promoted })
+  },
+})
+
+/**
+ * Reconstruct `context.taskProposals` inside the isolate from the
+ * `__hostCall` host bridge — same marshalling shape as `recordsContextCode`.
+ * Only emitted when the task-proposals bridge is passed in.
+ */
+const taskProposalsContextCode = `context.taskProposals = (() => {
+  const call = (name, args) => __hostCall(name, JSON.stringify(args)).then((r) => JSON.parse(r));
+  return {
+    promote: (id, note) => call('${TaskProposalsBridge.promote}', [id, note]),
+  };
+})();`
+
 /**
  * Reconstruct `context.records` inside the isolate from the `__hostCall` host
  * bridge. Each method marshals a JSON args array out through the bridge and
@@ -362,7 +412,8 @@ const buildWrapperCode = (
   context: TFunctionContext,
   withRecords = false,
   withScan = false,
-  withConnect = false
+  withConnect = false,
+  withTaskProposals = false
 ): string => {
   const requestJson = JSON.stringify(request)
   const contextJson = JSON.stringify(context)
@@ -370,7 +421,7 @@ const buildWrapperCode = (
   return `import handler from 'function';
 const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
-${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}${withConnect ? `${connectContextCode}\n` : ``}let output;
+${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}${withConnect ? `${connectContextCode}\n` : ``}${withTaskProposals ? `${taskProposalsContextCode}\n` : ``}let output;
 try {
   const raw = await handler(request, context);
   output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
@@ -420,9 +471,11 @@ export class FunctionExecutor {
 
       // Build the host-bridge surface (only when a db handle is supplied and the
       // function is project-scoped). The records bridge closures keep the db
-      // handle host-side; the scan bridge is dependency-free and rides along
-      // whenever the surface is built — only callback refs + JSON payloads cross
-      // into the isolate. The bridgeless path stays byte-identical.
+      // handle host-side; the scan bridge is dependency-free and the
+      // taskProposals bridge (the authoritative task_proposals table, which is
+      // NOT a project Collection) both ride along whenever the surface is
+      // built — only callback refs + JSON payloads cross into the isolate. The
+      // bridgeless path stays byte-identical.
       // `connect` rides the same db-gated bridge surface, wired when there is an
       // explicit endpoint grant OR a calling agent (which can reach endpoints it
       // authored via authorship=authorization). Still fail-closed: an
@@ -438,6 +491,7 @@ export class FunctionExecutor {
           ? {
               ...buildRecordsBridges(opts.db, func.projectId),
               ...buildScanBridges(),
+              ...buildTaskProposalsBridges(opts.db, func.projectId, opts.caller),
               ...(withConnect
                 ? buildConnectorBridges(
                     opts.db,
@@ -455,7 +509,8 @@ export class FunctionExecutor {
         opts?.context || {},
         Boolean(bridges),
         Boolean(bridges),
-        withConnect
+        withConnect,
+        Boolean(bridges)
       )
 
       // 4. Evaluate via V8 isolate with function code registered as module
