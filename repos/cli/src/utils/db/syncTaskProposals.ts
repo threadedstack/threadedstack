@@ -2,6 +2,7 @@ import type { TTaskActionArgs } from '@TSCL/types'
 
 import { Logger } from '@tdsk/logger'
 import { dbSpawn } from '@TSCL/utils/db/dbSpawn'
+import { DbReleaseSpawnTimeoutMS } from '@TSCL/constants'
 
 export type TSyncTaskProposals = {
   log?: boolean
@@ -27,7 +28,12 @@ export const syncTaskProposals = async (opts: TSyncTaskProposals): Promise<void>
   const { config, log } = opts
 
   try {
-    const code = await dbSpawn({ script: `sync:task-proposals`, config, log })
+    const code = await dbSpawn({
+      script: `sync:task-proposals`,
+      config,
+      log,
+      timeoutMs: DbReleaseSpawnTimeoutMS,
+    })
     if (code !== 0)
       Logger.warn(
         `  Task-proposal sync reported issues (exit ${code}); deploy continues — review the log above.`

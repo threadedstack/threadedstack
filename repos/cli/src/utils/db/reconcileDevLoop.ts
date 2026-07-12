@@ -2,6 +2,7 @@ import type { TTaskActionArgs } from '@TSCL/types'
 
 import { Logger } from '@tdsk/logger'
 import { dbSpawn } from '@TSCL/utils/db/dbSpawn'
+import { DbReleaseSpawnTimeoutMS } from '@TSCL/constants'
 
 export type TReconcileDevLoop = {
   log?: boolean
@@ -27,7 +28,12 @@ export const reconcileDevLoop = async (opts: TReconcileDevLoop): Promise<void> =
   const { config, log } = opts
 
   try {
-    const code = await dbSpawn({ script: `reconcile:dev-loop`, config, log })
+    const code = await dbSpawn({
+      script: `reconcile:dev-loop`,
+      config,
+      log,
+      timeoutMs: DbReleaseSpawnTimeoutMS,
+    })
     if (code !== 0)
       Logger.warn(
         `  Dev-loop reconcile reported issues (exit ${code}); deploy continues — review the log above.`

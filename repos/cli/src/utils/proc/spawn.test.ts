@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock(`@tdsk/logger`, () => ({
   Logger: { pair: vi.fn(), stdout: vi.fn(), stderr: vi.fn() },
@@ -31,6 +31,10 @@ describe(`spawn`, () => {
     vi.clearAllMocks()
     child = makeFakeChild()
     mockSpawn.mockReturnValue(child)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it(`writes and closes stdin when a stdin string is provided, forcing a pipe on fd 0`, async () => {
@@ -157,5 +161,69 @@ describe(`spawn`, () => {
     await expect(prom).rejects.toThrow(`spawn failed`)
 
     ProcessExitEvents.forEach((e, i) => expect(process.listenerCount(e)).toBe(before[i]))
+  })
+
+  describe(`timeoutMs`, () => {
+    it(`SIGTERMs a hanging process and rejects with a timeout error when timeoutMs elapses, then SIGKILLs after the grace period if it still hasn't exited`, async () => {
+      vi.useFakeTimers()
+
+      const prom = spawn({
+        cmd: `sleep`,
+        args: [`9999`],
+        cwd: `/tmp`,
+        timeoutMs: 1_000,
+      })
+      prom.catch(() => {})
+
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(child.kill).toHaveBeenCalledWith(`SIGTERM`)
+      await expect(prom).rejects.toThrow(`Command timed out after 1000ms: sleep 9999`)
+
+      expect(child.kill).not.toHaveBeenCalledWith(`SIGKILL`)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(child.kill).toHaveBeenCalledWith(`SIGKILL`)
+    })
+
+    it(`does not SIGKILL after the grace period if the process already exited from the SIGTERM`, async () => {
+      vi.useFakeTimers()
+
+      const prom = spawn({
+        cmd: `sleep`,
+        args: [`9999`],
+        cwd: `/tmp`,
+        timeoutMs: 1_000,
+      })
+      prom.catch(() => {})
+
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(child.kill).toHaveBeenCalledWith(`SIGTERM`)
+      await expect(prom).rejects.toThrow(`timed out`)
+
+      child.emit(`exit`, null, `SIGTERM`)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(child.kill).not.toHaveBeenCalledWith(`SIGKILL`)
+    })
+
+    it(`never fires the timeout/kill if the process closes on its own before timeoutMs elapses`, async () => {
+      vi.useFakeTimers()
+
+      const prom = spawn({ cmd: `echo`, args: [`hi`], cwd: `/tmp`, timeoutMs: 5_000 })
+      child.emit(`close`, 0)
+      await expect(prom).resolves.toBe(0)
+
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(child.kill).not.toHaveBeenCalled()
+    })
+
+    it(`never starts a timer when timeoutMs is not provided (unbounded, existing behavior)`, async () => {
+      vi.useFakeTimers()
+
+      const prom = spawn({ cmd: `sleep`, args: [`9999`], cwd: `/tmp` })
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000)
+      expect(child.kill).not.toHaveBeenCalled()
+
+      child.emit(`close`, 0)
+      await expect(prom).resolves.toBe(0)
+    })
   })
 })
