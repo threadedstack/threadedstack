@@ -20,7 +20,11 @@ import type {
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 
-import { DefSBConfig, PodReadyTimeoutMS } from '@TBE/constants/sandbox'
+import {
+  DefSBConfig,
+  PodReadyTimeoutMS,
+  SandboxProxyTimeoutMs,
+} from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
@@ -124,6 +128,8 @@ export class SandboxService {
       target,
       ws: false,
       changeOrigin: true,
+      timeout: SandboxProxyTimeoutMs,
+      proxyTimeout: SandboxProxyTimeoutMs,
       on: {
         error: (err: Error, _req: any, res: any) => {
           logger.error(`[SandboxProxy] Proxy error for ${target}:`, err.message)
