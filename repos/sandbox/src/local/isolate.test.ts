@@ -346,13 +346,38 @@ describe(`IsolateRunner`, () => {
       )
     })
 
-    it(`should return undefined when both structured clone and JSON fallback fail`, async () => {
+    it(`should set .error when both structured clone and the JSON fallback's own extraction fail`, async () => {
       // Both structured clone and bridge module get reject
       mockGet.mockRejectedValue(new Error(`clone failed`))
 
       const result = await runIsolate(runner, `export default { circular: true }`)
 
       expect(result.result).toBeUndefined()
+      expect(result.error).toContain(`clone failed`)
+    })
+
+    it(`should set .error when structured clone fails and the JSON fallback bridge itself throws`, async () => {
+      // Primary clone attempt (ns.get) rejects
+      mockGet.mockRejectedValueOnce(new Error(`#<Object> could not be cloned`))
+      // Shim modules and userModule.evaluate() all resolve normally, but the
+      // bridge's own evaluate() throws (e.g. JSON.stringify hitting a circular
+      // reference) — a distinct failure point from the bridge's extraction
+      // (namespace.get) failing. Matched by the bridge's hardcoded
+      // `{ timeout: 1000 }` call signature rather than call order, since init()
+      // evaluates every shim module before user code ever runs.
+      mockEvaluate.mockImplementation(async (opts?: any) => {
+        if (opts?.timeout === 1000)
+          throw new Error(`Converting circular structure to JSON`)
+        return undefined
+      })
+
+      const result = await runIsolate(runner, `export default { circular: true }`)
+
+      expect(result.result).toBeUndefined()
+      expect(result.error).toContain(`Converting circular structure to JSON`)
+
+      // Restore the default so later tests aren't affected by this override.
+      mockEvaluate.mockResolvedValue(undefined)
     })
   })
 
@@ -579,9 +604,7 @@ describe(`IsolateRunner`, () => {
 
       await runner.init()
 
-      await expect((runner as any).scrubGlobals()).rejects.toThrow(
-        `Array.prototype.push`
-      )
+      await expect((runner as any).scrubGlobals()).rejects.toThrow(`Array.prototype.push`)
     })
   })
 
