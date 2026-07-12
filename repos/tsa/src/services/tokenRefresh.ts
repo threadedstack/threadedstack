@@ -1,7 +1,7 @@
 import type { AuthManager } from '@TSA/services/auth'
 
 import { ConfigService } from '@TSA/services/config'
-import { RefreshBufferMs } from '@TSA/constants/api'
+import { RefreshBufferMs, TokenRefreshTimeoutMs } from '@TSA/constants/api'
 
 export class TokenRefreshService {
   #auth: AuthManager
@@ -56,6 +56,7 @@ export class TokenRefreshService {
           Accept: `application/json`,
           Authorization: `Bearer ${creds.token}`,
         },
+        signal: AbortSignal.timeout(TokenRefreshTimeoutMs),
       })
 
       if (!res.ok) {
