@@ -53,5 +53,7 @@ export const selectOrg = async (orgId: string) => {
     )
   })
 
-  monitorService.connect(orgId)
+  // Same stale-org guard as above — a losing selectOrg() call must not
+  // reconnect the live monitor WebSocket to an org that's no longer active.
+  if (getOrgId() === orgId) monitorService.connect(orgId)
 }
