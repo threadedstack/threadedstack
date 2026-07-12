@@ -34,6 +34,12 @@ type TAuthorResult = {
  * Create a task proposal, deduping first against any still-open proposal for
  * the same dedupe key, then running the security scan immediately.
  * Scan pass → status=scanned (eligible for the work cycle). Scan fail → status=rejected.
+ *
+ * Insert-first, not check-then-insert: two replicas racing the same dedupeKey
+ * both attempting createIfAbsent can no longer both succeed — the DB-level
+ * partial unique index (org_id, dedupe_key) WHERE status IN ('pending','scanned')
+ * means only one INSERT wins, and the loser re-fetches the winner's row via
+ * findOpenByDedupeKey rather than blindly inserting a duplicate.
  */
 export const authorTaskProposal = async (
   db: TDatabase,
@@ -42,18 +48,10 @@ export const authorTaskProposal = async (
   input: TTaskProposalInput,
   meta?: Record<string, any>
 ): Promise<TAuthorResult> => {
-  const { data: existing } = await db.services.taskProposal.findOpenByDedupeKey(
-    orgId,
-    input.dedupeKey
-  )
-
-  if (existing)
-    return { id: existing.id, status: existing.status, findings: [], deduped: true }
-
   const scan = scanTaskProposal(input)
   const status = scan.passed ? ETaskProposalStatus.scanned : ETaskProposalStatus.rejected
 
-  const { data, error } = await db.services.taskProposal.create({
+  const { data, error, conflict } = await db.services.taskProposal.createIfAbsent({
     orgId,
     agentId,
     title: input.title,
@@ -70,6 +68,17 @@ export const authorTaskProposal = async (
     reason: scan.passed ? null : `Security scan failed: ${scan.findings.join(`; `)}`,
     meta: meta ?? input.meta ?? null,
   } as any)
+
+  if (conflict) {
+    const { data: existing } = await db.services.taskProposal.findOpenByDedupeKey(
+      orgId,
+      input.dedupeKey
+    )
+    if (existing)
+      return { id: existing.id, status: existing.status, findings: [], deduped: true }
+
+    throw new Error(`Failed to create task proposal: conflicting row not found`)
+  }
 
   if (error || !data) {
     logger.warn(

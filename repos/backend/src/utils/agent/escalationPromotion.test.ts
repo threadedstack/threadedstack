@@ -8,7 +8,7 @@ vi.mock(`@TBE/utils/logger`, () => ({
 }))
 
 const makeDb = () => {
-  const escalationCreate = vi
+  const escalationCreateIfAbsent = vi
     .fn()
     .mockResolvedValue({ data: { id: `es_1`, status: EEscalationStatus.routed } })
   const escalationGet = vi.fn()
@@ -18,14 +18,14 @@ const makeDb = () => {
     db: {
       services: {
         escalation: {
-          create: escalationCreate,
+          createIfAbsent: escalationCreateIfAbsent,
           get: escalationGet,
           update: escalationUpdate,
           openByDedupeKey,
         },
       },
     } as any,
-    escalationCreate,
+    escalationCreateIfAbsent,
     escalationGet,
     escalationUpdate,
     openByDedupeKey,
@@ -47,7 +47,7 @@ describe(`openEscalation`, () => {
   })
 
   it(`routes app target with status routed and routable true`, async () => {
-    m.escalationCreate.mockResolvedValue({
+    m.escalationCreateIfAbsent.mockResolvedValue({
       data: { id: `es_1`, status: EEscalationStatus.routed },
     })
     const res = await openEscalation(m.db, `og_1`, `ag_1`, {
@@ -57,7 +57,7 @@ describe(`openEscalation`, () => {
     expect(res.deduped).toBe(false)
     expect(res.status).toBe(EEscalationStatus.routed)
     expect(res.routable).toBe(true)
-    const insert = m.escalationCreate.mock.calls[0][0]
+    const insert = m.escalationCreateIfAbsent.mock.calls[0][0]
     expect(insert.status).toBe(EEscalationStatus.routed)
     expect(insert.orgId).toBe(`og_1`)
     expect(insert.agentId).toBe(`ag_1`)
@@ -65,7 +65,7 @@ describe(`openEscalation`, () => {
   })
 
   it(`keeps secrets at status open with routable false — hard line, never routed`, async () => {
-    m.escalationCreate.mockResolvedValue({
+    m.escalationCreateIfAbsent.mockResolvedValue({
       data: { id: `es_2`, status: EEscalationStatus.open },
     })
     const res = await openEscalation(m.db, `og_1`, `ag_1`, {
@@ -78,13 +78,13 @@ describe(`openEscalation`, () => {
     expect(res.deduped).toBe(false)
     expect(res.status).toBe(EEscalationStatus.open)
     expect(res.routable).toBe(false)
-    const insert = m.escalationCreate.mock.calls[0][0]
+    const insert = m.escalationCreateIfAbsent.mock.calls[0][0]
     expect(insert.status).toBe(EEscalationStatus.open)
     expect(insert.target).toBe(EEscalationTarget.secrets)
   })
 
   it(`keeps ops at status open with routable false (pre-P4d)`, async () => {
-    m.escalationCreate.mockResolvedValue({
+    m.escalationCreateIfAbsent.mockResolvedValue({
       data: { id: `es_3`, status: EEscalationStatus.open },
     })
     const res = await openEscalation(m.db, `og_1`, `ag_1`, {
@@ -97,12 +97,13 @@ describe(`openEscalation`, () => {
     expect(res.deduped).toBe(false)
     expect(res.status).toBe(EEscalationStatus.open)
     expect(res.routable).toBe(false)
-    const insert = m.escalationCreate.mock.calls[0][0]
+    const insert = m.escalationCreateIfAbsent.mock.calls[0][0]
     expect(insert.status).toBe(EEscalationStatus.open)
     expect(insert.target).toBe(EEscalationTarget.ops)
   })
 
-  it(`dedupes when an open row exists for the same dedupeKey`, async () => {
+  it(`dedupes when createIfAbsent reports a conflict (an open row already exists)`, async () => {
+    m.escalationCreateIfAbsent.mockResolvedValue({ data: null, conflict: true })
     m.openByDedupeKey.mockResolvedValue({
       data: { id: `es_x`, status: EEscalationStatus.open, orgId: `og_1` },
     })
@@ -114,11 +115,53 @@ describe(`openEscalation`, () => {
     expect(res.id).toBe(`es_x`)
     expect(res.status).toBe(EEscalationStatus.open)
     expect(res.routable).toBe(false)
-    expect(m.escalationCreate).not.toHaveBeenCalled()
+    expect(m.openByDedupeKey).toHaveBeenCalledWith(`og_1`, baseInput.dedupeKey)
+  })
+
+  it(`simulates two concurrent callers racing the same dedupeKey — exactly one creates`, async () => {
+    // Replica A's createIfAbsent wins the partial-unique-index race outright.
+    m.escalationCreateIfAbsent.mockResolvedValueOnce({
+      data: { id: `es_winner1`, status: EEscalationStatus.routed },
+    })
+    const winner = await openEscalation(m.db, `og_1`, `ag_1`, {
+      ...baseInput,
+      target: EEscalationTarget.app,
+    })
+    expect(winner.deduped).toBe(false)
+    expect(winner.id).toBe(`es_winner1`)
+
+    // Replica B's createIfAbsent hits the partial unique index on
+    // escalations(org_id, dedupe_key) WHERE status IN ('open','routed') —
+    // ON CONFLICT DO NOTHING means zero rows come back (conflict: true), never
+    // a thrown error, and the caller re-fetches the winner's row.
+    m.escalationCreateIfAbsent.mockResolvedValueOnce({ data: null, conflict: true })
+    m.openByDedupeKey.mockResolvedValue({
+      data: { id: `es_winner1`, status: EEscalationStatus.routed, orgId: `og_1` },
+    })
+    const loser = await openEscalation(m.db, `og_1`, `ag_1`, {
+      ...baseInput,
+      target: EEscalationTarget.app,
+    })
+    expect(loser.deduped).toBe(true)
+    expect(loser.id).toBe(`es_winner1`)
+
+    // Only one escalation row was ever created for the dedupeKey.
+    expect(m.escalationCreateIfAbsent).toHaveBeenCalledTimes(2)
+  })
+
+  it(`throws when createIfAbsent reports a conflict but the row can't be re-fetched`, async () => {
+    m.escalationCreateIfAbsent.mockResolvedValue({ data: null, conflict: true })
+    m.openByDedupeKey.mockResolvedValue({ data: null })
+    await expect(
+      openEscalation(m.db, `og_1`, `ag_1`, {
+        ...baseInput,
+        target: EEscalationTarget.app,
+      })
+    ).rejects.toThrow(`conflicting row not found`)
   })
 
   it(`derives dedupeKey from target and title when not provided`, async () => {
-    m.escalationCreate.mockResolvedValue({
+    m.escalationCreateIfAbsent.mockResolvedValue({
       data: { id: `es_4`, status: EEscalationStatus.routed },
     })
     const inputWithoutKey = {
@@ -128,13 +171,14 @@ describe(`openEscalation`, () => {
     }
     await openEscalation(m.db, `og_1`, `ag_1`, inputWithoutKey as any)
     const expectedKey = `${EEscalationTarget.app}:Cache miss spike`
-    expect(m.openByDedupeKey).toHaveBeenCalledWith(`og_1`, expectedKey)
-    const insert = m.escalationCreate.mock.calls[0][0]
+    const insert = m.escalationCreateIfAbsent.mock.calls[0][0]
     expect(insert.dedupeKey).toBe(expectedKey)
   })
 
   it(`throws when the DB create fails`, async () => {
-    m.escalationCreate.mockResolvedValue({ error: { message: `DB write failed` } })
+    m.escalationCreateIfAbsent.mockResolvedValue({
+      error: { message: `DB write failed` },
+    })
     await expect(
       openEscalation(m.db, `og_1`, `ag_1`, {
         ...baseInput,
