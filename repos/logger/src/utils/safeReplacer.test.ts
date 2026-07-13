@@ -181,4 +181,38 @@ describe(`replaceUnsafe`, () => {
   it(`redacts a string that looks like a secret`, () => {
     expect(replaceUnsafe(`token abc123`)).toBe(`token ****`)
   })
+
+  describe(`value-capture boundary (does not truncate the rest of the line)`, () => {
+    it(`preserves fields after a redacted key in a compact production JSON line and keeps valid JSON`, () => {
+      const line = JSON.stringify({
+        data: { apiKey: `sk-12345`, user: `bob`, role: `admin`, status: 200 },
+      })
+      const out = replaceUnsafe(line)
+
+      expect(() => JSON.parse(out)).not.toThrow()
+      const parsed = JSON.parse(out)
+      expect(parsed.data.user).toBe(`bob`)
+      expect(parsed.data.role).toBe(`admin`)
+      expect(parsed.data.status).toBe(200)
+      expect(out).not.toContain(`sk-12345`)
+    })
+
+    it(`preserves fields after a redacted key in a compact single-line dev/prettyPrint object`, () => {
+      const line = `{ token: 'abc123', user: 'bob', status: 200 }`
+      const out = replaceUnsafe(line)
+
+      expect(out).toContain(`user`)
+      expect(out).toContain(`bob`)
+      expect(out).toContain(`status`)
+      expect(out).toContain(`200`)
+      expect(out).not.toContain(`abc123`)
+    })
+
+    it(`stops the value capture at a newline, leaving subsequent lines untouched`, () => {
+      const out = replaceUnsafe(`token: abc123\nnext line unaffected`)
+
+      expect(out).toContain(`next line unaffected`)
+      expect(out).not.toContain(`abc123`)
+    })
+  })
 })

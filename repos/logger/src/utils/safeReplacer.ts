@@ -86,7 +86,7 @@ const replaceSecretMatch = (value: string, text: string, space?: boolean) => {
   const hasOr = text.includes(`(`) && text.includes(`)`)
   const extra = space ? ` ` : ``
   return value.replaceAll(
-    new RegExp(`(${text})((:*|\\\s*)*)(.*)`, `gim`),
+    new RegExp(`(${text})((:*|\\\s*|"*)*)([^",}\n]*)`, `gim`),
     hasOr ? `$1$3${extra}${HIDDEN}` : `$1$2${extra}${HIDDEN}`
   )
 }
