@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net'
 import express from 'express'
-import { createProxyLimiter } from './rateLimit'
-import { describe, it, expect, afterEach } from 'vitest'
+import { createProxyLimiter, createUpgradeLimiter } from './rateLimit'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 
 /**
  * Drives real HTTP requests against a minimal express app (rather than
@@ -94,5 +94,47 @@ describe(`createProxyLimiter`, () => {
     expect(orgRes1.status).toBe(200)
     expect(orgRes2.status).toBe(429)
     expect(ipRes1.status).toBe(200)
+  })
+})
+
+describe(`createUpgradeLimiter`, () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it(`allows requests within the limit and rejects once exceeded, for the same IP`, () => {
+    const check = createUpgradeLimiter({ limit: 3, windowMs: 60_000 })
+
+    expect(check(`10.0.0.1`)).toBe(true)
+    expect(check(`10.0.0.1`)).toBe(true)
+    expect(check(`10.0.0.1`)).toBe(true)
+    expect(check(`10.0.0.1`)).toBe(false)
+  })
+
+  it(`throttles per IP -- a different IP is unaffected by another IP's limit`, () => {
+    const check = createUpgradeLimiter({ limit: 1, windowMs: 60_000 })
+
+    expect(check(`10.0.0.1`)).toBe(true)
+    expect(check(`10.0.0.1`)).toBe(false)
+    expect(check(`10.0.0.2`)).toBe(true)
+  })
+
+  it(`falls back to a shared "unknown" bucket when no IP is provided`, () => {
+    const check = createUpgradeLimiter({ limit: 1, windowMs: 60_000 })
+
+    expect(check(undefined)).toBe(true)
+    expect(check(undefined)).toBe(false)
+  })
+
+  it(`resets the count once the window elapses`, () => {
+    vi.useFakeTimers()
+    const check = createUpgradeLimiter({ limit: 1, windowMs: 60_000 })
+
+    expect(check(`10.0.0.1`)).toBe(true)
+    expect(check(`10.0.0.1`)).toBe(false)
+
+    vi.advanceTimersByTime(60_001)
+
+    expect(check(`10.0.0.1`)).toBe(true)
   })
 })

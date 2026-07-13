@@ -6,6 +6,7 @@ const {
   mockAdminPath,
   mockSetAuthHeaders,
   mockLogger,
+  mockCheckUpgradeRateLimit,
 } = vi.hoisted(() => {
   const mockProxyFn = Object.assign(vi.fn(), { upgrade: vi.fn() })
   return {
@@ -19,6 +20,7 @@ const {
       warn: vi.fn(),
       debug: vi.fn(),
     },
+    mockCheckUpgradeRateLimit: vi.fn(() => true),
   }
 })
 
@@ -33,6 +35,10 @@ vi.mock(`@tdsk/domain`, () => ({
 
 vi.mock(`@TPX/utils/logger`, () => ({
   logger: mockLogger,
+}))
+
+vi.mock(`./rateLimit`, () => ({
+  checkUpgradeRateLimit: mockCheckUpgradeRateLimit,
 }))
 
 import { setupProxy } from './setupProxy'
@@ -556,6 +562,73 @@ describe(`setupProxy`, () => {
       const mockHead = Buffer.alloc(0)
 
       app.locals.onUpgrade(mockReq, mockSocket, mockHead)
+    })
+
+    it(`checks the rate limit keyed by the socket's remote address before dispatching`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const mockReq = { headers: { host: `local.threadedstack.app` } }
+      const mockSocket = {
+        remoteAddress: `203.0.113.5`,
+        write: vi.fn(),
+        destroy: vi.fn(),
+      }
+      const mockHead = Buffer.alloc(0)
+
+      app.locals.onUpgrade(mockReq, mockSocket, mockHead)
+
+      expect(mockCheckUpgradeRateLimit).toHaveBeenCalledWith(`203.0.113.5`)
+    })
+
+    it(`rejects with a 429 and destroys the socket, without proxying, when the rate limit is exceeded`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      mockCheckUpgradeRateLimit.mockReturnValueOnce(false)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const mockReq = { headers: { host: `local.threadedstack.app` } }
+      const mockSocket = {
+        remoteAddress: `203.0.113.5`,
+        write: vi.fn(),
+        destroy: vi.fn(),
+      }
+      const mockHead = Buffer.alloc(0)
+
+      app.locals.onUpgrade(mockReq, mockSocket, mockHead)
+
+      const backendProxy = app.use.mock.calls[1][1]
+      expect(mockSocket.write).toHaveBeenCalledWith(
+        expect.stringContaining(`429 Too Many Requests`)
+      )
+      expect(mockSocket.destroy).toHaveBeenCalledOnce()
+      expect(backendProxy.upgrade).not.toHaveBeenCalled()
+    })
+
+    it(`still proxies through when under the rate limit`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      mockCheckUpgradeRateLimit.mockReturnValueOnce(true)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const mockReq = { headers: { host: `local.threadedstack.app` } }
+      const mockSocket = {
+        remoteAddress: `203.0.113.5`,
+        write: vi.fn(),
+        destroy: vi.fn(),
+      }
+      const mockHead = Buffer.alloc(0)
+
+      app.locals.onUpgrade(mockReq, mockSocket, mockHead)
+
+      const backendProxy = app.use.mock.calls[1][1]
+      expect(mockSocket.write).not.toHaveBeenCalled()
+      expect(mockSocket.destroy).not.toHaveBeenCalled()
+      expect(backendProxy.upgrade).toHaveBeenCalledWith(mockReq, mockSocket, mockHead)
     })
   })
 })

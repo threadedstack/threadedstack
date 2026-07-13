@@ -7,6 +7,7 @@ import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 import { logger } from '@TPX/utils/logger'
 import { adminPath, setAuthHeaders } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
+import { checkUpgradeRateLimit } from './rateLimit'
 import {
   SandboxHostRx,
   ProxyForwardRoutes,
@@ -145,6 +146,14 @@ export const setupProxy = (app: TProxyApp) => {
    * correct proxy via proxy.upgrade(req, socket, head).
    */
   const onUpgrade = (req: IncomingMessage, socket: Socket, head: Buffer) => {
+    if (!checkUpgradeRateLimit(socket.remoteAddress)) {
+      socket.write(
+        `HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`
+      )
+      socket.destroy()
+      return
+    }
+
     const host = req.headers.host?.split(`:`)[0] || ``
 
     if (isSandboxHost(host)) sandboxProxy.upgrade?.(req, socket, head)
