@@ -46,6 +46,37 @@ export const setupRateLimit = (app: TProxyApp) => {
 }
 
 /**
+ * WebSocket upgrade requests never pass through Express (the raw http.Server
+ * `upgrade` event is wired directly to a manual dispatch handler in
+ * setupProxy.ts), so setupRateLimit's express-rate-limit middleware never
+ * runs for them. This is a standalone, IP-keyed limiter callable from that
+ * raw dispatch path — same window/limit shape as apiLimiter (WS routes live
+ * under /_ and /ai) but backed by a plain Map instead of express-rate-limit's
+ * Store, since there's no Express req/res to drive that middleware with.
+ */
+export const createUpgradeLimiter = (opts?: { limit?: number; windowMs?: number }) => {
+  const limit = opts?.limit ?? 1000
+  const windowMs = opts?.windowMs ?? 60_000
+  const hits = new Map<string, { count: number; resetAt: number }>()
+
+  return (ip?: string): boolean => {
+    const key = ip ? ipKeyGenerator(ip) : `unknown`
+    const now = Date.now()
+    const entry = hits.get(key)
+
+    if (!entry || now >= entry.resetAt) {
+      hits.set(key, { count: 1, resetAt: now + windowMs })
+      return true
+    }
+
+    entry.count += 1
+    return entry.count <= limit
+  }
+}
+
+export const checkUpgradeRateLimit = createUpgradeLimiter()
+
+/**
  * Rate limits /proxy — the route that injects org secrets and calls paid
  * external APIs/LLM providers. Must run AFTER setupApiKeyAuth so req.user
  * (apiKeyId/orgId) is populated for keying; setupRateLimit above runs
