@@ -174,6 +174,26 @@ describe(`setupProxy`, () => {
     expect(standardOpts.xfwd).toBe(true)
   })
 
+  it(`should set a timeout and proxyTimeout on both proxies to prevent hung-connection exhaustion`, () => {
+    mockAdminPath.mockReturnValue(`/_`)
+    const app = buildMockApp()
+
+    setupProxy(app)
+
+    const sandboxOpts = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      string,
+      any
+    >
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+      string,
+      any
+    >
+    expect(sandboxOpts.timeout).toBe(30_000)
+    expect(sandboxOpts.proxyTimeout).toBe(30_000)
+    expect(standardOpts.timeout).toBe(30_000)
+    expect(standardOpts.proxyTimeout).toBe(30_000)
+  })
+
   it(`should pass the logger instance to proxy options`, () => {
     mockAdminPath.mockReturnValue(`/_`)
     const app = buildMockApp()
@@ -355,6 +375,34 @@ describe(`setupProxy`, () => {
       )
     })
 
+    it(`should produce a clean 502 (not a hang) when the target times out`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+        string,
+        any
+      >
+      const mockErr = Object.assign(new Error(`socket hang up`), { code: `ECONNRESET` })
+      const mockReq = {}
+      const mockRes = {
+        headersSent: false,
+        writeHead: vi.fn(),
+        end: vi.fn(),
+      }
+
+      standardOpts.on.error(mockErr, mockReq, mockRes)
+
+      expect(mockRes.writeHead).toHaveBeenCalledWith(502, {
+        'Content-Type': `application/json`,
+      })
+      expect(mockRes.end).toHaveBeenCalledWith(
+        JSON.stringify({ error: `Backend service unavailable` })
+      )
+    })
+
     it(`should not write response if headers already sent`, () => {
       mockAdminPath.mockReturnValue(`/_`)
       const app = buildMockApp()
@@ -395,6 +443,29 @@ describe(`setupProxy`, () => {
 
       expect(() => standardOpts.on.error(mockErr, mockReq, null)).not.toThrow()
       expect(mockLogger.error).toHaveBeenCalled()
+    })
+
+    it(`should destroy the socket instead of throwing when a WebSocket proxy error passes a raw net.Socket`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+        string,
+        any
+      >
+      const mockErr = new Error(`socket hang up`)
+      const mockReq = {}
+      const mockSocket = {
+        destroy: vi.fn(),
+      }
+
+      expect(() => standardOpts.on.error(mockErr, mockReq, mockSocket)).not.toThrow()
+      expect(mockLogger.error).toHaveBeenCalledWith(`Proxy error: socket hang up`, {
+        stack: mockErr.stack,
+      })
+      expect(mockSocket.destroy).toHaveBeenCalledOnce()
     })
   })
 

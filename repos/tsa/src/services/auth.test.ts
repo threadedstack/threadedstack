@@ -198,6 +198,7 @@ describe(`AuthManager`, () => {
           Authorization: `Bearer tdsk_test123`,
           Accept: `application/json`,
         },
+        signal: expect.any(AbortSignal),
       })
     })
 
@@ -269,6 +270,39 @@ describe(`AuthManager`, () => {
         expect.objectContaining({ insecure: undefined })
       )
     })
+
+    it(`should reject with a clear timeout error when the request never resolves`, async () => {
+      vi.useFakeTimers()
+
+      // Replace AbortSignal.timeout with a fake-timer-driven equivalent so
+      // advancing vitest's fake clock actually fires the abort - the real
+      // implementation relies on platform timers that fake timers can't reach.
+      vi.spyOn(AbortSignal, `timeout`).mockImplementation((ms: number) => {
+        const controller = new AbortController()
+        setTimeout(() => {
+          controller.abort(new DOMException(`signal timed out`, `TimeoutError`))
+        }, ms)
+        return controller.signal
+      })
+
+      mockFetch.mockImplementationOnce(
+        (_url: string, opts: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            opts.signal?.addEventListener(`abort`, () => {
+              reject(new DOMException(`signal timed out`, `TimeoutError`))
+            })
+          })
+      )
+
+      const assertion = expect(
+        auth.login(`tdsk_test123`, `https://proxy.test`)
+      ).rejects.toThrow(`Connection to https://proxy.test timed out after 10s`)
+
+      await vi.advanceTimersByTimeAsync(10_000)
+      await assertion
+
+      vi.useRealTimers()
+    })
   })
 
   describe(`loginWithToken`, () => {
@@ -287,6 +321,7 @@ describe(`AuthManager`, () => {
           Authorization: `Bearer jwt.token.value`,
           Accept: `application/json`,
         },
+        signal: expect.any(AbortSignal),
       })
     })
 
@@ -374,6 +409,41 @@ describe(`AuthManager`, () => {
       })
 
       expect(tlsValueDuringFetch).toBe(`0`)
+    })
+
+    it(`should reject with a clear timeout error when the request never resolves`, async () => {
+      vi.useFakeTimers()
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
+
+      vi.spyOn(AbortSignal, `timeout`).mockImplementation((ms: number) => {
+        const controller = new AbortController()
+        setTimeout(() => {
+          controller.abort(new DOMException(`signal timed out`, `TimeoutError`))
+        }, ms)
+        return controller.signal
+      })
+
+      mockFetch.mockImplementationOnce(
+        (_url: string, opts: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            opts.signal?.addEventListener(`abort`, () => {
+              reject(new DOMException(`signal timed out`, `TimeoutError`))
+            })
+          })
+      )
+
+      const assertion = expect(
+        auth.loginWithToken({
+          token: `jwt.token.value`,
+          expiresAt: `2099-12-31T00:00:00.000Z`,
+          proxyUrl: `https://proxy.test`,
+        })
+      ).rejects.toThrow(`Connection to https://proxy.test timed out after 10s`)
+
+      await vi.advanceTimersByTimeAsync(10_000)
+      await assertion
+
+      vi.useRealTimers()
     })
 
     describe(`JWT expiry resolution`, () => {

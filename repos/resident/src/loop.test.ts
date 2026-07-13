@@ -67,6 +67,7 @@ const makePump = (): TActionPump & { pumped: string[] } => {
         dispatched: 0,
         failed: 0,
         allowlistRejected: 0,
+        discardedActionBlocks: 0,
         memoriesSkipped: 0,
         functionsAuthored: 0,
         functionsRejected: 0,
@@ -211,6 +212,29 @@ describe(`agenda scheduling`, () => {
     await loop.runNext()
     await loop.scan()
     expect(loop.getQueueDepth()).toBe(0)
+  })
+
+  it(`reschedules an agenda item when its cron changes under a live config refresh`, async () => {
+    const now = { value: Date.parse(`2026-07-08T10:00:30Z`) }
+    const config = makeConfig({
+      agenda: [{ key: `groom`, cron: `0 * * * *`, prompt: `groom` }],
+    })
+    const { loop } = makeLoop({}, { config, now })
+
+    await loop.scan() // hourly cron → nextRunAt is 11:00; nothing due yet
+    expect(loop.getQueueDepth()).toBe(0)
+
+    // A live config refresh tightens the cadence to every minute. Without the
+    // cron-change detection the stale 11:00 nextRunAt would persist and nothing
+    // would fire for ~an hour; with it, the item reschedules onto the new cron.
+    config.agenda[0].cron = `* * * * *`
+    now.value += 61_000 // 10:01:31 — reschedules forward to 10:02:00 (not due yet)
+    await loop.scan()
+    expect(loop.getQueueDepth()).toBe(0)
+
+    now.value += 60_000 // 10:02:31 — past the NEW cron's boundary
+    await loop.scan()
+    expect(loop.getQueueDepth()).toBe(1)
   })
 })
 
@@ -363,6 +387,46 @@ describe(`watches`, () => {
     expect(session.turns[0]).toContain(`# Watch fired: open-decisions`)
     expect(session.turns[0]).toContain(`Ship it!`)
     expect(session.turns[0]).toContain(`r9`)
+  })
+
+  it(`re-checks live state at dispatch time — a record that left the watch's target condition between poll and dispatch is not framed as stale`, async () => {
+    const now = { value: 1_000_000 }
+    const config = watchConfig(0)
+    const { loop, api, session } = makeLoop({}, { config, now })
+
+    // The fake api ignores query CONTENT, so this handler stands in for the
+    // real backend evaluating watch.query server-side: `queryLive` is the
+    // ground truth both scanWatches' poll AND the dispatch-time refresh read.
+    let queryLive: () => Array<{ id: string; data: Record<string, unknown> }> = () => [
+      { id: `r1`, data: { state: `backlog` } },
+    ]
+    api.onQuery((collection) =>
+      collection === `decision_proposals`
+        ? { ok: true, status: 200, data: queryLive() as any }
+        : undefined
+    )
+
+    queryLive = () => []
+    await loop.scan() // prime — baseline hash on an empty board
+
+    queryLive = () => [{ id: `r1`, data: { state: `backlog` } }]
+    now.value += 10
+    await loop.scan() // the task enters backlog — hash changed, fires
+
+    expect(loop.getQueueDepth()).toBe(1)
+
+    // Simulate the record leaving the watch's target condition (e.g. an
+    // abandon) WHILE the event still sits queued, before it is dispatched.
+    queryLive = () => []
+
+    await loop.runNext()
+
+    expect(api.queries.filter((q) => q.collection === `decision_proposals`)).toHaveLength(
+      3
+    )
+    expect(session.turns[0]).toContain(`# Watch fired: open-decisions`)
+    expect(session.turns[0]).not.toContain(`r1`)
+    expect(session.turns[0]).toContain(`## Matched records\n[]`)
   })
 })
 

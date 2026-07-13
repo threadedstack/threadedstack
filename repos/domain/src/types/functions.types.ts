@@ -134,6 +134,28 @@ export interface IConnectorCapability {
   invoke(ref: string, request?: TConnectorRequest): Promise<TConnectorResult>
 }
 
+/** Outcome of a task-proposal promotion attempt via `context.taskProposals.promote`. */
+export type TTaskProposalPromoteResult = {
+  /** True only when the authoritative table row transitioned to `promoted` on this call. */
+  promoted: boolean
+}
+
+/**
+ * Task-proposal promotion capability injected into a Function's execution context.
+ *
+ * `task_proposals` is the platform's authoritative SQL table (not a project
+ * Collection), so a Function has no way to reach it through `context.records`,
+ * whose scope is deliberately the tenant's own Collections. This bridge is the
+ * ONE sanctioned path to promote a proposal: the isolate names the proposal id
+ * (and an optional note) and the host runs the SAME idempotent promotion
+ * pipeline the work-cycle pickup uses — an already-terminal (promoted/rejected)
+ * proposal is a no-op, never an error. The db handle never crosses into the
+ * isolate; only the id/note and the boolean outcome do.
+ */
+export interface ITaskProposalsCapability {
+  promote(id: string, note?: string): Promise<TTaskProposalPromoteResult>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
@@ -158,6 +180,12 @@ export type TFunctionContext = {
    * host-side and never cross into the isolate.
    */
   connect?: IConnectorCapability
+  /**
+   * Task-proposal promotion capability over the authoritative `task_proposals`
+   * table. Present whenever the executor builds its host-bridge surface —
+   * reached through a platform-mediated bridge, never a direct db connection.
+   */
+  taskProposals?: ITaskProposalsCapability
   /**
    * Platform-injected, trusted identity of the invoker (never from model output).
    * Effect Functions authorize by this (e.g. board role gates).

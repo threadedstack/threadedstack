@@ -114,7 +114,7 @@ describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
 
       // Verify WS URL includes session token
       expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       })
 
       // Simulate open → sends prompt
@@ -132,6 +132,47 @@ describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
       ws._emit(`message`, JSON.stringify({ type: EWSEventType.Done, reason: `complete` }))
       const result = await runPromise
       expect(result.threadId).toBe(``)
+    })
+
+    it(`defaults to verified TLS (rejectUnauthorized: true) when insecure is not set`, async () => {
+      const runPromise = executor.run({
+        onEvent: vi.fn(),
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+      })
+
+      await vi.waitFor(() => expect(mockInstances).toHaveLength(1))
+      expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
+        rejectUnauthorized: true,
+      })
+
+      const ws = mockInstances[0]
+      ws._emit(`open`)
+      ws._emit(`close`)
+      await runPromise
+    })
+
+    it(`skips TLS verification (rejectUnauthorized: false) only when insecure:true is explicitly passed`, async () => {
+      const runPromise = executor.run({
+        onEvent: vi.fn(),
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+        insecure: true,
+      })
+
+      await vi.waitFor(() => expect(mockInstances).toHaveLength(1))
+      expect(WebSocket).toHaveBeenCalledWith(`wss://proxy.test/ai/ws?token=sess-abc`, {
+        rejectUnauthorized: false,
+      })
+
+      const ws = mockInstances[0]
+      ws._emit(`open`)
+      ws._emit(`close`)
+      await runPromise
     })
 
     it(`should forward text delta events`, async () => {
@@ -503,6 +544,68 @@ describe.skipIf(!AgentsEnabled)(`Executor (WebSocket)`, () => {
 
       ws._emit(`message`, JSON.stringify({ type: EWSEventType.Done, reason: `complete` }))
       await runPromise
+    })
+
+    it(`should reject once idle for longer than the configured timeout`, async () => {
+      vi.useFakeTimers()
+      const onEvent = vi.fn()
+
+      const runPromise = executor.run({
+        onEvent,
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+        idleTimeoutMs: 5000,
+      })
+      runPromise.catch(() => {})
+
+      // Flush the createSession() microtask chain so the WebSocket is constructed
+      await vi.advanceTimersByTimeAsync(0)
+      expect(mockInstances).toHaveLength(1)
+      const ws = mockInstances[0]
+
+      ws._emit(`open`)
+
+      // Never emit a message, Done, or close — advance past the idle window
+      await vi.advanceTimersByTimeAsync(5100)
+
+      await expect(runPromise).rejects.toThrow(`timed out`)
+      expect(ws.close).toHaveBeenCalled()
+
+      vi.useRealTimers()
+    })
+
+    it(`should not time out while messages keep resetting the idle window`, async () => {
+      vi.useFakeTimers()
+      const onEvent = vi.fn()
+
+      const runPromise = executor.run({
+        onEvent,
+        orgId: `org-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        agentId: `agent-1`,
+        idleTimeoutMs: 1000,
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      const ws = mockInstances[0]
+      ws._emit(`open`)
+
+      // Each message arrives just under the idle window and resets the
+      // timer, so total elapsed time exceeds idleTimeoutMs without ever
+      // tripping it — mirrors the server's periodic Ping heartbeat.
+      for (let i = 0; i < 3; i++) {
+        await vi.advanceTimersByTimeAsync(700)
+        ws._emit(`message`, JSON.stringify({ type: EWSEventType.Ping }))
+      }
+
+      ws._emit(`message`, JSON.stringify({ type: EWSEventType.Done, reason: `complete` }))
+      const result = await runPromise
+      expect(result.threadId).toBe(``)
+
+      vi.useRealTimers()
     })
   })
 

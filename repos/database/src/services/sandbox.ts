@@ -6,6 +6,7 @@ import type {
   TSandboxProjectConfig,
 } from '@tdsk/domain'
 import type {
+  TDBTx,
   TDBUpdate,
   TServiceOpts,
   TDBQueryOpts,
@@ -96,6 +97,7 @@ export type TSandboxInsertOpts = TDBSandboxInsert &
 type TSandboxRelations = {
   id: string
   sandboxName: string
+  tx?: TDBTx
   providerInputs?: TProviderInput[]
   gitProviderInputs?: Array<{ projectId: string; providers: TGitProviderInput[] }>
   projects?: Array<
@@ -214,7 +216,8 @@ export class Sandbox extends Base<
   }
 
   #relations = async (opts: TSandboxRelations) => {
-    const { id, projects, sandboxName, providerInputs, gitProviderInputs } = opts
+    const { id, projects, sandboxName, providerInputs, gitProviderInputs, tx } = opts
+    const exec = tx ?? this.db
 
     if (projects?.length) {
       const valid = projects.filter((p) => p?.id)
@@ -239,7 +242,7 @@ export class Sandbox extends Base<
       }
 
       if (rows.length)
-        await this.db
+        await exec
           .insert(sandboxProjects)
           .values(rows)
           .onConflictDoUpdate({
@@ -248,14 +251,15 @@ export class Sandbox extends Base<
           })
     }
 
-    if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs)
+    if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs, tx)
 
     if (gitProviderInputs !== undefined) {
       for (const entry of gitProviderInputs) {
         const { error } = await this.setGitProjectProviders(
           id,
           entry.projectId,
-          entry.providers
+          entry.providers,
+          tx
         )
         if (error) throw error
       }
@@ -343,6 +347,7 @@ export class Sandbox extends Base<
     if (!sandboxData.id)
       return { data: null, error: new DBError(`Sandbox ID is required for update`) }
 
+    const sandboxId = sandboxData.id
     const result = await super.update(sandboxData)
 
     if (
@@ -352,19 +357,28 @@ export class Sandbox extends Base<
         gitProviderInputs !== undefined)
     ) {
       try {
-        if (projects !== undefined)
-          await this.db
-            .delete(sandboxProjects)
-            .where(eq(sandboxProjects.sandboxId, sandboxData.id))
+        // The delete-then-reinsert sequence below must be atomic -- if
+        // #relations throws partway through (invalid alias, exhausted alias
+        // suffixes, a setGitProjectProviders sub-call failing), an
+        // un-transacted delete would already be committed, silently
+        // stripping the sandbox of every project/provider link even though
+        // the caller sees an error and assumes nothing changed.
+        await this.db.transaction(async (tx) => {
+          if (projects !== undefined)
+            await tx
+              .delete(sandboxProjects)
+              .where(eq(sandboxProjects.sandboxId, sandboxId))
 
-        await this.#relations({
-          projects,
-          providerInputs,
-          gitProviderInputs,
-          id: sandboxData.id,
-          sandboxName: result.data.name,
+          await this.#relations({
+            projects,
+            providerInputs,
+            gitProviderInputs,
+            id: sandboxId,
+            sandboxName: result.data!.name,
+            tx,
+          })
         })
-        const updated = await this.get(sandboxData.id)
+        const updated = await this.get(sandboxId)
         result.data = updated.data
       } catch (error: any) {
         return { data: null, error }
@@ -550,7 +564,7 @@ export class Sandbox extends Base<
     return { data: null, error: null }
   }
 
-  #upsertProviders = async (sandboxId: string, inputs: TProviderInput[]) => {
+  #upsertProviders = async (sandboxId: string, inputs: TProviderInput[], tx?: TDBTx) => {
     if (!inputs) return
 
     const rows = inputs
@@ -562,9 +576,9 @@ export class Sandbox extends Base<
         model: p.model ?? null,
       }))
 
-    await this.db.transaction(async (tx) => {
+    const run = async (exec: TDBTx) => {
       if (rows.length) {
-        await tx.delete(sandboxProviders).where(
+        await exec.delete(sandboxProviders).where(
           and(
             eq(sandboxProviders.sandboxId, sandboxId),
             notInArray(
@@ -574,11 +588,13 @@ export class Sandbox extends Base<
           )
         )
       } else {
-        await tx.delete(sandboxProviders).where(eq(sandboxProviders.sandboxId, sandboxId))
+        await exec
+          .delete(sandboxProviders)
+          .where(eq(sandboxProviders.sandboxId, sandboxId))
       }
 
       if (rows.length)
-        await tx
+        await exec
           .insert(sandboxProviders)
           .values(rows)
           .onConflictDoUpdate({
@@ -588,13 +604,21 @@ export class Sandbox extends Base<
               priority: sql`excluded.priority`,
             },
           })
-    })
+    }
+
+    // When called as part of an outer transaction (e.g. Sandbox.update()),
+    // run directly against the passed-in tx instead of opening a separate
+    // self-contained transaction -- a nested this.db.transaction() here would
+    // commit independently and not roll back if the outer transaction fails.
+    if (tx) await run(tx)
+    else await this.db.transaction(run)
   }
 
   async setGitProjectProviders(
     sandboxId: string,
     projectId: string,
-    inputs: TGitProviderInput[]
+    inputs: TGitProviderInput[],
+    tx?: TDBTx
   ) {
     try {
       const rows = (inputs || [])
@@ -607,8 +631,8 @@ export class Sandbox extends Base<
           branch: p.branch ?? null,
         }))
 
-      await this.db.transaction(async (tx) => {
-        await tx
+      const run = async (exec: TDBTx) => {
+        await exec
           .delete(sandboxProjectProviders)
           .where(
             and(
@@ -618,8 +642,11 @@ export class Sandbox extends Base<
           )
 
         if (rows.length)
-          await tx.insert(sandboxProjectProviders).values(rows).onConflictDoNothing()
-      })
+          await exec.insert(sandboxProjectProviders).values(rows).onConflictDoNothing()
+      }
+
+      if (tx) await run(tx)
+      else await this.db.transaction(run)
 
       return { data: null, error: null }
     } catch (error: any) {

@@ -34,6 +34,11 @@ export const upsertSBPConfig: TEndpointConfig = {
         `Invalid alias: must be lowercase alphanumeric with hyphens, max 63 chars`
       )
 
+    // nodePool is a platform-only scheduling control — never customer-settable
+    // through a project override. getEffectiveConfig merges the override over the
+    // base, so an override nodePool would win and pin the pod onto that pool.
+    if (config?.nodePool !== undefined) delete config.nodePool
+
     const overrides = Object.fromEntries(
       Object.entries({ alias, enabled, config }).filter(([, v]) => v !== undefined)
     )

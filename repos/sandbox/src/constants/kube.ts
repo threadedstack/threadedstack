@@ -37,3 +37,14 @@ export const KubeRetryableStatusCodes = new Set([429, 500, 502, 503, 504])
 export const KubeRetryMaxAttempts = 2
 export const KubeRetryInitialDelayMs = 250
 export const KubeRetryBackoffMultiplier = 2
+
+// Default bound on KubeClient#runInPod — protects against a wedged pod or a
+// silently dropped exec WebSocket stream that never invokes its status callback.
+export const DefaultExecTimeoutMs = 60_000
+
+// Headroom added on top of KubeSandbox.evaluate()'s inner `timeout <n>` shell
+// cutoff when deriving the outer runInPod timeoutMs — without it, the outer
+// network-level timeout can fire at (or before) the same instant the inner
+// shell timeout would have cleanly terminated the command, producing a
+// spurious outer-timeout rejection for a run that was already finishing.
+export const EvalOuterTimeoutBufferMs = 5_000

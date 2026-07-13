@@ -6,6 +6,13 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
 
+// Shrinks ProviderFetchTimeoutMS so the hang/timeout test below completes in
+// milliseconds instead of the real 10s.
+vi.mock(`@TBE/constants/values`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@TBE/constants/values')>()
+  return { ...actual, ProviderFetchTimeoutMS: 50 }
+})
+
 const { mockGetModels, mockGetModel } = vi.hoisted(() => ({
   mockGetModels: vi.fn(),
   mockGetModel: vi.fn(),
@@ -159,7 +166,9 @@ describe(`ModelRegistry`, () => {
 
       const result = await ModelRegistry.fetchOllamaModels()
 
-      expect(mockFetch).toHaveBeenCalledWith(`http://localhost:11434/api/tags`)
+      expect(mockFetch).toHaveBeenCalledWith(`http://localhost:11434/api/tags`, {
+        signal: expect.any(AbortSignal),
+      })
       expect(result).toEqual([
         { id: `llama3`, name: `llama3` },
         { id: `mistral`, name: `mistral` },
@@ -175,7 +184,9 @@ describe(`ModelRegistry`, () => {
 
       await ModelRegistry.fetchOllamaModels(`http://custom-host:11434/v1`)
 
-      expect(mockFetch).toHaveBeenCalledWith(`http://custom-host:11434/api/tags`)
+      expect(mockFetch).toHaveBeenCalledWith(`http://custom-host:11434/api/tags`, {
+        signal: expect.any(AbortSignal),
+      })
     })
 
     it(`returns an empty array when the response has no models`, async () => {
@@ -204,6 +215,26 @@ describe(`ModelRegistry`, () => {
       vi.stubGlobal(`fetch`, mockFetch)
 
       await expect(ModelRegistry.fetchOllamaModels()).rejects.toThrow(`ECONNREFUSED`)
+    })
+
+    it(`rejects with a clear timeout message when the request never settles`, async () => {
+      // Mimics real fetch's AbortSignal semantics: never resolves on its own,
+      // only rejects (with the real TimeoutError DOMException name Node's
+      // AbortSignal.timeout actually produces) once the passed signal fires.
+      const mockFetch = vi.fn((_url: string, opts: RequestInit = {}) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener(`abort`, () => {
+            reject(
+              new DOMException(`The operation was aborted due to timeout`, `TimeoutError`)
+            )
+          })
+        })
+      })
+      vi.stubGlobal(`fetch`, mockFetch)
+
+      await expect(ModelRegistry.fetchOllamaModels()).rejects.toThrow(
+        `Ollama API request timed out after 50ms`
+      )
     })
   })
 })

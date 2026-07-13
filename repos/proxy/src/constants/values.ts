@@ -38,3 +38,14 @@ export const LoggerIgnore = {
  * The first DNS label starts with digits followed by "--sb-".
  */
 export const SandboxHostRx = /^\d+--sb-/
+
+/**
+ * Timeout (ms) applied to both backend and sandbox gateway proxying
+ * (http-proxy's `timeout` + `proxyTimeout` options — the incoming-request
+ * and no-response-from-target timeouts, respectively). Without it,
+ * http-proxy-middleware holds a socket open indefinitely if the backend or a
+ * sandbox pod hangs, risking file-descriptor/connection exhaustion under a
+ * partial outage. No proxy-config key exists for this yet, so it's a fixed
+ * default rather than sourced from config.
+ */
+export const ProxyRequestTimeoutMs = 30_000

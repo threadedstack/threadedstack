@@ -32,7 +32,7 @@ const resolveNames = (name: string, key: string, keyvalue: string) => {
 const saveTempSecret = (value: string) => {
   const tempDir = os.tmpdir()
   const tempFileLoc = path.join(tempDir, `${uuid()}.txt`)
-  writeFileSync(tempFileLoc, value)
+  writeFileSync(tempFileLoc, value, { mode: 0o600 })
 
   return tempFileLoc
 }
@@ -165,10 +165,12 @@ const secretAct = async (props: TTaskActionArgs) => {
   namespace && deleteArgs.push(`--namespace`, namespace)
   deleteArgs.push(`--ignore-not-found`)
 
-  await kubectl.delete(props, deleteArgs)
-  await kubectl.create(props, [`secret`, type, name, ...secretArgs])
-
-  tempFiles.forEach((loc) => rmSync(loc))
+  try {
+    await kubectl.delete(props, deleteArgs)
+    await kubectl.create(props, [`secret`, type, name, ...secretArgs])
+  } finally {
+    tempFiles.forEach((loc) => rmSync(loc))
+  }
 }
 
 export const secret: TTask = {

@@ -62,7 +62,7 @@ export const createSandboxTools = (
       execute: async (
         _toolCallId: string,
         params: { command: string; args?: string[] },
-        _signal,
+        signal,
         onUpdate
       ) => {
         onUpdate?.({
@@ -75,7 +75,7 @@ export const createSandboxTools = (
           details: { status: `running` },
         })
         // ISandbox.exec() — sandbox method, not child_process
-        const result = await sandbox.exec(params.command, params.args)
+        const result = await sandbox.exec(params.command, params.args, signal)
         return {
           content: [{ type: `text`, text: result.output || result.error || `` }],
           details: { success: result.success, exitCode: result.exitCode },

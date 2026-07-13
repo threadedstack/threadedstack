@@ -33,6 +33,12 @@ import {
  * Open a new escalation (or return the existing open row for the same dedupeKey).
  * Idempotent: if an open or routed row with the same dedupeKey already exists for
  * this org, it is returned without creating a new one.
+ *
+ * Insert-first, not check-then-insert: two replicas racing the same dedupeKey
+ * both attempting createIfAbsent can no longer both succeed — the DB-level
+ * partial unique index (org_id, dedupe_key) WHERE status IN ('open','routed')
+ * means only one INSERT wins, and the loser re-fetches the winner's row via
+ * openByDedupeKey rather than blindly inserting a duplicate.
  */
 export const openEscalation = async (
   db: TDatabase,
@@ -48,13 +54,6 @@ export const openEscalation = async (
 }> => {
   const dedupeKey = (input.dedupeKey ?? `${input.target}:${input.title}`).slice(0, 200)
 
-  const { data: existing } = await db.services.escalation.openByDedupeKey(
-    orgId,
-    dedupeKey
-  )
-  if (existing)
-    return { id: existing.id, status: existing.status, routable: false, deduped: true }
-
   const routable = EscalationRoutableTargets.includes(input.target)
   const status: TEscalationStatus =
     input.target === EEscalationTarget.secrets
@@ -63,7 +62,7 @@ export const openEscalation = async (
         ? EEscalationStatus.routed
         : EEscalationStatus.open
 
-  const { data, error } = await db.services.escalation.create({
+  const { data, error, conflict } = await db.services.escalation.createIfAbsent({
     orgId,
     agentId,
     dedupeKey,
@@ -78,6 +77,17 @@ export const openEscalation = async (
     reason: null,
     meta: meta ?? input.meta ?? null,
   } as any)
+
+  if (conflict) {
+    const { data: existing } = await db.services.escalation.openByDedupeKey(
+      orgId,
+      dedupeKey
+    )
+    if (existing)
+      return { id: existing.id, status: existing.status, routable: false, deduped: true }
+
+    throw new Error(`Failed to open escalation: conflicting row not found`)
+  }
 
   if (error || !data) {
     logger.warn(

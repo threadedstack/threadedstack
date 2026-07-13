@@ -30,6 +30,10 @@ describe(`Quota Endpoints`, () => {
           },
         },
       },
+      sandbox: {
+        getOrgShellSessionCount: vi.fn().mockReturnValue(0),
+      },
+      sandboxAvailable: true,
       config: config,
     },
   } as unknown as TApp
@@ -56,6 +60,11 @@ describe(`Quota Endpoints`, () => {
         id: mockUserId,
       } as any,
     }
+
+    mockApp.locals.sandboxAvailable = true
+    mockApp.locals.sandbox = {
+      getOrgShellSessionCount: vi.fn().mockReturnValue(0),
+    } as any
 
     vi.clearAllMocks()
   })
@@ -103,7 +112,9 @@ describe(`Quota Endpoints`, () => {
 
       expect(mockFindByOrgAndPeriod).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockQuota })
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 0 },
+      })
     })
 
     it(`should return zeros if no quota record exists`, async () => {
@@ -127,7 +138,65 @@ describe(`Quota Endpoints`, () => {
           messages: 0,
           endpoints: 0,
           secrets: 0,
+          sandboxSessions: 0,
         },
+      })
+    })
+
+    it(`should include the live active sandbox-session count alongside stored quota usage`, async () => {
+      const mockQuota = { orgId: mockOrgId, period: `2026-01`, projects: 3 }
+
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrgShellSessionCount = mockReq.app?.locals.sandbox
+        .getOrgShellSessionCount as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: mockQuota })
+      mockGetOrgShellSessionCount.mockReturnValue(4)
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGetOrgShellSessionCount).toHaveBeenCalledWith(mockOrgId)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 4 },
+      })
+    })
+
+    it(`should report zero active sandbox sessions for an org with none active`, async () => {
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrgShellSessionCount = mockReq.app?.locals.sandbox
+        .getOrgShellSessionCount as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: null })
+      mockGetOrgShellSessionCount.mockReturnValue(0)
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const jsonArg = mockJson.mock.calls[0][0]
+      expect(jsonArg.data.sandboxSessions).toBe(0)
+    })
+
+    it(`should report zero sandbox sessions without touching SandboxService when sandbox is unavailable`, async () => {
+      const mockQuota = { orgId: mockOrgId, period: `2026-01`, projects: 3 }
+
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.app!.locals.sandboxAvailable = false
+      mockReq.app!.locals.sandbox = undefined
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: mockQuota })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 0 },
       })
     })
 

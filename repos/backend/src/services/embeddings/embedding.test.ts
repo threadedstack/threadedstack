@@ -1,6 +1,7 @@
 import type { TApp } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+import { logger } from '@TBE/utils/logger'
 import { EmbeddingService, resolveEmbeddingProvider } from './embedding'
 import { MemoryMaxTextChars, MemoryEmbeddingDimensions } from '@tdsk/domain'
 
@@ -9,6 +10,25 @@ const mockResolveApiKey = vi.hoisted(() => vi.fn())
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
+
+// Shrinks ProviderFetchTimeoutMS so the hang/timeout tests below complete in
+// milliseconds instead of the real 10s.
+vi.mock(`@TBE/constants/values`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@TBE/constants/values')>()
+  return { ...actual, ProviderFetchTimeoutMS: 50 }
+})
+
+/**
+ * Mimics real fetch's AbortSignal semantics: never resolves on its own, only
+ * rejects (with the real TimeoutError DOMException name/message Node's
+ * AbortSignal.timeout actually produces) once the passed signal fires.
+ */
+const neverResolvingFetch = (_url: string, opts: RequestInit = {}) =>
+  new Promise((_resolve, reject) => {
+    opts.signal?.addEventListener(`abort`, () => {
+      reject(new DOMException(`The operation was aborted due to timeout`, `TimeoutError`))
+    })
+  })
 
 vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
   SecretResolver: vi.fn().mockImplementation(() => ({
@@ -132,6 +152,37 @@ describe(`EmbeddingService`, () => {
     const out = await svc.embed([`a`, `b`], { orgId: `org-1` })
 
     expect(out).toEqual([null, null])
+  })
+
+  it(`degrades to nulls with a clear timeout message when the OpenAI request never settles`, async () => {
+    fetchMock.mockImplementation(neverResolvingFetch)
+    const { app } = makeApp([makeProvider()])
+    const svc = new EmbeddingService(app)
+
+    const out = await svc.embed([`a`], { orgId: `org-1` })
+
+    expect(out).toEqual([null])
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`OpenAI embeddings request timed out after 50ms`)
+    )
+  })
+
+  it(`degrades to nulls with a clear timeout message when the Google request never settles`, async () => {
+    fetchMock.mockImplementation(neverResolvingFetch)
+    const { app } = makeApp([
+      makeProvider({
+        brand: `google`,
+        options: { embeddingModel: `models/gemini-embedding-001` },
+      }),
+    ])
+    const svc = new EmbeddingService(app)
+
+    const out = await svc.embed([`a`], { orgId: `org-1` })
+
+    expect(out).toEqual([null])
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`Google embeddings request timed out after 50ms`)
+    )
   })
 
   it(`returns an empty array for empty input without calling fetch`, async () => {

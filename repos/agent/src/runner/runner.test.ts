@@ -1328,6 +1328,90 @@ describe(`AgentRunner`, () => {
     })
   })
 
+  describe(`skill-granted tool revocation`, () => {
+    const baseInitOpts = (): TAgentInitOpts => ({
+      agentId: `agent-1`,
+      threadId: `thread-1`,
+      userId: `user-1`,
+      orgId: `org-1`,
+      db: mockDb,
+      llmConfig: {
+        provider: `anthropic`,
+        model: `claude-sonnet-4-20250514`,
+        systemPrompt: `You are a helper`,
+        apiKey: `sk-test-key`,
+      },
+      onEvent: vi.fn(),
+    })
+
+    const makeRecordsProvider = () => ({
+      query: vi.fn().mockResolvedValue([]),
+      get: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({ id: `rec_1` }),
+      delete: vi.fn().mockResolvedValue({ deleted: true }),
+    })
+
+    const dbSkill = {
+      id: `skill-1`,
+      orgId: `org-1`,
+      name: `Database Skill`,
+      instructions: `Use the database tool when asked.`,
+      tools: [`collectionQuery`],
+      alwaysActive: false,
+      triggerKeywords: [`database`],
+    } as any
+
+    const toolNames = () => {
+      const agentInstance = vi.mocked(Agent).mock.results[0]?.value
+      return (agentInstance.state.tools as Array<{ name: string }>).map((t) => t.name)
+    }
+
+    it(`grants the skill's tool on a turn whose prompt matches, and revokes it on the next turn that doesn't`, async () => {
+      const runner = new AgentRunner()
+      await runner.init({
+        ...baseInitOpts(),
+        // A non-empty base allowlist that excludes collectionQuery -- createRecordTools
+        // treats an EMPTY allowlist as "unrestricted" (grants all 4 tools), so the base
+        // list must be non-empty here to make collectionQuery's presence meaningful.
+        tools: [`collectionGet`],
+        recordsProvider: makeRecordsProvider(),
+        skills: [dbSkill],
+      })
+
+      const handle1 = await runner.runTurn({ prompt: `query the database please` })
+      await handle1.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+      expect(toolNames()).toContain(`collectionGet`)
+
+      const handle2 = await runner.runTurn({ prompt: `just say hello` })
+      await handle2.waitForIdle()
+      expect(toolNames()).not.toContain(`collectionQuery`)
+      expect(toolNames()).toContain(`collectionGet`)
+
+      await runner.destroy()
+    })
+
+    it(`keeps granting the tool across consecutive turns that both match`, async () => {
+      const runner = new AgentRunner()
+      await runner.init({
+        ...baseInitOpts(),
+        tools: [`collectionGet`],
+        recordsProvider: makeRecordsProvider(),
+        skills: [dbSkill],
+      })
+
+      const handle1 = await runner.runTurn({ prompt: `query the database please` })
+      await handle1.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+
+      const handle2 = await runner.runTurn({ prompt: `query the database again` })
+      await handle2.waitForIdle()
+      expect(toolNames()).toContain(`collectionQuery`)
+
+      await runner.destroy()
+    })
+  })
+
   describe(`convertToLlm filter`, () => {
     it(`should pass convertToLlm to Agent constructor`, async () => {
       const opts = baseOpts()
@@ -1482,6 +1566,103 @@ describe(`AgentRunner`, () => {
 
       // destroy() should drain persistence without throwing
       await expect(runner.destroy()).resolves.not.toThrow()
+    })
+  })
+
+  describe(`destroy() awaits an in-flight turn (rec_ae3fLu)`, () => {
+    it(`waits for a late tool-completion persistence write before tearing down, instead of dropping it`, async () => {
+      const subscribers: Array<(event: AgentEvent) => void> = []
+      mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+        subscribers.push(fn)
+        return vi.fn()
+      })
+
+      const events: string[] = []
+
+      let waitForIdleCalled = false
+      let resolveWaitForIdle: () => void = () => {}
+      mockWaitForIdle.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            waitForIdleCalled = true
+            resolveWaitForIdle = resolve
+          })
+      )
+
+      let resolveLatePersist: () => void = () => {}
+      const latePersistPromise = new Promise((resolve) => {
+        resolveLatePersist = () => {
+          events.push(`persist-resolved`)
+          resolve({})
+        }
+      })
+      mockDb.createMessage.mockImplementation((args: any) =>
+        args?.type === `assistant` ? latePersistPromise : Promise.resolve({})
+      )
+
+      const runner = new AgentRunner()
+      const opts = baseOpts()
+      const { prompt, images, signal, ...initOpts } = opts
+      await runner.init(initOpts)
+      await runner.runTurn({ prompt })
+
+      // Simulate a fast client disconnect: destroy() is called while the
+      // turn is still in flight (waitForIdle hasn't resolved yet).
+      const destroyPromise = runner.destroy().then(() => {
+        events.push(`destroy-resolved`)
+      })
+
+      // The tool call finishes and its (delayed) turn_end fires AFTER
+      // destroy() has already been invoked — this late event must still be
+      // captured, not dropped, because the subscription is still active.
+      const initSubscriber = subscribers[0]
+      initSubscriber?.({
+        type: `turn_end`,
+        message: { role: `assistant`, content: [{ type: `text`, text: `late result` }] },
+        toolResults: [],
+      } as any)
+
+      // The internal run needs a few microtask hops (past the user-message
+      // save, agent.prompt(), etc.) before it actually reaches
+      // agent.waitForIdle() — wait for that call to actually happen rather
+      // than guessing a fixed number of ticks.
+      while (!waitForIdleCalled) await Promise.resolve()
+
+      // Let the aborted run actually settle now.
+      resolveWaitForIdle()
+      await Promise.resolve()
+      await Promise.resolve()
+      resolveLatePersist()
+
+      await destroyPromise
+
+      expect(mockAbort).toHaveBeenCalled()
+      expect(events).toEqual([`persist-resolved`, `destroy-resolved`])
+    })
+
+    it(`still resolves in bounded time when the in-flight turn never settles`, async () => {
+      vi.useFakeTimers()
+
+      mockWaitForIdle.mockImplementation(() => new Promise<void>(() => {}))
+
+      const runner = new AgentRunner()
+      const opts = baseOpts()
+      const { prompt, images, signal, ...initOpts } = opts
+      await runner.init(initOpts)
+      await runner.runTurn({ prompt })
+
+      let destroyed = false
+      const destroyPromise = runner.destroy().then(() => {
+        destroyed = true
+      })
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await destroyPromise
+
+      expect(destroyed).toBe(true)
+      expect(mockAbort).toHaveBeenCalled()
+
+      vi.useRealTimers()
     })
   })
 

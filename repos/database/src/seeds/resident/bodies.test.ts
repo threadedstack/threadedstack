@@ -4,18 +4,27 @@ import {
   CeoAgentId,
   CmoAgentId,
   CtoAgentId,
+  OpsOrgId,
   EngOneAgentId,
   EngTwoAgentId,
+  EngThreeAgentId,
   OpsProjectId,
   OpsProjectName,
 } from '@TDB/seeds/agentSchedules'
+import { Ids } from '@TDB/seeds/ids.seed'
 import { ResidentActivations } from '@TDB/seeds/resident/activations'
 import {
+  ResidentSeatSpecs,
   ResidentBodyConfig,
   ResidentProviderChain,
   ResidentRepoSeats,
   ResidentRepoBranch,
+  EngineerSeatSoul,
+  CtoSeatSoul,
+  EngineerSeatDescription,
+  CtoSeatDescription,
   ResidentRepoProviderName,
+  reconcileResidentSeats,
   reconcileResidentBodies,
   ResidentBootCriticalFields,
   reconcileResidentProviderChains,
@@ -73,6 +82,7 @@ const BodyByAgent: Record<string, string> = {
   [CtoAgentId]: `sb_cto0001`,
   [EngOneAgentId]: `sb_eng0001`,
   [EngTwoAgentId]: `sb_eng0002`,
+  [EngThreeAgentId]: `sb_eng0003`,
 }
 
 /** A config already carrying the full boot recipe (plus any extra keys). */
@@ -668,7 +678,12 @@ const seedRepoLinks = (
 
 describe(`ResidentRepoSeats`, () => {
   it(`covers exactly the code-pushing seats (CTO + engineers), never CEO/CMO`, () => {
-    expect(ResidentRepoSeats).toEqual([CtoAgentId, EngOneAgentId, EngTwoAgentId])
+    expect(ResidentRepoSeats).toEqual([
+      CtoAgentId,
+      EngOneAgentId,
+      EngTwoAgentId,
+      EngThreeAgentId,
+    ])
     expect(ResidentRepoSeats).not.toContain(CeoAgentId)
     expect(ResidentRepoSeats).not.toContain(CmoAgentId)
     // Every repo seat is also an activated resident (a link on an inert seat is
@@ -775,5 +790,246 @@ describe(`reconcileResidentRepoLinks`, () => {
     expect(summary.errors).toBe(ResidentRepoSeats.length)
     expect(summary.added).toBe(0)
     expect(summary.results.every((r) => r.action === `error`)).toBe(true)
+  })
+})
+
+/**
+ * In-memory fake of the create-if-absent agent + sandbox service slice: `get`
+ * returns the stored row or `null` (mirroring the real services, which return
+ * `{}`/no data on not-found), and `create` inserts a fixed-id row and records
+ * the exact insert payload. `agentCreates`/`sandboxCreates` let a test prove
+ * which rows were created and with what fields (builtIn, no projects,
+ * environment.sandboxId). Enough to prove create-when-absent, no-op-when-present,
+ * and never-throws without a live DB.
+ */
+const makeFakeSeatService = () => {
+  const agents = new Map<string, { id: string }>()
+  const sandboxes = new Map<string, { id: string }>()
+  const agentCreates: any[] = []
+  const sandboxCreates: any[] = []
+  return {
+    agents,
+    sandboxes,
+    agentCreates,
+    sandboxCreates,
+    service: {
+      agent: {
+        get: async (id: string) => ({ data: agents.get(id) ?? null }),
+        create: async (data: any) => {
+          agentCreates.push(data)
+          agents.set(data.id, { id: data.id })
+          return { data: { id: data.id } }
+        },
+      },
+      sandbox: {
+        get: async (id: string) => ({ data: sandboxes.get(id) ?? null }),
+        create: async (data: any) => {
+          sandboxCreates.push(data)
+          sandboxes.set(data.id, { id: data.id })
+          return { data: { id: data.id } }
+        },
+      },
+    },
+  }
+}
+
+describe(`ResidentSeatSpecs`, () => {
+  it(`is the single source of truth for the CTO + engineer seat roster`, () => {
+    // The roster is exactly the code-pushing seats (never the strategy CEO/CMO).
+    expect(ResidentSeatSpecs.map((s) => s.agentId)).toEqual([
+      CtoAgentId,
+      EngOneAgentId,
+      EngTwoAgentId,
+      EngThreeAgentId,
+    ])
+    // Body sandbox ids come from the product-stable id table, never inline.
+    const sandboxById: Record<string, string> = {
+      [CtoAgentId]: Ids.sandbox.ctoBody,
+      [EngOneAgentId]: Ids.sandbox.engOneBody,
+      [EngTwoAgentId]: Ids.sandbox.engTwoBody,
+      [EngThreeAgentId]: Ids.sandbox.engThreeBody,
+    }
+    for (const spec of ResidentSeatSpecs)
+      expect(spec.sandboxId).toBe(sandboxById[spec.agentId])
+  })
+
+  it(`SINGLE SOURCE OF TRUTH — every engineer seat carries the shared identity constants`, () => {
+    // The identity strings live in exactly ONE place (the exported constants
+    // fullorg.ts ALSO consumes), so a spec and its fullorg founder seat can
+    // never drift apart. Asserting the spec uses the constant is asserting the
+    // fullorg seat matches, because fullorg imports the same constant.
+    for (const agentId of [EngOneAgentId, EngTwoAgentId, EngThreeAgentId]) {
+      const spec = ResidentSeatSpecs.find((s) => s.agentId === agentId)!
+      expect(spec.soul).toBe(EngineerSeatSoul)
+      expect(spec.description).toBe(EngineerSeatDescription)
+    }
+    const cto = ResidentSeatSpecs.find((s) => s.agentId === CtoAgentId)!
+    expect(cto.soul).toBe(CtoSeatSoul)
+    expect(cto.description).toBe(CtoSeatDescription)
+    // Engineer seats share one soul; the CTO seat is its own.
+    expect(EngineerSeatSoul).not.toBe(CtoSeatSoul)
+  })
+})
+
+describe(`reconcileResidentSeats`, () => {
+  it(`creates the agent + body sandbox for every seat when both are absent`, async () => {
+    const fake = makeFakeSeatService()
+
+    const summary = await reconcileResidentSeats(fake.service)
+
+    expect(summary).toMatchObject({
+      agentsCreated: ResidentSeatSpecs.length,
+      agentsUnchanged: 0,
+      sandboxesCreated: ResidentSeatSpecs.length,
+      sandboxesUnchanged: 0,
+      errors: 0,
+    })
+    // Both rows now exist for every seat.
+    for (const spec of ResidentSeatSpecs) {
+      expect(fake.agents.has(spec.agentId)).toBe(true)
+      expect(fake.sandboxes.has(spec.sandboxId)).toBe(true)
+    }
+  })
+
+  it(`creates the agent with brain=runtime, autonomous+active, and environment.sandboxId`, async () => {
+    const fake = makeFakeSeatService()
+
+    await reconcileResidentSeats(fake.service)
+
+    const eng3 = fake.agentCreates.find((a) => a.id === EngThreeAgentId)!
+    expect(eng3).toMatchObject({
+      id: EngThreeAgentId,
+      orgId: OpsOrgId,
+      name: `Engineer Three`,
+      description: EngineerSeatDescription,
+      soul: EngineerSeatSoul,
+      brain: `runtime`,
+      autonomous: true,
+      active: true,
+      environment: { sandboxId: Ids.sandbox.engThreeBody },
+    })
+    // No project/provider/secret relations on create — those are the later
+    // reconcile steps' job.
+    expect(eng3).not.toHaveProperty(`projects`)
+    expect(eng3).not.toHaveProperty(`providerInputs`)
+  })
+
+  it(`creates the body sandbox with builtIn:true, the boot recipe, and NO projects link`, async () => {
+    const fake = makeFakeSeatService()
+
+    await reconcileResidentSeats(fake.service)
+
+    const body = fake.sandboxCreates.find((s) => s.id === Ids.sandbox.engThreeBody)!
+    expect(body).toMatchObject({
+      id: Ids.sandbox.engThreeBody,
+      orgId: OpsOrgId,
+      name: `Engineer Three Body`,
+      builtIn: true,
+    })
+    // The full boot recipe, verbatim.
+    expect(body.config).toEqual(ResidentBodyConfig)
+    // No projects/sandboxProjects link — the watchdog resolves by
+    // agent.environment.sandboxId + config.resident; ops-project + repo links
+    // are the body/repo-link reconciles' job.
+    expect(body).not.toHaveProperty(`projects`)
+  })
+
+  it(`is a no-op when both the agent and sandbox already exist (idempotent re-run)`, async () => {
+    const fake = makeFakeSeatService()
+    // Pre-create every seat's agent + sandbox.
+    for (const spec of ResidentSeatSpecs) {
+      fake.agents.set(spec.agentId, { id: spec.agentId })
+      fake.sandboxes.set(spec.sandboxId, { id: spec.sandboxId })
+    }
+
+    const summary = await reconcileResidentSeats(fake.service)
+
+    expect(summary).toMatchObject({
+      agentsCreated: 0,
+      agentsUnchanged: ResidentSeatSpecs.length,
+      sandboxesCreated: 0,
+      sandboxesUnchanged: ResidentSeatSpecs.length,
+      errors: 0,
+    })
+    // Nothing was created.
+    expect(fake.agentCreates).toHaveLength(0)
+    expect(fake.sandboxCreates).toHaveLength(0)
+  })
+
+  it(`creates only the missing half when the sandbox exists but the agent does not`, async () => {
+    const fake = makeFakeSeatService()
+    // Every sandbox already present; every agent absent.
+    for (const spec of ResidentSeatSpecs)
+      fake.sandboxes.set(spec.sandboxId, { id: spec.sandboxId })
+
+    const summary = await reconcileResidentSeats(fake.service)
+
+    expect(summary).toMatchObject({
+      agentsCreated: ResidentSeatSpecs.length,
+      agentsUnchanged: 0,
+      sandboxesCreated: 0,
+      sandboxesUnchanged: ResidentSeatSpecs.length,
+      errors: 0,
+    })
+    expect(fake.sandboxCreates).toHaveLength(0)
+    expect(fake.agentCreates).toHaveLength(ResidentSeatSpecs.length)
+  })
+
+  it(`never throws — a sandbox create failure is an error, and the agent is not created`, async () => {
+    const fake = makeFakeSeatService()
+    const failing = {
+      agent: fake.service.agent,
+      sandbox: {
+        get: fake.service.sandbox.get,
+        create: async () => ({ error: new Error(`sandbox write refused`) }),
+      },
+    }
+
+    const summary = await reconcileResidentSeats(failing)
+
+    expect(summary.errors).toBe(ResidentSeatSpecs.length)
+    expect(summary.sandboxesCreated).toBe(0)
+    // Sandbox failed → the agent step is skipped for that seat.
+    expect(fake.agentCreates).toHaveLength(0)
+    expect(
+      summary.results.every(
+        (r) => r.agentAction === `error` && r.sandboxAction === `error`
+      )
+    ).toBe(true)
+    expect(summary.results[0].message).toContain(`sandbox write refused`)
+  })
+
+  it(`never throws — an agent create failure is an error while the sandbox still lands`, async () => {
+    const fake = makeFakeSeatService()
+    const failing = {
+      agent: {
+        get: fake.service.agent.get,
+        create: async () => ({ error: new Error(`agent write refused`) }),
+      },
+      sandbox: fake.service.sandbox,
+    }
+
+    const summary = await reconcileResidentSeats(failing)
+
+    expect(summary.errors).toBe(ResidentSeatSpecs.length)
+    // The sandbox was created for every seat before the agent step failed.
+    expect(summary.sandboxesCreated).toBe(ResidentSeatSpecs.length)
+    expect(summary.agentsCreated).toBe(0)
+    expect(summary.results.every((r) => r.agentAction === `error`)).toBe(true)
+    expect(summary.results[0].message).toContain(`agent write refused`)
+  })
+
+  it(`never throws — a get lookup error is captured as an error`, async () => {
+    const fake = makeFakeSeatService()
+    const summary = await reconcileResidentSeats({
+      agent: fake.service.agent,
+      sandbox: {
+        ...fake.service.sandbox,
+        get: async () => ({ error: new Error(`db refused`) }),
+      },
+    })
+
+    expect(summary.errors).toBe(ResidentSeatSpecs.length)
+    expect(summary.results[0].message).toContain(`db refused`)
   })
 })

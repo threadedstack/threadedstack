@@ -4,6 +4,7 @@ import type { Model, Api, KnownProvider } from '@earendil-works/pi-ai'
 import { logger } from '@TBE/utils/logger'
 import { DefProviderModelUrls } from '@tdsk/domain'
 import { getModels, getModel } from '@earendil-works/pi-ai'
+import { ProviderFetchTimeoutMS } from '@TBE/constants/values'
 
 /**
  * ModelRegistry — wraps pi-mono's model registry as the sole source
@@ -60,7 +61,16 @@ export class ModelRegistry {
       ? `${baseUrl.replace(/\/v1\/?$/, ``)}/api/tags`
       : DefProviderModelUrls.ollamaUrl
 
-    const resp = await fetch(ollamaUrl)
+    let resp: Response
+    try {
+      resp = await fetch(ollamaUrl, {
+        signal: AbortSignal.timeout(ProviderFetchTimeoutMS),
+      })
+    } catch (err: any) {
+      if (err?.name === `TimeoutError`)
+        throw new Error(`Ollama API request timed out after ${ProviderFetchTimeoutMS}ms`)
+      throw err
+    }
     if (!resp.ok) throw new Error(`Ollama API returned ${resp.status}`)
 
     const json = await resp.json()

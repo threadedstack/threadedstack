@@ -7,8 +7,10 @@ import { RobotIcon } from '@tdsk/components'
 import Accordion from '@mui/material/Accordion'
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
+import CableIcon from '@mui/icons-material/Cable'
 import CloudIcon from '@mui/icons-material/Cloud'
 import SyncIcon from '@mui/icons-material/Sync'
+import DatasetIcon from '@mui/icons-material/Dataset'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import PageMeta from '@TAF/components/Shared/PageMeta'
 import PageHero from '@TAF/components/Shared/PageHero'
@@ -252,6 +254,72 @@ tsa sessions list
     codeLang: 'bash',
     docsLink: '/docs/features/session-sharing',
   },
+  {
+    icon: DatasetIcon,
+    title: 'Collections & Records',
+    benefit:
+      'Give every agent run, Function, and schedule durable, queryable memory — without provisioning an external database.',
+    expansion:
+      'A Collection is a named, project-scoped set of JSON-document Records, with an optional schema for validated writes. The Admin API, agent tools, FaaS Functions, and schedule contextSources all read and write through the same scoped query engine.',
+    paragraphs: [
+      'A Collection is a named, project-scoped set of Records, each a JSON document with an id and timestamps. Attach an optional schema — typed fields, each markable required — and every write is validated against it; skip the schema and the collection accepts any document. This gives agents, Functions, and schedules a lightweight place to persist structured data without provisioning and wiring up an external database.',
+      'Four access paths compile through the same host-side query engine: the Admin API, four dedicated agent tools (collectionQuery, collectionGet, collectionUpsert, collectionDelete), a FaaS Function’s injected context.records capability, and a schedule’s contextSources config. Every filter field is validated against a strict identifier charset and bound as a parameter, never string-interpolated, so the same small, injection-safe filter/sort/limit API is safe no matter which surface is querying it.',
+      'This turns durable memory into a config change instead of a coding project: point a schedule’s contextSources at your own collection and its next cycle prompt gets a live, filtered view injected automatically; have an agent run upsert its findings and a later run, Function, or schedule can query them back. Every record is scoped to its own project, so one team’s collections are never visible to another’s.',
+    ],
+    code: `# Create a project-scoped collection (schema optional)
+curl -X POST .../projects/<id>/collections \\
+  -d '{
+    "name": "leads",
+    "schema": [{ "name": "email", "type": "string", "required": true }]
+  }'
+
+# Agents get 4 tools automatically: collectionQuery / Get / Upsert / Delete
+# → an agent run persists a finding...
+collectionUpsert("leads", { data: { email: "alice@example.com", status: "new" } })
+
+# ...and a later run, Function, or schedule reads it back
+curl -X POST .../collections/leads/records/query \\
+  -d '{
+    "where": [{ "field": "status", "op": "eq", "value": "new" }],
+    "limit": 25
+  }'
+# → { "data": [{ "id": "rec_f6g7h8i9j0", "data": { "email": "alice@example.com", "status": "new" } }] }`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/collections',
+  },
+  {
+    icon: CableIcon,
+    title: 'Agent Connectors',
+    benefit:
+      'An agent authors its own proxy Endpoint and stores its own credential — then calls that Endpoint immediately, with no human in the loop to allowlist it.',
+    expansion:
+      'Self-provisioning removes the ceiling of human-configured tools: a scheduled or resident agent can emit a tdsk-author-secret fence to store a credential it obtained as its own encrypted Secret, and a tdsk-author-endpoint fence to build its own proxy Endpoint — then reach it through the context.connect Function capability with zero allowlist, because authorship is authorization.',
+    paragraphs: [
+      'By default an agent’s tools are the ones a human configured for its project ahead of time. Agent Connectors remove that ceiling: an agent running in a scheduled cycle or a resident (live) session can author its own proxy Endpoint and store a credential it obtained as its own encrypted Secret — then call that Endpoint immediately, with no human round-trip to create it first.',
+      'Every submission passes an SSRF check at author time (the same egress guard used at call time), a same-agent secret-ownership check, and a deterministic content scan before a row is written — an internal target, a cross-owner secret reference, or a leaked credential is rejected before the Endpoint ever exists. Agent-authored Endpoints are proxy-only and can only resolve secrets that same agent owns, never the project’s full secret set.',
+      'A FaaS Function reaches an authored Endpoint through context.connect.invoke(ref, request) — there is deliberately no caller-supplied path, so the target host is fixed by the Endpoint’s stored configuration and a Function can only vary the query, headers, body, and method. Authorship is authorization: an agent-authored Endpoint needs no human allowlist entry to be reached by its own author.',
+    ],
+    code: `# 1. Agent obtains a credential during its run, then stores it as its own Secret
+\`\`\`tdsk-author-secret
+{ "name": "WEBHOOK_TOKEN", "value": "whsec_...", "description": "Obtained from webhook signup" }
+\`\`\`
+
+# 2. Same turn: agent builds its own proxy Endpoint referencing that secret
+\`\`\`tdsk-author-endpoint
+{
+  "name": "my-webhook",
+  "path": "/notify",
+  "options": { "url": "https://hooks.example.com/notify" },
+  "headers": { "Authorization": "Bearer {{ WEBHOOK_TOKEN:sec_xxxxxxxxxx }}" }
+}
+\`\`\`
+
+# 3. A later Function execution calls it — zero allowlist, same-agent secrets only
+context.connect.invoke('my-webhook', { method: 'POST', body: { event: 'run.completed' } })
+# → { ok: true, status: 200, body: { received: true } }`,
+    codeLang: 'bash',
+    docsLink: '/docs/features/agent-connectors',
+  },
 ]
 
 const altBgSx = (t: any) =>
@@ -273,7 +341,7 @@ const Features = () => (
   <>
     <PageMeta
       title='Features'
-      description="Explore Threaded Stack's platform capabilities: managed sandboxes, zero-trust egress proxy, secret management, provider integrations, file sync, team management, and real-time session sharing."
+      description="Explore Threaded Stack's platform capabilities: managed sandboxes, zero-trust egress proxy, secret management, provider integrations, file sync, team management, real-time session sharing, and queryable Collections & Records."
     />
     <Box>
       <PageHero

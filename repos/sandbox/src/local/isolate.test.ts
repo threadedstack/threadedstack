@@ -346,13 +346,38 @@ describe(`IsolateRunner`, () => {
       )
     })
 
-    it(`should return undefined when both structured clone and JSON fallback fail`, async () => {
+    it(`should set .error when both structured clone and the JSON fallback's own extraction fail`, async () => {
       // Both structured clone and bridge module get reject
       mockGet.mockRejectedValue(new Error(`clone failed`))
 
       const result = await runIsolate(runner, `export default { circular: true }`)
 
       expect(result.result).toBeUndefined()
+      expect(result.error).toContain(`clone failed`)
+    })
+
+    it(`should set .error when structured clone fails and the JSON fallback bridge itself throws`, async () => {
+      // Primary clone attempt (ns.get) rejects
+      mockGet.mockRejectedValueOnce(new Error(`#<Object> could not be cloned`))
+      // Shim modules and userModule.evaluate() all resolve normally, but the
+      // bridge's own evaluate() throws (e.g. JSON.stringify hitting a circular
+      // reference) — a distinct failure point from the bridge's extraction
+      // (namespace.get) failing. Matched by the bridge's hardcoded
+      // `{ timeout: 1000 }` call signature rather than call order, since init()
+      // evaluates every shim module before user code ever runs.
+      mockEvaluate.mockImplementation(async (opts?: any) => {
+        if (opts?.timeout === 1000)
+          throw new Error(`Converting circular structure to JSON`)
+        return undefined
+      })
+
+      const result = await runIsolate(runner, `export default { circular: true }`)
+
+      expect(result.result).toBeUndefined()
+      expect(result.error).toContain(`Converting circular structure to JSON`)
+
+      // Restore the default so later tests aren't affected by this override.
+      mockEvaluate.mockResolvedValue(undefined)
     })
   })
 
@@ -579,9 +604,7 @@ describe(`IsolateRunner`, () => {
 
       await runner.init()
 
-      await expect((runner as any).scrubGlobals()).rejects.toThrow(
-        `Array.prototype.push`
-      )
+      await expect((runner as any).scrubGlobals()).rejects.toThrow(`Array.prototype.push`)
     })
   })
 
@@ -698,6 +721,81 @@ describe(`IsolateRunner`, () => {
 
       expect(mockSet).not.toHaveBeenCalledWith(`__hostCallStart`, expect.anything())
       expect(mockDelete).not.toHaveBeenCalledWith(`__hostCallStart`)
+    })
+  })
+
+  describe(`cleanup on throw`, () => {
+    it(`releases the user module when evaluate() times out`, async () => {
+      await runner.init()
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(runIsolate(runner, `while(true){}`, 50)).rejects.toThrow(
+        `Script execution timed out`
+      )
+
+      expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCountBefore)
+    })
+
+    it(`releases the user module when evaluate() throws an uncaught error in user code`, async () => {
+      await runner.init()
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`ReferenceError: undefinedVar is not defined`)
+      })
+
+      await expect(runIsolate(runner, `undefinedVar.doStuff()`)).rejects.toThrow(
+        `undefinedVar is not defined`
+      )
+
+      expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCountBefore)
+    })
+
+    it(`clears any timer registered during a run that then throws`, async () => {
+      await runner.init()
+
+      // Grab the real _timerSet callback registered during init and use it to
+      // simulate user code having scheduled a timer just before the throw.
+      const timerSetCall = mockSet.mock.calls.find((c: any[]) => c[0] === `_timerSet`)
+      const timerSet = timerSetCall![1] as (id: number, ms: number) => void
+      const clearTimeoutSpy = vi.spyOn(global, `clearTimeout`)
+
+      mockEvaluate.mockImplementationOnce(async () => {
+        timerSet(99, 10000)
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(
+        runIsolate(runner, `setTimeout(() => {}, 10000); while(true){}`, 50)
+      ).rejects.toThrow(`Script execution timed out`)
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    it(`tears down the host bridge globals even when evaluate() throws`, async () => {
+      await runner.init()
+      mockDelete.mockClear()
+      mockContextEval.mockClear()
+
+      const bridge = vi.fn(async () => `null`)
+      mockEvaluate.mockImplementationOnce(async () => {
+        throw new Error(`Script execution timed out`)
+      })
+
+      await expect(
+        runner[`eval`](`while(true){}`, 50, { 'demo.echo': bridge })
+      ).rejects.toThrow(`Script execution timed out`)
+
+      expect(mockDelete).toHaveBeenCalledWith(`__hostCallStart`)
+      const teardownCall = mockContextEval.mock.calls.find((c: any[]) =>
+        String(c[0]).includes(`delete globalThis.__hostCall`)
+      )
+      expect(teardownCall).toBeDefined()
     })
   })
 })

@@ -545,4 +545,23 @@ describe(`buildPodManifest`, () => {
     expect(empty.spec!.nodeSelector).toBeUndefined()
     expect(empty.spec!.tolerations).toBeUndefined()
   })
+
+  it(`schedules onto an overriding pool with a matching toleration when nodeSelector targets tdskembed`, () => {
+    const opts = {
+      ...buildOpts(),
+      nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdskembed` },
+    }
+    const manifest = buildPodManifest(opts)
+    expect(manifest.spec!.nodeSelector!['kubernetes.civo.com/civo-node-pool']).toBe(
+      `tdskembed`
+    )
+    expect(manifest.spec!.tolerations).toEqual([
+      {
+        key: `kubernetes.civo.com/civo-node-pool`,
+        value: `tdskembed`,
+        operator: `Equal`,
+        effect: `NoSchedule`,
+      },
+    ])
+  })
 })

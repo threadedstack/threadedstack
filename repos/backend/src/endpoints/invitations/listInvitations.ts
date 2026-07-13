@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
+import type { EInviteStatus } from '@tdsk/domain'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -25,20 +26,23 @@ export const listInvitations: TEndpointConfig = {
     const { limit, offset } = parsePagination(req)
 
     const isPending = status === `pending`
+    const isAll = status === `all`
+
     const { data, error } = isPending
-      ? await db.services.invitation.getPendingByOrg(orgId)
-      : await db.services.invitation.getAllByOrg(orgId)
+      ? await db.services.invitation.getPendingByOrg(orgId, { limit, offset })
+      : await db.services.invitation.getAllByOrg(orgId, {
+          limit,
+          offset,
+          ...(isAll ? {} : { status: status as EInviteStatus }),
+        })
 
     if (error) throw new Exception(500, error.message)
-
-    const invitations =
-      isPending || status === `all` ? data : data?.filter((inv) => inv.status === status)
 
     res.status(200).json({
       limit,
       offset,
       success: true,
-      data: invitations,
+      data,
     })
   },
 }

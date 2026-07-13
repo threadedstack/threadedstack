@@ -10,9 +10,9 @@ import type {
 
 import { log } from './log'
 import {
-  parseActionsBlock,
   MemoriesBlockFence,
   extractLastFencedBlock,
+  parseActionsBlockWithMeta,
 } from '@tdsk/domain'
 import {
   DispatchMaxAttempts,
@@ -266,7 +266,7 @@ export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
   return {
     pump: async (outputText: string): Promise<TPumpReport> => {
       const config = getConfig()
-      const actions = parseActionsBlock(outputText)
+      const { actions, blockCount } = parseActionsBlockWithMeta(outputText)
       const memories = extractMemoryActions(outputText, config.functions?.writeMemory)
       const all = [...actions, ...memories.actions]
 
@@ -275,6 +275,7 @@ export const createActionPump = (opts: TActionPumpOpts): TActionPump => {
         dispatched: 0,
         failed: 0,
         allowlistRejected: 0,
+        discardedActionBlocks: blockCount > 0 ? blockCount - 1 : 0,
         memoriesSkipped: memories.skipped,
         functionsAuthored: 0,
         functionsRejected: 0,

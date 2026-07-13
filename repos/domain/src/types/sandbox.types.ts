@@ -187,7 +187,7 @@ export interface ISandbox {
   /** Write a file */
   writeFile(path: string, content: string): Promise<void>
   /** Execute a shell command */
-  exec(command: string, args?: string[]): Promise<TSandboxResult>
+  exec(command: string, args?: string[], signal?: AbortSignal): Promise<TSandboxResult>
   /** Execute a shell command with streaming stdout/stderr callbacks */
   execStreaming?(
     command: string,
@@ -262,6 +262,9 @@ export type TKubeSandboxConfig = {
     limits?: { cpu?: string; memory?: string }
     requests?: { cpu?: string; memory?: string }
   }
+  /** Override the Civo node pool this sandbox schedules onto (defaults to the
+   * global TDSK_SB_NODE_POOL). */
+  nodePool?: string
   /** Override the default skill installation path for this runtime */
   skillPath?: string
   /** Sandbox-level generative UI config override (overrides org-level guiConfig when set) */

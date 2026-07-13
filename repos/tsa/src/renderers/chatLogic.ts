@@ -515,6 +515,11 @@ export class ChatLogic {
       }
     }
 
+    // Second line of defense against PiTuiApp's isStreaming guard: refuse to
+    // re-enter while a turn is already streaming, since this and #streamBuffer
+    // are shared instance state that a concurrent call would corrupt.
+    if (this.isStreaming) return
+
     this.#addMessage({ type: `user`, content: text })
     this.isStreaming = true
     this.streamText = ``
@@ -541,6 +546,7 @@ export class ChatLogic {
         threadId: this.threadId || undefined,
         providerId: this.providerId || undefined,
         contextFiles: this.contextFiles,
+        insecure: this.#auth.creds()?.insecure,
         onEvent: (event: TStreamEvent) => {
           switch (event.type) {
             case EStreamEventType.text:

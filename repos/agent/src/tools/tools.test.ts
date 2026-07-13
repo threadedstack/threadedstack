@@ -94,7 +94,7 @@ describe(`createSandboxTools`, () => {
         vi.fn()
       )
 
-      expect(mockSandbox.exec).toHaveBeenCalledWith(`ls`, [`-la`])
+      expect(mockSandbox.exec).toHaveBeenCalledWith(`ls`, [`-la`], undefined)
       expect(result.content).toEqual([{ type: `text`, text: `cmd output` }])
       expect(result.details).toEqual({ success: true, exitCode: 0 })
     })
@@ -104,7 +104,21 @@ describe(`createSandboxTools`, () => {
       const tool = tools.find((t) => t.name === `shellExec`)!
       await tool.execute(`call-1`, { command: `pwd` }, undefined as any, vi.fn())
 
-      expect(mockSandbox.exec).toHaveBeenCalledWith(`pwd`, undefined)
+      expect(mockSandbox.exec).toHaveBeenCalledWith(`pwd`, undefined, undefined)
+    })
+
+    it(`should forward the execute() signal through to sandbox.exec so a cancelled tool call actually stops the command`, async () => {
+      const controller = new AbortController()
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `shellExec`)!
+      await tool.execute(
+        `call-1`,
+        { command: `ls`, args: [`-la`] },
+        controller.signal,
+        vi.fn()
+      )
+
+      expect(mockSandbox.exec).toHaveBeenCalledWith(`ls`, [`-la`], controller.signal)
     })
 
     it(`should return error text when output is empty but error exists`, async () => {

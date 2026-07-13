@@ -5,21 +5,26 @@ import { EFunLanguage } from '@tdsk/domain'
  *
  * CTO grooming, ATOMIC groom-and-claim: upserts a new backlog `dev_tasks`
  * record AND, when the task carries a `sourceTaskProposalId`, promotes that
- * `task_proposals` record in the SAME call (folding in pickupTask's promotion
- * logic) — so a groomed proposal can NEVER stay `scanned`. `createdBy` is
- * ALWAYS the platform-injected caller (a disagreeing createdBy arg is
- * refused). Dedupes against still-open tasks (any non-terminal state) on TWO
- * keys so an hourly grooming agenda can never stack duplicates: an identical
- * title, AND the same `sourceTaskProposalId` — so re-grooming a not-yet-
- * promoted proposal (even decomposed into a fresh title) never re-creates a
- * dev_task. A dedupe HIT still promotes the source proposal — the belt that
- * closes the "dev_task merged, proposal still scanned, re-groomed forever"
- * hole. Priority is coerced into P0-P3 (default P3, the dev-loop convention).
+ * `task_proposals` row in the SAME call (folding in pickupTask's promotion
+ * logic) via the `context.taskProposals` bridge — the authoritative SQL table,
+ * never `context.records` (which only reaches the tenant's own Collections and
+ * would leave the real table's status stuck at `scanned`, silently reappearing
+ * on the next Collection backfill) — so a groomed proposal can NEVER stay
+ * `scanned`. `createdBy` is ALWAYS the platform-injected caller (a disagreeing
+ * createdBy arg is refused). Dedupes against still-open tasks (any non-terminal
+ * state) on TWO keys so an hourly grooming agenda can never stack duplicates:
+ * an identical title, AND the same `sourceTaskProposalId` — so re-grooming a
+ * not-yet-promoted proposal (even decomposed into a fresh title) never
+ * re-creates a dev_task. A dedupe HIT still promotes the source proposal — the
+ * belt that closes the "dev_task merged, proposal still scanned, re-groomed
+ * forever" hole. Priority is coerced into P0-P3 (default P3, the dev-loop
+ * convention).
  */
 export const DevAddTaskFunctionSource = `export default async (request, context) => {
   const args = context.args || {}
   const caller = context.caller || {}
   const records = context.records
+  const taskProposals = context.taskProposals
 
   if (!caller.agentId) return { ok: false, reason: 'no caller identity' }
   if (typeof args.createdBy === 'string' && args.createdBy && args.createdBy !== caller.agentId)
@@ -40,25 +45,20 @@ export const DevAddTaskFunctionSource = `export default async (request, context)
 
   // Fold in pickupTask's promotion logic: when a dev_task carries a source
   // proposal, mark that proposal promoted in THIS call so it can never stay
-  // scanned — the dev_task (not a PR) is the anchor, so prUrl is null. This is
-  // a BEST-EFFORT secondary effect: a missing or already-terminal proposal, or
-  // any records error here, never fails the primary dev_task outcome.
+  // scanned — the dev_task (not a PR) is the anchor. task_proposals is the
+  // platform's AUTHORITATIVE SQL table, not a project Collection, so this goes
+  // through the taskProposals bridge (never context.records — a Collection
+  // write there only patches a best-effort mirror that a later table->collection
+  // backfill can silently reset back to scanned). This is a BEST-EFFORT
+  // secondary effect: a missing bridge, a missing/already-terminal proposal, or
+  // any error here, never fails the primary dev_task outcome.
   const promoteSourceProposal = async () => {
-    if (!sourceTaskProposalId) return
+    if (!sourceTaskProposalId || !taskProposals) return
     try {
-      const proposal = await records.get('task_proposals', sourceTaskProposalId)
-      if (!proposal) return
-      if (proposal.data.status === 'promoted' || proposal.data.status === 'rejected') return
-      const data = Object.assign({}, proposal.data, {
-        status: 'promoted',
-        prUrl: null,
-        reason: 'groomed into dev_tasks',
-        auditVerdict: { approved: true, reason: 'groomed into dev_tasks', by: caller.agentId },
-      })
-      await records.upsert('task_proposals', { id: proposal.id, data: data })
+      await taskProposals.promote(sourceTaskProposalId, 'groomed into dev_tasks')
     } catch (err) {
       // Best-effort: the dev_task creation is the primary outcome. Swallow any
-      // records error so a proposal-promotion failure never fails devAddTask.
+      // error so a proposal-promotion failure never fails devAddTask.
     }
   }
 
@@ -128,7 +128,7 @@ export const DevAddTaskFunctionSource = `export default async (request, context)
 export const DevAddTaskFunctionDef = {
   id: `fn_dvaddtk`,
   name: `devAddTask`,
-  description: `Groom the dev-team backlog, atomic groom-and-claim: upsert a new backlog dev_tasks record ({title, description, priority P0-P3, evidence, sourceTaskProposalId}) with createdBy stamped from the platform-injected caller AND, when sourceTaskProposalId is set, promote that task_proposals record (status promoted + auditVerdict, prUrl null since the dev_task is the anchor) in the SAME call so a groomed proposal can never stay scanned. Dedupes against still-open tasks on exact title AND on sourceTaskProposalId so repeated grooming of an unpromoted proposal never stacks duplicates; a dedupe hit still promotes the source proposal. The proposal promotion is best-effort (a missing/already-terminal proposal, or any records error there, never fails the dev_task creation).`,
+  description: `Groom the dev-team backlog, atomic groom-and-claim: upsert a new backlog dev_tasks record ({title, description, priority P0-P3, evidence, sourceTaskProposalId}) with createdBy stamped from the platform-injected caller AND, when sourceTaskProposalId is set, promote that task_proposals row (status promoted + auditVerdict, prUrl null since the dev_task is the anchor) in the SAME call via the context.taskProposals bridge (the authoritative table, not the Collection mirror) so a groomed proposal can never stay scanned. Dedupes against still-open tasks on exact title AND on sourceTaskProposalId so repeated grooming of an unpromoted proposal never stacks duplicates; a dedupe hit still promotes the source proposal. The proposal promotion is best-effort (a missing bridge/proposal, an already-terminal proposal, or any error there, never fails the dev_task creation).`,
   language: EFunLanguage.javascript,
   content: DevAddTaskFunctionSource,
 }

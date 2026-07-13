@@ -76,6 +76,7 @@ const CmoSandboxId = `sb_cmo0001`
 export const CtoAgentId = `ag_cto0001`
 export const EngOneAgentId = `ag_eng0001`
 export const EngTwoAgentId = `ag_eng0002`
+export const EngThreeAgentId = `ag_eng0003`
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every
@@ -153,6 +154,13 @@ export const DevTaskBacklogSource: TContextSource = {
     limit: TaskBacklogInjectMax,
   },
   as: `Proposed backlog (sensor-detected)`,
+  // The SOLE-groomer CTO must see the WHOLE scanned backlog to find buildable
+  // work. The default per-section char cap (ContextSourceInjectMaxChars, 8000)
+  // bound at ~5 proposals, and priority ordering surfaced only the hard/blocked
+  // P1s — the tractable P2/P3 work fell off the bottom, so the CTO saw only
+  // un-buildable proposals and groomed nothing, starving the team. Raise the cap
+  // to fit the full injected set (up to TaskBacklogInjectMax rows).
+  max: 40000,
 }
 
 /**
@@ -185,7 +193,7 @@ export const DevTeamStatusSource: TContextSource = {
       {
         field: `agentId`,
         op: EQueryOp.in,
-        value: [CtoAgentId, EngOneAgentId, EngTwoAgentId],
+        value: [CtoAgentId, EngOneAgentId, EngTwoAgentId, EngThreeAgentId],
       },
     ],
     limit: 10,

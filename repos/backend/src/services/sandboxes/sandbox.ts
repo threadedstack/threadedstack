@@ -20,7 +20,11 @@ import type {
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 
-import { DefSBConfig, PodReadyTimeoutMS } from '@TBE/constants/sandbox'
+import {
+  DefSBConfig,
+  PodReadyTimeoutMS,
+  SandboxProxyTimeoutMs,
+} from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
@@ -94,7 +98,6 @@ export class SandboxService {
   private passwords = new Map<string, string>()
   private dockerSecrets = new Map<string, string[]>()
   private instanceActivity = new Map<string, number>()
-  private startingInstances = new Map<string, number>()
   private orgMonitors = new Map<string, Set<WebSocket>>()
   private sessions = new Map<string, TSandboxSession[]>()
   private shellSessions = new Map<string, TShellSession>()
@@ -124,6 +127,8 @@ export class SandboxService {
       target,
       ws: false,
       changeOrigin: true,
+      timeout: SandboxProxyTimeoutMs,
+      proxyTimeout: SandboxProxyTimeoutMs,
       on: {
         error: (err: Error, _req: any, res: any) => {
           logger.error(`[SandboxProxy] Proxy error for ${target}:`, err.message)
@@ -420,6 +425,14 @@ export class SandboxService {
     // trusted internal surface (see TStartPodOpts.extraEnv).
     if (opts.extraEnv) Object.assign(extraEnv, opts.extraEnv)
 
+    // A per-sandbox nodePool pins this sandbox to a named Civo pool, overriding
+    // the global TDSK_SB_NODE_POOL — otherwise every sandbox lands on the global
+    // pool exactly as before.
+    const nodePool = sandbox.config.nodePool?.trim()
+    const nodeSelector = nodePool
+      ? { [`kubernetes.civo.com/civo-node-pool`]: nodePool }
+      : this.config.nodeSelector
+
     const manifest = buildPodManifest({
       orgId,
       userId,
@@ -429,8 +442,8 @@ export class SandboxService {
       egressOpts: await this.resolveEgressOpts(egressOpts),
       placeholders,
       skillsVolume,
+      nodeSelector,
       runtimeClassName: this.config.runtimeClassName,
-      nodeSelector: this.config.nodeSelector,
       imagePullSecrets: dockerSecretNames.length ? dockerSecretNames : undefined,
     })
 
@@ -685,25 +698,23 @@ export class SandboxService {
       .map((p) => p.metadata!.name!)
   }
 
-  isStarting(sandboxId: string): boolean {
-    return (this.startingInstances.get(sandboxId) ?? 0) > 0
+  /**
+   * Atomically claim the "starting" slot for a sandbox across ALL backend
+   * replicas — backed by a DB partial-unique-index (see sandboxStartingClaims
+   * schema), not a process-local Map, so two replicas racing the same
+   * sandbox connect/start request can't both pass the maxInstances check and
+   * both call startPod(). Returns `conflict: true` when another start is
+   * already in flight for this sandbox.
+   */
+  async claimStarting(sandboxId: string): Promise<{ conflict: boolean }> {
+    const resp = await this.db.services.sandboxStartingClaim.claimStarting(sandboxId)
+    if (resp.error) throw resp.error
+    return { conflict: Boolean(resp.conflict) }
   }
 
-  countStarting(sandboxId: string): number {
-    return this.startingInstances.get(sandboxId) ?? 0
-  }
-
-  markStarting(sandboxId: string): void {
-    this.startingInstances.set(
-      sandboxId,
-      (this.startingInstances.get(sandboxId) ?? 0) + 1
-    )
-  }
-
-  clearStarting(sandboxId: string): void {
-    const count = this.startingInstances.get(sandboxId) ?? 0
-    if (count <= 1) this.startingInstances.delete(sandboxId)
-    else this.startingInstances.set(sandboxId, count - 1)
+  async releaseStarting(sandboxId: string): Promise<void> {
+    const resp = await this.db.services.sandboxStartingClaim.releaseStarting(sandboxId)
+    if (resp.error) throw resp.error
   }
 
   private rollbackDockerSecrets(names: string[]): void {
@@ -724,10 +735,8 @@ export class SandboxService {
     const sandboxOrgPairs = new Map<string, string>()
     for (const s of instanceSessions) sandboxOrgPairs.set(s.sandboxId, s.orgId)
 
-    for (const sandboxId of sandboxOrgPairs.keys()) {
-      for (const shell of this.getShellSessionsForSandbox(sandboxId)) {
-        this.removeShellSession(shell.sessionId)
-      }
+    for (const shell of this.getShellSessionsForInstance(instanceId)) {
+      this.removeShellSession(shell.sessionId)
     }
 
     const dkrSecrets = this.dockerSecrets.get(instanceId)
@@ -865,7 +874,7 @@ export class SandboxService {
 
   async gracefulStopPod(instanceId: string, sandboxId: string): Promise<void> {
     try {
-      this.notifyShellClients(sandboxId, { type: `sandbox-stopping`, sandboxId })
+      this.notifyInstanceShellClients(instanceId, { type: `sandbox-stopping`, sandboxId })
     } catch (err) {
       logger.warn(
         `[Sandbox] Failed to notify shell clients before stop:`,
@@ -963,13 +972,19 @@ export class SandboxService {
         state === EContainerState.Failed ||
         state === EContainerState.Succeeded ||
         state === EContainerState.Terminating
-      )
-        throw new Error(`Pod ${instanceId} will never become ready (state: ${state})`)
-
-      if (Date.now() + pollMs > deadline)
+      ) {
+        const conditions = await this.getPodConditionSummary(instanceId)
         throw new Error(
-          `Timed out after ${timeoutMs / 1000}s waiting for pod ${instanceId} to be ready (state: ${state})`
+          `Pod ${instanceId} will never become ready (state: ${state})${conditions ? ` — conditions: ${conditions}` : ``}`
         )
+      }
+
+      if (Date.now() + pollMs > deadline) {
+        const conditions = await this.getPodConditionSummary(instanceId)
+        throw new Error(
+          `Timed out after ${timeoutMs / 1000}s waiting for pod ${instanceId} to be ready (state: ${state})${conditions ? ` — conditions: ${conditions}` : ``}`
+        )
+      }
 
       await sleep()
     }
@@ -1032,6 +1047,14 @@ export class SandboxService {
     const result: TShellSession[] = []
     for (const session of this.shellSessions.values()) {
       if (session.sandboxId === sandboxId) result.push(session)
+    }
+    return result
+  }
+
+  getShellSessionsForInstance(instanceId: string): TShellSession[] {
+    const result: TShellSession[] = []
+    for (const session of this.shellSessions.values()) {
+      if (session.instanceId === instanceId) result.push(session)
     }
     return result
   }
@@ -1191,10 +1214,50 @@ export class SandboxService {
       logger.warn(`[ShellSession] Failed to close exec:`, (err as Error).message)
     }
 
+    for (const ws of session.attachments) {
+      try {
+        if (ws.readyState === 1)
+          ws.send(JSON.stringify({ type: `disconnected`, reason: `Session ended` }))
+      } catch (err) {
+        logger.debug(
+          `[ShellSession] Failed to notify attached client:`,
+          (err as Error).message
+        )
+      }
+      try {
+        if (ws.readyState === 1 || ws.readyState === 0) ws.close()
+      } catch (err) {
+        logger.debug(
+          `[ShellSession] Failed to close attached client:`,
+          (err as Error).message
+        )
+      }
+    }
+
     session.buffer.clear()
     session.attachments.clear()
     this.shellSessions.delete(sessionId)
     this.broadcastSessionList(sandboxId)
+  }
+
+  /**
+   * Like notifyShellClients, but scoped to the shell sessions attached to a
+   * single instance — used when only that instance is being stopped, so
+   * viewers of sibling instances of the same sandbox config aren't notified.
+   */
+  notifyInstanceShellClients(instanceId: string, message: Record<string, any>): void {
+    const payload = JSON.stringify(message)
+    for (const session of this.getShellSessionsForInstance(instanceId)) {
+      for (const ws of session.attachments) {
+        if (ws.readyState === 1) {
+          try {
+            ws.send(payload)
+          } catch (err) {
+            logger.warn(`[ShellSession] Failed to notify client:`, (err as Error).message)
+          }
+        }
+      }
+    }
   }
 
   notifyShellClients(sandboxId: string, message: Record<string, any>): void {

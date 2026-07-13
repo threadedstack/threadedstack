@@ -4,6 +4,7 @@ import type { TExecRunOpts, TSessionInfo, TRunResult } from '@TSA/types'
 
 import WebSocket from 'ws'
 import { EWSEventType, EStreamEventType, EStreamStopReason } from '@tdsk/domain'
+import { ExecutorIdleTimeoutMs } from '@TSA/constants/values'
 
 /**
  * Executor — thin WebSocket client that connects to backend for agent execution.
@@ -90,15 +91,41 @@ export class Executor {
     }
 
     // 4. Connect and run
+    const idleTimeoutMs = opts.idleTimeoutMs ?? ExecutorIdleTimeoutMs
     return new Promise<TRunResult>((resolve, reject) => {
       let threadId = opts.threadId
       let resolved = false
+      let idleTimer: ReturnType<typeof setTimeout> | null = null
       const ws = new WebSocket(wsUrl, {
-        rejectUnauthorized: false,
+        rejectUnauthorized: !opts.insecure,
       })
       this.#ws = ws
 
+      // Idle timeout — reset on every inbound WS activity (including the
+      // server's periodic Ping) so a legitimately long-running turn is never
+      // killed while the connection is alive, but a silent stall (stuck
+      // agent turn, dropped message, hung proxy) is caught instead of
+      // hanging the promise forever.
+      const clearIdleTimer = () => {
+        if (idleTimer) clearTimeout(idleTimer)
+        idleTimer = null
+      }
+      const resetIdleTimer = () => {
+        clearIdleTimer()
+        idleTimer = setTimeout(() => {
+          if (resolved) return
+          resolved = true
+          this.#ws = null
+          ws.close()
+          reject(
+            new Error(`Executor.run() timed out after ${idleTimeoutMs}ms of inactivity`)
+          )
+        }, idleTimeoutMs)
+      }
+      resetIdleTimer()
+
       ws.on(`open`, () => {
+        resetIdleTimer()
         ws.send(
           JSON.stringify({
             type: EWSEventType.Prompt,
@@ -110,6 +137,7 @@ export class Executor {
       })
 
       ws.on(`message`, (raw: Buffer | string) => {
+        resetIdleTimer()
         let msg: TWSServerMsg
         try {
           msg = JSON.parse(
@@ -169,6 +197,7 @@ export class Executor {
                   ? EStreamStopReason.error
                   : EStreamStopReason.endTurn,
             })
+            clearIdleTimer()
             resolved = true
             resolve({ threadId: threadId || `` })
             ws.close()
@@ -191,6 +220,7 @@ export class Executor {
 
       ws.on(`close`, (code: number) => {
         this.#ws = null
+        clearIdleTimer()
         if (code === 4001) this.clearSession()
         if (resolved) return
         if (code >= 4000 || code === 1011) {
@@ -202,6 +232,7 @@ export class Executor {
 
       ws.on(`error`, (err: Error) => {
         this.#ws = null
+        clearIdleTimer()
         reject(err)
       })
     })

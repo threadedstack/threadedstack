@@ -7,7 +7,11 @@ import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 import { logger } from '@TPX/utils/logger'
 import { adminPath, setAuthHeaders } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
-import { SandboxHostRx, ProxyForwardRoutes } from '@TPX/constants/values'
+import {
+  SandboxHostRx,
+  ProxyForwardRoutes,
+  ProxyRequestTimeoutMs,
+} from '@TPX/constants/values'
 
 const isSandboxHost = (host: string) => SandboxHostRx.test(host.split(`.`)[0])
 
@@ -27,18 +31,32 @@ const addProxyHeaders = (
 }
 
 /**
- * Handle proxy errors
+ * Handle proxy errors.
+ *
+ * http-proxy invokes this with an http.ServerResponse for HTTP proxy errors,
+ * but with a raw net.Socket for WebSocket upgrade errors (see http-proxy's
+ * ws-incoming.js, which emits `error` as `(err, req, socket)`) -- a socket
+ * has no writeHead/headersSent, so it must be destroyed instead of written
+ * to, or this throws and crashes the whole process (no writeHead on socket).
  */
 const handleProxyError = (
   err: Error,
   _req: IncomingMessage,
-  res: ServerResponse | null
+  res: ServerResponse | Socket | null
 ): void => {
   logger.error(`Proxy error: ${err.message}`, { stack: err.stack })
 
-  if (res && !res.headersSent) {
-    res.writeHead(502, { [`Content-Type`]: `application/json` })
-    res.end(JSON.stringify({ error: `Backend service unavailable` }))
+  if (!res) return
+
+  if (typeof (res as ServerResponse).writeHead !== `function`) {
+    ;(res as Socket).destroy()
+    return
+  }
+
+  const serverRes = res as ServerResponse
+  if (!serverRes.headersSent) {
+    serverRes.writeHead(502, { [`Content-Type`]: `application/json` })
+    serverRes.end(JSON.stringify({ error: `Backend service unavailable` }))
   }
 }
 
@@ -55,6 +73,14 @@ const buildProxyOptions = (app: TProxyApp, changeOrigin: boolean): Options => {
     xfwd: true,
     changeOrigin,
     target: backend.url,
+    // Guards against an indefinitely-held socket if the backend or a
+    // sandbox pod hangs (both createBackendProxy and createSandboxForwarder
+    // build their Options through this function, so both inherit it).
+    // `timeout` bounds the incoming request; `proxyTimeout` bounds waiting
+    // on a response from the target — http-proxy defaults `proxyTimeout` to
+    // 120s and leaves `timeout` unset (no bound) otherwise.
+    timeout: ProxyRequestTimeoutMs,
+    proxyTimeout: ProxyRequestTimeoutMs,
     pathRewrite: (_path, req: Request) => req.originalUrl,
     on: {
       error: handleProxyError,

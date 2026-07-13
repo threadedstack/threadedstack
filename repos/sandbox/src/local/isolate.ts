@@ -1,6 +1,7 @@
 import type { TShimDeps } from '@TSB/types'
 import type { Bash, IFileSystem } from 'just-bash'
 import type { Isolate, Context, Module } from 'isolated-vm'
+import { logger } from '@TSB/utils/logger'
 import { shimRegistry, builtinShimNames } from '@TSB/local/shims'
 
 /**
@@ -400,7 +401,7 @@ export class IsolateRunner {
     code: string,
     timeout = 5000,
     bridges?: Record<string, (argsJson: string) => Promise<string>>
-  ): Promise<{ output: string; result: any }> {
+  ): Promise<{ output: string; result: any; error?: string }> {
     if (!this.#initialized) await this.init()
 
     this.#clearAllTimers()
@@ -464,88 +465,102 @@ export class IsolateRunner {
       `)
     }
 
-    const userModule = await this.#isolate!.compileModule(code, {
-      filename: `user-code.js`,
-    })
+    // From here on, cleanup (bridge teardown, module release, timer clearing)
+    // must run unconditionally in `finally` — userModule.evaluate() throws on
+    // both a timeout and an uncaught top-level error in user code, and a
+    // pooled isolate must never carry a leaked module/timer/bridge forward
+    // into its next eval() call just because this one threw.
+    let userModule: Module | undefined
+    try {
+      userModule = await this.#isolate!.compileModule(code, {
+        filename: `user-code.js`,
+      })
 
-    await userModule.instantiate(this.#context!, (specifier: string) => {
-      const shim = this.#shims.get(specifier)
-      if (!shim) throw new Error(`Module not found: ${specifier}`)
-      return shim
-    })
+      await userModule.instantiate(this.#context!, (specifier: string) => {
+        const shim = this.#shims.get(specifier)
+        if (!shim) throw new Error(`Module not found: ${specifier}`)
+        return shim
+      })
 
-    const deadline = Date.now() + timeout
-    await userModule.evaluate({ timeout })
+      const deadline = Date.now() + timeout
+      await userModule.evaluate({ timeout })
 
-    // Try to retrieve the default export via structured clone.
-    //
-    // module.evaluate() resolves when a top-level-await module SUSPENDS (its
-    // first await that isn't already settled), NOT when it completes — and
-    // while suspended, ns.get('default') throws "default is not defined". A
-    // module awaiting a slow host bridge is exactly that case, so when bridges
-    // are in play we poll through that throw until the export materializes
-    // (the settle resumed the module and it finished) or the eval deadline
-    // passes. Bridge-free modules keep the old single-attempt semantics.
-    let result: any
-    let extractFailed = false
-    const ns = userModule.namespace
-    for (;;) {
-      try {
-        result = await ns.get(`default`, { copy: true })
-        break
-      } catch (err: any) {
-        const msg = String(err?.message || ``)
-        const stillEvaluating =
-          msg.includes(`is not defined`) || msg.includes(`before initialization`)
-        if (stillEvaluating && bridgeNames.length && Date.now() < deadline) {
-          await new Promise((resolve) => setTimeout(resolve, 15))
-          continue
+      // Try to retrieve the default export via structured clone.
+      //
+      // module.evaluate() resolves when a top-level-await module SUSPENDS (its
+      // first await that isn't already settled), NOT when it completes — and
+      // while suspended, ns.get('default') throws "default is not defined". A
+      // module awaiting a slow host bridge is exactly that case, so when bridges
+      // are in play we poll through that throw until the export materializes
+      // (the settle resumed the module and it finished) or the eval deadline
+      // passes. Bridge-free modules keep the old single-attempt semantics.
+      let result: any
+      let extractFailed = false
+      let extractError: string | undefined
+      const ns = userModule.namespace
+      for (;;) {
+        try {
+          result = await ns.get(`default`, { copy: true })
+          break
+        } catch (err: any) {
+          const msg = String(err?.message || ``)
+          const stillEvaluating =
+            msg.includes(`is not defined`) || msg.includes(`before initialization`)
+          if (stillEvaluating && bridgeNames.length && Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 15))
+            continue
+          }
+          extractFailed = true
+          break
         }
-        extractFailed = true
-        break
       }
-    }
-    if (extractFailed) {
-      // Structured clone failed (non-serializable properties) — try JSON fallback
-      try {
-        const bridge = await this.#isolate!.compileModule(
-          `import val from 'user-code';\nexport default JSON.stringify(val ?? null);`,
-          { filename: `json-bridge.js` }
-        )
-        await bridge.instantiate(this.#context!, (specifier: string) => {
-          if (specifier === `user-code`) return userModule
-          const shim = this.#shims.get(specifier)
-          if (!shim) throw new Error(`Module not found: ${specifier}`)
-          return shim
-        })
-        await bridge.evaluate({ timeout: 1000 })
-        const json = await bridge.namespace.get(`default`, { copy: true })
-        if (typeof json === `string`) result = JSON.parse(json)
-        bridge.release()
-      } catch (err: any) {
-        // Both structured clone and JSON serialization failed — result stays undefined
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Failed to extract default export from user code:`, err)
+      if (extractFailed) {
+        // Structured clone failed (non-serializable properties) — try JSON fallback
+        try {
+          const bridge = await this.#isolate!.compileModule(
+            `import val from 'user-code';\nexport default JSON.stringify(val ?? null);`,
+            { filename: `json-bridge.js` }
+          )
+          await bridge.instantiate(this.#context!, (specifier: string) => {
+            if (specifier === `user-code`) return userModule!
+            const shim = this.#shims.get(specifier)
+            if (!shim) throw new Error(`Module not found: ${specifier}`)
+            return shim
+          })
+          await bridge.evaluate({ timeout: 1000 })
+          const json = await bridge.namespace.get(`default`, { copy: true })
+          if (typeof json === `string`) result = JSON.parse(json)
+          bridge.release()
+        } catch (err: any) {
+          // Both structured clone and JSON serialization failed — result stays undefined
+          const message = String(err?.message || ``)
+          if (!message.includes(`released`)) {
+            extractError = `Failed to extract default export from user code: ${message}`
+            logger.warn(extractError)
+          }
+        }
       }
-    }
 
-    // Tear the host bridge down AFTER result extraction — extraction is what
-    // waits out in-flight bridge calls (a suspended top-level-await module
-    // resumes only when the host settles back in), so deleting the surface any
-    // earlier would strand those calls. Nothing outlives this run on a pool.
-    if (bridgeNames.length) {
-      await this.#context!.global.delete(`__hostCallStart`).catch(() => {})
-      await this.#context!.eval(
-        `delete globalThis.__hostCall; delete globalThis.__hostCallSettle; delete globalThis.__hostCallPending; delete globalThis.__hostCallSeq;`
-      ).catch(() => {})
-    }
+      return {
+        output: this.#output.join(`\n`),
+        result,
+        ...(extractError && { error: extractError }),
+      }
+    } finally {
+      // Tear the host bridge down AFTER result extraction — extraction is what
+      // waits out in-flight bridge calls (a suspended top-level-await module
+      // resumes only when the host settles back in), so deleting the surface any
+      // earlier would strand those calls. Nothing outlives this run on a pool.
+      if (bridgeNames.length) {
+        await this.#context!.global.delete(`__hostCallStart`).catch(() => {})
+        await this.#context!.eval(
+          `delete globalThis.__hostCall; delete globalThis.__hostCallSettle; delete globalThis.__hostCallPending; delete globalThis.__hostCallSeq;`
+        ).catch(() => {})
+      }
 
-    userModule.release()
-    this.#clearAllTimers()
-
-    return {
-      output: this.#output.join(`\n`),
-      result,
+      if (userModule)
+        safeRelease(() => userModule!.release(), `released`, `releasing user module`)
+      this.#clearAllTimers()
     }
   }
 

@@ -111,10 +111,17 @@ const createMockDb = () => {
   const txDeleteWhereFn = vi.fn()
   const txDeleteFn = vi.fn(() => ({ where: txDeleteWhereFn }))
   const txOnConflictFn = vi.fn()
-  const txInsertValuesFn = vi.fn(() => ({ onConflictDoUpdate: txOnConflictFn }))
+  const txOnConflictDoNothingFn = vi.fn()
+  const txInsertValuesFn = vi.fn(() => ({
+    onConflictDoUpdate: txOnConflictFn,
+    onConflictDoNothing: txOnConflictDoNothingFn,
+  }))
   const txInsertFn = vi.fn(() => ({ values: txInsertValuesFn }))
+  const txWhereFn = vi.fn()
+  const txSetFn = vi.fn(() => ({ where: txWhereFn }))
+  const txUpdateFn = vi.fn(() => ({ set: txSetFn }))
   const transactionFn = vi.fn(async (cb: any) => {
-    await cb({ delete: txDeleteFn, insert: txInsertFn })
+    await cb({ delete: txDeleteFn, insert: txInsertFn, update: txUpdateFn })
   })
 
   return {
@@ -147,6 +154,10 @@ const createMockDb = () => {
     txInsertFn,
     txInsertValuesFn,
     txOnConflictFn,
+    txOnConflictDoNothingFn,
+    txUpdateFn,
+    txSetFn,
+    txWhereFn,
   }
 }
 
@@ -787,8 +798,11 @@ describe(`Agent service`, () => {
 
       expect(result.data).toBeDefined()
       expect(result.data._isModel).toBe(true)
-      // db.delete should be called for clearing old agentProjects
-      expect(mocks.deleteFn).toHaveBeenCalled()
+      // tx.delete (not the standalone db.delete) clears old agentProjects --
+      // it must run inside the same transaction as the relations reinsert
+      // (rec_4a1Kl7) so a failure downstream rolls the delete back too.
+      expect(mocks.txDeleteFn).toHaveBeenCalled()
+      expect(mocks.deleteFn).not.toHaveBeenCalled()
     })
 
     it(`should detach old secrets and re-attach new ones on update with secretIds`, async () => {
@@ -814,7 +828,9 @@ describe(`Agent service`, () => {
 
       expect(result.data).toBeDefined()
       expect(result.data._isModel).toBe(true)
-      expect(mocks.setFn).toHaveBeenCalled()
+      // Detach runs via tx.update (inside the same transaction as the
+      // re-attach), not the standalone db.update (rec_4a1Kl7).
+      expect(mocks.txUpdateFn).toHaveBeenCalled()
     })
 
     it(`should detach all secrets when secretIds is empty array`, async () => {
@@ -919,6 +935,29 @@ describe(`Agent service`, () => {
       expect(mocks.txDeleteFn).toHaveBeenCalledOnce()
       // tx.insert NOT called because empty inputs -> no rows to insert
       expect(mocks.txInsertFn).not.toHaveBeenCalled()
+    })
+
+    it(`should not commit the projects/secrets rewrite when the relations reinsert fails (rec_4a1Kl7)`, async () => {
+      const record = { id: `agent-1`, name: `Updated`, orgId: `org-1` }
+      mocks.whereReturningFn.mockResolvedValue([record])
+
+      // Simulate #relations (or the provider/secret rewrite) throwing
+      // partway through -- the whole transaction callback rejects, so
+      // neither the agentProjects delete nor the secrets detach commit.
+      mocks.transactionFn.mockRejectedValue(new Error(`relation write failed`))
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        projects: [{ id: `p2`, name: `NewProj` }],
+        secretIds: [`s2`],
+      } as any)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`relation write failed`)
+      // get() must never be called to re-fetch a result that no longer
+      // reflects reality once the transaction rejected.
+      expect(mocks.findFirst).not.toHaveBeenCalled()
     })
   })
 

@@ -23,6 +23,7 @@ import { deepMerge } from '@keg-hub/jsutils/deepMerge'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { genFormData } from '@TTH/utils/api/genFormData'
 import { tokenRefresh } from '@TTH/services/tokenRefresh'
+import { ApiRequestTimeoutMs } from '@TTH/constants/values'
 
 export class ApiService {
   base: string
@@ -107,6 +108,7 @@ export class ApiService {
     const { body, ...ext } = this.#ext(opts)
     const { url, ...options } = deepMerge<TFetchOpts>(this.options, rest, ext)
     if (body) options.body = body
+    if (!options.signal) options.signal = AbortSignal.timeout(ApiRequestTimeoutMs)
 
     const [error, res] = await limbo<TApiRes<R>, ApiError>(
       ((this.mock || fetch) as typeof fetch)(url, options)

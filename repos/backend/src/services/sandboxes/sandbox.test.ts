@@ -1,6 +1,7 @@
 import { logger } from '@TBE/utils/logger'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
+import { SandboxProxyTimeoutMs } from '@TBE/constants/sandbox'
 import {
   SandboxHomePath,
   Exception,
@@ -135,6 +136,10 @@ const makeDb = () => ({
     },
     provider: {
       get: vi.fn().mockResolvedValue({ data: null, error: null }),
+    },
+    sandboxStartingClaim: {
+      claimStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
+      releaseStarting: vi.fn().mockResolvedValue({ data: { id: `ssc_test01` } }),
     },
   },
 })
@@ -333,6 +338,49 @@ describe(`SandboxService`, () => {
         })
       )
       expect(kube.createPod).toHaveBeenCalledWith({ metadata: { name: `tdsk-sb-test` } })
+    })
+
+    it(`overrides the global node pool when the per-sandbox config sets nodePool`, async () => {
+      const scoped = new SandboxService(kube as any, db as any, {
+        nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` },
+      })
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({
+          id: `sb-1`,
+          config: { image: `node:20`, nodePool: `tdskembed` },
+          sandboxProviders: [],
+        }),
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await scoped.startPod(baseOpts as any)
+
+      expect(mockBuildPodManifest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nodeSelector: { 'kubernetes.civo.com/civo-node-pool': `tdskembed` },
+        })
+      )
+    })
+
+    it(`uses the global nodeSelector unchanged when the per-sandbox config omits nodePool`, async () => {
+      const globalSelector = { 'kubernetes.civo.com/civo-node-pool': `tdsksandbox` }
+      const scoped = new SandboxService(kube as any, db as any, {
+        nodeSelector: globalSelector,
+      })
+      db.services.sandbox.get.mockResolvedValue({
+        data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await scoped.startPod(baseOpts as any)
+
+      expect(mockBuildPodManifest).toHaveBeenCalledWith(
+        expect.objectContaining({ nodeSelector: globalSelector })
+      )
     })
 
     it(`resolves the egress DNAT target from a READY egress pod and never mutates the shared egressOpts`, async () => {
@@ -1209,6 +1257,44 @@ describe(`SandboxService`, () => {
       svc.cleanupInstance(`pod-no-secrets`)
       expect(kube.deleteSecret).not.toHaveBeenCalled()
     })
+
+    it(`should only remove shell sessions belonging to the instance being cleaned up, not sibling instances of the same sandbox`, () => {
+      const closeExecA = vi.fn()
+      const closeExecB = vi.fn()
+      const shellA = {
+        sessionId: `s-a`,
+        sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: closeExecA,
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      const shellB = {
+        ...shellA,
+        sessionId: `s-b`,
+        instanceId: `pod-b`,
+        sandboxSessionId: `sn_b`,
+        closeExec: closeExecB,
+      }
+
+      svc.addShellSession(shellA)
+      svc.addShellSession(shellB)
+
+      svc.cleanupInstance(`pod-a`)
+
+      expect(closeExecA).toHaveBeenCalledOnce()
+      expect(closeExecB).not.toHaveBeenCalled()
+      expect(svc.getShellSession(`s-a`)).toBeUndefined()
+      expect(svc.getShellSession(`s-b`)).toBeDefined()
+    })
   })
 
   describe(`getPassword`, () => {
@@ -1675,6 +1761,54 @@ describe(`SandboxService`, () => {
     })
   })
 
+  describe(`gracefulStopPod`, () => {
+    it(`only notifies shell clients attached to the instance being stopped, not sibling instances of the same sandbox`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+
+      const wsA = { readyState: 1, send: vi.fn() }
+      const wsB = { readyState: 1, send: vi.fn() }
+      const shellA = {
+        sessionId: `s-a`,
+        sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([wsA]) as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      const shellB = {
+        ...shellA,
+        sessionId: `s-b`,
+        instanceId: `pod-b`,
+        sandboxSessionId: `sn_b`,
+        closeExec: vi.fn(),
+        attachments: new Set([wsB]) as any,
+      }
+
+      svc.addShellSession(shellA)
+      svc.addShellSession(shellB)
+
+      await svc.gracefulStopPod(`pod-a`, `sb_aaa`)
+
+      const stoppingPayload = JSON.stringify({
+        type: `sandbox-stopping`,
+        sandboxId: `sb_aaa`,
+      })
+      expect(wsA.send).toHaveBeenCalledWith(stoppingPayload)
+      // wsB (sibling instance) may still receive an unrelated sessions-updated
+      // broadcast once A's shell session is torn down, but must never receive
+      // the sandbox-stopping notice meant only for A's viewers.
+      expect(wsB.send).not.toHaveBeenCalledWith(stoppingPayload)
+    })
+  })
+
   describe(`findRunningInstance`, () => {
     it(`should return instanceId for Running pod matching by name`, async () => {
       kube.listPods.mockResolvedValue([
@@ -2009,7 +2143,8 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Failed)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      // getPodState + the condition-summary fetch on the throw path
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
     })
 
     it(`should throw immediately when the pod is Succeeded`, async () => {
@@ -2019,7 +2154,7 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Succeeded)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
     })
 
     it(`should throw immediately when the pod is Terminating`, async () => {
@@ -2031,7 +2166,52 @@ describe(`SandboxService`, () => {
       await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
         `Pod pod-a will never become ready (state: Terminating)`
       )
-      expect(kube.getPod).toHaveBeenCalledTimes(1)
+      expect(kube.getPod).toHaveBeenCalledTimes(2)
+    })
+
+    it(`should append the pod condition summary to the terminal-state error when available`, async () => {
+      mockToContainerState.mockReturnValue(EContainerState.Failed)
+      kube.getPod.mockResolvedValue({
+        status: {
+          phase: `Failed`,
+          conditions: [
+            {
+              type: `PodScheduled`,
+              status: `False`,
+              reason: `Unschedulable`,
+              message: `0/3 nodes are available`,
+            },
+          ],
+        },
+      })
+
+      await expect(svc.waitForPodReady(`pod-a`)).rejects.toThrow(
+        `Pod pod-a will never become ready (state: Failed) — conditions: PodScheduled=False (Unschedulable): 0/3 nodes are available`
+      )
+    })
+
+    it(`should append the pod condition summary to the timeout error when available`, async () => {
+      vi.useFakeTimers()
+      try {
+        mockToContainerState.mockReturnValue(EContainerState.Pending)
+        kube.getPod.mockResolvedValue({
+          status: {
+            phase: `Pending`,
+            conditions: [
+              { type: `PodScheduled`, status: `False`, reason: `Unschedulable` },
+            ],
+          },
+        })
+
+        const promise = svc.waitForPodReady(`pod-a`, { timeoutMs: 10_000 })
+        const rejection = expect(promise).rejects.toThrow(
+          `Timed out after 10s waiting for pod pod-a to be ready (state: Pending) — conditions: PodScheduled=False (Unschedulable)`
+        )
+        await vi.advanceTimersByTimeAsync(12_000)
+        await rejection
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it(`should poll the in-pod clone check until success when cloneCheck is set`, async () => {
@@ -2134,9 +2314,23 @@ describe(`SandboxService`, () => {
           target: `http://10.0.0.1:3000`,
           ws: false,
           changeOrigin: true,
+          timeout: SandboxProxyTimeoutMs,
+          proxyTimeout: SandboxProxyTimeoutMs,
         })
       )
       expect(SandboxService.proxyMap.get(`http://10.0.0.1:3000`)).toBe(mockProxy)
+    })
+
+    it(`getPodProxy should set a timeout and proxyTimeout to prevent hung-connection exhaustion`, () => {
+      const mockProxy = vi.fn()
+      mockCreateProxyMiddleware.mockReturnValue(mockProxy)
+      SandboxService.proxyMap.clear()
+
+      SandboxService.getPodProxy(`http://10.0.0.1:5000`)
+
+      const callArgs = mockCreateProxyMiddleware.mock.calls[0][0]
+      expect(callArgs.timeout).toBe(SandboxProxyTimeoutMs)
+      expect(callArgs.proxyTimeout).toBe(SandboxProxyTimeoutMs)
     })
 
     it(`getPodProxy should return cached proxy on second call with same target`, () => {
@@ -2230,6 +2424,7 @@ describe(`SandboxService`, () => {
       const session1 = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2263,12 +2458,42 @@ describe(`SandboxService`, () => {
       expect(result.map((s) => s.sessionId).sort()).toEqual([`s1`, `s3`])
     })
 
+    it(`getShellSessionsForInstance returns only sessions matching instanceId`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const base = {
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession({ ...base, sessionId: `s1`, instanceId: `pod-a` })
+      svc.addShellSession({ ...base, sessionId: `s2`, instanceId: `pod-b` })
+      svc.addShellSession({ ...base, sessionId: `s3`, instanceId: `pod-a` })
+
+      const result = svc.getShellSessionsForInstance(`pod-a`)
+      expect(result).toHaveLength(2)
+      expect(result.map((s) => s.sessionId).sort()).toEqual([`s1`, `s3`])
+      expect(svc.getShellSessionsForInstance(`pod-b`)).toHaveLength(1)
+    })
+
     it(`getOrgShellSessionCount counts sessions for org`, () => {
       const kube = makeKube()
       const svc = new SandboxService(kube as any, makeDb() as any)
 
       const base = {
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
         stdout: {} as any,
@@ -2298,6 +2523,7 @@ describe(`SandboxService`, () => {
       const shell = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod1`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2345,9 +2571,11 @@ describe(`SandboxService`, () => {
       const svc = new SandboxService(kube as any, makeDb() as any)
 
       const closeExec = vi.fn()
+      const attachment = { readyState: 1, send: vi.fn(), close: vi.fn() }
       const session = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -2356,7 +2584,7 @@ describe(`SandboxService`, () => {
         closeExec,
         resize: vi.fn(),
         buffer: { clear: vi.fn() } as any,
-        attachments: new Set([{ readyState: 1, send: vi.fn() }]) as any,
+        attachments: new Set([attachment]) as any,
         ttlTimer: setTimeout(() => {}, 99999),
         lastRunningToolCall: null,
         visibility: ESandboxSessionVisibility.private,
@@ -2371,6 +2599,76 @@ describe(`SandboxService`, () => {
       expect(session.buffer.clear).toHaveBeenCalled()
       expect(session.attachments.size).toBe(0)
       expect(svc.getShellSession(`s1`)).toBeUndefined()
+      expect(attachment.send).toHaveBeenCalledWith(
+        JSON.stringify({ type: `disconnected`, reason: `Session ended` })
+      )
+      expect(attachment.close).toHaveBeenCalledOnce()
+    })
+
+    it(`removeShellSession notifies and closes every attached client, not just the owner`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const owner = { readyState: 1, send: vi.fn(), close: vi.fn() }
+      const joinedViewer = { readyState: 1, send: vi.fn(), close: vi.fn() }
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        instanceId: `pod-a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([owner, joinedViewer]) as any,
+        ttlTimer: null,
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.public,
+      }
+
+      svc.addShellSession(session)
+      svc.removeShellSession(`s1`)
+
+      for (const client of [owner, joinedViewer]) {
+        expect(client.send).toHaveBeenCalledWith(
+          JSON.stringify({ type: `disconnected`, reason: `Session ended` })
+        )
+        expect(client.close).toHaveBeenCalledOnce()
+      }
+    })
+
+    it(`removeShellSession skips notifying clients that are not open and still closes/clears state`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const closedClient = { readyState: 3, send: vi.fn(), close: vi.fn() }
+      const session = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        sandboxSessionId: `sn_t1`,
+        instanceId: `pod-a`,
+        stdout: {} as any,
+        stdin: {} as any,
+        closeExec: vi.fn(),
+        resize: vi.fn(),
+        buffer: { clear: vi.fn() } as any,
+        attachments: new Set([closedClient]) as any,
+        ttlTimer: null,
+        lastRunningToolCall: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession(session)
+      svc.removeShellSession(`s1`)
+
+      expect(closedClient.send).not.toHaveBeenCalled()
+      expect(closedClient.close).not.toHaveBeenCalled()
+      expect(session.attachments.size).toBe(0)
     })
 
     it(`removeShellSession continues cleanup when closeExec throws`, () => {
@@ -2383,6 +2681,7 @@ describe(`SandboxService`, () => {
       const session = {
         sessionId: `s1`,
         sandboxId: `sb_aaa`,
+        instanceId: `pod-a`,
         orgId: `org1`,
         userId: `u1`,
         sandboxSessionId: `sn_t1`,
@@ -3148,6 +3447,51 @@ describe(`SandboxService`, () => {
       } as any)
 
       expect(ws3.send).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`claimStarting / releaseStarting`, () => {
+    it(`delegates to db.services.sandboxStartingClaim.claimStarting and reports no conflict`, async () => {
+      const resp = await svc.claimStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.claimStarting).toHaveBeenCalledWith(`sb-1`)
+      expect(resp).toEqual({ conflict: false })
+    })
+
+    it(`reports a conflict when the DB claim is already held (two concurrent calls: exactly one wins)`, async () => {
+      db.services.sandboxStartingClaim.claimStarting
+        .mockResolvedValueOnce({ data: { id: `ssc_test01` } })
+        .mockResolvedValueOnce({ data: null, conflict: true })
+
+      const first = await svc.claimStarting(`sb-1`)
+      const second = await svc.claimStarting(`sb-1`)
+
+      expect(first).toEqual({ conflict: false })
+      expect(second).toEqual({ conflict: true })
+    })
+
+    it(`throws when the DB claim call errors`, async () => {
+      db.services.sandboxStartingClaim.claimStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.claimStarting(`sb-1`)).rejects.toThrow(`db down`)
+    })
+
+    it(`delegates to db.services.sandboxStartingClaim.releaseStarting`, async () => {
+      await svc.releaseStarting(`sb-1`)
+
+      expect(db.services.sandboxStartingClaim.releaseStarting).toHaveBeenCalledWith(
+        `sb-1`
+      )
+    })
+
+    it(`throws when the DB release call errors`, async () => {
+      db.services.sandboxStartingClaim.releaseStarting.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+
+      await expect(svc.releaseStarting(`sb-1`)).rejects.toThrow(`db down`)
     })
   })
 })

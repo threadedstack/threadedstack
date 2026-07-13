@@ -64,14 +64,20 @@ export class Invitation extends Base<
   /**
    * Get all pending invitations for an org
    */
-  async getPendingByOrg(orgId: string): Promise<TDBApiRes<InvitationModel[]>> {
+  async getPendingByOrg(
+    orgId: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<TDBApiRes<InvitationModel[]>> {
     try {
-      const result = await this.db
+      let query = this.db
         .select()
         .from(invitations)
         .where(
           and(eq(invitations.orgId, orgId), eq(invitations.status, EInviteStatus.pending))
         )
+      if (opts?.limit) query = query.limit(opts.limit) as typeof query
+      if (opts?.offset) query = query.offset(opts.offset) as typeof query
+      const result = await query
 
       return { data: result.map((item) => this.model(item)) }
     } catch (error: any) {
@@ -80,14 +86,22 @@ export class Invitation extends Base<
   }
 
   /**
-   * Get all invitations for an org (all statuses)
+   * Get all invitations for an org, optionally narrowed to a single status.
+   * Status filtering happens in the DB query so limit/offset paginate the
+   * already-narrowed set (rather than filtering a paginated slice in memory).
    */
-  async getAllByOrg(orgId: string): Promise<TDBApiRes<InvitationModel[]>> {
+  async getAllByOrg(
+    orgId: string,
+    opts?: { limit?: number; offset?: number; status?: EInviteStatus }
+  ): Promise<TDBApiRes<InvitationModel[]>> {
     try {
-      const result = await this.db
-        .select()
-        .from(invitations)
-        .where(eq(invitations.orgId, orgId))
+      const where = opts?.status
+        ? and(eq(invitations.orgId, orgId), eq(invitations.status, opts.status))
+        : eq(invitations.orgId, orgId)
+      let query = this.db.select().from(invitations).where(where)
+      if (opts?.limit) query = query.limit(opts.limit) as typeof query
+      if (opts?.offset) query = query.offset(opts.offset) as typeof query
+      const result = await query
 
       return { data: result.map((item) => this.model(item)) }
     } catch (error: any) {

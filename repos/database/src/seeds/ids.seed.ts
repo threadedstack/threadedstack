@@ -33,11 +33,12 @@ export const Ids = {
     // the scheduled dev loop AND the board CTO seat — the lead's sandbox can be
     // flipped to resident mode without touching the live dev-loop driver.
     cto: `ag_cto0001`,
-    // Realtime engineering team — the two resident engineer seats
-    // (product-stable ids; match the agentSchedules EngOneAgentId/EngTwoAgentId
-    // and the resident config seeds).
+    // Realtime engineering team — the resident engineer seats
+    // (product-stable ids; match the agentSchedules EngOneAgentId/EngTwoAgentId/
+    // EngThreeAgentId and the resident config seeds).
     engineerOne: `ag_eng0001`,
     engineerTwo: `ag_eng0002`,
+    engineerThree: `ag_eng0003`,
   },
   apikey: {
     tdskOrgKey: `ak_0000001`,
@@ -190,6 +191,7 @@ export const Ids = {
     ctoBody: `sb_cto0001`,
     engOneBody: `sb_eng0001`,
     engTwoBody: `sb_eng0002`,
+    engThreeBody: `sb_eng0003`,
   },
   domain: {
     orgDomain: `dm_0000001`,

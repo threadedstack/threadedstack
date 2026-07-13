@@ -114,7 +114,12 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
   let lastActivityAt = nowFn()
   let lastInboxPollAt = 0
 
-  const agendaNextRun = new Map<string, number>()
+  // Per-agenda-key schedule state: the cron it was scheduled from + the next
+  // fire time. Tracking the cron lets a live config refresh that CHANGES an
+  // agenda item's cron take effect immediately (reschedule forward from now),
+  // instead of silently waiting for the next OLD-cron fire — which previously
+  // made an agenda cadence change require a pod restart to apply.
+  const agendaNextRun = new Map<string, { cron: string; nextRunAt: number }>()
   const watchStates = new Map<string, TWatchState>()
   const seenMessages: string[] = []
   const seenMessageSet = new Set<string>()
@@ -178,20 +183,25 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
 
     for (const item of config.agenda) {
       liveKeys.add(item.key)
-      let nextRunAt = agendaNextRun.get(item.key)
-      if (nextRunAt === undefined) {
-        // First sighting: schedule forward from now (no boot-storm of "missed" runs)
-        nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
-        agendaNextRun.set(item.key, nextRunAt)
+      let entry = agendaNextRun.get(item.key)
+      // First sighting OR the cron changed under a live config refresh: schedule
+      // forward from now (no boot-storm of "missed" runs, and a cadence change
+      // takes effect on the next scan rather than after the next old-cron fire).
+      if (entry === undefined || entry.cron !== item.cron) {
+        entry = {
+          cron: item.cron,
+          nextRunAt: parseNextRun(item.cron, new Date(now)).getTime(),
+        }
+        agendaNextRun.set(item.key, entry)
       }
 
-      if (now >= nextRunAt) {
+      if (now >= entry.nextRunAt) {
         enqueue({
           kind: EResidentEventKind.agenda,
           key: item.key,
           prompt: item.prompt,
         })
-        agendaNextRun.set(item.key, parseNextRun(item.cron, new Date(now)).getTime())
+        entry.nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
       }
     }
 
@@ -275,6 +285,8 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
         key: watch.key,
         prompt: watch.prompt,
         records: documents,
+        collection: watch.collection,
+        query: watch.query,
       })
     }
 
@@ -324,6 +336,36 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
     }
   }
 
+  /**
+   * A queued watch event carries a POLL-TIME snapshot (event.records) that can
+   * go stale while the event sits behind higher-priority work (a turn can run
+   * up to turnTimeoutMs, and agenda/inbox events preempt watches). Re-running
+   * the watch's own query fresh right before framing means the delivered
+   * records reflect the CURRENT store, so a record that transitioned away from
+   * the watch's target condition (e.g. abandoned out of backlog) between poll
+   * and dispatch is naturally excluded — the query itself is the filter. Only
+   * touches the rendered payload; the hash/debounce state that governs WHEN a
+   * watch fires is untouched.
+   */
+  const refreshWatchEvent = async (event: TResidentEvent): Promise<TResidentEvent> => {
+    if (event.kind !== EResidentEventKind.watch || !event.collection || !event.query)
+      return event
+
+    const res = await api.queryRecords(event.collection, event.query)
+    if (!res.ok) {
+      log.warn(
+        `Watch ${event.key} freshness re-query failed, framing the poll-time snapshot: ${res.error ?? res.status}`
+      )
+      return event
+    }
+
+    const documents = (res.data ?? []).map((record) => ({
+      id: record.id,
+      ...(record.data as Record<string, unknown>),
+    }))
+    return { ...event, records: documents }
+  }
+
   const buildTurnInput = async (event: TResidentEvent): Promise<string> => {
     const config = getConfig()
     const sections: string[] = []
@@ -340,7 +382,8 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
     const context = await renderContextSources(api, config.session.contextSources)
     if (context) sections.push(context.trimEnd())
 
-    sections.push(buildFraming(event))
+    const framedEvent = await refreshWatchEvent(event)
+    sections.push(buildFraming(framedEvent))
     return sections.join(`\n\n`)
   }
 
@@ -397,7 +440,15 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
           output: result.output,
         })
 
-        await pump.pump(result.output)
+        const pumpReport = await pump.pump(result.output)
+        if (pumpReport.discardedActionBlocks > 0)
+          log.warn(
+            `Turn ${currentActivity} emitted ${pumpReport.discardedActionBlocks} extra tdsk-actions block(s) beyond the first — only the last block's actions were dispatched, the rest were silently discarded`
+          )
+        if (pumpReport.failed > 0)
+          log.warn(
+            `Turn ${currentActivity} had ${pumpReport.failed} action dispatch failure(s)${pumpReport.allowlistRejected > 0 ? ` (${pumpReport.allowlistRejected} allowlist-rejected)` : ``}`
+          )
 
         if (subAgents)
           for (const request of parseSpawnBlock(result.output)) {

@@ -5,6 +5,7 @@ export const ContextPanelWidth = 320
 export const FileTreeWidth = 264
 export const SidebarWidthOpen = 240
 export const ConnectionTimeout = 30_000
+export const ApiRequestTimeoutMs = 30_000
 export const RawBufferMaxBytes = 1024 * 1024
 export const FontLoadTimeoutMs = 2000
 export const DefaultCellWidth = 8.4

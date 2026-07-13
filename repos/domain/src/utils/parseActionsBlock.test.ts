@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 
 import { ActionsBlockFence } from '@TDM/constants/actions'
-import { parseActionsBlock, extractLastFencedBlock } from './parseActionsBlock'
+import {
+  parseActionsBlock,
+  extractLastFencedBlock,
+  parseActionsBlockWithMeta,
+} from './parseActionsBlock'
 
 const fence = (json: string) => `\`\`\`${ActionsBlockFence}\n${json}\n\`\`\``
 
@@ -89,5 +93,41 @@ describe(`parseActionsBlock`, () => {
   it(`skips non-object entries in the list`, () => {
     const out = parseActionsBlock(fence(`[null,42,"str",{"function":"ok","args":{}}]`))
     expect(out).toEqual([{ function: `ok`, args: {} }])
+  })
+})
+
+describe(`parseActionsBlockWithMeta`, () => {
+  it(`returns blockCount 0 and no actions when there is no block`, () => {
+    const out = parseActionsBlockWithMeta(`just some output`)
+    expect(out).toEqual({ actions: [], blockCount: 0 })
+  })
+
+  it(`returns blockCount 1 and parses the actions when exactly one block is present`, () => {
+    const out = parseActionsBlockWithMeta(fence(`[{"function":"f","args":{"a":true}}]`))
+    expect(out).toEqual({
+      actions: [{ function: `f`, args: { a: true } }],
+      blockCount: 1,
+    })
+  })
+
+  it(`returns blockCount matching the number of blocks and only parses the last (3+ blocks)`, () => {
+    const text = `${fence(`[{"function":"first","args":{}}]`)}\nchatter\n${fence(
+      `[{"function":"second","args":{}}]`
+    )}\nmore chatter\n${fence(`[{"function":"third","args":{}}]`)}`
+
+    const out = parseActionsBlockWithMeta(text)
+    expect(out.blockCount).toBe(3)
+    expect(out.actions).toEqual([{ function: `third`, args: {} }])
+  })
+
+  it(`still returns blockCount 0 for an empty string`, () => {
+    expect(parseActionsBlockWithMeta(``)).toEqual({ actions: [], blockCount: 0 })
+  })
+
+  it(`reports the block count even when the last block's JSON is malformed`, () => {
+    const text = `${fence(`[{"function":"first","args":{}}]`)}\n${fence(`[ { not json ]`)}`
+    const out = parseActionsBlockWithMeta(text)
+    expect(out.blockCount).toBe(2)
+    expect(out.actions).toEqual([])
   })
 })

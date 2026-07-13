@@ -65,6 +65,23 @@ describe(`KubeSandbox`, () => {
 
       expect(mockClient.runInPod).toHaveBeenCalledWith(`test-pod`, [`sh`, `-c`, `pwd`])
     })
+
+    it(`should forward the signal to runInPod's opts when provided`, async () => {
+      mockClient.runInPod.mockResolvedValue({
+        success: true,
+        output: ``,
+      })
+      const controller = new AbortController()
+
+      await sandbox.exec(`echo hello`, undefined, controller.signal)
+
+      expect(mockClient.runInPod).toHaveBeenCalledWith(
+        `test-pod`,
+        [`sh`, `-c`, `echo hello`],
+        undefined,
+        { signal: controller.signal }
+      )
+    })
   })
 
   describe(`readFile`, () => {
@@ -355,6 +372,83 @@ describe(`KubeSandbox`, () => {
         expect.stringContaining(`Permission denied`)
       )
       errorSpy.mockRestore()
+    })
+
+    it(`should still clean up the temp directory when the run step rejects on timeout`, async () => {
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // mkdir
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // writeFile
+      mockClient.runInPod.mockRejectedValueOnce(
+        new Error(`runInPod timed out after 90000ms for pod test-pod`)
+      ) // run step
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // cleanup
+
+      await expect(sandbox.evaluate(`while(true){}`, { timeout: 90000 })).rejects.toThrow(
+        `runInPod timed out after 90000ms`
+      )
+
+      expect(mockClient.runInPod).toHaveBeenCalledTimes(4)
+      const cleanupCall = mockClient.runInPod.mock.calls[3]
+      expect(cleanupCall[1][2]).toMatch(/rm -rf \/tmp\/tdsk-eval-/)
+    })
+
+    it(`should still clean up the temp directory when the run step rejects with no captured output`, async () => {
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // mkdir
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // writeFile
+      mockClient.runInPod.mockRejectedValueOnce(new Error(`exec WS errored`)) // run step
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // cleanup
+
+      await expect(sandbox.evaluate(`console.log(1)`)).rejects.toThrow(`exec WS errored`)
+
+      expect(mockClient.runInPod).toHaveBeenCalledTimes(4)
+      const cleanupCall = mockClient.runInPod.mock.calls[3]
+      expect(cleanupCall[1][2]).toMatch(/rm -rf \/tmp\/tdsk-eval-/)
+    })
+
+    it(`should not mask the run step's error when the cleanup call itself also throws`, async () => {
+      const errorSpy = vi.spyOn(logger, `error`).mockImplementation(() => {})
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // mkdir
+      mockClient.runInPod.mockResolvedValueOnce({ success: true, output: `` }) // writeFile
+      mockClient.runInPod.mockRejectedValueOnce(new Error(`run step timed out`)) // run step
+      mockClient.runInPod.mockRejectedValueOnce(new Error(`cleanup exec WS errored`)) // cleanup
+
+      await expect(sandbox.evaluate(`while(true){}`)).rejects.toThrow(
+        `run step timed out`
+      )
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`[KubeSandbox] Temp cleanup threw`),
+        expect.any(Error)
+      )
+      errorSpy.mockRestore()
+    })
+
+    it(`should derive the outer runInPod timeout from the rounded inner timeout plus buffer`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+
+      await sandbox.evaluate(`console.log(1)`, { timeout: 90000 })
+
+      const runCall = mockClient.runInPod.mock.calls[2]
+      expect(runCall[3]).toEqual({ timeoutMs: 95000 })
+    })
+
+    it(`should round the inner timeout up to whole seconds before adding buffer`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+
+      await sandbox.evaluate(`console.log(1)`, { timeout: 2500 })
+
+      const runCall = mockClient.runInPod.mock.calls[2]
+      // 2500ms rounds up to 3000ms (matching `timeout 3` in the shell command), + 5000ms buffer
+      expect(runCall[1][2]).toMatch(/^timeout 3 node/)
+      expect(runCall[3]).toEqual({ timeoutMs: 8000 })
+    })
+
+    it(`should leave the outer timeout undefined (runInPod default) when no timeout is requested`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+
+      await sandbox.evaluate(`console.log(1)`)
+
+      const runCall = mockClient.runInPod.mock.calls[2]
+      expect(runCall[3]).toEqual({ timeoutMs: undefined })
     })
   })
 

@@ -27,4 +27,8 @@ export type TKubeClientConfig = {
 export type TRunInPodOpts = {
   onStdout?: (chunk: Buffer) => void
   onStderr?: (chunk: Buffer) => void
+  /** Ms before the exec is aborted and the returned promise rejects. Defaults to DefaultExecTimeoutMs. */
+  timeoutMs?: number
+  /** Lets a caller cancel an in-flight exec early (e.g. a user-cancelled command) — rejects with a distinct abort error, not the timeout error. */
+  signal?: AbortSignal
 }

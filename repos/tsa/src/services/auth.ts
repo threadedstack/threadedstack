@@ -1,6 +1,6 @@
 import type { TAuthCredentials, TTokenLoginOpts } from '@TSA/types'
 
-import { ApiKeyPrefix } from '@TSA/constants'
+import { ApiKeyPrefix, LoginRequestTimeoutMs } from '@TSA/constants'
 import { ConfigService } from '@TSA/services/config'
 import { isLocalUrl } from '@TSA/utils/api/isLocalUrl'
 import { resolveProxyUrl } from '@TSA/utils/tasks/resolveUrls'
@@ -62,12 +62,7 @@ export class AuthManager {
     if (insecure || isLocalProxy) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 
     try {
-      const res = await fetch(`${url}/_/orgs`, {
-        headers: {
-          Accept: `application/json`,
-          Authorization: `Bearer ${apiKey}`,
-        },
-      })
+      const res = await this.#fetchOrgs(url, `Bearer ${apiKey}`)
 
       if (!res.ok) {
         const body = await res.text().catch(() => ``)
@@ -98,12 +93,7 @@ export class AuthManager {
     if (insecure || isLocalProxy) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 
     try {
-      const res = await fetch(`${url}/_/orgs`, {
-        headers: {
-          Accept: `application/json`,
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const res = await this.#fetchOrgs(url, `Bearer ${token}`)
 
       if (!res.ok) {
         const body = await res.text().catch(() => ``)
@@ -121,6 +111,25 @@ export class AuthManager {
       if (originalTls !== undefined)
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTls
       else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+    }
+  }
+
+  async #fetchOrgs(url: string, authorization: string): Promise<Response> {
+    try {
+      return await fetch(`${url}/_/orgs`, {
+        headers: {
+          Accept: `application/json`,
+          Authorization: authorization,
+        },
+        signal: AbortSignal.timeout(LoginRequestTimeoutMs),
+      })
+    } catch (err) {
+      if ((err as { name?: string })?.name === `TimeoutError`) {
+        throw new Error(
+          `Connection to ${url} timed out after ${LoginRequestTimeoutMs / 1000}s`
+        )
+      }
+      throw err
     }
   }
 

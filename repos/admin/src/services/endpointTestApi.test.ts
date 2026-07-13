@@ -292,4 +292,55 @@ describe(`EndpointTestApi`, () => {
       expect(result.error!.message).toBe(`string error`)
     })
   })
+
+  describe(`request timeout`, () => {
+    it(`should include a 30s AbortSignal.timeout on the fetch call`, async () => {
+      const timeoutSpy = vi.spyOn(AbortSignal, `timeout`)
+      mockFetch.mockResolvedValueOnce(makeResponse(200, `{}`))
+      const { endpointTestApi } = await loadModule()
+
+      await endpointTestApi.execute(`p`, `e`, { method: `GET` })
+
+      expect(timeoutSpy).toHaveBeenCalledWith(30_000)
+      const [, opts] = mockFetch.mock.calls[0]
+      expect(opts.signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it(`should reject with a clear timeout error when the request never resolves`, async () => {
+      vi.useFakeTimers()
+
+      // Replace AbortSignal.timeout with a fake-timer-driven equivalent so
+      // advancing vitest's fake clock actually fires the abort - the real
+      // implementation relies on platform timers that fake timers can't reach.
+      vi.spyOn(AbortSignal, `timeout`).mockImplementation((ms: number) => {
+        const controller = new AbortController()
+        setTimeout(() => {
+          controller.abort(new DOMException(`signal timed out`, `TimeoutError`))
+        }, ms)
+        return controller.signal
+      })
+
+      mockFetch.mockImplementationOnce(
+        (_url: string, opts: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            opts.signal?.addEventListener(`abort`, () => {
+              reject(new DOMException(`signal timed out`, `TimeoutError`))
+            })
+          })
+      )
+
+      const { endpointTestApi } = await loadModule()
+
+      const resultPromise = endpointTestApi.execute(`p`, `e`, { method: `GET` })
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      const result = await resultPromise
+
+      expect(result.data).toBeUndefined()
+      expect(result.error).toBeInstanceOf(Error)
+      expect(result.error!.message).toBe(`Request timed out after 30s`)
+
+      vi.useRealTimers()
+    })
+  })
 })

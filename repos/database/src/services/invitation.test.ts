@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Invitation } from './invitation'
+import { EInviteStatus } from '@tdsk/domain'
 
 // Mock the logger to avoid config/db initialization side-effects
 vi.mock(`@TDB/utils/logger`, () => ({
@@ -75,8 +76,11 @@ const fakeInvitationRow = (overrides: Record<string, any> = {}) => ({
  *
  * The Invitation service uses three DB chain patterns:
  *   1. db.select().from(table).where(cond).limit(1)   — getByToken, getByEmailAndOrg, accept/revoke lookup, isValid
- *   2. db.select().from(table).where(cond)             — getPendingByOrg, getAllByOrg, getPendingByEmail (no limit)
+ *   2. db.select().from(table).where(cond)             — getPendingByEmail (no limit)
  *   3. db.update(table).set(data).where(cond).returning() — accept, revoke, markExpired
+ *
+ * getPendingByOrg/getAllByOrg optionally chain .limit()/.offset() — use
+ * setupSelectChainable() for those instead of selectWhereFn.mockResolvedValue().
  *
  * For pattern 1 vs 2: where() returns { limit } but the test must configure
  * both limitFn (for .limit(1) calls) and selectWhereFn (for direct array returns).
@@ -86,6 +90,7 @@ const createMockDb = () => {
   // For methods WITHOUT limit: the resolved value of where() is used directly
   // For methods WITH limit: limit() is called and its resolved value is used
   const limitFn = vi.fn()
+  const offsetFn = vi.fn()
   const selectWhereFn = vi.fn(() => ({ limit: limitFn }))
   const selectFromFn = vi.fn(() => ({ where: selectWhereFn }))
   const selectFn = vi.fn(() => ({ from: selectFromFn }))
@@ -129,6 +134,7 @@ const createMockDb = () => {
     selectFromFn,
     selectWhereFn,
     limitFn,
+    offsetFn,
     updateFn,
     setFn,
     updateWhereFn,
@@ -142,6 +148,24 @@ const createMockDb = () => {
     findFirst,
     findMany,
   }
+}
+
+/**
+ * Configures selectWhereFn to return a thenable chain object supporting
+ * optional .limit()/.offset() calls before resolving to `data`.
+ * Used by getPendingByOrg/getAllByOrg which optionally chain pagination.
+ */
+const setupSelectChainable = (mocks: ReturnType<typeof createMockDb>, data: any[]) => {
+  const resolved = Promise.resolve(data)
+  const chainObj = {
+    limit: mocks.limitFn,
+    offset: mocks.offsetFn,
+    then: resolved.then.bind(resolved),
+    catch: resolved.catch.bind(resolved),
+  }
+  mocks.selectWhereFn.mockReturnValue(chainObj)
+  mocks.limitFn.mockReturnValue(chainObj)
+  mocks.offsetFn.mockReturnValue(chainObj)
 }
 
 describe(`Invitation service`, () => {
@@ -264,7 +288,7 @@ describe(`Invitation service`, () => {
         fakeInvitationRow({ id: `inv-1` }),
         fakeInvitationRow({ id: `inv-2`, email: `other@example.com` }),
       ]
-      mocks.selectWhereFn.mockResolvedValue(rows as any)
+      setupSelectChainable(mocks, rows as any)
 
       const result = await service.getPendingByOrg(`org-1`)
 
@@ -279,12 +303,34 @@ describe(`Invitation service`, () => {
     })
 
     it(`should return empty array when no pending invitations exist`, async () => {
-      mocks.selectWhereFn.mockResolvedValue([] as any)
+      setupSelectChainable(mocks, [])
 
       const result = await service.getPendingByOrg(`org-empty`)
 
       expect(result.data).toEqual([])
       expect(result.error).toBeUndefined()
+    })
+
+    it(`should apply limit and offset when provided`, async () => {
+      const rows = [fakeInvitationRow({ id: `inv-1` })]
+      setupSelectChainable(mocks, rows as any)
+
+      const result = await service.getPendingByOrg(`org-1`, { limit: 10, offset: 20 })
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).toHaveBeenCalledWith(10)
+      expect(mocks.offsetFn).toHaveBeenCalledWith(20)
+    })
+
+    it(`should work without pagination params (backward compat)`, async () => {
+      const rows = [fakeInvitationRow({ id: `inv-1` })]
+      setupSelectChainable(mocks, rows as any)
+
+      const result = await service.getPendingByOrg(`org-1`)
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).not.toHaveBeenCalled()
+      expect(mocks.offsetFn).not.toHaveBeenCalled()
     })
 
     it(`should return error on DB exception`, async () => {
@@ -306,7 +352,7 @@ describe(`Invitation service`, () => {
         fakeInvitationRow({ id: `inv-2`, status: `accepted` }),
         fakeInvitationRow({ id: `inv-3`, status: `revoked` }),
       ] as any
-      mocks.selectWhereFn.mockResolvedValue(rows)
+      setupSelectChainable(mocks, rows)
 
       const result = await service.getAllByOrg(`org-1`)
 
@@ -320,12 +366,51 @@ describe(`Invitation service`, () => {
     })
 
     it(`should return empty array when org has no invitations`, async () => {
-      mocks.selectWhereFn.mockResolvedValue([] as any)
+      setupSelectChainable(mocks, [])
 
       const result = await service.getAllByOrg(`org-empty`)
 
       expect(result.data).toEqual([])
       expect(result.error).toBeUndefined()
+    })
+
+    it(`should apply limit and offset when provided`, async () => {
+      const rows = [fakeInvitationRow({ id: `inv-1` })]
+      setupSelectChainable(mocks, rows as any)
+
+      const result = await service.getAllByOrg(`org-1`, { limit: 10, offset: 20 })
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).toHaveBeenCalledWith(10)
+      expect(mocks.offsetFn).toHaveBeenCalledWith(20)
+    })
+
+    it(`should work without pagination params (backward compat)`, async () => {
+      const rows = [fakeInvitationRow({ id: `inv-1` })]
+      setupSelectChainable(mocks, rows as any)
+
+      const result = await service.getAllByOrg(`org-1`)
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).not.toHaveBeenCalled()
+      expect(mocks.offsetFn).not.toHaveBeenCalled()
+    })
+
+    it(`should filter by status at the DB level when provided`, async () => {
+      const rows = [fakeInvitationRow({ id: `inv-1`, status: `accepted` })]
+      setupSelectChainable(mocks, rows as any)
+
+      const result = await service.getAllByOrg(`org-1`, {
+        limit: 10,
+        offset: 0,
+        status: EInviteStatus.accepted,
+      })
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.selectWhereFn).toHaveBeenCalledWith([
+        { col: { name: `org_id` }, val: `org-1`, _tag: `eq` },
+        { col: { name: `status` }, val: EInviteStatus.accepted, _tag: `eq` },
+      ])
     })
 
     it(`should return error on DB exception`, async () => {

@@ -21,10 +21,13 @@ vi.mock('@TSA/services/api', () => ({
   })),
 }))
 
+const mockExecutorRun = vi.fn()
+
 vi.mock('@TSA/services/executor', () => ({
   Executor: vi.fn().mockImplementation(() => ({
     destroy: vi.fn(),
     clearSession: vi.fn(),
+    run: mockExecutorRun,
   })),
 }))
 
@@ -618,6 +621,41 @@ describe.skipIf(!AgentsEnabled)(`ChatLogic`, () => {
       expect(phases).not.toContain(`pickProject`)
       const warning = outputMessages.find((m) => m.includes(`No projects available`))
       expect(warning).toBeDefined()
+    })
+  })
+
+  describe(`Regression: rec_DE6S0H — double-submit while a turn is already streaming`, () => {
+    it(`ignores a second handleSubmit() call while streaming, without corrupting shared state`, async () => {
+      mockGetAgent.mockResolvedValue(ok({ id: `a1`, name: `Alpha` }))
+      const logic = makeChatLogic({ initialAgentId: `a1` })
+      await logic.init()
+
+      let resolveFirstRun: (value: { threadId: string }) => void = () => {}
+      const firstRunPromise = new Promise<{ threadId: string }>((resolve) => {
+        resolveFirstRun = resolve
+      })
+      mockExecutorRun.mockReturnValueOnce(firstRunPromise)
+
+      // Fire the first submission but don't await it yet — handleSubmit runs
+      // synchronously up to its first await (executor.run()), so isStreaming
+      // is already true by the time the call below returns control here.
+      const p1 = logic.handleSubmit(`first message`)
+      expect(logic.isStreaming).toBe(true)
+
+      const p2 = logic.handleSubmit(`second message`)
+
+      // The second call must be a no-op: no second executor.run(), no second
+      // user message, no reset of the in-flight stream state.
+      expect(mockExecutorRun).toHaveBeenCalledTimes(1)
+      expect(logic.messages.filter((m) => m.type === `user`)).toHaveLength(1)
+      expect(logic.messages.find((m) => m.type === `user`)?.content).toBe(`first message`)
+
+      resolveFirstRun({ threadId: `thread-1` })
+      await p1
+      await p2
+
+      expect(logic.isStreaming).toBe(false)
+      expect(logic.messages.filter((m) => m.type === `user`)).toHaveLength(1)
     })
   })
 })

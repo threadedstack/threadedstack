@@ -134,8 +134,12 @@ export type TResidentEvent = {
   prompt?: string
   /** Inbox events carry the unread messages they represent. */
   messages?: TInboxMessage[]
-  /** Watch events carry the matched records for the turn framing. */
+  /** Watch events carry the matched records for the turn framing (poll-time snapshot — see collection/query). */
   records?: Array<Record<string, unknown>>
+  /** Watch events carry their source collection so dispatch time can re-check liveness. */
+  collection?: string
+  /** Watch events carry their source query so dispatch time can re-run it fresh. */
+  query?: TRecordQuery
   /** Internal events carry the completed sub-agent result summary. */
   detail?: string
   enqueuedAt: number
@@ -286,6 +290,8 @@ export type TPumpReport = {
   dispatched: number
   failed: number
   allowlistRejected: number
+  /** Extra ```tdsk-actions``` fenced blocks beyond the first found in one turn's output — each one's actions were silently discarded (only the last block is ever parsed). */
+  discardedActionBlocks: number
   memoriesSkipped: number
   /** ```tdsk-author-function``` submissions accepted by the platform. */
   functionsAuthored: number

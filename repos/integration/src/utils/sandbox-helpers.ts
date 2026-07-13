@@ -216,21 +216,27 @@ export const setupRunningPod = async (
   if (!sbRes.ok) throw new Error(`Failed to create sandbox config: HTTP ${sbRes.status}`)
   const sandboxId = sbRes.data.id
 
-  let startRes: Awaited<ReturnType<typeof post<{ instanceId: string }>>>
-  for (let attempt = 0; attempt < 3; attempt++) {
-    startRes = await post<{ instanceId: string }>(
-      `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
-      {}
-    )
-    if (startRes.ok) break
-    if (attempt < 2) await new Promise(r => setTimeout(r, 3_000 * (attempt + 1)))
+  let instanceId: string | undefined
+  try {
+    let startRes: Awaited<ReturnType<typeof post<{ instanceId: string }>>>
+    for (let attempt = 0; attempt < 3; attempt++) {
+      startRes = await post<{ instanceId: string }>(
+        `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+        {}
+      )
+      if (startRes.ok) break
+      if (attempt < 2) await new Promise(r => setTimeout(r, 3_000 * (attempt + 1)))
+    }
+    if (!startRes!.ok) throw new Error(`Failed to start pod: HTTP ${startRes!.status}`)
+    instanceId = startRes!.data.instanceId
+
+    await waitForPodState(orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
+
+    return { instanceId, projectId, sandboxId, sandboxName }
+  } catch (err) {
+    await cleanupSandbox(orgId, { projectId, sandboxId, instanceId }).catch(() => {})
+    throw err
   }
-  if (!startRes!.ok) throw new Error(`Failed to start pod: HTTP ${startRes!.status}`)
-  const instanceId = startRes!.data.instanceId
-
-  await waitForPodState(orgId, projectId, sandboxId, instanceId, 'Running', 90_000)
-
-  return { instanceId, projectId, sandboxId, sandboxName }
 }
 
 /**

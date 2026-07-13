@@ -69,13 +69,13 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.skip_tests != true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Use the repo's canonical Node (.nvmrc = 24.x, the version we develop
           # and run `tdsk release` on locally). Node 22's require(esm) loader breaks
@@ -103,7 +103,7 @@ jobs:
       NODE_ENV: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         # Full history so `tdsk release` can diff HEAD against the deployed SHA
         with:
           fetch-depth: 0
@@ -162,10 +162,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Use the repo's canonical Node (.nvmrc = 24.x, the version we develop
           # and run `tdsk release` on locally). Node 22's require(esm) loader breaks
