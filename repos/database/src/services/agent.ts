@@ -1,5 +1,6 @@
 import type { TProviderInput, TAgentProjectConfig } from '@tdsk/domain'
 import type {
+  TDBTx,
   TDBUpdate,
   TServiceOpts,
   TDBQueryOpts,
@@ -69,6 +70,7 @@ export type TAgentSelectOpts = TDBAgentSelect & {
 
 type TAgentRelations = {
   id: string
+  tx?: TDBTx
   providerInputs?: TProviderInput[]
   secretIds?: string[]
   projects?: Array<
@@ -128,7 +130,8 @@ export class Agent extends Base<
   }
 
   #relations = async (opts: TAgentRelations) => {
-    const { id, projects, providerInputs, secretIds } = opts
+    const { id, projects, providerInputs, secretIds, tx } = opts
+    const exec = tx ?? this.db
 
     if (projects?.length) {
       const rows = projects
@@ -146,18 +149,17 @@ export class Agent extends Base<
           ...(proj.environment !== undefined && { environment: proj.environment }),
           ...(proj.systemPrompt !== undefined && { systemPrompt: proj.systemPrompt }),
         }))
-      if (rows.length)
-        await this.db.insert(agentProjects).values(rows).onConflictDoNothing()
+      if (rows.length) await exec.insert(agentProjects).values(rows).onConflictDoNothing()
     }
 
-    if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs)
+    if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs, tx)
 
     // Reassign secrets to this agent (FK pattern, not junction table)
     // Clears exclusive arc columns to satisfy the secret_scope_check constraint
     if (secretIds?.length) {
       const validIds = secretIds.filter(Boolean)
       if (validIds.length)
-        await this.db
+        await exec
           .update(secrets)
           .set({ agentId: id, orgId: null, projectId: null, providerId: null })
           .where(inArray(secrets.id, validIds))
@@ -169,7 +171,7 @@ export class Agent extends Base<
    * upserts remaining (inserts new, updates priority/model on existing).
    * Empty array clears all providers. Runs in a single transaction.
    */
-  #upsertProviders = async (agentId: string, inputs: TProviderInput[]) => {
+  #upsertProviders = async (agentId: string, inputs: TProviderInput[], tx?: TDBTx) => {
     const rows = inputs
       .filter((p) => p.id)
       .map((p, i) => ({
@@ -179,10 +181,10 @@ export class Agent extends Base<
         model: p.model ?? null,
       }))
 
-    await this.db.transaction(async (tx) => {
+    const run = async (exec: TDBTx) => {
       // Remove providers no longer in the list
       if (rows.length) {
-        await tx.delete(agentProviders).where(
+        await exec.delete(agentProviders).where(
           and(
             eq(agentProviders.agentId, agentId),
             notInArray(
@@ -192,12 +194,12 @@ export class Agent extends Base<
           )
         )
       } else {
-        await tx.delete(agentProviders).where(eq(agentProviders.agentId, agentId))
+        await exec.delete(agentProviders).where(eq(agentProviders.agentId, agentId))
       }
 
       // Upsert: insert new, update priority/model on existing
       if (rows.length) {
-        await tx
+        await exec
           .insert(agentProviders)
           .values(rows)
           .onConflictDoUpdate({
@@ -208,7 +210,14 @@ export class Agent extends Base<
             },
           })
       }
-    })
+    }
+
+    // When called as part of an outer transaction (e.g. Agent.update()), run
+    // directly against the passed-in tx instead of opening a separate
+    // self-contained transaction -- a nested this.db.transaction() here would
+    // commit independently and not roll back if the outer transaction fails.
+    if (tx) await run(tx)
+    else await this.db.transaction(run)
   }
 
   /**
@@ -383,33 +392,43 @@ export class Agent extends Base<
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
 
+    const agentId = agent.id
     const result = await super.update(agent)
 
     if (
       result.data &&
       (projects?.length || providerInputs !== undefined || secretIds !== undefined)
     ) {
+      const orgId = result.data.orgId
       try {
-        // Projects still use delete+re-insert (onConflictDoNothing in #relations)
-        if (projects?.length)
-          await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
+        // The delete/detach-then-reinsert sequence below must be atomic --
+        // if #relations throws partway through, an un-transacted delete
+        // would already be committed, silently stripping the agent of every
+        // project/secret association even though the caller sees an error
+        // and assumes nothing changed.
+        await this.db.transaction(async (tx) => {
+          // Projects still use delete+re-insert (onConflictDoNothing in #relations)
+          if (projects?.length)
+            await tx.delete(agentProjects).where(eq(agentProjects.agentId, agentId))
 
-        // Detach all currently agent-scoped secrets before re-attaching
-        // Uses `secretIds !== undefined` (not `.length`) so passing [] detaches all
-        // Must set orgId to satisfy secret_scope_check (at least one scope column non-null)
-        if (secretIds !== undefined)
-          await this.db
-            .update(secrets)
-            .set({ agentId: null, orgId: result.data.orgId })
-            .where(eq(secrets.agentId, agent.id))
+          // Detach all currently agent-scoped secrets before re-attaching
+          // Uses `secretIds !== undefined` (not `.length`) so passing [] detaches all
+          // Must set orgId to satisfy secret_scope_check (at least one scope column non-null)
+          if (secretIds !== undefined)
+            await tx
+              .update(secrets)
+              .set({ agentId: null, orgId })
+              .where(eq(secrets.agentId, agentId))
 
-        await this.#relations({
-          projects,
-          secretIds,
-          id: agent.id,
-          providerInputs,
+          await this.#relations({
+            projects,
+            secretIds,
+            id: agentId,
+            providerInputs,
+            tx,
+          })
         })
-        const updated = await this.get(agent.id, opts)
+        const updated = await this.get(agentId, opts)
         result.data = updated.data
       } catch (error: any) {
         return { data: undefined, error }
