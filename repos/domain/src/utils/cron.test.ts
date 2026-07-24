@@ -61,6 +61,34 @@ describe(`isValidCron`, () => {
   it(`should reject whitespace only`, () => {
     expect(isValidCron(`   `)).toBe(false)
   })
+
+  it(`should reject Feb 30 (impossible day/month combo)`, () => {
+    expect(isValidCron(`0 0 30 2 *`)).toBe(false)
+  })
+
+  it(`should reject Feb 31 (impossible day/month combo)`, () => {
+    expect(isValidCron(`0 0 31 2 *`)).toBe(false)
+  })
+
+  it(`should reject April 31 (April has 30 days)`, () => {
+    expect(isValidCron(`0 0 31 4 *`)).toBe(false)
+  })
+
+  it(`should accept Feb 29 (leap-year day is a real occurrence)`, () => {
+    expect(isValidCron(`0 0 29 2 *`)).toBe(true)
+  })
+
+  it(`should accept day 31 in a month that has 31 days`, () => {
+    expect(isValidCron(`0 0 31 1 *`)).toBe(true)
+  })
+
+  it(`should accept day 31 when month list includes a 31-day month`, () => {
+    expect(isValidCron(`0 0 31 2,3 *`)).toBe(true)
+  })
+
+  it(`should not reject an impossible day/month combo when dayOfWeek is also explicit (OR semantics)`, () => {
+    expect(isValidCron(`0 0 30 2 MON`)).toBe(true)
+  })
 })
 
 // ── PARSE NEXT RUN ──────────────────────────────────────────────────
