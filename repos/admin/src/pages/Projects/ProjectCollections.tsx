@@ -10,7 +10,10 @@ export const ProjectCollections = () => {
 
   return (
     <Page className='tdsk-project-collections-page'>
-      <Collections />
+      <Collections
+        orgId={orgId}
+        projectId={projectId}
+      />
     </Page>
   )
 }
