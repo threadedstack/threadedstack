@@ -81,7 +81,6 @@ test.describe('Org Skills Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/skills`, 'tdsk-org-skills-page')
 
     await page.getByRole('button', { name: 'Create Skill' }).click()
-    await page.waitForTimeout(1000)
 
     await expect(page.getByText('Create New Skill')).toBeVisible()
     await expect(page.locator('#tdsk-skill-name-input')).toBeVisible()
@@ -101,7 +100,6 @@ test.describe('Org Skills Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/skills`, 'tdsk-org-skills-page')
 
     await page.getByRole('button', { name: 'Create Skill' }).click()
-    await page.waitForTimeout(1000)
 
     // Name starts empty in create mode
     await expect(page.locator('#tdsk-skill-name-input')).toHaveValue('')
@@ -150,7 +148,6 @@ test.describe('Org Skills Page', () => {
     test.skip(rowCount === 0, 'No skills data — cannot test row click')
 
     await tableRows.first().click()
-    await page.waitForTimeout(1000)
 
     await expect(page.getByText('Edit Skill')).toBeVisible()
     await expect(page.locator('#tdsk-skill-name-input')).not.toHaveValue('')
@@ -177,7 +174,17 @@ test.describe('Org Skills Page', () => {
     const errors = collectConsoleErrors(page)
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}/skills`, 'tdsk-org-skills-page')
-    await page.waitForTimeout(2000)
+
+    // Wait for the async skills fetch to resolve into a concrete UI state
+    // (empty state or a populated table row) before checking for errors --
+    // this is the same settle signal used by the "renders Skills page"
+    // test above, so any console errors from that fetch have had a chance
+    // to fire.
+    await page
+      .getByText('No skills yet. Create your first skill to get started.')
+      .or(page.locator('tbody tr').first())
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .catch(() => {})
 
     expect(errors).toEqual([])
   })
