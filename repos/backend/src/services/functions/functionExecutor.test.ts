@@ -362,7 +362,39 @@ describe(`FunctionExecutor`, () => {
         ),
       }
 
-      return { db: { services: { record } } as any, record }
+      let collectionSeq = 0
+      const collection = {
+        create: vi.fn(
+          async (data: {
+            projectId: string
+            name: string
+            description?: string | null
+            schema?: unknown
+          }): Promise<{
+            data?: {
+              id: string
+              name: string
+              projectId: string
+              description: string | null
+              schema: unknown
+            }
+            error?: Error
+          }> => {
+            collectionSeq += 1
+            return {
+              data: {
+                id: `col_${collectionSeq}`,
+                name: data.name,
+                projectId: data.projectId,
+                description: data.description ?? null,
+                schema: data.schema ?? null,
+              },
+            }
+          }
+        ),
+      }
+
+      return { db: { services: { record, collection } } as any, record, collection }
     }
 
     it(`gives a Function a records capability that persists then queries a record`, async () => {
@@ -528,6 +560,68 @@ describe(`FunctionExecutor`, () => {
       expect(wrapperCode).not.toContain(`services`)
       expect(wrapperCode).not.toMatch(/postgres|connectionString|DATABASE_URL/i)
       expect(evalOpts.modules.function).not.toContain(`services`)
+    })
+
+    it(`gives a Function a createCollection capability that creates a collection in its own project`, async () => {
+      const { db, collection } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-records` })
+
+      // Simulate the isolate running a handler that uses context.records:
+      //   await context.records.createCollection('events', { description: 'Event log' })
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        const created = JSON.parse(
+          await b[`records.createCollection`](
+            JSON.stringify([`events`, { description: `Event log` }])
+          )
+        )
+        return { output: ``, result: { success: true, output: created } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual({ id: expect.any(String), name: `events` })
+
+      // The wrapper reconstructs context.records via the __hostCall bridge, and
+      // createCollection rides alongside the other records methods
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).toContain(`context.records`)
+      expect(Object.keys(evalOpts.bridges)).toEqual(
+        expect.arrayContaining([`records.createCollection`])
+      )
+
+      // The bridge called db.services.collection.create with the Function's own
+      // projectId, the requested name, and the optional description
+      expect(collection.create).toHaveBeenCalledTimes(1)
+      const createdArg = collection.create.mock.calls[0][0]
+      expect(createdArg.projectId).toBe(`proj-records`)
+      expect(createdArg.name).toBe(`events`)
+      expect(createdArg.description).toBe(`Event log`)
+    })
+
+    it(`surfaces a collection-creation db error as a handler-level failure`, async () => {
+      const { db, collection } = makeFakeDb()
+      collection.create.mockResolvedValueOnce({ error: new Error(`db unavailable`) })
+      const func = makeFunc({ projectId: `proj-records` })
+
+      // The real isolate wrapper's own try/catch turns a thrown bridge error into
+      // { success: false, error } — simulate that same shape here.
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        try {
+          await b[`records.createCollection`](JSON.stringify([`events`, undefined]))
+          return { output: ``, result: { success: true, output: `unreachable` } }
+        } catch (err: any) {
+          return { output: ``, result: { success: false, error: err.message } }
+        }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain(`records.createCollection failed`)
+      expect(result.error).toContain(`db unavailable`)
     })
   })
 
@@ -943,7 +1037,9 @@ describe(`FunctionExecutor`, () => {
           t += 1_000
           const flush = makeTrackedSandbox()
           mockCreate.mockResolvedValueOnce(flush)
-          await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-flush-${i}` }))
+          await FunctionExecutor.execute(
+            makeFunc({ projectId: `proj-global-flush-${i}` })
+          )
         }
 
         // Fill the pool to exactly the aggregate cap with tracked,
@@ -962,7 +1058,9 @@ describe(`FunctionExecutor`, () => {
         vi.setSystemTime(t)
         const overflow = makeTrackedSandbox()
         mockCreate.mockResolvedValueOnce(overflow)
-        await FunctionExecutor.execute(makeFunc({ projectId: `proj-global-cap-overflow` }))
+        await FunctionExecutor.execute(
+          makeFunc({ projectId: `proj-global-cap-overflow` })
+        )
 
         // The globally-oldest entry (tenant 0) was evicted and closed, even
         // though its OWN bucket never held more than 1 entry (well under

@@ -5,6 +5,7 @@ import type {
   TFunctionRequest,
   TFunctionContext,
   TScanContentInput,
+  TCollectionSchema,
   TTaskSourceSignal,
   IRecordsCapability,
   TFunctionExecResult,
@@ -16,7 +17,12 @@ import { buildConnectorBridges, connectContextCode } from './connectorCapability
 import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
 import { markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import { createSandboxProvider } from '@tdsk/sandbox'
-import { EFunLanguage, ESandboxType, ETaskProposalStatus } from '@tdsk/domain'
+import {
+  EFunLanguage,
+  ESandboxType,
+  ETaskProposalStatus,
+  Collection as CollectionModel,
+} from '@tdsk/domain'
 import {
   PoolTtlMS,
   PoolMaxSize,
@@ -182,6 +188,7 @@ const RecordsBridge = {
   delete: `records.delete`,
   upsert: `records.upsert`,
   cas: `records.cas`,
+  createCollection: `records.createCollection`,
 } as const
 
 /**
@@ -245,6 +252,21 @@ const createRecordsCapability = (
       ? { conflict: true as const }
       : { id: data.id, data: data.data as Record<string, unknown> }
   },
+  // Mirrors the admin Collections CRUD create path (endpoints/collections/createCollection.ts)
+  // exactly — the project is implicit (bound at injection time), so a Function can only ever
+  // create a collection scoped to its own project.
+  createCollection: async (name, opts) => {
+    const collection = new CollectionModel({
+      name,
+      projectId,
+      ...(opts?.description !== undefined && { description: opts.description }),
+      ...(opts?.schema !== undefined && { schema: opts.schema as TCollectionSchema }),
+    })
+    const { data, error } = await db.services.collection.create(collection)
+    if (error || !data)
+      throw new Error(`records.createCollection failed: ${error?.message ?? `unknown`}`)
+    return { id: data.id, name: data.name }
+  },
 })
 
 /**
@@ -290,6 +312,13 @@ const buildRecordsBridges = (
         Record<string, unknown>,
       ]
       return JSON.stringify(await records.cas(collection, id, match, patch))
+    },
+    [RecordsBridge.createCollection]: async (argsJson) => {
+      const [name, opts] = JSON.parse(argsJson) as [
+        string,
+        { description?: string; schema?: unknown }?,
+      ]
+      return JSON.stringify(await records.createCollection(name, opts))
     },
   }
 }
@@ -400,6 +429,7 @@ const recordsContextCode = `context.records = (() => {
     delete: (collection, id) => call('${RecordsBridge.delete}', [collection, id]),
     count: (collection, query) => call('${RecordsBridge.count}', [collection, query]),
     cas: (collection, id, match, patch) => call('${RecordsBridge.cas}', [collection, id, match, patch]),
+    createCollection: (name, opts) => call('${RecordsBridge.createCollection}', [name, opts]),
   };
 })();`
 

@@ -55,6 +55,15 @@ export interface IRecordsCapability {
     match: Record<string, string | number | boolean | null>,
     patch: Record<string, unknown>
   ): Promise<TRecordDocument | { conflict: true }>
+  /**
+   * Create a new collection in the Function's own project — the project is
+   * implicit (bound at injection time), so a Function can only ever create a
+   * collection scoped to its own project, identical to every other method here.
+   */
+  createCollection(
+    name: string,
+    opts?: { description?: string; schema?: unknown }
+  ): Promise<{ id: string; name: string }>
 }
 
 /**
