@@ -25,6 +25,7 @@ import {
   orgMembersLoader,
   orgApiKeysLoader,
   agentDetailLoader,
+  agentActivityLoader,
   orgProvidersLoader,
   orgSandboxesLoader,
   projectScopeLoader,
@@ -93,6 +94,7 @@ const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThread
 // TODO: Fix this, components should not be used as pages
 const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
 const AgentLayout = lazy(() => import('@TAF/components/Agents/AgentLayout'))
+const AgentActivity = lazy(() => import('@TAF/components/AgentActivity/AgentActivity'))
 const AgentDetailTab = lazy(() => import('@TAF/components/Agents/AgentDetailTab'))
 const SkillsTab = lazy(() => import('@TAF/components/Skills/Skills'))
 const EndpointLayout = lazy(() => import('@TAF/components/Endpoints/EndpointLayout'))
@@ -390,6 +392,11 @@ export const createRoutes = () =>
                               ]
                             : []),
                         ],
+                      },
+                      {
+                        path: `agents/:agentId/activity`,
+                        loader: agentActivityLoader,
+                        Component: () => <SuspensePage Component={AgentActivity} />,
                       },
                     ]
                   : []),

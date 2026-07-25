@@ -12,6 +12,8 @@ import { fetchEscalations } from '@TAF/actions/escalations/api/fetchEscalations'
 import { fetchVerifications } from '@TAF/actions/verifications/api/fetchVerifications'
 import { fetchOpsActions } from '@TAF/actions/opsActions/api/fetchOpsActions'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
+import { fetchAgentActivity } from '@TAF/actions/agentActivity/api/fetchAgentActivity'
+import { startAgentActivityPolling } from '@TAF/actions/agentActivity/local/pollAgentActivity'
 import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
@@ -489,6 +491,25 @@ export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
       ? safeFetch(() => listProjectMembers({ orgId, projectId }))
       : Promise.resolve(),
   ])
+  return null
+}
+
+/**
+ * Load one agent's activity, then start the 5s poll.
+ *
+ * The poll is started HERE (the loader/action layer) rather than in a component
+ * effect, because this project forbids `useEffect` for data loading. The route
+ * always re-runs its loader on entry, and `startAgentActivityPolling` clears any
+ * previous timer, so navigating between agents can never leave two polls running.
+ */
+export const agentActivityLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, projectId, agentId } = params
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
+  if (!agentId) throw new Response(`agentId is required`, { status: 400 })
+
+  await safeFetch(() => fetchAgentActivity({ orgId, projectId, agentId }))
+  startAgentActivityPolling({ orgId, projectId, agentId })
   return null
 }
 
