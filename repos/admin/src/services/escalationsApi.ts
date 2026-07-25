@@ -42,7 +42,7 @@ export class EscalationsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((escalation) => new Escalation(escalation)) || [],
+      data: resp?.data?.map?.((escalation) => new Escalation(escalation)) || [],
     }
   }
 

@@ -42,7 +42,7 @@ export class FunctionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((func) => new FunctionModel(func)) || [],
+      data: resp?.data?.map?.((func) => new FunctionModel(func)) || [],
     }
   }
 
