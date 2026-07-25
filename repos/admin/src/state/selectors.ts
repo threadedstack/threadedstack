@@ -17,21 +17,17 @@ import type {
   Record as RecordModel,
   Function as FunctionModel,
 } from '@tdsk/domain'
-import type {
-  TAgentPlan,
-  TActivityRecord,
-  TAgentStatus,
-} from '@TAF/types/agentActivity.types'
+import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
 
 import { useAtom } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TAF/state/user'
 import {
-  agentPlansState,
   agentTurnsState,
   agentStatusState,
   agentMemoriesState,
   agentMessagesState,
+  collectionRecordsState,
 } from '@TAF/state/agentActivity'
 import { collectionsState } from '@TAF/state/collections'
 import { noOp } from '@keg-hub/jsutils/noOp'
@@ -316,6 +312,6 @@ export const useAgentMessagesMap = () =>
   useRecState<Record<string, TActivityRecord[]>>(agentMessagesState)
 export const useAgentMemoriesMap = () =>
   useRecState<Record<string, TActivityRecord[]>>(agentMemoriesState)
-export const useAgentPlansMap = () =>
-  useRecState<Record<string, TAgentPlan[]>>(agentPlansState)
+export const useCollectionRecordsMap = () =>
+  useRecState<Record<string, RecordModel[]>>(collectionRecordsState)
 export const useCollections = () => useRecState(collectionsState)

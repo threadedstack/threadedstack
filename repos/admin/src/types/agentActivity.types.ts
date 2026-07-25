@@ -41,29 +41,3 @@ export type TTimelineEntry = {
   input?: string
   meta?: string
 }
-
-/** One milestone inside a roadmap plan. Fields are best-effort — plans are
- * agent-authored Collection documents, so nothing here is guaranteed present. */
-export type TAgentMilestone = {
-  title?: string
-  status?: string
-  size?: string
-  detail?: string
-}
-
-/**
- * A roadmap entry: one document from the project's `plans` collection. This is
- * what the agent is working toward (an initiative, a company plan, a GTM plan),
- * as opposed to the activity feed, which is what it just did.
- */
-export type TAgentPlan = {
-  id: string
-  title: string
-  kind?: string
-  status?: string
-  owner?: string
-  objective?: string
-  notes?: string
-  milestones?: TAgentMilestone[]
-  keyResults?: string[]
-}

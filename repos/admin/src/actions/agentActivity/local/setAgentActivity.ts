@@ -1,15 +1,12 @@
-import type {
-  TAgentPlan,
-  TActivityRecord,
-  TAgentStatus,
-} from '@TAF/types/agentActivity.types'
+import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
+import type { Record as RecordModel } from '@tdsk/domain'
 
 import {
-  setContextAgentPlans,
   setContextAgentTurns,
   setContextAgentStatus,
   setContextAgentMemories,
   setContextAgentMessages,
+  setContextCollectionRecords,
 } from '@TAF/state/accessors'
 
 export const setAgentStatus = (agentId: string, status: TAgentStatus | null) =>
@@ -24,5 +21,8 @@ export const setAgentMessages = (agentId: string, rows: TActivityRecord[]) =>
 export const setAgentMemories = (agentId: string, rows: TActivityRecord[]) =>
   setContextAgentMemories(agentId, rows)
 
-export const setAgentPlans = (agentId: string, rows: TAgentPlan[]) =>
-  setContextAgentPlans(agentId, rows)
+export const setCollectionRecords = (
+  projectId: string,
+  collectionName: string,
+  rows: RecordModel[]
+) => setContextCollectionRecords(projectId, collectionName, rows)
