@@ -74,10 +74,12 @@ test.describe('Sub-Navigation', () => {
     const orgItem = railItems.nth(1)
     await orgItem.click()
 
-    // Wait for sub-nav to update
-    await page.waitForTimeout(500)
+    // Wait for sub-nav content to actually change (org items vs project
+    // items) instead of guessing how long the update takes
+    await expect
+      .poll(() => subNavPanel.innerText(), { timeout: 5_000 })
+      .not.toBe(projectContent)
 
-    // Sub-nav content should be different (org items vs project items)
     const orgContent = await subNavPanel.innerText()
     expect(orgContent).not.toBe(projectContent)
   })
@@ -143,12 +145,14 @@ test.describe('Sub-Navigation', () => {
     const activeItem = navRail.locator('.tdsk-rail-item.active')
     await activeItem.click()
 
-    // Sub-nav panel should collapse (width transitions to 0)
-    await page.waitForTimeout(500)
-
-    // The panel box is still in the DOM but its width should be 0
+    // Sub-nav panel should collapse (width transitions to 0) -- poll the
+    // actual computed width instead of guessing how long the CSS
+    // transition takes. The panel box is still in the DOM, just 0-width.
     const panelBox = subNavPanel.first()
-    const width = await panelBox.evaluate((el) => el.getBoundingClientRect().width)
-    expect(width).toBe(0)
+    await expect
+      .poll(() => panelBox.evaluate((el) => el.getBoundingClientRect().width), {
+        timeout: 5_000,
+      })
+      .toBe(0)
   })
 })
