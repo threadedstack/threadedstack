@@ -1,4 +1,8 @@
-import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
+import type {
+  TAgentPlan,
+  TAgentStatus,
+  TActivityRecord,
+} from '@TAF/types/agentActivity.types'
 
 import { atomWithReset } from 'jotai/utils'
 
@@ -21,3 +25,7 @@ export const agentMessagesState =
 
 export const agentMemoriesState =
   atomWithReset<Record<string, TActivityRecord[]>>(undefined)
+
+/** The agent's roadmap (the project's `plans` collection). Slow-changing, so it
+ * is fetched once by the loader rather than on the 5s activity poll. */
+export const agentPlansState = atomWithReset<Record<string, TAgentPlan[]>>(undefined)

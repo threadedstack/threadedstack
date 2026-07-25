@@ -13,6 +13,7 @@ import { fetchVerifications } from '@TAF/actions/verifications/api/fetchVerifica
 import { fetchOpsActions } from '@TAF/actions/opsActions/api/fetchOpsActions'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { fetchAgentActivity } from '@TAF/actions/agentActivity/api/fetchAgentActivity'
+import { fetchAgentRoadmap } from '@TAF/actions/agentActivity/api/fetchAgentRoadmap'
 import { startAgentActivityPolling } from '@TAF/actions/agentActivity/local/pollAgentActivity'
 import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
@@ -495,7 +496,8 @@ export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
 }
 
 /**
- * Load one agent's activity, then start the 5s poll.
+ * Load one agent's live activity, its roadmap, and the project's collections,
+ * then start the 5s activity poll.
  *
  * The poll is started HERE (the loader/action layer) rather than in a component
  * effect, because this project forbids `useEffect` for data loading. The route
@@ -503,6 +505,9 @@ export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
  * previous timer, so navigating between agents can never leave two polls running.
  * Leaving the activity feature entirely fires no loader, so the poll itself
  * stops on the first tick after the browser leaves this agent's activity route.
+ *
+ * Only the activity feed is polled; the roadmap (plans) and collections change
+ * on the order of hours, so they are fetched once here rather than every tick.
  */
 export const agentActivityLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId, agentId } = params
@@ -511,6 +516,9 @@ export const agentActivityLoader = async ({ params }: LoaderFunctionArgs) => {
   if (!agentId) throw new Response(`agentId is required`, { status: 400 })
 
   await safeFetch(() => fetchAgentActivity({ orgId, projectId, agentId }))
+  safeFetch(() => fetchAgentRoadmap({ orgId, projectId, agentId }))
+  if (!getContextCollections(projectId))
+    safeFetch(() => fetchCollections({ orgId, projectId }))
   startAgentActivityPolling({ orgId, projectId, agentId })
   return null
 }
