@@ -1,6 +1,7 @@
 import type { Plan } from '@tdsk/domain'
 
 import Box from '@mui/material/Box'
+import Link from '@mui/material/Link'
 import Table from '@mui/material/Table'
 import Paper from '@mui/material/Paper'
 import TableRow from '@mui/material/TableRow'
@@ -127,7 +128,7 @@ const buildComparisonRows = (plans: Plan[]): ComparisonRow[] => {
 
 type FAQItem = {
   question: string
-  answer: string
+  answer: React.ReactNode
 }
 
 const faqItems: FAQItem[] = [
@@ -145,7 +146,22 @@ const faqItems: FAQItem[] = [
   },
   {
     question: `Do you offer custom enterprise plans?`,
-    answer: `Yes. For organizations that need higher limits, custom SLAs, dedicated infrastructure, or specific compliance requirements, we offer tailored enterprise plans. Contact our sales team at enterprise@threadedstack.com to discuss your needs.`,
+    answer: (
+      <>
+        Yes. For organizations that need higher limits, custom SLAs, dedicated
+        infrastructure, or specific compliance requirements, we offer tailored enterprise
+        plans. Contact our sales team at{` `}
+        <Link
+          href='mailto:enterprise@threadedstack.com'
+          color='inherit'
+          underline='hover'
+        >
+          enterprise@threadedstack.com
+        </Link>
+        {` `}
+        to discuss your needs.
+      </>
+    ),
   },
   {
     question: `How does billing work?`,
