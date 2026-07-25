@@ -54,14 +54,35 @@ export const setupRateLimit = (app: TProxyApp) => {
  * under /_ and /ai) but backed by a plain Map instead of express-rate-limit's
  * Store, since there's no Express req/res to drive that middleware with.
  */
-export const createUpgradeLimiter = (opts?: { limit?: number; windowMs?: number }) => {
+export type TUpgradeLimiter = ((ip?: string) => boolean) & {
+  /** Current number of tracked IP buckets — exposed for test introspection only. */
+  readonly size: number
+}
+
+export const createUpgradeLimiter = (opts?: {
+  limit?: number
+  windowMs?: number
+}): TUpgradeLimiter => {
   const limit = opts?.limit ?? 1000
   const windowMs = opts?.windowMs ?? 60_000
   const hits = new Map<string, { count: number; resetAt: number }>()
+  let lastSweepAt = Date.now()
 
-  return (ip?: string): boolean => {
+  const check = (ip?: string): boolean => {
     const key = ip ? ipKeyGenerator(ip) : `unknown`
     const now = Date.now()
+
+    // Amortized cleanup, piggybacked on the call path instead of a
+    // background timer (no setInterval to leak/unref, no test-process
+    // handle to keep alive) -- at most once per windowMs of wall-clock
+    // elapsed, sweep out any entry whose window has already expired.
+    if (now - lastSweepAt >= windowMs) {
+      for (const [entryKey, entry] of hits) {
+        if (now >= entry.resetAt) hits.delete(entryKey)
+      }
+      lastSweepAt = now
+    }
+
     const entry = hits.get(key)
 
     if (!entry || now >= entry.resetAt) {
@@ -72,6 +93,10 @@ export const createUpgradeLimiter = (opts?: { limit?: number; windowMs?: number 
     entry.count += 1
     return entry.count <= limit
   }
+
+  Object.defineProperty(check, `size`, { get: () => hits.size })
+
+  return check as TUpgradeLimiter
 }
 
 export const checkUpgradeRateLimit = createUpgradeLimiter()
