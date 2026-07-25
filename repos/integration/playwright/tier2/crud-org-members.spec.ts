@@ -170,13 +170,16 @@ test.describe.serial('CRUD Org Members', () => {
     })
 
     // Verify the member count decreased
-    await page.waitForTimeout(1_000)
     const finalTableBody = page.locator('.MuiTableBody-root')
-    const finalCount =
-      (await finalTableBody.count()) > 0
-        ? await finalTableBody.locator('tr').count()
-        : 0
-    expect(finalCount).toBeLessThan(initialCount)
+    await expect
+      .poll(
+        async () =>
+          (await finalTableBody.count()) > 0
+            ? await finalTableBody.locator('tr').count()
+            : 0,
+        { timeout: 5_000 }
+      )
+      .toBeLessThan(initialCount)
 
     addedUserId = undefined
 
