@@ -13,6 +13,7 @@ import { isArr } from '@keg-hub/jsutils/isArr'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { extractSNI } from '@TBE/utils/proxy/extractSNI'
 import { createPublicKey, createPrivateKey } from 'crypto'
+import { assertPublicEgressHost } from '@TBE/utils/proxy/egressGuard'
 import { CACertPath, CAKeyPath } from '@TBE/constants/values'
 import { isDomainAllowed } from '@TBE/utils/proxy/domainMatch'
 import { PhTokenPrefix, RealIpHeader } from '@TBE/constants/values'
@@ -337,8 +338,44 @@ export class EgressProxy {
     })
   }
 
-  private handleHTTPConnection(clientSocket: net.Socket, firstChunk: Buffer): void {
+  /**
+   * Resolve the destination host (port stripped) from a raw plaintext HTTP
+   * request buffer, mirroring http-mitm-proxy's own `Proxy.parseHostAndPort`
+   * resolution order EXACTLY: an absolute-form request target
+   * (`GET http://host[:port]/path HTTP/1.1`) is checked first and, only if
+   * that isn't present, falls back to the Host header. If we guarded the Host
+   * header alone, a pod could put a public name in Host while pointing the
+   * request-line target at an internal address — http-mitm-proxy dials the
+   * request-line target when present, so checking only Host would be a
+   * complete bypass of this guard for the plaintext-HTTP path.
+   */
+  private parseHttpHost(chunk: Buffer): string | undefined {
+    const text = chunk.toString(`utf8`)
+    const requestLine = text.split(`\r\n`, 1)[0] || ``
+    const target = requestLine.split(` `)[1] || ``
+
+    const absoluteMatch = target.match(/^http:\/\/([^/]+)/)
+    if (absoluteMatch) return absoluteMatch[1].split(`:`)[0] || undefined
+
+    const hostMatch = text.match(/(?:^|\r\n)Host:\s*([^\r\n]+)/i)
+    return hostMatch?.[1]?.trim().split(`:`)[0] || undefined
+  }
+
+  private async handleHTTPConnection(
+    clientSocket: net.Socket,
+    firstChunk: Buffer
+  ): Promise<void> {
     const realIp = clientSocket.remoteAddress || ``
+    const host = this.parseHttpHost(firstChunk)
+
+    try {
+      await assertPublicEgressHost(host || ``)
+    } catch (err) {
+      logger.error(`[EgressProxy] Blocked HTTP egress to ${host || `unknown`}:`, err)
+      if (!clientSocket.destroyed) clientSocket.destroy()
+      return
+    }
+
     const mitmSocket = net.connect(this.mitmPort, `127.0.0.1`, () => {
       mitmSocket.setNoDelay(true)
       const crlfPos = firstChunk.indexOf(`\r\n`)
@@ -360,9 +397,20 @@ export class EgressProxy {
     clientSocket.on(`error`, () => this.destroyPair(clientSocket, mitmSocket))
   }
 
-  private handleTLSConnection(clientSocket: net.Socket, firstChunk: Buffer): void {
+  private async handleTLSConnection(
+    clientSocket: net.Socket,
+    firstChunk: Buffer
+  ): Promise<void> {
     const sni = extractSNI(firstChunk) || `unknown`
     const realIp = clientSocket.remoteAddress || ``
+
+    try {
+      await assertPublicEgressHost(sni)
+    } catch (err) {
+      logger.error(`[EgressProxy] Blocked TLS egress to ${sni}:`, err)
+      if (!clientSocket.destroyed) clientSocket.destroy()
+      return
+    }
 
     let tunnelReady = false
 

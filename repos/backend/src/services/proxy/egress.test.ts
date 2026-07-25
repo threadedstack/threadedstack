@@ -1,4 +1,5 @@
 import type { TRouteMap, EContainerState } from '@tdsk/domain'
+import { EventEmitter } from 'node:events'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Mocks ──
@@ -35,7 +36,7 @@ vi.mock(`net`, async (importOriginal) => {
     default: {
       ...orig,
       createServer: vi.fn(() => mockFrontServer),
-      connect: orig.connect,
+      connect: vi.fn(),
     },
   }
 })
@@ -162,6 +163,10 @@ describe(`EgressProxy`, () => {
     mockFrontServer.listen.mockReset()
     mockFrontServer.close.mockReset()
     mockFrontServer.on.mockReset()
+
+    // Reset net.connect mock
+    const netModule = await import(`net`)
+    ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockReset()
 
     // Re-import to get a fresh module (constructor runs at instantiation, not import)
     const mod = await import(`./egress`)
@@ -908,7 +913,261 @@ describe(`EgressProxy`, () => {
       proxy.stop()
 
       expect(mockProxy.close).toHaveBeenCalledOnce()
-      // frontServer.close not called since start() was never called
+      // frontServer.close not called since start() was never started
+    })
+  })
+
+  // ── SSRF egress guard (handleHTTPConnection / handleTLSConnection) ──
+
+  describe(`SSRF egress guard`, () => {
+    const makeMockSocket = (overrides: Record<string, unknown> = {}) => {
+      const sock = new EventEmitter() as any
+      sock.setNoDelay = vi.fn()
+      sock.pipe = vi.fn()
+      sock.unpipe = vi.fn()
+      sock.write = vi.fn()
+      sock.destroyed = false
+      sock.remoteAddress = `1.2.3.4`
+      sock.destroy = vi.fn(() => {
+        sock.destroyed = true
+      })
+      Object.assign(sock, overrides)
+      return sock
+    }
+
+    /** Start the proxy and return the connection handler passed to net.createServer. */
+    const startProxyAndGetHandler = async () => {
+      const proxy = new EgressProxy(makeOpts() as any)
+      mockProxy.listen.mockImplementation((_opts: any, cb: () => void) => cb())
+      mockFrontServer.listen.mockImplementation(
+        (_port: number, _host: string, cb: () => void) => cb()
+      )
+      await proxy.start()
+
+      const netModule = await import(`net`)
+      const handler = (netModule.default.createServer as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as (socket: any) => void
+      return { proxy, handler }
+    }
+
+    /** Build a minimal TLS 1.2 ClientHello with an SNI extension for `hostname`. */
+    const buildClientHello = (hostname: string): Buffer => {
+      const hostBuf = Buffer.from(hostname, `ascii`)
+
+      const sniPayload = Buffer.alloc(5 + hostBuf.length)
+      sniPayload.writeUInt16BE(hostBuf.length + 3, 0)
+      sniPayload[2] = 0x00
+      sniPayload.writeUInt16BE(hostBuf.length, 3)
+      hostBuf.copy(sniPayload, 5)
+
+      const sniExt = Buffer.alloc(4 + sniPayload.length)
+      sniExt.writeUInt16BE(0x0000, 0)
+      sniExt.writeUInt16BE(sniPayload.length, 2)
+      sniPayload.copy(sniExt, 4)
+
+      const extensions = Buffer.alloc(2 + sniExt.length)
+      extensions.writeUInt16BE(sniExt.length, 0)
+      sniExt.copy(extensions, 2)
+
+      const bodyLen = 2 + 32 + 1 + 4 + 2 + extensions.length
+      const body = Buffer.alloc(bodyLen)
+      let offset = 0
+      body.writeUInt16BE(0x0303, offset)
+      offset += 2
+      offset += 32
+      body[offset] = 0
+      offset += 1
+      body.writeUInt16BE(2, offset)
+      offset += 2
+      body.writeUInt16BE(0x002f, offset)
+      offset += 2
+      body[offset] = 1
+      offset += 1
+      body[offset] = 0x00
+      offset += 1
+      extensions.copy(body, offset)
+
+      const handshake = Buffer.alloc(4 + body.length)
+      handshake[0] = 0x01
+      handshake[1] = 0
+      handshake.writeUInt16BE(body.length, 2)
+      body.copy(handshake, 4)
+
+      const record = Buffer.alloc(5 + handshake.length)
+      record[0] = 0x16
+      record.writeUInt16BE(0x0301, 1)
+      record.writeUInt16BE(handshake.length, 3)
+      handshake.copy(record, 5)
+
+      return record
+    }
+
+    describe(`handleTLSConnection`, () => {
+      it(`should open the CONNECT tunnel when the SNI resolves to a public address`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        const hello = buildClientHello(`1.2.3.4`)
+        clientSocket.emit(`data`, hello)
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(mitmSocket.write).toHaveBeenCalledWith(
+          expect.stringContaining(`CONNECT 1.2.3.4:443`)
+        )
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should destroy the client socket and never open a CONNECT tunnel when the SNI is a blocked address`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // 169.254.169.254 — cloud metadata, blocked by the link-local CIDR
+        const hello = buildClientHello(`169.254.169.254`)
+        clientSocket.emit(`data`, hello)
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked TLS egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+    })
+
+    describe(`handleHTTPConnection`, () => {
+      const buildHttpRequest = (host: string) =>
+        Buffer.from(`GET / HTTP/1.1\r\nHost: ${host}\r\nUser-Agent: test\r\n\r\n`)
+
+      it(`should connect to the MITM proxy and pipe through when the Host header resolves to a public address`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        clientSocket.emit(`data`, buildHttpRequest(`1.2.3.4:8080`))
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(clientSocket.pipe).toHaveBeenCalledWith(mitmSocket)
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should destroy the client socket and never connect to the MITM proxy when the Host header is a blocked address`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        clientSocket.emit(`data`, buildHttpRequest(`169.254.169.254`))
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked HTTP egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+
+      it(`should guard the request-line target, not the Host header, for an absolute-form request (matches http-mitm-proxy's own resolution order)`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // Absolute-form request line targets cloud metadata while the Host
+        // header claims a public domain -- http-mitm-proxy's own
+        // Proxy.parseHostAndPort() resolves the destination from the
+        // request-line target when it is absolute-form, ignoring Host
+        // entirely. The guard must be checked against that same target or
+        // this is a complete bypass.
+        const request = Buffer.from(
+          `GET http://169.254.169.254/latest/meta-data/ HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test\r\n\r\n`
+        )
+        clientSocket.emit(`data`, request)
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked HTTP egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+
+      it(`should allow an absolute-form request when its request-line target is public, even if Host differs`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        const request = Buffer.from(
+          `GET http://1.2.3.4/path HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test\r\n\r\n`
+        )
+        clientSocket.emit(`data`, request)
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should strip the port from the Host header before guarding`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // A blocked host with an explicit port -- guard must still catch it
+        // after stripping ":80", not treat "169.254.169.254:80" as an
+        // unparseable (and thus fail-open) hostname.
+        clientSocket.emit(`data`, buildHttpRequest(`169.254.169.254:80`))
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+      })
     })
   })
 })
