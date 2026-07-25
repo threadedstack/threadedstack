@@ -183,25 +183,35 @@ export const createEventLoop = (deps: TEventLoopDeps): TEventLoop => {
 
     for (const item of config.agenda) {
       liveKeys.add(item.key)
-      let entry = agendaNextRun.get(item.key)
-      // First sighting OR the cron changed under a live config refresh: schedule
-      // forward from now (no boot-storm of "missed" runs, and a cadence change
-      // takes effect on the next scan rather than after the next old-cron fire).
-      if (entry === undefined || entry.cron !== item.cron) {
-        entry = {
-          cron: item.cron,
-          nextRunAt: parseNextRun(item.cron, new Date(now)).getTime(),
+      try {
+        let entry = agendaNextRun.get(item.key)
+        // First sighting OR the cron changed under a live config refresh: schedule
+        // forward from now (no boot-storm of "missed" runs, and a cadence change
+        // takes effect on the next scan rather than after the next old-cron fire).
+        if (entry === undefined || entry.cron !== item.cron) {
+          entry = {
+            cron: item.cron,
+            nextRunAt: parseNextRun(item.cron, new Date(now)).getTime(),
+          }
+          agendaNextRun.set(item.key, entry)
         }
-        agendaNextRun.set(item.key, entry)
-      }
 
-      if (now >= entry.nextRunAt) {
-        enqueue({
-          kind: EResidentEventKind.agenda,
-          key: item.key,
-          prompt: item.prompt,
-        })
-        entry.nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
+        if (now >= entry.nextRunAt) {
+          enqueue({
+            kind: EResidentEventKind.agenda,
+            key: item.key,
+            prompt: item.prompt,
+          })
+          entry.nextRunAt = parseNextRun(item.cron, new Date(now)).getTime()
+        }
+      } catch (err) {
+        // A cron that passes isValidCron's field-range checks can still be
+        // impossible on the calendar (e.g. Feb 30) and make parseNextRun
+        // throw after brute-forcing its search window. One bad agenda entry
+        // must never take down scanInbox/scanWatches for the rest of the tick.
+        log.warn(
+          `Skipping agenda item "${item.key}" (cron "${item.cron}"): ${(err as Error).message}`
+        )
       }
     }
 

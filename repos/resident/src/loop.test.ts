@@ -236,6 +236,35 @@ describe(`agenda scheduling`, () => {
     await loop.scan()
     expect(loop.getQueueDepth()).toBe(1)
   })
+
+  it(`a bad agenda cron that throws in parseNextRun is skipped, not fatal — scanInbox/scanWatches and other agenda items still run`, async () => {
+    const now = { value: Date.parse(`2026-07-08T10:00:30Z`) }
+    // "0 0 30 2 *" (Feb 30) passes isValidCron's field-range checks but can
+    // never occur on a calendar — parseNextRun brute-forces its full search
+    // window and throws. Simulates an already-persisted bad cron predating
+    // the isValidCron fix, since makeConfig's agenda override bypasses
+    // normalizeResidentConfig's load-time filter.
+    const config = makeConfig({
+      agenda: [
+        { key: `impossible`, cron: `0 0 30 2 *`, prompt: `never fires` },
+        { key: `every-minute`, cron: `* * * * *`, prompt: `do the rounds` },
+      ],
+    })
+    const { loop, api } = makeLoop({}, { config, now })
+
+    expect(api.queries.length).toBe(0)
+    await loop.scan()
+    // scanAgenda's throw on the bad entry did not abort scan() — scanInbox
+    // (and/or scanWatches) still queried the API this same tick.
+    expect(api.queries.length).toBeGreaterThan(0)
+    // The bad entry never queues anything.
+    expect(loop.getQueueDepth()).toBe(0)
+
+    now.value += 61_000
+    await loop.scan()
+    // The good agenda item was not blocked by its sibling's throw.
+    expect(loop.getQueueDepth()).toBe(1)
+  })
 })
 
 describe(`self-directed turns`, () => {
