@@ -1,14 +1,44 @@
 import type { TCollectionWithCount } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useState, useMemo } from 'react'
+import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
+import { useState, useMemo } from 'react'
+import { EPermResource } from '@tdsk/domain'
 import { useProjectCollections } from '@TAF/state/selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { formatRelativeTime } from '@TAF/utils/transforms/time'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { Text, DataTableSkeleton } from '@tdsk/components'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { Text, DataTableSkeleton, ConfirmDelete } from '@tdsk/components'
+import { CollectionDrawer } from '@TAF/components/Collections/CollectionDrawer'
+import { deleteCollection } from '@TAF/actions/collections/api/deleteCollection'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material'
+
+export type TCollections = {
+  orgId?: string
+  projectId?: string
+}
+
+const styles = {
+  table: {
+    actions: {
+      box: {
+        gap: 1.5,
+        display: `flex`,
+        alignItems: `center`,
+        justifyContent: `end`,
+      },
+      icon: { fontSize: `16px` },
+    },
+  },
+}
 
 const skeletonColumns = [
   { id: `name`, label: `Name`, width: 200 },
@@ -16,15 +46,58 @@ const skeletonColumns = [
   { id: `schema`, label: `Schema`, width: 120 },
   { id: `recordCount`, label: `Records`, width: 100 },
   { id: `createdAt`, label: `Created`, width: 150 },
+  { id: `actions`, label: `Actions`, align: `right` as const },
 ]
 
-export const Collections = () => {
+export const Collections = (props: TCollections) => {
+  const { orgId, projectId } = props
+
   const [collectionsMap] = useProjectCollections()
   const isInitialLoading = collectionsMap === undefined
+  const { canCreate, canUpdate, canDelete } = usePermissions()
   const collections = useMemo(() => Object.values(collectionsMap || {}), [collectionsMap])
 
   const [error, setError] = useState<Error>()
+  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<TCollectionWithCount>()
+  const [selectedCollection, setSelectedCollection] =
+    useState<TCollectionWithCount | null>(null)
+
+  const onCreateCollection = () => {
+    setSelectedCollection(null)
+    setDialogOpen(true)
+  }
+
+  const onDialogClose = () => {
+    setDialogOpen(false)
+    setSelectedCollection(null)
+  }
+
+  const onEditCollection = (collection: TCollectionWithCount) => {
+    setSelectedCollection(collection)
+    setDialogOpen(true)
+  }
+
+  const onRemove = async () => {
+    if (!deleting || !orgId || !projectId) return
+
+    setLoading(true)
+    setError(undefined)
+
+    const result = await deleteCollection(orgId, projectId, deleting.name, deleting.id)
+
+    if (result.error) {
+      setError(
+        result.error instanceof Error ? result.error : new Error(String(result.error))
+      )
+    }
+
+    setLoading(false)
+    setDeleting(undefined)
+    dialogOpen && setDialogOpen(false)
+  }
 
   const filteredCollections = useMemo(() => {
     if (!searchQuery.trim()) return collections
@@ -96,24 +169,68 @@ export const Collections = () => {
         </Text>
       ),
     },
+    {
+      id: 'actions',
+      label: 'Actions',
+      align: 'right',
+      render: (collection) => (
+        <Box sx={styles.table.actions.box}>
+          <ActionIconButton
+            tooltip='Edit Collection'
+            icon={<EditIcon sx={styles.table.actions.icon} />}
+            size='small'
+            color='primary'
+            disabled={!canUpdate(EPermResource.collection)}
+            disabledTooltip='You do not have permission to edit collections'
+            onClick={(e) => {
+              e.stopPropagation()
+              onEditCollection(collection)
+            }}
+          />
+          <ActionIconButton
+            tooltip='Delete Collection'
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
+            size='small'
+            color='error'
+            disabled={!canDelete(EPermResource.collection)}
+            disabledTooltip='You do not have permission to delete collections'
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeleting(collection)
+            }}
+          />
+        </Box>
+      ),
+    },
   ]
 
   return (
     <PageLayout
       title='Collections'
+      loading={loading}
       searchCount={0}
       countLabel='collection'
       query={searchQuery}
       error={error?.message}
+      actionIcon={<AddIcon />}
       setSearchQuery={setSearchQuery}
+      onAction={collections.length > 0 && onCreateCollection}
+      actionLabel={collections.length > 0 && 'Create Collection'}
+      actionDisabled={!canCreate(EPermResource.collection)}
       count={isInitialLoading ? undefined : collections.length}
       searchPlaceholder='Search collections by name or description...'
       setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
     >
       {isInitialLoading && <DataTableSkeleton columns={skeletonColumns} />}
 
-      {!isInitialLoading && !error && collections.length === 0 && (
-        <EmptyState message='No collections yet. Collections are created by agents and Functions through the Collections/Records API.' />
+      {!isInitialLoading && !error && collections.length === 0 && !loading && (
+        <EmptyState
+          actionIcon={<AddIcon />}
+          onAction={onCreateCollection}
+          actionLabel='Create Collection'
+          actionDisabled={!canCreate(EPermResource.collection)}
+          message='No collections yet. Create your first collection to get started.'
+        />
       )}
 
       {!isInitialLoading &&
@@ -127,7 +244,28 @@ export const Collections = () => {
         <DataTable
           columns={columns}
           data={filteredCollections}
+          onRowClick={onEditCollection}
           getRowKey={(collection) => collection.id}
+        />
+      )}
+
+      {orgId && projectId && (
+        <CollectionDrawer
+          orgId={orgId}
+          open={dialogOpen}
+          projectId={projectId}
+          onRemove={setDeleting}
+          onClose={onDialogClose}
+          collection={selectedCollection}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDelete
+          deleting={loading}
+          onConfirm={onRemove}
+          itemName={deleting?.name || `Collection`}
+          onCancel={() => setDeleting(undefined)}
         />
       )}
     </PageLayout>
