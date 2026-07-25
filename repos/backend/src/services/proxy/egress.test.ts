@@ -1,4 +1,5 @@
 import type { TRouteMap, EContainerState } from '@tdsk/domain'
+import { EventEmitter } from 'node:events'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Mocks ──
@@ -35,7 +36,7 @@ vi.mock(`net`, async (importOriginal) => {
     default: {
       ...orig,
       createServer: vi.fn(() => mockFrontServer),
-      connect: orig.connect,
+      connect: vi.fn(),
     },
   }
 })
@@ -84,6 +85,15 @@ vi.mock(`@TBE/utils/logger`, () => ({
 vi.mock(`@TBE/constants/values`, () => ({
   PhTokenPrefix: `tdsk_ph_`,
   RealIpHeader: `x-tdsk-real-ip`,
+}))
+
+// The per-request SSRF guard resolves DNS for any non-literal-IP host. Mock the
+// resolver so hostname-based tests are deterministic and need no real network —
+// unrelated to the fake domains fixtures use (`api.example.com`, etc.), which
+// don't actually resolve. Blocked-address coverage below uses literal IPs
+// instead, so it never touches this mock.
+vi.mock(`node:dns/promises`, () => ({
+  lookup: vi.fn().mockResolvedValue([{ address: `93.184.216.34`, family: 4 }]),
 }))
 
 // ── Helpers ──
@@ -165,6 +175,10 @@ describe(`EgressProxy`, () => {
     mockFrontServer.close.mockReset()
     mockFrontServer.on.mockReset()
 
+    // Reset net.connect mock
+    const netModule = await import(`net`)
+    ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockReset()
+
     // Re-import to get a fresh module (constructor runs at instantiation, not import)
     const mod = await import(`./egress`)
     EgressProxy = mod.EgressProxy
@@ -217,7 +231,11 @@ describe(`EgressProxy`, () => {
 
     it(`should skip processing when source IP has no matching route`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(`192.168.1.99`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `192.168.1.99`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -234,7 +252,11 @@ describe(`EgressProxy`, () => {
 
     it(`should skip processing when source IP is undefined`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(undefined, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        undefined,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -306,9 +328,13 @@ describe(`EgressProxy`, () => {
 
     it(`should NOT replace headers without PhTokenPrefix`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-safe-header': `no-placeholder-here`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-safe-header': `no-placeholder-here`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -350,6 +376,50 @@ describe(`EgressProxy`, () => {
       expect(logger.error).toHaveBeenCalled()
       // callback should NOT have been called on error path
       expect(callback).not.toHaveBeenCalled()
+    })
+
+    it(`should block a request whose destination host resolves to a non-public address, even before placeholder handling runs`, async () => {
+      const { logger } = await import(`@TBE/utils/logger`)
+      const { opts, onRequestHandler } = setup()
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `169.254.169.254`
+      )
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() =>
+        expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+      )
+
+      expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(403, {
+        'Content-Type': `application/json`,
+      })
+      expect(ctx.proxyToClientResponse.end).toHaveBeenCalledWith(
+        JSON.stringify({ error: `Egress target blocked` })
+      )
+      // The guard runs BEFORE placeholder substitution -- resolveSecret must
+      // never be reached for a blocked destination.
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
+      expect(callback).not.toHaveBeenCalled()
+      expect(logger.error).toHaveBeenCalled()
+    })
+
+    it(`should allow a request to a public host through the per-request guard`, async () => {
+      const { opts, onRequestHandler } = setup()
+      opts.resolveSecret.mockResolvedValue(`real-api-key`)
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(ctx.proxyToClientResponse.writeHead).not.toHaveBeenCalled()
     })
 
     it(`should handle multiple placeholder tokens in same header value`, async () => {
@@ -419,7 +489,7 @@ describe(`EgressProxy`, () => {
     it(`should leave Basic credentials WITHOUT a placeholder unchanged`, async () => {
       const { opts, onRequestHandler } = setup()
       const header = `Basic ${encodeBasic(`user:plain-password`)}`
-      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header }, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -432,7 +502,7 @@ describe(`EgressProxy`, () => {
     it(`should leave malformed base64 after Basic unchanged without throwing`, async () => {
       const { opts, onRequestHandler } = setup()
       const header = `Basic !!!not-valid-base64!!!`
-      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header }, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -506,7 +576,11 @@ describe(`EgressProxy`, () => {
       }
 
       const { opts, onRequestHandler } = setup({ routes })
-      const ctx = makeCtx(`10.0.0.9`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `10.0.0.9`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -579,7 +653,7 @@ describe(`EgressProxy`, () => {
 
     it(`should strip x-tdsk-real-ip header before forwarding`, async () => {
       const { onRequestHandler } = setup()
-      const ctx = makeCtx(`10.0.0.5`)
+      const ctx = makeCtx(`10.0.0.5`, {}, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -834,7 +908,7 @@ describe(`EgressProxy`, () => {
       expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`tdsk_ph_open`)
     })
 
-    it(`should skip domain-gated swap when request has no host header`, async () => {
+    it(`should block a request with no determinable destination host before domain-gating logic ever runs`, async () => {
       const { logger } = await import(`@TBE/utils/logger`)
       const { opts, onRequestHandler } = setupDomain()
       opts.resolveSecret.mockResolvedValue(`real-secret`)
@@ -843,28 +917,27 @@ describe(`EgressProxy`, () => {
         authorization: `Bearer tdsk_ph_gated`,
         'x-other-key': `tdsk_ph_open`,
       })
-      // host is NOT set — ctx.proxyToServerRequestOptions.host is undefined
+      // host is NOT set — ctx.proxyToServerRequestOptions.host is undefined. The
+      // per-request guard fails closed on an indeterminable destination and
+      // rejects BEFORE handleRequest's own placeholder logic ever runs — so
+      // neither placeholder is ever reached, gated or not.
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
-      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+      )
 
-      // The gated placeholder should NOT be resolved (no host to match against)
-      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-gated`)
-      // The gated placeholder token remains in the header
+      expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(400, {
+        'Content-Type': `application/json`,
+      })
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
       expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(
         `Bearer tdsk_ph_gated`
       )
-
-      // The ungated placeholder is ALSO never resolved — fail closed: an unscoped
-      // token is never swapped regardless of host.
-      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-open`)
       expect(ctx.proxyToServerRequestOptions.headers[`x-other-key`]).toBe(`tdsk_ph_open`)
-
-      // Should have logged a warning about missing host
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(`Could not determine destination host`)
-      )
+      expect(callback).not.toHaveBeenCalled()
+      expect(logger.error).toHaveBeenCalled()
     })
 
     it(`should NEVER swap a placeholder with empty allowedDomains — fail closed`, async () => {
@@ -1015,7 +1088,308 @@ describe(`EgressProxy`, () => {
       proxy.stop()
 
       expect(mockProxy.close).toHaveBeenCalledOnce()
-      // frontServer.close not called since start() was never called
+      // frontServer.close not called since start() was never started
+    })
+  })
+
+  // ── SSRF egress guard (handleHTTPConnection / handleTLSConnection) ──
+
+  describe(`SSRF egress guard`, () => {
+    const makeMockSocket = (overrides: Record<string, unknown> = {}) => {
+      const sock = new EventEmitter() as any
+      sock.setNoDelay = vi.fn()
+      sock.pipe = vi.fn()
+      sock.unpipe = vi.fn()
+      sock.write = vi.fn()
+      sock.destroyed = false
+      sock.remoteAddress = `1.2.3.4`
+      sock.destroy = vi.fn(() => {
+        sock.destroyed = true
+      })
+      Object.assign(sock, overrides)
+      return sock
+    }
+
+    /** Start the proxy and return the connection handler passed to net.createServer. */
+    const startProxyAndGetHandler = async () => {
+      const proxy = new EgressProxy(makeOpts() as any)
+      mockProxy.listen.mockImplementation((_opts: any, cb: () => void) => cb())
+      mockFrontServer.listen.mockImplementation(
+        (_port: number, _host: string, cb: () => void) => cb()
+      )
+      await proxy.start()
+
+      const netModule = await import(`net`)
+      const handler = (netModule.default.createServer as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as (socket: any) => void
+      return { proxy, handler }
+    }
+
+    /** Build a minimal TLS 1.2 ClientHello with an SNI extension for `hostname`. */
+    const buildClientHello = (hostname: string): Buffer => {
+      const hostBuf = Buffer.from(hostname, `ascii`)
+
+      const sniPayload = Buffer.alloc(5 + hostBuf.length)
+      sniPayload.writeUInt16BE(hostBuf.length + 3, 0)
+      sniPayload[2] = 0x00
+      sniPayload.writeUInt16BE(hostBuf.length, 3)
+      hostBuf.copy(sniPayload, 5)
+
+      const sniExt = Buffer.alloc(4 + sniPayload.length)
+      sniExt.writeUInt16BE(0x0000, 0)
+      sniExt.writeUInt16BE(sniPayload.length, 2)
+      sniPayload.copy(sniExt, 4)
+
+      const extensions = Buffer.alloc(2 + sniExt.length)
+      extensions.writeUInt16BE(sniExt.length, 0)
+      sniExt.copy(extensions, 2)
+
+      const bodyLen = 2 + 32 + 1 + 4 + 2 + extensions.length
+      const body = Buffer.alloc(bodyLen)
+      let offset = 0
+      body.writeUInt16BE(0x0303, offset)
+      offset += 2
+      offset += 32
+      body[offset] = 0
+      offset += 1
+      body.writeUInt16BE(2, offset)
+      offset += 2
+      body.writeUInt16BE(0x002f, offset)
+      offset += 2
+      body[offset] = 1
+      offset += 1
+      body[offset] = 0x00
+      offset += 1
+      extensions.copy(body, offset)
+
+      const handshake = Buffer.alloc(4 + body.length)
+      handshake[0] = 0x01
+      handshake[1] = 0
+      handshake.writeUInt16BE(body.length, 2)
+      body.copy(handshake, 4)
+
+      const record = Buffer.alloc(5 + handshake.length)
+      record[0] = 0x16
+      record.writeUInt16BE(0x0301, 1)
+      record.writeUInt16BE(handshake.length, 3)
+      handshake.copy(record, 5)
+
+      return record
+    }
+
+    describe(`handleTLSConnection`, () => {
+      it(`should open the CONNECT tunnel when the SNI resolves to a public address`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        const hello = buildClientHello(`1.2.3.4`)
+        clientSocket.emit(`data`, hello)
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(mitmSocket.write).toHaveBeenCalledWith(
+          expect.stringContaining(`CONNECT 1.2.3.4:443`)
+        )
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should destroy the client socket and never open a CONNECT tunnel when the SNI is a blocked address`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // 169.254.169.254 — cloud metadata, blocked by the link-local CIDR
+        const hello = buildClientHello(`169.254.169.254`)
+        clientSocket.emit(`data`, hello)
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked TLS egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+    })
+
+    describe(`handleHTTPConnection`, () => {
+      const buildHttpRequest = (host: string) =>
+        Buffer.from(`GET / HTTP/1.1\r\nHost: ${host}\r\nUser-Agent: test\r\n\r\n`)
+
+      it(`should connect to the MITM proxy and pipe through when the Host header resolves to a public address`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        clientSocket.emit(`data`, buildHttpRequest(`1.2.3.4:8080`))
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(clientSocket.pipe).toHaveBeenCalledWith(mitmSocket)
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should destroy the client socket and never connect to the MITM proxy when the Host header is a blocked address`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        clientSocket.emit(`data`, buildHttpRequest(`169.254.169.254`))
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked HTTP egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+
+      it(`should guard the request-line target, not the Host header, for an absolute-form request (matches http-mitm-proxy's own resolution order)`, async () => {
+        const { logger } = await import(`@TBE/utils/logger`)
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // Absolute-form request line targets cloud metadata while the Host
+        // header claims a public domain -- http-mitm-proxy's own
+        // Proxy.parseHostAndPort() resolves the destination from the
+        // request-line target when it is absolute-form, ignoring Host
+        // entirely. The guard must be checked against that same target or
+        // this is a complete bypass.
+        const request = Buffer.from(
+          `GET http://169.254.169.254/latest/meta-data/ HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test\r\n\r\n`
+        )
+        clientSocket.emit(`data`, request)
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining(`Blocked HTTP egress to 169.254.169.254`),
+          expect.anything()
+        )
+      })
+
+      it(`should allow an absolute-form request when its request-line target is public, even if Host differs`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        const request = Buffer.from(
+          `GET http://1.2.3.4/path HTTP/1.1\r\nHost: example.com\r\nUser-Agent: test\r\n\r\n`
+        )
+        clientSocket.emit(`data`, request)
+
+        await vi.waitFor(() => expect(mitmSocket.write).toHaveBeenCalled())
+
+        expect(clientSocket.destroy).not.toHaveBeenCalled()
+      })
+
+      it(`should strip the port from the Host header before guarding`, async () => {
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            // Defer like real net.connect — the callback fires after the
+            // `const mitmSocket = net.connect(...)` assignment completes.
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // A blocked host with an explicit port -- guard must still catch it
+        // after stripping ":80", not treat "169.254.169.254:80" as an
+        // unparseable (and thus fail-open) hostname.
+        clientSocket.emit(`data`, buildHttpRequest(`169.254.169.254:80`))
+
+        await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
+        expect(netModule.default.connect).not.toHaveBeenCalled()
+      })
+
+      it(`should refuse a second HTTP request smuggled over the same keep-alive connection, even though the first-chunk socket guard only inspects the connection once`, async () => {
+        // Regression for the bypass where handleConnection wires clientSocket
+        // .once('data', ...) -- the guard fires ONCE per TCP connection, then
+        // the socket is piped raw for its whole life. A first request to a
+        // public host opens that pipe; a second request smuggled over the SAME
+        // connection to a blocked host must still be caught -- by the
+        // per-request guardRequestHost check wired into proxy.onRequest, which
+        // http-mitm-proxy invokes independently for every request it parses,
+        // including subsequent requests on a keep-alive connection.
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // First request: public host -- passes the once-per-connection guard,
+        // clientSocket is now piped into mitmSocket for the rest of its life.
+        clientSocket.emit(`data`, buildHttpRequest(`example.com`))
+        await vi.waitFor(() => expect(clientSocket.pipe).toHaveBeenCalledWith(mitmSocket))
+
+        // Second request on the SAME connection: http-mitm-proxy parses this
+        // off the now-piped bytes and dispatches its own onRequest call --
+        // simulated here by invoking the captured onRequest handler directly
+        // with a blocked destination, exactly as http-mitm-proxy would.
+        const onRequestHandler = mockProxy.onRequest.mock.calls[0][0] as (
+          ctx: any,
+          callback: (...args: any[]) => void
+        ) => void
+        const secondCtx = makeCtx(`10.0.0.5`, {}, `169.254.169.254`)
+        const secondCallback = vi.fn()
+        onRequestHandler(secondCtx, secondCallback)
+
+        await vi.waitFor(() =>
+          expect(secondCtx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+        )
+        expect(secondCtx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(403, {
+          'Content-Type': `application/json`,
+        })
+        expect(secondCallback).not.toHaveBeenCalled()
+      })
     })
   })
 })
