@@ -27,6 +27,65 @@ type TEgressProxyOpts = {
 }
 
 /**
+ * Thrown by a `resolveSecret` built via `buildResolveSecret` when the secret
+ * DB fetch fails on BOTH the initial attempt and the retry — a transient
+ * failure (DB blip), distinct from a clean "secret genuinely doesn't exist /
+ * has no value" result (which resolves to `null`, not a throw). Callers use
+ * this to log/report transient failures differently from a misconfigured
+ * placeholder token.
+ */
+export class EgressSecretResolutionError extends Error {
+  readonly transient = true
+  constructor(message: string) {
+    super(message)
+    this.name = `EgressSecretResolutionError`
+  }
+}
+
+/**
+ * Build a `resolveSecret` function that retries the DB fetch exactly ONCE
+ * after a short delay when it errors, before giving up and throwing
+ * `EgressSecretResolutionError`. A clean "not found" result (no error, just
+ * a falsy `encryptedValue`) is NOT retried and resolves to `null` immediately
+ * — retries are only for actual fetch failures, not missing secrets.
+ */
+export const buildResolveSecret = <
+  TSecret extends { encryptedValue?: string | null; orgId?: string | null },
+>(
+  fetchSecret: (
+    secretId: string
+  ) => Promise<{ data?: TSecret | null; error?: { message: string } | null }>,
+  decryptSecret: (secret: TSecret, orgId: string) => Promise<string | null>,
+  retryDelayMs = 150
+) => {
+  return async (secretId: string): Promise<string | null> => {
+    let result = await fetchSecret(secretId)
+    if (result.error) {
+      logger.warn(
+        `[EgressProxy] Transient error fetching secret ${secretId}, retrying once:`,
+        result.error.message
+      )
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+      result = await fetchSecret(secretId)
+    }
+
+    if (result.error) {
+      logger.error(
+        `[EgressProxy] Failed to fetch secret ${secretId} after retry:`,
+        result.error.message
+      )
+      throw new EgressSecretResolutionError(
+        `Failed to fetch secret ${secretId} after retry: ${result.error.message}`
+      )
+    }
+
+    const secret = result.data
+    if (!secret?.encryptedValue) return null
+    return decryptSecret(secret, secret.orgId || ``)
+  }
+}
+
+/**
  * Transparent MITM egress proxy for sandbox pods.
  *
  * All outbound HTTP/HTTPS traffic from sandbox pods is redirected here
@@ -74,15 +133,10 @@ export class EgressProxy {
 
       const secretResolver = new SecretResolver(app.locals.db)
 
-      const resolveSecret = async (secretId: string): Promise<string | null> => {
-        const { data: secret, error } = await app.locals.db.services.secret.get(secretId)
-        if (error) {
-          logger.error(`[EgressProxy] Failed to fetch secret ${secretId}:`, error.message)
-          return null
-        }
-        if (!secret?.encryptedValue) return null
-        return secretResolver.decrypt(secret, secret.orgId || ``)
-      }
+      const resolveSecret = buildResolveSecret(
+        (secretId) => app.locals.db.services.secret.get(secretId),
+        (secret, orgId) => secretResolver.decrypt(secret, orgId)
+      )
 
       const egressProxy = new EgressProxy({
         resolveSecret,
@@ -291,7 +345,17 @@ export class EgressProxy {
         continue
       }
 
-      const secret = await this.resolveSecret(entry.secretId)
+      let secret: string | null
+      try {
+        secret = await this.resolveSecret(entry.secretId)
+      } catch (err) {
+        if (err instanceof EgressSecretResolutionError)
+          throw new Error(
+            `[EgressProxy] Transient secret resolution failure for ${entry.secretId} (placeholder ${token.slice(0, 12)}…): ${err.message}`
+          )
+        throw err
+      }
+
       if (secret) {
         result = result.replaceAll(token, secret)
       } else {
