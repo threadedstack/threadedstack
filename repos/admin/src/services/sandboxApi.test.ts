@@ -379,6 +379,209 @@ describe(`SandboxApi`, () => {
     })
   })
 
+  describe(`start()`, () => {
+    it(`should POST to the project-scoped start path with an empty body`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: { instanceId: `i-1` } }))
+
+      const resp = await sandboxApi.start(`org-1`, `proj-1`, `sb-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/sandboxes/sb-1/start`
+      )
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual({})
+      expect(resp.data).toEqual({ instanceId: `i-1` })
+    })
+
+    it(`should call _onError with 'Failed to start sandbox' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await sandboxApi.start(`org-1`, `proj-1`, `sb-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to start sandbox`
+      )
+    })
+  })
+
+  describe(`stop()`, () => {
+    it(`should DELETE the project-scoped stop path with the given opts as the body`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: { success: true } }))
+
+      const opts = { force: true }
+      const resp = await sandboxApi.stop(`org-1`, `proj-1`, `sb-1`, opts)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/sandboxes/sb-1/stop`
+      )
+      expect(init.method).toBe(`DELETE`)
+      expect(JSON.parse(init.body)).toEqual(opts)
+      expect(resp.data).toEqual({ success: true })
+    })
+
+    it(`should call _onError with 'Failed to stop sandbox' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(500, { error: `boom` }))
+
+      await sandboxApi.stop(`org-1`, `proj-1`, `sb-1`, {})
+
+      expect(onErrorSpy).toHaveBeenCalledWith(expect.anything(), `Failed to stop sandbox`)
+    })
+  })
+
+  describe(`connect()`, () => {
+    it(`should POST to the project-scoped connect path with the given opts as the body`, async () => {
+      const conn = {
+        workdir: `/app`,
+        command: `bash`,
+        sandboxId: `sb-1`,
+        instanceId: `i-1`,
+      }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: conn }))
+
+      const opts = { instanceId: `i-1` }
+      const resp = await sandboxApi.connect(`org-1`, `proj-1`, `sb-1`, opts)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/sandboxes/sb-1/connect`
+      )
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual(opts)
+      expect(resp.data).toEqual(conn)
+    })
+
+    it(`should fall back to an empty object body when opts is omitted`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: {} }))
+
+      await sandboxApi.connect(`org-1`, `proj-1`, `sb-1`)
+
+      const [, init] = mockFetch.mock.calls[0]
+      expect(JSON.parse(init.body)).toEqual({})
+    })
+
+    it(`should call _onError with 'Failed to connect to sandbox' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await sandboxApi.connect(`org-1`, `proj-1`, `sb-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to connect to sandbox`
+      )
+    })
+  })
+
+  describe(`status()`, () => {
+    it(`should GET the project-scoped status path with instanceId interpolated into the query string`, async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse(200, { data: { state: `Running`, instanceId: `i-1` } })
+      )
+
+      const resp = await sandboxApi.status(`org-1`, `proj-1`, `sb-1`, `i-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/sandboxes/sb-1/status?instanceId=i-1`
+      )
+      expect(init.method).toBe(`GET`)
+      expect(init.body).toBeUndefined()
+      expect(resp.data).toEqual({ state: `Running`, instanceId: `i-1` })
+    })
+
+    it(`should call _onError with 'Failed to get sandbox status' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await sandboxApi.status(`org-1`, `proj-1`, `sb-1`, `i-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to get sandbox status`
+      )
+    })
+  })
+
+  describe(`sessions()`, () => {
+    it(`should GET the project-scoped sessions path and return the raw array unwrapped`, async () => {
+      const sessions = [
+        {
+          orgId: `org-1`,
+          userId: `u1`,
+          sandboxId: `sb-1`,
+          sessionId: `s1`,
+          instanceId: `i-1`,
+          connectedAt: `2026-01-01T00:00:00.000Z`,
+          visibility: `private`,
+        },
+      ]
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: sessions }))
+
+      const resp = await sandboxApi.sessions(`org-1`, `proj-1`, `sb-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/sandboxes/sb-1/sessions`
+      )
+      expect(init.method).toBe(`GET`)
+      expect(resp.data).toEqual(sessions)
+      expect(resp.data![0]).not.toBeInstanceOf(Sandbox)
+    })
+
+    it(`should call _onError with 'Failed to get sandbox sessions' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(500, { error: `boom` }))
+
+      await sandboxApi.sessions(`org-1`, `proj-1`, `sb-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to get sandbox sessions`
+      )
+    })
+  })
+
+  describe(`copy()`, () => {
+    it(`should POST to the org-scoped copy path with { orgId, name } as the body`, async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse(200, { data: { id: `sb-2`, name: `clone` } })
+      )
+
+      const resp = await sandboxApi.copy(`org-1`, `sb-1`, `clone`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/sandboxes/sb-1/copy`)
+      expect(url).not.toContain(`/projects/`)
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual({ orgId: `org-1`, name: `clone` })
+      expect(resp.data).toBeInstanceOf(Sandbox)
+      expect(resp.data!.id).toBe(`sb-2`)
+    })
+
+    it(`should return undefined data when resp.data is falsy`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      const resp = await sandboxApi.copy(`org-1`, `sb-1`, `clone`)
+
+      expect(resp.error).toBeDefined()
+      expect(resp.data).toBeUndefined()
+    })
+
+    it(`should call _onError with 'Failed to copy sandbox' on error`, async () => {
+      const onErrorSpy = vi.spyOn(sandboxApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await sandboxApi.copy(`org-1`, `sb-1`, `clone`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(expect.anything(), `Failed to copy sandbox`)
+    })
+  })
+
   describe(`cache key shape`, () => {
     it(`cache.all() should be ['sandboxes']`, () => {
       expect(sandboxApi.cache.all()).toEqual([`sandboxes`])
