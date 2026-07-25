@@ -4,9 +4,11 @@ import {
   ESandboxRuntime,
   DelegationMaxDepth,
   DelegationDepthEnvVar,
+  DelegationMaxTimeoutMs,
   DelegationOutputMaxChars,
   DelegationConcurrencyCap,
   DelegationCriticMaxRounds,
+  DelegationDefaultTimeoutMs,
 } from '@tdsk/domain'
 import { createDelegateProvider } from './delegation'
 
@@ -391,6 +393,67 @@ describe(`createDelegateProvider`, () => {
       expect(res.success).toBe(true)
       expect(res.output).toHaveLength(DelegationOutputMaxChars)
       expect(res.output).toBe(chunks.join(``).slice(-DelegationOutputMaxChars))
+    })
+
+    // The wall-clock race in execCapped never aborts the exec, so the child's
+    // own bound must be the SAME already-clamped budget the delegation waits
+    // on. Without it the child was capped at the provider's wedged-pod guard
+    // and every delegation longer than that guard failed on a dead letter.
+    const streamOnce = (text: string) => async (_c: string, _a: string[], opts: any) => {
+      opts.onStdout(Buffer.from(text))
+      return { success: true, exitCode: 0, output: `` }
+    }
+
+    it(`bounds the child exec with the caller's budget`, async () => {
+      const execStreaming = vi.fn()
+      execStreaming.mockImplementationOnce(streamOnce(`done`))
+      execStreaming.mockImplementationOnce(streamOnce(`VERDICT: PASS - ok`))
+      m.getSandbox.mockResolvedValue({ exec: m.exec, execStreaming })
+
+      const provider = createDelegateProvider(m.app, m.db, `og_1`, `ag_1`, ctx)
+      await provider.delegate({ task: `fix it`, timeoutMs: 5 * 60_000 })
+
+      expect(execStreaming.mock.calls[0][2].timeoutMs).toBe(5 * 60_000)
+    })
+
+    it(`bounds the child exec with DelegationDefaultTimeoutMs when none is requested`, async () => {
+      const execStreaming = vi.fn()
+      execStreaming.mockImplementationOnce(streamOnce(`done`))
+      execStreaming.mockImplementationOnce(streamOnce(`VERDICT: PASS - ok`))
+      m.getSandbox.mockResolvedValue({ exec: m.exec, execStreaming })
+
+      const provider = createDelegateProvider(m.app, m.db, `og_1`, `ag_1`, ctx)
+      await provider.delegate({ task: `fix it` })
+
+      expect(execStreaming.mock.calls[0][2].timeoutMs).toBe(DelegationDefaultTimeoutMs)
+    })
+
+    it(`bounds the child exec with the CLAMPED budget when the caller overshoots the cap`, async () => {
+      const execStreaming = vi.fn()
+      execStreaming.mockImplementationOnce(streamOnce(`done`))
+      execStreaming.mockImplementationOnce(streamOnce(`VERDICT: PASS - ok`))
+      m.getSandbox.mockResolvedValue({ exec: m.exec, execStreaming })
+
+      const provider = createDelegateProvider(m.app, m.db, `og_1`, `ag_1`, ctx)
+      await provider.delegate({ task: `fix it`, timeoutMs: DelegationMaxTimeoutMs * 10 })
+
+      expect(execStreaming.mock.calls[0][2].timeoutMs).toBe(DelegationMaxTimeoutMs)
+    })
+
+    it(`reports the timed-out result with the captured tail when the exec rejects at the deadline`, async () => {
+      const execStreaming = vi.fn(async (_c: string, _a: string[], opts: any) => {
+        opts.onStdout(Buffer.from(`partial work`))
+        await new Promise((resolve) => setTimeout(resolve, opts.timeoutMs))
+        throw new Error(`runInPod timed out after ${opts.timeoutMs}ms for pod pod-1`)
+      })
+      m.getSandbox.mockResolvedValue({ exec: m.exec, execStreaming })
+
+      const provider = createDelegateProvider(m.app, m.db, `og_1`, `ag_1`, ctx)
+      const res = await provider.delegate({ task: `fix it`, timeoutMs: 1000 })
+
+      expect(res.success).toBe(false)
+      expect(res.output).toBe(`partial work`)
+      expect(res.error).toBe(`Delegated task timed out after 1s`)
     })
   })
 })

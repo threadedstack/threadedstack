@@ -1645,11 +1645,19 @@ async function runCliAgentSchedule(
 
   const sbInstance = await sandbox!.getSandbox(instanceId)
 
+  // Single source for BOTH the in-pod exec bound and execAttempt's outer
+  // withTimeout race below. They must be the same number: withTimeout only
+  // races, it never aborts the exec, so a smaller outer bound abandons an exec
+  // that keeps holding the pod, and a smaller inner bound kills work the
+  // schedule had budgeted for.
+  const execTimeoutMs = schedule.timeoutMs ?? ExecTimeoutMS
+
   // Run a single CLI-brain command against the live pod. The stdout buffer is
   // reset before each attempt so only the final attempt's output is persisted.
   const execOnce = (command: string) =>
     sbInstance.execStreaming
       ? sbInstance.execStreaming(command, [], {
+          timeoutMs: execTimeoutMs,
           onStdout: (chunk: Buffer) => {
             bufferStdout(chunk)
             hooks.onStdout(chunk)
@@ -1685,7 +1693,7 @@ async function runCliAgentSchedule(
   // preserving current behavior for non-transient rejections.
   const execAttempt = async (command: string): Promise<TSandboxResult> => {
     try {
-      return await withTimeout(execOnce(command), schedule.timeoutMs ?? ExecTimeoutMS)
+      return await withTimeout(execOnce(command), execTimeoutMs)
     } catch (err: any) {
       const code = getK8sStatusCode(err)
       if (!KubeRetryableStatusCodes.has(code as number)) throw err
@@ -2052,6 +2060,9 @@ export function createScheduleExecutor(app: TApp): TScheduleExecutor {
 
       const sbExecPromise = sbInstance.execStreaming
         ? sbInstance.execStreaming(command, [], {
+            // Same budget as the timeoutPromise raced below — that race never
+            // aborts the exec, so only this bound actually reclaims the pod.
+            timeoutMs,
             onStdout: (chunk) => stdoutUpload?.stream.write(chunk),
             onStderr: (chunk) => stderrUpload?.stream.write(chunk),
           })

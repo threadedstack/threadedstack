@@ -84,6 +84,46 @@ describe(`KubeSandbox`, () => {
     })
   })
 
+  describe(`execStreaming`, () => {
+    it(`should forward an explicit timeoutMs to runInPod`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+      const onStdout = vi.fn()
+
+      await sandbox.execStreaming(`long-build`, [], { onStdout, timeoutMs: 900_000 })
+
+      expect(mockClient.runInPod).toHaveBeenCalledWith(
+        `test-pod`,
+        [`sh`, `-c`, `long-build`],
+        undefined,
+        { onStdout, timeoutMs: 900_000 }
+      )
+    })
+
+    it(`should join args into the command string and keep the timeout`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+
+      await sandbox.execStreaming(`echo`, [`hello`, `world`], { timeoutMs: 5_000 })
+
+      expect(mockClient.runInPod).toHaveBeenCalledWith(
+        `test-pod`,
+        [`sh`, `-c`, `echo hello world`],
+        undefined,
+        { timeoutMs: 5_000 }
+      )
+    })
+
+    it(`should leave timeoutMs unset when the caller passes none, so runInPod's wedged-pod default still applies`, async () => {
+      mockClient.runInPod.mockResolvedValue({ success: true, output: `` })
+      const onStdout = vi.fn()
+
+      await sandbox.execStreaming(`echo hello`, [], { onStdout })
+
+      const opts = mockClient.runInPod.mock.calls[0][3]
+      expect(opts).toEqual({ onStdout })
+      expect(opts.timeoutMs).toBeUndefined()
+    })
+  })
+
   describe(`readFile`, () => {
     it(`should read file via cat command`, async () => {
       mockClient.runInPod.mockResolvedValue({

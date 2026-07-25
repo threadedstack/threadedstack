@@ -94,9 +94,20 @@ const execCapped = async (
     }
   }
 
+  // Captured before the exec starts so the deadline check below measures from
+  // the same instant the streaming path's own timer is armed.
+  const startedAt = Date.now()
+
   // ISandbox.exec()/execStreaming() — sandbox methods, not child_process
   const execPromise = sbInstance.execStreaming
-    ? sbInstance.execStreaming(command, [], { onStdout: (chunk) => push(chunk) })
+    ? sbInstance.execStreaming(command, [], {
+        // Same budget as the wall-clock race below: that race only settles this
+        // function's promise, it never aborts the exec, so without an inner
+        // bound the abandoned child kept holding the pod and was capped at the
+        // provider's wedged-pod guard instead of the caller's clamped budget.
+        timeoutMs,
+        onStdout: (chunk) => push(chunk),
+      })
     : sbInstance.exec(command).then((res) => {
         if (res.output) push(res.output)
         return res
@@ -111,9 +122,17 @@ const execCapped = async (
     timer.unref()
   })
 
-  const raced = await Promise.race([execPromise, timeout]).finally(() =>
-    clearTimeout(timer)
-  )
+  // Both bounds now carry the same deadline, and the inner one is armed first,
+  // so the streaming path's own timeout rejection lands a tick before this race
+  // resolves. Map a rejection at or past the deadline onto the same timed-out
+  // outcome so the captured stdout tail survives whichever timer wins; an
+  // earlier rejection is a genuine failure and still propagates.
+  const raced = await Promise.race([execPromise, timeout])
+    .catch((err) => {
+      if (Date.now() - startedAt >= timeoutMs) return null
+      throw err
+    })
+    .finally(() => clearTimeout(timer))
   const output = Buffer.concat(chunks).toString(`utf8`).slice(-DelegationOutputMaxChars)
 
   if (!raced) return { timedOut: true, output, result: { success: false, output } }

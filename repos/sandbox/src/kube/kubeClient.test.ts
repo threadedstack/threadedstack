@@ -918,6 +918,21 @@ describe(`KubeClient`, () => {
       await assertion
     })
 
+    it(`should still apply the wedged-pod default when opts carry stream callbacks but no timeoutMs`, async () => {
+      // The streaming shape KubeSandbox.execStreaming forwards when a caller
+      // expresses no budget — the guard must survive, not be disabled.
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`], undefined, {
+        onStdout: vi.fn(),
+        onStderr: vi.fn(),
+      })
+      const assertion = expect(promise).rejects.toThrow(
+        `runInPod timed out after ${DefaultExecTimeoutMs}ms for pod wedged-pod`
+      )
+
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+      await assertion
+    })
+
     it(`should not fire the timeout once the status callback has already resolved the call`, async () => {
       const promise = client.runInPod(`my-pod`, [`echo`, `hi`])
       capturedStatusCallback!({ status: `Success` })

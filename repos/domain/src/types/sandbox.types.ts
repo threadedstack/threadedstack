@@ -117,6 +117,23 @@ export type TSandboxResult = {
 export type TExecStreamOpts = {
   onStdout?: (chunk: Buffer) => void
   onStderr?: (chunk: Buffer) => void
+  /**
+   * Wall-clock bound (ms) on the exec itself.
+   *
+   * Without this field the interface could not express a budget at all, so
+   * every streaming exec silently fell back to the provider's default guard
+   * (KubeClient's DefaultExecTimeoutMs). That guard exists to reclaim a WEDGED
+   * pod whose exec stream never reports a status — it is not a cap on how long
+   * legitimate work may run. The result was that a caller's own, larger
+   * timeout was a dead letter: a command that genuinely needed minutes was
+   * killed at the guard, and long-running schedules could never succeed.
+   *
+   * A caller that ALSO races an outer timeout must pass the SAME value here.
+   * The outer race only settles the caller's promise, it never aborts the
+   * exec, so a smaller outer bound leaves a dangling exec holding the pod and
+   * a smaller inner bound kills work the caller had budgeted for.
+   */
+  timeoutMs?: number
 }
 
 /**

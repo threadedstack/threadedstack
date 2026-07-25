@@ -501,7 +501,15 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     key: `sensor`,
     id: `sd_lSst6Tq`,
     cronExpression: `40 */2 * * *`,
-    timeoutMs: 5_400_000,
+    // 15 min. Genuine sensor runs have historically taken 234-434s, so this is
+    // ~2x the longest real run — comfortable headroom for the cycle's real
+    // work. It replaces a 90-min budget that only ever mattered as a runaway
+    // ceiling: now that the budget is actually enforced on the in-pod exec
+    // (TExecStreamOpts.timeoutMs), a wedged sensor would otherwise sit on the
+    // single spare kata job slot for an hour and a half and starve `verify`,
+    // the revert safety net. 15 min is exactly one `verify` cadence period
+    // (7,22,37,52), so a runaway sensor can cost at most a single verify beat.
+    timeoutMs: 900_000,
     maxConsecutiveErrors: 6,
     // Dev-team output-liveness digests for signal 7 (see sensor.md): the
     // resident seats' turn counters + the board's newest rows, injected
@@ -551,7 +559,14 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     key: `reflection`,
     id: `sd_ROO3t4S`,
     cronExpression: `0 8 * * *`,
-    timeoutMs: null,
+    // 15 min, same reasoning as `sensor` above. `null` fell back to the shared
+    // 60-min ExecTimeoutMS, which — now that the budget is enforced on the
+    // in-pod exec — would let one stuck daily reflection hold the single spare
+    // kata job slot across four consecutive `verify` beats (08:07/22/37/52).
+    // Reflection is the same shape of single-pass steward cycle as the sensor
+    // (read recent history, write one report), so the sensor's measured
+    // 234-434s envelope applies and 15 min leaves ~2x headroom.
+    timeoutMs: 900_000,
     maxConsecutiveErrors: 6,
   }),
   steward({

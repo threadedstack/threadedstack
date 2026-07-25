@@ -25,6 +25,7 @@ const buildApp = () => {
         _cmd: string,
         _args: string[],
         opts: {
+          timeoutMs?: number
           onStdout: (c: string | Buffer) => void
           onStderr: (c: string | Buffer) => void
         }
@@ -759,6 +760,82 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
         expect.objectContaining({ status: `timeout` })
       )
       expect(app.locals.sandbox.stopPod).toHaveBeenCalledWith(`pod-cli-1`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // The outer withTimeout only races — it never aborts the in-pod exec — so the
+  // budget handed to execStreaming MUST be the same number the outer bound
+  // uses. A smaller inner bound kills legitimately long work at the provider's
+  // wedged-pod guard (the regression these tests lock down); a larger one
+  // leaves an abandoned exec holding the pod. Both tests read the outer bound
+  // back out of the rejection message so neither side can drift alone.
+  const outerBoundFrom = (err: Error): number =>
+    Number(err.message.match(/Timed out after ([\d.]+)s/)![1]) * 1000
+
+  it(`bounds the in-pod exec with the SAME budget as the outer timeout on the CLI-brain path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(agentSchedule({ timeoutMs: 120_000 }) as any).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(121_000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(120_000)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`falls back to ExecTimeoutMS for BOTH bounds when the schedule sets no timeoutMs`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(agentSchedule() as any).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(ExecTimeoutMS + 1000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(ExecTimeoutMS)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`bounds the in-pod exec with the SAME budget as the outer timeout on the pod-schedule path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, sbInstance } = buildApp()
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(
+        agentSchedule({ agentId: undefined, timeoutMs: 120_000 }) as any
+      ).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(121_000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(120_000)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
     } finally {
       vi.useRealTimers()
     }
