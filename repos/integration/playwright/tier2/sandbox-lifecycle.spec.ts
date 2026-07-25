@@ -141,11 +141,8 @@ test.describe.serial('Sandbox Lifecycle', () => {
     await expect(startButton).toBeVisible({ timeout: 5_000 })
     await startButton.click()
 
-    // Give a moment for the API call to fire
-    await page.waitForTimeout(2_000)
-
     // The start endpoint should have been called
-    expect(startCalled).toBe(true)
+    await expect.poll(() => startCalled, { timeout: 5_000 }).toBe(true)
 
     expect(errors).toEqual([])
   })
