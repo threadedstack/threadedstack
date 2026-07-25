@@ -3,6 +3,7 @@ import type {
   TStepResult,
   TOnboardingOrgData,
   TOnboardingStepData,
+  TOnboardingCompletion,
   TOnboardingProjectData,
   TOnboardingProviderData,
 } from '@TAF/types'
@@ -10,7 +11,7 @@ import type {
 import { nav } from '@TAF/services'
 import { getOrgs } from '@TAF/state/accessors'
 import { AIProviderTemplates } from '@tdsk/domain'
-import { DefStepData, StepKeys } from '@TAF/types'
+import { ERoutePath, DefStepData, StepKeys } from '@TAF/types'
 import { useOnboardingState } from '@TAF/state/selectors'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { OnboardingSteps } from '@TAF/constants/onboarding'
@@ -31,6 +32,7 @@ export const useOnboarding = () => {
   const [submitStep, setSubmitStep] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [returnToReview, setReturnToReview] = useState(false)
+  const [completion, setCompletion] = useState<TOnboardingCompletion | null>(null)
 
   useEffect(() => {
     if (onboarding.open) {
@@ -55,6 +57,7 @@ export const useOnboarding = () => {
       setSubmitting(false)
       setSubmitStep(null)
       setReturnToReview(false)
+      setCompletion(null)
     }
   }, [onboarding.open, onboarding.startStep, onboarding.orgId])
 
@@ -173,6 +176,7 @@ export const useOnboarding = () => {
     setSubmitStep(null)
 
     let wasNewOrg = false
+    let wasNewProject = false
     let succeeded = false
     let currentStep: number | null = null
     let projectId = stepData.project.selectedId
@@ -280,6 +284,7 @@ export const useOnboarding = () => {
       ) {
         currentStep = 2
         setSubmitStep(2)
+        wasNewProject = true
         const result = await createProject({
           name: stepData.project.data.name,
           description: stepData.project.data.description || undefined,
@@ -357,13 +362,47 @@ export const useOnboarding = () => {
     } finally {
       setSubmitting(false)
       if (succeeded) {
-        closeOnboarding()
-        history.replaceState({}, ``, window.location.pathname)
-        if (projectId && orgId) nav.to(`/orgs/${orgId}/projects/${projectId}`)
-        else if (orgId) nav.to(`/orgs/${orgId}`)
+        if ((wasNewOrg || wasNewProject) && orgId && projectId) {
+          setCompletion({ orgId, projectId })
+        } else {
+          closeOnboarding()
+          history.replaceState({}, ``, window.location.pathname)
+          if (projectId && orgId) nav.to(`/orgs/${orgId}/projects/${projectId}`)
+          else if (orgId) nav.to(`/orgs/${orgId}`)
+        }
       }
     }
   }, [onboarding, stepData, isStepSkipped])
+
+  const onGoToProject = useCallback(() => {
+    if (!completion) return
+    closeOnboarding()
+    history.replaceState({}, ``, window.location.pathname)
+    nav.to(`/orgs/${completion.orgId}/projects/${completion.projectId}`)
+    setCompletion(null)
+  }, [completion])
+
+  const onCreateFunction = useCallback(() => {
+    if (!completion) return
+    closeOnboarding()
+    history.replaceState({}, ``, window.location.pathname)
+    nav.route(ERoutePath.ProjectFunctions, {
+      orgId: completion.orgId,
+      projectId: completion.projectId,
+    })
+    setCompletion(null)
+  }, [completion])
+
+  const onCreateEndpoint = useCallback(() => {
+    if (!completion) return
+    closeOnboarding()
+    history.replaceState({}, ``, window.location.pathname)
+    nav.route(ERoutePath.ProjectEndpoints, {
+      orgId: completion.orgId,
+      projectId: completion.projectId,
+    })
+    setCompletion(null)
+  }, [completion])
 
   const onClose = useCallback(() => {
     if (!canDismiss) return
@@ -374,6 +413,7 @@ export const useOnboarding = () => {
     setSubmitting(false)
     setSubmitStep(null)
     setReturnToReview(false)
+    setCompletion(null)
   }, [canDismiss])
 
   return {
@@ -392,12 +432,16 @@ export const useOnboarding = () => {
     canDismiss,
     isLastStep,
     isFirstStep,
+    completion,
     isReviewStep,
     onStepClick,
     getStepResult,
     setActiveStep,
+    onGoToProject,
     updateStepData,
     returnToReview,
+    onCreateFunction,
+    onCreateEndpoint,
     isStepSkipped,
     onReturnToReview,
     isProjectSkipped,

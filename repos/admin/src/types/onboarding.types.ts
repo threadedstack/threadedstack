@@ -70,6 +70,11 @@ export type TStepResult = {
   outcome: TStepOutcome
 }
 
+export type TOnboardingCompletion = {
+  orgId: string
+  projectId: string
+}
+
 export const StepKeys = [`org`, `provider`, `project`, `sandbox`] as const
 export type TStepKey = (typeof StepKeys)[number]
 

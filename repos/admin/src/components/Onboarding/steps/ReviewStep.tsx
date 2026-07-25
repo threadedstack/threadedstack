@@ -1,14 +1,16 @@
-import type { TStepResult } from '@TAF/types'
+import type { TStepResult, TOnboardingCompletion } from '@TAF/types'
 
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Alert from '@mui/material/Alert'
+import Button from '@mui/material/Button'
 import { Text } from '@tdsk/components'
 import { OnboardingSteps } from '@TAF/constants/onboarding'
 import { ResourceChoiceCard } from '@TAF/components/Onboarding/OnboardingWizard.styled'
 import {
-  Business as OrgIcon,
   Cloud as ProviderIcon,
+  CheckCircle as DoneIcon,
+  Business as OrgIcon,
   Terminal as SandboxIcon,
   FolderOpen as ProjectIcon,
 } from '@mui/icons-material'
@@ -16,14 +18,75 @@ import {
 export type TReviewStep = {
   error: string | null
   submitStep: number | null
+  onGoToProject: () => void
+  onCreateFunction: () => void
+  onCreateEndpoint: () => void
   onStepClick: (stepIndex: number) => void
   getStepResult: (stepIndex: number) => TStepResult
+  completion: TOnboardingCompletion | null
 }
 
 const StepIcons = [OrgIcon, ProviderIcon, ProjectIcon, SandboxIcon]
 
 export const ReviewStep = (props: TReviewStep) => {
-  const { error, submitStep, getStepResult, onStepClick } = props
+  const {
+    error,
+    completion,
+    submitStep,
+    onGoToProject,
+    getStepResult,
+    onCreateFunction,
+    onCreateEndpoint,
+    onStepClick,
+  } = props
+
+  if (completion)
+    return (
+      <Box sx={{ textAlign: `center`, py: 4 }}>
+        <DoneIcon sx={{ fontSize: 56, color: `success.main`, mb: 2 }} />
+        <Text
+          variant='h6'
+          gutterBottom
+        >
+          You're all set
+        </Text>
+        <Text
+          color='text.secondary'
+          sx={{ mb: 4 }}
+        >
+          Your organization and project are ready. Deploy your first Function or Endpoint
+          to start building.
+        </Text>
+        <Box
+          sx={{
+            display: `flex`,
+            justifyContent: `center`,
+            gap: 2,
+            mb: 3,
+            flexWrap: `wrap`,
+          }}
+        >
+          <Button
+            variant='contained'
+            onClick={onCreateFunction}
+          >
+            Create a Function
+          </Button>
+          <Button
+            variant='contained'
+            onClick={onCreateEndpoint}
+          >
+            Create an Endpoint
+          </Button>
+        </Box>
+        <Button
+          variant='text'
+          onClick={onGoToProject}
+        >
+          Go to project
+        </Button>
+      </Box>
+    )
 
   return (
     <Box>
