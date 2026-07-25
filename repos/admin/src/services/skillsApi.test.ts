@@ -105,6 +105,14 @@ describe(`SkillsApi`, () => {
       expect(resp.data).toEqual([])
     })
 
+    it(`should not throw and should fall back to an empty array when the response body has no top-level 'data' key (parseResponse returns the raw non-array body as resp.data)`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { notData: true }))
+
+      const resp = await skillsApi.list(`org-1`)
+
+      expect(resp.data).toEqual([])
+    })
+
     it(`should call _onError with 'Failed to load Skills list' on error`, async () => {
       const onErrorSpy = vi.spyOn(skillsApi, `_onError`)
       mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))

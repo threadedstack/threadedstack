@@ -39,7 +39,7 @@ export class SkillsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((skill) => new Skill(skill)) || [],
+      data: resp?.data?.map?.((skill) => new Skill(skill)) || [],
     }
   }
 

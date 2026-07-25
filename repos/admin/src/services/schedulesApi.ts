@@ -44,7 +44,7 @@ export class SchedulesApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((s) => new Schedule(s)) || [],
+      data: resp?.data?.map?.((s) => new Schedule(s)) || [],
     }
   }
 
@@ -179,7 +179,7 @@ export class SchedulesApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((r) => new ScheduleRun(r)) || [],
+      data: resp?.data?.map?.((r) => new ScheduleRun(r)) || [],
     }
   }
 

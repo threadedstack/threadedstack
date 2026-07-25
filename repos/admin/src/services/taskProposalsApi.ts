@@ -44,7 +44,7 @@ export class TaskProposalsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((proposal) => new TaskProposal(proposal)) || [],
+      data: resp?.data?.map?.((proposal) => new TaskProposal(proposal)) || [],
     }
   }
 
