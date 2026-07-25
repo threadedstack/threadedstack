@@ -89,8 +89,14 @@ export const updateSchedule: TEndpointConfig = {
         `timeoutMs must be an integer between ${MinScheduleTimeoutMS} and ${MaxScheduleTimeoutMS}`
       )
 
-    const nextRunAt =
-      cronExpression !== undefined ? parseNextRun(cronExpression) : undefined
+    let nextRunAt: Date | undefined
+    if (cronExpression !== undefined) {
+      try {
+        nextRunAt = parseNextRun(cronExpression)
+      } catch (err) {
+        throw new Exception(400, `Invalid cron expression: ${(err as Error).message}`)
+      }
+    }
 
     const { data, error } = await db.services.schedule.update({
       id: scheduleId,

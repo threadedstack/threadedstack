@@ -84,7 +84,12 @@ export const createSchedule: TEndpointConfig = {
         `timeoutMs must be an integer between ${MinScheduleTimeoutMS} and ${MaxScheduleTimeoutMS}`
       )
 
-    const nextRunAt = parseNextRun(cronExpression)
+    let nextRunAt: Date
+    try {
+      nextRunAt = parseNextRun(cronExpression)
+    } catch (err) {
+      throw new Exception(400, `Invalid cron expression: ${(err as Error).message}`)
+    }
 
     const schedule = new Schedule({
       orgId,
