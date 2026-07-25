@@ -162,4 +162,32 @@ describe(`LoginPage`, () => {
     )
     expect(capturedLoginProps.emailError).toBeUndefined()
   })
+
+  it(`cancels the pending spinner-reset timer on unmount`, async () => {
+    // The reset timer used to be armed and never cleared, so it fired 1500ms
+    // after the component was gone and set state on a dead tree. Under vitest
+    // that landed AFTER teardown as `ReferenceError: window is not defined`
+    // from react-dom — 10 unhandled errors that failed a production deploy
+    // while every test in the file still reported passing.
+    vi.useFakeTimers()
+    try {
+      mockSignin.mockResolvedValue({})
+      const { unmount } = render(<LoginPage />)
+      await act(async () => {
+        await capturedLoginProps.onLogin({ provider: `github` })
+      })
+
+      // The timer is armed by onLogin and must still be pending here —
+      // otherwise the assertion below would pass for the wrong reason.
+      expect(vi.getTimerCount()).toBe(1)
+
+      unmount()
+      // Assert BEFORE draining: a timer that FIRED also leaves the count at
+      // zero, so checking after advancing cannot tell "cleared on unmount"
+      // apart from "leaked, then executed against a dead tree".
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
