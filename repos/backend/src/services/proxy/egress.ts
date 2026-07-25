@@ -9,6 +9,7 @@ import path from 'path'
 import { existsSync } from 'node:fs'
 import { Proxy } from 'http-mitm-proxy'
 import { logger } from '@TBE/utils/logger'
+import { Exception } from '@tdsk/domain'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { extractSNI } from '@TBE/utils/proxy/extractSNI'
@@ -118,16 +119,31 @@ export class EgressProxy {
     this.proxy = new Proxy()
     this.proxy.use(Proxy.wildcard)
 
-    // Intercept requests — replace placeholder tokens with real secrets
+    // Intercept requests — guard the destination host, then replace placeholder
+    // tokens with real secrets. The guard here runs PER REQUEST (http-mitm-proxy
+    // invokes onRequest once per request even on a keep-alive connection), which
+    // is what closes the bypass the first-chunk-only check in handleHTTPConnection
+    // can't: a plaintext HTTP connection is only inspected on its FIRST request,
+    // then piped raw for the rest of its life, so a second request on the same
+    // keep-alive socket needs its own check.
     this.proxy.onRequest((ctx, callback) => {
-      this.handleRequest(ctx)
+      this.guardRequestHost(ctx)
+        .then(() => this.handleRequest(ctx))
         .then(() => callback())
         .catch((err) => {
+          const status = err instanceof Exception ? err.status : 502
           logger.error(`[EgressProxy] Request handling failed:`, err)
           const res = ctx.proxyToClientResponse
           if (res && !res.headersSent) {
-            res.writeHead(502, { [`Content-Type`]: `application/json` })
-            res.end(JSON.stringify({ error: `Egress proxy failed to process request` }))
+            res.writeHead(status, { [`Content-Type`]: `application/json` })
+            res.end(
+              JSON.stringify({
+                error:
+                  status === 403
+                    ? `Egress target blocked`
+                    : `Egress proxy failed to process request`,
+              })
+            )
           }
         })
     })
@@ -161,6 +177,17 @@ export class EgressProxy {
     )
 
     return dir
+  }
+
+  /**
+   * Per-request SSRF guard. Runs on EVERY request http-mitm-proxy dispatches on a
+   * connection — including the 2nd, 3rd, ... request on a keep-alive connection
+   * that `handleHTTPConnection`'s once-per-connection first-chunk check cannot see.
+   */
+  private async guardRequestHost(ctx: IContext): Promise<void> {
+    const rawHost = ctx.proxyToServerRequestOptions?.host
+    const destHost = rawHost?.split(`:`)[0] || ``
+    await assertPublicEgressHost(destHost)
   }
 
   private async handleRequest(ctx: IContext): Promise<void> {

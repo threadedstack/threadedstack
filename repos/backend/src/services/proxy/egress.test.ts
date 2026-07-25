@@ -87,6 +87,15 @@ vi.mock(`@TBE/constants/values`, () => ({
   RealIpHeader: `x-tdsk-real-ip`,
 }))
 
+// The per-request SSRF guard resolves DNS for any non-literal-IP host. Mock the
+// resolver so hostname-based tests are deterministic and need no real network —
+// unrelated to the fake domains fixtures use (`api.example.com`, etc.), which
+// don't actually resolve. Blocked-address coverage below uses literal IPs
+// instead, so it never touches this mock.
+vi.mock(`node:dns/promises`, () => ({
+  lookup: vi.fn().mockResolvedValue([{ address: `93.184.216.34`, family: 4 }]),
+}))
+
 // ── Helpers ──
 
 const makeRoutes = (): TRouteMap => ({
@@ -218,7 +227,11 @@ describe(`EgressProxy`, () => {
 
     it(`should skip processing when source IP has no matching route`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(`192.168.1.99`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `192.168.1.99`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -235,7 +248,11 @@ describe(`EgressProxy`, () => {
 
     it(`should skip processing when source IP is undefined`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(undefined, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        undefined,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -307,9 +324,13 @@ describe(`EgressProxy`, () => {
 
     it(`should NOT replace headers without PhTokenPrefix`, async () => {
       const { opts, onRequestHandler } = setup()
-      const ctx = makeCtx(`10.0.0.5`, {
-        'x-safe-header': `no-placeholder-here`,
-      })
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-safe-header': `no-placeholder-here`,
+        },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -351,6 +372,50 @@ describe(`EgressProxy`, () => {
       expect(logger.error).toHaveBeenCalled()
       // callback should NOT have been called on error path
       expect(callback).not.toHaveBeenCalled()
+    })
+
+    it(`should block a request whose destination host resolves to a non-public address, even before placeholder handling runs`, async () => {
+      const { logger } = await import(`@TBE/utils/logger`)
+      const { opts, onRequestHandler } = setup()
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `169.254.169.254`
+      )
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() =>
+        expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+      )
+
+      expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(403, {
+        'Content-Type': `application/json`,
+      })
+      expect(ctx.proxyToClientResponse.end).toHaveBeenCalledWith(
+        JSON.stringify({ error: `Egress target blocked` })
+      )
+      // The guard runs BEFORE placeholder substitution -- resolveSecret must
+      // never be reached for a blocked destination.
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
+      expect(callback).not.toHaveBeenCalled()
+      expect(logger.error).toHaveBeenCalled()
+    })
+
+    it(`should allow a request to a public host through the per-request guard`, async () => {
+      const { opts, onRequestHandler } = setup()
+      opts.resolveSecret.mockResolvedValue(`real-api-key`)
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+
+      expect(ctx.proxyToClientResponse.writeHead).not.toHaveBeenCalled()
     })
 
     it(`should handle multiple placeholder tokens in same header value`, async () => {
@@ -420,7 +485,7 @@ describe(`EgressProxy`, () => {
     it(`should leave Basic credentials WITHOUT a placeholder unchanged`, async () => {
       const { opts, onRequestHandler } = setup()
       const header = `Basic ${encodeBasic(`user:plain-password`)}`
-      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header }, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -433,7 +498,7 @@ describe(`EgressProxy`, () => {
     it(`should leave malformed base64 after Basic unchanged without throwing`, async () => {
       const { opts, onRequestHandler } = setup()
       const header = `Basic !!!not-valid-base64!!!`
-      const ctx = makeCtx(`10.0.0.5`, { authorization: header })
+      const ctx = makeCtx(`10.0.0.5`, { authorization: header }, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -507,7 +572,11 @@ describe(`EgressProxy`, () => {
       }
 
       const { opts, onRequestHandler } = setup({ routes })
-      const ctx = makeCtx(`10.0.0.9`, { authorization: `Bearer tdsk_ph_token1` })
+      const ctx = makeCtx(
+        `10.0.0.9`,
+        { authorization: `Bearer tdsk_ph_token1` },
+        `api.example.com:443`
+      )
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -580,7 +649,7 @@ describe(`EgressProxy`, () => {
 
     it(`should strip x-tdsk-real-ip header before forwarding`, async () => {
       const { onRequestHandler } = setup()
-      const ctx = makeCtx(`10.0.0.5`)
+      const ctx = makeCtx(`10.0.0.5`, {}, `api.example.com:443`)
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
@@ -732,7 +801,7 @@ describe(`EgressProxy`, () => {
       expect(ctx.proxyToServerRequestOptions.headers[`x-api-key`]).toBe(`tdsk_ph_open`)
     })
 
-    it(`should skip domain-gated swap when request has no host header`, async () => {
+    it(`should block a request with no determinable destination host before domain-gating logic ever runs`, async () => {
       const { logger } = await import(`@TBE/utils/logger`)
       const { opts, onRequestHandler } = setupDomain()
       opts.resolveSecret.mockResolvedValue(`real-secret`)
@@ -741,28 +810,27 @@ describe(`EgressProxy`, () => {
         authorization: `Bearer tdsk_ph_gated`,
         'x-other-key': `tdsk_ph_open`,
       })
-      // host is NOT set — ctx.proxyToServerRequestOptions.host is undefined
+      // host is NOT set — ctx.proxyToServerRequestOptions.host is undefined. The
+      // per-request guard fails closed on an indeterminable destination and
+      // rejects BEFORE handleRequest's own placeholder logic ever runs — so
+      // neither placeholder is ever reached, gated or not.
       const callback = vi.fn()
 
       onRequestHandler(ctx, callback)
-      await vi.waitFor(() => expect(callback).toHaveBeenCalled())
+      await vi.waitFor(() =>
+        expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+      )
 
-      // The gated placeholder should NOT be resolved (no host to match against)
-      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-gated`)
-      // The gated placeholder token remains in the header
+      expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(400, {
+        'Content-Type': `application/json`,
+      })
+      expect(opts.resolveSecret).not.toHaveBeenCalled()
       expect(ctx.proxyToServerRequestOptions.headers.authorization).toBe(
         `Bearer tdsk_ph_gated`
       )
-
-      // The ungated placeholder is ALSO never resolved — fail closed: an unscoped
-      // token is never swapped regardless of host.
-      expect(opts.resolveSecret).not.toHaveBeenCalledWith(`secret-open`)
       expect(ctx.proxyToServerRequestOptions.headers[`x-other-key`]).toBe(`tdsk_ph_open`)
-
-      // Should have logged a warning about missing host
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining(`Could not determine destination host`)
-      )
+      expect(callback).not.toHaveBeenCalled()
+      expect(logger.error).toHaveBeenCalled()
     })
 
     it(`should NEVER swap a placeholder with empty allowedDomains — fail closed`, async () => {
@@ -1167,6 +1235,53 @@ describe(`EgressProxy`, () => {
 
         await vi.waitFor(() => expect(clientSocket.destroy).toHaveBeenCalled())
         expect(netModule.default.connect).not.toHaveBeenCalled()
+      })
+
+      it(`should refuse a second HTTP request smuggled over the same keep-alive connection, even though the first-chunk socket guard only inspects the connection once`, async () => {
+        // Regression for the bypass where handleConnection wires clientSocket
+        // .once('data', ...) -- the guard fires ONCE per TCP connection, then
+        // the socket is piped raw for its whole life. A first request to a
+        // public host opens that pipe; a second request smuggled over the SAME
+        // connection to a blocked host must still be caught -- by the
+        // per-request guardRequestHost check wired into proxy.onRequest, which
+        // http-mitm-proxy invokes independently for every request it parses,
+        // including subsequent requests on a keep-alive connection.
+        const { handler } = await startProxyAndGetHandler()
+        const netModule = await import(`net`)
+        const mitmSocket = makeMockSocket()
+        ;(netModule.default.connect as ReturnType<typeof vi.fn>).mockImplementation(
+          (_port: number, _host: string, cb: () => void) => {
+            setImmediate(cb)
+            return mitmSocket
+          }
+        )
+
+        const clientSocket = makeMockSocket()
+        handler(clientSocket)
+        // First request: public host -- passes the once-per-connection guard,
+        // clientSocket is now piped into mitmSocket for the rest of its life.
+        clientSocket.emit(`data`, buildHttpRequest(`example.com`))
+        await vi.waitFor(() => expect(clientSocket.pipe).toHaveBeenCalledWith(mitmSocket))
+
+        // Second request on the SAME connection: http-mitm-proxy parses this
+        // off the now-piped bytes and dispatches its own onRequest call --
+        // simulated here by invoking the captured onRequest handler directly
+        // with a blocked destination, exactly as http-mitm-proxy would.
+        const onRequestHandler = mockProxy.onRequest.mock.calls[0][0] as (
+          ctx: any,
+          callback: (...args: any[]) => void
+        ) => void
+        const secondCtx = makeCtx(`10.0.0.5`, {}, `169.254.169.254`)
+        const secondCallback = vi.fn()
+        onRequestHandler(secondCtx, secondCallback)
+
+        await vi.waitFor(() =>
+          expect(secondCtx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+        )
+        expect(secondCtx.proxyToClientResponse.writeHead).toHaveBeenCalledWith(403, {
+          'Content-Type': `application/json`,
+        })
+        expect(secondCallback).not.toHaveBeenCalled()
       })
     })
   })
