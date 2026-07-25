@@ -55,7 +55,7 @@ export class AgentsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((agent) => new Agent(agent)) || [],
+      data: resp?.data?.map?.((agent) => new Agent(agent)) || [],
     }
   }
 
