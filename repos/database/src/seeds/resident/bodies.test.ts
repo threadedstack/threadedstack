@@ -162,24 +162,32 @@ describe(`ResidentNodePools`, () => {
     expect(Object.keys(ResidentNodePools).sort()).toEqual([...ResidentActivations].sort())
   })
 
-  it(`reserves tdskembed for the steward's transient jobs — exactly one seat (the CEO) sits there`, () => {
+  it(`keeps a 3Gi-shaped hole in the default pool — at most four seats on tdsksandbox`, () => {
+    // `tdsksandbox` is ALSO the global TDSK_SB_NODE_POOL, so every UNPINNED
+    // sandbox (a user hitting Connect, any non-steward scheduled run) lands
+    // there. The scheduler places a whole pod on ONE node, so the pool must keep
+    // a 3Gi-shaped HOLE, not merely 3Gi of total free space. Four seats leave
+    // ~4.9Gi contiguous beside tdsk-embeddings-0 (one real hole); a FIFTH seat
+    // splits the remainder into ~2.9Gi + ~1.9Gi — ~4.8Gi free with no hole
+    // anywhere, and the next customer sandbox sits Pending forever.
+    const onSandbox = Object.entries(ResidentNodePools).filter(
+      ([, pool]) => pool === `tdsksandbox`
+    )
+    expect(onSandbox.length).toBeLessThanOrEqual(4)
+  })
+
+  it(`reserves tdskembed headroom for the steward's transient jobs`, () => {
     // The capacity contract from PR #196: `tdskembed` exists so the steward's
-    // 3Gi transient sensor/verify jobs have somewhere to schedule. Six 3Gi
-    // residents do not fit on tdsksandbox alone (11.9Gi + 7.9Gi free packs five),
-    // so exactly ONE seat borrows the reserved node — and it is the CEO (lowest
-    // churn: no repo link, no dev_tasks board work). A second seat here means a
-    // steward job Pending forever.
+    // 3Gi transient sensor/verify jobs have somewhere to schedule. The two
+    // lowest-churn seats (no repo link, no dev_tasks board work) borrow it,
+    // leaving ~5.8Gi — one steward slot. A THIRD seat here is what left under
+    // 3Gi free and stranded every steward job Pending forever.
     const onEmbed = Object.entries(ResidentNodePools)
       .filter(([, pool]) => pool === `tdskembed`)
       .map(([agentId]) => agentId)
-    expect(onEmbed).toEqual([CeoAgentId])
-    for (const agentId of [
-      CmoAgentId,
-      CtoAgentId,
-      EngOneAgentId,
-      EngTwoAgentId,
-      EngThreeAgentId,
-    ])
+      .sort()
+    expect(onEmbed).toEqual([CeoAgentId, CmoAgentId].sort())
+    for (const agentId of [CtoAgentId, EngOneAgentId, EngTwoAgentId, EngThreeAgentId])
       expect(ResidentNodePools[agentId]).toBe(`tdsksandbox`)
   })
 })
@@ -240,37 +248,42 @@ describe(`reconcileResidentBodies`, () => {
 
   it(`corrects a drifted nodePool — the stale tdskembed pin that starved the steward's jobs`, async () => {
     const fake = makeFakeService()
-    // The PROVEN prod drift: three seats hand-pinned onto the reserved
+    // The PROVEN prod drift: an engineer seat hand-pinned onto the reserved
     // `tdskembed` node, filling it so the steward's 3Gi transient jobs sat
-    // Pending forever and the sensor schedule stopped feeding the backlog.
+    // Pending forever and the sensor schedule stopped feeding the backlog. The
+    // seat carries keys the reconcile must NOT touch: the watchdog activation
+    // flag, plus the two fields a resident may legitimately outgrow.
     seedBodies(fake, {
-      [CmoAgentId]: recipeConfig({
-        nodePool: `tdskembed`,
-        resident: { agentId: CmoAgentId },
-      }),
       [EngOneAgentId]: recipeConfig({
         nodePool: `tdskembed`,
         resident: { agentId: EngOneAgentId },
+        resources: { requests: { memory: `6Gi` } },
+        idleTimeoutMinutes: 90,
+        runtimeCommand: `custom-runtime`,
       }),
     })
+    const before = structuredClone(fake.sandboxes.get(`sb_eng0001`)!.config!)
 
     const summary = await reconcileResidentBodies(fake.service)
 
     expect(summary).toMatchObject({
-      asserted: 2,
-      unchanged: ResidentActivations.length - 2,
+      asserted: 1,
+      unchanged: ResidentActivations.length - 1,
       errors: 0,
     })
-    const cmo = fake.sandboxes.get(`sb_cmo0001`)!.config!
     const engOne = fake.sandboxes.get(`sb_eng0001`)!.config!
-    expect(cmo.nodePool).toBe(`tdsksandbox`)
     expect(engOne.nodePool).toBe(`tdsksandbox`)
-    // The watchdog's activation flag SURVIVES the placement write — a resident
-    // that loses `config.resident` never boots again.
-    expect(cmo.resident).toEqual({ agentId: CmoAgentId })
+    // EVERY other key survives the placement write, not just the two we thought
+    // to name: assert the whole config is unchanged apart from `nodePool`, so a
+    // regression that dropped `resources`/`idleTimeoutMinutes`/`runtimeCommand`
+    // inside the write cannot pass. `config` is a jsonb FULL-COLUMN replace, so
+    // an omitted key is a deleted key.
+    expect({ ...engOne, nodePool: before.nodePool }).toEqual(before)
+    // Called out explicitly because losing it bricks a resident permanently.
     expect(engOne.resident).toEqual({ agentId: EngOneAgentId })
-    // The CEO's pin is the DECLARED one, so it is left exactly where it is.
+    // The CEO and CMO pins are the DECLARED ones, so they are left untouched.
     expect(fake.sandboxes.get(`sb_ceo0001`)!.config!.nodePool).toBe(`tdskembed`)
+    expect(fake.sandboxes.get(`sb_cmo0001`)!.config!.nodePool).toBe(`tdskembed`)
   })
 
   it(`is a true no-op when the nodePool already matches the map`, async () => {
