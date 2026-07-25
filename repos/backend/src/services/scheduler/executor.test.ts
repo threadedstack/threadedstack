@@ -16,6 +16,7 @@ vi.mock(`@TBE/utils/agent/resolveAgentConfig`, () => ({
 
 import { createScheduleExecutor } from './executor'
 import { ScheduleClaimConflictError } from './scheduler'
+import { AgentScheduleDefs } from '@tdsk/database/seeds/agentSchedules'
 import { ExecTimeoutMS, SetupReadyTimeoutMS } from '@TBE/constants/sandbox'
 
 const buildApp = () => {
@@ -25,6 +26,7 @@ const buildApp = () => {
         _cmd: string,
         _args: string[],
         opts: {
+          timeoutMs?: number
           onStdout: (c: string | Buffer) => void
           onStderr: (c: string | Buffer) => void
         }
@@ -763,6 +765,151 @@ describe(`createScheduleExecutor — runtime-brain (CLI) agent schedule`, () => 
       vi.useRealTimers()
     }
   })
+
+  // The outer withTimeout only races — it never aborts the in-pod exec — so the
+  // budget handed to execStreaming MUST be the same number the outer bound
+  // uses. A smaller inner bound kills legitimately long work at the provider's
+  // wedged-pod guard (the regression these tests lock down); a larger one
+  // leaves an abandoned exec holding the pod. Both tests read the outer bound
+  // back out of the rejection message so neither side can drift alone.
+  const outerBoundFrom = (err: Error): number =>
+    Number(err.message.match(/Timed out after ([\d.]+)s/)![1]) * 1000
+
+  it(`bounds the in-pod exec with the SAME budget as the outer timeout on the CLI-brain path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(agentSchedule({ timeoutMs: 120_000 }) as any).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(121_000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(120_000)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`falls back to ExecTimeoutMS for BOTH bounds when the schedule sets no timeoutMs`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, services, sbInstance } = buildApp()
+      services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(agentSchedule() as any).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(ExecTimeoutMS + 1000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(ExecTimeoutMS)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`bounds the in-pod exec with the SAME budget as the outer timeout on the pod-schedule path`, async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, sbInstance } = buildApp()
+      sbInstance.execStreaming.mockImplementation(() => new Promise(() => {}))
+      const executor = createScheduleExecutor(app)
+
+      const settled = executor(
+        agentSchedule({ agentId: undefined, timeoutMs: 120_000 }) as any
+      ).then(
+        () => new Error(`expected the run to reject`),
+        (err: Error) => err
+      )
+      await vi.advanceTimersByTimeAsync(121_000)
+      const outerMs = outerBoundFrom(await settled)
+
+      expect(outerMs).toBe(120_000)
+      expect(sbInstance.execStreaming.mock.calls[0][2].timeoutMs).toBe(outerMs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Every test above leaves buildApp's INSTANTANEOUS waitForPodReady in place,
+  // which collapses two different instants onto t0 and makes the schedule's
+  // budget look like an exec budget. It is not one: executor.ts races the WHOLE
+  // run — startPod, waitForPodReady and every context builder included —
+  // against `schedule.timeoutMs`, so the exec only ever receives
+  // `timeoutMs - podSetup`. The two tests below restore that gap, because a
+  // budget sized as though pod setup were free reaps legitimate work, and
+  // schedule.ts#incrementErrors then disables the schedule outright once the
+  // kills reach maxConsecutiveErrors.
+  //
+  // Longest genuine run measured in production, from the `sensor` cycle
+  // (234-434s). Pod setup's worst case is SetupReadyTimeoutMS, the ceiling
+  // waitForPodReady is actually armed with — pods do sit Pending that long
+  // under kata node pressure, so this is the real envelope, not a hypothetical.
+  const LongestMeasuredRunMs = 434_000
+  const enabledCycles = AgentScheduleDefs.filter((d) => d.enabled)
+
+  it(`seeds every enabled cycle a budget that outlasts pod setup plus the longest measured run`, () => {
+    expect(enabledCycles.length).toBeGreaterThan(0)
+    for (const cycle of enabledCycles)
+      expect(cycle.timeoutMs! - SetupReadyTimeoutMS).toBeGreaterThanOrEqual(
+        LongestMeasuredRunMs
+      )
+  })
+
+  it.each(enabledCycles)(
+    `runs the seeded $key cycle to success when pod setup burns its full readiness ceiling`,
+    async ({ timeoutMs }) => {
+      vi.useFakeTimers()
+      try {
+        const { app, services, sbInstance } = buildApp()
+        services.agent.get.mockResolvedValue({ data: runtimeAgent() })
+        app.locals.sandbox.waitForPodReady.mockImplementation(
+          () => new Promise((resolve) => setTimeout(resolve, SetupReadyTimeoutMS))
+        )
+        sbInstance.execStreaming.mockImplementation(
+          (_cmd: string, _args: string[], opts: any) =>
+            new Promise((resolve) =>
+              setTimeout(() => {
+                opts.onStdout(`CLI REPORT`)
+                resolve({ output: ``, success: true, exitCode: 0 })
+              }, LongestMeasuredRunMs)
+            )
+        )
+
+        const executor = createScheduleExecutor(app)
+        const settled = executor(agentSchedule({ timeoutMs }) as any).then(
+          () => undefined,
+          (err: Error) => err
+        )
+
+        await vi.advanceTimersByTimeAsync(SetupReadyTimeoutMS)
+        // The exec is armed only AFTER the readiness wait, so every one of its
+        // milliseconds is spent against what the run-start clock has left.
+        expect(sbInstance.execStreaming).toHaveBeenCalledTimes(1)
+        await vi.advanceTimersByTimeAsync(LongestMeasuredRunMs)
+
+        // No rejection: the outer race must not have fired mid-exec.
+        expect(await settled).toBeUndefined()
+        expect(services.scheduleRun.complete).toHaveBeenCalledWith(
+          `run-1`,
+          expect.objectContaining({ status: `success` })
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+    }
+  )
 
   it(`honors schedule.timeoutMs over ExecTimeoutMS on the pod-schedule path`, async () => {
     vi.useFakeTimers()

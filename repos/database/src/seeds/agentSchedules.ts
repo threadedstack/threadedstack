@@ -431,6 +431,47 @@ const ceo = make(CeoAgentId, CeoSandboxId)
 const cmo = make(CmoAgentId, CmoSandboxId)
 
 /**
+ * 20 minutes — the wall-clock budget carried by EVERY enabled cycle.
+ *
+ * READ THE ARITHMETIC BEFORE CHANGING THIS NUMBER. `timeoutMs` is NOT an exec
+ * budget: executor.ts wraps the WHOLE run — `startPod`, `waitForPodReady` and
+ * every context builder included — in
+ * `withTimeout(runCliAgentSchedule(...), timeoutMs)`, so the clock starts at
+ * RUN start and the work only gets what pod setup leaves behind:
+ *
+ *   exec budget = timeoutMs - (startPod + waitForPodReady + context build)
+ *
+ * `waitForPodReady` is handed `SetupReadyTimeoutMS` = 600_000 ms
+ * (backend/src/constants/sandbox.ts) because the entrypoint clones and installs
+ * the workspace before the AI tool may start. That ceiling is reached in
+ * practice, not just in theory: under kata node pressure pods sit Pending long
+ * enough that three consecutive `verify` runs consumed the full 600 s wait. So
+ * the budget has to be sized as
+ *
+ *   timeoutMs >= 600 s pod-wait ceiling + longest real run + margin
+ *
+ * Measured real durations: sensor 234-434 s, reflection ~332 s, cto-board
+ * ~244 s, curation ~100 s, verify 73-90 s. At 20 min the exec still holds 600 s
+ * after a worst-case pod wait — 166 s clear of the longest run ever observed —
+ * so a legitimate cycle is never killed by its own budget. Killing one is worse
+ * than losing a single report: `schedule.ts#incrementErrors` sets
+ * `enabled: false` once `consecutiveErrors + 1 >= maxConsecutiveErrors`, so a
+ * budget that reaps real work quietly switches the cycle off for good.
+ *
+ * The ceiling is load-bearing in the other direction too, which is why `verify`
+ * comes DOWN to 20 min from 60. All five enabled cycles contend for the ONE
+ * spare 3Gi kata job slot; at 60 min a wedged `verify` blocks its own next
+ * three beats (`7,22,37,52`) and the post-merge revert net goes dark for an
+ * hour. 20 min bounds slot occupancy to ~1.3 verify periods.
+ *
+ * Do NOT lower this below `SetupReadyTimeoutMS` + 434 s. Moving pod setup
+ * outside the `withTimeout` wrap to "free up" budget is a worse trade, not an
+ * escape hatch: total slot occupancy then becomes `setup + timeoutMs` instead
+ * of `timeoutMs`, which starves the shared slot harder than the wrap does.
+ */
+export const EnabledCycleTimeoutMs = 1_200_000
+
+/**
  * The 11 live self-development schedules plus the 5 executive-board schedules
  * (LIVE on the primitives since the ⑤a activation, 2026-07-08). The CMO seat
  * runs as a RESIDENT (Resident Agents R4 — seeds/resident/records.ts), so its
@@ -501,7 +542,11 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     key: `sensor`,
     id: `sd_lSst6Tq`,
     cronExpression: `40 */2 * * *`,
-    timeoutMs: 5_400_000,
+    // Down from 90 min: now that TExecStreamOpts.timeoutMs makes the budget a
+    // real bound, a wedged sensor would have held the shared kata slot that
+    // long. The sensor is the schedule this number is sized around — its
+    // 234-434 s runs are the longest measured.
+    timeoutMs: EnabledCycleTimeoutMs,
     maxConsecutiveErrors: 6,
     // Dev-team output-liveness digests for signal 7 (see sensor.md): the
     // resident seats' turn counters + the board's newest rows, injected
@@ -544,21 +589,29 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     key: `verify`,
     id: `sd_sLWvMuD`,
     cronExpression: `7,22,37,52 * * * *`,
-    timeoutMs: 3_600_000,
+    // Down from 60 min. Verify runs in 73-90 s, so the old budget bought it
+    // nothing and cost it everything: at 60 min a single wedged verify sat on
+    // the shared kata slot through its own next three beats, blanking the
+    // post-merge revert net for an hour.
+    timeoutMs: EnabledCycleTimeoutMs,
     maxConsecutiveErrors: 6,
   }),
   steward({
     key: `reflection`,
     id: `sd_ROO3t4S`,
     cronExpression: `0 8 * * *`,
-    timeoutMs: null,
+    // Was `null`, i.e. the shared 60-min ExecTimeoutMS fallback. Reflection is
+    // the same shape of single-pass steward cycle as the sensor (read recent
+    // history, write one report) and measures ~332 s, well inside the budget.
+    timeoutMs: EnabledCycleTimeoutMs,
     maxConsecutiveErrors: 6,
   }),
   steward({
     key: `curation`,
     id: `sd_IOf9soP`,
     cronExpression: `0 7 * * *`,
-    timeoutMs: 1_800_000,
+    // Down from 30 min; curation measures ~100 s, the shortest of the five.
+    timeoutMs: EnabledCycleTimeoutMs,
     maxConsecutiveErrors: 6,
   }),
   adversary({
@@ -649,7 +702,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
     key: `cto-board`,
     id: `sd_ctobrd1`,
     cronExpression: `30 */6 * * *`,
-    timeoutMs: 1_800_000,
+    // Down from 30 min; the CTO seat measures ~244 s. It is the only enabled
+    // exec-board cycle, and it shares the same kata slot as the four dev-loop
+    // cycles, so it carries the same budget.
+    timeoutMs: EnabledCycleTimeoutMs,
     maxConsecutiveErrors: 6,
     enabled: true,
     contextSources: [

@@ -9,6 +9,7 @@ import {
   DevOpenProposalsSource,
   DevCoordinatorLedgerSource,
   ScheduledSandboxNodePools,
+  EnabledCycleTimeoutMs,
   DevVerificationsRecentSource,
   DevVerificationsInFlightSource,
 } from '@TDB/seeds/agentSchedules'
@@ -122,6 +123,40 @@ describe(`AgentScheduleDefs`, () => {
     for (const d of AgentScheduleDefs) {
       expect(accountedFor.has(d.key)).toBe(true)
     }
+  })
+
+  it(`budgets every ENABLED cycle for a worst-case pod wait plus the longest measured run`, () => {
+    // `timeoutMs` is anchored at RUN start, not exec start: executor.ts wraps
+    // startPod + waitForPodReady + the context builders in the same withTimeout
+    // as the exec. Mirrors of the two backend numbers that decide whether real
+    // work survives (backend/src/constants/sandbox.ts holds the first;
+    // production run records hold the second — this repo cannot import from
+    // backend, so a change there must be reflected here).
+    const podWaitCeilingMs = 600_000
+    const longestMeasuredRunMs = 434_000
+
+    const enabled = AgentScheduleDefs.filter((d) => d.enabled)
+    // Every enabled cycle, not a hand-picked subset: they all share the one
+    // spare kata job slot, so an uncapped straggler starves the rest.
+    expect(enabled.map((d) => d.key).sort()).toEqual([
+      `cto-board`,
+      `curation`,
+      `reflection`,
+      `sensor`,
+      `verify`,
+    ])
+
+    for (const d of enabled) {
+      expect(d.timeoutMs).toBe(EnabledCycleTimeoutMs)
+      // Floor: pod setup may burn its entire readiness ceiling and the longest
+      // run ever measured must still fit in what is left.
+      expect(d.timeoutMs! - podWaitCeilingMs).toBeGreaterThanOrEqual(longestMeasuredRunMs)
+    }
+
+    // Ceiling: a wedged cycle must not hold the shared slot across more than a
+    // couple of `verify` beats (7,22,37,52 — one every 15 min), or the
+    // post-merge revert net goes dark while it spins.
+    expect(EnabledCycleTimeoutMs).toBeLessThanOrEqual(2 * 15 * 60_000)
   })
 
   it(`wires the 5 board schedules to the board Functions + contextSources (⑤a-4)`, () => {

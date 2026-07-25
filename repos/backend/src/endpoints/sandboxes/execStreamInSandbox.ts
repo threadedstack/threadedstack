@@ -91,6 +91,11 @@ export const execStreamInSandbox: TEndpointConfig = {
 
     try {
       const result = await sbInstance.execStreaming(command, args || [], {
+        // Same budget as the SSE timer above. That timer only ends the response
+        // stream — it cannot abort the exec — so without this bound the command
+        // both outlived the response holding the pod AND was capped at the
+        // provider's much shorter wedged-pod guard rather than at STREAM_TIMEOUT_MS.
+        timeoutMs: STREAM_TIMEOUT_MS,
         onStdout: (chunk) =>
           safeWrite(
             `data: ${JSON.stringify({ type: `stdout`, data: chunk.toString() })}\n\n`
