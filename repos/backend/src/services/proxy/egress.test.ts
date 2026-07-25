@@ -145,6 +145,8 @@ const makeCtx = (
 
 describe(`EgressProxy`, () => {
   let EgressProxy: typeof import('./egress').EgressProxy
+  let buildResolveSecret: typeof import('./egress').buildResolveSecret
+  let EgressSecretResolutionError: typeof import('./egress').EgressSecretResolutionError
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -166,6 +168,8 @@ describe(`EgressProxy`, () => {
     // Re-import to get a fresh module (constructor runs at instantiation, not import)
     const mod = await import(`./egress`)
     EgressProxy = mod.EgressProxy
+    buildResolveSecret = mod.buildResolveSecret
+    EgressSecretResolutionError = mod.EgressSecretResolutionError
   })
 
   // ── Constructor ──
@@ -640,6 +644,109 @@ describe(`EgressProxy`, () => {
       const errorArg = errorCall[1] as Error
       expect(errorArg.message).toContain(`secret-id-1`)
       expect(errorArg.message).toContain(`tdsk_ph_toke`)
+    })
+
+    it(`should surface a distinguishable "transient" message when resolveSecret throws EgressSecretResolutionError, not the generic missing-secret message`, async () => {
+      const { logger } = await import(`@TBE/utils/logger`)
+      const { opts, onRequestHandler } = setup()
+      opts.resolveSecret.mockRejectedValue(
+        new EgressSecretResolutionError(
+          `Failed to fetch secret secret-id-1 after retry: db down`
+        )
+      )
+      const ctx = makeCtx(
+        `10.0.0.5`,
+        {
+          'x-api-key': `tdsk_ph_token1`,
+        },
+        `api.example.com:443`
+      )
+      const callback = vi.fn()
+
+      onRequestHandler(ctx, callback)
+      await vi.waitFor(() =>
+        expect(ctx.proxyToClientResponse.writeHead).toHaveBeenCalled()
+      )
+
+      const errorCall = (logger.error as ReturnType<typeof vi.fn>).mock.calls[0]
+      const errorArg = errorCall[1] as Error
+      expect(errorArg.message).toContain(`Transient secret resolution failure`)
+      expect(errorArg.message).not.toContain(`Failed to resolve secret secret-id-1 for`)
+    })
+  })
+
+  // ── buildResolveSecret (retry + error classification) ──
+
+  describe(`buildResolveSecret`, () => {
+    const makeSecret = (overrides: Record<string, unknown> = {}) => ({
+      encryptedValue: `ciphertext`,
+      orgId: `org-1`,
+      ...overrides,
+    })
+
+    it(`should resolve on the first try when the fetch succeeds immediately`, async () => {
+      const fetchSecret = vi.fn().mockResolvedValue({ data: makeSecret() })
+      const decryptSecret = vi.fn().mockResolvedValue(`plaintext-secret`)
+      const resolveSecret = buildResolveSecret(fetchSecret, decryptSecret, 0)
+
+      const result = await resolveSecret(`secret-id-1`)
+
+      expect(result).toBe(`plaintext-secret`)
+      expect(fetchSecret).toHaveBeenCalledOnce()
+      expect(decryptSecret).toHaveBeenCalledWith(makeSecret(), `org-1`)
+    })
+
+    it(`should retry exactly once and succeed when the fetch fails then succeeds`, async () => {
+      const fetchSecret = vi
+        .fn()
+        .mockResolvedValueOnce({ error: { message: `db blip` } })
+        .mockResolvedValueOnce({ data: makeSecret() })
+      const decryptSecret = vi.fn().mockResolvedValue(`plaintext-secret`)
+      const resolveSecret = buildResolveSecret(fetchSecret, decryptSecret, 0)
+
+      const result = await resolveSecret(`secret-id-1`)
+
+      expect(result).toBe(`plaintext-secret`)
+      expect(fetchSecret).toHaveBeenCalledTimes(2)
+    })
+
+    it(`should throw EgressSecretResolutionError (transient: true) when the fetch fails on both the initial attempt and the retry`, async () => {
+      const fetchSecret = vi.fn().mockResolvedValue({ error: { message: `db down` } })
+      const decryptSecret = vi.fn()
+      const resolveSecret = buildResolveSecret(fetchSecret, decryptSecret, 0)
+
+      const error = await resolveSecret(`secret-id-1`).catch((err) => err)
+
+      expect(error).toBeInstanceOf(EgressSecretResolutionError)
+      expect(error).toMatchObject({ transient: true })
+      expect(fetchSecret).toHaveBeenCalledTimes(2) // initial attempt + 1 retry
+      expect(decryptSecret).not.toHaveBeenCalled()
+    })
+
+    it(`should return null with NO retry when the secret is genuinely missing (no error, just no encryptedValue)`, async () => {
+      const fetchSecret = vi.fn().mockResolvedValue({ data: null })
+      const decryptSecret = vi.fn()
+      const resolveSecret = buildResolveSecret(fetchSecret, decryptSecret, 0)
+
+      const result = await resolveSecret(`secret-id-1`)
+
+      expect(result).toBeNull()
+      expect(fetchSecret).toHaveBeenCalledOnce()
+      expect(decryptSecret).not.toHaveBeenCalled()
+    })
+
+    it(`should return null with NO retry when the secret has no encryptedValue`, async () => {
+      const fetchSecret = vi
+        .fn()
+        .mockResolvedValue({ data: makeSecret({ encryptedValue: null }) })
+      const decryptSecret = vi.fn()
+      const resolveSecret = buildResolveSecret(fetchSecret, decryptSecret, 0)
+
+      const result = await resolveSecret(`secret-id-1`)
+
+      expect(result).toBeNull()
+      expect(fetchSecret).toHaveBeenCalledOnce()
+      expect(decryptSecret).not.toHaveBeenCalled()
     })
   })
 
