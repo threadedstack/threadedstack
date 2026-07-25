@@ -137,4 +137,24 @@ describe(`createUpgradeLimiter`, () => {
 
     expect(check(`10.0.0.1`)).toBe(true)
   })
+
+  it(`sweeps stale entries instead of growing the internal Map unbounded`, () => {
+    vi.useFakeTimers()
+    const check = createUpgradeLimiter({ limit: 1, windowMs: 60_000 })
+
+    // 500 distinct source IPs in window 1 -- each adds its own bucket
+    for (let i = 0; i < 500; i++) check(`10.0.${Math.floor(i / 256)}.${i % 256}`)
+    expect(check.size).toBe(500)
+
+    // Advance past the window, then drive one more call (the sweep is
+    // piggybacked on the call path, not a background timer) with a
+    // different set of 500 IPs
+    vi.advanceTimersByTime(60_001)
+    for (let i = 500; i < 1000; i++)
+      check(`10.1.${Math.floor((i - 500) / 256)}.${(i - 500) % 256}`)
+
+    // The first window's 500 entries should have been swept out on the
+    // first call of the new window, leaving only the new window's entries
+    expect(check.size).toBe(500)
+  })
 })

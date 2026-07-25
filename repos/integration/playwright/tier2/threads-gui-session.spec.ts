@@ -21,7 +21,7 @@ const THREADS_URL = `http://localhost:${process.env.TDSK_TH_PORT || '5887'}`
  */
 async function gotoThreadsHome(page: import('@playwright/test').Page) {
   await page.goto(THREADS_URL, { waitUntil: 'networkidle', timeout: 15_000 })
-  await page.waitForTimeout(1000)
+  await waitForAppShell(page)
 }
 
 /**
@@ -29,7 +29,20 @@ async function gotoThreadsHome(page: import('@playwright/test').Page) {
  */
 async function selectOrg(page: import('@playwright/test').Page, orgId: string) {
   await page.goto(`${THREADS_URL}/orgs/${orgId}`, { waitUntil: 'networkidle', timeout: 15_000 })
-  await page.waitForTimeout(1000)
+  await waitForAppShell(page)
+}
+
+/**
+ * Wait for the app's Layout shell (sidebar) to mount — every route under
+ * Home renders through Layout, which always mounts the Sidebar, so this
+ * is a reliable "the SPA finished its initial render" signal regardless
+ * of which page/redirect the route resolves to.
+ */
+async function waitForAppShell(page: import('@playwright/test').Page) {
+  await page
+    .locator('.tdsk-sidebar-tree')
+    .waitFor({ state: 'attached', timeout: 5_000 })
+    .catch(() => {})
 }
 
 /**
@@ -96,7 +109,8 @@ async function waitForPod(
         if (podStatus === 'Failed') return null
       }
     } catch { /* retry */ }
-    await page.waitForTimeout(5_000)
+    // Poll-interval backoff between condition checks above — not a settle delay.
+    await new Promise((resolve) => setTimeout(resolve, 5_000))
   }
   return null
 }
@@ -142,7 +156,7 @@ test.describe('Threads GUI Session View', () => {
       waitUntil: 'networkidle',
       timeout: 15_000,
     })
-    await page.waitForTimeout(2000)
+    await waitForAppShell(page)
 
     // The page should render without crashing
     await expect(page).toHaveTitle(/Threaded Stack/)
@@ -154,7 +168,7 @@ test.describe('Threads GUI Session View', () => {
       waitUntil: 'networkidle',
       timeout: 15_000,
     })
-    await page.waitForTimeout(2000)
+    await waitForAppShell(page)
 
     // Should see sandbox config entries
     const pageContent = await page.textContent('body')
@@ -189,13 +203,17 @@ test.describe('Live Sandbox Session', () => {
 
     // 3. Navigate to the threads app — org → sandbox should be visible in sidebar
     await selectOrg(page, ctx.orgId)
-    await page.waitForTimeout(1000)
 
     // 4. Look for the sandbox in sidebar and try to expand it to see sessions
     const sidebarSandbox = page.locator(`text=Node.js Development`).first()
+    await sidebarSandbox.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {})
     if (await sidebarSandbox.isVisible()) {
       await sidebarSandbox.click()
-      await page.waitForTimeout(2000)
+      // Clicking the sandbox name navigates to its Sandbox page (see NavSandboxItem.onNavigate)
+      await page
+        .locator('.tdsk-sandbox-page')
+        .waitFor({ state: 'visible', timeout: 5_000 })
+        .catch(() => {})
     }
 
     // 5. Check for session-related elements
@@ -216,7 +234,7 @@ test.describe('Live Sandbox Session', () => {
       waitUntil: 'networkidle',
       timeout: 15_000,
     })
-    await page.waitForTimeout(2000)
+    await waitForAppShell(page)
 
     // The ViewToggle renders GUI and Terminal buttons
     // Even without an active session, the page structure should load
@@ -237,7 +255,7 @@ test.describe('Live Sandbox Session', () => {
       waitUntil: 'networkidle',
       timeout: 15_000,
     })
-    await page.waitForTimeout(2000)
+    await waitForAppShell(page)
 
     // SmartInput should be present with a text input and send button
     const input = page.getByPlaceholder(/Type a command/i)

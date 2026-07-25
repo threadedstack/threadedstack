@@ -63,7 +63,7 @@ async function openAgentEditDrawer(page: import('@playwright/test').Page): Promi
   } else {
     await editButton.first().click()
   }
-  await page.waitForTimeout(2000)
+  await page.locator('.tdsk-drawer').waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {})
 
   const editTitle = page.getByText('Edit Agent')
   const configTitle = page.getByText('Configure Agent for Project')
@@ -91,11 +91,11 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test model select')
 
-    // Wait for async data loading (providers + models fetch)
-    await page.waitForTimeout(3000)
-
-    // Find the provider priority list section
+    // Wait for the provider priority list section to render (models may
+    // still be loading behind a CircularProgress, which the per-item check
+    // below already tolerates)
     const providerSection = page.locator('#agent-providers')
+    await providerSection.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
     const hasProviders = (await providerSection.count()) > 0
 
     if (hasProviders) {
@@ -129,7 +129,7 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -149,10 +149,8 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test model select')
 
-    // Wait for models to load
-    await page.waitForTimeout(3000)
-
     const providerSection = page.locator('#agent-providers')
+    await providerSection.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
     const hasProviders = (await providerSection.count()) > 0
 
     if (hasProviders) {
@@ -176,7 +174,7 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -196,10 +194,8 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test model value')
 
-    // Wait for models to load
-    await page.waitForTimeout(3000)
-
     const providerSection = page.locator('#agent-providers')
+    await providerSection.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
     const hasProviders = (await providerSection.count()) > 0
 
     if (hasProviders) {
@@ -239,7 +235,7 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -256,12 +252,13 @@ test.describe('Agent Drawer: ModelSelect per provider', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found on org agents page')
 
-    // Wait for all async loading (providers list, model fetching)
-    await page.waitForTimeout(4000)
+    // Wait for the provider section to render (models may still be loading
+    // behind a CircularProgress -- this test only cares about console errors)
+    await page.locator('#agent-providers').waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
 
     // Verify no errors occurred during render
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })

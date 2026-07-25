@@ -51,8 +51,16 @@ test.describe('Error Handling', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    // Give React time to render the error state
-    await page.waitForTimeout(2_000)
+    // Wait for React to settle into one of the possible error-state
+    // renderings before snapshotting which one it picked below.
+    await page
+      .locator('.MuiAlert-standardError')
+      .or(page.locator('.MuiAlert-standardWarning'))
+      .or(page.getByText(/no organizations/i))
+      .or(page.getByText(/error/i))
+      .first()
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .catch(() => {})
 
     // The app should not crash — body remains visible
     await expect(page.locator('body').first()).toBeVisible()
@@ -89,8 +97,15 @@ test.describe('Error Handling', () => {
     await page.goto(`/orgs/${ctx.orgId}/projects`)
     await page.waitForLoadState('networkidle')
 
-    // Give React time to render the error state
-    await page.waitForTimeout(2_000)
+    // Wait for React to settle into one of the possible error-state
+    // renderings before snapshotting which one it picked below.
+    await page
+      .locator('.MuiAlert-root')
+      .or(page.getByText(/no projects/i))
+      .or(page.getByText(/error/i))
+      .first()
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .catch(() => {})
 
     // The app should not crash
     await expect(page.locator('body').first()).toBeVisible()
@@ -148,10 +163,17 @@ test.describe('Error Handling', () => {
       // Submit the form
       const submitButton = page.locator('button[form="secret-form"]')
       if (await submitButton.isVisible().catch(() => false)) {
+        // The drawer is already open before this click, so a plain
+        // toBeVisible() check below wouldn't actually confirm the mocked
+        // 500 was received and handled -- wait for that response directly.
+        const errorResponse = page.waitForResponse(
+          (res) =>
+            res.url().includes(`/orgs/${ctx.orgId}/secrets`) &&
+            res.request().method() === 'POST',
+          { timeout: 10_000 }
+        )
         await submitButton.click()
-
-        // Wait for the error response to be processed
-        await page.waitForTimeout(2_000)
+        await errorResponse.catch(() => {})
 
         // The drawer should still be open (not closed on error)
         await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })

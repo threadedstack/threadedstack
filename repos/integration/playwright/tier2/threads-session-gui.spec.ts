@@ -483,7 +483,7 @@ test.describe(`Threads Session GUI View`, () => {
   test(`unauthenticated users are redirected to login page`, async ({ page }) => {
     // Navigate without any auth mock — the real Neon Auth returns no session
     await page.goto(THREADS_URL, { waitUntil: `networkidle`, timeout: 15_000 })
-    await page.waitForTimeout(3_000)
+    await page.waitForURL(/\/(auth|sign)/, { timeout: 10_000 })
 
     const currentUrl = page.url()
     expect(currentUrl).toMatch(/\/(auth|sign)/)

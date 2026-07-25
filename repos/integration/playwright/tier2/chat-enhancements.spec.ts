@@ -133,9 +133,10 @@ test.describe('Chat View UI Enhancements', () => {
     // Native chat input should be visible initially
     await expect(page.getByPlaceholder('Type a message...')).toBeVisible()
 
-    // Click the swap icon to toggle to pi-web-ui
+    // Click the swap icon to toggle to pi-web-ui. No fixed sleep needed --
+    // the assertions below already poll (toBeVisible/toHaveCount auto-retry)
+    // until the panel swap actually completes.
     await page.locator('[data-testid="SwapHorizIcon"]').click()
-    await page.waitForTimeout(500)
 
     // Pi chat panel wrapper should now be visible
     await expect(page.locator('.pi-chat-panel-wrapper')).toBeVisible()
@@ -144,7 +145,6 @@ test.describe('Chat View UI Enhancements', () => {
 
     // Click again to toggle back
     await page.locator('[data-testid="SwapHorizIcon"]').click()
-    await page.waitForTimeout(500)
 
     // Native chat input should be visible again
     await expect(page.getByPlaceholder('Type a message...')).toBeVisible()
