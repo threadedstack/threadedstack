@@ -8,6 +8,7 @@ export type PricingTier = {
   cta: string
   highlighted?: boolean
   subtitle?: string
+  ctaHref?: string
 }
 
 const fmt = (value: number, suffix?: string): string => {
@@ -60,6 +61,19 @@ const tierMeta: Record<string, TierMeta> = {
     support: `Dedicated Support`,
     description: `Unlimited everything. Dedicated support. Custom domains.`,
   },
+}
+
+export const enterpriseTier: PricingTier = {
+  name: `Enterprise`,
+  price: `Custom`,
+  description: `For organizations that need higher limits, custom SLAs, dedicated infrastructure, or specific compliance requirements.`,
+  cta: `Contact Sales`,
+  ctaHref: `mailto:enterprise@threadedstack.com`,
+  features: [
+    { label: `Custom SLAs`, included: true },
+    { label: `Dedicated infrastructure`, included: true },
+    { label: `Compliance support`, included: true },
+  ],
 }
 
 export const buildTiers = (plans: Plan[]): PricingTier[] => {

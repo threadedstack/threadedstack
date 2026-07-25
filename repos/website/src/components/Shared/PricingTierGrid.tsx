@@ -2,14 +2,14 @@ import type { Plan } from '@tdsk/domain'
 
 import Grid from '@mui/material/Grid'
 import PricingCard from './PricingCard'
-import { buildTiers } from './pricingTiers'
+import { buildTiers, enterpriseTier } from './pricingTiers'
 
 type Props = {
   plans: Plan[]
 }
 
 const PricingTierGrid = ({ plans }: Props) => {
-  const tiers = buildTiers(plans)
+  const tiers = [...buildTiers(plans), enterpriseTier]
 
   return (
     <Grid
