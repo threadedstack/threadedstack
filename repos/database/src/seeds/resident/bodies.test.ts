@@ -16,6 +16,7 @@ import { ResidentActivations } from '@TDB/seeds/resident/activations'
 import {
   ResidentSeatSpecs,
   ResidentBodyConfig,
+  ResidentNodePools,
   ResidentProviderChain,
   ResidentRepoSeats,
   ResidentRepoBranch,
@@ -93,8 +94,10 @@ const recipeConfig = (extra: Record<string, any> = {}) => ({
 })
 
 /** Wire the activated agents to body sandboxes with the given starting configs
- * (per-agent overrides; every listed seat gets a recipe config otherwise) and
- * pre-link every agent to the ops project unless `linked` is false. */
+ * (per-agent overrides; every listed seat gets a recipe config — including its
+ * git-declared node pool, so an untouched seat is genuinely converged —
+ * otherwise) and pre-link every agent to the ops project unless `linked` is
+ * false. */
 const seedBodies = (
   fake: ReturnType<typeof makeFakeService>,
   configs: Record<string, Record<string, any>> = {},
@@ -103,7 +106,9 @@ const seedBodies = (
   for (const agentId of ResidentActivations) {
     const sandboxId = BodyByAgent[agentId]
     fake.agents.set(agentId, { environment: { sandboxId } })
-    fake.sandboxes.set(sandboxId, { config: configs[agentId] ?? recipeConfig() })
+    fake.sandboxes.set(sandboxId, {
+      config: configs[agentId] ?? recipeConfig({ nodePool: ResidentNodePools[agentId] }),
+    })
     if (linked) fake.links.add(fake.linkKey(agentId, OpsProjectId))
   }
 }
@@ -141,6 +146,41 @@ describe(`ResidentBodyConfig`, () => {
     })
     // The activation flag is the activations reconcile's job, never the recipe's.
     expect(ResidentBodyConfig).not.toHaveProperty(`resident`)
+    // Placement is PER-AGENT capacity (ResidentNodePools), never part of the
+    // one-config-fits-every-seat recipe.
+    expect(ResidentBodyConfig).not.toHaveProperty(`nodePool`)
+  })
+})
+
+describe(`ResidentNodePools`, () => {
+  it(`declares a pool for every activated resident seat`, () => {
+    // A seat missing from the map falls back to the global TDSK_SB_NODE_POOL and
+    // its placement stops being git-declared — the exact hole that let three
+    // seats keep a hand-made `tdskembed` pin nothing ever corrected.
+    for (const agentId of ResidentActivations)
+      expect(ResidentNodePools[agentId]).toBeTruthy()
+    expect(Object.keys(ResidentNodePools).sort()).toEqual([...ResidentActivations].sort())
+  })
+
+  it(`reserves tdskembed for the steward's transient jobs — exactly one seat (the CEO) sits there`, () => {
+    // The capacity contract from PR #196: `tdskembed` exists so the steward's
+    // 3Gi transient sensor/verify jobs have somewhere to schedule. Six 3Gi
+    // residents do not fit on tdsksandbox alone (11.9Gi + 7.9Gi free packs five),
+    // so exactly ONE seat borrows the reserved node — and it is the CEO (lowest
+    // churn: no repo link, no dev_tasks board work). A second seat here means a
+    // steward job Pending forever.
+    const onEmbed = Object.entries(ResidentNodePools)
+      .filter(([, pool]) => pool === `tdskembed`)
+      .map(([agentId]) => agentId)
+    expect(onEmbed).toEqual([CeoAgentId])
+    for (const agentId of [
+      CmoAgentId,
+      CtoAgentId,
+      EngOneAgentId,
+      EngTwoAgentId,
+      EngThreeAgentId,
+    ])
+      expect(ResidentNodePools[agentId]).toBe(`tdsksandbox`)
   })
 })
 
@@ -176,6 +216,143 @@ describe(`reconcileResidentBodies`, () => {
     expect(cto.idleTimeoutMinutes).toBe(30)
     expect(cto.sshEnabled).toBe(true)
     expect(cto.resident).toEqual({ agentId: CtoAgentId })
+    // Placement lands in the same write as the recipe.
+    expect(cto.nodePool).toBe(ResidentNodePools[CtoAgentId])
+  })
+
+  it(`asserts a missing nodePool from the git-declared placement map`, async () => {
+    const fake = makeFakeService()
+    // A seat carrying the full boot recipe but NO placement — it falls back to
+    // the global TDSK_SB_NODE_POOL, so its pool is not git-declared.
+    seedBodies(fake, { [EngTwoAgentId]: recipeConfig() })
+
+    const summary = await reconcileResidentBodies(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 1,
+      unchanged: ResidentActivations.length - 1,
+      errors: 0,
+    })
+    expect(fake.sandboxes.get(`sb_eng0002`)!.config!.nodePool).toBe(
+      ResidentNodePools[EngTwoAgentId]
+    )
+  })
+
+  it(`corrects a drifted nodePool — the stale tdskembed pin that starved the steward's jobs`, async () => {
+    const fake = makeFakeService()
+    // The PROVEN prod drift: three seats hand-pinned onto the reserved
+    // `tdskembed` node, filling it so the steward's 3Gi transient jobs sat
+    // Pending forever and the sensor schedule stopped feeding the backlog.
+    seedBodies(fake, {
+      [CmoAgentId]: recipeConfig({
+        nodePool: `tdskembed`,
+        resident: { agentId: CmoAgentId },
+      }),
+      [EngOneAgentId]: recipeConfig({
+        nodePool: `tdskembed`,
+        resident: { agentId: EngOneAgentId },
+      }),
+    })
+
+    const summary = await reconcileResidentBodies(fake.service)
+
+    expect(summary).toMatchObject({
+      asserted: 2,
+      unchanged: ResidentActivations.length - 2,
+      errors: 0,
+    })
+    const cmo = fake.sandboxes.get(`sb_cmo0001`)!.config!
+    const engOne = fake.sandboxes.get(`sb_eng0001`)!.config!
+    expect(cmo.nodePool).toBe(`tdsksandbox`)
+    expect(engOne.nodePool).toBe(`tdsksandbox`)
+    // The watchdog's activation flag SURVIVES the placement write — a resident
+    // that loses `config.resident` never boots again.
+    expect(cmo.resident).toEqual({ agentId: CmoAgentId })
+    expect(engOne.resident).toEqual({ agentId: EngOneAgentId })
+    // The CEO's pin is the DECLARED one, so it is left exactly where it is.
+    expect(fake.sandboxes.get(`sb_ceo0001`)!.config!.nodePool).toBe(`tdskembed`)
+  })
+
+  it(`is a true no-op when the nodePool already matches the map`, async () => {
+    const fake = makeFakeService()
+    // Every seat converged (recipe + its declared pool) — including the CEO on
+    // the reserved node, which must NOT be re-written every deploy.
+    seedBodies(fake)
+    const before = JSON.parse(JSON.stringify([...fake.sandboxes]))
+    const updates: string[] = []
+    const spied = {
+      agent: fake.service.agent,
+      sandbox: {
+        get: fake.service.sandbox.get,
+        update: async (data: { id: string; config: Record<string, any> }) => {
+          updates.push(data.id)
+          return fake.service.sandbox.update(data)
+        },
+      },
+    }
+
+    const summary = await reconcileResidentBodies(spied)
+
+    expect(summary).toMatchObject({
+      asserted: 0,
+      unchanged: ResidentActivations.length,
+      errors: 0,
+    })
+    expect(updates).toEqual([])
+    expect(JSON.parse(JSON.stringify([...fake.sandboxes]))).toEqual(before)
+  })
+
+  it(`leaves an UNMAPPED seat's nodePool untouched — never deletes a pin, never errors`, async () => {
+    const fake = makeFakeService()
+    // Every activated seat is mapped today (the roster guard above), so the
+    // unmapped branch is proven by un-mapping one seat for the duration of this
+    // test and restoring it afterwards.
+    const saved = ResidentNodePools[EngThreeAgentId]
+    delete ResidentNodePools[EngThreeAgentId]
+    try {
+      seedBodies(fake, {
+        [EngThreeAgentId]: recipeConfig({ nodePool: `some-hand-made-pool` }),
+      })
+
+      const summary = await reconcileResidentBodies(fake.service)
+
+      // No map entry → no placement opinion → no write for that seat.
+      expect(summary).toMatchObject({
+        asserted: 0,
+        unchanged: ResidentActivations.length,
+        errors: 0,
+      })
+      expect(fake.sandboxes.get(`sb_eng0003`)!.config!.nodePool).toBe(
+        `some-hand-made-pool`
+      )
+    } finally {
+      ResidentNodePools[EngThreeAgentId] = saved
+    }
+  })
+
+  it(`preserves an unmapped seat's pin even when the recipe forces a write`, async () => {
+    const fake = makeFakeService()
+    const saved = ResidentNodePools[EngThreeAgentId]
+    delete ResidentNodePools[EngThreeAgentId]
+    try {
+      // Boot-critical drift forces the write; the unmapped pin must ride along
+      // untouched rather than being cleared by the merge.
+      seedBodies(fake, {
+        [EngThreeAgentId]: recipeConfig({
+          image: `ghcr.io/threadedstack/tdsk-sandbox`,
+          nodePool: `some-hand-made-pool`,
+        }),
+      })
+
+      const summary = await reconcileResidentBodies(fake.service)
+
+      expect(summary).toMatchObject({ asserted: 1, errors: 0 })
+      const engThree = fake.sandboxes.get(`sb_eng0003`)!.config!
+      expect(engThree.image).toBe(ResidentBodyConfig.image)
+      expect(engThree.nodePool).toBe(`some-hand-made-pool`)
+    } finally {
+      ResidentNodePools[EngThreeAgentId] = saved
+    }
   })
 
   it(`re-asserts a single drifted field and merges envVars without dropping extra keys`, async () => {
