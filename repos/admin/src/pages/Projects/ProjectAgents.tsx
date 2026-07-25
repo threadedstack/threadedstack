@@ -26,6 +26,7 @@ import {
   Chat as ChatIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Timeline as TimelineIcon,
   SmartToy as AgentIcon,
 } from '@mui/icons-material'
 
@@ -206,6 +207,16 @@ export const ProjectAgents = (props: TProjectAgents) => {
       align: 'right',
       render: (agent) => (
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+          <ActionIconButton
+            tooltip='View activity'
+            icon={<TimelineIcon fontSize='small' />}
+            size='small'
+            color='default'
+            onClick={(e) => {
+              e.stopPropagation()
+              nav.to(`/orgs/${orgId}/projects/${projectId}/agents/${agent.id}/activity`)
+            }}
+          />
           <ActionIconButton
             tooltip='Chat with agent'
             icon={<ChatIcon fontSize='small' />}
