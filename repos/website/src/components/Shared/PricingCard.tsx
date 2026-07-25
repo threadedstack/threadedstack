@@ -18,6 +18,7 @@ type Props = {
   cta: string
   highlighted?: boolean
   subtitle?: string
+  ctaHref?: string
   onCtaClick?: () => void
 }
 
@@ -29,6 +30,7 @@ const PricingCard = ({
   cta,
   highlighted,
   subtitle,
+  ctaHref,
   onCtaClick,
 }: Props) => (
   <Card
@@ -113,7 +115,7 @@ const PricingCard = ({
       <Button
         fullWidth
         variant={highlighted ? 'contained' : 'outlined'}
-        href={TDSK_AD_APP_URL}
+        href={ctaHref ?? TDSK_AD_APP_URL}
         onClick={onCtaClick}
       >
         {cta}
