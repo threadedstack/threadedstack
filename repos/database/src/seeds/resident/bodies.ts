@@ -5,6 +5,8 @@ import {
   OpsOrgId,
   OpsProjectId,
   OpsProjectName,
+  CeoAgentId,
+  CmoAgentId,
   CtoAgentId,
   EngOneAgentId,
   EngTwoAgentId,
@@ -349,6 +351,52 @@ export const ResidentBootCriticalFields = [
   `promptCommand`,
 ] as const satisfies readonly (keyof TKubeSandboxConfig)[]
 
+/**
+ * The git-declared NODE-POOL PLACEMENT for every resident seat — which Civo node
+ * pool each body pod schedules onto (`sandbox.config.nodePool`, which becomes the
+ * pod's `kubernetes.civo.com/civo-node-pool` nodeSelector). Absent an entry the
+ * pod falls back to the global `TDSK_SB_NODE_POOL`
+ * (deploy/values.production.yaml → `tdsksandbox`).
+ *
+ * Placement is CLUSTER CAPACITY, not seat identity, so it is deliberately NOT
+ * part of the shared ResidentBodyConfig recipe (one config, every seat) — it is
+ * PER-AGENT and asserted per-agent by reconcileResidentBodies below.
+ *
+ * WHY `tdskembed` IS RESERVED — DO NOT RE-PIN RESIDENTS ONTO IT:
+ * There are three kata-capable nodes across two pools: `tdsksandbox` (two nodes,
+ * ~11.9Gi allocatable each, one of them also carrying tdsk-embeddings-0 at 4Gi →
+ * ~7.9Gi free) and `tdskembed` (one node, ~11.9Gi). Every resident body and every
+ * steward scheduled job requests 3Gi. PR #196 added the per-sandbox nodePool
+ * override for exactly one reason: to run the steward's TRANSIENT scheduled jobs
+ * (sensor/verify) on the spare `tdskembed` node instead of the saturated kata
+ * resident pool. Pinning long-lived residents there consumes that headroom
+ * permanently — three residents pinned to `tdskembed` (9Gi of 11.9Gi) left under
+ * 3Gi free, so every steward job pod sat Pending forever and the `sensor`
+ * schedule that feeds the dev-task backlog starved.
+ *
+ * WHY THE CEO STILL SITS THERE: the six residents (18Gi) do not fit on
+ * `tdsksandbox` alone — 11.9Gi + 7.9Gi free packs only five 3Gi pods. Exactly ONE
+ * seat must live on `tdskembed`, and the CEO is it (the lowest-churn seat: no
+ * repo link, no dev_tasks board work). That leaves `tdskembed` with ~8.9Gi free —
+ * room for ~2 concurrent steward transient jobs, which is the whole point of the
+ * reservation. Adding a seventh seat means adding kata node capacity, NEVER
+ * borrowing more of `tdskembed`.
+ *
+ * An agentId absent from this map keeps whatever pool its config already carries:
+ * the reconcile only ever SETS a mapped pool, it never deletes an unmapped pin
+ * (the same additive discipline reconcileResidentActivations applies to the
+ * resident flag — a placement is removed deliberately, never as a reconcile side
+ * effect).
+ */
+export const ResidentNodePools: Record<string, string> = {
+  [CeoAgentId]: `tdskembed`,
+  [CmoAgentId]: `tdsksandbox`,
+  [CtoAgentId]: `tdsksandbox`,
+  [EngOneAgentId]: `tdsksandbox`,
+  [EngTwoAgentId]: `tdsksandbox`,
+  [EngThreeAgentId]: `tdsksandbox`,
+}
+
 /** The agent + sandbox service slice the body reconcile needs. */
 export type TResidentBodyService = {
   agent: {
@@ -394,13 +442,18 @@ export type TResidentBodiesSummary = {
   }[]
 }
 
-/** True when every boot-critical field (and every recipe envVar) already
- * carries the recipe value — the no-write fast path. */
-const carriesRecipe = (config: Record<string, any>): boolean => {
+/** True when every boot-critical field (and every recipe envVar) already carries
+ * the recipe value AND the seat sits in its git-declared node pool — the
+ * no-write fast path. `nodePool` is the seat's mapped pool (ResidentNodePools),
+ * passed in because placement is PER-AGENT while the recipe is shared; an
+ * unmapped seat (undefined) skips the placement check entirely, so its existing
+ * pin is never a reason to write and never gets cleared. */
+const carriesRecipe = (config: Record<string, any>, nodePool?: string): boolean => {
   for (const field of ResidentBootCriticalFields)
     if (config[field] !== ResidentBodyConfig[field]) return false
   for (const [key, value] of Object.entries(ResidentBodyConfig.envVars ?? {}))
     if (config.envVars?.[key] !== value) return false
+  if (nodePool && config.nodePool !== nodePool) return false
   return true
 }
 
@@ -417,7 +470,9 @@ const carriesRecipe = (config: Record<string, any>): boolean => {
  *    resolution the watchdog and the activation reconcile use).
  * 2. READ-MERGE-WRITE the boot-critical fields (image, imagePullPolicy,
  *    initScript, setupScript, promptCommand) plus the recipe's envVars KEYS
- *    onto the config. Every other key — the resident flag, runtimeCommand,
+ *    onto the config, AND the seat's git-declared `nodePool` (ResidentNodePools
+ *    — looked up PER-AGENT inside the loop, because placement is capacity, not
+ *    the shared recipe). Every other key — the resident flag, runtimeCommand,
  *    idleTimeoutMinutes, resources, extra envVars — is preserved untouched.
  * 3. Bind the agent to the ops project (create-if-absent, never removed) so
  *    its resident API calls don't 403 with "Agent is not bound to this project".
@@ -427,8 +482,15 @@ const carriesRecipe = (config: Record<string, any>): boolean => {
  * mechanism, agents never self-edit their body sandbox config (their evolution
  * surface is updateResidentConfig, which writes resident_configs records), so
  * any divergence on these fields is out-of-band drift — the exact failure class
- * this reconcile exists to erase. Fields residents MAY legitimately outgrow
- * (resources, idleTimeoutMinutes) are deliberately not asserted.
+ * this reconcile exists to erase. `nodePool` is asserted on the same terms: a
+ * hand-pinned pool is cluster-capacity drift (three seats stale-pinned onto the
+ * reserved `tdskembed` node starved the steward's transient jobs), and git owns
+ * placement. Fields residents MAY legitimately outgrow (resources,
+ * idleTimeoutMinutes) are deliberately not asserted.
+ *
+ * A newly written `nodePool` takes effect at POD CREATION (the pod manifest's
+ * nodeSelector is built when the pod is built), so a re-placed seat moves on its
+ * next pod recreation — the watchdog's natural churn or a deliberate delete.
  *
  * Never throws — every outcome lands in the summary.
  */
@@ -474,13 +536,19 @@ export const reconcileResidentBodies = async (
       }
 
       const config = (sbRes.data.config ?? {}) as Record<string, any>
+      // Placement is PER-AGENT (capacity, not the shared recipe), so it is
+      // resolved here inside the loop. Unmapped → undefined → left untouched.
+      const nodePool = ResidentNodePools[agentId]
       let action: TResidentBodiesAction = `unchanged`
-      if (carriesRecipe(config)) {
+      if (carriesRecipe(config, nodePool)) {
         summary.unchanged++
         log(`  ➖ resident body ${agentId} — recipe already on ${sandboxId}`)
       } else {
-        // Read-merge-write: assert ONLY the boot-critical fields + the
-        // recipe's envVars keys; every other config key rides along untouched.
+        // Read-merge-write: assert ONLY the boot-critical fields + the recipe's
+        // envVars keys + this seat's mapped nodePool; every other config key
+        // (the resident activation flag above all) rides along untouched. An
+        // unmapped seat contributes no nodePool key, so `...config` carries its
+        // existing pin through unchanged rather than deleting it.
         const updated = await service.sandbox.update({
           id: sandboxId,
           config: {
@@ -491,6 +559,7 @@ export const reconcileResidentBodies = async (
             setupScript: ResidentBodyConfig.setupScript,
             promptCommand: ResidentBodyConfig.promptCommand,
             envVars: { ...config.envVars, ...ResidentBodyConfig.envVars },
+            ...(nodePool ? { nodePool } : {}),
           },
         })
         if (updated.error) {
@@ -499,7 +568,11 @@ export const reconcileResidentBodies = async (
         }
         action = `asserted`
         summary.asserted++
-        log(`  ✅ resident body ${agentId} — boot recipe asserted on ${sandboxId}`)
+        log(
+          `  ✅ resident body ${agentId} — boot recipe asserted on ${sandboxId}${
+            nodePool ? ` (node pool ${nodePool})` : ``
+          }`
+        )
       }
 
       // Ops-project binding (create-if-absent, additive only): without the
