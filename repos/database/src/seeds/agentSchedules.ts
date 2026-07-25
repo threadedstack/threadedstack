@@ -44,7 +44,11 @@ export const OpsUserId = `00000000-0000-0000-0000-000000000000`
 // (CtoAgentId below), so flipping the lead's sandbox to resident mode never
 // touches the live dev-loop driver.
 export const StewardAgentId = `ag_lvUbjp_`
-const StewardSandboxId = `sb_i42zg3p`
+// Exported: the steward's node-pool placement is git-declared and re-asserted
+// every deploy by ScheduledSandboxNodePools below, which keys placement by
+// SANDBOX id — the steward is not a resident, so the per-agent resident body
+// reconcile never walks it.
+export const StewardSandboxId = `sb_i42zg3p`
 const AdversaryAgentId = `ag_2qSTfBI`
 const AdversarySandboxId = `sb_xg7h1wl`
 // Executive board (AI Executive Layer SP1). The CEO seat is the seeded founder
@@ -77,6 +81,68 @@ export const CtoAgentId = `ag_cto0001`
 export const EngOneAgentId = `ag_eng0001`
 export const EngTwoAgentId = `ag_eng0002`
 export const EngThreeAgentId = `ag_eng0003`
+
+/**
+ * The git-declared NODE-POOL PLACEMENT of the sandboxes scheduled agent jobs run
+ * in — which Civo node pool a job pod schedules onto. A sandbox's
+ * `config.nodePool` becomes the pod's `kubernetes.civo.com/civo-node-pool`
+ * nodeSelector (repos/backend/src/services/sandboxes/sandbox.ts, where the pod
+ * manifest is built); absent it the pod falls back to the global
+ * `TDSK_SB_NODE_POOL` (deploy/values.production.yaml → `tdsksandbox`).
+ *
+ * `scripts/reconcileSchedules.ts` re-asserts this map onto the live sandbox
+ * configs on every deploy (reconcileScheduledSandboxNodePools in
+ * seeds/reconcileSchedules.ts), exactly as it upserts the schedule defs below —
+ * placement is part of a schedule's definition, not prod-only state.
+ *
+ * Keyed by SANDBOX id, and declared here rather than beside ResidentNodePools
+ * (seeds/resident/bodies.ts, the per-AGENT placement map): the steward is NOT a
+ * resident — it is absent from ResidentActivations and has no resident_configs
+ * record — so `reconcileResidentBodies` never walks it. Its placement belongs to
+ * the schedule side, where its scheduled dev-loop already lives.
+ *
+ * WHY `tdskembed` IS THE STEWARD'S POOL — DO NOT "CLEAN THIS UP":
+ * There are three kata-capable nodes across two pools: `tdsksandbox` (two nodes,
+ * ~11.9Gi allocatable each, one also carrying tdsk-embeddings-0 at 4Gi) and
+ * `tdskembed` (one node, ~11.9Gi, holding the CEO + CMO resident bodies at 3Gi
+ * each → ~5.8Gi free). Every steward scheduled job pod requests 3Gi. PR #196
+ * added the per-sandbox nodePool override for exactly ONE reason: to run the
+ * steward's TRANSIENT scheduled jobs (sensor/verify/cto-board/reflection/
+ * curation) on the spare `tdskembed` node instead of the saturated default pool.
+ *
+ * WHY LOSING THE PIN IS AN OUTAGE, NOT COSMETIC DRIFT:
+ * `tdsksandbox` is the global default pool, so it absorbs every UNPINNED sandbox
+ * — every user hitting Connect and every non-steward scheduled run — on top of
+ * four resident bodies. It is deliberately packed to keep exactly ONE 3Gi-shaped
+ * hole for customer sandbox launches. An unpinned steward job lands there, finds
+ * no second 3Gi hole, and sits Pending forever: the `sensor` schedule stops
+ * feeding the dev-task backlog and the dev loop silently starves (the proven
+ * incident). Nothing raises an error — the schedule row is healthy, the pod just
+ * never runs.
+ *
+ * WHY IT MUST BE DECLARED IN GIT: before this map the pin existed ONLY as
+ * hand-set production DB state — no seed, no reconcile, no values file wrote it.
+ * That made it the one placement a config wipe, a preset-shaped re-seed, or
+ * hand-edit drift could silently erase with nothing to put it back. Declaring it
+ * here gives it the guarantee ResidentNodePools gives resident bodies: drift
+ * misplaces the steward for at most one deploy cycle.
+ *
+ * A sandbox ABSENT from this map keeps whatever pool its config already carries;
+ * the reconcile only ever SETS a declared pool and never deletes an undeclared
+ * pin (the additive discipline every other reconcile in this repo follows). Only
+ * sandboxes whose placement must differ from the global default belong here —
+ * the adversary and the exec-board seats deliberately ride `TDSK_SB_NODE_POOL`.
+ *
+ * A newly written `nodePool` takes effect at POD CREATION, and scheduled jobs
+ * create a fresh pod per run, so a corrected pin applies on the very next run.
+ */
+export const ScheduledSandboxNodePools: Record<string, string> = {
+  // The steward's body sandbox: every steward scheduled job launches a 3Gi
+  // transient pod from this config, and `tdskembed` is the spare kata node
+  // reserved for exactly those pods. Its ~5.8Gi of free memory is ONE 3Gi job
+  // slot — pinning anything else here re-creates the starvation.
+  [StewardSandboxId]: `tdskembed`,
+}
 
 // Ã¢ÂÂÃ¢ÂÂ Board cycle context sources (generalization Ã¢ÂÂ¢) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Declarative replacements for the hard-coded board context builders: every

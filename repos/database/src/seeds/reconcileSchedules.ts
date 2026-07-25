@@ -8,6 +8,17 @@ import type { TAgentScheduleDef } from '@TDB/seeds/agentSchedules'
  *
  * Only DECLARATIVE fields are written. Runtime bookkeeping (lastRunAt,
  * nextRunAt, consecutiveErrors) is never included, so `update` preserves it.
+ *
+ * The scheduled sandboxes' NODE-POOL PLACEMENT is reconciled here too
+ * (`reconcileScheduledSandboxNodePools` at the bottom of this file, driven by
+ * `ScheduledSandboxNodePools` in seeds/agentSchedules.ts): where a schedule's
+ * job pod RUNS is as much a part of the schedule's git-declared definition as
+ * its cron, and the same deploy step (scripts/reconcileSchedules.ts) asserts
+ * both. Like `defs`, the placement map is INJECTED rather than imported — this
+ * module must stay free of a value import from seeds/agentSchedules (which
+ * reads the prompt `.md` files from disk at module-evaluation time), because
+ * the backend bundles `stableStringify` below via
+ * seeds/dev-loop/syncTaskProposals.
  */
 
 export type TReconcileResult = { data?: any; error?: any }
@@ -151,6 +162,122 @@ export const reconcileSchedules = async (
       }
     } catch (err: any) {
       fail(def, err?.message)
+    }
+  }
+
+  return summary
+}
+
+/** The sandbox service slice the placement reconcile needs: read a config, write
+ * the merged config back. Narrow on purpose so the logic stays unit-testable
+ * against an in-memory fake, exactly like `TReconcileService` above. */
+export type TScheduledSandboxPoolService = {
+  get: (
+    id: string
+  ) => Promise<{ data?: { config?: Record<string, any> | null } | null; error?: any }>
+  update: (data: {
+    id: string
+    config: Record<string, any>
+  }) => Promise<{ data?: any; error?: any }>
+}
+
+export type TScheduledSandboxPoolAction = `asserted` | `unchanged` | `error`
+
+export type TScheduledSandboxPoolSummary = {
+  asserted: number
+  unchanged: number
+  errors: number
+  results: {
+    sandboxId: string
+    nodePool: string
+    action: TScheduledSandboxPoolAction
+    message?: string
+  }[]
+}
+
+/**
+ * Re-assert every git-declared scheduled-sandbox node pool onto the live sandbox
+ * configs, so a config wipe or hand-edit drift can misplace a scheduled job for
+ * at most one deploy cycle.
+ *
+ * `pools` (sandbox id -> Civo node pool) is INJECTED for the same reason `defs`
+ * is: the real map is `ScheduledSandboxNodePools` in seeds/agentSchedules.ts,
+ * and importing it here as a value would drag that module's module-evaluation
+ * prompt-file reads into the backend bundle (it reaches this file through
+ * seeds/dev-loop/syncTaskProposals' `stableStringify` import). The deploy runner
+ * (scripts/reconcileSchedules.ts) wires the two together.
+ *
+ * Per declared sandbox:
+ * 1. Read the config. A config already carrying the declared pool is a TRUE
+ *    no-op — `update` is never called, so a converged deploy writes nothing and
+ *    a live sandbox is never churned by this step.
+ * 2. Otherwise READ-MERGE-WRITE: spread the existing config FIRST and set only
+ *    `nodePool`. The `config` jsonb is a FULL-COLUMN REPLACE at the service layer
+ *    (services/base.ts `.set({ ...rest })`), so an omitted key is a DELETED key —
+ *    every other key (image, initScript, resources, idleTimeoutMinutes,
+ *    runtimeCommand, envVars, the resident flag) must ride along untouched.
+ *
+ * The pool is asserted unconditionally: agents never self-edit their sandbox
+ * config, so any divergence is out-of-band drift — the exact failure class this
+ * reconcile exists to erase.
+ *
+ * Never throws — every outcome lands in the summary, and the runner turns a
+ * non-zero error count into a deploy warning rather than a rollback.
+ */
+export const reconcileScheduledSandboxNodePools = async (
+  service: TScheduledSandboxPoolService,
+  pools: Record<string, string>,
+  log: (msg: string) => void = () => {}
+): Promise<TScheduledSandboxPoolSummary> => {
+  const summary: TScheduledSandboxPoolSummary = {
+    asserted: 0,
+    unchanged: 0,
+    errors: 0,
+    results: [],
+  }
+
+  const fail = (sandboxId: string, nodePool: string, message?: string) => {
+    summary.errors++
+    summary.results.push({ sandboxId, nodePool, action: `error`, message })
+    log(`  ❌ node pool ${sandboxId} — ${message ?? `unknown error`}`)
+  }
+
+  for (const [sandboxId, nodePool] of Object.entries(pools)) {
+    try {
+      const existing = await service.get(sandboxId)
+      if (existing.error) {
+        fail(sandboxId, nodePool, `get failed: ${existing.error.message}`)
+        continue
+      }
+      if (!existing.data) {
+        fail(sandboxId, nodePool, `sandbox ${sandboxId} not found`)
+        continue
+      }
+
+      const config = (existing.data.config ?? {}) as Record<string, any>
+      if (config.nodePool === nodePool) {
+        summary.unchanged++
+        summary.results.push({ sandboxId, nodePool, action: `unchanged` })
+        log(`  ➖ node pool ${sandboxId} — already on ${nodePool}`)
+        continue
+      }
+
+      // `...config` FIRST: the jsonb column is replaced wholesale, so every key
+      // the reconcile does not own must be carried through the write.
+      const res = await service.update({
+        id: sandboxId,
+        config: { ...config, nodePool },
+      })
+      if (res.error) {
+        fail(sandboxId, nodePool, `update failed: ${res.error.message}`)
+        continue
+      }
+
+      summary.asserted++
+      summary.results.push({ sandboxId, nodePool, action: `asserted` })
+      log(`  ✅ node pool ${sandboxId} — pinned to ${nodePool}`)
+    } catch (err: any) {
+      fail(sandboxId, nodePool, err?.message)
     }
   }
 
