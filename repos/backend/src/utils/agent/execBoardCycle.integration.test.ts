@@ -297,7 +297,12 @@ describe(`exec board cycle — end-to-end on the primitives through the ② disp
     })
     expect(CeoBoardDef.actions).toEqual({ functions: [`postPosition`, `resolveBoard`] })
     expect(CtoBoardDef.actions).toEqual({
-      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
+      functions: [
+        `postPosition`,
+        `reportInitiativeComplete`,
+        `updateMilestone`,
+        `upsertPlan`,
+      ],
     })
     // The CMO seat: deliberation + marketing-axis proposals, and the daily
     // drafting surface (which also owns the gtm plan). Only the CEO board

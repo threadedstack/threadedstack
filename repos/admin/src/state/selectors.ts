@@ -16,10 +16,17 @@ import type {
   TCollectionWithCount,
   Function as FunctionModel,
 } from '@tdsk/domain'
+import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
 
 import { useAtom } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TAF/state/user'
+import {
+  agentTurnsState,
+  agentStatusState,
+  agentMemoriesState,
+  agentMessagesState,
+} from '@TAF/state/agentActivity'
 import { noOp } from '@keg-hub/jsutils/noOp'
 import { themeTypeState } from '@TAF/state/theme'
 import { apiKeysState } from '@TAF/state/apiKeys'
@@ -278,3 +285,12 @@ export const usePermissionOverrides = () => useRecState(permissionOverridesState
 
 // Onboarding
 export const useOnboardingState = () => useRecState(onboardingState)
+
+export const useAgentStatusMap = () =>
+  useRecState<Record<string, TAgentStatus | null>>(agentStatusState)
+export const useAgentTurnsMap = () =>
+  useRecState<Record<string, TActivityRecord[]>>(agentTurnsState)
+export const useAgentMessagesMap = () =>
+  useRecState<Record<string, TActivityRecord[]>>(agentMessagesState)
+export const useAgentMemoriesMap = () =>
+  useRecState<Record<string, TActivityRecord[]>>(agentMemoriesState)

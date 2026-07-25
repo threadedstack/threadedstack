@@ -163,10 +163,11 @@ describe(`AgentScheduleDefs`, () => {
     const byKey = Object.fromEntries(AgentScheduleDefs.map((d) => [d.key, d]))
 
     // Per-role ② effect-surface allowlists — each seat may invoke only its
-    // Functions. Plan authorship (upsertPlan) rides the two daily cycles (the
-    // CEO's company/initiative plans, the CMO's gtm plan — the Function
-    // validates owner vs the caller's board role); progress reporting
-    // (updateMilestone) additionally rides the CTO board cycle.
+    // Functions. Plan authorship (upsertPlan) is lane-scoped by the Function
+    // (owner vs the caller's board role): the CEO strategy cycle writes the
+    // company plan, the CMO marketing cycle the gtm plan, and the CTO board
+    // cycle the cto-owned initiative (product/engineering) roadmap; progress
+    // reporting (updateMilestone) rides all of them.
     expect(byKey[`ceo-strategy`].actions).toEqual({
       functions: [`upsertStrategy`, `openDecision`, `upsertPlan`, `updateMilestone`],
     })
@@ -174,7 +175,12 @@ describe(`AgentScheduleDefs`, () => {
       functions: [`postPosition`, `resolveBoard`],
     })
     expect(byKey[`cto-board`].actions).toEqual({
-      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
+      functions: [
+        `postPosition`,
+        `reportInitiativeComplete`,
+        `updateMilestone`,
+        `upsertPlan`,
+      ],
     })
     // The CMO deliberates + may open marketing-axis proposals (mirrors how
     // ceo-strategy holds openDecision); its daily cycle drafts artifacts. Only
@@ -338,9 +344,14 @@ describe(`AgentScheduleDefs`, () => {
       )
       expect(byKey[key]).toContain(`capped at 20`)
     }
-    // The CTO board cycle reports execution progress but never authors plans.
+    // The CTO board cycle OWNS the product/engineering roadmap: it authors a
+    // cto-owned initiative plan (upsertPlan) AND reports execution progress
+    // (updateMilestone). This seat is the strategy → build bridge — without
+    // buildable roadmap milestones the dev team defaults to filler like tests.
+    expect(byKey[`cto-board`]).toContain(`upsertPlan`)
     expect(byKey[`cto-board`]).toContain(`updateMilestone`)
-    expect(byKey[`cto-board`]).not.toContain(`upsertPlan`)
+    expect(byKey[`cto-board`]).toContain(`YOU OWN THE ENGINEERING ROADMAP`)
+    expect(byKey[`cto-board`]).toContain(`engineer-sized, buildable milestones`)
     // The two deliberation-only cycles hold NO plan writes — their prompts
     // reference plan progress in positions instead of documenting the writers.
     for (const key of [`ceo-board`, `cmo-board`]) {

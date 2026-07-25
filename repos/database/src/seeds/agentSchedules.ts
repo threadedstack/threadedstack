@@ -655,11 +655,11 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
   // board cycle owns resolution (spec ÃÂ§5: it closes its tdsk-actions block with
   // `resolveBoard`), mirroring the hard-coded isCeoSchedule executor branch.
   // Every exec def reads the active plans (BoardPlansSource); plan authorship
-  // is lane-scoped — the CEO strategy cycle writes company/initiative plans,
-  // the CMO marketing cycle writes the gtm plan (upsertPlan validates the
-  // caller's role against the plan's owner) — and progress reporting
-  // (updateMilestone) additionally rides the CTO board cycle, which reports
-  // execution progress.
+  // is lane-scoped (upsertPlan validates the caller's role against the plan's
+  // owner) — the CEO strategy cycle writes the company plan, the CMO marketing
+  // cycle writes the gtm plan, and the CTO board cycle writes the cto-owned
+  // `initiative` plan (the product/engineering roadmap the dev team grooms from).
+  // Progress reporting (updateMilestone) rides every cycle.
   // DISABLED: the CEO runs as a RESIDENT (Resident Agents R5). The daily
   // strategy cycle moved to the resident's `strategy` agenda item (same
   // `0 4 * * *` cadence, same prompt file — seeds/resident/records.ts). The def
@@ -714,8 +714,20 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
       BoardPositionsSource,
       BoardPlansSource,
     ],
+    // The CTO board seat is the strategy → engineering bridge: it AUTHORS the
+    // product/engineering roadmap as a cto-owned `initiative` plan (upsertPlan —
+    // the role gate permits role cto to write only cto-owned initiative plans),
+    // reports execution progress on any plan (updateMilestone), posts positions,
+    // and reports Active Initiative completion. Without upsertPlan the roadmap
+    // could never be written and the CTO resident's grooming had no engineer-sized
+    // milestones to decompose — the build layer then defaulted to test coverage.
     actions: {
-      functions: [`postPosition`, `reportInitiativeComplete`, `updateMilestone`],
+      functions: [
+        `postPosition`,
+        `reportInitiativeComplete`,
+        `updateMilestone`,
+        `upsertPlan`,
+      ],
     },
   }),
   // DISABLED: the CMO runs as a RESIDENT (Resident Agents R4). Its

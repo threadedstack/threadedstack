@@ -38,9 +38,16 @@ import type {
   PermissionOverride,
   Function as FunctionModel,
 } from '@tdsk/domain'
+import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
 
 import { createStore } from 'jotai'
 import { userState } from '@TAF/state/user'
+import {
+  agentTurnsState,
+  agentStatusState,
+  agentMemoriesState,
+  agentMessagesState,
+} from '@TAF/state/agentActivity'
 import { apiKeysState } from '@TAF/state/apiKeys'
 import { invoicesState } from '@TAF/state/invoices'
 import { providersState } from '@TAF/state/providers'
@@ -485,3 +492,34 @@ export const getOnboardingState = () => store.get(onboardingState)
 export const resetOnboardingState = () => store.set(onboardingState, DefOnboardingState)
 export const setOnboardingState = (state: TOnboardingState) =>
   store.set(onboardingState, state)
+
+// Agent activity (agent-scoped telemetry reads)
+export const getAgentStatusMap = () => store.get(agentStatusState)
+export const setAgentStatusMap = (map: Record<string, TAgentStatus | null>) =>
+  store.set(agentStatusState, map)
+export const getContextAgentStatus = (agentId: string) => getAgentStatusMap()?.[agentId]
+export const setContextAgentStatus = (agentId: string, status: TAgentStatus | null) =>
+  setAgentStatusMap({ ...(getAgentStatusMap() || {}), [agentId]: status })
+
+export const getAgentTurnsMap = () => store.get(agentTurnsState)
+export const setAgentTurnsMap = (map: Record<string, TActivityRecord[]>) =>
+  store.set(agentTurnsState, map)
+export const getContextAgentTurns = (agentId: string) => getAgentTurnsMap()?.[agentId]
+export const setContextAgentTurns = (agentId: string, rows: TActivityRecord[]) =>
+  setAgentTurnsMap({ ...(getAgentTurnsMap() || {}), [agentId]: rows })
+
+export const getAgentMessagesMap = () => store.get(agentMessagesState)
+export const setAgentMessagesMap = (map: Record<string, TActivityRecord[]>) =>
+  store.set(agentMessagesState, map)
+export const getContextAgentMessages = (agentId: string) =>
+  getAgentMessagesMap()?.[agentId]
+export const setContextAgentMessages = (agentId: string, rows: TActivityRecord[]) =>
+  setAgentMessagesMap({ ...(getAgentMessagesMap() || {}), [agentId]: rows })
+
+export const getAgentMemoriesMap = () => store.get(agentMemoriesState)
+export const setAgentMemoriesMap = (map: Record<string, TActivityRecord[]>) =>
+  store.set(agentMemoriesState, map)
+export const getContextAgentMemories = (agentId: string) =>
+  getAgentMemoriesMap()?.[agentId]
+export const setContextAgentMemories = (agentId: string, rows: TActivityRecord[]) =>
+  setAgentMemoriesMap({ ...(getAgentMemoriesMap() || {}), [agentId]: rows })
