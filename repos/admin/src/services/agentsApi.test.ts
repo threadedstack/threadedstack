@@ -325,6 +325,155 @@ describe(`AgentsApi`, () => {
     })
   })
 
+  describe(`getConfig()`, () => {
+    it(`should GET the project-scoped config path and return the raw response`, async () => {
+      const config = { agentId: `a-1`, projectId: `proj-1`, alias: `main` }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: config }))
+
+      const resp = await agentsApi.getConfig(`org-1`, `proj-1`, `a-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/agents/a-1/config`)
+      expect(init.method).toBe(`GET`)
+      expect(resp.data).toEqual(config)
+      expect(resp.data).not.toBeInstanceOf(Agent)
+    })
+
+    it(`should call _onError with 'Failed to load agent config' on error`, async () => {
+      const onErrorSpy = vi.spyOn(agentsApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(404, { error: `boom` }))
+
+      await agentsApi.getConfig(`org-1`, `proj-1`, `a-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to load agent config`
+      )
+    })
+  })
+
+  describe(`upsertConfig()`, () => {
+    it(`should PUT to the project-scoped config path with the given data`, async () => {
+      const config = { agentId: `a-1`, projectId: `proj-1`, alias: `main` }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: config }))
+
+      const resp = await agentsApi.upsertConfig(`org-1`, `proj-1`, `a-1`, config)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/agents/a-1/config`)
+      expect(init.method).toBe(`PUT`)
+      expect(JSON.parse(init.body)).toEqual(config)
+      expect(resp.data).toEqual(config)
+    })
+
+    it(`should call _onError with 'Failed to save agent config' on error`, async () => {
+      const onErrorSpy = vi.spyOn(agentsApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await agentsApi.upsertConfig(`org-1`, `proj-1`, `a-1`, { alias: `main` })
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to save agent config`
+      )
+    })
+  })
+
+  describe(`deleteConfig()`, () => {
+    it(`should DELETE the project-scoped config path and return the raw response`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: {} }))
+
+      const resp = await agentsApi.deleteConfig(`org-1`, `proj-1`, `a-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/agents/a-1/config`)
+      expect(init.method).toBe(`DELETE`)
+      expect(resp.data).toEqual({})
+    })
+
+    it(`should call _onError with 'Failed to reset agent config' on error`, async () => {
+      const onErrorSpy = vi.spyOn(agentsApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(500, { error: `boom` }))
+
+      await agentsApi.deleteConfig(`org-1`, `proj-1`, `a-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to reset agent config`
+      )
+    })
+  })
+
+  describe(`createSession()`, () => {
+    it(`should POST to the top-level /ai/sessions path with { agentId }`, async () => {
+      const session = { model: `gpt-4`, provider: `openai`, sessionToken: `tok-1` }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: session }))
+
+      const resp = await agentsApi.createSession(`org-1`, `a-1`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/ai/sessions`)
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual({ agentId: `a-1` })
+      expect(resp.data).toEqual(session)
+    })
+
+    it(`should call _onError with 'Failed to create session' on error`, async () => {
+      const onErrorSpy = vi.spyOn(agentsApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await agentsApi.createSession(`org-1`, `a-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to create session`
+      )
+    })
+  })
+
+  describe(`run()`, () => {
+    let mockStream: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      mockStream = vi.fn()
+      agentsApi.api.stream = mockStream as any
+    })
+
+    it(`should call this.api.stream with the run path and { prompt, threadId }`, async () => {
+      const streamResult = { ok: true, status: 200, response: new Response() }
+      mockStream.mockResolvedValueOnce(streamResult)
+
+      const resp = await agentsApi.run(`org-1`, `a-1`, `hello`, `thread-1`)
+
+      expect(mockStream).toHaveBeenCalledWith({
+        path: `/orgs/org-1/agents/a-1/run`,
+        data: { prompt: `hello`, threadId: `thread-1` },
+      })
+      expect(resp).toBe(streamResult)
+    })
+
+    it(`should omit threadId (undefined) when not passed`, async () => {
+      const streamResult = { ok: true, status: 200, response: new Response() }
+      mockStream.mockResolvedValueOnce(streamResult)
+
+      await agentsApi.run(`org-1`, `a-1`, `hello`)
+
+      expect(mockStream).toHaveBeenCalledWith({
+        path: `/orgs/org-1/agents/a-1/run`,
+        data: { prompt: `hello`, threadId: undefined },
+      })
+    })
+
+    it(`should return the raw TApiResponseObj from stream() unwrapped`, async () => {
+      const streamResult = { ok: false, status: 500, error: { message: `boom` } }
+      mockStream.mockResolvedValueOnce(streamResult)
+
+      const resp = await agentsApi.run(`org-1`, `a-1`, `hello`)
+
+      expect(resp).toEqual(streamResult)
+    })
+  })
+
   describe(`cache key shape`, () => {
     it(`cache.all() should be ['agents']`, () => {
       expect(agentsApi.cache.all()).toEqual([`agents`])
