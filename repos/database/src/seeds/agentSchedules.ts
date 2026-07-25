@@ -713,6 +713,10 @@ export const AgentScheduleDefs: TAgentScheduleDef[] = [
       BoardOpenDecisionsSource,
       BoardPositionsSource,
       BoardPlansSource,
+      // The CTO SYNTHESIZES the engineering roadmap from the whole board's
+      // direction; the CMO's buyer/market needs live in the marketing artifacts,
+      // so the seat reads them to give the roadmap real customer-facing coverage.
+      MarketingArtifactsSource,
     ],
     // The CTO board seat is the strategy → engineering bridge: it AUTHORS the
     // product/engineering roadmap as a cto-owned `initiative` plan (upsertPlan —

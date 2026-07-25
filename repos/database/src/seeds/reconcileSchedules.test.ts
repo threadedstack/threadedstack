@@ -230,7 +230,6 @@ describe(`AgentScheduleDefs`, () => {
     }
     expect(byKey[`ceo-strategy`].contextSources).toHaveLength(3)
     for (const key of [`ceo-board`, `cto-board`, `cmo-board`]) {
-      expect(byKey[key].contextSources).toHaveLength(4)
       const byAs = Object.fromEntries(
         (byKey[key].contextSources ?? []).map((s) => [s.as, s])
       )
@@ -239,6 +238,19 @@ describe(`AgentScheduleDefs`, () => {
         query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
       })
     }
+    // ceo-board and cmo-board read Strategy + OpenDecisions + Positions + Plans.
+    // The CTO board seat SYNTHESIZES the roadmap from the whole board's direction,
+    // so it also reads the CMO's marketing artifacts (the buyer/market lens) — 5.
+    expect(byKey[`ceo-board`].contextSources).toHaveLength(4)
+    expect(byKey[`cmo-board`].contextSources).toHaveLength(4)
+    expect(byKey[`cto-board`].contextSources).toHaveLength(5)
+    const ctoByAs = Object.fromEntries(
+      (byKey[`cto-board`].contextSources ?? []).map((s) => [s.as, s])
+    )
+    expect(ctoByAs[`Recent marketing artifacts`]).toMatchObject({
+      collection: `marketing_artifacts`,
+      query: { limit: 20 },
+    })
     // The marketing cycle reads its own recent artifacts (newest first via the
     // record service's default order) so it advances drafts, never duplicates.
     expect(byKey[`cmo-marketing`].contextSources).toHaveLength(4)
@@ -344,14 +356,16 @@ describe(`AgentScheduleDefs`, () => {
       )
       expect(byKey[key]).toContain(`capped at 20`)
     }
-    // The CTO board cycle OWNS the product/engineering roadmap: it authors a
-    // cto-owned initiative plan (upsertPlan) AND reports execution progress
-    // (updateMilestone). This seat is the strategy → build bridge — without
-    // buildable roadmap milestones the dev team defaults to filler like tests.
+    // The CTO board cycle SYNTHESIZES the product/engineering roadmap from the
+    // whole board's direction (upsertPlan) AND reports execution progress
+    // (updateMilestone). It must COVER THE PRODUCT ACROSS LENSES (features,
+    // platform, DX/UX, reliability) and keep the roadmap deep enough to feed the
+    // dev team — a thin roadmap is what pushed the team back to filler like tests.
     expect(byKey[`cto-board`]).toContain(`upsertPlan`)
     expect(byKey[`cto-board`]).toContain(`updateMilestone`)
-    expect(byKey[`cto-board`]).toContain(`YOU OWN THE ENGINEERING ROADMAP`)
-    expect(byKey[`cto-board`]).toContain(`engineer-sized, buildable milestones`)
+    expect(byKey[`cto-board`]).toContain(`YOU OWN AND SYNTHESIZE THE ENGINEERING ROADMAP`)
+    expect(byKey[`cto-board`]).toContain(`COVER THE PRODUCT ACROSS LENSES`)
+    expect(byKey[`cto-board`]).toContain(`KEEP IT DEEP ENOUGH TO FEED THE TEAM`)
     // The two deliberation-only cycles hold NO plan writes — their prompts
     // reference plan progress in positions instead of documenting the writers.
     for (const key of [`ceo-board`, `cmo-board`]) {
