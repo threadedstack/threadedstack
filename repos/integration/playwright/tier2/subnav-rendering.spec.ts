@@ -63,11 +63,10 @@ test.describe('Sub-Navigation Rendering', () => {
 
     // Hover over the nav rail
     await railBox.hover()
-    // Wait for the 500ms animation to complete
-    await page.waitForTimeout(600)
 
-    // Width should have expanded
-    const hoveredWidth = await railBox.evaluate((el) => el.getBoundingClientRect().width)
-    expect(hoveredWidth).toBeGreaterThan(initialWidth)
+    // Width should have expanded once the hover animation completes
+    await expect
+      .poll(() => railBox.evaluate((el) => el.getBoundingClientRect().width), { timeout: 2_000 })
+      .toBeGreaterThan(initialWidth)
   })
 })
