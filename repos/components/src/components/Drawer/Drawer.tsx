@@ -7,7 +7,7 @@ import MuiBox from '@mui/material/Box'
 import MuiDrawer from '@mui/material/Drawer'
 import { styled } from '@mui/material/styles'
 import MuiIconButton from '@mui/material/IconButton'
-import { Close as CloseIcon } from '@mui/icons-material'
+import CloseIcon from '@mui/icons-material/Close'
 
 const StyledDrawer = styled(MuiDrawer)(({ theme }) => ({
   [`& .MuiDrawer-paper`]: {

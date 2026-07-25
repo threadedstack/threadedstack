@@ -5,11 +5,9 @@ import { useState } from 'react'
 import { MermaidRenderer } from './MermaidRenderer'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { Box, Chip, Paper, Drawer, Button, Typography, IconButton } from '@mui/material'
-import {
-  Close as CloseIcon,
-  OpenInFull as ExpandIcon,
-  ContentCopy as CopyIcon,
-} from '@mui/icons-material'
+import CloseIcon from '@mui/icons-material/Close'
+import ExpandIcon from '@mui/icons-material/OpenInFull'
+import CopyIcon from '@mui/icons-material/ContentCopy'
 
 export type TArtifactRendererProps = {
   content: string

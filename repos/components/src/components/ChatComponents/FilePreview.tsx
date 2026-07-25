@@ -1,13 +1,11 @@
 import type { TPendingFile } from '@TSC/types'
 
 import { Box, Chip, Typography } from '@mui/material'
-import {
-  Code as CodeIcon,
-  Close as CloseIcon,
-  Image as ImageIcon,
-  Description as FileIcon,
-  PictureAsPdf as PdfIcon,
-} from '@mui/icons-material'
+import CodeIcon from '@mui/icons-material/Code'
+import CloseIcon from '@mui/icons-material/Close'
+import ImageIcon from '@mui/icons-material/Image'
+import FileIcon from '@mui/icons-material/Description'
+import PdfIcon from '@mui/icons-material/PictureAsPdf'
 
 export type TFilePreviewProps = {
   files: TPendingFile[]

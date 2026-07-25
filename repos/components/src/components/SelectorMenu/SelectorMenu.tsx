@@ -3,11 +3,9 @@ import type { TSelectorItem } from '@TSC/types'
 import { useMemo } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { getInitials } from '@TSC/utils/getInitials'
-import {
-  Add as AddIcon,
-  Check as CheckIcon,
-  Search as SearchIcon,
-} from '@mui/icons-material'
+import AddIcon from '@mui/icons-material/Add'
+import CheckIcon from '@mui/icons-material/Check'
+import SearchIcon from '@mui/icons-material/Search'
 import {
   Box,
   Menu,
