@@ -19,7 +19,7 @@ export class ProjectMembersApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((r: TRole) => new Role(r)) || [],
+      data: resp?.data?.map?.((r: TRole) => new Role(r)) || [],
     }
   }
 
