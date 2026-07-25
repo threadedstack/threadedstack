@@ -39,20 +39,16 @@ import type {
   Record as RecordModel,
   Function as FunctionModel,
 } from '@tdsk/domain'
-import type {
-  TAgentPlan,
-  TActivityRecord,
-  TAgentStatus,
-} from '@TAF/types/agentActivity.types'
+import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
 
 import { createStore } from 'jotai'
 import { userState } from '@TAF/state/user'
 import {
-  agentPlansState,
   agentTurnsState,
   agentStatusState,
   agentMemoriesState,
   agentMessagesState,
+  collectionRecordsState,
 } from '@TAF/state/agentActivity'
 import { apiKeysState } from '@TAF/state/apiKeys'
 import { invoicesState } from '@TAF/state/invoices'
@@ -550,9 +546,18 @@ export const getContextAgentMemories = (agentId: string) =>
 export const setContextAgentMemories = (agentId: string, rows: TActivityRecord[]) =>
   setAgentMemoriesMap({ ...(getAgentMemoriesMap() || {}), [agentId]: rows })
 
-export const getAgentPlansMap = () => store.get(agentPlansState)
-export const setAgentPlansMap = (map: Record<string, TAgentPlan[]>) =>
-  store.set(agentPlansState, map)
-export const getContextAgentPlans = (agentId: string) => getAgentPlansMap()?.[agentId]
-export const setContextAgentPlans = (agentId: string, rows: TAgentPlan[]) =>
-  setAgentPlansMap({ ...(getAgentPlansMap() || {}), [agentId]: rows })
+// Collections browser records, keyed `${projectId}:${collectionName}`.
+export const getCollectionRecordsMap = () => store.get(collectionRecordsState)
+export const setCollectionRecordsMap = (map: Record<string, RecordModel[]>) =>
+  store.set(collectionRecordsState, map)
+export const getContextCollectionRecords = (projectId: string, collectionName: string) =>
+  getCollectionRecordsMap()?.[`${projectId}:${collectionName}`]
+export const setContextCollectionRecords = (
+  projectId: string,
+  collectionName: string,
+  rows: RecordModel[]
+) =>
+  setCollectionRecordsMap({
+    ...(getCollectionRecordsMap() || {}),
+    [`${projectId}:${collectionName}`]: rows,
+  })

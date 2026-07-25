@@ -1,8 +1,5 @@
-import type {
-  TAgentPlan,
-  TAgentStatus,
-  TActivityRecord,
-} from '@TAF/types/agentActivity.types'
+import type { TAgentStatus, TActivityRecord } from '@TAF/types/agentActivity.types'
+import type { Record as RecordModel } from '@tdsk/domain'
 
 import { atomWithReset } from 'jotai/utils'
 
@@ -26,6 +23,13 @@ export const agentMessagesState =
 export const agentMemoriesState =
   atomWithReset<Record<string, TActivityRecord[]>>(undefined)
 
-/** The agent's roadmap (the project's `plans` collection). Slow-changing, so it
- * is fetched once by the loader rather than on the 5s activity poll. */
-export const agentPlansState = atomWithReset<Record<string, TAgentPlan[]>>(undefined)
+/**
+ * Records for the Collections browser, keyed `${projectId}:${collectionName}`.
+ *
+ * Populated on demand: a collection's records are only fetched when the user
+ * opens that collection in the browser, never by the loader or the 5s poll.
+ * `undefined` for a key means "not opened yet" (skeleton); `[]` means "opened
+ * and the collection is empty" (empty state).
+ */
+export const collectionRecordsState =
+  atomWithReset<Record<string, RecordModel[]>>(undefined)
