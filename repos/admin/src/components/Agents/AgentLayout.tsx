@@ -39,13 +39,16 @@ export const AgentLayout = () => {
   // Determine active tab from URL
   const pathAfterAgent = location.pathname.replace(agentPath, ``)
   const showTabs = !threadId && !pathAfterAgent.includes(`/chat`)
-  const activeTab: TAgentDetailTab = pathAfterAgent.startsWith(`/threads`)
-    ? EAgentDetailTab.threads
-    : pathAfterAgent.startsWith(`/skills`) && isFeatureEnabled('skills')
-      ? EAgentDetailTab.skills
-      : EAgentDetailTab.agent
+  const activeTab: TAgentDetailTab = pathAfterAgent.startsWith(`/activity`)
+    ? EAgentDetailTab.activity
+    : pathAfterAgent.startsWith(`/threads`)
+      ? EAgentDetailTab.threads
+      : pathAfterAgent.startsWith(`/skills`) && isFeatureEnabled('skills')
+        ? EAgentDetailTab.skills
+        : EAgentDetailTab.agent
 
   const tabRoutes: Record<string, string> = {
+    [EAgentDetailTab.activity]: `${agentPath}/activity`,
     [EAgentDetailTab.threads]: `${agentPath}/threads`,
     ...(isFeatureEnabled('skills') && {
       [EAgentDetailTab.skills]: `${agentPath}/skills`,
@@ -167,6 +170,10 @@ export const AgentLayout = () => {
             <Tab
               label='Agent'
               value={EAgentDetailTab.agent}
+            />
+            <Tab
+              label='Activity'
+              value={EAgentDetailTab.activity}
             />
             <Tab
               label='Threads'
