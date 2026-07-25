@@ -502,7 +502,7 @@ test.describe('Threads app — Terminal AST GUI view', () => {
   test('unauthenticated users are redirected to login', async ({ page }) => {
     // Navigate without any auth mock — the real Neon Auth returns no session
     await page.goto(THREADS_URL, { waitUntil: 'networkidle', timeout: 15_000 })
-    await page.waitForTimeout(3_000)
+    await page.waitForURL(/\/(auth|sign)/, { timeout: 10_000 })
 
     const url = page.url()
     expect(url).toMatch(/\/(auth|sign)/)
