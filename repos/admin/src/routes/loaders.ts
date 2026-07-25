@@ -501,6 +501,8 @@ export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
  * effect, because this project forbids `useEffect` for data loading. The route
  * always re-runs its loader on entry, and `startAgentActivityPolling` clears any
  * previous timer, so navigating between agents can never leave two polls running.
+ * Leaving the activity feature entirely fires no loader, so the poll itself
+ * stops on the first tick after the browser leaves this agent's activity route.
  */
 export const agentActivityLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId, agentId } = params
