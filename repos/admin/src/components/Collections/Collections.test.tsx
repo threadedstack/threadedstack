@@ -11,10 +11,16 @@ const Wrapper = ({ children }: { children: ReactNode }) => (
 )
 const renderWithTheme = (ui: React.ReactElement) => render(ui, { wrapper: Wrapper })
 
+const mockNavigate = vi.fn()
 const mockUseProjectCollections = vi.fn()
 const mockCanCreate = vi.fn(() => true)
 const mockCanUpdate = vi.fn(() => true)
 const mockCanDelete = vi.fn(() => true)
+
+vi.mock(`react-router`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock(`@TAF/state/selectors`, () => ({
   useProjectCollections: () => mockUseProjectCollections(),
@@ -117,13 +123,13 @@ describe(`Collections`, () => {
     expect(screen.getByText(`Create Collection`)).toBeTruthy()
   })
 
-  it(`renders an Edit and Delete action button for every row`, () => {
+  it(`renders View Records, Edit, and Delete action buttons for every row`, () => {
     renderWithTheme(<Collections {...defaultProps} />)
     const rows = screen.getAllByRole(`row`)
     const dataRows = rows.slice(1)
     dataRows.forEach((row) => {
       const buttons = within(row).queryAllByRole(`button`)
-      expect(buttons.length).toBe(2)
+      expect(buttons.length).toBe(3)
     })
   })
 
@@ -142,9 +148,19 @@ describe(`Collections`, () => {
   it(`opens the drawer pre-filled with the clicked collection on Edit click`, () => {
     renderWithTheme(<Collections {...defaultProps} />)
     const rows = screen.getAllByRole(`row`)
-    const [editButton] = within(rows[1]).getAllByRole(`button`)
+    const [, editButton] = within(rows[1]).getAllByRole(`button`)
     fireEvent.click(editButton)
     expect(screen.getByTestId(`collection-drawer`).textContent).toBe(`tasks`)
+  })
+
+  it(`navigates to the collection's detail route when the View Records action is clicked`, () => {
+    renderWithTheme(<Collections {...defaultProps} />)
+    const rows = screen.getAllByRole(`row`)
+    const [viewRecordsButton] = within(rows[1]).getAllByRole(`button`)
+    fireEvent.click(viewRecordsButton)
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/orgs/org-1/projects/project-1/collections/tasks`
+    )
   })
 
   it(`disables the create action when the user lacks create permission`, () => {
@@ -156,7 +172,7 @@ describe(`Collections`, () => {
   it(`confirms and calls deleteCollection with the collection's name and id`, async () => {
     renderWithTheme(<Collections {...defaultProps} />)
     const rows = screen.getAllByRole(`row`)
-    const [, deleteButton] = within(rows[1]).getAllByRole(`button`)
+    const [, , deleteButton] = within(rows[1]).getAllByRole(`button`)
     fireEvent.click(deleteButton)
 
     const confirmButton = screen.getByText(`Confirm`)

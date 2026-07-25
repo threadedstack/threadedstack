@@ -68,6 +68,7 @@ import {
   getContextSchedules,
   getProjectFunctions,
   getContextCollections,
+  setActiveCollectionName,
   setActiveEndpointId,
   getContextSandboxes,
   getPermissionOverrides,
@@ -415,6 +416,17 @@ export const projectCollectionsLoader = async ({ params }: LoaderFunctionArgs) =
   if (!orgId) missOrgIdResp()
   if (!projectId) missProjIdResp()
 
+  if (!getContextCollections(projectId))
+    safeFetch(() => fetchCollections({ orgId, projectId }))
+  return null
+}
+
+export const collectionDetailLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, projectId, name } = params
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
+
+  if (name) setActiveCollectionName(name)
   if (!getContextCollections(projectId))
     safeFetch(() => fetchCollections({ orgId, projectId }))
   return null

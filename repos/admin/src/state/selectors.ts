@@ -88,7 +88,10 @@ import {
   activeFunctionIdState,
   projectFunctionsState,
 } from '@TAF/state/functions'
-import { projectCollectionsState } from '@TAF/state/collections'
+import {
+  projectCollectionsState,
+  activeCollectionNameState,
+} from '@TAF/state/collections'
 import { projectRecordsState } from '@TAF/state/records'
 import {
   agentsState,
@@ -264,6 +267,8 @@ export const useProjectSchedules = () =>
 // Project-scoped collections
 export const useProjectCollections = () =>
   useDerivedState<Record<string, TCollectionWithCount>>(projectCollectionsState)
+
+export const useActiveCollectionName = () => useRecState(activeCollectionNameState)
 
 // Project-scoped records, keyed by collectionName -> recordId -> RecordModel
 export const useProjectRecords = () =>

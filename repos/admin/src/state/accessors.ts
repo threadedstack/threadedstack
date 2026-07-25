@@ -75,7 +75,7 @@ import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
-import { collectionsState } from '@TAF/state/collections'
+import { collectionsState, activeCollectionNameState } from '@TAF/state/collections'
 import { recordsState } from '@TAF/state/records'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
@@ -403,6 +403,12 @@ export const setContextCollections = (
   const all = getCollections() || {}
   setCollections({ ...all, [projectId]: collections })
 }
+
+export const getActiveCollectionName = () => store.get(activeCollectionNameState)
+export const resetActiveCollectionName = () =>
+  store.set(activeCollectionNameState, undefined)
+export const setActiveCollectionName = (name: string) =>
+  store.set(activeCollectionNameState, name)
 
 // Records (project-scoped, collection-keyed, context-keyed)
 export const getRecords = () => store.get(recordsState)

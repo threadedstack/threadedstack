@@ -44,6 +44,8 @@ export enum ERoutePath {
 
   Collections = `collections`,
   ProjectCollections = `/orgs/:orgId/projects/:projectId/collections`,
+  CollectionDetail = `collections/:name`,
+  ProjectCollectionDetail = `/orgs/:orgId/projects/:projectId/collections/:name`,
 
   Secrets = `secrets`,
   OrgSecrets = `/orgs/:orgId/secrets`,
