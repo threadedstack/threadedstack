@@ -18,6 +18,10 @@ import {
   reconcileSchedules,
   reconcileScheduledSandboxNodePools,
 } from '@TDB/seeds/reconcileSchedules'
+// The tdskembed capacity budget is shared with the RESIDENT placement map, so
+// the cross-file invariant test below needs both halves to catch an overflow
+// that neither file's own tests can see.
+import { ResidentNodePools } from '@TDB/seeds/resident/bodies'
 
 /** A minimal in-memory schedule definition for the pure-logic tests. */
 const def = (over: Record<string, unknown> = {}) => ({
@@ -723,8 +727,15 @@ describe(`ScheduledSandboxNodePools`, () => {
 
   it(`declares the SANDBOX the steward's schedules actually run on`, () => {
     // Keyed by sandbox id, so the declaration is only as good as that id
-    // matching the live schedule rows. If the steward's sandbox ever changes,
-    // this fails instead of leaving a stale key that silently pins nothing.
+    // matching the live schedule rows.
+    //
+    // HONEST LIMIT: both sides derive from the SAME `StewardSandboxId` constant,
+    // so they are structurally incapable of disagreeing — changing that constant
+    // to a typo keeps this test green (proven by mutation). It guards the
+    // WIRING (a steward schedule bound to some OTHER sandbox trips it), never
+    // the id's correspondence to the real prod row. Nothing in git can verify
+    // that; a wrong id degrades to reconcile `errors: 1` and a warning the CLI
+    // deliberately swallows.
     const stewardDefs = AgentScheduleDefs.filter((d) => d.agentId === StewardAgentId)
     expect(stewardDefs.length).toBeGreaterThan(0)
     for (const d of stewardDefs) expect(d.sandboxId).toBe(StewardSandboxId)
@@ -739,6 +750,29 @@ describe(`ScheduledSandboxNodePools`, () => {
       ([, pool]) => pool === `tdskembed`
     )
     expect(onEmbed).toEqual([[StewardSandboxId, `tdskembed`]])
+  })
+
+  it(`enforces the tdskembed capacity budget ACROSS both placement maps`, () => {
+    // The capacity invariant spans TWO files: this map pins the steward's
+    // transient job sandbox, and ResidentNodePools (seeds/resident/bodies.ts)
+    // pins the long-lived CEO + CMO bodies. Either one alone looks fine while
+    // the pair overflows, so neither file's own test can catch it — adding a
+    // THIRD resident there would silently re-create the exact starvation that
+    // left every steward job Pending and stopped `sensor` feeding the backlog.
+    //
+    // Budget: ~11.9Gi allocatable, 3Gi per pod. Two resident bodies (6Gi) plus
+    // ONE concurrent steward job (3Gi) = 9Gi, leaving ~2.9Gi of headroom. A
+    // third long-lived body would consume the job's only slot.
+    const residentsOnEmbed = Object.values(ResidentNodePools).filter(
+      (pool) => pool === `tdskembed`
+    ).length
+    const jobSandboxesOnEmbed = Object.values(ScheduledSandboxNodePools).filter(
+      (pool) => pool === `tdskembed`
+    ).length
+
+    expect(residentsOnEmbed).toBeLessThanOrEqual(2)
+    // Long-lived bodies + at least one free 3Gi job slot must fit in ~11.9Gi.
+    expect((residentsOnEmbed + jobSandboxesOnEmbed) * 3).toBeLessThanOrEqual(9)
   })
 
   it(`declares ONLY sandboxes that need a non-default pool`, () => {
