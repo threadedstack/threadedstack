@@ -48,6 +48,33 @@ const MONTH_NAMES: Record<string, number> = {
   DEC: 12,
 }
 
+// Feb is capped at 29 (not 28) since leap-year Feb 29 is a real, if
+// infrequent, occurrence a yearly-recurring cron should still match.
+const MONTH_MAX_DAYS: Record<number, number> = {
+  1: 31,
+  2: 29,
+  3: 31,
+  4: 30,
+  5: 31,
+  6: 30,
+  7: 31,
+  8: 31,
+  9: 30,
+  10: 31,
+  11: 30,
+  12: 31,
+}
+
+/**
+ * Whether any day in `daysOfMonth` can actually occur in any of `months`.
+ */
+function isDayMonthComboPossible(daysOfMonth: number[], months: number[]): boolean {
+  return months.some((month) => {
+    const maxDay = MONTH_MAX_DAYS[month] ?? 31
+    return daysOfMonth.some((day) => day <= maxDay)
+  })
+}
+
 /**
  * Parse a single cron field into an array of matching values.
  */
@@ -126,13 +153,29 @@ function parseCron(expression: string): TCronFields {
 export function isValidCron(expression: string): boolean {
   try {
     const fields = parseCron(expression)
-    return (
-      fields.minutes.length > 0 &&
-      fields.hours.length > 0 &&
-      fields.daysOfMonth.length > 0 &&
-      fields.months.length > 0 &&
-      fields.daysOfWeek.length > 0
+    if (
+      !fields.minutes.length ||
+      !fields.hours.length ||
+      !fields.daysOfMonth.length ||
+      !fields.months.length ||
+      !fields.daysOfWeek.length
     )
+      return false
+
+    // Standard cron OR semantics: when both dayOfMonth and dayOfWeek are
+    // explicit, a match on either fires it, so an impossible day/month combo
+    // (e.g. day 30 of February) doesn't make the whole expression unfireable
+    // -- dayOfWeek alone still recurs every week. Only reject the combo when
+    // dayOfMonth is the sole day constraint.
+    const parts = expression.trim().split(/\s+/)
+    const domExplicit = parts[2] !== `*`
+    const dowExplicit = parts[4] !== `*`
+    const useDayOr = domExplicit && dowExplicit
+
+    if (!useDayOr && !isDayMonthComboPossible(fields.daysOfMonth, fields.months))
+      return false
+
+    return true
   } catch {
     return false
   }
