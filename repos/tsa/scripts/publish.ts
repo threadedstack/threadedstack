@@ -66,7 +66,10 @@ for (const platform of Platforms) {
   // package-spec positional arg and resolves to a bogus "undefined@0.1.0"
   // template package (npm error 403 on `registry.npmjs.org/undefined`).
   // Interpolating an ARRAY omits the flag entirely when empty.
-  const dryRun = isDry ? [`--dry-run`] : []
+  // --dry-run still validates against the registry when an auth token is
+  // present, so a prerelease-looking dry version (e.g. 0.0.0-dryrun) needs an
+  // explicit --tag or npm refuses with "You must specify a tag".
+  const dryRun = isDry ? [`--dry-run`, `--tag`, `dry-run-only`] : []
   const provenance = process.env.GITHUB_ACTIONS && !isDry ? [`--provenance`] : []
   const otpFlag = otp ? [`--otp=${otp}`] : []
   await $`npm publish --access public ${dryRun} ${provenance} ${otpFlag}`.cwd(pkgDir)
