@@ -4,11 +4,9 @@ import { RobotOutlineIcon } from '@TSC/components/Icons'
 import { Box, Chip, Typography, IconButton } from '@mui/material'
 import { ArtifactRenderer } from '@TSC/components/ArtifactRenderer'
 import { ToolCallDisplay } from '@TSC/components/ChatComponents/ToolCallDisplay'
-import {
-  Person as PersonIcon,
-  CallSplit as BranchIcon,
-  AttachFile as AttachIcon,
-} from '@mui/icons-material'
+import PersonIcon from '@mui/icons-material/Person'
+import BranchIcon from '@mui/icons-material/CallSplit'
+import AttachIcon from '@mui/icons-material/AttachFile'
 
 export type TMessageBubble = {
   message: TChatMessage

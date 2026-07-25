@@ -2,12 +2,10 @@ import type { TChatToolCall } from '@TSC/types'
 
 import { useState } from 'react'
 import { Box, Chip, Collapse, Typography, IconButton } from '@mui/material'
-import {
-  Build as BuildIcon,
-  Error as ErrorIcon,
-  ExpandMore as ExpandMoreIcon,
-  CheckCircle as CheckCircleIcon,
-} from '@mui/icons-material'
+import BuildIcon from '@mui/icons-material/Build'
+import ErrorIcon from '@mui/icons-material/Error'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
 export type TToolCallDisplay = {
   toolCall: TChatToolCall
