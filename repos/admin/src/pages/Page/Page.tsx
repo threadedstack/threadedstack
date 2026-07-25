@@ -19,6 +19,7 @@ const Container = styled(Box)`
   flex-grow: 1;
   width: 100%;
   height: 100%;
+  min-width: 0;
 `
 
 const Main = styled(Box)(({ theme }) => {

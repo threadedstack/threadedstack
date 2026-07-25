@@ -1,5 +1,9 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
-import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
+import type {
+  TAgentPlan,
+  TAgentStatus,
+  TActivityRecord,
+} from '@TAF/types/agentActivity.types'
 
 import { BaseApi } from '@TAF/services/api'
 
@@ -99,6 +103,25 @@ export class AgentActivityApi extends BaseApi {
     resp.error && (await this._onError(resp.error, `Failed to load agent memories`))
 
     return { ...resp, data: resp.data || [] }
+  }
+
+  /**
+   * The agent's roadmap: the project's `plans` collection, read through the
+   * generic records-query endpoint (`collection:read`, no new backend needed).
+   * Plans are project-scoped documents the agent authors and evolves, so this is
+   * "what it is working toward". Each row is flattened from `{ id, data }` to a
+   * plan object the UI renders directly.
+   */
+  async plans(orgId: string, projectId: string): Promise<TApiRes<TAgentPlan[]>> {
+    const resp = await this.api.post<TActivityRecord[]>({
+      data: { limit: 50 },
+      path: `/orgs/${orgId}/projects/${projectId}/collections/plans/records/query`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load agent roadmap`))
+
+    const rows = (resp.data as any[]) || []
+    return { ...resp, data: rows.map((r) => ({ id: r.id, ...(r.data || {}) })) as TAgentPlan[] }
   }
 }
 

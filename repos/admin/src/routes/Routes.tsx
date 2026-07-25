@@ -391,12 +391,12 @@ export const createRoutes = () =>
                                 },
                               ]
                             : []),
+                          {
+                            path: `activity`,
+                            loader: agentActivityLoader,
+                            Component: () => <SuspensePage Component={AgentActivity} />,
+                          },
                         ],
-                      },
-                      {
-                        path: `agents/:agentId/activity`,
-                        loader: agentActivityLoader,
-                        Component: () => <SuspensePage Component={AgentActivity} />,
                       },
                     ]
                   : []),

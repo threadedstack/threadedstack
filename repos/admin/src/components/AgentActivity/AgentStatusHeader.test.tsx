@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 
 vi.mock(`@tdsk/components`, () => ({
   Text: ({ children }: any) => <span>{children}</span>,
+  Chip: ({ label }: any) => <span>{label}</span>,
 }))
 
 import { AgentStatusHeader } from './AgentStatusHeader'
@@ -25,7 +26,7 @@ describe(`AgentStatusHeader`, () => {
       />
     )
     expect(screen.getByText(/grooming/)).toBeTruthy()
-    expect(screen.getByText(/12/)).toBeTruthy()
+    expect(screen.getByText(`12`)).toBeTruthy()
   })
 
   it(`shows a degraded badge only when the watchdog set the flag`, () => {
