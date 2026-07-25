@@ -374,13 +374,24 @@ export const ResidentBootCriticalFields = [
  * 3Gi free, so every steward job pod sat Pending forever and the `sensor`
  * schedule that feeds the dev-task backlog starved.
  *
- * WHY THE CEO STILL SITS THERE: the six residents (18Gi) do not fit on
- * `tdsksandbox` alone — 11.9Gi + 7.9Gi free packs only five 3Gi pods. Exactly ONE
- * seat must live on `tdskembed`, and the CEO is it (the lowest-churn seat: no
- * repo link, no dev_tasks board work). That leaves `tdskembed` with ~8.9Gi free —
- * room for ~2 concurrent steward transient jobs, which is the whole point of the
- * reservation. Adding a seventh seat means adding kata node capacity, NEVER
- * borrowing more of `tdskembed`.
+ * WHY TWO SEATS STAY THERE — `tdsksandbox` IS ALSO THE GLOBAL DEFAULT POOL:
+ * `TDSK_SB_NODE_POOL` (deploy/values.production.yaml) is `tdsksandbox`, so that
+ * pool is NOT a private resident pool — every UNPINNED sandbox lands there too:
+ * a user hitting Connect (connectSandbox/startSandbox) and every non-steward
+ * scheduled agent run. Its free memory must therefore keep a 3Gi-SHAPED HOLE, not
+ * merely 3Gi of total free space: the scheduler places a whole pod on ONE node.
+ * Packing four seats onto `tdsksandbox` (three on the first node, one alongside
+ * tdsk-embeddings-0 on the second) leaves ~4.9Gi contiguous on that second node —
+ * one real 3Gi hole. Packing FIVE seats there instead leaves ~2.9Gi and ~1.9Gi:
+ * ~4.8Gi free in total but NO 3Gi hole anywhere, so the next user sandbox pod
+ * would sit Pending forever. So the CEO and the CMO both stay on `tdskembed` (the
+ * two lowest-churn seats: no repo link, no dev_tasks board work), leaving
+ * `tdskembed` ~5.8Gi free for the steward's transient jobs.
+ *
+ * The tradeoff is deliberate: that is ONE concurrent steward job slot rather than
+ * two. A second steward slot is not worth breaking every customer sandbox launch.
+ * The real fix for both is more kata node capacity (Civo RAM quota), NEVER
+ * borrowing the last hole from either pool.
  *
  * An agentId absent from this map keeps whatever pool its config already carries:
  * the reconcile only ever SETS a mapped pool, it never deletes an unmapped pin
@@ -388,9 +399,9 @@ export const ResidentBootCriticalFields = [
  * resident flag — a placement is removed deliberately, never as a reconcile side
  * effect).
  */
-export const ResidentNodePools: Record<string, string> = {
+export const ResidentNodePools: Partial<Record<string, string>> = {
   [CeoAgentId]: `tdskembed`,
-  [CmoAgentId]: `tdsksandbox`,
+  [CmoAgentId]: `tdskembed`,
   [CtoAgentId]: `tdsksandbox`,
   [EngOneAgentId]: `tdsksandbox`,
   [EngTwoAgentId]: `tdsksandbox`,
