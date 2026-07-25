@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import {
+  StewardAgentId,
   AgentScheduleDefs,
+  StewardSandboxId,
   DevTaskBacklogSource,
   DevEscalationsSource,
   DevOpenProposalsSource,
   DevCoordinatorLedgerSource,
+  ScheduledSandboxNodePools,
   DevVerificationsRecentSource,
   DevVerificationsInFlightSource,
 } from '@TDB/seeds/agentSchedules'
@@ -13,6 +16,7 @@ import {
   needsUpdate,
   declarativeFields,
   reconcileSchedules,
+  reconcileScheduledSandboxNodePools,
 } from '@TDB/seeds/reconcileSchedules'
 
 /** A minimal in-memory schedule definition for the pure-logic tests. */
@@ -665,5 +669,219 @@ describe(`reconcileSchedules`, () => {
     const summary = await reconcileSchedules({ get, create: vi.fn(), update }, [d])
     expect(summary.errors).toBe(1)
     expect(summary.updated).toBe(0)
+  })
+})
+
+/**
+ * In-memory fake of the sandbox service slice the placement reconcile needs
+ * (mirrors resident/bodies.test.ts): sandboxes hold a mutable `config` and every
+ * write is recorded, so a "no-op" claim is provable — not merely a summary
+ * counter, but the absence of an `update` call.
+ */
+const makeFakeSandboxes = () => {
+  const sandboxes = new Map<string, { config?: Record<string, any> | null }>()
+  const updates: { id: string; config: Record<string, any> }[] = []
+  return {
+    sandboxes,
+    updates,
+    service: {
+      get: async (id: string) => ({ data: sandboxes.get(id) ?? null }),
+      update: async ({ id, config }: { id: string; config: Record<string, any> }) => {
+        updates.push({ id, config })
+        const sb = sandboxes.get(id)
+        if (!sb) return { error: new Error(`sandbox not found`) }
+        sb.config = config
+        return { data: { id, config } }
+      },
+    },
+  }
+}
+
+/** A steward-body-shaped config: the keys a real sandbox row carries that the
+ * placement write must never drop. */
+const stewardConfig = (extra: Record<string, any> = {}) => ({
+  image: `ghcr.io/threadedstack/tdsk-jobs:latest`,
+  imagePullPolicy: `Always`,
+  runtime: `claude-code`,
+  runtimeCommand: `claude`,
+  sshEnabled: true,
+  idleTimeoutMinutes: 30,
+  resources: { requests: { memory: `3Gi`, cpu: `500m` } },
+  initScript: `echo ready`,
+  envVars: { IS_SANDBOX: `1`, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: `1` },
+  ...extra,
+})
+
+describe(`ScheduledSandboxNodePools`, () => {
+  it(`pins the steward's body sandbox to the reserved tdskembed pool`, () => {
+    // The pin PR #196 shipped as hand-set prod DB state and nothing re-asserted:
+    // a config wipe or preset-shaped re-seed dropped it, the steward's 3Gi job
+    // pods fell back to the packed default pool, and every one sat Pending
+    // forever — the `sensor` schedule stopped feeding the dev-task backlog.
+    expect(ScheduledSandboxNodePools[StewardSandboxId]).toBe(`tdskembed`)
+  })
+
+  it(`declares the SANDBOX the steward's schedules actually run on`, () => {
+    // Keyed by sandbox id, so the declaration is only as good as that id
+    // matching the live schedule rows. If the steward's sandbox ever changes,
+    // this fails instead of leaving a stale key that silently pins nothing.
+    const stewardDefs = AgentScheduleDefs.filter((d) => d.agentId === StewardAgentId)
+    expect(stewardDefs.length).toBeGreaterThan(0)
+    for (const d of stewardDefs) expect(d.sandboxId).toBe(StewardSandboxId)
+    expect(Object.keys(ScheduledSandboxNodePools)).toContain(StewardSandboxId)
+  })
+
+  it(`keeps ONE 3Gi job slot on tdskembed — no second sandbox pinned there`, () => {
+    // `tdskembed` holds the CEO + CMO resident bodies (3Gi each) of its ~11.9Gi,
+    // leaving ~5.8Gi: exactly one 3Gi steward job slot. Declaring a second
+    // sandbox here re-creates the starvation this map exists to prevent.
+    const onEmbed = Object.entries(ScheduledSandboxNodePools).filter(
+      ([, pool]) => pool === `tdskembed`
+    )
+    expect(onEmbed).toEqual([[StewardSandboxId, `tdskembed`]])
+  })
+
+  it(`declares ONLY sandboxes that need a non-default pool`, () => {
+    // Every other scheduled sandbox (adversary, exec-board seats) deliberately
+    // rides the global TDSK_SB_NODE_POOL — an entry here is a capacity decision,
+    // never bookkeeping.
+    expect(Object.keys(ScheduledSandboxNodePools)).toEqual([StewardSandboxId])
+  })
+})
+
+describe(`reconcileScheduledSandboxNodePools`, () => {
+  it(`asserts the pin when the config carries none, preserving every other key`, async () => {
+    const fake = makeFakeSandboxes()
+    // The wiped state: a config with no placement at all, so the pod falls back
+    // to the global default pool.
+    fake.sandboxes.set(StewardSandboxId, { config: stewardConfig() })
+    const before = structuredClone(fake.sandboxes.get(StewardSandboxId)!.config!)
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      fake.service,
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 1, unchanged: 0, errors: 0 })
+    const after = fake.sandboxes.get(StewardSandboxId)!.config!
+    expect(after.nodePool).toBe(`tdskembed`)
+    // `config` is a jsonb FULL-COLUMN replace (services/base.ts `.set({...rest})`),
+    // so an omitted key is a DELETED key: the whole config must be unchanged
+    // apart from the one key this reconcile owns.
+    const { nodePool: _added, ...rest } = after
+    expect(rest).toEqual(before)
+  })
+
+  it(`corrects a drifted pin without dropping a single other config key`, async () => {
+    const fake = makeFakeSandboxes()
+    // The proven failure: the steward re-seeded/hand-edited onto the packed
+    // default pool, carrying keys the reconcile must not own (a bigger resource
+    // grant, a longer idle window, a custom runtime command, extra envVars).
+    fake.sandboxes.set(StewardSandboxId, {
+      config: stewardConfig({
+        nodePool: `tdsksandbox`,
+        idleTimeoutMinutes: 90,
+        runtimeCommand: `custom-runtime`,
+        resources: { requests: { memory: `6Gi`, cpu: `1` } },
+        envVars: { IS_SANDBOX: `1`, EXTRA_VAR: `keep-me` },
+      }),
+    })
+    const before = structuredClone(fake.sandboxes.get(StewardSandboxId)!.config!)
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      fake.service,
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 1, unchanged: 0, errors: 0 })
+    const after = fake.sandboxes.get(StewardSandboxId)!.config!
+    expect(after.nodePool).toBe(`tdskembed`)
+    // Whole-config equality apart from `nodePool` — a regression that dropped
+    // resources / idleTimeoutMinutes / runtimeCommand / envVars inside the write
+    // cannot pass, not just the keys we thought to name.
+    expect({ ...after, nodePool: before.nodePool }).toEqual(before)
+    expect(after.resources).toEqual({ requests: { memory: `6Gi`, cpu: `1` } })
+    expect(after.idleTimeoutMinutes).toBe(90)
+    expect(after.runtimeCommand).toBe(`custom-runtime`)
+    expect(after.envVars).toEqual({ IS_SANDBOX: `1`, EXTRA_VAR: `keep-me` })
+  })
+
+  it(`is a TRUE no-op when the pin already matches — update is never called`, async () => {
+    const fake = makeFakeSandboxes()
+    fake.sandboxes.set(StewardSandboxId, {
+      config: stewardConfig({ nodePool: `tdskembed` }),
+    })
+    const before = structuredClone([...fake.sandboxes])
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      fake.service,
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 0, unchanged: 1, errors: 0 })
+    // No write at all: every deploy re-runs this step, and a converged sandbox
+    // must not be churned (a needless config write bumps updatedAt on a live row).
+    expect(fake.updates).toEqual([])
+    expect(structuredClone([...fake.sandboxes])).toEqual(before)
+  })
+
+  it(`writes the pin onto an empty/null config`, async () => {
+    const fake = makeFakeSandboxes()
+    // The worst wipe: the config column emptied entirely.
+    fake.sandboxes.set(StewardSandboxId, { config: null })
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      fake.service,
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 1, errors: 0 })
+    expect(fake.sandboxes.get(StewardSandboxId)!.config).toEqual({
+      nodePool: `tdskembed`,
+    })
+  })
+
+  it(`records an error when the sandbox row is missing, without throwing`, async () => {
+    const fake = makeFakeSandboxes()
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      fake.service,
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 0, unchanged: 0, errors: 1 })
+    expect(summary.results[0]).toMatchObject({
+      sandboxId: StewardSandboxId,
+      nodePool: `tdskembed`,
+      action: `error`,
+    })
+    expect(fake.updates).toEqual([])
+  })
+
+  it(`records an error when get fails, without throwing`, async () => {
+    const get = vi.fn(async () => ({ error: new Error(`db down`) }))
+    const update = vi.fn(async () => ({ data: {} }))
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      { get, update },
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 0, errors: 1 })
+    expect(summary.results[0].message).toContain(`db down`)
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it(`records an error when the write fails`, async () => {
+    const get = vi.fn(async () => ({ data: { config: stewardConfig() } }))
+    const update = vi.fn(async () => ({ error: new Error(`nope`) }))
+
+    const summary = await reconcileScheduledSandboxNodePools(
+      { get, update },
+      ScheduledSandboxNodePools
+    )
+
+    expect(summary).toMatchObject({ asserted: 0, unchanged: 0, errors: 1 })
+    expect(summary.results[0].message).toContain(`nope`)
   })
 })
