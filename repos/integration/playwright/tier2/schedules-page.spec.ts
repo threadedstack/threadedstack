@@ -81,7 +81,7 @@ test.describe('Project Schedules Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     await expect(page.getByText('Create New Schedule')).toBeVisible()
     // Job type toggle (AI Prompt / Shell Command)
@@ -106,7 +106,7 @@ test.describe('Project Schedules Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // New schedules are always created enabled — the Enabled switch is only
     // rendered when editing an existing schedule
@@ -114,7 +114,7 @@ test.describe('Project Schedules Page', () => {
     await expect(enabledSwitch).toHaveCount(0)
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     // Edit mode DOES render the Enabled switch — open the first row if any
     const tableRows = page.locator('tbody tr')
@@ -122,7 +122,7 @@ test.describe('Project Schedules Page', () => {
     test.skip(rowCount === 0, 'No schedules data — cannot verify edit-mode switch')
 
     await tableRows.first().click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
     await expect(page.locator('input[name="schedule-enabled"]')).toBeAttached()
 
     await page.keyboard.press('Escape')
@@ -135,14 +135,14 @@ test.describe('Project Schedules Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // Open the MUI Autocomplete dropdown
     await page.locator('#sandbox-id').click()
-    await page.waitForTimeout(500)
+    const options = page.locator('.MuiAutocomplete-option')
+    await expect(options.first()).toBeVisible({ timeout: 5_000 })
 
     // At least one sandbox should be in the dropdown
-    const options = page.locator('.MuiAutocomplete-option')
     expect(await options.count()).toBeGreaterThan(0)
 
     await page.keyboard.press('Escape')
@@ -156,17 +156,17 @@ test.describe('Project Schedules Page', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/schedules`, 'tdsk-project-schedules-page')
 
     await page.getByRole('button', { name: 'Create Schedule' }).click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // The CronInput builder renders interval/repeat/time inputs plus a raw
     // monospace cron expression input (id=cron-expression)
     const cronInput = page.locator('#cron-expression')
     await expect(cronInput).toBeVisible()
 
-    // Typing a valid cron expression and blurring commits it without error
+    // Typing a valid cron expression and blurring commits it without error.
+    // toHaveValue already polls, so no extra wait is needed after blur().
     await cronInput.fill('0 9 * * 1-5')
     await cronInput.blur()
-    await page.waitForTimeout(300)
     await expect(cronInput).toHaveValue('0 9 * * 1-5')
 
     await page.keyboard.press('Escape')
@@ -216,7 +216,7 @@ test.describe('Project Schedules Page', () => {
     test.skip(rowCount === 0, 'No schedules data — cannot test row click')
 
     await tableRows.first().click()
-    await page.waitForTimeout(1000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     await expect(page.getByText('Edit Schedule')).toBeVisible()
 
