@@ -30,6 +30,13 @@ export const MaxScheduleTimeoutMS = 8 * 60 * 60_000
 export const PodReadyTimeoutMS = 3 * 60_000
 
 /**
+ * Delay before the single retry of `kube.createPod` on failure -- covers a
+ * transient K8s API blip (mirrors EgressProxy's buildResolveSecret retry-once
+ * shape in services/proxy/egress.ts).
+ */
+export const CreatePodRetryDelayMs = 200
+
+/**
  * Readiness deadline for pod paths that must wait for the entrypoint's setup
  * script (dependency install/build) to finish before the workspace-ready marker
  * appears. Longer than PodReadyTimeoutMS because `pnpm install`/`bundle install`

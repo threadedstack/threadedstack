@@ -915,6 +915,59 @@ describe(`SandboxService`, () => {
       expect(mockResolveProviderEnv).not.toHaveBeenCalled()
     })
 
+    describe(`createPod retry`, () => {
+      it(`should retry kube.createPod once after a transient failure and return the pod on success`, async () => {
+        vi.useFakeTimers()
+        try {
+          db.services.sandbox.get.mockResolvedValue({
+            data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+            error: null,
+          })
+          mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+          kube.createPod
+            .mockRejectedValueOnce(new Error(`transient K8s API blip`))
+            .mockResolvedValueOnce({ metadata: { name: `tdsk-sb-test` } })
+
+          const promise = svc.startPod(baseOpts as any)
+          await vi.advanceTimersByTimeAsync(200)
+
+          const result = await promise
+          expect(result).toBe(`tdsk-sb-test`)
+          expect(kube.createPod).toHaveBeenCalledTimes(2)
+          expect(kube.deleteConfigMap).not.toHaveBeenCalled()
+          expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining(`retrying once`),
+            `transient K8s API blip`
+          )
+        } finally {
+          vi.useRealTimers()
+        }
+      })
+
+      it(`should roll back and rethrow when kube.createPod fails on both the initial call and the retry`, async () => {
+        vi.useFakeTimers()
+        try {
+          db.services.sandbox.get.mockResolvedValue({
+            data: sbx({ id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] }),
+            error: null,
+          })
+          mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+          kube.createPod
+            .mockRejectedValueOnce(new Error(`pod quota exceeded`))
+            .mockRejectedValueOnce(new Error(`pod quota exceeded again`))
+
+          const promise = svc.startPod(baseOpts as any)
+          const rejection = expect(promise).rejects.toThrow(`pod quota exceeded again`)
+          await vi.advanceTimersByTimeAsync(200)
+          await rejection
+
+          expect(kube.createPod).toHaveBeenCalledTimes(2)
+        } finally {
+          vi.useRealTimers()
+        }
+      })
+    })
+
     describe(`docker secret lifecycle`, () => {
       const dockerProvider = {
         id: `prov-d1`,
@@ -1010,6 +1063,7 @@ describe(`SandboxService`, () => {
 
         await expect(svc.startPod(baseOpts as any)).rejects.toThrow(`pod quota exceeded`)
 
+        expect(kube.createPod).toHaveBeenCalledTimes(2)
         expect(kube.deleteSecret).toHaveBeenCalledTimes(1)
         expect(kube.deleteSecret).toHaveBeenCalledWith(
           expect.stringMatching(/^tdsk-dkr-/)

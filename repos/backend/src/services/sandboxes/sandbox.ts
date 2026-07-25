@@ -24,6 +24,7 @@ import {
   DefSBConfig,
   PodReadyTimeoutMS,
   SandboxProxyTimeoutMs,
+  CreatePodRetryDelayMs,
 } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
@@ -451,18 +452,27 @@ export class SandboxService {
     try {
       pod = await this.kube.createPod(manifest)
     } catch (err) {
-      if (skillsConfigMapName) {
-        this.kube
-          .deleteConfigMap(skillsConfigMapName)
-          .catch((cmErr) =>
-            logger.error(
-              `[Sandbox] Rollback: failed to delete skills ConfigMap ${skillsConfigMapName}, resource may be leaked:`,
-              (cmErr as Error).message
+      logger.warn(
+        `[Sandbox] Transient error calling kube.createPod for sandbox ${sandboxId}, retrying once:`,
+        (err as Error).message
+      )
+      await new Promise((resolve) => setTimeout(resolve, CreatePodRetryDelayMs))
+      try {
+        pod = await this.kube.createPod(manifest)
+      } catch (retryErr) {
+        if (skillsConfigMapName) {
+          this.kube
+            .deleteConfigMap(skillsConfigMapName)
+            .catch((cmErr) =>
+              logger.error(
+                `[Sandbox] Rollback: failed to delete skills ConfigMap ${skillsConfigMapName}, resource may be leaked:`,
+                (cmErr as Error).message
+              )
             )
-          )
+        }
+        this.rollbackDockerSecrets(dockerSecretNames)
+        throw retryErr
       }
-      this.rollbackDockerSecrets(dockerSecretNames)
-      throw err
     }
 
     const instanceId = pod.metadata?.name
