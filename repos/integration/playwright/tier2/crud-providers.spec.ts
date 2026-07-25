@@ -43,8 +43,20 @@ test.describe.serial('CRUD Providers', () => {
     // Wait for the effect to settle, then overwrite with our custom name.
     const nameInput = page.locator('#provider-name')
     await expect(nameInput).not.toHaveValue('', { timeout: 3_000 })
-    // Let React effects and MUI animations fully settle
-    await page.waitForTimeout(1000)
+    // Poll until the auto-filled value stops changing (the effect has
+    // settled) instead of guessing how long MUI's animations/effect take.
+    let lastValue = await nameInput.inputValue()
+    await expect
+      .poll(
+        async () => {
+          const current = await nameInput.inputValue()
+          const stable = current === lastValue
+          lastValue = current
+          return stable
+        },
+        { timeout: 2_000 }
+      )
+      .toBe(true)
 
     // Use triple-click + keyboard.type for reliable React controlled input override
     await nameInput.click({ clickCount: 3 })
