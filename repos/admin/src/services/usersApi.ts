@@ -37,7 +37,7 @@ export class UsersApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((user) => new User(user)) || [],
+      data: resp.data?.map?.((user) => new User(user)) || [],
     }
   }
 
