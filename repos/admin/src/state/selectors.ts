@@ -14,6 +14,7 @@ import type {
   Endpoint,
   Organization,
   TCollectionWithCount,
+  Record as RecordModel,
   Function as FunctionModel,
 } from '@tdsk/domain'
 import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
@@ -88,6 +89,7 @@ import {
   projectFunctionsState,
 } from '@TAF/state/functions'
 import { projectCollectionsState } from '@TAF/state/collections'
+import { projectRecordsState } from '@TAF/state/records'
 import {
   agentsState,
   activeAgentIdState,
@@ -262,6 +264,20 @@ export const useProjectSchedules = () =>
 // Project-scoped collections
 export const useProjectCollections = () =>
   useDerivedState<Record<string, TCollectionWithCount>>(projectCollectionsState)
+
+// Project-scoped records, keyed by collectionName -> recordId -> RecordModel
+export const useProjectRecords = () =>
+  useDerivedState<Record<string, Record<string, RecordModel>>>(projectRecordsState)
+
+// Records for a single collection within the active project
+export const useCollectionRecords = (collectionName: string) => {
+  const [projectRecords, setProjectRecords, resetProjectRecords] = useProjectRecords()
+  return [projectRecords?.[collectionName], setProjectRecords, resetProjectRecords] as [
+    Record<string, RecordModel> | undefined,
+    typeof setProjectRecords,
+    typeof resetProjectRecords,
+  ]
+}
 
 // Project-scoped members
 export const useProjectMembers = () => useRecState(projectMembersState)

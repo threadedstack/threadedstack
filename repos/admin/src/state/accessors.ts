@@ -36,6 +36,7 @@ import type {
   TOpsActionRow,
   TCollectionWithCount,
   PermissionOverride,
+  Record as RecordModel,
   Function as FunctionModel,
 } from '@tdsk/domain'
 import type { TActivityRecord, TAgentStatus } from '@TAF/types/agentActivity.types'
@@ -75,6 +76,7 @@ import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { permissionOverridesState } from '@TAF/state/permissionOverrides'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { collectionsState } from '@TAF/state/collections'
+import { recordsState } from '@TAF/state/records'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
 import {
@@ -400,6 +402,25 @@ export const setContextCollections = (
 ) => {
   const all = getCollections() || {}
   setCollections({ ...all, [projectId]: collections })
+}
+
+// Records (project-scoped, collection-keyed, context-keyed)
+export const getRecords = () => store.get(recordsState)
+export const resetRecords = () => store.set(recordsState, undefined)
+export const setRecords = (
+  records: Record<string, Record<string, Record<string, RecordModel>>>
+) => store.set(recordsState, records)
+
+export const getContextRecords = (projectId: string, collectionName: string) =>
+  getRecords()?.[projectId]?.[collectionName]
+export const setContextRecords = (
+  projectId: string,
+  collectionName: string,
+  records: Record<string, RecordModel>
+) => {
+  const all = getRecords() || {}
+  const project = all[projectId] || {}
+  setRecords({ ...all, [projectId]: { ...project, [collectionName]: records } })
 }
 
 export const getScheduleRuns = () => store.get(scheduleRunsState)
