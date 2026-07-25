@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth'
+import { waitForDrawerClose } from '../utils/crud-helpers'
 
 /**
  * Agent Drawer Regression Tests
@@ -71,7 +72,7 @@ async function openAgentEditDrawer(page: import('@playwright/test').Page): Promi
     await editButton.first().click()
   }
 
-  await page.waitForTimeout(2000)
+  await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
   // Verify drawer opened (project-level shows "Configure Agent for Project")
   const editTitle = page.getByText('Edit Agent')
@@ -126,7 +127,7 @@ test.describe('Agent Drawer: Secrets display names (P1 regression)', () => {
 
     // Close the drawer
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
 
     expect(errors).toEqual([])
   })
@@ -184,7 +185,7 @@ test.describe('Agent Drawer: Providers display names (P1 regression)', () => {
 
     // Close the drawer
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
 
     expect(errors).toEqual([])
   })
@@ -208,8 +209,11 @@ test.describe('Agent Drawer: Functions selector hidden on org-level page', () =>
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found on org agents page — cannot test')
 
-    // Wait for async data loading in the drawer
-    await page.waitForTimeout(3000)
+    // #agent-secrets renders unconditionally on the org-level drawer
+    // (isOverrideMode is false without a projectId), and sits after the
+    // functions-selector's conditional block in AgentDrawer's render tree,
+    // so its presence confirms the drawer has fully rendered past that point.
+    await expect(page.locator('#agent-secrets')).toBeVisible({ timeout: 5_000 })
 
     // Functions selector should NOT be present on org-level agent drawer
     // (functions are project-scoped; orgs don't have functions)
@@ -218,7 +222,7 @@ test.describe('Agent Drawer: Functions selector hidden on org-level page', () =>
 
     // Close the drawer
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
 
     expect(errors).toEqual([])
   })
