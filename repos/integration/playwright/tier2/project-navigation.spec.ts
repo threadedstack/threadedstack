@@ -23,9 +23,7 @@ test.describe('Project Navigation State Scoping', () => {
     const hasSpinner = await spinner.isVisible().catch(() => false)
 
     if (hasSpinner) {
-      // Allow extra time for React state to settle
-      await page.waitForTimeout(2000)
-      await expect(spinner).not.toBeVisible()
+      await expect(spinner).not.toBeVisible({ timeout: 5_000 })
     }
 
     expect(errors).toEqual([])
