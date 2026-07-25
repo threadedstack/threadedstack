@@ -67,14 +67,14 @@ test.describe.serial('CRUD Agents', () => {
     const combobox = page.getByRole('combobox', { name: /provider/i }).first()
     await expect(combobox).toBeVisible({ timeout: 5_000 })
     await combobox.click()
-    await page.getByRole('listbox').waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {})
+    await expect(page.getByRole('listbox')).toBeVisible({ timeout: 5_000 })
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
 
     // Selecting an option closes the MUI Select popup in the same
     // interaction that fires onChange (synchronous, client-side state) --
     // waiting for the listbox to close is the real "provider added" signal.
-    await page.getByRole('listbox').waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
+    await expect(page.getByRole('listbox')).not.toBeVisible({ timeout: 5_000 })
 
     // Submit the form
     await submitForm(page, FORM_ID)
