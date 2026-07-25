@@ -42,7 +42,7 @@ export class OpsActionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((action) => new OpsAction(action)) || [],
+      data: resp?.data?.map?.((action) => new OpsAction(action)) || [],
     }
   }
 

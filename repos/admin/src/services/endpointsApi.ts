@@ -42,7 +42,7 @@ export class EndpointsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((endpoint) => new Endpoint(endpoint)) || [],
+      data: resp?.data?.map?.((endpoint) => new Endpoint(endpoint)) || [],
     }
   }
 
