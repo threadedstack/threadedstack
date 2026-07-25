@@ -908,6 +908,26 @@ describe(`KubeClient`, () => {
       expect(mockExecWs.close).toHaveBeenCalled()
     })
 
+    it(`should log podName, timeoutMs, and command as diagnostics when the exec times out`, async () => {
+      const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`])
+      const assertion = expect(promise).rejects.toThrow(
+        `runInPod timed out after ${DefaultExecTimeoutMs}ms for pod wedged-pod`
+      )
+
+      await vi.advanceTimersByTimeAsync(DefaultExecTimeoutMs)
+      await assertion
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`podName=wedged-pod`)
+      )
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`timeoutMs=${DefaultExecTimeoutMs}`)
+      )
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(`command=["sleep","999"]`)
+      )
+    })
+
     it(`should honor a custom opts.timeoutMs instead of the default`, async () => {
       const promise = client.runInPod(`wedged-pod`, [`sleep`, `999`], undefined, {
         timeoutMs: 5_000,

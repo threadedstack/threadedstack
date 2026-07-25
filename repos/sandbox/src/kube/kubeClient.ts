@@ -254,6 +254,9 @@ export class KubeClient {
               (err as Error).message
             )
           }
+          logger.warn(
+            `[KubeClient] runInPod exec timeout — podName=${podName}, timeoutMs=${timeoutMs}, command=${JSON.stringify(command)}`
+          )
           reject(new Error(`runInPod timed out after ${timeoutMs}ms for pod ${podName}`))
         })
       }, timeoutMs)
