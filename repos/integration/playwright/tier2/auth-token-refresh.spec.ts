@@ -166,8 +166,9 @@ test.describe('Auth Token 401 Retry', () => {
     // App should not crash — body remains visible
     await expect(page.locator('body').first()).toBeVisible()
 
-    // Give React time to settle any error boundaries or redirects
-    await page.waitForTimeout(2000)
+    // Give React time to settle any error boundaries or redirects —
+    // tied to actual network quiescence instead of a fixed delay
+    await page.waitForLoadState('networkidle')
     await expect(page.locator('body').first()).toBeVisible()
   })
 })
