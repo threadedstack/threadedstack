@@ -657,6 +657,24 @@ describe(`POST / - createSchedule`, () => {
       `Agent not found`
     )
   })
+
+  it(`throws a 400 (not an unhandled error) when parseNextRun finds no match for a cron that passed isValidCron`, async () => {
+    const { parseNextRun } = vi.mocked(await import(`@tdsk/domain`))
+    parseNextRun.mockImplementationOnce(() => {
+      throw new Error(`Cron expression "0 0 30 2 *" produced no match within 2 years`)
+    })
+
+    mockReq.body = {
+      cronExpression: `0 0 30 2 *`,
+      prompt: `Run it`,
+      sandboxId: `sb-1`,
+    }
+
+    await expect(createSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Invalid cron expression: Cron expression "0 0 30 2 *" produced no match within 2 years`
+    )
+    expect(scheduleService.create).not.toHaveBeenCalled()
+  })
 })
 
 // ── UPDATE SCHEDULE ─────────────────────────────────────────────────
@@ -950,6 +968,21 @@ describe(`PUT /:scheduleId - updateSchedule`, () => {
     await updateSchedule.action(mockReq, mockRes)
 
     expect(scheduleService.update.mock.calls[0][0]).not.toHaveProperty(`timeoutMs`)
+  })
+
+  it(`throws a 400 (not an unhandled error) when parseNextRun finds no match for an updated cron that passed isValidCron`, async () => {
+    const { parseNextRun } = vi.mocked(await import(`@tdsk/domain`))
+    scheduleService.get.mockResolvedValue({ data: mockSchedule })
+    parseNextRun.mockImplementationOnce(() => {
+      throw new Error(`Cron expression "0 0 30 2 *" produced no match within 2 years`)
+    })
+
+    mockReq.body = { cronExpression: `0 0 30 2 *` }
+
+    await expect(updateSchedule.action(mockReq, mockRes)).rejects.toThrow(
+      `Invalid cron expression: Cron expression "0 0 30 2 *" produced no match within 2 years`
+    )
+    expect(scheduleService.update).not.toHaveBeenCalled()
   })
 
   it(`clears the continuity threadId when agentId changes`, async () => {
