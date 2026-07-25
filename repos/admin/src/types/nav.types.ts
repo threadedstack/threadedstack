@@ -10,6 +10,7 @@ import type {
 
 export type TNavCtx = {
   orgId?: string
+  name?: string
   agentId?: string
   project?: Project
   threadId?: string

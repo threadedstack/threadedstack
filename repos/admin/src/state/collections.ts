@@ -13,3 +13,5 @@ export const projectCollectionsState = atom((get) => {
   const projectId = get(activeProjectIdState)
   return projectId ? get(collectionsState)?.[projectId] : undefined
 })
+
+export const activeCollectionNameState = atomWithReset<string>(undefined)

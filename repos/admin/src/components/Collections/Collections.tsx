@@ -4,7 +4,10 @@ import type { TDataTableColumn } from '@TAF/components'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import { EPermResource } from '@tdsk/domain'
+import { ERoutePath } from '@TAF/types'
+import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
 import { useProjectCollections } from '@TAF/state/selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { formatRelativeTime } from '@TAF/utils/transforms/time'
@@ -19,6 +22,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Preview as PreviewIcon,
 } from '@mui/icons-material'
 
 export type TCollections = {
@@ -52,6 +56,7 @@ const skeletonColumns = [
 export const Collections = (props: TCollections) => {
   const { orgId, projectId } = props
 
+  const navigate = useNavigate()
   const [collectionsMap] = useProjectCollections()
   const isInitialLoading = collectionsMap === undefined
   const { canCreate, canUpdate, canDelete } = usePermissions()
@@ -78,6 +83,15 @@ export const Collections = (props: TCollections) => {
   const onEditCollection = (collection: TCollectionWithCount) => {
     setSelectedCollection(collection)
     setDialogOpen(true)
+  }
+
+  const onViewRecords = (collection: TCollectionWithCount) => {
+    navigate(
+      buildNavRoute(
+        { orgId, projectId, name: collection.name },
+        ERoutePath.ProjectCollectionDetail
+      )
+    )
   }
 
   const onRemove = async () => {
@@ -175,6 +189,16 @@ export const Collections = (props: TCollections) => {
       align: 'right',
       render: (collection) => (
         <Box sx={styles.table.actions.box}>
+          <ActionIconButton
+            tooltip='View Records'
+            icon={<PreviewIcon sx={styles.table.actions.icon} />}
+            size='small'
+            color='primary'
+            onClick={(e) => {
+              e.stopPropagation()
+              onViewRecords(collection)
+            }}
+          />
           <ActionIconButton
             tooltip='Edit Collection'
             icon={<EditIcon sx={styles.table.actions.icon} />}
