@@ -12,6 +12,41 @@
 
 ---
 
+## STATUS: Tasks 1-3 are BUILT AND MERGED (PR #282). Start at Task 4.
+
+Implementing the backend proved four of this plan's assumptions wrong. They are
+corrected below, but read these first — two of them were latent 500s, not
+cosmetic:
+
+1. **`resident_status` and `agent_messages` declare NO `at` field.**
+   `compileRecordQuery.validateField` THROWS on a field absent from the seed
+   schema and `record.query` converts that to `{ error }`, so this plan's
+   `orderBy: { field: 'at' }` was a guaranteed **500 on every call**, not a
+   quiet empty list. Only `resident_transcripts` and `resident_memories`
+   declare `at`. As shipped: status and messages use no `orderBy` (the
+   service's `createdAt DESC` fallback), and messages page by `offset` since
+   there is nothing to keyset on.
+   **This matters for Task 8 below** — the timeline cannot sort messages on
+   `data.at`, because there isn't one.
+2. **The activity routes mount INSIDE the existing `projectAgents` group**, not
+   as a sibling. Express `use` matches on prefix, so a sibling at
+   `/:projectId/agents/:agentId/activity` would run `projectAccessGuard +
+   projectMemberGuard` TWICE per request. `featureGate('agents')` therefore
+   also applies, and is correct (it is a build-time flag, not a paid gate).
+3. **The scope guard verifies the project binding too**, not just `orgId`. It
+   returns 404 in every failure case so it cannot be used to enumerate ids.
+4. **The response envelope is `{ id, data, createdAt }`.** `createdAt` is
+   required precisely because `agent_messages` carries no timestamp.
+
+Security review of the shipped endpoints added: BOTH `agent:read` and
+`collection:read` are required (these return raw Collection documents), turn
+and message bodies are passed through a secret redactor, and `offset` is
+clamped at the top as well as the bottom.
+
+**Sharpest edge in this subsystem:** any query field must exist in the
+collection's seed schema. A typo becomes a 500 on every request rather than an
+empty result. It bit this plan twice.
+
 ## Conventions (read before starting)
 
 These are enforced project rules. Violating them fails review:
@@ -561,10 +596,16 @@ git commit -m "feat(backend): mount agent activity routes under project scope"
 Create `repos/admin/src/types/agentActivity.types.ts`:
 
 ```typescript
-/** One `{ id, data }` row as the activity endpoints return it. */
+/**
+ * One row as the activity endpoints return it.
+ *
+ * `createdAt` is NOT decoration: `agent_messages` documents carry no timestamp
+ * of their own, so it is the only thing the merged timeline can order them by.
+ */
 export type TActivityRecord = {
   id: string
   data: Record<string, any>
+  createdAt: string
 }
 
 /** The liveness row from `resident_status`. */
@@ -1009,9 +1050,15 @@ import { toTimeline } from './toTimeline'
 describe(`toTimeline`, () => {
   it(`merges all three sources newest first`, () => {
     const entries = toTimeline({
-      turns: [{ id: `t1`, data: { event: `agenda:groom`, at: `2026-07-24T10:00:00Z` } }],
-      messages: [{ id: `m1`, data: { subject: `hi`, at: `2026-07-24T12:00:00Z` } }],
-      memories: [{ id: `y1`, data: { text: `learned`, at: `2026-07-24T11:00:00Z` } }],
+      // Messages deliberately carry NO `data.at` — that collection has no such
+      // field, so this asserts the `createdAt` fallback actually orders them.
+      turns: [
+        { id: `t1`, createdAt: `2026-07-24T09:00:00Z`, data: { event: `agenda:groom`, at: `2026-07-24T10:00:00Z` } },
+      ],
+      messages: [{ id: `m1`, createdAt: `2026-07-24T12:00:00Z`, data: { subject: `hi` } }],
+      memories: [
+        { id: `y1`, createdAt: `2026-07-24T09:30:00Z`, data: { text: `learned`, at: `2026-07-24T11:00:00Z` } },
+      ],
     })
 
     expect(entries.map((e) => e.id)).toEqual([`m1`, `y1`, `t1`])
@@ -1023,11 +1070,11 @@ describe(`toTimeline`, () => {
       .toEqual([])
   })
 
-  it(`sorts rows missing 'at' last instead of throwing`, () => {
+  it(`sorts rows with NEITHER 'at' nor createdAt last instead of throwing`, () => {
     const entries = toTimeline({
       turns: [
-        { id: `t1`, data: { event: `a` } },
-        { id: `t2`, data: { event: `b`, at: `2026-07-24T10:00:00Z` } },
+        { id: `t1`, createdAt: ``, data: { event: `a` } },
+        { id: `t2`, createdAt: ``, data: { event: `b`, at: `2026-07-24T10:00:00Z` } },
       ],
       messages: [],
       memories: [],
@@ -1061,9 +1108,13 @@ type TToTimelineOpts = {
 /**
  * Merge the three activity sources into one chronological feed.
  *
- * Rows with no `at` sort LAST rather than throwing or landing at the epoch —
- * a malformed row should be visible at the bottom of the feed, never able to
- * break the whole page.
+ * ORDERING: only `resident_transcripts` and `resident_memories` declare an `at`
+ * field. `agent_messages` does NOT, so it can only be ordered by the row's
+ * `createdAt` — hence the `data.at ?? createdAt` fallback on every source
+ * rather than just messages, which keeps one ordering rule for the whole feed.
+ *
+ * Rows with neither sort LAST rather than throwing or landing at the epoch: a
+ * malformed row should be visible at the bottom, never able to break the page.
  */
 export const toTimeline = (opts: TToTimelineOpts): TTimelineEntry[] => {
   const { turns, messages, memories } = opts
@@ -1072,21 +1123,21 @@ export const toTimeline = (opts: TToTimelineOpts): TTimelineEntry[] => {
     ...(turns ?? []).map((row) => ({
       id: row.id,
       kind: `turn` as const,
-      at: String(row.data?.at ?? ``),
+      at: String(row.data?.at ?? row.createdAt ?? ``),
       title: String(row.data?.event ?? `turn`),
       body: typeof row.data?.output === `string` ? row.data.output : undefined,
     })),
     ...(messages ?? []).map((row) => ({
       id: row.id,
       kind: `message` as const,
-      at: String(row.data?.at ?? ``),
+      at: String(row.data?.at ?? row.createdAt ?? ``),
       title: String(row.data?.subject ?? `message`),
       body: typeof row.data?.body === `string` ? row.data.body : undefined,
     })),
     ...(memories ?? []).map((row) => ({
       id: row.id,
       kind: `memory` as const,
-      at: String(row.data?.at ?? ``),
+      at: String(row.data?.at ?? row.createdAt ?? ``),
       title: `memory`,
       body: typeof row.data?.text === `string` ? row.data.text : undefined,
     })),
