@@ -198,15 +198,14 @@ test.describe('Onboarding Wizard', () => {
     const nextButton = dialog.getByRole('button', { name: /Next/i })
     if (await nextButton.isEnabled().catch(() => false)) {
       await nextButton.click()
-      await page.waitForTimeout(300)
 
-      // Now click Back
+      // Now click Back — toBeEnabled() already polls, no extra wait needed
       const backButton = dialog.getByRole('button', { name: /Back/i })
       await expect(backButton).toBeEnabled()
       await backButton.click()
-      await page.waitForTimeout(300)
 
-      // Should be back on first step — Back should be disabled again
+      // Should be back on first step — Back should be disabled again.
+      // toBeDisabled() already polls, no extra wait needed.
       await expect(backButton).toBeDisabled()
     }
 
@@ -252,10 +251,10 @@ test.describe('Onboarding Wizard', () => {
     }
 
     await nextButton.click()
-    await page.waitForTimeout(300)
 
     // On the Provider step, there should be a "Skip" option
     const skipText = dialog.getByText(/Skip/i)
+    await skipText.first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {})
     const hasSkip = await skipText.first().isVisible().catch(() => false)
 
     // Provider step has skip functionality
