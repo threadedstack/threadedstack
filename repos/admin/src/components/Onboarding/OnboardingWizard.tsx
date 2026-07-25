@@ -39,14 +39,18 @@ export const OnboardingWizard = () => {
     submitStep,
     activeStep,
     canDismiss,
+    completion,
     onboarding,
     isFirstStep,
     isReviewStep,
     onStepClick,
     isStepSkipped,
     getStepResult,
+    onGoToProject,
     updateStepData,
     returnToReview,
+    onCreateFunction,
+    onCreateEndpoint,
     onReturnToReview,
     isProviderSkipped,
     isProjectSkipped,
@@ -300,9 +304,13 @@ export const OnboardingWizard = () => {
                   {activeStep === 4 && (
                     <ReviewStep
                       error={error}
+                      completion={completion}
                       submitStep={submitStep}
                       onStepClick={onStepClick}
+                      onGoToProject={onGoToProject}
                       getStepResult={getStepResult}
+                      onCreateFunction={onCreateFunction}
+                      onCreateEndpoint={onCreateEndpoint}
                     />
                   )}
                 </Box>
@@ -310,41 +318,47 @@ export const OnboardingWizard = () => {
             </ContentBody>
 
             <ContentFooter className='tdsk-sw-content-footer'>
-              <Button
-                variant='outlined'
-                disabled={isFirstStep || submitting}
-                onClick={onBack}
-              >
-                Back
-              </Button>
-              <Box sx={{ display: `flex`, gap: 1 }}>
-                {!isReviewStep && returnToReview && (
+              {!completion && (
+                <>
                   <Button
                     variant='outlined'
-                    onClick={onReturnToReview}
+                    disabled={isFirstStep || submitting}
+                    onClick={onBack}
                   >
-                    Return to Review
+                    Back
                   </Button>
-                )}
-                {isReviewStep ? (
-                  <Button
-                    variant='contained'
-                    disabled={submitting}
-                    onClick={onSubmit}
-                    startIcon={submitting ? <CircularProgress size={16} /> : undefined}
-                  >
-                    {submitting ? `Setting up...` : `Finish`}
-                  </Button>
-                ) : (
-                  <Button
-                    variant='contained'
-                    disabled={!canNext}
-                    onClick={onNext}
-                  >
-                    Next
-                  </Button>
-                )}
-              </Box>
+                  <Box sx={{ display: `flex`, gap: 1 }}>
+                    {!isReviewStep && returnToReview && (
+                      <Button
+                        variant='outlined'
+                        onClick={onReturnToReview}
+                      >
+                        Return to Review
+                      </Button>
+                    )}
+                    {isReviewStep ? (
+                      <Button
+                        variant='contained'
+                        disabled={submitting}
+                        onClick={onSubmit}
+                        startIcon={
+                          submitting ? <CircularProgress size={16} /> : undefined
+                        }
+                      >
+                        {submitting ? `Setting up...` : `Finish`}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant='contained'
+                        disabled={!canNext}
+                        onClick={onNext}
+                      >
+                        Next
+                      </Button>
+                    )}
+                  </Box>
+                </>
+              )}
             </ContentFooter>
           </ContentPanel>
         </WizardContainer>

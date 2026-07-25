@@ -17,7 +17,7 @@ vi.mock('@TAF/state/selectors', () => ({
 }))
 
 vi.mock('@TAF/services', () => ({
-  nav: { to: vi.fn() },
+  nav: { to: vi.fn(), route: vi.fn() },
 }))
 
 vi.mock('@TAF/state/accessors', () => ({
@@ -623,6 +623,231 @@ describe('useOnboarding', () => {
       expect(result.current.isStepSkipped(1)).toBe(false)
       expect(result.current.error).toBeNull()
       expect(result.current.submitting).toBe(false)
+    })
+  })
+
+  // ─── onSubmit completion flow ──────────────────────────────────────────────
+
+  describe('onSubmit completion flow', () => {
+    const setupSkippedProviderAndSandbox = (result: any) => {
+      act(() => result.current.updateStepData(`provider`, { mode: `skip` }))
+      act(() => result.current.updateStepData(`sandbox`, { mode: `skip` }))
+    }
+
+    it('sets completion instead of navigating away when a new org and new project are created', async () => {
+      const { createOrg } = await import('@TAF/actions/orgs/api/createOrg')
+      const { createProject } = await import('@TAF/actions/projects/api/createProject')
+      const { closeOnboarding } = await import(
+        '@TAF/actions/onboarding/local/closeOnboarding'
+      )
+      const { nav } = await import('@TAF/services')
+
+      vi.mocked(createOrg).mockResolvedValue({
+        org: { id: `org-1`, name: `New Org` } as any,
+      })
+      vi.mocked(createProject).mockResolvedValue({
+        data: { id: `proj-1`, name: `New Project` } as any,
+      })
+
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      act(() =>
+        result.current.updateStepData(`org`, {
+          mode: `create`,
+          data: { name: `New Org`, description: `` },
+        })
+      )
+      setupSkippedProviderAndSandbox(result)
+      act(() =>
+        result.current.updateStepData(`project`, {
+          mode: `create`,
+          data: { name: `New Project`, description: `` },
+        })
+      )
+
+      await act(async () => {
+        await result.current.onSubmit()
+      })
+
+      expect(result.current.completion).toEqual({ orgId: `org-1`, projectId: `proj-1` })
+      expect(closeOnboarding).not.toHaveBeenCalled()
+      expect(nav.to).not.toHaveBeenCalled()
+    })
+
+    it('preserves the existing navigate-away behavior when nothing new was created', async () => {
+      const { closeOnboarding } = await import(
+        '@TAF/actions/onboarding/local/closeOnboarding'
+      )
+      const { nav } = await import('@TAF/services')
+
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      act(() =>
+        result.current.updateStepData(`org`, {
+          mode: `select`,
+          selectedId: `org-2`,
+          selectedName: `Existing Org`,
+        })
+      )
+      setupSkippedProviderAndSandbox(result)
+      act(() =>
+        result.current.updateStepData(`project`, {
+          mode: `select`,
+          selectedId: `proj-2`,
+          selectedName: `Existing Project`,
+        })
+      )
+
+      await act(async () => {
+        await result.current.onSubmit()
+      })
+
+      expect(result.current.completion).toBeNull()
+      expect(closeOnboarding).toHaveBeenCalled()
+      expect(nav.to).toHaveBeenCalledWith(`/orgs/org-2/projects/proj-2`)
+    })
+
+    it('reopening onboarding resets a stale completion state', async () => {
+      const { createOrg } = await import('@TAF/actions/orgs/api/createOrg')
+      const { createProject } = await import('@TAF/actions/projects/api/createProject')
+
+      vi.mocked(createOrg).mockResolvedValue({
+        org: { id: `org-1`, name: `New Org` } as any,
+      })
+      vi.mocked(createProject).mockResolvedValue({
+        data: { id: `proj-1`, name: `New Project` } as any,
+      })
+
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result, rerender } = renderHook(() => useOnboarding())
+
+      act(() =>
+        result.current.updateStepData(`org`, {
+          mode: `create`,
+          data: { name: `New Org`, description: `` },
+        })
+      )
+      setupSkippedProviderAndSandbox(result)
+      act(() =>
+        result.current.updateStepData(`project`, {
+          mode: `create`,
+          data: { name: `New Project`, description: `` },
+        })
+      )
+
+      await act(async () => {
+        await result.current.onSubmit()
+      })
+      expect(result.current.completion).not.toBeNull()
+
+      mockOnboardingState.open = false
+      rerender()
+      mockOnboardingState.open = true
+      rerender()
+
+      expect(result.current.completion).toBeNull()
+    })
+  })
+
+  // ─── Completion CTA handlers ────────────────────────────────────────────────
+
+  describe('completion CTA handlers', () => {
+    const completeOnboarding = async (result: any) => {
+      const { createOrg } = await import('@TAF/actions/orgs/api/createOrg')
+      const { createProject } = await import('@TAF/actions/projects/api/createProject')
+
+      vi.mocked(createOrg).mockResolvedValue({
+        org: { id: `org-1`, name: `New Org` } as any,
+      })
+      vi.mocked(createProject).mockResolvedValue({
+        data: { id: `proj-1`, name: `New Project` } as any,
+      })
+
+      act(() =>
+        result.current.updateStepData(`org`, {
+          mode: `create`,
+          data: { name: `New Org`, description: `` },
+        })
+      )
+      act(() => result.current.updateStepData(`provider`, { mode: `skip` }))
+      act(() => result.current.updateStepData(`sandbox`, { mode: `skip` }))
+      act(() =>
+        result.current.updateStepData(`project`, {
+          mode: `create`,
+          data: { name: `New Project`, description: `` },
+        })
+      )
+
+      await act(async () => {
+        await result.current.onSubmit()
+      })
+    }
+
+    it('does nothing when there is no completion state', async () => {
+      const { nav } = await import('@TAF/services')
+      const { closeOnboarding } = await import(
+        '@TAF/actions/onboarding/local/closeOnboarding'
+      )
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      act(() => result.current.onGoToProject())
+      act(() => result.current.onCreateFunction())
+      act(() => result.current.onCreateEndpoint())
+
+      expect(nav.to).not.toHaveBeenCalled()
+      expect(nav.route).not.toHaveBeenCalled()
+      expect(closeOnboarding).not.toHaveBeenCalled()
+    })
+
+    it('onGoToProject navigates to the project and clears completion', async () => {
+      const { nav } = await import('@TAF/services')
+      const { closeOnboarding } = await import(
+        '@TAF/actions/onboarding/local/closeOnboarding'
+      )
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      await completeOnboarding(result)
+      act(() => result.current.onGoToProject())
+
+      expect(closeOnboarding).toHaveBeenCalled()
+      expect(nav.to).toHaveBeenCalledWith(`/orgs/org-1/projects/proj-1`)
+      expect(result.current.completion).toBeNull()
+    })
+
+    it('onCreateFunction routes to ProjectFunctions for the current org/project', async () => {
+      const { nav } = await import('@TAF/services')
+      const { ERoutePath } = await import('@TAF/types')
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      await completeOnboarding(result)
+      act(() => result.current.onCreateFunction())
+
+      expect(nav.route).toHaveBeenCalledWith(ERoutePath.ProjectFunctions, {
+        orgId: `org-1`,
+        projectId: `proj-1`,
+      })
+      expect(result.current.completion).toBeNull()
+    })
+
+    it('onCreateEndpoint routes to ProjectEndpoints for the current org/project', async () => {
+      const { nav } = await import('@TAF/services')
+      const { ERoutePath } = await import('@TAF/types')
+      const { useOnboarding } = await import('./useOnboarding')
+      const { result } = renderHook(() => useOnboarding())
+
+      await completeOnboarding(result)
+      act(() => result.current.onCreateEndpoint())
+
+      expect(nav.route).toHaveBeenCalledWith(ERoutePath.ProjectEndpoints, {
+        orgId: `org-1`,
+        projectId: `proj-1`,
+      })
+      expect(result.current.completion).toBeNull()
     })
   })
 })
