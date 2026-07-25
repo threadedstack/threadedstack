@@ -45,13 +45,33 @@ export const mapChangedFiles = (
 
   const has = (re: RegExp) => files.some((file) => re.test(file))
 
+  // A unit/spec file (.test.ts, .spec.tsx, .test.mts, …). The build EXCLUDES
+  // these from every runtime image, so the egress binary is byte-identical
+  // whether or not one changed.
+  const isTestFile = (file: string) => /\.(test|spec)\.[cm]?tsx?$/.test(file)
+
   // The egress service's code cone: its entrypoint, the MITM proxy + its
   // guards, secret resolution, the kube route client, and the DB secret read
   // path. Every path here also triggers a backend image build (the cone is a
   // subset of the backend triggers), so a changed cone always has a freshly
   // built image to point at.
-  const egress = has(
-    /^repos\/backend\/src\/(egress\.ts|services\/proxy\/|services\/secrets\/|utils\/proxy\/)|^repos\/sandbox\/src\/kube\/|^repos\/database\/src\/(database\.ts|services\/secret\.ts)/
+  //
+  // Test/spec files are filtered OUT of the egress match specifically because
+  // rolling tdsk-egress re-pins its pod IP and strands every running resident/
+  // sandbox's baked-in egress DNAT, tearing down the whole always-on fleet.
+  // PR #302 (a4b3d568) changed ONLY buildProxy.test.ts — a unit-test-only file
+  // that cannot alter egress behavior — yet it matched this cone, rolled egress
+  // at 04:19, and the watchdog swept all six residents at 04:26. Test-coverage
+  // PRs fire constantly, so an unfiltered cone repeats that fleet sweep. Other
+  // cones are intentionally left broad: a test-only backend/proxy rebuild is
+  // wasteful but harmless (residents survive backend rolls); only an egress
+  // roll is destructive.
+  const egress = files.some(
+    (file) =>
+      !isTestFile(file) &&
+      /^repos\/backend\/src\/(egress\.ts|services\/proxy\/|services\/secrets\/|utils\/proxy\/)|^repos\/sandbox\/src\/kube\/|^repos\/database\/src\/(database\.ts|services\/secret\.ts)/.test(
+        file
+      )
   )
 
   // Shared backend deps (domain, database, logger) rebuild both proxy + backend

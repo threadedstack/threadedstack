@@ -145,6 +145,36 @@ describe(`mapChangedFiles`, () => {
     expect(mapChangedFiles([`repos/domain/src/models/user.ts`]).egress).toBe(false)
   })
 
+  it(`never rolls egress for test/spec-only changes (fleet-sweep guard)`, () => {
+    // A .test/.spec file is excluded from every runtime image, so it cannot
+    // change egress behavior — rolling egress for one only strands the always-on
+    // resident fleet (PR #302 / a4b3d568 changed ONLY buildProxy.test.ts and
+    // swept all six residents). These must NOT flag egress.
+    expect(
+      mapChangedFiles([`repos/backend/src/utils/proxy/buildProxy.test.ts`]).egress
+    ).toBe(false)
+    expect(mapChangedFiles([`repos/sandbox/src/kube/kubeSandbox.test.ts`]).egress).toBe(
+      false
+    )
+    expect(mapChangedFiles([`repos/sandbox/src/kube/kubeSandbox.spec.ts`]).egress).toBe(
+      false
+    )
+
+    // The real source file it accompanies STILL rolls egress (regression guard).
+    expect(mapChangedFiles([`repos/backend/src/utils/proxy/buildProxy.ts`]).egress).toBe(
+      true
+    )
+
+    // A PR touching BOTH a real egress-source file AND its test still rolls
+    // egress — the real change is what matters.
+    expect(
+      mapChangedFiles([
+        `repos/backend/src/services/proxy/foo.ts`,
+        `repos/backend/src/services/proxy/foo.test.ts`,
+      ]).egress
+    ).toBe(true)
+  })
+
   it(`flags deploy config changes without rebuilding images`, () => {
     expect(mapChangedFiles([`deploy/values.production.yaml`]).deployConfig).toBe(true)
     expect(mapChangedFiles([`deploy/templates/deployment.yaml`]).deployConfig).toBe(true)
