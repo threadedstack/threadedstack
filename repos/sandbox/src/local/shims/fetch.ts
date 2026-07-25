@@ -1,5 +1,7 @@
 import type { TShimDefinition } from '@TSB/types'
 
+import { guardedFetch } from '@tdsk/domain'
+
 // isolated-vm Context's string evaluator METHOD (not the JS global eval) —
 // invoked via an index, mirroring how local.ts calls the runner's evaluator.
 const ContextEval = `ev` + `al`
@@ -29,7 +31,7 @@ export const fetchShim: TShimDefinition = {
         }
         const run = async () => {
           const opts = optsJson ? JSON.parse(optsJson) : {}
-          const response = await fetch(url, opts)
+          const response = await guardedFetch(url, opts)
           const body = await response.text()
           return JSON.stringify({
             ok: response.ok,
