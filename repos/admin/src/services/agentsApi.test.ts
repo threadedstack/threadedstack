@@ -90,6 +90,14 @@ describe(`AgentsApi`, () => {
       expect(resp.data).toEqual([])
     })
 
+    it(`should not throw and should fall back to an empty array when the response body has no top-level 'data' key (parseResponse returns the raw non-array body as resp.data)`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { notData: true }))
+
+      const resp = await agentsApi.list(`org-1`)
+
+      expect(resp.data).toEqual([])
+    })
+
     it(`should use data.queryKey to override the default cache.list() key`, async () => {
       mockFetch.mockResolvedValueOnce(makeResponse(200, { data: [] }))
 
