@@ -118,14 +118,14 @@ test.describe('Thread UX: Threads page renders without errors', () => {
     if ((await editButton.count()) > 0) {
       const urlBefore = page.url()
       await editButton.first().click()
-      await page.waitForTimeout(300)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
       // URL should NOT have changed (edit button opens drawer, not navigates)
       expect(page.url()).toBe(urlBefore)
 
       // Close any opened drawer
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(300)
+      await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
     }
 
     expect(errors).toEqual([])
