@@ -13,6 +13,35 @@ const DefaultLimit = 25
 const MaxLimit = 100
 
 /**
+ * Hard ceiling on how deep a caller may page. `compileRecordQuery` clamps offset
+ * only at the bottom (`Math.max(0, Math.floor(rawOffset))`), so without a
+ * ceiling here an absurd offset reaches Postgres, where it either fails to cast
+ * to bigint — a caller-triggerable 500 — or forces a full scan to skip rows that
+ * do not exist. 100 pages of the maximum page size is far past any real inbox.
+ */
+const MaxOffset = 10000
+
+/**
+ * Parse a query-string integer and force it inside `[min, max]`.
+ *
+ * `Number` rather than `Number.parseInt`: `parseInt` reads an exponential string
+ * by its leading digits alone (`1e21` -> `1`), which silently converts a hostile
+ * bound into a plausible one instead of clamping it, and it happily accepts
+ * trailing garbage (`50abc` -> `50`). An absent or unparseable value falls back
+ * to `fallback`; everything else is floored and clamped, so no fractional,
+ * negative, infinite, or out-of-range number can reach the query layer.
+ */
+const clampInt = (value: unknown, fallback: number, min: number, max: number) => {
+  const raw = String(value ?? ``).trim()
+  if (!raw) return fallback
+
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) return fallback
+
+  return Math.min(Math.max(Math.floor(parsed), min), max)
+}
+
+/**
  * Build the record query for an agent-activity read. Shared by the three list
  * endpoints so their filtering, ordering, and pagination cannot drift apart.
  *
@@ -33,19 +62,16 @@ const MaxLimit = 100
  * list: the query compiler throws on it and the read becomes a 500. That is why
  * `timeField` is omitted rather than defaulted.
  *
- * `limit` and `offset` are clamped rather than trusted, and a non-string
- * `before` is dropped — Express parses a repeated query param into an array,
- * which must never reach the query layer as a bound value.
+ * `limit` and `offset` are clamped at BOTH ends rather than trusted, and a
+ * non-string `before` is dropped — Express parses a repeated query param into an
+ * array, which must never reach the query layer as a bound value.
  */
 export const resolveActivityQuery = (
   agentId: string,
   reqQuery: { limit?: unknown; before?: unknown; offset?: unknown },
   collection: { agentField: string; timeField?: string }
 ): TRecordQuery => {
-  const parsedLimit = Number.parseInt(String(reqQuery.limit ?? ``), 10)
-  const limit = Number.isNaN(parsedLimit)
-    ? DefaultLimit
-    : Math.min(Math.max(parsedLimit, 1), MaxLimit)
+  const limit = clampInt(reqQuery.limit, DefaultLimit, 1, MaxLimit)
 
   const where: TRecordQuery[`where`] = [
     { field: collection.agentField, op: EQueryOp.eq, value: agentId },
@@ -66,8 +92,7 @@ export const resolveActivityQuery = (
     return query
   }
 
-  const parsedOffset = Number.parseInt(String(reqQuery.offset ?? ``), 10)
-  query.offset = Number.isNaN(parsedOffset) ? 0 : Math.max(parsedOffset, 0)
+  query.offset = clampInt(reqQuery.offset, 0, 0, MaxOffset)
 
   return query
 }

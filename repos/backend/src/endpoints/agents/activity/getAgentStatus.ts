@@ -29,11 +29,26 @@ const ResidentStatusCollection = `resident_status`
  * not declare. The heartbeat keeps exactly one record per agent (keyed by
  * `agentId`), so the record service's `createdAt DESC` fallback is both correct
  * and deterministic here.
+ *
+ * Requires BOTH `agent:read` and `collection:read`, because the body is the raw
+ * `resident_status` document — the same bytes the generic collection query route
+ * returns behind `collection:read`. See `listAgentTurns` for the full rationale.
+ *
+ * Unlike the three list endpoints the document is NOT run through
+ * `redactSecrets`. The heartbeat schema is a closed set of seven fields
+ * (`agentId`, `sessionId`, `queueDepth`, `currentActivity`, `lastTurnAt`,
+ * `turnCount`, `degraded`) — counters, flags, and ids rather than the turn
+ * `input`/`output` and message `body` that carry whatever the agent was
+ * holding. `currentActivity` is the one agent-written string, and it is a short
+ * activity label, not a transcript.
  */
 export const getAgentStatus: TEndpointConfig = {
   path: `/status`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.agent)],
+  middleware: [
+    authorize(EPermAction.read, EPermResource.agent),
+    authorize(EPermAction.read, EPermResource.collection),
+  ],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { projectId } = req.params

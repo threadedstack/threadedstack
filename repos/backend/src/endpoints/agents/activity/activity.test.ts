@@ -2,10 +2,26 @@ import type { Response } from 'express'
 import type { TApp, TRequest, TEndpointConfig } from '@TBE/types'
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Agent, EQueryOp, Record as RecordModel } from '@tdsk/domain'
+import {
+  Agent,
+  EQueryOp,
+  EPermAction,
+  EPermResource,
+  Record as RecordModel,
+} from '@tdsk/domain'
 
 import { EPMethod } from '@TBE/types'
 import { orgProjects } from '@TBE/endpoints/orgs/orgProjects'
+
+/**
+ * Tag each `authorize()` result with the grant it was built from, so a test can
+ * assert WHICH permissions an endpoint demands rather than only how many
+ * middleware it happens to carry.
+ */
+vi.mock(`@TBE/middleware/authorize`, () => ({
+  authorize: (action: unknown, resource: unknown) =>
+    Object.assign(vi.fn(), { grant: { action, resource } }),
+}))
 
 import { getAgentStatus } from './getAgentStatus'
 import { listAgentTurns } from './listAgentTurns'
@@ -41,6 +57,9 @@ describe(`resolveActivityQuery`, () => {
     // Garbage falls back to the default rather than NaN reaching the query.
     expect(limitOf(`abc`)).toBe(25)
     expect(limitOf(undefined)).toBe(25)
+    // An exponential string is read as the huge value it is and clamped, not
+    // truncated to its leading digit.
+    expect(limitOf(`1e21`)).toBe(100)
   })
 
   it(`adds a keyset cursor on the time field when before is supplied`, () => {
@@ -89,6 +108,31 @@ describe(`resolveActivityQuery`, () => {
     expect(offsetOf(`-5`)).toBe(0)
     expect(offsetOf(`abc`)).toBe(0)
     expect(offsetOf(undefined)).toBe(0)
+  })
+
+  it(`caps offset at the top, so an absurd page can never reach the SQL layer`, () => {
+    const offsetOf = (offset: unknown) =>
+      resolveActivityQuery(AgentId, { offset }, MessagesCollection).offset
+
+    // `compileRecordQuery` clamps offset only at the bottom, so a value that
+    // survives here goes straight to Postgres — where a 21-digit offset fails
+    // to cast to bigint (a caller-triggerable 500) and a merely large one buys
+    // a full scan to skip rows that do not exist.
+    expect(offsetOf(`999999999999999999999`)).toBe(10000)
+    expect(offsetOf(`1e21`)).toBe(10000)
+    expect(offsetOf(1e21)).toBe(10000)
+    expect(offsetOf(`10001`)).toBe(10000)
+    // Non-finite input is treated as absent rather than as "page forever".
+    expect(offsetOf(`Infinity`)).toBe(0)
+    expect(offsetOf(Number.POSITIVE_INFINITY)).toBe(0)
+    // A fractional offset is floored, never handed to the driver as a float.
+    expect(offsetOf(`25.9`)).toBe(25)
+
+    for (const hostile of [`999999999999999999999`, `1e21`, 1e21, `Infinity`])
+      expect(
+        Number.isSafeInteger(offsetOf(hostile)),
+        String(hostile)
+      ).toBe(true)
   })
 
   it(`never offsets a keyset-paged collection, which would skip rows`, () => {
@@ -157,14 +201,27 @@ describe(`agent activity endpoints`, () => {
     expect(listAgentMemories.method).toBe(EPMethod.Get)
   })
 
-  it(`guards every route with an agent read authorization`, () => {
-    for (const endpoint of [
+  it(`demands BOTH agent:read and collection:read on every route`, () => {
+    // These endpoints return raw Collection documents — the same bytes the
+    // generic `POST .../records/query` route serves behind `collection:read`.
+    // With only `agent:read` they would be a way around a revoked collection
+    // grant, since `resolveEffectivePermissions` intersects permission
+    // overrides and API-key permissions.
+    for (const [name, endpoint] of Object.entries({
       getAgentStatus,
       listAgentTurns,
       listAgentMessages,
       listAgentMemories,
-    ])
-      expect(endpoint.middleware?.length).toBeGreaterThan(0)
+    })) {
+      const grants = (endpoint.middleware ?? []).map(
+        (mw) => (mw as unknown as { grant?: unknown }).grant
+      )
+
+      expect(grants, name).toEqual([
+        { action: EPermAction.read, resource: EPermResource.agent },
+        { action: EPermAction.read, resource: EPermResource.collection },
+      ])
+    }
   })
 
   describe(`getAgentStatus`, () => {
@@ -285,6 +342,95 @@ describe(`agent activity endpoints`, () => {
       expect(row).not.toHaveProperty(`collectionId`)
     })
 
+    it(`redacts secret-shaped text anywhere in the turn, including nested`, async () => {
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+
+      const stored = {
+        event: `work:cycle`,
+        input: `rotate tdsk_liveKey1234567890`,
+        output: {
+          steps: [`called openai with sk-live-abc123`],
+          curl: `-H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9"`,
+        },
+      }
+      const row = new RecordModel({
+        id: `rc_turn0002`,
+        data: stored,
+        projectId: ProjectId,
+        collectionId: `col_restrn`,
+      })
+      query.mockResolvedValue({ data: [row] })
+
+      await listAgentTurns.action?.(buildReq(app), res)
+
+      const [sent] = json.mock.calls[0][0].data
+      expect(sent.data).toEqual({
+        event: `work:cycle`,
+        input: `rotate [redacted]`,
+        output: {
+          steps: [`called openai with [redacted]`],
+          curl: `-H "Authorization: Bearer [redacted]"`,
+        },
+      })
+    })
+
+    it(`never mutates the stored record while redacting`, async () => {
+      // The record instances come from the DB layer and are shared, so
+      // redacting in place would corrupt them for every later reader in the
+      // same process.
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+
+      const row = new RecordModel({
+        id: `rc_turn0003`,
+        data: { output: `key sk-live-abc123`, nested: { key: `tdsk_liveKey1234567890` } },
+        projectId: ProjectId,
+        collectionId: `col_restrn`,
+      })
+      query.mockResolvedValue({ data: [row] })
+
+      await listAgentTurns.action?.(buildReq(app), res)
+
+      expect(row.data).toEqual({
+        output: `key sk-live-abc123`,
+        nested: { key: `tdsk_liveKey1234567890` },
+      })
+
+      const [sent] = json.mock.calls[0][0].data
+      expect(sent.data).not.toBe(row.data)
+      expect(sent.data.nested).not.toBe(row.data.nested)
+    })
+
+    it(`leaves an ordinary turn byte-identical`, async () => {
+      // Redaction is anchored on word boundaries precisely so routine agent
+      // prose survives — an unanchored `sk-` eats `task-management`.
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+
+      const stored = {
+        event: `agenda:groom`,
+        output: `groomed task-management, checked disk-usage and risk-assessment`,
+        importance: 7,
+        ok: true,
+        meta: null,
+      }
+      query.mockResolvedValue({
+        data: [
+          new RecordModel({
+            id: `rc_turn0004`,
+            data: stored,
+            projectId: ProjectId,
+            collectionId: `col_restrn`,
+          }),
+        ],
+      })
+
+      await listAgentTurns.action?.(buildReq(app), res)
+
+      expect(json.mock.calls[0][0].data[0].data).toEqual(stored)
+    })
+
     it(`returns an empty list when the agent has no turns`, async () => {
       const { app, query } = buildApp()
       const { res, json } = buildCtx()
@@ -333,6 +479,34 @@ describe(`agent activity endpoints`, () => {
       expect(sent.orderBy).toBeUndefined()
       expect(sent.where).toHaveLength(1)
     })
+
+    it(`redacts a message body`, async () => {
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+
+      query.mockResolvedValue({
+        data: [
+          new RecordModel({
+            id: `rc_msg00001`,
+            data: {
+              to: AgentId,
+              from: `ag_ceo00001`,
+              subject: `connector creds`,
+              body: `use ghp_abcdefghijklmnopqrstuvwxyz012345 and xoxb-123456789012-abcdef`,
+            },
+            projectId: ProjectId,
+            collectionId: `col_agtmsg`,
+          }),
+        ],
+      })
+
+      await listAgentMessages.action?.(buildReq(app), res)
+
+      const [sent] = json.mock.calls[0][0].data
+      expect(sent.data.body).toBe(`use [redacted] and [redacted]`)
+      expect(sent.data.subject).toBe(`connector creds`)
+      expect(sent.data.from).toBe(`ag_ceo00001`)
+    })
   })
 
   describe(`listAgentMemories`, () => {
@@ -347,6 +521,29 @@ describe(`agent activity endpoints`, () => {
         orderBy: { field: `at`, direction: `desc` },
         limit: 25,
       })
+    })
+
+    it(`redacts memory text, which is free-form and agent-authored`, async () => {
+      // Same exposure class as a transcript: whatever the agent was holding can
+      // be written into a memory verbatim.
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+
+      query.mockResolvedValue({
+        data: [
+          new RecordModel({
+            id: `rc_mem00001`,
+            data: { text: `deploy key is AKIAIOSFODNN7EXAMPLE`, importance: 8 },
+            projectId: ProjectId,
+            collectionId: `col_resmem`,
+          }),
+        ],
+      })
+
+      await listAgentMemories.action?.(buildReq(app), res)
+
+      const [sent] = json.mock.calls[0][0].data
+      expect(sent.data).toEqual({ text: `deploy key is [redacted]`, importance: 8 })
     })
   })
 

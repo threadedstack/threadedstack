@@ -6,8 +6,8 @@ import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 import { assertAgentInScope } from './assertAgentInScope'
-import { toActivityRecord } from './toActivityRecord'
 import { resolveActivityQuery } from './resolveActivityQuery'
+import { toRedactedActivityRecord } from './toRedactedActivityRecord'
 
 /** Inter-agent mail, written by `sendAgentMessage`. */
 const AgentMessagesCollection = `agent_messages`
@@ -26,11 +26,18 @@ const AgentMessagesCollection = `agent_messages`
  * 2. Rows carry no timestamp, so there is nothing to keyset on. The read falls
  *    back to the record row's own `createdAt DESC` and pages by `offset`, and
  *    the response's `createdAt` is what a client orders a merged timeline by.
+ *
+ * Requires BOTH `agent:read` and `collection:read`, because the body is the raw
+ * `agent_messages` document — the same bytes the generic collection query route
+ * returns behind `collection:read`. See `listAgentTurns` for the full rationale.
  */
 export const listAgentMessages: TEndpointConfig = {
   path: `/messages`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.agent)],
+  middleware: [
+    authorize(EPermAction.read, EPermResource.agent),
+    authorize(EPermAction.read, EPermResource.collection),
+  ],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { projectId } = req.params
@@ -43,6 +50,6 @@ export const listAgentMessages: TEndpointConfig = {
     )
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: (data ?? []).map(toActivityRecord) })
+    res.status(200).json({ data: (data ?? []).map(toRedactedActivityRecord) })
   },
 }

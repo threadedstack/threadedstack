@@ -6,8 +6,8 @@ import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 import { assertAgentInScope } from './assertAgentInScope'
-import { toActivityRecord } from './toActivityRecord'
 import { resolveActivityQuery } from './resolveActivityQuery'
+import { toRedactedActivityRecord } from './toRedactedActivityRecord'
 
 /** Durable learnings, one append-only row per memory, written by `writeMemory`. */
 const ResidentMemoriesCollection = `resident_memories`
@@ -19,11 +19,19 @@ const ResidentMemoriesCollection = `resident_memories`
  * `before`. Each row carries the memory `text`, its `importance` (1-10), and an
  * optional `kind`/`meta` — the record of what the agent chose to remember
  * across compactions.
+ *
+ * Requires BOTH `agent:read` and `collection:read`, because the body is the raw
+ * `resident_memories` document — the same bytes the generic collection query
+ * route returns behind `collection:read`. See `listAgentTurns` for the full
+ * rationale.
  */
 export const listAgentMemories: TEndpointConfig = {
   path: `/memories`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.agent)],
+  middleware: [
+    authorize(EPermAction.read, EPermResource.agent),
+    authorize(EPermAction.read, EPermResource.collection),
+  ],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { projectId } = req.params
@@ -39,6 +47,6 @@ export const listAgentMemories: TEndpointConfig = {
     )
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: (data ?? []).map(toActivityRecord) })
+    res.status(200).json({ data: (data ?? []).map(toRedactedActivityRecord) })
   },
 }
