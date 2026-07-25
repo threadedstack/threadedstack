@@ -55,6 +55,11 @@ import { getAPConfig } from '@TBE/endpoints/agents/getAPConfig'
 import { deleteAPConfig } from '@TBE/endpoints/agents/deleteAPConfig'
 import { upsertAPConfig } from '@TBE/endpoints/agents/upsertAPConfig'
 
+import { getAgentStatus } from '@TBE/endpoints/agents/activity/getAgentStatus'
+import { listAgentTurns } from '@TBE/endpoints/agents/activity/listAgentTurns'
+import { listAgentMemories } from '@TBE/endpoints/agents/activity/listAgentMemories'
+import { listAgentMessages } from '@TBE/endpoints/agents/activity/listAgentMessages'
+
 import { getSandbox } from '@TBE/endpoints/sandboxes/getSandbox'
 import { stopSandbox } from '@TBE/endpoints/sandboxes/stopSandbox'
 import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
@@ -151,6 +156,31 @@ const projectAgentConfig: TEndpointConfig = {
   },
 }
 
+/**
+ * Read-only agent telemetry: /:agentId/activity
+ *
+ * Nested inside the agents group rather than mounted as a sibling on
+ * `/:projectId/agents/:agentId/activity`. Express `use` matches on prefix, so a
+ * sibling would still run the agents group's guards on the way past and then
+ * run its own again — the same middleware twice per request, and the
+ * `agents` feature gate applying anyway. Nesting is also the shape
+ * `projectAgentConfig` already uses for its `/:agentId/config` routes.
+ *
+ * Carries no middleware of its own: the parent group's feature gate and
+ * project access/member guards cover these routes, and each endpoint applies
+ * its own authorize() on EPermResource.agent.
+ */
+const projectAgentActivity: TEndpointConfig = {
+  path: `/:agentId/activity`,
+  method: EPMethod.Use,
+  endpoints: {
+    getAgentStatus,
+    listAgentTurns,
+    listAgentMessages,
+    listAgentMemories,
+  },
+}
+
 const projectAgents: TEndpointConfig = {
   path: `/:projectId/agents`,
   method: EPMethod.Use,
@@ -162,6 +192,7 @@ const projectAgents: TEndpointConfig = {
     updateAgent,
     deleteAgent,
     projectAgentConfig,
+    projectAgentActivity,
   },
 }
 
