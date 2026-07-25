@@ -1,5 +1,6 @@
 export * from './ai.types'
 export * from './actions.types'
+export * from './egress.types'
 export * from './ws.types'
 export * from './api.types'
 export * from './epd.types'

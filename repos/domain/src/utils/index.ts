@@ -1,6 +1,7 @@
 export * from './api'
 export * from './cron'
 export * from './sandbox'
+export * from './egressGuard'
 export * from './isDomain'
 export * from './parseActionsBlock'
 export * from './payments'

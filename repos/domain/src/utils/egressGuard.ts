@@ -1,7 +1,8 @@
+import type { TEgressResolver } from '@TDM/types'
+
 import { isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
-
-import { Exception } from '@tdsk/domain'
+import { Exception } from '@TDM/error/exception'
 
 /**
  * SSRF egress guard for the proxy engine.
@@ -27,9 +28,6 @@ import { Exception } from '@tdsk/domain'
  * socket pinning (dial the validated IP, keep the hostname for SNI/Host) is the
  * follow-up hardening; it needs a custom HTTP agent and is tracked separately.
  */
-
-/** Injectable resolver so tests need no real DNS. Returns resolved addresses. */
-export type TEgressResolver = (host: string) => Promise<string[]>
 
 const defaultResolver: TEgressResolver = async (host) => {
   const results = await lookup(host, { all: true })

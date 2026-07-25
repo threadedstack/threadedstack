@@ -2,12 +2,12 @@ import type { TDatabase } from '@tdsk/database'
 import type { TProxyEndpointConfig } from '@tdsk/domain'
 
 import { scanText } from '@TBE/utils/agent/textScan'
-import { assertSafeEgressUrl } from '@TBE/utils/proxy'
 import {
   Exception,
   EEndpointType,
   SecretRefPattern,
   Endpoint as EndpointRecord,
+  assertSafeEgressUrl,
   extractLastFencedBlock,
 } from '@tdsk/domain'
 
