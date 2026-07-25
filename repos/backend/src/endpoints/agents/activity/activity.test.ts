@@ -265,6 +265,40 @@ describe(`agent activity endpoints`, () => {
       expect(query.mock.calls[0][2]).not.toHaveProperty(`orderBy`)
     })
 
+    it(`redacts the heartbeat too, including an undeclared key`, async () => {
+      // The declared schema is counters and flags, but the record service's
+      // `#validateData` only walks DECLARED fields and never strips an unknown
+      // key, and the heartbeat Function spreads `...prev` every beat — so a key
+      // injected once is re-emitted forever. The absence of free text here is a
+      // convention, not something storage enforces.
+      const { app, query } = buildApp()
+      const { res, json } = buildCtx()
+      query.mockResolvedValue({
+        data: [
+          new RecordModel({
+            id: `rc_status02`,
+            data: {
+              agentId: AgentId,
+              turnCount: 7,
+              currentActivity: `connector:push with ghp_abcdefghijklmnopqrstuvwxyz012345`,
+              scratch: `tdsk_liveKey1234567890`,
+            },
+            projectId: ProjectId,
+            collectionId: `col_resstt`,
+          }),
+        ],
+      })
+
+      await getAgentStatus.action?.(buildReq(app), res)
+
+      expect(json.mock.calls[0][0].data.data).toEqual({
+        agentId: AgentId,
+        turnCount: 7,
+        currentActivity: `connector:push with [redacted]`,
+        scratch: `[redacted]`,
+      })
+    })
+
     it(`returns null status when the agent has never run, not a 404`, async () => {
       // A scheduled (non-resident) agent legitimately has no heartbeat row.
       const { app, query } = buildApp()

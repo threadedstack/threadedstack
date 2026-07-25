@@ -20,8 +20,11 @@ const SecretPattern = new RegExp(
     `\\btdsk_[A-Za-z0-9_-]{8,}`,
     // OpenAI-style keys; Anthropic's `sk-ant-...` shares the same `sk-` prefix.
     `\\bsk-[A-Za-z0-9_-]{8,}`,
-    // GitHub personal access tokens, classic then fine-grained.
-    `\\bghp_[A-Za-z0-9]{16,}`,
+    // GitHub tokens: the whole classic family (`ghp_` personal, `gho_` OAuth,
+    // `ghu_` user-to-server, `ghs_` server-to-server, `ghr_` refresh) then
+    // fine-grained. The siblings matter as much as `ghp_` here — this platform's
+    // entire dev loop authenticates to GitHub.
+    `\\bgh[pousr]_[A-Za-z0-9]{16,}`,
     `\\bgithub_pat_[A-Za-z0-9_]{20,}`,
     // AWS access key id — the prefix is always followed by 16 uppercase alnums.
     `\\bAKIA[0-9A-Z]{16}`,

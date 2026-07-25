@@ -6,7 +6,7 @@ import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EQueryOp, EPermAction, EPermResource } from '@tdsk/domain'
 
 import { assertAgentInScope } from './assertAgentInScope'
-import { toActivityRecord } from './toActivityRecord'
+import { toRedactedActivityRecord } from './toRedactedActivityRecord'
 
 /**
  * The heartbeat collection the resident runtime upserts every ~30s. Mirrors
@@ -34,13 +34,25 @@ const ResidentStatusCollection = `resident_status`
  * `resident_status` document — the same bytes the generic collection query route
  * returns behind `collection:read`. See `listAgentTurns` for the full rationale.
  *
- * Unlike the three list endpoints the document is NOT run through
- * `redactSecrets`. The heartbeat schema is a closed set of seven fields
- * (`agentId`, `sessionId`, `queueDepth`, `currentActivity`, `lastTurnAt`,
- * `turnCount`, `degraded`) — counters, flags, and ids rather than the turn
- * `input`/`output` and message `body` that carry whatever the agent was
- * holding. `currentActivity` is the one agent-written string, and it is a short
- * activity label, not a transcript.
+ * The document IS run through `redactSecrets`, like the three list endpoints.
+ * The declared heartbeat schema looks harmless — `agentId`, `sessionId`,
+ * `queueDepth`, `currentActivity`, `lastTurnAt`, `turnCount`, `degraded` — but
+ * it is NOT a closed set, so "there is no free text here" is not a property this
+ * endpoint can rely on:
+ *
+ * - The record service's `#validateData` walks only the fields the schema
+ *   DECLARES. It rejects a wrong type and a missing required field, and it never
+ *   strips an undeclared key, so an arbitrary key holding arbitrary text is
+ *   stored exactly as written.
+ * - The heartbeat Function spreads `...prev` over the previous record on every
+ *   beat so the watchdog-owned `degraded` flag survives, which also means a key
+ *   injected once is re-emitted by every later beat.
+ * - `currentActivity` is agent-authored rather than a platform constant: the
+ *   resident loop builds it from its own config, which the agent evolves via
+ *   `updateResidentConfig`.
+ *
+ * Redacting seven short fields costs nothing measurable, so this endpoint does
+ * not depend on that schema staying shut.
  */
 export const getAgentStatus: TEndpointConfig = {
   path: `/status`,
@@ -65,6 +77,6 @@ export const getAgentStatus: TEndpointConfig = {
     if (error) throw new Exception(500, error.message)
 
     const row = data?.[0]
-    res.status(200).json({ data: row ? toActivityRecord(row) : null })
+    res.status(200).json({ data: row ? toRedactedActivityRecord(row) : null })
   },
 }
