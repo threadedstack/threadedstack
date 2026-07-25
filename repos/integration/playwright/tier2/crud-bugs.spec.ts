@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/auth'
+import { waitForDrawerClose } from '../utils/crud-helpers'
 
 /**
  * CRUD Bug Regression Tests
@@ -58,21 +59,22 @@ test.describe('Create Project drawer uses active orgId', () => {
       await createButton.first().click()
     }
 
-    await page.waitForTimeout(1000)
-
     // The drawer should now be open
     const nameInput = page.locator('#tdsk-project-name')
     await expect(nameInput).toBeVisible({ timeout: 5000 })
 
     // Fill in a project name
     await nameInput.fill('Test Project Bug 34')
-    await page.waitForTimeout(500)
 
     // Click the Create button
     const drawerCreateButton = page.locator('button[form="create-project-form"]')
     await expect(drawerCreateButton).toBeEnabled({ timeout: 5_000 })
+    const createResponse = page.waitForResponse(
+      (res) => res.url().includes(`/orgs/${ctx.orgId}/projects`) && res.request().method() === 'POST',
+      { timeout: 10_000 }
+    )
     await drawerCreateButton.click()
-    await page.waitForTimeout(2000)
+    await createResponse
 
     // Verify the orgId error does NOT appear (bug #34 is fixed)
     const errorText = page.getByText('Org selection is required')
@@ -139,8 +141,6 @@ test.describe('Cancel button disabled on drawer open', () => {
       await createButton.first().click()
     }
 
-    await page.waitForTimeout(1000)
-
     // Verify the drawer opened
     const nameInput = page.locator('#tdsk-project-name')
     await expect(nameInput).toBeVisible({ timeout: 5000 })
@@ -168,7 +168,7 @@ test.describe('Cancel button disabled on drawer open', () => {
 
     // Clean up: close the drawer via the Drawer's close mechanism (click backdrop or Escape)
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
   })
 })
 
@@ -336,7 +336,6 @@ test.describe('Quickstart infinite loading', () => {
     test.skip(qsCount === 0, 'Quick Start button not found on org page')
 
     await quickStartButton.first().click()
-    await page.waitForTimeout(2000)
 
     // The QuickstartWizard should open as a Drawer with title "Quick Start"
     // and a Stepper with 3 steps
@@ -364,10 +363,14 @@ test.describe('Quickstart infinite loading', () => {
 
     // Document the bug: if the wizard is stuck loading, bug #31 is confirmed
     if (isLoading) {
-      // Bug may be present: wizard shows loading spinner
-      // Check if the spinner persists after a reasonable wait
-      await page.waitForTimeout(5000)
-      const stillLoading = (await loadingSpinner.count()) > 0
+      // Bug may be present: wizard shows loading spinner. Wait for it to
+      // clear within a reasonable window instead of a blind sleep — if it
+      // never clears, waitFor rejects and we know it's genuinely stuck.
+      const stillLoading = await loadingSpinner
+        .first()
+        .waitFor({ state: 'hidden', timeout: 5000 })
+        .then(() => false)
+        .catch(() => true)
       if (stillLoading) {
         expect(stillLoading).toBe(true) // Known bug - infinite loading
       }
@@ -379,11 +382,11 @@ test.describe('Quickstart infinite loading', () => {
       await expect(cancelButton.first()).toBeVisible()
       // Close without submitting
       await cancelButton.first().click()
-      await page.waitForTimeout(500)
+      await expect(drawerTitle.first()).not.toBeVisible({ timeout: 5_000 })
     } else {
       // Fall back to Escape key
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(500)
+      await expect(drawerTitle.first()).not.toBeVisible({ timeout: 5_000 })
     }
   })
 })
@@ -433,8 +436,6 @@ test.describe('Provider edit shows all secrets as linked', () => {
       await tableRows.first().click()
     }
 
-    await page.waitForTimeout(2000)
-
     // Verify the edit drawer opened with title "Edit Provider"
     const editTitle = page.getByText('Edit Provider')
     await expect(editTitle.first()).toBeVisible({ timeout: 5000 })
@@ -464,7 +465,7 @@ test.describe('Provider edit shows all secrets as linked', () => {
 
     // Close the drawer
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
   })
 })
 
@@ -504,18 +505,12 @@ test.describe('Agent drawer shows secrets/providers with duplicates', () => {
     } else {
       await editButton.first().click()
     }
-    await page.waitForTimeout(2000)
 
     // Verify the edit drawer opened (project-level may show "Configure Agent for Project")
     const editTitle = page.getByText('Edit Agent')
     const configTitle = page.getByText('Configure Agent for Project')
-    const drawerOpened = (await editTitle.count()) > 0 || (await configTitle.count()) > 0
-    if (!drawerOpened) {
-      // Wait a bit more and retry
-      await page.waitForTimeout(2000)
-    }
-    const title = (await editTitle.count()) > 0 ? editTitle : configTitle
-    await expect(title.first()).toBeVisible({ timeout: 5000 })
+    const title = editTitle.or(configTitle)
+    await expect(title.first()).toBeVisible({ timeout: 7_000 })
 
     // Check the "Associated Secrets" section for duplicates
     const secretsHeading = page.getByText('Associated Secrets')
@@ -549,6 +544,6 @@ test.describe('Agent drawer shows secrets/providers with duplicates', () => {
 
     // Close the drawer
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await waitForDrawerClose(page)
   })
 })
