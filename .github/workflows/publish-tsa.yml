@@ -91,10 +91,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: cd repos/tsa && npx semantic-release
 
-      - name: Dry run — build and inspect
+      - name: Dry run — build, publish (--dry-run), and inspect
         if: inputs.dry_run == true
         run: |
-          cd repos/tsa && bun run build:publish
+          cd repos/tsa && bun run scripts/publish.ts --version 0.0.0-dryrun --dry
           echo ""
           echo "=== Platform binaries ==="
           for dir in npm/*/; do

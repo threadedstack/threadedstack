@@ -19,6 +19,8 @@ if (!version) {
 const otpIdx = process.argv.indexOf(`--otp`)
 const otp = otpIdx !== -1 ? process.argv[otpIdx + 1] : ``
 
+const isDry = process.argv.includes(`--dry`)
+
 const Platforms = [
   `darwin-arm64`,
   `darwin-x64`,
@@ -57,17 +59,26 @@ await $`bun run build:publish`.cwd(root)
 console.log(`\nPublishing platform packages...`)
 for (const platform of Platforms) {
   const pkgDir = join(root, `npm`, platform)
-  console.log(`  Publishing @tdsk/tsa-${platform}...`)
-  const provenance = process.env.GITHUB_ACTIONS ? `--provenance` : ``
-  const otpFlag = otp ? `--otp=${otp}` : ``
-  await $`npm publish --access public ${provenance} ${otpFlag}`.cwd(pkgDir)
+  const publishedPkg = JSON.parse(readFileSync(join(pkgDir, `package.json`), `utf-8`))
+  console.log(`  Publishing ${publishedPkg.name}@${publishedPkg.version}...`)
+  // Interpolating a possibly-empty STRING here (e.g. `` `--otp=` : `` ``) still
+  // passes a literal empty-string argument to npm, which npm reads as the
+  // package-spec positional arg and resolves to a bogus "undefined@0.1.0"
+  // template package (npm error 403 on `registry.npmjs.org/undefined`).
+  // Interpolating an ARRAY omits the flag entirely when empty.
+  const dryRun = isDry ? [`--dry-run`] : []
+  const provenance = process.env.GITHUB_ACTIONS && !isDry ? [`--provenance`] : []
+  const otpFlag = otp ? [`--otp=${otp}`] : []
+  await $`npm publish --access public ${dryRun} ${provenance} ${otpFlag}`.cwd(pkgDir)
 }
 
-if (process.env.GITHUB_ACTIONS) {
+if (isDry) {
+  console.log(`\nDry run complete -- no packages were actually published.`)
+} else if (process.env.GITHUB_ACTIONS) {
   console.log(`\nPlatform packages published. Main package will be published by semantic-release.`)
 } else {
   console.log(`\nPublishing main @tdsk/tsa package...`)
-  const otpFlag = otp ? `--otp=${otp}` : ``
+  const otpFlag = otp ? [`--otp=${otp}`] : []
   await $`npm publish --access public ${otpFlag}`.cwd(root)
   console.log(`\nAll packages published successfully!`)
 }
