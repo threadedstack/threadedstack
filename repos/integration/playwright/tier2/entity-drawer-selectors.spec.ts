@@ -78,7 +78,7 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
 
     if (hasCreateBtn) {
       await createBtn.first().click()
-      await page.waitForTimeout(2000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
       // Select "Agent" endpoint type via the MUI Select dropdown
       const endpointTypeInput = page.locator('#endpoint-type')
@@ -94,10 +94,10 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
         if ((await agentMenuItem.count()) > 0) {
           await agentMenuItem.first().click()
         }
-        await page.waitForTimeout(1000)
 
         // AgentSelector: MUI puts id='agent-id' on the combobox input
         const agentInput = page.locator('#agent-id')
+        await agentInput.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
         if ((await agentInput.count()) > 0) {
           await expect(agentInput).toBeVisible()
           await expect(agentInput).toHaveAttribute('role', 'combobox')
@@ -108,7 +108,7 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
       const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
       test.skip((await tableRows.count()) === 0, 'No endpoints and no create button')
       await tableRows.first().click()
-      await page.waitForTimeout(2000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
       const agentInput = page.locator('#agent-id')
       if ((await agentInput.count()) > 0) {
@@ -118,7 +118,7 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -148,16 +148,16 @@ test.describe('FunctionSelectorSingle in FaaS Endpoint', () => {
 
     if (hasCreateBtn) {
       await createBtn.first().click()
-      await page.waitForTimeout(2000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
       // Select "FaaS" endpoint type
       const faasTypeOption = page.getByText('FaaS', { exact: true })
       if ((await faasTypeOption.count()) > 0) {
         await faasTypeOption.first().click()
-        await page.waitForTimeout(1000)
 
         // FunctionSelectorSingle: id='function-select' on the combobox input
         const functionInput = page.locator('#function-select')
+        await functionInput.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
         if ((await functionInput.count()) > 0) {
           await expect(functionInput).toBeVisible()
           await expect(functionInput).toHaveAttribute('role', 'combobox')
@@ -172,7 +172,7 @@ test.describe('FunctionSelectorSingle in FaaS Endpoint', () => {
       let found = false
       for (let i = 0; i < Math.min(rowCount, 3); i++) {
         await tableRows.nth(i).click()
-        await page.waitForTimeout(2000)
+        await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
         const functionInput = page.locator('#function-select')
         if ((await functionInput.count()) > 0) {
@@ -181,13 +181,13 @@ test.describe('FunctionSelectorSingle in FaaS Endpoint', () => {
           break
         }
         await page.keyboard.press('Escape')
-        await page.waitForTimeout(500)
+        await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
       }
       test.skip(!found, 'No FaaS-type endpoints found')
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -218,7 +218,7 @@ test.describe('EndpointSelector in FunctionDrawer', () => {
 
     if (hasCreateBtn) {
       await createBtn.first().click()
-      await page.waitForTimeout(2000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
     } else {
       // Fallback: open existing function
       const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
@@ -231,7 +231,7 @@ test.describe('EndpointSelector in FunctionDrawer', () => {
       } else {
         await firstRow.click()
       }
-      await page.waitForTimeout(2000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
     }
 
     // EndpointSelector: MUI puts id='endpoint-id' on the combobox input
@@ -242,7 +242,7 @@ test.describe('EndpointSelector in FunctionDrawer', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -280,7 +280,7 @@ test.describe('ProviderSelectorSingle in EditThreadDrawer', () => {
     } else {
       await firstRow.click()
     }
-    await page.waitForTimeout(2000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // ProviderSelectorSingle: MUI puts id='entity-provider' on the combobox input
     const providerInput = page.locator('#entity-provider')
@@ -290,20 +290,19 @@ test.describe('ProviderSelectorSingle in EditThreadDrawer', () => {
 
       // Open dropdown to verify provider options are listed
       await providerInput.click()
-      await page.waitForTimeout(500)
-
       const listbox = page.locator('.MuiAutocomplete-listbox')
+      await listbox.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
       if ((await listbox.count()) > 0) {
         const options = listbox.locator('li')
         expect(await options.count()).toBeGreaterThan(0)
       }
 
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(300)
+      await listbox.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {})
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -333,7 +332,7 @@ test.describe('UserSelectorSingle in ProjectMembers', () => {
     test.skip(!hasAddBtn, 'No Add Member button found')
 
     await addBtn.first().click()
-    await page.waitForTimeout(2000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // UserSelectorSingle: MUI puts id='entity-user' on the combobox input
     const userInput = page.locator('#entity-user')
@@ -343,7 +342,7 @@ test.describe('UserSelectorSingle in ProjectMembers', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
