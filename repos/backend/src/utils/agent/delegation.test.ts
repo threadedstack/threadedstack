@@ -7,6 +7,7 @@ import {
   DelegationMaxTimeoutMs,
   DelegationOutputMaxChars,
   DelegationConcurrencyCap,
+  DelegationTimeoutSlackMs,
   DelegationCriticMaxRounds,
   DelegationDefaultTimeoutMs,
 } from '@tdsk/domain'
@@ -440,20 +441,70 @@ describe(`createDelegateProvider`, () => {
       expect(execStreaming.mock.calls[0][2].timeoutMs).toBe(DelegationMaxTimeoutMs)
     })
 
-    it(`reports the timed-out result with the captured tail when the exec rejects at the deadline`, async () => {
-      const execStreaming = vi.fn(async (_c: string, _a: string[], opts: any) => {
+    // Fake timers, deliberately: these assert where the deadline boundary sits,
+    // and on real timers the child's rejection and the race's own deadline are
+    // the same instant give or take libuv's rounding — which decides the branch
+    // under test and turns the assertion into a coin flip in CI.
+    const rejectAfter = (elapsedMs: number) =>
+      vi.fn(async (_c: string, _a: string[], opts: any) => {
         opts.onStdout(Buffer.from(`partial work`))
-        await new Promise((resolve) => setTimeout(resolve, opts.timeoutMs))
+        await new Promise((resolve) => setTimeout(resolve, elapsedMs))
         throw new Error(`runInPod timed out after ${opts.timeoutMs}ms for pod pod-1`)
       })
+
+    const delegateWithClock = async (execStreaming: ReturnType<typeof vi.fn>) => {
       m.getSandbox.mockResolvedValue({ exec: m.exec, execStreaming })
-
       const provider = createDelegateProvider(m.app, m.db, `og_1`, `ag_1`, ctx)
-      const res = await provider.delegate({ task: `fix it`, timeoutMs: 1000 })
+      const settled = provider.delegate({ task: `fix it`, timeoutMs: 1000 })
+      await vi.advanceTimersByTimeAsync(1000)
+      return settled
+    }
 
-      expect(res.success).toBe(false)
-      expect(res.output).toBe(`partial work`)
-      expect(res.error).toBe(`Delegated task timed out after 1s`)
+    it(`reports the timed-out result with the captured tail when the exec rejects at the deadline`, async () => {
+      vi.useFakeTimers()
+      try {
+        const res = await delegateWithClock(rejectAfter(1000))
+
+        expect(res.success).toBe(false)
+        expect(res.output).toBe(`partial work`)
+        expect(res.error).toBe(`Delegated task timed out after 1s`)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it(`still reports timed out when the child's own timer fires a hair EARLY`, async () => {
+      vi.useFakeTimers()
+      try {
+        // Node can run a setTimeout callback before its full delay has elapsed
+        // (libuv compares against a cached loop time), so the child's deadline
+        // rejection can arrive at timeoutMs - 1. DelegationTimeoutSlackMs is
+        // what keeps that from being misread as a genuine failure and throwing
+        // the captured tail away.
+        const res = await delegateWithClock(rejectAfter(1000 - 1))
+
+        expect(res.success).toBe(false)
+        expect(res.output).toBe(`partial work`)
+        expect(res.error).toBe(`Delegated task timed out after 1s`)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it(`propagates a genuine failure that rejects before the slack window opens`, async () => {
+      vi.useFakeTimers()
+      try {
+        // Comfortably outside the slack: a real mid-run crash, not a deadline.
+        const res = await delegateWithClock(
+          rejectAfter(1000 - DelegationTimeoutSlackMs - 1)
+        )
+
+        expect(res.success).toBe(false)
+        expect(res.error).toContain(`runInPod timed out after 1000ms`)
+        expect(res.error).not.toContain(`Delegated task timed out`)
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 })

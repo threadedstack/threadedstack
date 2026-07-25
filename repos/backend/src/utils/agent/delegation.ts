@@ -20,6 +20,7 @@ import {
   DelegationMaxTimeoutMs,
   DelegationOutputMaxChars,
   DelegationConcurrencyCap,
+  DelegationTimeoutSlackMs,
   DelegationCriticMaxRounds,
   DelegationDefaultTimeoutMs,
 } from '@tdsk/domain'
@@ -124,12 +125,14 @@ const execCapped = async (
 
   // Both bounds now carry the same deadline, and the inner one is armed first,
   // so the streaming path's own timeout rejection lands a tick before this race
-  // resolves. Map a rejection at or past the deadline onto the same timed-out
-  // outcome so the captured stdout tail survives whichever timer wins; an
-  // earlier rejection is a genuine failure and still propagates.
+  // resolves. Map a rejection at the deadline onto the same timed-out outcome so
+  // the captured stdout tail survives whichever timer wins; a rejection earlier
+  // than DelegationTimeoutSlackMs is a genuine failure and still propagates.
+  // The slack is what makes that split deterministic — Node may run a timer
+  // callback a hair before its delay has elapsed (see the constant).
   const raced = await Promise.race([execPromise, timeout])
     .catch((err) => {
-      if (Date.now() - startedAt >= timeoutMs) return null
+      if (Date.now() - startedAt >= timeoutMs - DelegationTimeoutSlackMs) return null
       throw err
     })
     .finally(() => clearTimeout(timer))
