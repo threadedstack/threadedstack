@@ -159,7 +159,7 @@ test.describe('Fix 6: EntitySelector single-select visibility', () => {
     test.skip(!hasCreateBtn, 'No Create Function button')
 
     await createBtn.first().click()
-    await page.waitForTimeout(2000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     // EndpointSelector is id='endpoint-id'
     const endpointInput = page.locator('#endpoint-id')
@@ -168,9 +168,8 @@ test.describe('Fix 6: EntitySelector single-select visibility', () => {
 
       // Open the dropdown
       await endpointInput.click()
-      await page.waitForTimeout(500)
-
       const listbox = page.locator('.MuiAutocomplete-listbox')
+      await listbox.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
       if ((await listbox.count()) > 0) {
         const options = listbox.locator('li')
         const optionCount = await options.count()
@@ -185,14 +184,13 @@ test.describe('Fix 6: EntitySelector single-select visibility', () => {
         // Select the first real option (if more than just "No endpoint")
         if (optionCount > 1) {
           await options.nth(1).click()
-          await page.waitForTimeout(500)
+          await listbox.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
 
           // Re-open dropdown — the selected option should still be visible
           // (Fix 6: single-select no longer hides selected items)
           await endpointInput.click()
-          await page.waitForTimeout(500)
-
           const listboxAfter = page.locator('.MuiAutocomplete-listbox')
+          await listboxAfter.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
           if ((await listboxAfter.count()) > 0) {
             const optionsAfter = listboxAfter.locator('li')
             // All options should still be present (not hidden)
@@ -203,9 +201,9 @@ test.describe('Fix 6: EntitySelector single-select visibility', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await page.locator('.MuiAutocomplete-listbox').waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {})
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -220,10 +218,19 @@ test.describe('Fix 7: Manual sub-nav collapse persistence', () => {
   }) => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}`, 'tdsk-org-page')
 
-    // Wait for auto-section derivation to complete
-    await page.waitForTimeout(1000)
-
     const subNavPanel = page.locator('.tdsk-subnav-panel')
+
+    // Wait for auto-section derivation to complete — panel should open (width > 0)
+    await page
+      .waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel)
+          return !!el && el.getBoundingClientRect().width > 0
+        },
+        '.tdsk-subnav-panel',
+        { timeout: 5_000 }
+      )
+      .catch(() => {})
 
     // Panel should be open (width > 0) — auto-derived from URL on first load
     const initialWidth = await subNavPanel.evaluate(
@@ -238,7 +245,16 @@ test.describe('Fix 7: Manual sub-nav collapse persistence', () => {
     test.skip(!hasActive, 'No active rail item found')
 
     await activeItem.click()
-    await page.waitForTimeout(600)
+    await page
+      .waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel)
+          return !!el && el.getBoundingClientRect().width === 0
+        },
+        '.tdsk-subnav-panel',
+        { timeout: 5_000 }
+      )
+      .catch(() => {})
 
     // Panel should now be collapsed (width = 0)
     const collapsedWidth = await subNavPanel.evaluate(
@@ -254,7 +270,16 @@ test.describe('Fix 7: Manual sub-nav collapse persistence', () => {
 
     await projectsAction.click()
     await page.waitForURL('**/projects**')
-    await page.waitForTimeout(1000)
+    await page
+      .waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel)
+          return !!el && el.getBoundingClientRect().width === 0
+        },
+        '.tdsk-subnav-panel',
+        { timeout: 5_000 }
+      )
+      .catch(() => {})
 
     // Panel should still be collapsed (Fix 7: respects null = manual close)
     const afterNavWidth = await subNavPanel.evaluate(
@@ -287,15 +312,14 @@ test.describe('Fix 8: FunctionDrawer No endpoint option', () => {
     test.skip(!hasCreateBtn, 'No Create Function button')
 
     await createBtn.first().click()
-    await page.waitForTimeout(2000)
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
     const endpointInput = page.locator('#endpoint-id')
     test.skip((await endpointInput.count()) === 0, 'No endpoint selector found')
 
     await endpointInput.click()
-    await page.waitForTimeout(500)
-
     const listbox = page.locator('.MuiAutocomplete-listbox')
+    await listbox.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
     if ((await listbox.count()) > 0) {
       // "No endpoint" should be the first option
       const noEndpointOption = listbox.getByText('No endpoint')
@@ -303,9 +327,9 @@ test.describe('Fix 8: FunctionDrawer No endpoint option', () => {
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await listbox.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {})
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -322,11 +346,18 @@ test.describe('Fix 9: Create project button in sub-nav', () => {
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}`, 'tdsk-org-page')
 
-    // Wait for auto-section derivation
-    await page.waitForTimeout(1000)
-
-    // Sub-nav should be open on the org section
+    // Sub-nav should be open on the org section — wait for auto-section derivation
     const subNavPanel = page.locator('.tdsk-subnav-panel')
+    await page
+      .waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel)
+          return !!el && el.getBoundingClientRect().width > 0
+        },
+        '.tdsk-subnav-panel',
+        { timeout: 5_000 }
+      )
+      .catch(() => {})
     const panelWidth = await subNavPanel.evaluate(
       (el) => el.getBoundingClientRect().width
     )
@@ -339,7 +370,7 @@ test.describe('Fix 9: Create project button in sub-nav', () => {
 
     if (hasAddButton) {
       await addButton.click()
-      await page.waitForTimeout(1000)
+      await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
 
       // CreateProjectDrawer should have opened — look for the drawer overlay
       const drawerTitle = page.getByText('Create New Project')
@@ -351,7 +382,7 @@ test.describe('Fix 9: Create project button in sub-nav', () => {
       }
 
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(500)
+      await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
     }
 
     expect(errors).toEqual([])
@@ -407,7 +438,7 @@ test.describe('Fix 1: MobileSidebar renders correctly', () => {
     // The key assertion: it rendered without parse/render errors from the floating open={true} fix.
     // sidebarOpenState defaults to true, so the drawer auto-opens on mobile.
     const drawer = page.locator('.MuiDrawer-root.tdsk-admin-sidebar')
-    await page.waitForTimeout(1000)
+    await drawer.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
 
     if ((await drawer.count()) > 0) {
       // Sidebar rendered successfully — fix 1 (floating open={true}) didn't crash
