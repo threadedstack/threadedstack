@@ -30,9 +30,12 @@ vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
   })),
 }))
 vi.mock(`@TBE/utils/proxy`, () => ({
-  guardedFetch: mocks.guardedFetch,
   addEndpointHeaders: mocks.addEndpointHeaders,
 }))
+vi.mock(`@tdsk/domain`, async (importOriginal) => {
+  const actual = (await importOriginal()) as object
+  return { ...actual, guardedFetch: mocks.guardedFetch }
+})
 
 import {
   createConnectorCapability,

@@ -8,10 +8,10 @@ import type {
   IConnectorCapability,
 } from '@tdsk/domain'
 
-import { EEndpointType } from '@tdsk/domain'
+import { EEndpointType, guardedFetch } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { ProxyService } from '@TBE/services/proxy'
-import { addEndpointHeaders, guardedFetch } from '@TBE/utils/proxy'
+import { addEndpointHeaders } from '@TBE/utils/proxy'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /** Max external calls a single Function execution may make (cost/abuse ceiling). */

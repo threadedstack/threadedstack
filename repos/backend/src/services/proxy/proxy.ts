@@ -6,8 +6,7 @@ import type { TOAuthConfig, TEndpointOpts, TBodyTransformConfig } from '@tdsk/do
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isDomainAllowed } from '@TBE/utils/proxy/domainMatch'
-import { guardedFetch } from '@TBE/utils/proxy/egressGuard'
-import { Exception, EEPCredential, EEPAuthType } from '@tdsk/domain'
+import { Exception, EEPCredential, EEPAuthType, guardedFetch } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
