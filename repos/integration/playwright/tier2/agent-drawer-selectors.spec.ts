@@ -67,7 +67,7 @@ async function openAgentEditDrawer(page: import('@playwright/test').Page): Promi
   } else {
     await editButton.first().click()
   }
-  await page.waitForTimeout(2000)
+  await page.locator('.tdsk-drawer').waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {})
 
   const editTitle = page.getByText('Edit Agent')
   const configTitle = page.getByText('Configure Agent for Project')
@@ -98,8 +98,6 @@ test.describe('ToolsSelector in AgentDrawer', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test tools selector')
 
-    await page.waitForTimeout(2000)
-
     // MUI Autocomplete puts id on the <input> element (role=combobox)
     const toolsInput = page.locator('#agent-tools')
     await expect(toolsInput).toBeVisible({ timeout: 5000 })
@@ -113,9 +111,8 @@ test.describe('ToolsSelector in AgentDrawer', () => {
 
     // Click the input to open the dropdown
     await toolsInput.click()
-    await page.waitForTimeout(500)
-
     const listbox = page.locator('.MuiAutocomplete-listbox')
+    await listbox.waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {})
     if ((await listbox.count()) > 0) {
       const options = listbox.locator('li')
       expect(await options.count()).toBeGreaterThan(0)
@@ -123,16 +120,13 @@ test.describe('ToolsSelector in AgentDrawer', () => {
       // Count chips before selection (chips are inside the Autocomplete root)
       const chipsBeforeCount = await autocompleteRoot.locator('.MuiChip-root').count()
       await options.first().click()
-      await page.waitForTimeout(500)
-
-      const chipsAfterCount = await autocompleteRoot.locator('.MuiChip-root').count()
-      expect(chipsAfterCount).toBe(chipsBeforeCount + 1)
+      await expect(autocompleteRoot.locator('.MuiChip-root')).toHaveCount(chipsBeforeCount + 1, { timeout: 5_000 })
     }
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await listbox.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {})
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -153,8 +147,6 @@ test.describe('SecretsSelector in AgentDrawer', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test secrets selector')
 
-    await page.waitForTimeout(2000)
-
     // MUI Autocomplete puts id on the <input> (role=combobox)
     const secretsInput = page.locator('#agent-secrets')
     await expect(secretsInput).toBeVisible({ timeout: 5000 })
@@ -164,7 +156,7 @@ test.describe('SecretsSelector in AgentDrawer', () => {
     await expect(secretsTitle).toBeVisible()
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
@@ -189,8 +181,6 @@ test.describe('FunctionsSelector in AgentDrawer', () => {
     const drawerOpened = await openAgentEditDrawer(page)
     test.skip(!drawerOpened, 'No agents found — cannot test functions selector')
 
-    await page.waitForTimeout(2000)
-
     // MUI Autocomplete puts id on the <input> (role=combobox)
     const functionsInput = page.locator('#agent-functions')
     await expect(functionsInput).toBeVisible({ timeout: 5000 })
@@ -200,7 +190,7 @@ test.describe('FunctionsSelector in AgentDrawer', () => {
     await expect(functionsTitle).toBeVisible()
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
+    await expect(page.locator('.tdsk-drawer')).not.toBeVisible({ timeout: 3_000 })
 
     expect(errors).toEqual([])
   })
