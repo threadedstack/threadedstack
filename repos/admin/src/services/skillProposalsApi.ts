@@ -43,7 +43,7 @@ export class SkillProposalsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((proposal) => new SkillProposal(proposal)) || [],
+      data: resp?.data?.map?.((proposal) => new SkillProposal(proposal)) || [],
     }
   }
 
