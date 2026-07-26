@@ -1,10 +1,17 @@
 name: CI
 
-# PR gate for main. Two named checks — `ci/types` and `ci/test` — so branch
-# protection can require both. GitHub Actions check runs are named after the
-# job-level `name:` field (branch protection matches the job name alone, not
-# the "Workflow / Job" UI display), so the required-status-check contexts are
-# exactly the strings "ci/types" and "ci/test".
+# PR gate for main. Three named checks — `ci/types`, `ci/test`, and `ci/build`
+# — so branch protection can require all three. GitHub Actions check runs are
+# named after the job-level `name:` field (branch protection matches the job
+# name alone, not the "Workflow / Job" UI display), so the required-status-
+# check contexts are exactly the strings "ci/types", "ci/test", and "ci/build".
+#
+# `ci/build` exists because `pnpm types` (tsc, path-based resolution) and
+# `pnpm test` (vitest) both pass on code that still breaks `vite build` for
+# admin/threads/website — a server-only Node import landing in a shared
+# barrel a browser bundle also imports from is invisible to both, but not to
+# an actual frontend build (see PR #369, which fixed exactly this after it
+# reached production).
 #
 # No integration tests here — they need live K8s and stay in the local loop.
 
@@ -63,3 +70,28 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test
+
+  build:
+    name: ci/build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend apps
+        run: |
+          pnpm --filter @tdsk/admin build
+          pnpm --filter @tdsk/threads build
+          pnpm --filter @tdsk/website build
