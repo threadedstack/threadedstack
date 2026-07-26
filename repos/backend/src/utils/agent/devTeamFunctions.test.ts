@@ -737,7 +737,7 @@ describe(`devUpdatePr Function`, () => {
   })
 })
 
-// ── devMarkMerged — only the recorded reviewer closes the loop ────────────────
+// ── devMarkMerged — only the recorded reviewer closes the loop, bound to headSha ──
 
 describe(`devMarkMerged Function`, () => {
   const approved = (h: THarness) =>
@@ -754,7 +754,12 @@ describe(`devMarkMerged Function`, () => {
     const h = makeFakeDb()
     approved(h)
 
-    const result = await runFn(DevMarkMergedFunctionDef, h, { taskId: `dt_1` }, EngTwo)
+    const result = await runFn(
+      DevMarkMergedFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `abc123` },
+      EngTwo
+    )
 
     expect(result.output).toMatchObject({ ok: true, merged: true })
     const { data } = h.row(`dev_tasks`, `dt_1`)!
@@ -770,11 +775,47 @@ describe(`devMarkMerged Function`, () => {
     const h = makeFakeDb()
     approved(h)
 
-    const result = await runFn(DevMarkMergedFunctionDef, h, { taskId: `dt_1` }, EngOne)
+    const result = await runFn(
+      DevMarkMergedFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `abc123` },
+      EngOne
+    )
 
     expect(result.output).toEqual({
       ok: false,
       reason: `only the recorded reviewer marks a task merged`,
+    })
+    expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`approved`)
+  })
+
+  it(`refuses a missing headSha`, async () => {
+    const h = makeFakeDb()
+    approved(h)
+
+    const result = await runFn(DevMarkMergedFunctionDef, h, { taskId: `dt_1` }, EngTwo)
+
+    expect(result.output).toEqual({
+      ok: false,
+      reason: `headSha is required (the exact commit that was merged)`,
+    })
+    expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`approved`)
+  })
+
+  it(`REFUSES a headSha mismatch — the branch moved since approval (this session's PR#393 incident)`, async () => {
+    const h = makeFakeDb()
+    approved(h)
+
+    const result = await runFn(
+      DevMarkMergedFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `post-conflict-resolution-sha` },
+      EngTwo
+    )
+
+    expect(result.output).toEqual({
+      ok: false,
+      reason: `headSha mismatch: the branch moved since approval, re-review the current head before merging`,
     })
     expect(h.row(`dev_tasks`, `dt_1`)!.data.state).toBe(`approved`)
   })

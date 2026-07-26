@@ -186,6 +186,14 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).toContain(`notes: ''`)
   })
 
+  it(`devMarkMerged binds the merge to the recorded reviewer AND the exact headSha (mirrors devCompleteReview)`, () => {
+    const { content } = byName(`devMarkMerged`)
+    expect(content).toContain(`headSha is required`)
+    expect(content).toContain(`headSha mismatch`)
+    expect(content).toContain(`only the recorded reviewer marks a task merged`)
+    expect(content).toContain(`reviewer: agentId, headSha: headSha`)
+  })
+
   it(`devReapExpired guards on the exact lease read and NEVER calls GitHub from the isolate`, () => {
     const { content } = byName(`devReapExpired`)
     expect(content).toContain(`leaseExpiresAt: lease`)
