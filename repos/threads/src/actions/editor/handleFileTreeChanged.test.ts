@@ -133,6 +133,39 @@ describe(`handleFileTreeChanged`, () => {
     expect(mockCloseRelatedTabs).toHaveBeenCalledWith(`/root/dir/file.ts`, false)
   })
 
+  it(`delete: unlike write, falls through to the debounced-refresh scheduling (no early return after cleanup)`, () => {
+    mockGetFileTreeData.mockReturnValue(new Map([[`/root/dir`, {}]]))
+
+    handleFileTreeChanged(
+      buildMsg({
+        changeType: EFileOp.delete,
+        entryType: `file`,
+        path: `/root/dir/file.ts`,
+      })
+    )
+
+    expect(mockCloseRelatedTabs).toHaveBeenCalledWith(`/root/dir/file.ts`, false)
+    expect(mockLoadDirectory).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(300)
+    expect(mockLoadDirectory).toHaveBeenCalledWith(`/root/dir`)
+    expect(mockLoadDirectory).toHaveBeenCalledTimes(1)
+  })
+
+  it(`delete: schedules nothing when the affected dir is NOT tracked in the file tree`, () => {
+    mockGetFileTreeData.mockReturnValue(new Map())
+
+    handleFileTreeChanged(
+      buildMsg({
+        changeType: EFileOp.delete,
+        entryType: `file`,
+        path: `/root/dir/file.ts`,
+      })
+    )
+
+    vi.advanceTimersByTime(1000)
+    expect(mockLoadDirectory).not.toHaveBeenCalled()
+  })
+
   it(`write with no cache entry: setFileContentCache is not called and the function returns without scheduling a refresh`, () => {
     handleFileTreeChanged(buildMsg({ changeType: EFileOp.write }))
 
