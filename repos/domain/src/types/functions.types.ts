@@ -64,6 +64,14 @@ export interface IRecordsCapability {
     name: string,
     opts?: { description?: string; schema?: unknown }
   ): Promise<{ id: string; name: string }>
+  /**
+   * Delete a collection the Function created, by id. The project is implicit
+   * (bound at injection time) and enforced as an ownership check host-side —
+   * an id belonging to another project is never deleted (returns
+   * `{ deleted: false }`, not an error), so a Function can only ever remove a
+   * collection scoped to its own project, identical to every other method here.
+   */
+  deleteCollection(id: string): Promise<{ deleted: boolean }>
 }
 
 /**

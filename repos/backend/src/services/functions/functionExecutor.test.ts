@@ -363,6 +363,14 @@ describe(`FunctionExecutor`, () => {
       }
 
       let collectionSeq = 0
+      type TFakeCollectionRow = {
+        id: string
+        name: string
+        projectId: string
+        description: string | null
+        schema: unknown
+      }
+      const collectionsById = new Map<string, TFakeCollectionRow>()
       const collection = {
         create: vi.fn(
           async (data: {
@@ -370,26 +378,29 @@ describe(`FunctionExecutor`, () => {
             name: string
             description?: string | null
             schema?: unknown
-          }): Promise<{
-            data?: {
-              id: string
-              name: string
-              projectId: string
-              description: string | null
-              schema: unknown
-            }
-            error?: Error
-          }> => {
+          }): Promise<{ data?: TFakeCollectionRow; error?: Error }> => {
             collectionSeq += 1
-            return {
-              data: {
-                id: `col_${collectionSeq}`,
-                name: data.name,
-                projectId: data.projectId,
-                description: data.description ?? null,
-                schema: data.schema ?? null,
-              },
+            const created = {
+              id: `col_${collectionSeq}`,
+              name: data.name,
+              projectId: data.projectId,
+              description: data.description ?? null,
+              schema: data.schema ?? null,
             }
+            collectionsById.set(created.id, created)
+            return { data: created }
+          }
+        ),
+        get: vi.fn(
+          async (id: string): Promise<{ data?: TFakeCollectionRow; error?: Error }> => ({
+            data: collectionsById.get(id),
+          })
+        ),
+        delete: vi.fn(
+          async (id: string): Promise<{ data?: TFakeCollectionRow; error?: Error }> => {
+            const row = collectionsById.get(id)
+            collectionsById.delete(id)
+            return { data: row }
           }
         ),
       }
@@ -621,6 +632,108 @@ describe(`FunctionExecutor`, () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toContain(`records.createCollection failed`)
+      expect(result.error).toContain(`db unavailable`)
+    })
+
+    it(`gives a Function a deleteCollection capability that deletes a collection it owns`, async () => {
+      const { db, collection } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-records` })
+
+      // Simulate the isolate running a handler that uses context.records:
+      //   const { id } = await context.records.createCollection('events')
+      //   return await context.records.deleteCollection(id)
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        const { id } = JSON.parse(
+          await b[`records.createCollection`](JSON.stringify([`events`, undefined]))
+        )
+        const deleted = JSON.parse(
+          await b[`records.deleteCollection`](JSON.stringify([id]))
+        )
+        return { output: ``, result: { success: true, output: deleted } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual({ deleted: true })
+
+      // The wrapper reconstructs context.records via the __hostCall bridge, and
+      // deleteCollection rides alongside the other records methods
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).toContain(`context.records`)
+      expect(Object.keys(evalOpts.bridges)).toEqual(
+        expect.arrayContaining([`records.deleteCollection`])
+      )
+      expect(collection.get).toHaveBeenCalledTimes(1)
+      expect(collection.delete).toHaveBeenCalledTimes(1)
+    })
+
+    it(`never deletes a collection belonging to another project`, async () => {
+      const { db, collection } = makeFakeDb()
+
+      // Seed a collection under a DIFFERENT project.
+      const { data: other } = await collection.create({
+        projectId: `proj-OTHER`,
+        name: `secret-stash`,
+      })
+
+      const func = makeFunc({ projectId: `proj-records` })
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        const deleted = JSON.parse(
+          await b[`records.deleteCollection`](JSON.stringify([other!.id]))
+        )
+        return { output: ``, result: { success: true, output: deleted } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      // Cross-project id is a normal { deleted: false }, never an error, and
+      // the underlying db.delete is never invoked.
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual({ deleted: false })
+      expect(collection.delete).not.toHaveBeenCalled()
+    })
+
+    it(`returns { deleted: false } (not an error) for an id that doesn't exist`, async () => {
+      const { db, collection } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-records` })
+
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        const deleted = JSON.parse(
+          await b[`records.deleteCollection`](JSON.stringify([`col_missing`]))
+        )
+        return { output: ``, result: { success: true, output: deleted } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual({ deleted: false })
+      expect(collection.delete).not.toHaveBeenCalled()
+    })
+
+    it(`surfaces a collection-lookup db error as a handler-level failure`, async () => {
+      const { db, collection } = makeFakeDb()
+      collection.get.mockResolvedValueOnce({ error: new Error(`db unavailable`) })
+      const func = makeFunc({ projectId: `proj-records` })
+
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        try {
+          await b[`records.deleteCollection`](JSON.stringify([`col_1`]))
+          return { output: ``, result: { success: true, output: `unreachable` } }
+        } catch (err: any) {
+          return { output: ``, result: { success: false, error: err.message } }
+        }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain(`records.deleteCollection failed`)
       expect(result.error).toContain(`db unavailable`)
     })
   })
