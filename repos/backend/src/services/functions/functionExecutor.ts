@@ -14,6 +14,7 @@ import type {
 import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
 import { buildConnectorBridges, connectContextCode } from './connectorCapability'
+import { buildScheduleBridges, scheduleContextCode } from './scheduleCapability'
 import { scanTaskProposal } from '@TBE/utils/agent/taskScan'
 import { markTaskPromoted } from '@TBE/utils/agent/taskPromotion'
 import { createSandboxProvider } from '@tdsk/sandbox'
@@ -460,7 +461,8 @@ const buildWrapperCode = (
   withRecords = false,
   withScan = false,
   withConnect = false,
-  withTaskProposals = false
+  withTaskProposals = false,
+  withSchedule = false
 ): string => {
   const requestJson = JSON.stringify(request)
   const contextJson = JSON.stringify(context)
@@ -468,7 +470,7 @@ const buildWrapperCode = (
   return `import handler from 'function';
 const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
-${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}${withConnect ? `${connectContextCode}\n` : ``}${withTaskProposals ? `${taskProposalsContextCode}\n` : ``}let output;
+${withRecords ? `${recordsContextCode}\n` : ``}${withScan ? `${scanContextCode}\n` : ``}${withConnect ? `${connectContextCode}\n` : ``}${withTaskProposals ? `${taskProposalsContextCode}\n` : ``}${withSchedule ? `${scheduleContextCode}\n` : ``}let output;
 try {
   const raw = await handler(request, context);
   output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
@@ -533,6 +535,13 @@ export class FunctionExecutor {
           func.projectId &&
           (opts?.connectEndpoints?.length || opts?.caller?.agentId)
       )
+      // `schedule` is gated the same way `connect` is: only wired when the
+      // executor can resolve a trusted caller identity (agent or schedule) to
+      // bind the new schedule's sandbox from — fail-closed for un-identified
+      // callers, same as connect.
+      const withSchedule = Boolean(
+        opts?.db && func.projectId && (opts?.caller?.agentId || opts?.caller?.scheduleId)
+      )
       const bridges =
         opts?.db && func.projectId
           ? {
@@ -547,6 +556,9 @@ export class FunctionExecutor {
                     opts.caller
                   )
                 : {}),
+              ...(withSchedule
+                ? buildScheduleBridges(opts.db, func.projectId, opts.caller)
+                : {}),
             }
           : undefined
 
@@ -557,7 +569,8 @@ export class FunctionExecutor {
         Boolean(bridges),
         Boolean(bridges),
         withConnect,
-        Boolean(bridges)
+        Boolean(bridges),
+        withSchedule
       )
 
       // 4. Evaluate via V8 isolate with function code registered as module

@@ -1,5 +1,6 @@
 import type { TRecordQuery } from './collection.types'
 import type { TScanResult } from './skillProposal.types'
+import type { EScheduleType } from './schedule.types'
 
 export enum EFunLanguage {
   python = `python`,
@@ -172,6 +173,39 @@ export interface ITaskProposalsCapability {
   promote(id: string, note?: string): Promise<TTaskProposalPromoteResult>
 }
 
+/** Input a Function passes to create a new schedule from its own execution context. */
+export type TScheduleCreateInput = {
+  cronExpression: string
+  prompt?: string
+  type?: EScheduleType
+  timeoutMs?: number
+}
+
+/** Outcome of a schedule created via `context.schedule.create`. */
+export type TScheduleCreateResult = {
+  id: string
+  cronExpression: string
+  /** ISO timestamp of the schedule's first computed run. */
+  nextRunAt: string
+}
+
+/**
+ * Schedule-creation capability injected into a Function's execution context.
+ *
+ * A platform-mediated bridge over the same schedule-creation path the Admin API
+ * uses (`createSchedule.ts`): the isolate supplies only `cronExpression`/
+ * `prompt`/`type`/`timeoutMs`, and the host binds the schedule's scope
+ * (orgId/projectId/agentId/sandboxId) from the Function's OWN execution
+ * context — the isolate can never supply an arbitrary scope, the same guard
+ * precedent as `createCollection`'s projectId binding. Only present when the
+ * executor can resolve a sandbox to run the new schedule on (i.e. the Function
+ * was itself invoked by an agent or a schedule); otherwise `context.schedule`
+ * is absent, mirroring `context.connect`'s fail-closed wiring.
+ */
+export interface IScheduleCapability {
+  create(input: TScheduleCreateInput): Promise<TScheduleCreateResult>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
@@ -202,6 +236,13 @@ export type TFunctionContext = {
    * reached through a platform-mediated bridge, never a direct db connection.
    */
   taskProposals?: ITaskProposalsCapability
+  /**
+   * Schedule-creation capability. Present only when the executor can resolve a
+   * sandbox to run the new schedule on (the Function was itself invoked by an
+   * agent or a schedule) — reached through a platform-mediated bridge, never a
+   * direct db connection.
+   */
+  schedule?: IScheduleCapability
   /**
    * Platform-injected, trusted identity of the invoker (never from model output).
    * Effect Functions authorize by this (e.g. board role gates).
