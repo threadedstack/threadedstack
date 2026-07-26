@@ -6,10 +6,10 @@ import type {
 } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
-import { eq, desc, asc } from 'drizzle-orm'
+import { eq, lt, and, desc, asc } from 'drizzle-orm'
 import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
-import { Thread as ThreadModel } from '@tdsk/domain'
+import { PlanLimits, ESubscriptionTier, Thread as ThreadModel } from '@tdsk/domain'
 
 export class Thread extends Base<
   typeof threads,
@@ -147,5 +147,42 @@ export class Thread extends Base<
     } catch (error: any) {
       return { error }
     }
+  }
+
+  /**
+   * Enforce plan-tier thread retention (PlanLimits[tier].retention, in days):
+   * for every org, delete threads created before its owner's plan retention
+   * cutoff. An org with no owner or no subscription row defaults to the free
+   * tier's window. Messages cascade-delete via the threads FK (schemas/
+   * messages.ts threadId onDelete: cascade) -- no separate message-pruning
+   * step is needed.
+   */
+  async pruneExpiredThreads(): Promise<{ orgId: string; deletedThreadIds: string[] }[]> {
+    const results: { orgId: string; deletedThreadIds: string[] }[] = []
+
+    const orgsRes = await this.db.services.org.list()
+    if (orgsRes.error || !orgsRes.data?.length) return results
+
+    for (const org of orgsRes.data) {
+      let tier = ESubscriptionTier.free
+      if (org.ownerId) {
+        const subRes = await this.db.services.subscription.findByUser(org.ownerId)
+        if (subRes.data?.tier) tier = subRes.data.tier as ESubscriptionTier
+      }
+
+      const retentionDays =
+        PlanLimits[tier]?.retention ?? PlanLimits[ESubscriptionTier.free].retention
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+
+      const deleted = await this.db
+        .delete(threads)
+        .where(and(eq(threads.orgId, org.id), lt(threads.createdAt, cutoff)))
+        .returning({ id: threads.id })
+
+      if (deleted.length)
+        results.push({ orgId: org.id, deletedThreadIds: deleted.map((row) => row.id) })
+    }
+
+    return results
   }
 }

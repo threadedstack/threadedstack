@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { eq, lt, and } from 'drizzle-orm'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Thread as ThreadService } from './thread'
 
 // Mock the logger to avoid config/db initialization side-effects
@@ -12,6 +13,8 @@ vi.mock(`drizzle-orm`, async () => {
   return {
     ...actual,
     eq: vi.fn((col, val) => ({ col, val, _tag: `eq` })),
+    lt: vi.fn((col, val) => ({ col, val, _tag: `lt` })),
+    and: vi.fn((...conds) => ({ conds, _tag: `and` })),
     desc: vi.fn((col) => ({ col, _tag: `desc` })),
     asc: vi.fn((col) => ({ col, _tag: `asc` })),
     getTableName: vi.fn(() => `threads`),
@@ -28,6 +31,7 @@ vi.mock(`@TDB/schemas/threads`, () => ({
     id: { name: `id` },
     agentId: { name: `agent_id` },
     userId: { name: `user_id` },
+    orgId: { name: `org_id` },
     parentThreadId: { name: `parent_thread_id` },
     createdAt: { name: `created_at` },
   },
@@ -96,9 +100,23 @@ const createMockDb = () => {
 
   const transactionFn = vi.fn(async (cb: (tx: any) => Promise<any>) => cb(txMock))
 
+  // db.delete(threads).where(...).returning({ id: threads.id }) — pruneExpiredThreads
+  const deleteReturningFn = vi.fn().mockResolvedValue([])
+  const deleteWhereFn = vi.fn(() => ({ returning: deleteReturningFn }))
+  const deleteFn = vi.fn(() => ({ where: deleteWhereFn }))
+
+  // db.services.org.list() / db.services.subscription.findByUser() — pruneExpiredThreads
+  const orgListFn = vi.fn().mockResolvedValue({ data: [] })
+  const subscriptionFindByUserFn = vi.fn().mockResolvedValue({})
+
   return {
     db: {
       transaction: transactionFn,
+      delete: deleteFn,
+      services: {
+        org: { list: orgListFn },
+        subscription: { findByUser: subscriptionFindByUserFn },
+      },
       query: {
         threads: { findFirst, findMany },
         messages: { findFirst: messagesFindFirst, findMany: messagesFindMany },
@@ -117,6 +135,11 @@ const createMockDb = () => {
     txMessageReturningFn,
     txMessageValuesFn,
     txInsertFn,
+    deleteFn,
+    deleteWhereFn,
+    deleteReturningFn,
+    orgListFn,
+    subscriptionFindByUserFn,
   }
 }
 
@@ -375,6 +398,128 @@ describe(`Thread service`, () => {
       expect(result.error).toBeDefined()
       expect(result.error!.message).toBe(`Transaction failed`)
       expect(result.data).toBeUndefined()
+    })
+  })
+
+  // ---------- pruneExpiredThreads() ----------
+  describe(`pruneExpiredThreads`, () => {
+    const Now = new Date(`2026-01-15T00:00:00.000Z`)
+    const daysMs = (days: number) => days * 24 * 60 * 60 * 1000
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(Now)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it(`deletes threads older than the free-tier (7-day) window when the org has no subscription row`, async () => {
+      mocks.orgListFn.mockResolvedValue({ data: [{ id: `org-1`, ownerId: `user-1` }] })
+      mocks.subscriptionFindByUserFn.mockResolvedValue({})
+      mocks.deleteReturningFn.mockResolvedValue([{ id: `thread-old-1` }])
+
+      const result = await service.pruneExpiredThreads()
+
+      expect(result).toEqual([{ orgId: `org-1`, deletedThreadIds: [`thread-old-1`] }])
+      expect(mocks.subscriptionFindByUserFn).toHaveBeenCalledWith(`user-1`)
+      const [, cutoffArg] = vi.mocked(lt).mock.calls[0]!
+      expect(cutoffArg).toEqual(new Date(Now.getTime() - daysMs(7)))
+      // The deletion must be genuinely scoped to this org, not merely
+      // returning per-org results from an unscoped delete across all orgs.
+      const { threads } = await import(`@TDB/schemas/threads`)
+      expect(vi.mocked(eq).mock.calls[0]).toEqual([threads.orgId, `org-1`])
+      expect(vi.mocked(and)).toHaveBeenCalledWith(
+        vi.mocked(eq).mock.results[0]!.value,
+        vi.mocked(lt).mock.results[0]!.value
+      )
+    })
+
+    it(`defaults to the free tier when the org has no ownerId at all (never calls subscription lookup)`, async () => {
+      mocks.orgListFn.mockResolvedValue({ data: [{ id: `org-1`, ownerId: null }] })
+      mocks.deleteReturningFn.mockResolvedValue([{ id: `thread-1` }])
+
+      await service.pruneExpiredThreads()
+
+      expect(mocks.subscriptionFindByUserFn).not.toHaveBeenCalled()
+      const [, cutoffArg] = vi.mocked(lt).mock.calls[0]!
+      expect(cutoffArg).toEqual(new Date(Now.getTime() - daysMs(7)))
+    })
+
+    it.each([
+      [`free`, 7],
+      [`solo`, 30],
+      [`pro`, 90],
+      [`team`, 365],
+    ])(`uses the %s tier's %d-day retention window`, async (tier, days) => {
+      mocks.orgListFn.mockResolvedValue({ data: [{ id: `org-1`, ownerId: `user-1` }] })
+      mocks.subscriptionFindByUserFn.mockResolvedValue({ data: { tier } })
+      mocks.deleteReturningFn.mockResolvedValue([])
+
+      await service.pruneExpiredThreads()
+
+      const [, cutoffArg] = vi.mocked(lt).mock.calls[0]!
+      expect(cutoffArg).toEqual(new Date(Now.getTime() - daysMs(days)))
+    })
+
+    it(`a thread within the window is left untouched -- an org with zero deletions is omitted from the results`, async () => {
+      mocks.orgListFn.mockResolvedValue({ data: [{ id: `org-1`, ownerId: `user-1` }] })
+      mocks.subscriptionFindByUserFn.mockResolvedValue({ data: { tier: `pro` } })
+      mocks.deleteReturningFn.mockResolvedValue([])
+
+      const result = await service.pruneExpiredThreads()
+
+      expect(result).toEqual([])
+    })
+
+    it(`processes multiple orgs independently, each using its own owner's tier`, async () => {
+      mocks.orgListFn.mockResolvedValue({
+        data: [
+          { id: `org-1`, ownerId: `user-1` },
+          { id: `org-2`, ownerId: `user-2` },
+        ],
+      })
+      mocks.subscriptionFindByUserFn.mockImplementation(async (userId: string) =>
+        userId === `user-1` ? { data: { tier: `free` } } : { data: { tier: `team` } }
+      )
+      mocks.deleteReturningFn
+        .mockResolvedValueOnce([{ id: `thread-a` }])
+        .mockResolvedValueOnce([{ id: `thread-b` }, { id: `thread-c` }])
+
+      const result = await service.pruneExpiredThreads()
+
+      expect(result).toEqual([
+        { orgId: `org-1`, deletedThreadIds: [`thread-a`] },
+        { orgId: `org-2`, deletedThreadIds: [`thread-b`, `thread-c`] },
+      ])
+      expect(vi.mocked(lt).mock.calls[0]![1]).toEqual(new Date(Now.getTime() - daysMs(7)))
+      expect(vi.mocked(lt).mock.calls[1]![1]).toEqual(
+        new Date(Now.getTime() - daysMs(365))
+      )
+      // Each org's delete must be scoped to ITS OWN id -- proves the loop
+      // never widens to an unscoped (or wrong-org) delete across iterations.
+      const { threads } = await import(`@TDB/schemas/threads`)
+      expect(vi.mocked(eq).mock.calls[0]).toEqual([threads.orgId, `org-1`])
+      expect(vi.mocked(eq).mock.calls[1]).toEqual([threads.orgId, `org-2`])
+    })
+
+    it(`returns an empty array and never deletes when there are no orgs`, async () => {
+      mocks.orgListFn.mockResolvedValue({ data: [] })
+
+      const result = await service.pruneExpiredThreads()
+
+      expect(result).toEqual([])
+      expect(mocks.deleteFn).not.toHaveBeenCalled()
+    })
+
+    it(`returns an empty array when org.list() errors`, async () => {
+      mocks.orgListFn.mockResolvedValue({ error: new Error(`boom`) })
+
+      const result = await service.pruneExpiredThreads()
+
+      expect(result).toEqual([])
+      expect(mocks.deleteFn).not.toHaveBeenCalled()
     })
   })
 })
