@@ -82,9 +82,12 @@ export const UpsertStrategyFunctionSource = `export default async (request, cont
         { northStar: '', segments: [], positioning: '', backlog: [], activeInitiative: null },
         patch
       )
+  // The singleton always has the fixed seed id (seeds/exec-board/collections.ts:182,
+  // rec_strat1) -- pass it explicitly on create so a false-empty existence-check
+  // never forks a second company_strategy row.
   const saved = await records.upsert(
     'company_strategy',
-    current ? { id: current.id, data: data } : { data: data }
+    current ? { id: current.id, data: data } : { id: 'rec_strat1', data: data }
   )
   return { ok: true, strategyId: saved.id }
 }

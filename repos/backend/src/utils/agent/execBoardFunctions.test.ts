@@ -51,6 +51,7 @@ import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import { OpenDecisionFunctionDef } from '@tdsk/database/seeds/exec-board/functions/openDecision'
 import { PostPositionFunctionDef } from '@tdsk/database/seeds/exec-board/functions/postPosition'
 import { UpsertPlanFunctionDef } from '@tdsk/database/seeds/exec-board/functions/upsertPlan'
+import { ResolveBoardFunctionDef } from '@tdsk/database/seeds/exec-board/functions/resolveBoard'
 import { UpsertStrategyFunctionDef } from '@tdsk/database/seeds/exec-board/functions/upsertStrategy'
 import { UpdateMilestoneFunctionDef } from '@tdsk/database/seeds/exec-board/functions/updateMilestone'
 import { ReportInitiativeCompleteFunctionDef } from '@tdsk/database/seeds/exec-board/functions/reportInitiativeComplete'
@@ -572,6 +573,51 @@ describe(`upsertStrategy Function`, () => {
     expect(result.output).toEqual({ ok: false, reason: `no recognized strategy fields` })
     expect(h.row(`company_strategy`, `rec_strat`)!.data).toEqual(before)
   })
+
+  it(`creates the singleton with the fixed seed id (rec_strat1) when none exists yet`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    // No seedStrategy() call -- the create-fallback branch is what's under test.
+
+    const result = await runFn(
+      UpsertStrategyFunctionDef,
+      h,
+      { northStar: `first north star` },
+      { agentId: `ag_ceo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, strategyId: `rec_strat1` })
+    const rows = h.rows(`company_strategy`)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].id).toBe(`rec_strat1`)
+    expect(rows[0].data.northStar).toBe(`first north star`)
+  })
+
+  it(`patches the same singleton row on a second call rather than forking a duplicate`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+
+    await runFn(
+      UpsertStrategyFunctionDef,
+      h,
+      { northStar: `first north star` },
+      { agentId: `ag_ceo` }
+    )
+    const result = await runFn(
+      UpsertStrategyFunctionDef,
+      h,
+      { positioning: `second call positioning` },
+      { agentId: `ag_ceo` }
+    )
+
+    expect(result.output).toMatchObject({ ok: true, strategyId: `rec_strat1` })
+    const rows = h.rows(`company_strategy`)
+    // Still exactly one row -- the second call patched rec_strat1, not a fresh id.
+    expect(rows).toHaveLength(1)
+    expect(rows[0].id).toBe(`rec_strat1`)
+    expect(rows[0].data.northStar).toBe(`first north star`)
+    expect(rows[0].data.positioning).toBe(`second call positioning`)
+  })
 })
 
 // ── reportInitiativeComplete — parity with persistInitiativeComplete
@@ -706,6 +752,96 @@ describe(`reportInitiativeComplete Function`, () => {
       reason: `only the CTO may report initiative completion`,
     })
     expect(h.row(`company_strategy`, `rec_strat`)!.data.activeInitiative).toEqual(Active)
+  })
+
+  it(`returns advanced:false cleanly instead of throwing when the second re-read transiently returns empty`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    seedStrategy(h)
+
+    // Simulate a transient blip: the FIRST company_strategy query (gate check)
+    // still finds the row, but the SECOND (post-completion-write re-read) comes
+    // back empty -- exactly the race this guard exists to survive.
+    let companyStrategyQueryCount = 0
+    const originalQuery = h.record.query.getMockImplementation()!
+    h.record.query.mockImplementation(async (projectId, collection, query) => {
+      if (collection === `company_strategy`) {
+        companyStrategyQueryCount++
+        if (companyStrategyQueryCount === 2) return { data: [] }
+      }
+      return originalQuery(projectId, collection, query)
+    })
+
+    const result = await runFn(
+      ReportInitiativeCompleteFunctionDef,
+      h,
+      { title: `Ship billing v2`, evidenceRefs: [`pr-42`] },
+      { agentId: `ag_cto` }
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.output).toEqual({
+      ok: true,
+      advanced: false,
+      reason: `strategy record unavailable on re-read after completion write`,
+    })
+    // The completion write (before the guard) still landed.
+    expect(h.row(`company_strategy`, `rec_strat`)!.data.activeInitiative).toMatchObject({
+      title: `Ship billing v2`,
+      status: `complete`,
+    })
+  })
+})
+
+// ── resolveBoard — parity with resolveBoard + commitProposalEffect
+//    (repos/backend/src/utils/agent/resolveBoard.ts:52-250) ───────────────────
+
+describe(`resolveBoard Function`, () => {
+  it(`patchStrategy's create branch creates the singleton with the fixed seed id (rec_strat1) when none exists yet`, async () => {
+    const h = makeFakeDb()
+    seedMembers(h)
+    // No company_strategy seeded -- patchStrategy's create-fallback is under test.
+    h.seed(`decision_proposals`, `dp_pos`, {
+      title: `Reposition to AI teams`,
+      axis: `positioning`,
+      description: `Shift positioning to autonomous AI eng teams`,
+      evidence: [],
+      status: `open`,
+      round: 1,
+      openedByAgentId: `ag_ceo`,
+    })
+    h.seed(`decision_positions`, `pos_ceo`, {
+      proposalId: `dp_pos`,
+      agentId: `ag_ceo`,
+      stance: `endorse`,
+      reasoning: ``,
+      round: 1,
+    })
+    h.seed(`decision_positions`, `pos_cto`, {
+      proposalId: `dp_pos`,
+      agentId: `ag_cto`,
+      stance: `endorse`,
+      reasoning: ``,
+      round: 1,
+    })
+    h.seed(`decision_positions`, `pos_cmo`, {
+      proposalId: `dp_pos`,
+      agentId: `ag_cmo`,
+      stance: `endorse`,
+      reasoning: ``,
+      round: 1,
+    })
+
+    const result = await runFn(ResolveBoardFunctionDef, h, {})
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      outcomes: [{ id: `dp_pos`, action: `committed` }],
+    })
+    const rows = h.rows(`company_strategy`)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].id).toBe(`rec_strat1`)
+    expect(rows[0].data.positioning).toBe(`Shift positioning to autonomous AI eng teams`)
   })
 })
 
