@@ -1,5 +1,6 @@
 import type { TRecordQuery } from './collection.types'
 import type { TScanResult } from './skillProposal.types'
+import type { EScheduleType } from './schedule.types'
 
 export enum EFunLanguage {
   python = `python`,
@@ -133,14 +134,30 @@ export type TConnectorRequest = {
    * is sent upstream as the decoded raw bytes instead of being JSON-stringified.
    * The caller is responsible for setting an appropriate `content-type` header
    * (it is NOT defaulted to `application/json` on this path).
+   *
+   * When set to `multipart`, `body` is ignored and `parts` supplies the
+   * multipart/form-data fields instead — the content-type (with its boundary)
+   * is set by the outbound fetch itself, never by the caller.
    */
-  bodyEncoding?: `base64`
+  bodyEncoding?: `base64` | `multipart`
   /**
    * Opt in to a binary-safe response: when set to `base64`, the response body
    * is read as raw bytes and returned as a base64-encoded string instead of
    * being decoded as JSON/UTF-8 text.
    */
   responseEncoding?: `base64`
+  /**
+   * multipart/form-data fields, used only when `bodyEncoding === 'multipart'`.
+   * A part with `base64` set is appended as a file-like Blob (using `filename`/
+   * `contentType`); otherwise it is appended as a plain text field (`value`).
+   */
+  parts?: Array<{
+    name: string
+    value?: string
+    filename?: string
+    contentType?: string
+    base64?: string
+  }>
 }
 
 /** Result of an external connection call surfaced back to the Function. */
@@ -193,6 +210,39 @@ export interface ITaskProposalsCapability {
   promote(id: string, note?: string): Promise<TTaskProposalPromoteResult>
 }
 
+/** Input a Function passes to create a new schedule from its own execution context. */
+export type TScheduleCreateInput = {
+  cronExpression: string
+  prompt?: string
+  type?: EScheduleType
+  timeoutMs?: number
+}
+
+/** Outcome of a schedule created via `context.schedule.create`. */
+export type TScheduleCreateResult = {
+  id: string
+  cronExpression: string
+  /** ISO timestamp of the schedule's first computed run. */
+  nextRunAt: string
+}
+
+/**
+ * Schedule-creation capability injected into a Function's execution context.
+ *
+ * A platform-mediated bridge over the same schedule-creation path the Admin API
+ * uses (`createSchedule.ts`): the isolate supplies only `cronExpression`/
+ * `prompt`/`type`/`timeoutMs`, and the host binds the schedule's scope
+ * (orgId/projectId/agentId/sandboxId) from the Function's OWN execution
+ * context — the isolate can never supply an arbitrary scope, the same guard
+ * precedent as `createCollection`'s projectId binding. Only present when the
+ * executor can resolve a sandbox to run the new schedule on (i.e. the Function
+ * was itself invoked by an agent or a schedule); otherwise `context.schedule`
+ * is absent, mirroring `context.connect`'s fail-closed wiring.
+ */
+export interface IScheduleCapability {
+  create(input: TScheduleCreateInput): Promise<TScheduleCreateResult>
+}
+
 /** Platform-injected context available to function handler */
 export type TFunctionContext = {
   args?: Record<string, any>
@@ -223,6 +273,13 @@ export type TFunctionContext = {
    * reached through a platform-mediated bridge, never a direct db connection.
    */
   taskProposals?: ITaskProposalsCapability
+  /**
+   * Schedule-creation capability. Present only when the executor can resolve a
+   * sandbox to run the new schedule on (the Function was itself invoked by an
+   * agent or a schedule) — reached through a platform-mediated bridge, never a
+   * direct db connection.
+   */
+  schedule?: IScheduleCapability
   /**
    * Platform-injected, trusted identity of the invoker (never from model output).
    * Effect Functions authorize by this (e.g. board role gates).
