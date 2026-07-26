@@ -89,6 +89,15 @@ const compileFilter = (filter: TRecordQueryFilter, schema?: TCollectionSchema): 
     return sql`data @> ${containment}::jsonb`
   }
 
+  if (op === EQueryOp.search) {
+    if (typeof value !== `string`)
+      throw new Error(`Operator "search" requires a string value`)
+
+    // case-insensitive substring match; the wildcarded value is a single
+    // bound parameter, never string-concatenated into the SQL text.
+    return sql`(data ->> ${field}) ilike ${`%${value}%`}`
+  }
+
   const token = ScalarOpTokens[op]
   if (!token) throw new Error(`Unsupported operator: ${String(op)}`)
 
