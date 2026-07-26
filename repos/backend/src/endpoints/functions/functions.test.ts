@@ -7,6 +7,16 @@ import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { Function as FunctionModel } from '@tdsk/domain'
+import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
+
+// Mock FunctionExecutor — invokeFunction runs the persisted function through
+// it; the isolate/sandbox machinery itself is exercised by functionExecutor's
+// own test suite, not re-tested here.
+vi.mock(`@TBE/services/functions/functionExecutor`, () => ({
+  FunctionExecutor: {
+    execute: vi.fn(),
+  },
+}))
 
 describe(`Functions endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -72,6 +82,7 @@ describe(`Functions endpoints`, () => {
       expect(functions.endpoints?.createFunction).toBeDefined()
       expect(functions.endpoints?.updateFunction).toBeDefined()
       expect(functions.endpoints?.deleteFunction).toBeDefined()
+      expect(functions.endpoints?.invokeFunction).toBeDefined()
     })
   })
 
@@ -351,6 +362,128 @@ describe(`Functions endpoints`, () => {
       expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: { success: true } })
+    })
+  })
+
+  describe(`POST /_/functions/:id/invoke - Test-invoke a function`, () => {
+    const ep = getEndpointCfg(functions.endpoints?.invokeFunction)
+
+    beforeEach(() => {
+      ;(FunctionExecutor.execute as ReturnType<typeof vi.fn>).mockReset()
+    })
+
+    it(`should invoke the function's persisted code with the request's input and return the result inline`, async () => {
+      const existingFunction = new FunctionModel({
+        id: `123`,
+        name: `testFunc`,
+        content: `console.log('test')`,
+        projectId: `project-1`,
+        endpointId: `endpoint-1`,
+      })
+      mockReq.params = { id: `123` }
+      mockReq.body = { input: { x: 1 } }
+
+      const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingFunction })
+
+      const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+      mockExecute.mockResolvedValue({
+        success: true,
+        output: { y: 2 },
+        duration: 12,
+        logs: `hello from the function`,
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGet).toHaveBeenCalledWith(`123`)
+      // The function's PERSISTED code is executed, not arbitrary code from
+      // the request body — the request only ever supplies `input`.
+      expect(mockExecute).toHaveBeenCalledWith(
+        existingFunction,
+        expect.objectContaining({ context: { args: { x: 1 } } })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.result).toEqual({ y: 2 })
+      expect(responseData.logs).toBe(`hello from the function`)
+      expect(typeof responseData.durationMs).toBe(`number`)
+      expect(responseData.error).toBeUndefined()
+    })
+
+    it(`should default input to {} when the request body omits it`, async () => {
+      const existingFunction = new FunctionModel({
+        id: `123`,
+        name: `testFunc`,
+        content: `console.log('test')`,
+        projectId: `project-1`,
+      })
+      mockReq.params = { id: `123` }
+      mockReq.body = {}
+
+      const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingFunction })
+
+      const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+      mockExecute.mockResolvedValue({ success: true, output: null, duration: 1 })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        existingFunction,
+        expect.objectContaining({ context: { args: {} } })
+      )
+    })
+
+    it(`should return 404 when the function does not exist`, async () => {
+      mockReq.params = { id: `nonexistent` }
+      mockReq.body = {}
+
+      const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: undefined })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function not found`
+      )
+      expect(FunctionExecutor.execute).not.toHaveBeenCalled()
+    })
+
+    it(`surfaces a failed execution as a 200 response with the error field set, not a thrown exception`, async () => {
+      const existingFunction = new FunctionModel({
+        id: `123`,
+        name: `testFunc`,
+        content: `throw new Error('boom')`,
+        projectId: `project-1`,
+      })
+      mockReq.params = { id: `123` }
+      mockReq.body = { input: {} }
+
+      const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingFunction })
+
+      const mockExecute = FunctionExecutor.execute as ReturnType<typeof vi.fn>
+      mockExecute.mockResolvedValue({
+        success: false,
+        output: null,
+        duration: 5,
+        error: `boom`,
+        logs: ``,
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.result).toBeNull()
+      expect(responseData.error).toBe(`boom`)
     })
   })
 })

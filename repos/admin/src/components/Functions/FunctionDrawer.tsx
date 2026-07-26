@@ -2,7 +2,7 @@ import type { TKeyValuePair } from '@TAF/types'
 import type { TParamRow } from '@TAF/components/ParamsEditor'
 import type { Function as FunctionModel } from '@tdsk/domain'
 
-import { Box } from '@mui/material'
+import { Box, Tab, Tabs } from '@mui/material'
 import { EFunLanguage } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { LanguageOpts } from '@TAF/constants/values'
@@ -12,6 +12,7 @@ import { EndpointSelector } from '@TAF/components/Selectors'
 import { useProjectEndpoints } from '@TAF/state/selectors'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { FunctionTestPanel } from '@TAF/components/Functions/FunctionTestPanel'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
 import {
@@ -42,6 +43,7 @@ export const FunctionDrawer = ({
   const isEditMode = Boolean(func)
   const [endpoints] = useProjectEndpoints()
 
+  const [activeTab, setActiveTab] = useState<`configure` | `test`>(`configure`)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(func?.name || ``)
   const [loaded, setLoaded] = useState(Boolean(func?.id))
@@ -120,6 +122,7 @@ export const FunctionDrawer = ({
     }
 
     setError(null)
+    setActiveTab(`configure`)
     setShowDeleteConfirm(false)
   }, [func, loaded])
 
@@ -134,6 +137,7 @@ export const FunctionDrawer = ({
     setBranch(`main`)
     setDescription(``)
     setInputSchema([])
+    setActiveTab(`configure`)
     setDependencyPairs([])
     setLanguage(`typescript`)
     setShowDeleteConfirm(false)
@@ -246,114 +250,141 @@ export const FunctionDrawer = ({
       onClose={onClose}
       title={isEditMode ? `Edit Function` : `Create New Function`}
       actions={
-        <DrawerActions
-          form='function-form'
-          editing={isEditMode}
-          actions={actions}
-          loading={loading}
-          disabled={loading || showDeleteConfirm}
-        />
+        activeTab === `configure` ? (
+          <DrawerActions
+            form='function-form'
+            editing={isEditMode}
+            actions={actions}
+            loading={loading}
+            disabled={loading || showDeleteConfirm}
+          />
+        ) : undefined
       }
     >
-      <form id='function-form'>
-        <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
-          {error && (
-            <ErrorAlert
-              message={error}
-              onClose={() => setError(null)}
+      {isEditMode && (
+        <Tabs
+          value={activeTab}
+          onChange={(_, val) => setActiveTab(val)}
+          sx={{ borderBottom: 1, borderColor: `divider`, mb: 2 }}
+        >
+          <Tab
+            label='Configure'
+            value='configure'
+          />
+          <Tab
+            label='Test'
+            value='test'
+          />
+        </Tabs>
+      )}
+
+      {activeTab === `test` && func ? (
+        <FunctionTestPanel
+          func={func}
+          orgId={orgId}
+          projectId={projectId}
+        />
+      ) : (
+        <form id='function-form'>
+          <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
+            {error && (
+              <ErrorAlert
+                message={error}
+                onClose={() => setError(null)}
+              />
+            )}
+
+            {isEditMode && showDeleteConfirm && (
+              <ConfirmDelete
+                deleting={loading}
+                onConfirm={onRemove}
+                onCancel={() => setShowDeleteConfirm(false)}
+                itemName={func?.name || `this function`}
+              />
+            )}
+
+            <TextInput
+              required
+              fullWidth
+              value={name}
+              disabled={loading}
+              id='function-name'
+              label='Function Name'
+              placeholder='Enter function name'
+              onChange={(e) => setName(e.target.value)}
             />
-          )}
 
-          {isEditMode && showDeleteConfirm && (
-            <ConfirmDelete
-              deleting={loading}
-              onConfirm={onRemove}
-              onCancel={() => setShowDeleteConfirm(false)}
-              itemName={func?.name || `this function`}
+            <SelectInput
+              required
+              label='Language'
+              value={language}
+              disabled={loading}
+              items={LanguageOpts}
+              id='function-language'
+              onChange={(e) => setLanguage(e.target.value)}
             />
-          )}
 
-          <TextInput
-            required
-            fullWidth
-            value={name}
-            disabled={loading}
-            id='function-name'
-            label='Function Name'
-            placeholder='Enter function name'
-            onChange={(e) => setName(e.target.value)}
-          />
+            <TextInput
+              textarea
+              fullWidth
+              minRows={3}
+              disabled={loading}
+              label='Description'
+              value={description}
+              id='function-description'
+              placeholder='Enter function description (optional)'
+              onChange={(e) => setDescription(e.target.value)}
+            />
 
-          <SelectInput
-            required
-            label='Language'
-            value={language}
-            disabled={loading}
-            items={LanguageOpts}
-            id='function-language'
-            onChange={(e) => setLanguage(e.target.value)}
-          />
+            <EndpointSelector
+              loading={loading}
+              disabled={loading}
+              endpointId={endpointId}
+              endpoints={endpointOptions}
+              onChange={(id) => setEndpointId(id)}
+            />
 
-          <TextInput
-            textarea
-            fullWidth
-            minRows={3}
-            disabled={loading}
-            label='Description'
-            value={description}
-            id='function-description'
-            placeholder='Enter function description (optional)'
-            onChange={(e) => setDescription(e.target.value)}
-          />
+            <TextInput
+              fullWidth
+              label='Branch'
+              value={branch}
+              disabled={loading}
+              placeholder='main'
+              id='function-branch'
+              onChange={(e) => setBranch(e.target.value)}
+              description='Branch to use (default: main)'
+            />
 
-          <EndpointSelector
-            loading={loading}
-            disabled={loading}
-            endpointId={endpointId}
-            endpoints={endpointOptions}
-            onChange={(id) => setEndpointId(id)}
-          />
+            <ParamsEditor
+              disabled={loading}
+              params={inputSchema}
+              label='Input Parameters'
+              onChange={setInputSchema}
+            />
 
-          <TextInput
-            fullWidth
-            label='Branch'
-            value={branch}
-            disabled={loading}
-            placeholder='main'
-            id='function-branch'
-            onChange={(e) => setBranch(e.target.value)}
-            description='Branch to use (default: main)'
-          />
+            <KeyValueEditor
+              disabled={loading}
+              label='Dependencies'
+              pairs={dependencyPairs}
+              keyPlaceholder='Package name'
+              onChange={setDependencyPairs}
+              enableSecretReferences={false}
+              valuePlaceholder='Version (e.g., ^1.0.0)'
+            />
 
-          <ParamsEditor
-            disabled={loading}
-            params={inputSchema}
-            label='Input Parameters'
-            onChange={setInputSchema}
-          />
-
-          <KeyValueEditor
-            disabled={loading}
-            label='Dependencies'
-            pairs={dependencyPairs}
-            keyPlaceholder='Package name'
-            onChange={setDependencyPairs}
-            enableSecretReferences={false}
-            valuePlaceholder='Version (e.g., ^1.0.0)'
-          />
-
-          <Code
-            required
-            label='Content'
-            disabled={loading}
-            language={language}
-            id='function-content'
-            defaultValue={content || `\n\n\n\n\n\n`}
-            placeholder={`The ${language} code....`}
-            onChange={(data: string) => setContent(data)}
-          />
-        </Box>
-      </form>
+            <Code
+              required
+              label='Content'
+              disabled={loading}
+              language={language}
+              id='function-content'
+              defaultValue={content || `\n\n\n\n\n\n`}
+              placeholder={`The ${language} code....`}
+              onChange={(data: string) => setContent(data)}
+            />
+          </Box>
+        </form>
+      )}
     </Drawer>
   )
 }
