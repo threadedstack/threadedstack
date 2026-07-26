@@ -315,6 +315,51 @@ describe(`connectorCapability`, () => {
     expect(res.body).toBe(binaryPayload.toString(`base64`))
   })
 
+  it(`bodyEncoding='multipart' sends a FormData body with text and base64 file-like parts, no caller/default content-type`, async () => {
+    const ep = proxyEndpoint()
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+
+    const raw = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a])
+    const res = await cap.invoke(`ep_send1`, {
+      bodyEncoding: `multipart`,
+      headers: { 'content-type': `should-be-dropped` },
+      parts: [
+        { name: `title`, value: `hello` },
+        {
+          name: `file`,
+          filename: `photo.png`,
+          contentType: `image/png`,
+          base64: raw.toString(`base64`),
+        },
+      ],
+    })
+
+    expect(res.ok).toBe(true)
+    const [, init] = mocks.guardedFetch.mock.calls[0] as any
+    expect(init.body).toBeInstanceOf(FormData)
+    expect(init.body.get(`title`)).toBe(`hello`)
+    const filePart = init.body.get(`file`) as File
+    expect(filePart).toBeInstanceOf(Blob)
+    expect(filePart.type).toBe(`image/png`)
+    expect(filePart.name).toBe(`photo.png`)
+    expect(Buffer.compare(Buffer.from(await filePart.arrayBuffer()), raw)).toBe(0)
+    // fetch sets its own multipart boundary header — never the caller's or a default
+    expect(init.headers[`content-type`]).toBeUndefined()
+  })
+
+  it(`bodyEncoding='multipart' with a missing/empty parts array returns {ok:false, error} without throwing`, async () => {
+    const ep = proxyEndpoint()
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+
+    const res = await cap.invoke(`ep_send1`, { bodyEncoding: `multipart`, parts: [] })
+
+    expect(res).toMatchObject({ ok: false })
+    expect(res.error).toMatch(/multipart request requires at least one part/)
+    expect(mocks.guardedFetch).not.toHaveBeenCalled()
+  })
+
   it(`existing JSON-body/JSON-or-text-response path is unaffected when bodyEncoding/responseEncoding are omitted`, async () => {
     const ep = proxyEndpoint()
     const db = makeDb(ep) as any

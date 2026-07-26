@@ -11,6 +11,7 @@ import { EmptyState } from '@TTH/components/EmptyState/EmptyState'
 import { formatDate, formatRelativeDate } from '@TTH/utils/formatDate'
 import { ProjectSandboxCard } from '@TTH/components/Project/ProjectSandboxCard'
 import { ProjectCollectionsSection } from '@TTH/components/Project/ProjectCollectionsSection'
+import { ProjectSchedulesSection } from '@TTH/components/Project/ProjectSchedulesSection'
 import { Workspaces, Settings, Add, FilterList, Sort } from '@mui/icons-material'
 import {
   useProjects,
@@ -161,6 +162,11 @@ export const Project = () => {
           ))}
         </Box>
       )}
+
+      <ProjectSchedulesSection
+        orgId={orgId}
+        projectId={projectId}
+      />
 
       <ProjectCollectionsSection
         orgId={orgId}

@@ -133,14 +133,30 @@ export type TConnectorRequest = {
    * is sent upstream as the decoded raw bytes instead of being JSON-stringified.
    * The caller is responsible for setting an appropriate `content-type` header
    * (it is NOT defaulted to `application/json` on this path).
+   *
+   * When set to `multipart`, `body` is ignored and `parts` supplies the
+   * multipart/form-data fields instead — the content-type (with its boundary)
+   * is set by the outbound fetch itself, never by the caller.
    */
-  bodyEncoding?: `base64`
+  bodyEncoding?: `base64` | `multipart`
   /**
    * Opt in to a binary-safe response: when set to `base64`, the response body
    * is read as raw bytes and returned as a base64-encoded string instead of
    * being decoded as JSON/UTF-8 text.
    */
   responseEncoding?: `base64`
+  /**
+   * multipart/form-data fields, used only when `bodyEncoding === 'multipart'`.
+   * A part with `base64` set is appended as a file-like Blob (using `filename`/
+   * `contentType`); otherwise it is appended as a plain text field (`value`).
+   */
+  parts?: Array<{
+    name: string
+    value?: string
+    filename?: string
+    contentType?: string
+    base64?: string
+  }>
 }
 
 /** Result of an external connection call surfaced back to the Function. */
