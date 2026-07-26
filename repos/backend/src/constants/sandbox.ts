@@ -17,6 +17,12 @@ export const TunnelRateWindow = 60_000
 export const TunnelBlockDuration = 60_000
 export const TunnelFastCloseThreshold = 10_000
 
+// Public Endpoint dispatch (/proxy/:projectId/:endpointId) skips auth entirely
+// when the endpoint is marked public, so it needs its own request-volume guard.
+export const PublicEndpointRateLimit = 60
+export const PublicEndpointRateWindow = 60_000
+export const PublicEndpointBlockDuration = 60_000
+
 export const WsPingInterval = 30_000
 
 export const MaxTerminalDim = 500

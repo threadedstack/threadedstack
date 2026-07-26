@@ -53,7 +53,7 @@ vi.mock(`@TBE/services/endpoints`, () => ({
   getEPService: vi.fn(() => mockService),
 }))
 
-import { endpoint } from './endpoint'
+import { endpoint, publicEndpointLimiter } from './endpoint'
 import { authenticateRequest } from '@TBE/utils/auth/authenticateRequest'
 import { parseJsonBody } from '@TBE/utils/parseJsonBody'
 import { EEndpointType } from '@tdsk/domain'
@@ -96,6 +96,7 @@ describe(`proxy endpoint action`, () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
+    publicEndpointLimiter.clear()
     mockRes = { locals: {} } as Partial<Response> & { locals: Record<string, any> }
 
     // Reset default mock behaviors after resetAllMocks clears implementations
@@ -492,5 +493,88 @@ describe(`proxy endpoint action`, () => {
     // But permission check and execute still called
     expect(mockService.checkPermission).toHaveBeenCalled()
     expect(mockService.execute).toHaveBeenCalled()
+  })
+
+  // --- Public endpoint rate limiting ---
+
+  const buildPublicReq = (overrides: Record<string, any> = {}) => {
+    const req = buildMockReq(overrides)
+    const mockGet = req.app.locals.db.services.endpoint.get as ReturnType<typeof vi.fn>
+    mockGet.mockResolvedValue({
+      data: {
+        id: `ep-1`,
+        type: EEndpointType.proxy,
+        projectId: `proj-1`,
+        public: true,
+      },
+      error: null,
+    })
+    return req
+  }
+
+  describe(`public endpoint rate limiting`, () => {
+    it(`should return 429 once repeated dispatch calls to the same public endpoint cross the limit`, async () => {
+      const req = buildPublicReq()
+
+      // First 60 calls (PublicEndpointRateLimit) succeed
+      for (let i = 0; i < 60; i++) {
+        await expect(
+          endpoint.action!(req as any, mockRes as Response)
+        ).resolves.toBeUndefined()
+      }
+
+      // The 61st call crosses the threshold
+      try {
+        await endpoint.action!(req as any, mockRes as Response)
+        expect.unreachable(`Should have thrown 429`)
+      } catch (err) {
+        expect((err as TExceptionLike).status).toBe(429)
+      }
+
+      // Further calls remain blocked
+      await expect(endpoint.action!(req as any, mockRes as Response)).rejects.toThrow(
+        `Too many requests to this endpoint`
+      )
+    })
+
+    it(`should NOT rate-limit a non-public endpoint regardless of call volume`, async () => {
+      const req = buildMockReq()
+
+      for (let i = 0; i < 100; i++) {
+        await expect(
+          endpoint.action!(req as any, mockRes as Response)
+        ).resolves.toBeUndefined()
+      }
+    })
+
+    it(`should track independent rate-limit buckets per projectId:endpointId`, async () => {
+      const reqA = buildPublicReq()
+      const reqB = buildPublicReq({ params: { projectId: `proj-1`, endpointId: `ep-2` } })
+      const mockGetB = reqB.app.locals.db.services.endpoint.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetB.mockResolvedValue({
+        data: {
+          id: `ep-2`,
+          type: EEndpointType.proxy,
+          projectId: `proj-1`,
+          public: true,
+        },
+        error: null,
+      })
+
+      // Exhaust endpoint A's bucket
+      for (let i = 0; i < 60; i++) {
+        await endpoint.action!(reqA as any, mockRes as Response)
+      }
+      await expect(endpoint.action!(reqA as any, mockRes as Response)).rejects.toThrow(
+        `Too many requests to this endpoint`
+      )
+
+      // Endpoint B is unaffected
+      await expect(
+        endpoint.action!(reqB as any, mockRes as Response)
+      ).resolves.toBeUndefined()
+    })
   })
 })
