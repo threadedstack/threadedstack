@@ -23,6 +23,7 @@ import { listFunctions } from '@TBE/endpoints/functions/listFunctions'
 import { createFunction } from '@TBE/endpoints/functions/createFunction'
 import { updateFunction } from '@TBE/endpoints/functions/updateFunction'
 import { deleteFunction } from '@TBE/endpoints/functions/deleteFunction'
+import { invokeFunction } from '@TBE/endpoints/functions/invokeFunction'
 
 import { getSecret } from '@TBE/endpoints/secrets/getSecret'
 import { listSecrets } from '@TBE/endpoints/secrets/listSecrets'
@@ -116,6 +117,7 @@ const projectFunctions: TEndpointConfig = {
     createFunction,
     updateFunction,
     deleteFunction,
+    invokeFunction,
   },
 }
 
