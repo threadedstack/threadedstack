@@ -196,23 +196,46 @@ export const createConnectorCapability = (
         for (const [k, v] of Object.entries(request.query ?? {}))
           url.searchParams.set(k, String(v))
 
+        const isMultipart = request.bodyEncoding === `multipart`
         const hasBody =
-          request.body !== undefined && method !== `GET` && method !== `HEAD`
+          method !== `GET` &&
+          method !== `HEAD` &&
+          (request.body !== undefined || isMultipart)
         const isBase64Body = hasBody && request.bodyEncoding === `base64`
-        if (hasBody && !isBase64Body && !headers[`content-type`])
+        if (hasBody && !isBase64Body && !isMultipart && !headers[`content-type`])
           headers[`content-type`] = `application/json`
         if (isBase64Body && !headers[`content-type`])
           headers[`content-type`] = `application/octet-stream`
+        // multipart never gets a caller/default content-type — fetch sets the
+        // boundary-bearing header itself when the body is a FormData instance.
+        if (isMultipart) delete headers[`content-type`]
 
-        const res = await guardedFetch(url.toString(), {
-          method,
-          headers,
-          body: !hasBody
-            ? undefined
-            : isBase64Body
-              ? Buffer.from(request.body as string, `base64`)
-              : JSON.stringify(request.body),
-        })
+        let body: BodyInit | undefined
+        if (hasBody && isMultipart) {
+          if (!request.parts?.length)
+            return { ok: false, error: `multipart request requires at least one part` }
+          const formData = new FormData()
+          for (const part of request.parts) {
+            if (part.base64 !== undefined) {
+              formData.append(
+                part.name,
+                new Blob([Buffer.from(part.base64, `base64`)], {
+                  type: part.contentType,
+                }),
+                part.filename
+              )
+            } else {
+              formData.append(part.name, part.value ?? ``)
+            }
+          }
+          body = formData
+        } else if (hasBody && isBase64Body) {
+          body = Buffer.from(request.body as string, `base64`)
+        } else if (hasBody) {
+          body = JSON.stringify(request.body)
+        }
+
+        const res = await guardedFetch(url.toString(), { method, headers, body })
 
         return {
           ok: res.ok,
