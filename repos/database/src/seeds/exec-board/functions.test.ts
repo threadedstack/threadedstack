@@ -96,7 +96,13 @@ describe(`ExecBoardFunctionDefs`, () => {
   it(`encodes the plans lane rules in the planning Function bodies`, () => {
     const upsertPlan = ExecBoardFunctionDefs.find((def) => def.name === `upsertPlan`)!
     expect(upsertPlan.id).toBe(`fn_bplan01`)
-    // Role-vs-owner lanes: CEO any; CMO only cmo-owned gtm; CTO only cto-owned initiative.
+    // Role-vs-owner lanes: CEO any EXCEPT initiative; CMO only cmo-owned gtm;
+    // CTO only cto-owned initiative. The engineering roadmap is a SINGLE
+    // cto-owned initiative plan — no seat (CEO included) may author another, so
+    // the CEO's blanket bypass is closed for the initiative kind.
+    expect(upsertPlan.content).toContain(
+      `only the CTO may write initiative plans (the roadmap is cto-owned)`
+    )
     expect(upsertPlan.content).toContain(`role cmo may only write cmo-owned gtm plans`)
     expect(upsertPlan.content).toContain(
       `role cto may only write cto-owned initiative plans`

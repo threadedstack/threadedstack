@@ -615,10 +615,13 @@ describe(`CtoResidentConfigSeed (dev-team lead — Phase 2 shadow)`, () => {
     // groom the live backlog up toward ~6-9 open tasks for three engineers.
     expect(agenda[0].prompt).toContain(`SOLE GROOMER for THREE engineers`)
     expect(agenda[0].prompt).toContain(`PRUNE THE DEAD`)
-    // When the reactive sensor backlog runs dry, generate proactive work from
-    // the active plans + evidenced improvements — with a no-busywork guard.
-    expect(agenda[0].prompt).toContain(`GENERATE PROACTIVE WORK`)
-    expect(agenda[0].prompt).toContain(`never manufacture busywork`)
+    // When the reactive sensor backlog runs dry, the proactive feature source is
+    // the CTO roadmap's OPEN milestones (never the groom's own invention, never
+    // manufactured test-coverage); a dry roadmap runs the board LEAN + escalates,
+    // it does not backfill filler.
+    expect(agenda[0].prompt).toContain(`ADVANCE THE ENGINEERING ROADMAP`)
+    expect(agenda[0].prompt).toContain(`NEVER manufacture standalone test-coverage tasks`)
+    expect(agenda[0].prompt).toContain(`RUN LEAN`)
     // Grooms the REAL sensor-detected backlog: read the injected scanned
     // proposals, DECOMPOSE into small tasks stamped with sourceTaskProposalId —
     // and stamping it makes devAddTask ATOMICALLY claim the proposal in the same
