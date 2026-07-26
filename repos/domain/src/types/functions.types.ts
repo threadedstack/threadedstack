@@ -72,6 +72,13 @@ export interface IRecordsCapability {
    * collection scoped to its own project, identical to every other method here.
    */
   deleteCollection(id: string): Promise<{ deleted: boolean }>
+  /**
+   * List every collection that already exists in the Function's own project —
+   * the project is implicit (bound at injection time), so a Function can only
+   * ever enumerate its own project's collections, identical to every other
+   * method here. Takes no args, mirroring `createCollection`'s implicit scope.
+   */
+  listCollections(): Promise<{ id: string; name: string; description?: string }[]>
 }
 
 /**

@@ -403,6 +403,15 @@ describe(`FunctionExecutor`, () => {
             return { data: row }
           }
         ),
+        listByProject: vi.fn(
+          async (
+            projectId: string
+          ): Promise<{ data?: TFakeCollectionRow[]; error?: Error }> => ({
+            data: Array.from(collectionsById.values()).filter(
+              (c) => c.projectId === projectId
+            ),
+          })
+        ),
       }
 
       return { db: { services: { record, collection } } as any, record, collection }
@@ -734,6 +743,91 @@ describe(`FunctionExecutor`, () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toContain(`records.deleteCollection failed`)
+      expect(result.error).toContain(`db unavailable`)
+    })
+
+    it(`gives a Function a listCollections capability that returns its own project's collections, newest first`, async () => {
+      const { db, collection } = makeFakeDb()
+      const func = makeFunc({ projectId: `proj-records` })
+
+      // Simulate the isolate running a handler that uses context.records:
+      //   await context.records.createCollection('events', { description: 'Event log' })
+      //   await context.records.createCollection('orders')
+      //   return await context.records.listCollections()
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        await b[`records.createCollection`](
+          JSON.stringify([`events`, { description: `Event log` }])
+        )
+        await b[`records.createCollection`](JSON.stringify([`orders`, undefined]))
+        const listed = JSON.parse(await b[`records.listCollections`](JSON.stringify([])))
+        return { output: ``, result: { success: true, output: listed } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      expect(result.output).toEqual([
+        { id: expect.any(String), name: `events`, description: `Event log` },
+        { id: expect.any(String), name: `orders`, description: undefined },
+      ])
+
+      // The wrapper reconstructs context.records via the __hostCall bridge, and
+      // listCollections rides alongside the other records methods
+      const [wrapperCode, evalOpts] = mockEvaluate.mock.calls[0]
+      expect(wrapperCode).toContain(`context.records`)
+      expect(Object.keys(evalOpts.bridges)).toEqual(
+        expect.arrayContaining([`records.listCollections`])
+      )
+
+      // The bridge called db.services.collection.listByProject with the
+      // Function's own projectId
+      expect(collection.listByProject).toHaveBeenCalledWith(`proj-records`)
+    })
+
+    it(`never returns another project's collections from listCollections`, async () => {
+      const { db, collection } = makeFakeDb()
+
+      // Seed a collection under a DIFFERENT project.
+      await collection.create({ projectId: `proj-OTHER`, name: `secret-stash` })
+
+      const func = makeFunc({ projectId: `proj-records` })
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        await b[`records.createCollection`](JSON.stringify([`events`, undefined]))
+        const listed = JSON.parse(await b[`records.listCollections`](JSON.stringify([])))
+        return { output: ``, result: { success: true, output: listed } }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(true)
+      const names = (result.output as Array<{ name: string }>).map((c) => c.name)
+      expect(names).toEqual([`events`])
+      expect(names).not.toContain(`secret-stash`)
+    })
+
+    it(`surfaces a collection-listing db error as a handler-level failure`, async () => {
+      const { db, collection } = makeFakeDb()
+      collection.listByProject.mockResolvedValueOnce({
+        error: new Error(`db unavailable`),
+      })
+      const func = makeFunc({ projectId: `proj-records` })
+
+      mockEvaluate.mockImplementation(async (_code: string, opts: any) => {
+        const b = opts.bridges
+        try {
+          await b[`records.listCollections`](JSON.stringify([]))
+          return { output: ``, result: { success: true, output: `unreachable` } }
+        } catch (err: any) {
+          return { output: ``, result: { success: false, error: err.message } }
+        }
+      })
+
+      const result = await FunctionExecutor.execute(func, { db, context: { args: {} } })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain(`records.listCollections failed`)
       expect(result.error).toContain(`db unavailable`)
     })
   })

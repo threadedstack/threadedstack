@@ -190,6 +190,7 @@ const RecordsBridge = {
   cas: `records.cas`,
   createCollection: `records.createCollection`,
   deleteCollection: `records.deleteCollection`,
+  listCollections: `records.listCollections`,
 } as const
 
 /**
@@ -283,6 +284,18 @@ const createRecordsCapability = (
     if (delError) throw new Error(`records.deleteCollection failed: ${delError.message}`)
     return { deleted: Boolean(deleted) }
   },
+  // Mirrors createCollection's implicit-project-scope precedent — projectId is
+  // bound host-side and never taken from isolate input, so a Function can only
+  // ever list its own project's collections.
+  listCollections: async () => {
+    const { data, error } = await db.services.collection.listByProject(projectId)
+    if (error) throw new Error(`records.listCollections failed: ${error.message}`)
+    return (data ?? []).map((col) => ({
+      id: col.id,
+      name: col.name,
+      description: col.description ?? undefined,
+    }))
+  },
 })
 
 /**
@@ -339,6 +352,9 @@ const buildRecordsBridges = (
     [RecordsBridge.deleteCollection]: async (argsJson) => {
       const [id] = JSON.parse(argsJson) as [string]
       return JSON.stringify(await records.deleteCollection(id))
+    },
+    [RecordsBridge.listCollections]: async () => {
+      return JSON.stringify(await records.listCollections())
     },
   }
 }
@@ -451,6 +467,7 @@ const recordsContextCode = `context.records = (() => {
     cas: (collection, id, match, patch) => call('${RecordsBridge.cas}', [collection, id, match, patch]),
     createCollection: (name, opts) => call('${RecordsBridge.createCollection}', [name, opts]),
     deleteCollection: (id) => call('${RecordsBridge.deleteCollection}', [id]),
+    listCollections: () => call('${RecordsBridge.listCollections}', []),
   };
 })();`
 

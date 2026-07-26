@@ -6,7 +6,20 @@ import { logger } from '@TBE/utils/logger'
 import { getEPService } from '@TBE/services/endpoints'
 import { EEndpointType, Exception } from '@tdsk/domain'
 import { parseJsonBody } from '@TBE/utils/parseJsonBody'
+import { InMemoryRateLimiter } from '@TBE/services/rateLimiter'
 import { authenticateRequest } from '@TBE/utils/auth/authenticateRequest'
+import {
+  PublicEndpointRateLimit,
+  PublicEndpointRateWindow,
+  PublicEndpointBlockDuration,
+} from '@TBE/constants/sandbox'
+
+/**
+ * Request-volume guard for public endpoints — they skip authentication
+ * entirely, so this is the only thing standing between the route and
+ * unbounded dispatch/cost-exhaustion. Keyed by `${projectId}:${endpointId}`.
+ */
+export const publicEndpointLimiter = new InMemoryRateLimiter()
 
 /**
  * GET/POST/PUT/PATCH/DELETE /proxy/:projectId/:endpointId/*
@@ -15,7 +28,7 @@ import { authenticateRequest } from '@TBE/utils/auth/authenticateRequest'
  * Supports proxy, FaaS, and agent endpoint types.
  *
  * Auth is deferred until after the endpoint is loaded from the DB:
- * - Public endpoints skip authentication entirely
+ * - Public endpoints skip authentication entirely, but are rate-limited
  * - Non-public endpoints authenticate via proxy-forwarded headers
  *
  * Body parsing is also deferred:
@@ -59,6 +72,23 @@ export const endpoint: TEndpointConfig = {
         })
         throw new Exception(403, `API key does not have access to this project`)
       }
+    } else {
+      // Public endpoints skip auth entirely, so gate them on request volume instead
+      const limitKey = `${projectId}:${endpointId}`
+      if (
+        publicEndpointLimiter.isLimited(
+          limitKey,
+          PublicEndpointRateWindow,
+          PublicEndpointRateLimit
+        ) &&
+        publicEndpointLimiter.isBlocked(limitKey, PublicEndpointBlockDuration)
+      ) {
+        throw new Exception(
+          429,
+          `Too many requests to this endpoint. Please try again later.`
+        )
+      }
+      publicEndpointLimiter.record(limitKey)
     }
 
     // Check permissions (skipped for public endpoints)

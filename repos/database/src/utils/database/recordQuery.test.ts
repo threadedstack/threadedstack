@@ -109,6 +109,26 @@ describe(`compileRecordQuery`, () => {
     expect(q.params).toContain(JSON.stringify({ tags: `urgent` }))
   })
 
+  it(`(c) maps 'search' to a case-insensitive substring (ilike) predicate with a wildcarded bound param`, () => {
+    const compiled = compileRecordQuery({
+      where: [{ field: `title`, op: EQueryOp.search, value: `foo` }],
+    })
+    const q = render(compiled.where[0])
+    expect(q.sql.toLowerCase()).toContain(`ilike`)
+    expect(q.params).toContain(`%foo%`)
+    expect(q.params).toContain(`title`)
+    // nothing is interpolated as a literal into the SQL text
+    expect(q.sql).not.toContain(`foo`)
+  })
+
+  it(`(d) throws when 'search' is given a non-string value`, () => {
+    expect(() =>
+      compileRecordQuery({
+        where: [{ field: `title`, op: EQueryOp.search, value: 5 }],
+      })
+    ).toThrow(/requires a string value/)
+  })
+
   it(`(d) throws when 'in' is given a non-array value`, () => {
     expect(() =>
       compileRecordQuery({
