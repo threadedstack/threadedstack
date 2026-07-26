@@ -142,7 +142,7 @@ describe(`buildContextSourcesSection`, () => {
     expect(out).toContain(`"ok": true`)
   })
 
-  it(`caps a section at the per-source max`, async () => {
+  it(`omits a document whose own JSON exceeds the per-source max, rather than truncating it mid-token`, async () => {
     const query = vi
       .fn()
       .mockResolvedValue({ data: [{ id: `r1`, data: { blob: `x`.repeat(5000) } }] })
@@ -151,10 +151,14 @@ describe(`buildContextSourcesSection`, () => {
       buildApp(query),
       schedule({ contextSources: [{ collection: `c`, query: {}, as: `Big`, max: 100 }] })
     )
-    expect(out.length).toBe(100)
+
+    expect(out.length).toBeLessThanOrEqual(100)
+    const jsonPart = out.slice(`## Big\n`.length, out.length - `\n\n`.length)
+    expect(() => JSON.parse(jsonPart)).not.toThrow()
+    expect(JSON.parse(jsonPart)).toEqual([])
   })
 
-  it(`caps a section at ContextSourceInjectMaxChars when no max is given`, async () => {
+  it(`omits a document whose own JSON exceeds the default ContextSourceInjectMaxChars cap`, async () => {
     const query = vi
       .fn()
       .mockResolvedValue({ data: [{ id: `r1`, data: { blob: `x`.repeat(20000) } }] })
@@ -163,6 +167,40 @@ describe(`buildContextSourcesSection`, () => {
       buildApp(query),
       schedule({ contextSources: [{ collection: `c`, query: {}, as: `Big` }] })
     )
-    expect(out.length).toBe(8000)
+
+    expect(out.length).toBeLessThanOrEqual(8000)
+    const jsonPart = out.slice(`## Big\n`.length, out.length - `\n\n`.length)
+    expect(JSON.parse(jsonPart)).toEqual([])
+  })
+
+  it(`accumulates whole documents up to the cap, keeping only the ones that fit (valid JSON at the boundary)`, async () => {
+    const query = vi.fn().mockResolvedValue({
+      data: [
+        { id: `r1`, data: { blob: `a`.repeat(40) } },
+        { id: `r2`, data: { blob: `b`.repeat(40) } },
+        { id: `r3`, data: { blob: `c`.repeat(40) } },
+      ],
+    })
+
+    const heading = `## Docs\n`
+    const twoDocs = [
+      { id: `r1`, blob: `a`.repeat(40) },
+      { id: `r2`, blob: `b`.repeat(40) },
+    ]
+    // Cap sized so exactly the first two documents fit and the third does not.
+    const cap = (heading + JSON.stringify(twoDocs, null, 2) + `\n\n`).length
+
+    const out = await buildContextSourcesSection(
+      buildApp(query),
+      schedule({ contextSources: [{ collection: `c`, query: {}, as: `Docs`, max: cap }] })
+    )
+
+    expect(out.length).toBeLessThanOrEqual(cap)
+    const jsonPart = out.slice(heading.length, out.length - `\n\n`.length)
+    const parsed = JSON.parse(jsonPart)
+    expect(parsed).toHaveLength(2)
+    expect(parsed[0].id).toBe(`r1`)
+    expect(parsed[1].id).toBe(`r2`)
+    expect(out).not.toContain(`r3`)
   })
 })
