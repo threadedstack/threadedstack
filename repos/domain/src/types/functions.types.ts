@@ -64,6 +64,13 @@ export interface IRecordsCapability {
     name: string,
     opts?: { description?: string; schema?: unknown }
   ): Promise<{ id: string; name: string }>
+  /**
+   * List every collection that already exists in the Function's own project —
+   * the project is implicit (bound at injection time), so a Function can only
+   * ever enumerate its own project's collections, identical to every other
+   * method here. Takes no args, mirroring `createCollection`'s implicit scope.
+   */
+  listCollections(): Promise<{ id: string; name: string; description?: string }[]>
 }
 
 /**
