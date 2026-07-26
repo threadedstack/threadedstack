@@ -12,6 +12,8 @@ export type TQuotaData = {
   endpoints: number
   secrets: number
   sandboxSessions: number
+  organizations: number
+  seats: number
 }
 
 /**
