@@ -1,4 +1,4 @@
-import { lt } from 'drizzle-orm'
+import { eq, lt, and } from 'drizzle-orm'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Thread as ThreadService } from './thread'
 
@@ -426,6 +426,14 @@ describe(`Thread service`, () => {
       expect(mocks.subscriptionFindByUserFn).toHaveBeenCalledWith(`user-1`)
       const [, cutoffArg] = vi.mocked(lt).mock.calls[0]!
       expect(cutoffArg).toEqual(new Date(Now.getTime() - daysMs(7)))
+      // The deletion must be genuinely scoped to this org, not merely
+      // returning per-org results from an unscoped delete across all orgs.
+      const { threads } = await import(`@TDB/schemas/threads`)
+      expect(vi.mocked(eq).mock.calls[0]).toEqual([threads.orgId, `org-1`])
+      expect(vi.mocked(and)).toHaveBeenCalledWith(
+        vi.mocked(eq).mock.results[0]!.value,
+        vi.mocked(lt).mock.results[0]!.value
+      )
     })
 
     it(`defaults to the free tier when the org has no ownerId at all (never calls subscription lookup)`, async () => {
@@ -489,6 +497,11 @@ describe(`Thread service`, () => {
       expect(vi.mocked(lt).mock.calls[1]![1]).toEqual(
         new Date(Now.getTime() - daysMs(365))
       )
+      // Each org's delete must be scoped to ITS OWN id -- proves the loop
+      // never widens to an unscoped (or wrong-org) delete across iterations.
+      const { threads } = await import(`@TDB/schemas/threads`)
+      expect(vi.mocked(eq).mock.calls[0]).toEqual([threads.orgId, `org-1`])
+      expect(vi.mocked(eq).mock.calls[1]).toEqual([threads.orgId, `org-2`])
     })
 
     it(`returns an empty array and never deletes when there are no orgs`, async () => {
