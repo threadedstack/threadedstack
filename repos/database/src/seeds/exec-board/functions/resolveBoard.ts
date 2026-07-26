@@ -52,7 +52,11 @@ export const ResolveBoardFunctionSource = `export default async (request, contex
         id: current.id,
         data: Object.assign({}, current.data, patch),
       })
+    // The singleton always has the fixed seed id (seeds/exec-board/collections.ts:182,
+    // rec_strat1) -- pass it explicitly on create so a false-empty existence-check
+    // never forks a second company_strategy row.
     return records.upsert('company_strategy', {
+      id: 'rec_strat1',
       data: Object.assign(
         { northStar: '', segments: [], positioning: '', backlog: [], activeInitiative: null },
         patch

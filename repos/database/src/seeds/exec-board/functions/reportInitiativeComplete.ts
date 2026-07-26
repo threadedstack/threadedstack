@@ -74,6 +74,12 @@ export const ReportInitiativeCompleteFunctionSource = `export default async (req
   // evidence starts empty, status active), or clear when the backlog is empty.
   const refreshed = await records.query('company_strategy', {})
   const currentRec = refreshed[0]
+  if (!currentRec)
+    return {
+      ok: true,
+      advanced: false,
+      reason: 'strategy record unavailable on re-read after completion write',
+    }
   const backlog = Array.isArray(currentRec.data.backlog) ? currentRec.data.backlog : []
   if (backlog.length > 0) {
     const next = backlog[0]
