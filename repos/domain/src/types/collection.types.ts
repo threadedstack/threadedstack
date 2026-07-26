@@ -27,6 +27,8 @@ export enum EQueryOp {
   lte = `lte`,
   in = `in`,
   contains = `contains`,
+  /** Case-insensitive substring match (SQL `ilike '%value%'`) — text search, not exact/jsonb containment. */
+  search = `search`,
 }
 
 export type TQueryOp = `${EQueryOp}`
