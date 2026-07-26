@@ -434,6 +434,30 @@ export class SandboxService {
       ? { [`kubernetes.civo.com/civo-node-pool`]: nodePool }
       : this.config.nodeSelector
 
+    // FAIL-CLOSED: buildPodManifest silently omits runtimeClassName from the
+    // pod spec when it's falsy (podManifest.ts's `...(runtimeClassName && {...})`
+    // spread), which schedules the pod on the default runc runtime instead of
+    // the intended Kata (VM-isolated) runtime — a silent security downgrade, not
+    // a build error. In production this must never pass unnoticed.
+    if (process.env.NODE_ENV === `production` && !this.config.runtimeClassName) {
+      if (skillsConfigMapName) {
+        this.kube
+          .deleteConfigMap(skillsConfigMapName)
+          .catch((cmErr) =>
+            logger.error(
+              `[Sandbox] Rollback: failed to delete skills ConfigMap ${skillsConfigMapName}, resource may be leaked:`,
+              (cmErr as Error).message
+            )
+          )
+      }
+      this.rollbackDockerSecrets(dockerSecretNames)
+      throw new Exception(
+        500,
+        `Refusing to launch sandbox ${sandboxId} in production with no runtimeClassName configured — would silently schedule on the default (non-Kata) runtime`,
+        `RUNTIME_CLASS_MISSING`
+      )
+    }
+
     const manifest = buildPodManifest({
       orgId,
       userId,
