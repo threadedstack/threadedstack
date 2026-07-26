@@ -13,6 +13,7 @@
     "proxy-endpoints",
     "faas-endpoints",
     "collections",
+    "skills",
     "agent-connectors"
   ]
 }
