@@ -179,11 +179,24 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).toContain(`{ state: state }`)
   })
 
-  it(`devUpdatePr voids the stale review: clears reviewer + notes with the new head`, () => {
+  it(`devUpdatePr voids the stale review/verdict: clears reviewer + notes with the new head, from any reopenable state`, () => {
     const { content } = byName(`devUpdatePr`)
-    expect(content).toContain(`state: 'changes_requested', assignee: agentId`)
+    expect(content).toContain(
+      `state === 'changes_requested' || state === 'in_review' || state === 'approved'`
+    )
+    // Guarded on the exact state read (like devAbandon), not a fixed literal —
+    // a push during in_review or approved must also reopen the race.
+    expect(content).toContain(`{ state: state, assignee: agentId }`)
     expect(content).toContain(`reviewer: null`)
     expect(content).toContain(`notes: ''`)
+  })
+
+  it(`devMarkMerged binds the merge to the recorded reviewer AND the exact headSha (mirrors devCompleteReview)`, () => {
+    const { content } = byName(`devMarkMerged`)
+    expect(content).toContain(`headSha is required`)
+    expect(content).toContain(`headSha mismatch`)
+    expect(content).toContain(`only the recorded reviewer marks a task merged`)
+    expect(content).toContain(`reviewer: agentId, headSha: headSha`)
   })
 
   it(`devReapExpired guards on the exact lease read and NEVER calls GitHub from the isolate`, () => {
