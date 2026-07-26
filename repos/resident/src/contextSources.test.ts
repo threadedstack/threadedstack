@@ -35,7 +35,7 @@ describe(`renderContextSources`, () => {
     expect(out).toContain(`## Open escalations\n(no records)`)
   })
 
-  it(`caps a section at the source max`, async () => {
+  it(`omits a document whose own JSON exceeds the source max, rather than truncating it mid-token`, async () => {
     const api = makeFakeApi()
     api.onQuery(() => ({
       ok: true,
@@ -46,7 +46,37 @@ describe(`renderContextSources`, () => {
     const out = await renderContextSources(api, [
       { collection: `c`, query: {}, as: `Big`, max: 100 },
     ])
-    expect(out.length).toBe(100)
+
+    expect(out.length).toBeLessThanOrEqual(100)
+    const jsonPart = out.slice(`## Big\n`.length, out.length - `\n\n`.length)
+    expect(() => JSON.parse(jsonPart)).not.toThrow()
+    expect(JSON.parse(jsonPart)).toEqual([])
+  })
+
+  it(`never produces a mid-token cut for a multi-document result that exceeds the cap`, async () => {
+    // Regression test for the raw `.slice(0, cap)` bug: the old
+    // implementation built the full section then sliced it mid-JSON-token,
+    // so the truncated tail abutted the next section's heading with no
+    // closing bracket. The shared accumulate-whole-documents-up-to-cap
+    // logic must keep only whole documents instead.
+    const api = makeFakeApi()
+    api.onQuery(() => ({
+      ok: true,
+      status: 200,
+      data: [
+        { id: `r1`, data: { blob: `a`.repeat(200) } },
+        { id: `r2`, data: { blob: `b`.repeat(200) } },
+        { id: `r3`, data: { blob: `c`.repeat(200) } },
+      ],
+    }))
+
+    const out = await renderContextSources(api, [
+      { collection: `c`, query: {}, as: `Docs`, max: 250 },
+    ])
+
+    const jsonPart = out.slice(`## Docs\n`.length, out.length - `\n\n`.length)
+    expect(() => JSON.parse(jsonPart)).not.toThrow()
+    expect(out.endsWith(`\n\n`)).toBe(true)
   })
 
   it(`skips a failing source without dropping its siblings`, async () => {
