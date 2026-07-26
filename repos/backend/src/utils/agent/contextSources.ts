@@ -2,7 +2,7 @@ import type { TApp } from '@TBE/types'
 import type { Schedule } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
-import { ContextSourceInjectMaxChars } from '@tdsk/domain'
+import { ContextSourceInjectMaxChars, renderContextSourceSection } from '@tdsk/domain'
 
 /**
  * Build the declarative `contextSources` section for a cycle's assembled prompt
@@ -43,26 +43,9 @@ export async function buildContextSourcesSection(
         id: record.id,
         ...(record.data as Record<string, unknown>),
       }))
-      const heading = `## ${source.as}\n`
       const cap = source.max ?? ContextSourceInjectMaxChars
 
-      if (!documents.length) {
-        sections.push(`${heading}(no records)\n\n`)
-        continue
-      }
-
-      // Accumulate whole documents up to the cap — never slice the serialized
-      // JSON mid-token. A document whose own JSON exceeds the cap (even alone)
-      // is omitted entirely rather than partially included.
-      const included: Array<(typeof documents)[number]> = []
-      for (const doc of documents) {
-        const candidate = [...included, doc]
-        const rendered = `${heading}${JSON.stringify(candidate, null, 2)}\n\n`
-        if (rendered.length > cap) break
-        included.push(doc)
-      }
-
-      sections.push(`${heading}${JSON.stringify(included, null, 2)}\n\n`)
+      sections.push(renderContextSourceSection(source.as, documents, cap))
     } catch (err) {
       logger.error(
         `[Executor] buildContextSourcesSection failed for schedule ${schedule.id} source "${source.as}":`,

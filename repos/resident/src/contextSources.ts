@@ -2,7 +2,7 @@ import type { TContextSource } from '@tdsk/domain'
 import type { TResidentApi } from './types/resident.types'
 
 import { log } from './log'
-import { ContextSourceInjectMaxChars } from '@tdsk/domain'
+import { ContextSourceInjectMaxChars, renderContextSourceSection } from '@tdsk/domain'
 
 /**
  * Fetch + render the configured `contextSources` for a turn — the in-pod
@@ -32,11 +32,9 @@ export const renderContextSources = async (
         id: record.id,
         ...(record.data as Record<string, unknown>),
       }))
-      const body = documents.length ? JSON.stringify(documents, null, 2) : `(no records)`
-
       const cap = source.max ?? ContextSourceInjectMaxChars
-      const section = `## ${source.as}\n${body}\n\n`
-      sections.push(section.length > cap ? section.slice(0, cap) : section)
+
+      sections.push(renderContextSourceSection(source.as, documents, cap))
     } catch (err) {
       log.error(
         `renderContextSources failed for source "${source.as}":`,
