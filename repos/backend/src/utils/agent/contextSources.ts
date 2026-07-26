@@ -43,11 +43,26 @@ export async function buildContextSourcesSection(
         id: record.id,
         ...(record.data as Record<string, unknown>),
       }))
-      const body = documents.length ? JSON.stringify(documents, null, 2) : `(no records)`
-
+      const heading = `## ${source.as}\n`
       const cap = source.max ?? ContextSourceInjectMaxChars
-      const section = `## ${source.as}\n${body}\n\n`
-      sections.push(section.length > cap ? section.slice(0, cap) : section)
+
+      if (!documents.length) {
+        sections.push(`${heading}(no records)\n\n`)
+        continue
+      }
+
+      // Accumulate whole documents up to the cap — never slice the serialized
+      // JSON mid-token. A document whose own JSON exceeds the cap (even alone)
+      // is omitted entirely rather than partially included.
+      const included: Array<(typeof documents)[number]> = []
+      for (const doc of documents) {
+        const candidate = [...included, doc]
+        const rendered = `${heading}${JSON.stringify(candidate, null, 2)}\n\n`
+        if (rendered.length > cap) break
+        included.push(doc)
+      }
+
+      sections.push(`${heading}${JSON.stringify(included, null, 2)}\n\n`)
     } catch (err) {
       logger.error(
         `[Executor] buildContextSourcesSection failed for schedule ${schedule.id} source "${source.as}":`,

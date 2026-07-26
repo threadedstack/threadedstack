@@ -263,6 +263,70 @@ describe(`connectorCapability`, () => {
     expect(mocks.guardedFetch).not.toHaveBeenCalled()
   })
 
+  it(`bodyEncoding='base64' sends the decoded raw bytes as the request body, no default JSON content-type`, async () => {
+    const ep = proxyEndpoint()
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+
+    const raw = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]) // PNG-ish bytes
+    const res = await cap.invoke(`ep_send1`, {
+      body: raw.toString(`base64`),
+      bodyEncoding: `base64`,
+    })
+
+    expect(res.ok).toBe(true)
+    const [, init] = mocks.guardedFetch.mock.calls[0] as any
+    expect(Buffer.isBuffer(init.body)).toBe(true)
+    expect(Buffer.compare(init.body, raw)).toBe(0)
+    // never silently defaults to application/json on the binary path
+    expect(init.headers[`content-type`]).toBe(`application/octet-stream`)
+  })
+
+  it(`bodyEncoding='base64' respects a caller-supplied content-type instead of defaulting`, async () => {
+    const ep = proxyEndpoint()
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+
+    const raw = Buffer.from(`hello binary`)
+    await cap.invoke(`ep_send1`, {
+      body: raw.toString(`base64`),
+      bodyEncoding: `base64`,
+      headers: { 'content-type': `image/png` },
+    })
+
+    const [, init] = mocks.guardedFetch.mock.calls[0] as any
+    expect(init.headers[`content-type`]).toBe(`image/png`)
+  })
+
+  it(`responseEncoding='base64' returns the response body as a base64 string instead of decoding as text/JSON`, async () => {
+    const binaryPayload = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]) // JPEG-ish bytes
+    mocks.guardedFetch.mockResolvedValueOnce(
+      new Response(binaryPayload, {
+        status: 200,
+        headers: { 'content-type': `image/jpeg` },
+      })
+    )
+    const db = makeDb(proxyEndpoint()) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+
+    const res = await cap.invoke(`ep_send1`, { responseEncoding: `base64` })
+
+    expect(res.ok).toBe(true)
+    expect(res.body).toBe(binaryPayload.toString(`base64`))
+  })
+
+  it(`existing JSON-body/JSON-or-text-response path is unaffected when bodyEncoding/responseEncoding are omitted`, async () => {
+    const ep = proxyEndpoint()
+    const db = makeDb(ep) as any
+    const cap = createConnectorCapability(db, `p1`, [`ep_send1`])
+    const res = await cap.invoke(`ep_send1`, { body: { to: `x@y.com` } })
+
+    expect(res).toEqual({ ok: true, status: 200, body: { sent: true } })
+    const [, init] = mocks.guardedFetch.mock.calls[0] as any
+    expect(init.headers[`content-type`]).toBe(`application/json`)
+    expect(init.body).toBe(JSON.stringify({ to: `x@y.com` }))
+  })
+
   it(`resolves the CALLER's own agent-scoped secrets (secret it authored) for its endpoint`, async () => {
     const ep = proxyEndpoint({
       meta: { authoredBy: `ag_ceo` },

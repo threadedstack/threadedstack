@@ -81,7 +81,15 @@ const resolveProjectEndpoint = async (
   return (byName.data?.[0] as Endpoint) ?? null
 }
 
-const parseResponseBody = async (res: Response): Promise<unknown> => {
+const parseResponseBody = async (
+  res: Response,
+  responseEncoding?: `base64`
+): Promise<unknown> => {
+  if (responseEncoding === `base64`) {
+    const buf = await res.arrayBuffer()
+    return Buffer.from(buf).toString(`base64`)
+  }
+
   const text = await res.text()
   if (!text) return null
   const contentType = res.headers.get(`content-type`) ?? ``
@@ -190,16 +198,27 @@ export const createConnectorCapability = (
 
         const hasBody =
           request.body !== undefined && method !== `GET` && method !== `HEAD`
-        if (hasBody && !headers[`content-type`])
+        const isBase64Body = hasBody && request.bodyEncoding === `base64`
+        if (hasBody && !isBase64Body && !headers[`content-type`])
           headers[`content-type`] = `application/json`
+        if (isBase64Body && !headers[`content-type`])
+          headers[`content-type`] = `application/octet-stream`
 
         const res = await guardedFetch(url.toString(), {
           method,
           headers,
-          body: hasBody ? JSON.stringify(request.body) : undefined,
+          body: !hasBody
+            ? undefined
+            : isBase64Body
+              ? Buffer.from(request.body as string, `base64`)
+              : JSON.stringify(request.body),
         })
 
-        return { ok: res.ok, status: res.status, body: await parseResponseBody(res) }
+        return {
+          ok: res.ok,
+          status: res.status,
+          body: await parseResponseBody(res, request.responseEncoding),
+        }
       } catch (err) {
         // Never surface a secret; return a generic transport error.
         logger.error(`[connector] invoke failed for ${ref}:`, (err as Error)?.message)

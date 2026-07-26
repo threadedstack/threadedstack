@@ -189,6 +189,7 @@ const RecordsBridge = {
   upsert: `records.upsert`,
   cas: `records.cas`,
   createCollection: `records.createCollection`,
+  listCollections: `records.listCollections`,
   deleteCollection: `records.deleteCollection`,
 } as const
 
@@ -268,6 +269,18 @@ const createRecordsCapability = (
       throw new Error(`records.createCollection failed: ${error?.message ?? `unknown`}`)
     return { id: data.id, name: data.name }
   },
+  // Mirrors createCollection's implicit-project-scope precedent — projectId is
+  // bound host-side and never taken from isolate input, so a Function can only
+  // ever list its own project's collections.
+  listCollections: async () => {
+    const { data, error } = await db.services.collection.listByProject(projectId)
+    if (error) throw new Error(`records.listCollections failed: ${error.message}`)
+    return (data ?? []).map((col) => ({
+      id: col.id,
+      name: col.name,
+      description: col.description ?? undefined,
+    }))
+  },
   // Ownership check ADDED on top of createCollection's implicit-scope
   // precedent: a bare id-based delete would let a Function delete ANY
   // project's collection if it could guess/enumerate an id, so the id is
@@ -335,6 +348,9 @@ const buildRecordsBridges = (
         { description?: string; schema?: unknown }?,
       ]
       return JSON.stringify(await records.createCollection(name, opts))
+    },
+    [RecordsBridge.listCollections]: async () => {
+      return JSON.stringify(await records.listCollections())
     },
     [RecordsBridge.deleteCollection]: async (argsJson) => {
       const [id] = JSON.parse(argsJson) as [string]
@@ -450,6 +466,7 @@ const recordsContextCode = `context.records = (() => {
     count: (collection, query) => call('${RecordsBridge.count}', [collection, query]),
     cas: (collection, id, match, patch) => call('${RecordsBridge.cas}', [collection, id, match, patch]),
     createCollection: (name, opts) => call('${RecordsBridge.createCollection}', [name, opts]),
+    listCollections: () => call('${RecordsBridge.listCollections}', []),
     deleteCollection: (id) => call('${RecordsBridge.deleteCollection}', [id]),
   };
 })();`

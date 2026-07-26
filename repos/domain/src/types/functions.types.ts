@@ -65,6 +65,13 @@ export interface IRecordsCapability {
     opts?: { description?: string; schema?: unknown }
   ): Promise<{ id: string; name: string }>
   /**
+   * List every collection that already exists in the Function's own project —
+   * the project is implicit (bound at injection time), so a Function can only
+   * ever enumerate its own project's collections, identical to every other
+   * method here. Takes no args, mirroring `createCollection`'s implicit scope.
+   */
+  listCollections(): Promise<{ id: string; name: string; description?: string }[]>
+  /**
    * Delete a collection the Function created, by id. The project is implicit
    * (bound at injection time) and enforced as an ownership check host-side —
    * an id belonging to another project is never deleted (returns
@@ -121,6 +128,19 @@ export type TConnectorRequest = {
   body?: unknown
   /** Override the endpoint's HTTP method for this call. */
   method?: string
+  /**
+   * When set to `base64`, `body` is expected to be a base64-encoded string and
+   * is sent upstream as the decoded raw bytes instead of being JSON-stringified.
+   * The caller is responsible for setting an appropriate `content-type` header
+   * (it is NOT defaulted to `application/json` on this path).
+   */
+  bodyEncoding?: `base64`
+  /**
+   * Opt in to a binary-safe response: when set to `base64`, the response body
+   * is read as raw bytes and returned as a base64-encoded string instead of
+   * being decoded as JSON/UTF-8 text.
+   */
+  responseEncoding?: `base64`
 }
 
 /** Result of an external connection call surfaced back to the Function. */

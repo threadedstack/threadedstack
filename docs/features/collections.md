@@ -240,7 +240,7 @@ DELETE /_/orgs/<org-id>/projects/<project-id>/collections/leads/records/rec_f6g7
 type TRecordQuery = {
   where?: Array<{
     field: string
-    op: `eq` | `ne` | `gt` | `gte` | `lt` | `lte` | `in` | `contains`
+    op: `eq` | `ne` | `gt` | `gte` | `lt` | `lte` | `in` | `contains` | `search`
     value: unknown
   }>
   orderBy?: { field: string; direction: `asc` | `desc` }
@@ -284,7 +284,10 @@ curl -X POST \
 Every filter `field` is validated against a strict identifier charset and, when the
 collection declares a schema, against the schema's field names. Every value is bound as a
 SQL parameter — nothing from the request body is ever string-interpolated into a query. The
-`in` operator requires an array value; `contains` performs a `jsonb` containment check. A
+`in` operator requires an array value; `contains` performs a `jsonb` containment check;
+`search` requires a string value and performs a case-insensitive substring match
+(`ilike '%value%'`) — use it for free-text search where `contains`'s exact-value match is
+too strict. A
 malformed query (unknown field, bad operator, wrong value shape) is rejected with a 400
 before any query runs.
 
