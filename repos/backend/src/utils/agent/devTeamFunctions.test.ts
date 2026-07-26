@@ -735,6 +735,121 @@ describe(`devUpdatePr Function`, () => {
     })
     expect(h.row(`dev_tasks`, `dt_1`)!.data.reviewer).toBe(EngTwo.agentId)
   })
+
+  it(`re-enters pr_open from in_review — a push while the reviewer is still looking voids their in-progress review`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`, {
+      state: `in_review`,
+      assignee: EngOne.agentId,
+      reviewer: EngTwo.agentId,
+      prNumber: 42,
+      headSha: `abc123`,
+      leaseExpiresAt: Date.now() + 10 * MinuteMs,
+      history: [],
+    })
+
+    const result = await runFn(
+      DevUpdatePrFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `def456` },
+      EngOne
+    )
+
+    expect(result.output).toMatchObject({ ok: true, updated: true, headSha: `def456` })
+    const { data } = h.row(`dev_tasks`, `dt_1`)!
+    expect(data).toMatchObject({
+      state: `pr_open`,
+      headSha: `def456`,
+      reviewer: null,
+      leaseExpiresAt: null,
+    })
+    expect(data.history[0]).toMatchObject({
+      from: `in_review`,
+      to: `pr_open`,
+      by: EngOne.agentId,
+    })
+  })
+
+  it(`re-enters pr_open from approved — this session's PR#393 incident: a post-approval conflict-resolution push must re-sync headSha instead of leaving a stale-approved record`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`, {
+      state: `approved`,
+      assignee: EngOne.agentId,
+      reviewer: EngTwo.agentId,
+      prNumber: 42,
+      headSha: `2ebf44d`,
+      leaseExpiresAt: Date.now() + 60 * MinuteMs,
+      history: [],
+    })
+
+    const result = await runFn(
+      DevUpdatePrFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `12fdc54e` },
+      EngOne
+    )
+
+    expect(result.output).toMatchObject({
+      ok: true,
+      updated: true,
+      headSha: `12fdc54e`,
+    })
+    const { data } = h.row(`dev_tasks`, `dt_1`)!
+    expect(data).toMatchObject({
+      state: `pr_open`,
+      headSha: `12fdc54e`,
+      reviewer: null,
+      notes: ``,
+      // The reviewer's merge-window lease is cleared along with the stale verdict.
+      leaseExpiresAt: null,
+    })
+    expect(data.history[0]).toMatchObject({
+      from: `approved`,
+      to: `pr_open`,
+      by: EngOne.agentId,
+    })
+
+    // The now-stale approval can no longer merge: devUpdatePr cleared
+    // reviewer, so the former reviewer isn't even the recorded reviewer
+    // anymore — devMarkMerged refuses before it ever reaches the headSha
+    // check (which would ALSO refuse a stale sha, per devMarkMerged's own
+    // dedicated test coverage).
+    const mergeAttempt = await runFn(
+      DevMarkMergedFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `2ebf44d` },
+      EngTwo
+    )
+    expect(mergeAttempt.output).toEqual({
+      ok: false,
+      reason: `only the recorded reviewer marks a task merged`,
+    })
+  })
+
+  it(`refuses a task that isn't in a reopenable state (e.g. pr_open or backlog)`, async () => {
+    const h = makeFakeDb()
+    seedTask(h, `dt_1`, {
+      state: `pr_open`,
+      assignee: EngOne.agentId,
+      reviewer: null,
+      headSha: `abc123`,
+      history: [],
+    })
+
+    const result = await runFn(
+      DevUpdatePrFunctionDef,
+      h,
+      { taskId: `dt_1`, headSha: `def456` },
+      EngOne
+    )
+
+    expect(result.output).toEqual({
+      ok: true,
+      updated: false,
+      conflict: true,
+      reason: `task is not awaiting your fix (state: pr_open)`,
+    })
+  })
 })
 
 // ── devMarkMerged — only the recorded reviewer closes the loop, bound to headSha ──

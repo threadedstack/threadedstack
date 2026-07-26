@@ -179,9 +179,14 @@ describe(`DevTeamFunctionDefs`, () => {
     expect(content).toContain(`{ state: state }`)
   })
 
-  it(`devUpdatePr voids the stale review: clears reviewer + notes with the new head`, () => {
+  it(`devUpdatePr voids the stale review/verdict: clears reviewer + notes with the new head, from any reopenable state`, () => {
     const { content } = byName(`devUpdatePr`)
-    expect(content).toContain(`state: 'changes_requested', assignee: agentId`)
+    expect(content).toContain(
+      `state === 'changes_requested' || state === 'in_review' || state === 'approved'`
+    )
+    // Guarded on the exact state read (like devAbandon), not a fixed literal —
+    // a push during in_review or approved must also reopen the race.
+    expect(content).toContain(`{ state: state, assignee: agentId }`)
     expect(content).toContain(`reviewer: null`)
     expect(content).toContain(`notes: ''`)
   })
