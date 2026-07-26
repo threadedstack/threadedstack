@@ -243,6 +243,16 @@ export type TFunctionExecResult = {
   output: unknown
   duration: number
   success: boolean
+  /** Captured console output from the isolate (available when the sandbox produced any). */
+  logs?: string
+}
+
+/** Response shape of `POST /_/functions/:id/invoke` — an ad-hoc, non-persisted test-invoke. */
+export type TFunctionInvokeResult = {
+  result: unknown
+  logs: string
+  durationMs: number
+  error?: string
 }
 
 export enum EFunParamType {

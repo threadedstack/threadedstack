@@ -1,4 +1,5 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
+import type { TFunctionInvokeResult } from '@tdsk/domain'
 
 import { Function as FunctionModel } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
@@ -140,6 +141,31 @@ export class FunctionsApi extends BaseApi {
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Function`))
+
+    return resp
+  }
+
+  /**
+   * Ad-hoc test-invoke of a function's currently persisted code. Nothing is
+   * persisted server-side, so this is never cached.
+   * @param orgId - Organization ID
+   * @param projectId - Project ID
+   * @param id - Function ID
+   * @param input - Optional JSON input passed to the function's handler
+   * @returns The invocation's result/logs/duration (or error)
+   */
+  async invoke(
+    orgId: string,
+    projectId: string,
+    id: string,
+    input?: Record<string, any>
+  ): Promise<TApiRes<TFunctionInvokeResult>> {
+    const resp = await this.api.post<TFunctionInvokeResult>({
+      data: { input: input || {} },
+      path: `${this.#path(orgId, projectId)}/${id}/invoke`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to invoke Function`))
 
     return resp
   }

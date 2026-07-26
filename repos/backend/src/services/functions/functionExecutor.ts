@@ -603,6 +603,7 @@ export class FunctionExecutor {
           output: null,
           duration: Date.now() - startTime,
           error: `Function produced no result`,
+          logs: evalResult.output,
         }
       }
 
@@ -614,6 +615,7 @@ export class FunctionExecutor {
           output: null,
           duration: Date.now() - startTime,
           error: `Function output exceeded maximum size of ${MaxOutputBytes} bytes`,
+          logs: evalResult.output,
         }
       }
 
@@ -622,6 +624,7 @@ export class FunctionExecutor {
         output: parsed.output ?? null,
         duration: Date.now() - startTime,
         error: parsed.error,
+        logs: evalResult.output,
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

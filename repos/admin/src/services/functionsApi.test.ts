@@ -197,4 +197,45 @@ describe(`FunctionsApi`, () => {
       )
     })
   })
+
+  describe(`invoke()`, () => {
+    it(`should POST the function id's /invoke path with the given input`, async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse(200, { data: { result: { ok: true }, logs: ``, durationMs: 5 } })
+      )
+
+      const resp = await functionsApi.invoke(`org-1`, `proj-1`, `f-1`, { x: 1 })
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(
+        `http://test.local/_/orgs/org-1/projects/proj-1/functions/f-1/invoke`
+      )
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual({ input: { x: 1 } })
+      expect(resp.data).toEqual({ result: { ok: true }, logs: ``, durationMs: 5 })
+    })
+
+    it(`should default input to {} when omitted`, async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse(200, { data: { result: null, logs: ``, durationMs: 1 } })
+      )
+
+      await functionsApi.invoke(`org-1`, `proj-1`, `f-1`)
+
+      const [, init] = mockFetch.mock.calls[0]
+      expect(JSON.parse(init.body)).toEqual({ input: {} })
+    })
+
+    it(`should call _onError with 'Failed to invoke Function' on error`, async () => {
+      const onErrorSpy = vi.spyOn(functionsApi, `_onError`)
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `boom` }))
+
+      await functionsApi.invoke(`org-1`, `proj-1`, `f-1`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to invoke Function`
+      )
+    })
+  })
 })
