@@ -487,6 +487,87 @@ describe(`SandboxService`, () => {
 
         expect(result).toBe(`tdsk-sb-test`)
       })
+
+      it(`rolls back an already-created skills ConfigMap when the guard trips (mirrors the createPod-fails-after-ConfigMap rollback)`, async () => {
+        process.env.NODE_ENV = `production`
+        db.services.sandbox.get.mockResolvedValue({
+          data: sbx({
+            id: `sb-1`,
+            config: { image: `node:20`, runtime: `claude-code` },
+            sandboxProviders: [],
+          }),
+          error: null,
+        })
+        db.services.sandbox.listSkillsForSandbox.mockResolvedValue({
+          data: [{ id: `skill-1`, name: `test skill` }],
+          error: null,
+        })
+        mockResolveSkillFiles.mockReturnValue({
+          configMapData: { 'skill-test': `Do X` },
+          mountPath: `/home/claude/.claude/skills`,
+          files: [],
+        })
+        kube.createConfigMap.mockResolvedValue(undefined)
+        kube.deleteConfigMap.mockResolvedValue(undefined)
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toMatchObject({
+          status: 500,
+          code: `RUNTIME_CLASS_MISSING`,
+        })
+
+        expect(kube.createConfigMap).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-skills-/),
+          { 'skill-test': `Do X` }
+        )
+        await vi.waitFor(() => {
+          expect(kube.deleteConfigMap).toHaveBeenCalledWith(
+            expect.stringMatching(/^tdsk-skills-/)
+          )
+        })
+        expect(mockBuildPodManifest).not.toHaveBeenCalled()
+        expect(kube.createPod).not.toHaveBeenCalled()
+      })
+
+      it(`rolls back already-created docker secrets when the guard trips`, async () => {
+        process.env.NODE_ENV = `production`
+        const dockerProvider = {
+          id: `prov-d1`,
+          brand: `ghcr`,
+          type: `docker`,
+          secretId: `sec-d1`,
+        }
+        db.services.sandbox.get.mockResolvedValue({
+          data: sbx({
+            id: `sb-1`,
+            config: { image: `node:20` },
+            providerLinks: [{ provider: dockerProvider, priority: 0, model: undefined }],
+          }),
+          error: null,
+        })
+        mockResolveDockerPullSecrets.mockResolvedValue({
+          credentials: [{ registry: `ghcr.io`, username: `user`, password: `pass` }],
+          errors: [],
+        })
+        kube.createDockerRegistrySecret.mockResolvedValue(undefined)
+        kube.deleteSecret.mockResolvedValue(undefined)
+
+        await expect(svc.startPod(baseOpts as any)).rejects.toMatchObject({
+          status: 500,
+          code: `RUNTIME_CLASS_MISSING`,
+        })
+
+        expect(kube.createDockerRegistrySecret).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-dkr-/),
+          `ghcr.io`,
+          `user`,
+          `pass`
+        )
+        expect(kube.deleteSecret).toHaveBeenCalledWith(
+          expect.stringMatching(/^tdsk-dkr-/)
+        )
+        expect(mockBuildPodManifest).not.toHaveBeenCalled()
+        expect(kube.createPod).not.toHaveBeenCalled()
+      })
     })
 
     it(`should generate placeholder tokens for each secretId in config`, async () => {
