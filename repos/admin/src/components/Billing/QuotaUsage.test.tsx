@@ -92,6 +92,76 @@ describe('QuotaUsage', () => {
     expect(screen.getByText('2 / Unlimited')).toBeDefined()
   })
 
+  it('renders Organizations and Seats cards with their live counts and plan limits', () => {
+    mockUsage = {
+      orgId: 'org_1',
+      period: '2026-07',
+      projects: 1,
+      compute: 0,
+      threads: 0,
+      messages: 0,
+      endpoints: 0,
+      secrets: 0,
+      sandboxSessions: 0,
+      organizations: 2,
+      seats: 3,
+    }
+    mockLimits = {
+      organizations: 5,
+      projects: 10,
+      compute: 1000,
+      threads: 100,
+      messages: 1000,
+      endpoints: 10,
+      secrets: 10,
+      retention: 30,
+      seats: 10,
+      additionalSeats: false,
+      sandboxSessions: 25,
+    }
+
+    renderWithTheme(<QuotaUsage orgId='org_1' />)
+
+    expect(screen.getByText('Organizations')).toBeDefined()
+    expect(screen.getByText('2 / 5')).toBeDefined()
+    expect(screen.getByText('Seats')).toBeDefined()
+    expect(screen.getByText('3 / 10')).toBeDefined()
+  })
+
+  it('defaults organizations/seats to 0 when absent from usage data', () => {
+    mockUsage = {
+      orgId: 'org_1',
+      period: '2026-07',
+      projects: 1,
+      compute: 0,
+      threads: 0,
+      messages: 0,
+      endpoints: 0,
+      secrets: 0,
+      sandboxSessions: 0,
+    }
+    mockLimits = {
+      organizations: 6,
+      projects: 10,
+      compute: 1000,
+      threads: 100,
+      messages: 1000,
+      endpoints: 10,
+      secrets: 10,
+      retention: 30,
+      seats: 12,
+      additionalSeats: false,
+      sandboxSessions: 25,
+    }
+
+    renderWithTheme(<QuotaUsage orgId='org_1' />)
+
+    expect(screen.getByText('Organizations')).toBeDefined()
+    expect(screen.getByText('0 / 6')).toBeDefined()
+    expect(screen.getByText('Seats')).toBeDefined()
+    expect(screen.getByText('0 / 12')).toBeDefined()
+  })
+
   it('defaults sandboxSessions to 0 when absent from usage/limits data', () => {
     mockUsage = {
       orgId: 'org_1',

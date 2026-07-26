@@ -37,8 +37,21 @@ export const getOrgQuota: TEndpointConfig = {
       ? sandbox.getOrgShellSessionCount(orgId)
       : 0
 
+    // organizations and seats are also live counts, not period-accumulated --
+    // mirror the same fail-soft-to-0 pattern as sandboxSessions rather than
+    // throwing on a lookup error, since a quota page should degrade, not break.
+    // organizations: orgs OWNED by the caller (enforceOrgCreationQuota's exact
+    // query), independent of which org's quota page is being viewed.
+    const { data: ownedOrgs } = await db.services.org.list({ where: { ownerId: userId } })
+    const organizations = Array.isArray(ownedOrgs) ? ownedOrgs.length : 0
+
+    // seats: members of THIS org (addProjectMember.ts / inviteOrgUser.ts's
+    // currentMembers query).
+    const { data: members } = await db.services.role.getOrgMembers(orgId)
+    const seats = Array.isArray(members) ? members.length : 0
+
     data
-      ? res.status(200).json({ data: { ...data, sandboxSessions } })
+      ? res.status(200).json({ data: { ...data, sandboxSessions, organizations, seats } })
       : res.status(200).json({
           data: {
             orgId,
@@ -50,6 +63,8 @@ export const getOrgQuota: TEndpointConfig = {
             endpoints: 0,
             secrets: 0,
             sandboxSessions,
+            organizations,
+            seats,
           },
         })
   },

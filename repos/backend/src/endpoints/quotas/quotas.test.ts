@@ -21,9 +21,11 @@ describe(`Quota Endpoints`, () => {
           },
           org: {
             get: vi.fn(),
+            list: vi.fn(),
           },
           role: {
             isOrgMember: vi.fn(),
+            getOrgMembers: vi.fn(),
           },
           subscription: {
             findByUser: vi.fn(),
@@ -65,6 +67,12 @@ describe(`Quota Endpoints`, () => {
     mockApp.locals.sandbox = {
       getOrgShellSessionCount: vi.fn().mockReturnValue(0),
     } as any
+    ;(mockApp.locals.db.services.org.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+    })
+    ;(
+      mockApp.locals.db.services.role.getOrgMembers as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({ data: [] })
 
     vi.clearAllMocks()
   })
@@ -113,7 +121,7 @@ describe(`Quota Endpoints`, () => {
       expect(mockFindByOrgAndPeriod).toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({
-        data: { ...mockQuota, sandboxSessions: 0 },
+        data: { ...mockQuota, sandboxSessions: 0, organizations: 0, seats: 0 },
       })
     })
 
@@ -139,6 +147,8 @@ describe(`Quota Endpoints`, () => {
           endpoints: 0,
           secrets: 0,
           sandboxSessions: 0,
+          organizations: 0,
+          seats: 0,
         },
       })
     })
@@ -160,7 +170,93 @@ describe(`Quota Endpoints`, () => {
 
       expect(mockGetOrgShellSessionCount).toHaveBeenCalledWith(mockOrgId)
       expect(mockJson).toHaveBeenCalledWith({
-        data: { ...mockQuota, sandboxSessions: 4 },
+        data: { ...mockQuota, sandboxSessions: 4, organizations: 0, seats: 0 },
+      })
+    })
+
+    it(`should include live organizations-owned and org-seats counts alongside stored quota usage`, async () => {
+      const mockQuota = { orgId: mockOrgId, period: `2026-01`, projects: 3 }
+
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockOrgList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: mockQuota })
+      mockOrgList.mockResolvedValue({ data: [{ id: `org_1` }, { id: `org_2` }] })
+      mockGetOrgMembers.mockResolvedValue({
+        data: [{ id: `mem_1` }, { id: `mem_2` }, { id: `mem_3` }],
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockOrgList).toHaveBeenCalledWith({ where: { ownerId: mockUserId } })
+      expect(mockGetOrgMembers).toHaveBeenCalledWith(mockOrgId)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 0, organizations: 2, seats: 3 },
+      })
+    })
+
+    it(`should default organizations/seats to 0 when their lookups return no data`, async () => {
+      const mockQuota = { orgId: mockOrgId, period: `2026-01`, projects: 3 }
+
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockOrgList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: mockQuota })
+      mockOrgList.mockResolvedValue({ error: new Error(`boom`) })
+      mockGetOrgMembers.mockResolvedValue({ error: new Error(`boom`) })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockQuota, sandboxSessions: 0, organizations: 0, seats: 0 },
+      })
+    })
+
+    it(`should include live organizations/seats counts in the no-quota-row-yet fallback response`, async () => {
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockOrgList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: null })
+      mockOrgList.mockResolvedValue({ data: [{ id: `org_1` }] })
+      mockGetOrgMembers.mockResolvedValue({ data: [{ id: `mem_1` }] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockJson).toHaveBeenCalledWith({
+        data: {
+          orgId: mockOrgId,
+          period: expect.stringMatching(/^\d{4}-\d{2}$/),
+          projects: 0,
+          compute: 0,
+          threads: 0,
+          messages: 0,
+          endpoints: 0,
+          secrets: 0,
+          sandboxSessions: 0,
+          organizations: 1,
+          seats: 1,
+        },
       })
     })
 
@@ -196,7 +292,7 @@ describe(`Quota Endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockJson).toHaveBeenCalledWith({
-        data: { ...mockQuota, sandboxSessions: 0 },
+        data: { ...mockQuota, sandboxSessions: 0, organizations: 0, seats: 0 },
       })
     })
 
