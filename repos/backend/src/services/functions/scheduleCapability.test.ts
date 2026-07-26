@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import type { EScheduleType } from '@tdsk/domain'
+import { EScheduleType } from '@tdsk/domain'
 
 import {
   ScheduleBridge,
@@ -127,6 +127,16 @@ describe(`scheduleCapability`, () => {
     await expect(
       cap.create({ cronExpression: `0 9 * * *`, type: `bogus` as EScheduleType })
     ).rejects.toThrow(/invalid schedule type/)
+  })
+
+  it(`rejects type=shell -- this capability's input has no command field, so a shell schedule would fail on every cron tick`, async () => {
+    const db = makeDb({ agent: { environment: { sandboxId: `sbx1` } } }) as any
+    const cap = createScheduleCapability(db, `p1`, { agentId: `ag1` })
+
+    await expect(
+      cap.create({ cronExpression: `0 9 * * *`, type: EScheduleType.shell })
+    ).rejects.toThrow(/type=shell is not supported/)
+    expect(db.services.schedule.create).not.toHaveBeenCalled()
   })
 
   it(`surfaces a db create error as a handler-level failure`, async () => {

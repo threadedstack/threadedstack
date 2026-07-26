@@ -54,6 +54,10 @@ export const createScheduleCapability = (
       throw new Error(`schedule.create failed: invalid cron expression`)
     if (!Object.values(EScheduleType).includes(type))
       throw new Error(`schedule.create failed: invalid schedule type: ${String(type)}`)
+    if (type === EScheduleType.shell)
+      throw new Error(
+        `schedule.create failed: type=shell is not supported via context.schedule -- omit type or use type=prompt`
+      )
     if (
       timeoutMs !== undefined &&
       timeoutMs !== null &&
