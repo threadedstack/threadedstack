@@ -181,10 +181,19 @@ export const UpsertPlanFunctionSource = `export default async (request, context)
       reason: 'kind, title, objective, owner, and status are required to create a plan',
     }
 
+  // The engineering roadmap is a SINGLE cto-owned initiative plan. No seat —
+  // the CEO included — may author an initiative plan except the CTO; the CEO
+  // feeds product direction through company_strategy (upsertStrategy), never a
+  // competing roadmap. This closes the CEO's blanket lane bypass below for the
+  // initiative kind, so exactly one roadmap can ever exist. Checked on the
+  // EFFECTIVE post-patch kind, so a CEO can neither create nor patch one.
+  if (data.kind === 'initiative' && role !== 'cto')
+    return { ok: false, reason: 'only the CTO may write initiative plans (the roadmap is cto-owned)' }
+
   // Role-vs-owner lane check against the CALLER's board_members role (never
-  // args): CEO writes any plan; CMO only cmo-owned gtm plans; CTO only
-  // cto-owned initiative plans. Runs on the EFFECTIVE owner+kind so a patch
-  // can never move a plan out of the caller's lane.
+  // args): CEO writes any plan (except initiative, gated above); CMO only
+  // cmo-owned gtm plans; CTO only cto-owned initiative plans. Runs on the
+  // EFFECTIVE owner+kind so a patch can never move a plan out of the caller's lane.
   if (role !== 'ceo') {
     if (role === 'cmo' && (data.owner !== 'cmo' || data.kind !== 'gtm'))
       return { ok: false, reason: 'role cmo may only write cmo-owned gtm plans' }
