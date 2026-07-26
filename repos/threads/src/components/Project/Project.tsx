@@ -10,6 +10,7 @@ import { NotFound } from '@TTH/components/Project/NotFound'
 import { EmptyState } from '@TTH/components/EmptyState/EmptyState'
 import { formatDate, formatRelativeDate } from '@TTH/utils/formatDate'
 import { ProjectSandboxCard } from '@TTH/components/Project/ProjectSandboxCard'
+import { ProjectSchedulesSection } from '@TTH/components/Project/ProjectSchedulesSection'
 import { ProjectFunctionsSection } from '@TTH/components/Project/ProjectFunctionsSection'
 import { Workspaces, Settings, Add, FilterList, Sort } from '@mui/icons-material'
 import {
@@ -161,6 +162,11 @@ export const Project = () => {
           ))}
         </Box>
       )}
+
+      <ProjectSchedulesSection
+        orgId={orgId}
+        projectId={projectId}
+      />
 
       <ProjectFunctionsSection
         orgId={orgId}
