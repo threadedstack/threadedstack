@@ -13,6 +13,7 @@
     "proxy-endpoints",
     "faas-endpoints",
     "collections",
+    "schedules",
     "agent-connectors"
   ]
 }
