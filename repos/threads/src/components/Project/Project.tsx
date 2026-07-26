@@ -12,6 +12,7 @@ import { formatDate, formatRelativeDate } from '@TTH/utils/formatDate'
 import { ProjectSandboxCard } from '@TTH/components/Project/ProjectSandboxCard'
 import { ProjectCollectionsSection } from '@TTH/components/Project/ProjectCollectionsSection'
 import { ProjectSchedulesSection } from '@TTH/components/Project/ProjectSchedulesSection'
+import { ProjectFunctionsSection } from '@TTH/components/Project/ProjectFunctionsSection'
 import { Workspaces, Settings, Add, FilterList, Sort } from '@mui/icons-material'
 import {
   useProjects,
@@ -169,6 +170,11 @@ export const Project = () => {
       />
 
       <ProjectCollectionsSection
+        orgId={orgId}
+        projectId={projectId}
+      />
+
+      <ProjectFunctionsSection
         orgId={orgId}
         projectId={projectId}
       />
