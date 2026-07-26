@@ -46,7 +46,7 @@ export class VerificationsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((verification) => new Verification(verification)) || [],
+      data: resp?.data?.map?.((verification) => new Verification(verification)) || [],
     }
   }
 

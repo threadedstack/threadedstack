@@ -56,7 +56,7 @@ export class SubscriptionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((item) => new Plan(item)) ?? [],
+      data: resp?.data?.map?.((item) => new Plan(item)) ?? [],
     }
   }
 
@@ -105,7 +105,7 @@ export class SubscriptionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((item) => new Invoice(item)) ?? [],
+      data: resp?.data?.map?.((item) => new Invoice(item)) ?? [],
     }
   }
 
