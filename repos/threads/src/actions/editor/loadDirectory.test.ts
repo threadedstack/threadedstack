@@ -100,6 +100,25 @@ describe(`loadDirectory`, () => {
     expect(mockToastError).not.toHaveBeenCalled()
   })
 
+  it(`does not block loading a DIFFERENT dirPath while the first is still in flight`, async () => {
+    let resolvePathA: (v: TFileEntry[]) => void = () => {}
+    mockListDir.mockImplementationOnce(
+      () =>
+        new Promise<TFileEntry[]>((resolve) => {
+          resolvePathA = resolve
+        })
+    )
+
+    const promiseA = loadDirectory(`/pathA`)
+
+    await loadDirectory(`/pathB`)
+
+    expect(mockListDir).toHaveBeenCalledWith(fileCtx, `/pathB`)
+
+    resolvePathA([])
+    await promiseA
+  })
+
   it(`adds the dirPath to a NEW loading Set (not mutating the original) while the load is in flight`, async () => {
     const originalLoading = loadingFolders
     let resolveListDir: (v: TFileEntry[]) => void = () => {}
