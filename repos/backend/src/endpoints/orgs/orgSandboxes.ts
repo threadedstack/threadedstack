@@ -11,6 +11,7 @@ import { updateSandbox } from '@TBE/endpoints/sandboxes/updateSandbox'
 import { deleteSandbox } from '@TBE/endpoints/sandboxes/deleteSandbox'
 import { listSandboxSessions } from '@TBE/endpoints/sandboxes/listSandboxSessions'
 import { getSandboxSessionOutput } from '@TBE/endpoints/sandboxes/getSandboxSessionOutput'
+import { listOrgSandboxSessions } from '@TBE/endpoints/sandboxes/listOrgSandboxSessions'
 
 export const orgSandboxes: TEndpointConfig = {
   path: `/:orgId/sandboxes`,
@@ -18,6 +19,7 @@ export const orgSandboxes: TEndpointConfig = {
   middleware: [projectAccessGuard()],
   endpoints: {
     listSandboxes,
+    listOrgSandboxSessions,
     getSandbox,
     copySandbox,
     createSandbox,
