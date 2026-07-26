@@ -154,10 +154,23 @@ export const ScheduledSandboxNodePools: Record<string, string> = {
 // match them to proposals by `proposalId`. Exported: the CMO's resident config
 // seed (seeds/resident/records.ts) reuses these exact source shapes as the
 // resident session's contextSources.
+// The default per-section char cap (ContextSourceInjectMaxChars, 8000) fits
+// only a handful of these richer board records before the accumulate-until-
+// cap renderer starts dropping whole trailing documents — the same silent
+// record-tail truncation the DevTaskBacklogSource cap raise below addresses.
+// Each of the 4 board sources below gets an explicit `max` sized to the
+// source's own row budget and schema richness (single singleton record,
+// unbounded query, or a query `limit`) so no board seat silently loses
+// strategy/decision/position/plan context to the untuned default.
 export const BoardStrategySource: TContextSource = {
   collection: `company_strategy`,
   query: {},
   as: `Company Strategy`,
+  // Single singleton record (northStar + segments[] + positioning + backlog[]
+  // + activeInitiative object) — the accumulate-until-cap renderer drops an
+  // oversized document ENTIRELY rather than partially, so a growing strategy
+  // doc must have generous headroom or the whole section silently disappears.
+  max: 24000,
 }
 export const BoardOpenDecisionsSource: TContextSource = {
   collection: `decision_proposals`,
@@ -165,11 +178,20 @@ export const BoardOpenDecisionsSource: TContextSource = {
     where: [{ field: `status`, op: EQueryOp.in, value: [`open`, `deliberating`] }],
   },
   as: `Open board decisions`,
+  // Unbounded query (no `limit`) — each proposal carries title/axis/
+  // description/evidence[], so sized to comfortably fit a healthy number of
+  // simultaneously open/deliberating proposals before the tail gets dropped.
+  max: 24000,
 }
 export const BoardPositionsSource: TContextSource = {
   collection: `decision_positions`,
   query: { orderBy: { field: `round`, direction: `desc` }, limit: 50 },
   as: `Board positions`,
+  // Sized to fit the full injected set (up to the query's 50-row limit) of
+  // proposalId/agentId/stance/reasoning records, matching the
+  // DevTaskBacklogSource rationale below: raise the cap to the row budget
+  // instead of letting the untuned default silently drop older rounds.
+  max: 32000,
 }
 // The CMO marketing cycle's view of its own drafting surface: the most recent
 // marketing_artifacts records (newest first via the record service's default
@@ -191,6 +213,10 @@ export const BoardPlansSource: TContextSource = {
     limit: 10,
   },
   as: `Plans`,
+  // Sized to fit the full injected set (up to the query's 10-row limit) of
+  // plan records, each carrying keyResults[]/milestones[] arrays that can
+  // make a single plan sizeable — same rationale as the other 3 sources.
+  max: 24000,
 }
 
 // ── Dev-loop workflow context sources (Dev-Loop on Primitives ⑤b-3) ──────────
