@@ -93,6 +93,84 @@ describe(`CollectionApi`, () => {
     })
   })
 
+  describe(`create()`, () => {
+    it(`should POST to the base scoped path with the body and return the response unwrapped`, async () => {
+      const row = { id: `c1`, name: `New` }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: row }))
+
+      const payload = { name: `New` }
+      const resp = await collectionApi.create(`org-1`, `proj-1`, payload)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/collections`)
+      expect(init.method).toBe(`POST`)
+      expect(JSON.parse(init.body)).toEqual(payload)
+      expect(resp.data).toEqual(row)
+    })
+
+    it(`should call _onError with 'Failed to create Collection' on error`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `bad` }))
+
+      await collectionApi.create(`org-1`, `proj-1`, { name: `New` })
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to create Collection`
+      )
+    })
+  })
+
+  describe(`update()`, () => {
+    it(`should PUT to the path with the collection name appended and return the response unwrapped`, async () => {
+      const row = { id: `c1`, name: `Renamed` }
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: row }))
+
+      const payload = { name: `Renamed` }
+      const resp = await collectionApi.update(`org-1`, `proj-1`, `Old`, payload)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/collections/Old`)
+      expect(init.method).toBe(`PUT`)
+      expect(JSON.parse(init.body)).toEqual(payload)
+      expect(resp.data).toEqual(row)
+    })
+
+    it(`should call _onError with 'Failed to update Collection' on error`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(400, { error: `bad` }))
+
+      await collectionApi.update(`org-1`, `proj-1`, `Old`, { name: `x` })
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to update Collection`
+      )
+    })
+  })
+
+  describe(`delete()`, () => {
+    it(`should DELETE the path with the collection name appended and return the raw {success} response`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: { success: true } }))
+
+      const resp = await collectionApi.delete(`org-1`, `proj-1`, `Old`)
+
+      const [url, init] = mockFetch.mock.calls[0]
+      expect(url).toBe(`http://test.local/_/orgs/org-1/projects/proj-1/collections/Old`)
+      expect(init.method).toBe(`DELETE`)
+      expect(resp.data).toEqual({ success: true })
+    })
+
+    it(`should call _onError with 'Failed to delete Collection' on error`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(500, { error: `boom` }))
+
+      await collectionApi.delete(`org-1`, `proj-1`, `Old`)
+
+      expect(onErrorSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        `Failed to delete Collection`
+      )
+    })
+  })
+
   describe(`cache key shape`, () => {
     it(`cache.all() returns ['collections']`, () => {
       expect(collectionApi.cache.all()).toEqual([`collections`])
