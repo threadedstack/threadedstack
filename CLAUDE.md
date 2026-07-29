@@ -373,7 +373,16 @@ tdsk kube secret email                     # Create email k8s secret
 tdsk kube secret docker                    # Create docker auth k8s secret
 tdsk kube secret tdsk                      # Create master key k8s secret
 tdsk kube secret egress                    # Create egress proxy CA cert k8s secret
+tdsk fleet off                             # Stand the autonomous agent fleet DOWN (stop token spend)
+tdsk fleet on                              # Bring the fleet back UP
+tdsk fleet status                          # Print current fleet state (read-only)
 ```
+
+### Autonomous Agent Fleet Toggle (`tdsk fleet on | off | status`)
+
+The autonomous AI agents (6 always-on "residents" — CEO/CMO/CTO-lead/3 engineers — plus the steward/CTO-board schedules and the `system-monitor`/`update-behind-prs` GitHub workflows) are the token-burning part of the system. `tdsk fleet off` stands them all down; `tdsk fleet on` brings them back; `tdsk fleet status` prints current state. The **platform itself (backend/proxy/caddy/egress/admin/threads) is untouched** either way — this only starts/stops the agents. Implementation: CLI task `repos/cli/src/tasks/fleet/` → `repos/database/scripts/toggleFleet.ts` (reads prod DB from the `tdsk-db-cfg` k8s secret; no credential export).
+
+> **Deploy caveat**: "off" is live DB/workflow state, not a seed change. A `tdsk release` / merge-to-main deploy re-runs the reconcile and turns the fleet back **on**. While it should stay down, avoid deploying or re-run `tdsk fleet off` after the deploy.
 
 ### Config Loading Order
 `@keg-hub/parse-config` merges (later overrides earlier):

@@ -4,6 +4,7 @@ import * as db from './db'
 import * as npm from './npm'
 import * as web from './web'
 import * as kube from './kube'
+import * as fleet from './fleet'
 import * as docker from './docker'
 import * as deploy from './deploy'
 import * as release from './release'
@@ -15,6 +16,7 @@ export const tasks: TTasks = {
   ...npm,
   ...kube,
   ...web,
+  ...fleet,
   ...docker,
   ...deploy,
   ...release,

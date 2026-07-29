@@ -36,6 +36,7 @@ repos/cli/
 │   │   ├── npm/          # pack, publish (alias: pkg)
 │   │   │   └── secret/   # Presets: tdsk, docker, database, payments, email, egress
 │   │   ├── devspace/     # start, clean, log, enter, render, attach, use
+│   │   ├── fleet/        # on, off, status — toggle the autonomous agent fleet
 │   │   └── web/          # start
 │   └── utils/
 │       ├── config/       # getCtx — context resolution with alias + sandbox type support
@@ -100,6 +101,11 @@ Six contexts map to repos/services. `getCtx()` resolves a context name (with ali
 | **npm** | pack, publish | pkg | --context, --tag |
 | **kube secret** | tdsk, docker, database, payments, email, egress | egress-ca, eca | --cert, --key, --log, --name, --file, --keyvalue, --secrets |
 | **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector, --purge, --deploy |
+| **fleet** | on, off, status | on: up/enable · off: down/disable · status: state/st | — |
+
+### Fleet Toggle (`tasks/fleet/`)
+
+`tdsk fleet on | off | status` toggles the autonomous AI agent fleet (6 always-on residents + steward/CTO-board schedules + the `system-monitor`/`update-behind-prs` GitHub workflows) down or up in one command. The platform (backend/proxy/caddy/egress/admin/threads) is untouched. The task is a thin wrapper that delegates to the single implementation in the database repo (`repos/database/scripts/toggleFleet.ts`, via `pnpm --filter @tdsk/database run fleet:<mode>`), which reads the prod DB URL from the `tdsk-db-cfg` k8s secret itself (no credential export). Always targets prod. **Caveat**: "off" is live DB/workflow state, so a full `tdsk release` re-reconciles the fleet back on — re-run `tdsk fleet off` after any deploy while it should stay down.
 
 ### Key Commands
 

@@ -182,10 +182,21 @@ pnpm seed                # Run database seeder
 pnpm purge               # Purge database data
 pnpm script              # Run utility scripts with aliases
 pnpm types               # TypeScript type checking (tsc --noEmit)
+pnpm fleet:off           # Stand the autonomous agent fleet DOWN (see below)
+pnpm fleet:on            # Bring the fleet back UP
+pnpm fleet:status        # Print current fleet state (read-only)
 ```
 
 > **Note**: `pnpm push` runs `drizzle-kit push` which is interactive. Claude cannot run this automatically.
 > **drizzle-kit push limitation**: Cannot modify existing CHECK constraints -- must drop+recreate via manual SQL.
+
+### Fleet Toggle (`scripts/toggleFleet.ts`)
+
+Stands the autonomous AI agent fleet **down or up** in one command, without touching the platform (backend/proxy/caddy/egress/admin/threads keep serving). Preferred entry point is the CLI wrapper `tdsk fleet on | off | status`; the underlying implementation is this script (`pnpm fleet:on | fleet:off | fleet:status`, or `tsx scripts/toggleFleet.ts --on|--off|--status`).
+
+- **What it flips** (prod only): the 6 always-on residents (CEO/CMO/CTO-lead/3 engineers — clears/sets each body sandbox's `config.resident` flag + deletes/lets-boot the pods), the 5 steward/CTO-board schedules (`enabled` flag), and 2 GitHub workflows (`system-monitor`, `update-behind-prs`).
+- **Self-contained**: reads the prod DB URL from the `tdsk-db-cfg` k8s secret (context `tdsk`, ns `tdsk-production`) via kubectl — no credential export. Pure `pg` + `node:child_process`.
+- **Deploy caveat**: "off" is live DB/workflow state, NOT a seed change. A full `tdsk release` / merge-to-main deploy re-runs the reconcile (`reconcileResidentActivations` + `reconcileSchedules`) and turns the fleet back **on**. Re-run `fleet:off` after any deploy while the fleet should stay down.
 
 ## Environment Variables
 
