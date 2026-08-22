@@ -34,6 +34,16 @@ import { KubeClient, setupKubeWatcher } from '@tdsk/sandbox'
 const HealthPaths = { live: `/live`, health: `/health` } as const
 
 const DbPingTimeoutMs = 5_000
+/**
+ * How long a SUCCESSFUL health DB ping is trusted before the next probe runs
+ * a real query. The readiness probe fires every 10s; without this cache that
+ * is a secrets query every 10s, 24/7 — constant load that keeps the Neon
+ * compute awake (billing CU-hours) forever, since autosuspend needs ~5 quiet
+ * minutes. Failures are never cached: a failed ping falls through to a real
+ * query on the very next probe, so a broken DB path still flips readiness
+ * within one probe period + this TTL at worst.
+ */
+const DbPingCacheMs = 10 * 60_000
 
 const main = async () => {
   const app = { locals: { config } } as TApp
@@ -57,7 +67,9 @@ const main = async () => {
   // Probe the exact query path secret injection depends on: a secrets lookup.
   // A missing row is healthy ({} with no error); only a connection/query
   // failure marks the service unready.
+  let lastDbOkAt = 0
   const dbOk = async (): Promise<boolean> => {
+    if (Date.now() - lastDbOkAt < DbPingCacheMs) return true
     try {
       const res = await Promise.race([
         app.locals.db.services.secret.get(`egress_health_probe`),
@@ -66,6 +78,7 @@ const main = async () => {
         ),
       ])
       if (res?.error) throw res.error
+      lastDbOkAt = Date.now()
       return true
     } catch (err) {
       logger.warn(`[Egress] Health DB ping failed: ${(err as Error).message}`)
