@@ -57,6 +57,24 @@ export class Schedule extends Base<
   }
 
   /**
+   * Existence check for any enabled schedule — the scheduler uses this to
+   * decide between its active (60s) and idle (backed-off) tick cadence, so it
+   * must stay a cheap LIMIT 1 lookup rather than a full list.
+   */
+  async hasEnabled() {
+    try {
+      const found = await this.db.query.schedules.findFirst({
+        where: eq(schedules.enabled, true),
+        columns: { id: true },
+      })
+
+      return { data: Boolean(found) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
    * Mark a schedule as having just run, update nextRunAt, reset consecutive errors
    */
   async markRun(id: string, nextRunAt: Date) {

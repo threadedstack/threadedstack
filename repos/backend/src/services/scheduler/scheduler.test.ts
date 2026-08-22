@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { Scheduler, createScheduler, ScheduleClaimConflictError } from './scheduler'
+import {
+  Scheduler,
+  ActiveTickMs,
+  IdleTickMs,
+  createScheduler,
+  ScheduleClaimConflictError,
+} from './scheduler'
 import { logger } from '@TBE/utils/logger'
 
 // parseNextRun now lives in @tdsk/domain (shared with the resident runtime)
@@ -25,6 +31,9 @@ const buildMockDb = () =>
         listDue: vi.fn(),
         markRun: vi.fn(),
         incrementErrors: vi.fn(),
+        // Default: enabled schedules exist, so empty ticks stay on the
+        // active cadence and legacy tests keep their original behavior.
+        hasEnabled: vi.fn().mockResolvedValue({ data: true }),
       },
       scheduleRun: {
         listRunning: vi.fn().mockResolvedValue({ data: [] }),
@@ -470,6 +479,104 @@ describe(`Scheduler`, () => {
 
       expect(mockExecutor).toHaveBeenCalledTimes(2)
       expect(mockDb.services.schedule.incrementErrors).toHaveBeenCalledWith(`sched-1`)
+    })
+  })
+
+  describe(`idle backoff`, () => {
+    it(`backs off to the idle heartbeat when zero enabled schedules exist`, async () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: false })
+
+      scheduler.start()
+      // Let the initial tick (and its hasEnabled check) settle.
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`backing off`))
+
+      const callsAfterStart = mockDb.services.schedule.listDue.mock.calls.length
+      // The active 60s cadence must NOT fire anymore.
+      await vi.advanceTimersByTimeAsync(ActiveTickMs * 2)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsAfterStart)
+
+      // The idle heartbeat still polls (catches direct-DB enables like
+      // `tdsk fleet on` that never call the API).
+      await vi.advanceTimersByTimeAsync(IdleTickMs)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsAfterStart + 1)
+    })
+
+    it(`stays on the active cadence when enabled schedules exist but none are due`, async () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: true })
+
+      scheduler.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const callsAfterStart = mockDb.services.schedule.listDue.mock.calls.length
+      await vi.advanceTimersByTimeAsync(ActiveTickMs)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsAfterStart + 1)
+    })
+
+    it(`keeps the current cadence when the hasEnabled check fails`, async () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({
+        error: new Error(`DB connection lost`),
+      })
+
+      scheduler.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining(`hasEnabled check failed`)
+      )
+      // Never idle on uncertainty — the 60s cadence keeps firing.
+      const callsAfterStart = mockDb.services.schedule.listDue.mock.calls.length
+      await vi.advanceTimersByTimeAsync(ActiveTickMs)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsAfterStart + 1)
+    })
+
+    it(`resumes the active cadence when an idle heartbeat finds enabled schedules`, async () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: false })
+
+      scheduler.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      // Now a schedule gets enabled behind the API's back (direct DB write).
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: true })
+      await vi.advanceTimersByTimeAsync(IdleTickMs)
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`resuming`))
+      // Back on the 60s cadence.
+      const calls = mockDb.services.schedule.listDue.mock.calls.length
+      await vi.advanceTimersByTimeAsync(ActiveTickMs)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(calls + 1)
+    })
+  })
+
+  describe(`wake`, () => {
+    it(`restores the active cadence and ticks immediately from idle`, async () => {
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: false })
+
+      scheduler.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      // Idle now; the API saves an enabled schedule and calls wake().
+      mockDb.services.schedule.hasEnabled.mockResolvedValue({ data: true })
+      const callsBeforeWake = mockDb.services.schedule.listDue.mock.calls.length
+      scheduler.wake()
+      await vi.advanceTimersByTimeAsync(0)
+
+      // Immediate tick fired.
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsBeforeWake + 1)
+      // And the 60s cadence is back.
+      await vi.advanceTimersByTimeAsync(ActiveTickMs)
+      expect(mockDb.services.schedule.listDue.mock.calls.length).toBe(callsBeforeWake + 2)
+    })
+
+    it(`is a no-op when the scheduler is not running`, () => {
+      expect(() => scheduler.wake()).not.toThrow()
+      expect(mockDb.services.schedule.listDue).not.toHaveBeenCalled()
     })
   })
 })

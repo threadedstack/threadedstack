@@ -10,6 +10,9 @@ export const setupScheduler = (app: TApp) => {
   // rehydrator (which needs sandbox+kube+s3 from app.locals). Without app the
   // scheduler still ticks but skips hydration on startup.
   const scheduler = createScheduler(app.locals.db, executor, app)
+  // Expose the instance so the schedules API can wake() an idle scheduler
+  // the moment a schedule is created, enabled, or triggered.
+  app.locals.scheduler = scheduler
   scheduler.start()
 
   return scheduler

@@ -5,7 +5,7 @@ import type { EmailService } from '@TBE/services/email/email'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type { PaymentsService } from '@TBE/services/payments/payments'
 import type { S3Service } from '@TBE/services/s3/s3'
-import type { TScheduleExecutor } from '@TBE/services/scheduler'
+import type { Scheduler, TScheduleExecutor } from '@TBE/services/scheduler'
 import type { TResidentWatchdog } from '@TBE/services/resident/watchdog'
 import type { EmbeddingService } from '@TBE/services/embeddings/embedding'
 import type {
@@ -31,6 +31,7 @@ type TBELocals = TAppLocals<
 > & {
   s3: S3Service
   embeddings: EmbeddingService
+  scheduler?: Scheduler
   scheduleExecutor?: TScheduleExecutor
   residentWatchdog?: TResidentWatchdog
 }

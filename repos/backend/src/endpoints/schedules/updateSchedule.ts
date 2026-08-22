@@ -115,6 +115,11 @@ export const updateSchedule: TEndpointConfig = {
 
     if (error) throw new Exception(500, error.message)
 
+    // An idle (backed-off) scheduler must notice a schedule that is (still)
+    // enabled after this update — covers both flipping enabled on and moving
+    // an enabled schedule's cron/nextRunAt.
+    if (data?.enabled) req.app.locals.scheduler?.wake()
+
     res.json({ data })
   },
 }

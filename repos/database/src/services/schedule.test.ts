@@ -20,17 +20,19 @@ const createMockDb = () => {
   const updateFn = vi.fn((..._args: any[]) => ({ set: updateSetFn }))
 
   const findManyFn = vi.fn((..._args: any[]) => Promise.resolve([] as any[]))
+  const findFirstFn = vi.fn((..._args: any[]) => Promise.resolve(undefined as any))
 
   return {
     db: {
       update: updateFn,
-      query: { schedules: { findMany: findManyFn } },
+      query: { schedules: { findMany: findManyFn, findFirst: findFirstFn } },
     } as any,
     updateFn,
     updateSetFn,
     updateWhereFn,
     updateReturningFn,
     findManyFn,
+    findFirstFn,
   }
 }
 
@@ -88,6 +90,35 @@ describe(`Schedule service`, () => {
       mocks.findManyFn.mockRejectedValueOnce(new Error(`db down`))
 
       const { data, error } = await service.listDue()
+
+      expect(data).toBeUndefined()
+      expect(error?.message).toBe(`db down`)
+    })
+  })
+
+  describe(`hasEnabled`, () => {
+    it(`returns true when at least one enabled schedule exists`, async () => {
+      mocks.findFirstFn.mockResolvedValueOnce({ id: `sc_sched001` })
+
+      const { data, error } = await service.hasEnabled()
+
+      expect(error).toBeUndefined()
+      expect(data).toBe(true)
+    })
+
+    it(`returns false when no enabled schedule exists`, async () => {
+      mocks.findFirstFn.mockResolvedValueOnce(undefined)
+
+      const { data, error } = await service.hasEnabled()
+
+      expect(error).toBeUndefined()
+      expect(data).toBe(false)
+    })
+
+    it(`returns { error } instead of throwing when the query fails`, async () => {
+      mocks.findFirstFn.mockRejectedValueOnce(new Error(`db down`))
+
+      const { data, error } = await service.hasEnabled()
 
       expect(data).toBeUndefined()
       expect(error?.message).toBe(`db down`)

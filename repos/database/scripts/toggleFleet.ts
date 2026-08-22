@@ -167,7 +167,9 @@ const standDown = async (db: Client) => {
 }
 
 const spinUp = async (db: Client) => {
-  // 1) Re-arm resident mode; the watchdog boots each pod within ~60s.
+  // 1) Re-arm resident mode. The watchdog boots each pod on its next sweep —
+  // within ~60s when active, but after a full fleet-off it idles down to a
+  // 30-minute heartbeat, so the first pod can take up to ~30m to appear.
   for (const { sandboxId, agentId } of RESIDENTS)
     await db.query(
       `update sandboxes
@@ -218,7 +220,7 @@ const main = async () => {
       )
     else
       console.log(
-        `\n✅ Fleet spun UP. Residents boot within ~60s; schedules fire on their next cron.`
+        `\n✅ Fleet spun UP. Residents boot on the watchdog's next sweep (up to ~30m after a full stand-down — it idles its poll to spare the DB); schedules fire on their next cron.`
       )
   } finally {
     await db.end()

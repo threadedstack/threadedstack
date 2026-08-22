@@ -16,6 +16,15 @@ export const ResidentStatusCollection = `resident_status`
 
 /** Reconcile cadence — a sibling of the scheduler's 60s tick, never entangled with it. */
 export const WatchdogTickMs = 60_000
+/**
+ * Idle cadence — when a sweep finds nothing it actively manages (no
+ * resident_configs records, or every record's sandbox has had its
+ * `config.resident` flag cleared, i.e. `tdsk fleet off`), the per-minute
+ * sweep is pure DB load that keeps the Neon compute awake 24/7. Back off to
+ * this slow heartbeat; it rediscovers a re-armed fleet (`tdsk fleet on` is a
+ * direct DB write with no API path to hook a wake into) within one beat.
+ */
+export const WatchdogIdleTickMs = 30 * 60_000
 /** A resident_status write older than this is a stale heartbeat. */
 export const HeartbeatStaleMs = 3 * 60_000
 /** After a (re)start, skip re-checks entirely for this long (pod-not-yet-listed race). */
@@ -91,6 +100,12 @@ export type TWatchdogResult = {
 export type TWatchdogSummary = {
   checked: number
   results: TWatchdogResult[]
+  /**
+   * Set when the sweep could not fully enumerate residents (collection/record
+   * query failure). The cadence logic must NOT idle on an errored sweep — an
+   * empty result from a DB hiccup is not proof there is nothing to manage.
+   */
+  errored?: boolean
 }
 
 export type TResidentWatchdogOpts = {
@@ -166,6 +181,7 @@ export const createResidentWatchdog = (
   const crashLoopMaxRestarts = opts.crashLoopMaxRestarts ?? CrashLoopMaxRestarts
 
   let timer: ReturnType<typeof setInterval> | undefined
+  let currentTickMs = tickMs
   let current: Promise<TWatchdogSummary> | undefined
   let warnedNoSandbox = false
   let warnedUnreachableUrl = false
@@ -530,6 +546,7 @@ export const createResidentWatchdog = (
       logger.error(
         `[ResidentWatchdog] Failed to list ${ResidentConfigsCollection} collections: ${error.message}`
       )
+      summary.errored = true
       return summary
     }
 
@@ -549,6 +566,7 @@ export const createResidentWatchdog = (
         logger.error(
           `[ResidentWatchdog] Failed to query resident configs for project ${collection.projectId}: ${recordsErr.message}`
         )
+        summary.errored = true
         continue
       }
 
@@ -570,6 +588,41 @@ export const createResidentWatchdog = (
     return summary
   }
 
+  /**
+   * (Re)create the sweep interval at the given cadence. No-op when the timer
+   * already runs at that cadence; does nothing while stopped (never
+   * resurrects a timer stop() cleared or creates one for a test-only
+   * direct-tick watchdog).
+   */
+  const setCadence = (nextMs: number) => {
+    if (!timer || currentTickMs === nextMs) return
+    clearInterval(timer)
+    currentTickMs = nextMs
+    timer = setInterval(() => {
+      void tick().catch((err) =>
+        logger.error(`[ResidentWatchdog] Periodic tick failed: ${err}`)
+      )
+    }, nextMs)
+    timer.unref?.()
+  }
+
+  /**
+   * True when a sweep proves there is nothing under active management: no
+   * resident_configs records at all (fleet never armed / no sandbox service),
+   * or every record's body sandbox has resident mode cleared or unset — the
+   * `tdsk fleet off` shape. Any other outcome (healthy, booting, degraded,
+   * graced, errored) keeps the active cadence so recovery paths stay fast.
+   */
+  const nothingManaged = (summary: TWatchdogSummary): boolean =>
+    !summary.errored &&
+    (summary.checked === 0 ||
+      summary.results.every(
+        (r) =>
+          r.action === `skipped` &&
+          (r.reason?.includes(`not in resident mode`) ||
+            r.reason?.includes(`no body sandbox`))
+      ))
+
   const tick = async (): Promise<TWatchdogSummary> => {
     // Bail-if-busy, the scheduler's own reentrancy model — a slow pass never
     // stacks a second concurrent pass behind it.
@@ -577,7 +630,21 @@ export const createResidentWatchdog = (
     const run = sweep(false)
     current = run
     try {
-      return await run
+      const summary = await run
+      if (nothingManaged(summary)) {
+        if (currentTickMs !== WatchdogIdleTickMs && timer)
+          logger.info(
+            `[ResidentWatchdog] Nothing under management — backing off to ${WatchdogIdleTickMs / 60_000}m idle heartbeat`
+          )
+        setCadence(WatchdogIdleTickMs)
+      } else {
+        if (currentTickMs !== tickMs && timer)
+          logger.info(
+            `[ResidentWatchdog] Residents under management — resuming ${tickMs}ms tick cadence`
+          )
+        setCadence(tickMs)
+      }
+      return summary
     } finally {
       current = undefined
     }
@@ -604,6 +671,7 @@ export const createResidentWatchdog = (
         return
       }
       watchdogStartedAt = nowFn()
+      currentTickMs = tickMs
       logger.info(`[ResidentWatchdog] Starting resident watchdog (${tickMs}ms tick)`)
       void tick().catch((err) =>
         logger.error(`[ResidentWatchdog] Initial tick failed: ${err}`)

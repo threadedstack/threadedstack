@@ -110,6 +110,9 @@ export const createSchedule: TEndpointConfig = {
     const { data, error } = await db.services.schedule.create(schedule)
     if (error) throw new Exception(500, error.message)
 
+    // An idle (backed-off) scheduler must pick this schedule up immediately.
+    if (data?.enabled) req.app.locals.scheduler?.wake()
+
     res.status(201).json({ data })
   },
 }

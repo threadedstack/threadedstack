@@ -680,6 +680,103 @@ describe(`resident watchdog — lifecycle`, () => {
     expect(summary.checked).toBe(1)
   })
 
+  it(`backs off to the idle heartbeat when no resident_configs exist, and the heartbeat still sweeps`, async () => {
+    vi.useFakeTimers()
+    try {
+      const ctx = build({ configRecords: [] })
+      const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+      watchdog.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const callsAfterStart = ctx.db.services.collection.listByName.mock.calls.length
+      // The active 60s cadence must NOT fire anymore.
+      await vi.advanceTimersByTimeAsync(2 * 60_000)
+      expect(ctx.db.services.collection.listByName.mock.calls.length).toBe(
+        callsAfterStart
+      )
+
+      // The 30m idle heartbeat still sweeps (rediscovers `tdsk fleet on`).
+      await vi.advanceTimersByTimeAsync(30 * 60_000)
+      expect(ctx.db.services.collection.listByName.mock.calls.length).toBe(
+        callsAfterStart + 1
+      )
+      watchdog.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`backs off when every record's sandbox has resident mode cleared (fleet off)`, async () => {
+    vi.useFakeTimers()
+    try {
+      // `tdsk fleet off` clears config.resident but leaves the records — the
+      // sweep skips each with "not in resident mode" and must idle down.
+      const ctx = build({
+        sandboxRow: buildSandboxRow({ config: { image: `node:20` } }),
+      })
+      const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+      watchdog.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const callsAfterStart = ctx.db.services.collection.listByName.mock.calls.length
+      await vi.advanceTimersByTimeAsync(2 * 60_000)
+      expect(ctx.db.services.collection.listByName.mock.calls.length).toBe(
+        callsAfterStart
+      )
+      watchdog.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`does NOT idle on an errored sweep — an empty result from a DB failure is not proof`, async () => {
+    vi.useFakeTimers()
+    try {
+      const ctx = build({ configRecords: [] })
+      ctx.db.services.collection.listByName.mockResolvedValue({
+        error: new Error(`db down`),
+      })
+      const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+      watchdog.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const callsAfterStart = ctx.db.services.collection.listByName.mock.calls.length
+      // Still on the active 60s cadence.
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(ctx.db.services.collection.listByName.mock.calls.length).toBe(
+        callsAfterStart + 1
+      )
+      watchdog.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it(`resumes the active cadence when an idle heartbeat finds a managed resident`, async () => {
+    vi.useFakeTimers()
+    try {
+      const ctx = build({ pods: [`tdsk-sb-pod-0`], statusRecord: freshStatus(Now) })
+      // First sweep: nothing exists → idle down.
+      ctx.db.services.collection.listByName.mockResolvedValueOnce({ data: [] })
+      const watchdog = createResidentWatchdog(ctx.app, { nowFn: () => Now })
+      watchdog.start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      // The idle heartbeat discovers the (re-armed) resident and reconciles it.
+      await vi.advanceTimersByTimeAsync(30 * 60_000)
+      const callsAfterWake = ctx.db.services.collection.listByName.mock.calls.length
+
+      // Back on the 60s cadence.
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(ctx.db.services.collection.listByName.mock.calls.length).toBe(
+        callsAfterWake + 1
+      )
+      watchdog.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it(`start/stop drive the interval without double-starting`, () => {
     vi.useFakeTimers()
     try {

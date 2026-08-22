@@ -61,6 +61,10 @@ export const triggerSchedule: TEndpointConfig = {
     if (markErr)
       throw new Exception(500, `Failed to trigger schedule: ${markErr.message}`)
 
+    // A manual trigger on an enabled schedule implies future cron slots are
+    // expected — make sure an idle (backed-off) scheduler resumes polling.
+    if (data.enabled) req.app.locals.scheduler?.wake()
+
     res.json({ data: { ...data, lastRunAt: new Date(), nextRunAt, triggered: true } })
   },
 }

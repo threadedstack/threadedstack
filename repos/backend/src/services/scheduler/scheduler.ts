@@ -27,12 +27,24 @@ export class ScheduleClaimConflictError extends Error {
   }
 }
 
+/**
+ * Tick cadences. Active is the normal 60s poll. Idle kicks in when zero
+ * enabled schedules exist — the per-minute poll was keeping the Neon compute
+ * awake (and billing CU-hours) 24/7 even with every schedule disabled. Idle
+ * is a slow heartbeat rather than a full stop because schedules can be
+ * enabled by direct DB writes that never touch the API (e.g. `tdsk fleet on`
+ * via toggleFleet.ts) — the heartbeat is the only thing that notices those.
+ */
+export const ActiveTickMs = 60_000
+export const IdleTickMs = 30 * 60_000
+
 export class Scheduler {
   private db: TDatabase
   private app: TApp | null
   private intervalId: ReturnType<typeof setInterval> | null = null
   private executeAgent: TScheduleExecutor | null = null
   #ticking = false
+  #tickMs: number = ActiveTickMs
 
   constructor(db: TDatabase, executeAgent?: TScheduleExecutor, app?: TApp) {
     this.db = db
@@ -54,7 +66,7 @@ export class Scheduler {
       return
     }
 
-    logger.info(`[Scheduler] Starting scheduler (60s tick interval)`)
+    logger.info(`[Scheduler] Starting scheduler (${ActiveTickMs / 1000}s tick interval)`)
     // A run executes in-process, so any run still `running` at boot outlived
     // the previous backend (a deploy restart, an OOM, a crash). The pod itself
     // may still be up and the runtime may already be done — mark honestly
@@ -72,9 +84,36 @@ export class Scheduler {
       )
     // Run an initial tick immediately
     this.tick().catch((err) => logger.error(`[Scheduler] Initial tick failed: ${err}`))
+    this.#setCadence(ActiveTickMs)
+  }
+
+  /**
+   * (Re)create the tick interval at the given cadence. No-op when the
+   * interval already runs at that cadence so repeated ticks in the same mode
+   * don't churn timers.
+   */
+  #setCadence(tickMs: number) {
+    if (this.intervalId && this.#tickMs === tickMs) return
+    if (this.intervalId) clearInterval(this.intervalId)
+    this.#tickMs = tickMs
     this.intervalId = setInterval(() => {
       this.tick().catch((err) => logger.error(`[Scheduler] Periodic tick failed: ${err}`))
-    }, 60_000)
+    }, tickMs)
+  }
+
+  /**
+   * Restore the active cadence and tick immediately. Called by the schedules
+   * API whenever a schedule is created, enabled, or triggered so an idle
+   * scheduler picks the new schedule up right away instead of waiting out the
+   * idle heartbeat.
+   */
+  wake() {
+    if (!this.intervalId) return
+    if (this.#tickMs !== ActiveTickMs) {
+      logger.info(`[Scheduler] Woken — resuming ${ActiveTickMs / 1000}s tick cadence`)
+      this.#setCadence(ActiveTickMs)
+    }
+    this.tick().catch((err) => logger.error(`[Scheduler] Wake tick failed: ${err}`))
   }
 
   /**
@@ -193,7 +232,17 @@ export class Scheduler {
         return
       }
 
-      if (!dueSchedules || dueSchedules.length === 0) return
+      if (!dueSchedules || dueSchedules.length === 0) {
+        await this.#adjustCadence()
+        return
+      }
+
+      // Due work exists, so enabled schedules exist — make sure we're on the
+      // active cadence (an idle heartbeat can land here when schedules were
+      // enabled by a direct DB write that never called wake()). Guarded on
+      // intervalId so a bare tick() on a never-started scheduler stays
+      // timer-free.
+      if (this.intervalId) this.#setCadence(ActiveTickMs)
 
       logger.info(`[Scheduler] Found ${dueSchedules.length} due schedule(s)`)
 
@@ -212,6 +261,34 @@ export class Scheduler {
       logger.error(`[Scheduler] Tick error: ${err?.message || err}`)
     } finally {
       this.#ticking = false
+    }
+  }
+
+  /**
+   * Called on ticks that found no due work: back off to the idle heartbeat
+   * when zero enabled schedules exist, or restore the active cadence when an
+   * idle heartbeat discovers schedules were enabled behind the API's back.
+   * On a failed check, keep the current cadence — never idle on uncertainty.
+   */
+  async #adjustCadence() {
+    if (!this.intervalId) return
+
+    const { data: hasEnabled, error } = await this.db.services.schedule.hasEnabled()
+    if (error) {
+      logger.error(`[Scheduler] hasEnabled check failed: ${error.message}`)
+      return
+    }
+
+    if (!hasEnabled && this.#tickMs !== IdleTickMs) {
+      logger.info(
+        `[Scheduler] No enabled schedules — backing off to ${IdleTickMs / 60_000}m idle heartbeat`
+      )
+      this.#setCadence(IdleTickMs)
+    } else if (hasEnabled && this.#tickMs !== ActiveTickMs) {
+      logger.info(
+        `[Scheduler] Enabled schedule(s) found while idle — resuming ${ActiveTickMs / 1000}s tick cadence`
+      )
+      this.#setCadence(ActiveTickMs)
     }
   }
 }
