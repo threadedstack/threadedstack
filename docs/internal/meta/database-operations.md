@@ -53,15 +53,7 @@ Creates all 25 Drizzle-managed tables from the schema definitions. This is inter
 tdsk db push --env production
 ```
 
-### 3. Add Deferred Constraints
-
-Adds FK constraints that can't be created during the initial push due to circular dependencies (e.g., `providers.secret_id → secrets.id`). Safe to re-run.
-
-```sh
-tdsk db constraints --env production
-```
-
-### 4. Restore Caddy Certificates (If Applicable)
+### 3. Restore Caddy Certificates (If Applicable)
 
 If migrating from an existing environment, restore the Caddy root CA cert/key from `~/.config/tdsk/domain/root.crt` and `root.key`.
 
@@ -69,7 +61,7 @@ If migrating from an existing environment, restore the Caddy root CA cert/key fr
 tdsk db certs --env production
 ```
 
-### 5. Seed Data (Optional)
+### 4. Seed Data (Optional)
 
 Seeds a complete test organization with all entity types. Typically only for development and staging — skip for a clean production database.
 
@@ -86,13 +78,10 @@ tdsk kube secret database --env prod
 # 2. Schema
 tdsk db push --env production
 
-# 3. Deferred constraints
-tdsk db constraints --env production
-
-# 4. Certs (only if migrating)
+# 3. Certs (only if migrating)
 tdsk db certs --env production
 
-# 5. Seed (only if dev/staging)
+# 4. Seed (only if dev/staging)
 tdsk db seed --env production
 ```
 
@@ -261,7 +250,6 @@ tdsk db studio --env production
 | `tdsk db purge` | `prg` | Purge seeded data | | |
 | `tdsk db cleanup` | `clean` | Remove non-seed data | | |
 | `tdsk db certs` | `cert` | Restore Caddy certs | | |
-| `tdsk db constraints` | `fk` | Add deferred FK constraints | | |
 | `tdsk db rmf` | `remove` | Drop ALL tables | | Yes |
 | `tdsk db reset` | `rst` | Drop + push + seed | Yes | Yes |
 

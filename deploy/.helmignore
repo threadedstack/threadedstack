@@ -29,4 +29,5 @@ Dockerfile.backend
 initialize.sh
 ds-init.sh
 devspace.yaml
+infra/
 .gitignore

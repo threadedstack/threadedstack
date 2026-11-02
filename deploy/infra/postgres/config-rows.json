@@ -1,0 +1,166 @@
+{
+  "_comment": "Production config rows that exist ONLY in the database (not produced by repos/database seeds or reconcile). Captured 2026-11-02 from org og_0000001. Secret VALUES are not stored here: re-enter them (via admin UI or /_/secrets) and they are re-encrypted with TDSK_MASTER_KEY.",
+  "providers": [
+    {
+      "id": "pv_3a9_mqs",
+      "name": "Self-Hosted Embeddings (TEI)",
+      "brand": "custom",
+      "type": "ai",
+      "options": {
+        "baseUrl": "http://tdsk-embeddings:3000/v1",
+        "embeddingModel": "BAAI/bge-large-en-v1.5"
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": null,
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_NLyMA-s",
+      "name": "ThreadedStack Repo",
+      "brand": "github",
+      "type": "git",
+      "options": {
+        "branch": "main",
+        "repoUrl": "https://github.com/threadedstack/threadedstack.git"
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_gq-3f7_",
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_UdVXJdu",
+      "name": "OpenRouter (fallback)",
+      "brand": "openrouter",
+      "type": "ai",
+      "options": {
+        "model": "anthropic/claude-sonnet-4.6",
+        "allowedDomains": [
+          "openrouter.ai"
+        ]
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_yzoM9J6",
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_g2SgZDz",
+      "name": "Gemini Embeddings",
+      "brand": "google",
+      "type": "ai",
+      "options": {
+        "allowedDomains": [
+          "generativelanguage.googleapis.com"
+        ]
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_SkyElBm",
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_hrn_ESR",
+      "name": "Claude Subscription OAuth",
+      "brand": "anthropic",
+      "type": "ai",
+      "options": {
+        "authMethod": "oauth",
+        "allowedDomains": [
+          "api.anthropic.com"
+        ]
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_pJ-WTle",
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_sYKR6UZ",
+      "name": "ZAI GLM (fallback)",
+      "brand": "zai",
+      "type": "ai",
+      "options": {
+        "allowedDomains": [
+          "api.z.ai"
+        ]
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_Bz1BK1x",
+      "org_id": "og_0000001"
+    },
+    {
+      "id": "pv_uFB3pz5",
+      "name": "ThreadedStack Repo (adversary)",
+      "brand": "github",
+      "type": "git",
+      "options": {
+        "branch": "main",
+        "repoUrl": "https://github.com/threadedstack/threadedstack.git"
+      },
+      "headers": null,
+      "body_params": null,
+      "secret_id": "sc_peunvU3",
+      "org_id": "og_0000001"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "sc_Bz1BK1x",
+      "name": "ZAI_API_KEY",
+      "description": "ZAI GLM key (runtime-brain fallback)",
+      "provider_id": "pv_sYKR6UZ"
+    },
+    {
+      "id": "sc_SkyElBm",
+      "name": "GEMINI_EMBED_KEY",
+      "description": "Gemini embeddings key for P2 memory",
+      "provider_id": "pv_g2SgZDz"
+    },
+    {
+      "id": "sc_gq-3f7_",
+      "name": "STEWARD_GIT_PAT",
+      "description": "threadedstack-steward machine-account PAT (contents+PR write, no workflows)",
+      "provider_id": "pv_NLyMA-s"
+    },
+    {
+      "id": "sc_pJ-WTle",
+      "name": "CLAUDE_CODE_OAUTH_TOKEN",
+      "description": "Claude subscription OAuth token for steward runtime brain",
+      "provider_id": "pv_hrn_ESR"
+    },
+    {
+      "id": "sc_peunvU3",
+      "name": "ADVERSARY_GIT_PAT",
+      "description": "lancetipton CLASSIC repo-scoped PAT for the adversary review job. Classic (not fine-grained) is REQUIRED: fine-grained PATs cannot resolveReviewThread and main has required_conversation_resolution=true, so approved-after-changes PRs would stall. Posts as lancetipton because the threadedstack-adversary machine account is GitHub shadow-banned (its reviews are invisible to others). Scope: repo (+write:discussion), no workflow.",
+      "provider_id": "pv_uFB3pz5"
+    },
+    {
+      "id": "sc_yzoM9J6",
+      "name": "OPENROUTER_API_KEY",
+      "description": "OpenRouter key (runtime-brain fallback)",
+      "provider_id": "pv_UdVXJdu"
+    }
+  ],
+  "functions": [
+    {
+      "id": "fn_qSGe1Ou",
+      "name": "scoreDesignPartnerCandidates",
+      "description": "Ranks the 7 shortlisted design-partner candidates (rec_lg5O8L) by fit against the two rec_2Rh6ti differentiators (nested tenancy need, any-API secrets breadth need) plus reachability, to sequence outreach. Static reference data — updates when the shortlist changes.",
+      "content": "export default async (request, context) => {\n  const candidates = [\n    { name: 'Trope', archetype: 'partner-to-client nested', teamSize: 2, nestedTenancyFit: 10, secretsBreadthFit: 6, reachability: 8, notes: 'Only candidate with confirmed 3rd-level nesting need (partner acting for client, client has own sub-scope). Strongest single-differentiator match.' },\n    { name: 'Fenrock AI', archetype: 'regulated multi-bank ISV-embed', teamSize: null, nestedTenancyFit: 5, secretsBreadthFit: 10, reachability: 5, notes: 'Heaviest arbitrary-API secrets need (core banking, KYC/AML) plus regulated per-bank isolation. Strongest secrets-breadth match; YC-page-only research, reachability unconfirmed.' },\n    { name: 'Pollinate', archetype: 'supply-chain ISV-embed', teamSize: null, nestedTenancyFit: 4, secretsBreadthFit: 9, reachability: 5, notes: 'Distinct per-client ERP/logistics credentials, same secrets-breadth shape as Fenrock, less regulatory urgency.' },\n    { name: 'Cohesive', archetype: 'blue-collar SMB ISV-embed', teamSize: null, nestedTenancyFit: 3, secretsBreadthFit: 5, reachability: 6, notes: 'Single-level isolation, moderate secrets need (CRM-per-client), smaller-team reachability.' },\n    { name: 'Bravi', archetype: 'home-services ISV-embed', teamSize: 2, nestedTenancyFit: 3, secretsBreadthFit: 5, reachability: 8, notes: '2-employee team, high reachability, single-level tenancy only.' },\n    { name: 'autarc', archetype: 'installer-business ISV-embed', teamSize: null, nestedTenancyFit: 3, secretsBreadthFit: 5, reachability: 6, notes: 'Same shape as Bravi, team size unconfirmed.' },\n    { name: 'Brickanta', archetype: 'construction bid/procurement ISV-embed', teamSize: null, nestedTenancyFit: 3, secretsBreadthFit: 5, reachability: 6, notes: 'Same shape as Bravi/autarc, per-client-engagement isolation only.' }\n  ];\n  const weights = { nestedTenancyFit: 0.4, secretsBreadthFit: 0.4, reachability: 0.2 };\n  const scored = candidates.map((c) => ({\n    ...c,\n    score: Math.round(\n      (c.nestedTenancyFit * weights.nestedTenancyFit +\n        c.secretsBreadthFit * weights.secretsBreadthFit +\n        c.reachability * weights.reachability) * 10\n    ) / 10\n  })).sort((a, b) => b.score - a.score);\n  return {\n    ranked: scored,\n    recommendedFirstBatch: scored.slice(0, 3).map((c) => c.name),\n    weightsUsed: weights,\n    generatedNote: 'Scores are a research-based prioritization heuristic (rec_2Rh6ti differentiator fit + team-size reachability signals from rec_lg5O8L), not interview-confirmed demand.'\n  };\n};",
+      "branch": "main",
+      "default_args": {},
+      "dependencies": {},
+      "input_schema": [],
+      "language": "javascript",
+      "endpoint_id": null,
+      "project_id": "pj_tIly2F1",
+      "meta": {
+        "version": 1,
+        "authoredBy": "ag_cmo0001"
+      }
+    }
+  ]
+}

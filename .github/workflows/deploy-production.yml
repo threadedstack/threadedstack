@@ -26,6 +26,7 @@ on:
       - '**.md'
       - 'docs/**'
       - '.claude/**'
+      - 'deploy/infra/**'
   workflow_dispatch:
     inputs:
       force_all:

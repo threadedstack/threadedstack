@@ -13,19 +13,12 @@ This guide covers deploying ThreadedStack services (Caddy, Proxy, Backend) to a 
 
 ### 1.1 Cluster Setup
 
-Create your cluster (example uses Civo, but any K8s provider works):
+Create a k3s cluster with two node pools, `tdskembed` (platform services) and `tdsksandbox` (KVM-capable nodes for Kata sandboxes), then install Cilium and Kata. Node sizes, pool labels, the load balancer PROXY v2 requirement and the provider-specific selectors are in [Infrastructure Rebuild Reference](infrastructure-rebuild.md#kubernetes-cluster).
 
 ```sh
-civo kubernetes create threadedstack \
-  --region NYC1 \
-  --cni-plugin cilium \
-  --nodes 3 \
-  --size g4s.kube.medium \
-  --wait
-
-# Merge kubeconfig and set context
-civo kubernetes config threadedstack --save --merge
-kubectl config use-context threadedstack
+helm upgrade --install cilium cilium/cilium --version 1.18.4 -n kube-system -f deploy/infra/cilium/values.yaml
+kubectl apply -f deploy/infra/kata/kata-clh-installer.yaml
+kubectl -n kata-system rollout status ds/kata-installer --timeout=15m
 ```
 
 ### 1.2 Create Namespace
@@ -41,6 +34,7 @@ All secrets are created via the `tdsk` CLI. The `--env prod` flag targets the pr
 ```sh
 tdsk kube secret tdsk --env prod         # Master encryption key
 tdsk kube secret database --env prod     # Neon DB credentials
+tdsk kube secret database-egress --env prod  # Read-only egress DB role (after 1.4 creates the role)
 tdsk kube secret docker --env prod       # ghcr.io image pull credentials (creates both generic + docker-registry secrets)
 tdsk kube secret payments --env prod     # Stripe configuration
 tdsk kube secret email --env prod        # Email provider configuration
@@ -56,11 +50,14 @@ tdsk kube secret list --env production
 
 ### 1.4 Initialize Database
 
-Push the Drizzle schema to create all tables, then add deferred FK constraints. See [Database Operations](database-operations.md) for full details.
+Bootstrap the extensions (and the `neon_auth` schema when not using Neon Auth), push the Drizzle schema to create all tables (including the `providers.secret_id` FK), then create the Caddy certificate storage tables. See [Infrastructure Rebuild Reference](infrastructure-rebuild.md#fresh-database-bootstrap) and [Database Operations](database-operations.md) for full details.
 
 ```sh
+psql "$DB_URL" -f deploy/infra/postgres/00-extensions.sql
+psql "$DB_URL" -f deploy/infra/postgres/01-neon_auth.sql   # skip on Neon with Neon Auth enabled
 tdsk db push --env production          # Create tables (interactive)
-tdsk db constraints --env production   # Add deferred FK constraints
+tdsk db certs --env production         # Creates caddy_certmagic_objects + caddy_locks and restores the internal root CA from ~/.config/tdsk/domain/root.{crt,key}
+psql "$DB_URL" -f deploy/infra/postgres/02-egress-role.sql   # then `tdsk kube secret database-egress --env prod`
 ```
 
 ### 1.5 Build and Push Docker Images

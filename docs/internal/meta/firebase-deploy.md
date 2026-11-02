@@ -10,7 +10,7 @@ All three UI apps (admin, threads, website) are hosted on Firebase under the `th
 
 ## CI/CD (Automatic)
 
-**Production deploys** happen automatically when changes are merged to the `production` branch. GitHub Actions builds all three apps in parallel and deploys them to the live channel.
+**Production deploys** happen automatically when changes are pushed to `main`. GitHub Actions builds all three apps in parallel and deploys them to the live channel.
 
 **Preview deploys** happen automatically on PRs that touch any of these paths:
 - `repos/admin/**`, `repos/threads/**`, `repos/website/**`

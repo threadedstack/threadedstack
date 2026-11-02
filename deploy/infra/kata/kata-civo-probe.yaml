@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kata-probe
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kata-civo-probe
+  namespace: kata-probe
+  labels:
+    app: kata-civo-probe
+spec:
+  selector:
+    matchLabels:
+      app: kata-civo-probe
+  template:
+    metadata:
+      labels:
+        app: kata-civo-probe
+    spec:
+      hostPID: true
+      hostNetwork: true
+      tolerations:
+        - operator: Exists
+      initContainers:
+        - name: extract-clh
+          image: quay.io/kata-containers/kata-deploy:3.20.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              cp /opt/kata-artifacts/opt/kata/bin/cloud-hypervisor /probe/cloud-hypervisor
+              cp /opt/kata-artifacts/opt/kata/bin/containerd-shim-kata-v2 /probe/containerd-shim-kata-v2
+              ls -la /probe
+          volumeMounts:
+            - name: probe-bins
+              mountPath: /probe
+      containers:
+        - name: probe
+          image: alpine:3.22
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: probe-bins
+              mountPath: /probe
+          command:
+            - sh
+            - -c
+            - |
+              set +e
+              apk add --no-cache util-linux file binutils >/dev/null
+
+              NS="nsenter -t 1 -m -u -i -n -p --"
+              h() { printf '\n========== %s ==========\n' "$*"; }
+
+              echo "############################################################"
+              echo "# kata-civo-probe on node: ${NODE_NAME}"
+              echo "# date (in-pod): $(date -Iseconds)"
+              echo "############################################################"
+
+              h "Host OS"
+              $NS cat /etc/os-release 2>/dev/null | grep -E '^(NAME|VERSION|VERSION_ID|PRETTY_NAME)='
+
+              h "Init system (PID 1)"
+              $NS ps -p 1 -o pid,comm,args 2>/dev/null
+              $NS readlink /sbin/init 2>/dev/null
+              $NS sh -c 'test -d /run/openrc && echo "openrc detected" || echo "no /run/openrc"'
+              $NS sh -c 'command -v systemctl >/dev/null && echo "systemctl present" || echo "no systemctl"'
+              $NS sh -c 'command -v rc-service >/dev/null && echo "rc-service present" || echo "no rc-service"'
+
+              h "K3s service names (OpenRC)"
+              $NS sh -c 'ls /etc/init.d/ 2>/dev/null | grep -i k3s'
+              $NS sh -c 'rc-service -l 2>/dev/null | grep -i k3s'
+              $NS sh -c 'rc-status --all 2>/dev/null | grep -i k3s'
+
+              h "K3s containerd template files"
+              $NS sh -c 'ls -la /var/lib/rancher/k3s/agent/etc/containerd/ 2>/dev/null'
+              $NS sh -c 'for f in config.toml.tmpl config-v3.toml.tmpl config.toml; do
+                  p="/var/lib/rancher/k3s/agent/etc/containerd/$f"
+                  if [ -f "$p" ]; then echo "FOUND: $p ($(wc -c < "$p") bytes)"; fi
+                done'
+
+              h "K3s containerd config drop-in dir"
+              $NS sh -c 'ls -la /etc/containerd/ /etc/containerd/config.d 2>/dev/null'
+
+              h "KVM availability"
+              $NS sh -c 'ls -la /dev/kvm 2>/dev/null || echo "no /dev/kvm"'
+              $NS sh -c 'grep -Eo "vmx|svm" /proc/cpuinfo | sort -u'
+              $NS sh -c 'lsmod 2>/dev/null | grep kvm'
+
+              h "Kernel"
+              $NS uname -a
+              $NS sh -c 'cat /proc/version'
+
+              h "Cloud Hypervisor binary: ELF interpreter / libc"
+              file /probe/cloud-hypervisor
+              echo "--- readelf INTERP ---"
+              readelf -l /probe/cloud-hypervisor 2>/dev/null | grep -A1 'INTERP' | head -20
+              echo "--- dynamic NEEDED ---"
+              readelf -d /probe/cloud-hypervisor 2>/dev/null | grep NEEDED
+
+              h "Cloud Hypervisor: try running on host"
+              $NS mkdir -p /tmp/kata-probe
+              cat /probe/cloud-hypervisor | $NS sh -c 'cat > /tmp/kata-probe/cloud-hypervisor && chmod +x /tmp/kata-probe/cloud-hypervisor'
+              $NS sh -c '/tmp/kata-probe/cloud-hypervisor --version 2>&1; echo "exit=$?"'
+              $NS sh -c 'ls /lib64/ld-linux-x86-64.so.2 /lib/ld-musl-x86_64.so.1 2>/dev/null'
+              $NS rm -rf /tmp/kata-probe
+
+              h "containerd-shim-kata-v2 binary"
+              file /probe/containerd-shim-kata-v2
+              readelf -l /probe/containerd-shim-kata-v2 2>/dev/null | grep -A1 'INTERP' | head -10
+
+              h "Containerd info on host"
+              $NS sh -c 'ls -la /run/k3s/containerd/containerd.sock 2>/dev/null'
+              $NS sh -c '/var/lib/rancher/k3s/data/current/bin/k3s --version 2>/dev/null || k3s --version 2>/dev/null'
+
+              echo
+              echo "############################################################"
+              echo "# probe complete on ${NODE_NAME}"
+              echo "############################################################"
+              sleep infinity
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: probe-bins
+          emptyDir: {}

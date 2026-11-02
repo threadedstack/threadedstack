@@ -1,0 +1,380 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kata-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kata-installer
+  namespace: kata-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kata-installer
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kata-installer
+subjects:
+  - kind: ServiceAccount
+    name: kata-installer
+    namespace: kata-system
+roleRef:
+  kind: ClusterRole
+  name: kata-installer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-clh
+handler: kata-clh
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kata-installer-scripts
+  namespace: kata-system
+data:
+  install.sh: |
+    #!/bin/sh
+    set -eu
+
+    NS="nsenter -t 1 -m -u -i -n -p --"
+    TMPL_DIR=/host/var/lib/rancher/k3s/agent/etc/containerd
+    HOST_TMPL="$TMPL_DIR/config-v3.toml.tmpl"
+    HOST_CFG="$TMPL_DIR/config.toml"
+
+    log() { echo "[install $(date -Iseconds) ${NODE_NAME}] $*"; }
+
+    apk add --no-cache util-linux wget ca-certificates patchelf >/dev/null
+
+    # ---- Always: load required kernel modules (runs every pod start) ----
+    log "Loading kernel modules"
+    $NS modprobe tun       || log "WARN: modprobe tun failed"
+    $NS modprobe vhost_net || log "WARN: modprobe vhost_net failed"
+    $NS sh -c 'ls -la /dev/net/tun /dev/vhost-net 2>&1 || true'
+
+    # ---- Fix gcompat /proc/self/exe for the kata shim ----
+    # On Alpine+gcompat, glibc binaries see /proc/self/exe as
+    # /lib/ld-musl-x86_64.so.1 instead of the real binary path.
+    # The kata shim re-execs itself via /proc/self/exe during
+    # containerd's start protocol; wrong path = instant crash.
+    # Fix: change the ELF interpreter to musl's ld directly and
+    # provide the two missing fortified-IO symbols via a stub lib.
+    SHIM=/host/opt/kata/bin/containerd-shim-kata-v2
+    STUBS=/host/lib/libglibc_stubs.so
+    if ! [ -f "$STUBS" ]; then
+      log "Compiling glibc stubs library (one-time)"
+      apk add --no-cache build-base >/dev/null 2>&1
+      cat > /tmp/glibc_stubs.c <<'STUBSRC'
+    #include <stdio.h>
+    #include <stdarg.h>
+    int __fprintf_chk(FILE *stream, int flag, const char *format, ...) {
+        va_list ap;
+        va_start(ap, format);
+        int ret = vfprintf(stream, format, ap);
+        va_end(ap);
+        return ret;
+    }
+    int __vfprintf_chk(FILE *stream, int flag, const char *format, va_list ap) {
+        return vfprintf(stream, format, ap);
+    }
+    STUBSRC
+      gcc -shared -o "$STUBS" /tmp/glibc_stubs.c -fPIC
+      log "Stubs library installed at /lib/libglibc_stubs.so"
+    fi
+    INTERP=$(patchelf --print-interpreter "$SHIM" 2>/dev/null || true)
+    if [ "$INTERP" != "/lib/ld-musl-x86_64.so.1" ]; then
+      log "Patching shim ELF interpreter (gcompat fix)"
+      patchelf --set-interpreter /lib/ld-musl-x86_64.so.1 "$SHIM"
+      patchelf --add-needed libglibc_stubs.so "$SHIM"
+    fi
+
+    # ---- Always: verify host binaries (init container has staged them) ----
+    log "Verifying host binaries"
+    $NS /opt/kata/bin/cloud-hypervisor --version || { log "FATAL cloud-hypervisor failed"; exit 1; }
+    $NS /opt/kata/bin/containerd-shim-kata-v2 -v || { log "FATAL shim failed"; exit 1; }
+    $NS /opt/kata/libexec/virtiofsd --version    || { log "FATAL virtiofsd failed"; exit 1; }
+    $NS test -f /opt/kata/share/kata-containers/kata-containers.img \
+      || { log "FATAL rootfs image dangling or missing"; exit 1; }
+
+    # ---- Patch kata config: static resource management (no memory hotplug) ----
+    KATA_CFG=/host/opt/kata/share/defaults/kata-containers/configuration-clh.toml
+    if grep -q 'static_sandbox_resource_mgmt=false' "$KATA_CFG" 2>/dev/null; then
+      log "Enabling static_sandbox_resource_mgmt"
+      sed -i 's/static_sandbox_resource_mgmt=false/static_sandbox_resource_mgmt=true/' "$KATA_CFG"
+    fi
+
+    # ---- Idempotency: write template + restart only if not already in place ----
+    if [ -f "$HOST_TMPL" ] && grep -q 'kata-clh' "$HOST_TMPL"; then
+      log "Template already configured"
+    else
+      log "Writing $HOST_TMPL"
+      mkdir -p "$TMPL_DIR"
+      cat > "$HOST_TMPL" <<'TOML'
+    {{ template "base" . }}
+
+    [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.kata-clh]
+      runtime_type = "io.containerd.kata.v2"
+      runtime_path = "/opt/kata/bin/containerd-shim-kata-v2"
+      privileged_without_host_devices = true
+      pod_annotations = ["io.katacontainers.*"]
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.kata-clh.options]
+        ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-clh.toml"
+    TOML
+      log "Restarting K3s; pod will be killed and rescheduled"
+      $NS rc-service k3s restart || true
+      sleep 120
+      log "WARN: still alive after 120s; exiting so DS reschedules"
+      exit 0
+    fi
+
+    # ---- Wait for containerd to come back and verify rendered config ----
+    log "Waiting for containerd socket and rendered config"
+    for i in $(seq 1 90); do
+      if [ -S /host/run/k3s/containerd/containerd.sock ] \
+         && grep -q 'kata-clh' "$HOST_CFG" 2>/dev/null; then
+        log "containerd ready, kata-clh present in rendered config"
+        break
+      fi
+      sleep 2
+    done
+
+    if ! grep -q 'kata-clh' "$HOST_CFG" 2>/dev/null; then
+      log "FATAL: rendered config.toml does not contain kata-clh"
+      cat "$HOST_CFG" 2>&1 || true
+      exit 1
+    fi
+
+    # ---- Install kubectl ----
+    KCTL=/usr/local/bin/kubectl
+    if ! [ -x "$KCTL" ]; then
+      log "Downloading kubectl"
+      wget -q -O "$KCTL" "https://dl.k8s.io/release/v1.34.2/bin/linux/amd64/kubectl"
+      chmod +x "$KCTL"
+    fi
+
+    # ---- KVM gate: only advertise as kata-capable if the node can run VMs ----
+    # A kata-clh pod launches cloud-hypervisor, which needs /dev/kvm. A node
+    # without nested virtualization has no /dev/kvm; labeling it kata-runtime=true
+    # lets kata pods schedule here and fail with `CLH is not running` (see the
+    # 2026-07-12 incident: a recycled non-nested Civo VM got mislabeled and real
+    # sandbox pods stranded on it). Gate the label so a KVM-less node is never
+    # advertised as kata-capable, and strip any stale label so pods keyed to it
+    # stop scheduling here.
+    if ! $NS test -e /dev/kvm; then
+      log "FATAL: /dev/kvm absent - node lacks nested virtualization (KVM)."
+      log "Stripping any kata-runtime label so kata pods never schedule here."
+      $KCTL label node "$NODE_NAME" katacontainers.io/kata-runtime- || true
+      log "Node is NOT kata-capable. Sleeping without advertising."
+      exec sleep infinity
+    fi
+
+    log "Labeling node"
+    $KCTL label node "$NODE_NAME" katacontainers.io/kata-runtime=true --overwrite
+
+    log "Install complete on $NODE_NAME. Sleeping."
+    exec sleep infinity
+
+  cleanup.sh: |
+    #!/bin/sh
+    set -eu
+
+    NS="nsenter -t 1 -m -u -i -n -p --"
+    TMPL_DIR=/host/var/lib/rancher/k3s/agent/etc/containerd
+    HOST_TMPL="$TMPL_DIR/config-v3.toml.tmpl"
+    HOST_KATA=/host/opt/kata
+
+    log() { echo "[cleanup $(date -Iseconds) ${NODE_NAME}] $*"; }
+
+    apk add --no-cache util-linux wget ca-certificates >/dev/null
+
+    if [ -f "$HOST_TMPL" ]; then
+      log "Removing template; restarting K3s; pod will be killed"
+      rm -f "$HOST_TMPL"
+      $NS rc-service k3s restart || true
+      sleep 120
+      exit 0
+    fi
+
+    if [ -d "$HOST_KATA" ]; then
+      log "Removing $HOST_KATA"
+      rm -rf "$HOST_KATA"
+    fi
+
+    KCTL=/usr/local/bin/kubectl
+    if ! [ -x "$KCTL" ]; then
+      wget -q -O "$KCTL" "https://dl.k8s.io/release/v1.34.2/bin/linux/amd64/kubectl"
+      chmod +x "$KCTL"
+    fi
+
+    log "Removing node label"
+    $KCTL label node "$NODE_NAME" katacontainers.io/kata-runtime- || true
+
+    log "Cleanup complete. Sleeping."
+    exec sleep infinity
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kata-installer
+  namespace: kata-system
+spec:
+  selector:
+    matchLabels:
+      app: kata-installer
+  template:
+    metadata:
+      labels:
+        app: kata-installer
+    spec:
+      serviceAccountName: kata-installer
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      initContainers:
+        - name: stage
+          # Stages kata artifacts directly to host /opt/kata via hostPath mount.
+          # No emptyDir; no size quota; no eviction risk. Idempotent: cp -a
+          # overwrites existing files cheaply on subsequent pod starts.
+          image: quay.io/kata-containers/kata-deploy:3.20.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Staging kata-clh artifacts to host /opt/kata"
+              mkdir -p /host-kata/bin /host-kata/libexec \
+                       /host-kata/share/kata-containers \
+                       /host-kata/share/defaults/kata-containers
+              cp -a /opt/kata-artifacts/opt/kata/bin/cloud-hypervisor          /host-kata/bin/
+              cp -a /opt/kata-artifacts/opt/kata/bin/containerd-shim-kata-v2   /host-kata/bin/
+              cp -a /opt/kata-artifacts/opt/kata/bin/kata-runtime              /host-kata/bin/
+              cp -a /opt/kata-artifacts/opt/kata/libexec/virtiofsd             /host-kata/libexec/
+              # Copy the entire share/kata-containers/ tree so symlinks AND their
+              # targets (vmlinux-X.Y.Z, kata-*.image, kata-*.initrd) all land.
+              cp -a /opt/kata-artifacts/opt/kata/share/kata-containers/.        /host-kata/share/kata-containers/
+              cp -a /opt/kata-artifacts/opt/kata/share/defaults/kata-containers/configuration-clh.toml \
+                       /host-kata/share/defaults/kata-containers/
+              echo "Staged. Contents:"
+              ls -la /host-kata/bin /host-kata/libexec
+              ls -la /host-kata/share/kata-containers/ | head -20
+              # Verify the rootfs image symlink target actually exists
+              if [ -f /host-kata/share/kata-containers/kata-containers.img ]; then
+                echo "rootfs image OK"
+              else
+                echo "FATAL: rootfs image dangling after stage"
+                ls -la /host-kata/share/kata-containers/kata-containers.img
+                exit 1
+              fi
+          volumeMounts:
+            - name: host-opt-kata
+              mountPath: /host-kata
+      containers:
+        - name: install
+          image: alpine:3.22
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command: ["/bin/sh", "/scripts/install.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: host-root
+              mountPath: /host
+              mountPropagation: HostToContainer
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: kata-installer-scripts
+            defaultMode: 0755
+        - name: host-opt-kata
+          hostPath:
+            path: /opt/kata
+            type: DirectoryOrCreate
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+---
+# Cleanup DaemonSet, NOT applied by default.
+# Apply only when removing kata-clh from the cluster, after deleting
+# ds/kata-installer first. Requires nodes to be labeled `kata-cleanup=enabled`
+# before it will schedule, e.g. `kubectl label nodes --all kata-cleanup=enabled`.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kata-cleanup
+  namespace: kata-system
+  annotations:
+    note: "DO NOT apply until ds/kata-installer is deleted"
+spec:
+  selector:
+    matchLabels:
+      app: kata-cleanup
+  template:
+    metadata:
+      labels:
+        app: kata-cleanup
+    spec:
+      serviceAccountName: kata-installer
+      hostPID: true
+      nodeSelector:
+        kata-cleanup: enabled
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: cleanup
+          image: alpine:3.22
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command: ["/bin/sh", "/scripts/cleanup.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: host-root
+              mountPath: /host
+              mountPropagation: HostToContainer
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+      volumes:
+        - name: scripts
+          configMap:
+            name: kata-installer-scripts
+            defaultMode: 0755
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory

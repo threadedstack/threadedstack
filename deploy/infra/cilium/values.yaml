@@ -1,0 +1,14 @@
+# User-supplied Helm values for the `cilium` release (chart cilium/cilium 1.18.4, namespace kube-system)
+# Captured from the production Civo cluster via `helm get values cilium -n kube-system`.
+# Install: helm upgrade --install cilium cilium/cilium --version 1.18.4 -n kube-system -f deploy/infra/cilium/values.yaml
+bpf:
+  hostRouting: true
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+containerRuntime:
+  socketPath: /var/run/k3s/containerd/containerd.sock
+debug:
+  verbose: nil
+kubeProxyReplacement: true

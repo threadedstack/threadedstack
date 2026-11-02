@@ -1,0 +1,25 @@
+# Stripe catalog ids (non-secret metadata). The Stripe account is independent of the cluster/DB provider.
+# TDSK_PAY_PLANS format: <tier>=<base price id>:<per-seat price id>,...
+# Webhook endpoint: https://px.threadedstack.app/_/payments/webhooks (re-point in the Stripe dashboard if the proxy host changes,
+# then put the new endpoint's signing secret in TDSK_PAY_WEBHOOK_SECRET).
+prod:
+  TDSK_STRIPE_PROD_ID_SOLO: prod_UaD4hp4XobWIq4
+  TDSK_STRIPE_PRICE_ID_SOLO: price_1Tb2eCLEbJ9auQdLq2PzWhfM
+  TDSK_STRIPE_SEAT_PRICE_ID_SOLO: price_1Tb2eCLEbJ9auQdL3TuEpyYy
+  TDSK_STRIPE_PROD_ID_PRO: prod_UaD4PO0pg5pDOV
+  TDSK_STRIPE_PRICE_ID_PRO: price_1Tb2eGLEbJ9auQdLxLN4mEPN
+  TDSK_STRIPE_SEAT_PRICE_ID_PRO: price_1Tb2eGLEbJ9auQdL94Qn88J6
+  TDSK_STRIPE_PROD_ID_TEAM: prod_UaD4Sw6PDc3Rdr
+  TDSK_STRIPE_PRICE_ID_TEAM: price_1Tb2eJLEbJ9auQdLkJR1r2HX
+  TDSK_STRIPE_SEAT_PRICE_ID_TEAM: price_1Tb2eJLEbJ9auQdLbFzFs5yP
+  TDSK_PAY_PLANS: "solo=price_1Tb2eCLEbJ9auQdLq2PzWhfM:price_1Tb2eCLEbJ9auQdL3TuEpyYy,pro=price_1Tb2eGLEbJ9auQdLxLN4mEPN:price_1Tb2eGLEbJ9auQdL94Qn88J6,team=price_1Tb2eJLEbJ9auQdLkJR1r2HX:price_1Tb2eJLEbJ9auQdLbFzFs5yP"
+dev:
+  TDSK_STRIPE_PROD_ID_SOLO: prod_UZVetU4xF66PEP
+  TDSK_STRIPE_PRICE_ID_SOLO: price_1TaMckLEbJ9auQdL7R2IiU4j
+  TDSK_STRIPE_SEAT_PRICE_ID_SOLO: price_1TaNwmLEbJ9auQdLHhtxBEKJ
+  TDSK_STRIPE_PROD_ID_PRO: prod_UZVoCnMo7MfHy4
+  TDSK_STRIPE_PRICE_ID_PRO: price_1TaMnJLEbJ9auQdL7WRTfWBx
+  TDSK_STRIPE_SEAT_PRICE_ID_PRO: price_1TaNs8LEbJ9auQdLsVJ3yWNq
+  TDSK_STRIPE_PROD_ID_TEAM: prod_UZVzgR24pGWUZy
+  TDSK_STRIPE_PRICE_ID_TEAM: price_1TaMx5LEbJ9auQdLknSgo9Q3
+  TDSK_STRIPE_SEAT_PRICE_ID_TEAM: price_1TaNv3LEbJ9auQdLgtT8zdgK
