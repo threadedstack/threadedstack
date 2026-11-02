@@ -28,6 +28,7 @@
       "TSCD",
       "TSCP"
     ],
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "explorerExcludeManager.backup": {}
   }
 }
